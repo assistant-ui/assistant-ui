@@ -22,6 +22,8 @@ overrides:
   '@earendil-works/pi-coding-agent>undici': ^8.12.2
   guarded-fetch>undici: ^7.30.1
   miniflare>undici: ^7.30.1
+  # agents 0.20.x (via @flue/vite 2.3.0, the latest) pins this peer to 1.30.0.
+  '@modelcontextprotocol/sdk': ^1.32.2
 
 verifyDepsBeforeRun: install
 

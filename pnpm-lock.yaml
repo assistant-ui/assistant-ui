@@ -170,6 +170,7 @@ overrides:
   '@earendil-works/pi-coding-agent>undici': ^8.12.2
   guarded-fetch>undici: ^7.30.1
   miniflare>undici: ^7.30.1
+  '@modelcontextprotocol/sdk': ^1.32.2
 
 importers:
 
@@ -225,7 +226,7 @@ importers:
         version: 4.0.157(react@19.3.1)(zod@4.6.7)
       '@earendil-works/pi-coding-agent':
         specifier: ^1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)
       '@farming-labs/docs':
         specifier: 0.2.137
         version: 0.2.137(react@19.3.1)(supports-color@10.2.2)
@@ -503,7 +504,7 @@ importers:
         version: 2.12.0(@opentelemetry/api@1.10.0)
       '@posthog/ai':
         specifier: ^8.16.3
-        version: 8.16.3(bb90ba0a9f15a536a51346b01e91b506)
+        version: 8.16.3(cbcc4b6b2719d7ef74914dd0e7c050a5)
       '@shikijs/transformers':
         specifier: ^4.5.0
         version: 4.5.0
@@ -2284,7 +2285,7 @@ importers:
         version: link:../../packages/ui
       '@flue/runtime':
         specifier: ^2.3.0
-        version: 2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+        version: 2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
       '@hono/node-server':
         specifier: ^2.1.5
         version: 2.1.5(hono@4.13.14)
@@ -2306,7 +2307,7 @@ importers:
         version: link:../../packages/x-buildutils
       '@flue/vite':
         specifier: ^2.3.0
-        version: 2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.14)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)
+        version: 2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.14)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -2436,7 +2437,7 @@ importers:
         version: link:../../packages/ui
       '@google/adk':
         specifier: ^2.3.0
-        version: 2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
+        version: 2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3151,16 +3152,16 @@ importers:
         version: link:../../packages/ui
       '@openuidev/assistant-ui':
         specifier: ^0.2.0
-        version: 0.2.0(212c609fa92708eff80db301b6306ceb)
+        version: 0.2.0(ad0726034f51990aa0e54aba5348620f)
       '@openuidev/react-headless':
         specifier: ^0.18.1
         version: 0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))
       '@openuidev/react-lang':
         specifier: ^1.0.1
-        version: 1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+        version: 1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       '@openuidev/react-ui':
         specifier: ^0.18.1
-        version: 0.18.1(@openuidev/react-headless@0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))))(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))
+        version: 0.18.1(@openuidev/react-headless@0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))))(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))
       ai:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
@@ -3233,7 +3234,7 @@ importers:
         version: link:../../packages/ui
       '@earendil-works/pi-coding-agent':
         specifier: ^1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -5392,7 +5393,7 @@ importers:
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
-        version: 2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
+        version: 2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
@@ -5962,7 +5963,7 @@ importers:
         version: link:../x-react18
       '@earendil-works/pi-coding-agent':
         specifier: ^1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -9663,7 +9664,7 @@ packages:
       '@mikro-orm/mysql': ^7.2.0
       '@mikro-orm/postgresql': ^7.2.0
       '@mikro-orm/sqlite': ^7.2.0
-      '@modelcontextprotocol/sdk': ^1.26.0
+      '@modelcontextprotocol/sdk': ^1.32.2
       express: ^4.22.1 || ^5.1.0
     peerDependenciesMeta:
       '@google-cloud/opentelemetry-cloud-monitoring-exporter':
@@ -9693,7 +9694,7 @@ packages:
     resolution: {integrity: sha512-gwSvbpiN/17O9TbsqSsE/OzZcpv5Fo4RQjdngGgogtuB9RsyJ8ZHhX5KjHj1bp5N9snN2eK8LDGXSaWW2hof8Q==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
-      '@modelcontextprotocol/sdk': ^1.25.2
+      '@modelcontextprotocol/sdk': ^1.32.2
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
@@ -9702,7 +9703,7 @@ packages:
     resolution: {integrity: sha512-+PDtco2/Z0ONdzCGekCoCT+O1VJS9xJQNN4XzQpXG/t3El/SWWMkCWlFRO1KmivOHPa4Q0VjUYu1HBKCZ/v33Q==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
-      '@modelcontextprotocol/sdk': ^1.25.2
+      '@modelcontextprotocol/sdk': ^1.32.2
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
@@ -9711,7 +9712,7 @@ packages:
     resolution: {integrity: sha512-u1fw0qEiuWwNcjZixJFRfQF0awQnHb/rBBQUeiYGF+nmTXQCvcgpR2UMhKU9KNdnZdYhahY5jwS6nJ2V2tGtDA==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
-      '@modelcontextprotocol/sdk': ^1.25.2
+      '@modelcontextprotocol/sdk': ^1.32.2
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
@@ -10494,8 +10495,8 @@ packages:
     peerDependencies:
       '@modelcontextprotocol/server': ^2.4.0
 
-  '@modelcontextprotocol/sdk@1.30.0':
-    resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
+  '@modelcontextprotocol/sdk@1.32.2':
+    resolution: {integrity: sha512-SWsVtH/0vULSQStoZ6xxH2K09Li8fXYTMC64ZeogCdpZ3XSi1eCPOByV1OpuJxuI3OcmHhosDWYyii07tpPsLw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -11071,7 +11072,7 @@ packages:
   '@openuidev/lang-core@1.0.1':
     resolution: {integrity: sha512-4vBa7FRM6C4v4aCvBAmAtTgFWiEQiNTazG9h4Xy9fC6P/p6+9kZu4RdTyLToBEvdxrYn/gDy/PakEH8PU3lUcw==}
     peerDependencies:
-      '@modelcontextprotocol/sdk': '>=1.0.0'
+      '@modelcontextprotocol/sdk': ^1.32.2
       zod: ^3.25.0 || ^4.0.0
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
@@ -11093,7 +11094,7 @@ packages:
   '@openuidev/react-lang@1.0.1':
     resolution: {integrity: sha512-jt5AKWyKe73BjD+bRC2kKerHCeAurI/D9KMQvbi736963D2lehpPGAvVGoxAN4MG6sM/7OOlfWvErQBPPPx30A==}
     peerDependencies:
-      '@modelcontextprotocol/sdk': '>=1.0.0'
+      '@modelcontextprotocol/sdk': ^1.32.2
       react: '*'
       react-dom: '*'
       zod: ^3.25.0 || ^4.0.0
@@ -15432,7 +15433,7 @@ packages:
       '@ai-sdk/react': ^3.0.0 || ^4.0.0
       '@cloudflare/codemode': '>=0.5.0'
       '@modelcontextprotocol/client': 2.0.0
-      '@modelcontextprotocol/sdk': 1.30.0
+      '@modelcontextprotocol/sdk': ^1.32.2
       '@modelcontextprotocol/server': 2.0.0
       '@tanstack/ai': '>=0.10.2 <1.0.0'
       '@x402/core': ^2.0.0
@@ -25432,9 +25433,9 @@ snapshots:
 
   '@dxup/unimport@0.1.2': {}
 
-  '@earendil-works/pi-agent-core@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-agent-core@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
       typebox: 1.3.27
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
@@ -25449,12 +25450,12 @@ snapshots:
       - ws
       - zod
 
-  '@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)':
     dependencies:
       '@anthropic-ai/sdk': 0.129.0(zod@4.6.7)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
       '@earendil-works/pi-telemetry': 1.4.0
-      '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
+      '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0(supports-color@10.2.2)
       https-proxy-agent: 9.1.0(supports-color@10.2.2)
@@ -25478,10 +25479,10 @@ snapshots:
     dependencies:
       quickjs-wasi: 3.6.2
 
-  '@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)':
+  '@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-agent-core': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
-      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-agent-core': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-codemode': 1.4.0
       '@earendil-works/pi-mcp': 1.4.0
       '@earendil-works/pi-tui': 1.4.0
@@ -26584,10 +26585,10 @@ snapshots:
       '@flue/sdk': 2.3.0
       react: 19.3.1
 
-  '@flue/runtime@2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)':
+  '@flue/runtime@2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@earendil-works/pi-agent-core': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
-      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-agent-core': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+      '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
       '@hono/node-server': 2.1.5(hono@4.13.14)
       '@modelcontextprotocol/client': 2.0.0
       '@valibot/to-json-schema': 1.8.0(valibot@1.5.0(typescript@7.0.2))
@@ -26613,11 +26614,11 @@ snapshots:
     dependencies:
       '@durable-streams/client': 0.2.7
 
-  '@flue/vite@2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.14)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)':
+  '@flue/vite@2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.14)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
-      '@flue/runtime': 2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
+      '@flue/runtime': 2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@8.12.3)(ws@8.22.0)(zod@4.6.7)
       '@hono/node-server': 2.1.5(hono@4.13.14)
-      agents: 0.20.1(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(ai@7.0.153(zod@4.6.7))(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(zod@4.6.7)
+      agents: 0.20.1(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(ai@7.0.153(zod@4.6.7))(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(zod@4.6.7)
       magic-string: 1.4.4
       tinyglobby: 0.2.17
       ulidx: 2.4.1
@@ -26714,9 +26715,9 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@google-cloud/vertexai@1.12.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
+  '@google-cloud/vertexai@1.12.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
     dependencies:
-      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
+      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
       google-auth-library: 9.15.1(supports-color@10.2.2)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
@@ -26725,11 +26726,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@google/adk@2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)':
+  '@google/adk@2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)':
     dependencies:
       '@a2a-js/sdk': 0.3.14(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(express@5.3.0(supports-color@10.2.2))
-      '@google-cloud/vertexai': 1.12.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
-      '@google/genai': 2.31.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
+      '@google-cloud/vertexai': 1.12.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
+      '@google/genai': 2.31.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
       '@mikro-orm/core': 7.2.5(dataloader@2.2.3)
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/api-logs': 0.222.0
@@ -26752,7 +26753,7 @@ snapshots:
       zod: 4.6.7
       zod-to-json-schema: 3.25.2(zod@4.6.7)
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
       dockerode: 5.0.1(supports-color@10.2.2)
       express: 5.3.0(supports-color@10.2.2)
     transitivePeerDependencies:
@@ -26764,40 +26765,40 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@google/genai@1.52.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
+  '@google/genai@1.52.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
     dependencies:
       google-auth-library: 10.9.1(supports-color@10.2.2)
       p-retry: 4.6.2
       protobufjs: 7.6.6
       ws: 8.22.0
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
       - utf-8-validate
 
-  '@google/genai@2.21.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
+  '@google/genai@2.21.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
     dependencies:
       google-auth-library: 10.9.1(supports-color@10.2.2)
       p-retry: 4.6.2
       protobufjs: 7.6.6
       ws: 8.22.0
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
       - utf-8-validate
 
-  '@google/genai@2.31.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
+  '@google/genai@2.31.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)':
     dependencies:
       google-auth-library: 10.9.1(supports-color@10.2.2)
       p-retry: 4.6.2
       protobufjs: 7.6.6
       ws: 8.22.0
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -27675,7 +27676,7 @@ snapshots:
       '@modelcontextprotocol/server': 2.4.0
       hono: 4.13.14
 
-  '@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)':
+  '@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)':
     dependencies:
       '@hono/node-server': 2.1.5(hono@4.13.14)
       ajv: 8.20.0
@@ -28983,12 +28984,12 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
-  '@openuidev/assistant-ui@0.2.0(212c609fa92708eff80db301b6306ceb)':
+  '@openuidev/assistant-ui@0.2.0(ad0726034f51990aa0e54aba5348620f)':
     dependencies:
       '@assistant-ui/react': link:packages/react
       '@openuidev/react-headless': 0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))
-      '@openuidev/react-lang': 1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
-      '@openuidev/react-ui': 0.18.1(@openuidev/react-headless@0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))))(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))
+      '@openuidev/react-lang': 1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      '@openuidev/react-ui': 0.18.1(@openuidev/react-headless@0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))))(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
       zod: 4.6.7
@@ -28996,21 +28997,21 @@ snapshots:
     optionalDependencies:
       ai: 7.0.153(zod@4.6.7)
 
-  '@openuidev/devtools@0.3.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@openuidev/devtools@0.3.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@openuidev/observability': 0.0.4
       lucide-react: 0.575.0(react@19.3.1)
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
     optionalDependencies:
-      '@openuidev/react-lang': 1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      '@openuidev/react-lang': 1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
 
-  '@openuidev/lang-core@1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(zod@4.6.7)':
+  '@openuidev/lang-core@1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(zod@4.6.7)':
     dependencies:
       ci-info: 4.4.0
       zod: 4.6.7
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
 
   '@openuidev/observability@0.0.4': {}
 
@@ -29023,22 +29024,22 @@ snapshots:
     optionalDependencies:
       ai: 7.0.153(zod@4.6.7)
 
-  '@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)':
+  '@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)':
     dependencies:
-      '@openuidev/devtools': 0.3.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@openuidev/lang-core': 1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(zod@4.6.7)
+      '@openuidev/devtools': 0.3.0(@openuidev/observability@0.0.4)(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@openuidev/lang-core': 1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(zod@4.6.7)
       '@openuidev/observability': 0.0.4
       react: 19.3.1
       zod: 4.6.7
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
       react-dom: 19.3.1(react@19.3.1)
 
-  '@openuidev/react-ui@0.18.1(@openuidev/react-headless@0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))))(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))':
+  '@openuidev/react-ui@0.18.1(@openuidev/react-headless@0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))))(@openuidev/react-lang@1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))':
     dependencies:
       '@floating-ui/react-dom': 2.1.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@openuidev/react-headless': 0.18.1(ai@7.0.153(zod@4.6.7))(react@19.3.1)(zustand@5.0.16(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)))
-      '@openuidev/react-lang': 1.0.1(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      '@openuidev/react-lang': 1.0.1(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       '@radix-ui/react-accordion': 1.3.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@radix-ui/react-aspect-ratio': 1.2.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@radix-ui/react-checkbox': 1.4.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -29633,7 +29634,7 @@ snapshots:
 
   '@poppinss/exception@1.2.3': {}
 
-  '@posthog/ai@8.16.3(bb90ba0a9f15a536a51346b01e91b506)':
+  '@posthog/ai@8.16.3(cbcc4b6b2719d7ef74914dd0e7c050a5)':
     dependencies:
       '@posthog/core': 1.60.1
       posthog-node: 5.57.2(@opentelemetry/api@1.10.0)(rxjs@7.8.2)
@@ -29642,8 +29643,8 @@ snapshots:
     optionalDependencies:
       '@ai-sdk/provider': 4.0.34
       '@anthropic-ai/sdk': 0.129.0(zod@4.6.7)
-      '@google/adk': 2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
-      '@google/genai': 2.31.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
+      '@google/adk': 2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
+      '@google/genai': 2.31.0(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(supports-color@10.2.2)
       '@langchain/core': 1.3.0(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(openai@7.43.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(google-auth-library@10.9.1(supports-color@10.2.2))(undici@8.12.3)(ws@8.22.0)(zod@4.6.7))(ws@8.22.0)
       '@opentelemetry/api': 1.10.0
       '@opentelemetry/exporter-trace-otlp-http': 0.300.0(@opentelemetry/api@1.10.0)
@@ -33365,12 +33366,12 @@ snapshots:
       prompts: 2.4.2
       yaml: 2.9.1
 
-  agents@0.20.1(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(ai@7.0.153(zod@4.6.7))(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(zod@4.6.7):
+  agents@0.20.1(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.0.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.0.0)(ai@7.0.153(zod@4.6.7))(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.15)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(zod@4.6.7):
     dependencies:
       '@babel/plugin-proposal-decorators': 8.0.2(@babel/core@8.0.9)
       '@cfworker/json-schema': 4.1.1
       '@modelcontextprotocol/client': 2.0.0
-      '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
+      '@modelcontextprotocol/sdk': 1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)
       '@modelcontextprotocol/server': 2.0.0
       '@rolldown/plugin-babel': 0.2.4(@babel/core@8.0.9)(@babel/runtime@8.0.8)(rolldown@1.2.15)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
       cron-schedule: 6.0.0
