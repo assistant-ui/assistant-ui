@@ -8,7 +8,9 @@ function isSameOriginPost(request: Request): boolean {
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite !== null) return fetchSite === "same-origin";
   const origin = request.headers.get("origin");
-  if (origin === null) return true;
+  // Every current browser sends Origin on a POST, so a POST with neither
+  // header is refused rather than assumed to be from this site.
+  if (origin === null) return false;
   try {
     return new URL(origin).origin === new URL(request.url).origin;
   } catch {

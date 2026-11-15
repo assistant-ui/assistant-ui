@@ -42,10 +42,17 @@ const UMAMI_ORIGIN = "https://assistant-ui-umami.vercel.app";
 const UMAMI_PATHS = new Set(["/umami/script.js", "/umami/api/send"]);
 const POSTHOG_ASSETS_ORIGIN = "https://us-assets.i.posthog.com";
 const POSTHOG_ORIGIN = "https://us.i.posthog.com";
-const STRIPPED_ANALYTICS_HEADERS = [
-  "cookie",
-  "authorization",
-  "x-assistant-ui-anonymous-session",
+// The only request headers the analytics hosts receive. Everything else,
+// including cookies, authorization, referer and the anonymous session header,
+// stays on this site.
+const FORWARDED_ANALYTICS_HEADERS = [
+  "accept",
+  "accept-encoding",
+  "accept-language",
+  "content-type",
+  "user-agent",
+  "x-forwarded-for",
+  "x-real-ip",
 ];
 
 // Assigning the path keeps the host fixed; resolving the path as a relative
@@ -73,8 +80,11 @@ function analyticsDestination(url: URL): URL | null | undefined {
 }
 
 function proxyAnalytics(request: NextRequest, destination: URL) {
-  const headers = new Headers(request.headers);
-  for (const name of STRIPPED_ANALYTICS_HEADERS) headers.delete(name);
+  const headers = new Headers();
+  for (const name of FORWARDED_ANALYTICS_HEADERS) {
+    const value = request.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
   return NextResponse.rewrite(destination, { request: { headers } });
 }
 

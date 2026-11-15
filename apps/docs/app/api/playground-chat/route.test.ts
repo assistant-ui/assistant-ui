@@ -262,15 +262,20 @@ describe("POST /api/playground-chat builder config", () => {
     expect(mocks.streamText).not.toHaveBeenCalled();
   });
 
-  it("rejects an oversized config", async () => {
-    const response = await POST(
-      request({ builderConfig: { customCSS: "x".repeat(10_001) } }),
-    );
+  it.each([
+    ["a known field", { customCSS: "x".repeat(10_001) }],
+    ["a key the schema drops", { unknownKey: "x".repeat(10_001) }],
+  ])(
+    "rejects an oversized config in %s before model selection",
+    async (_label, builderConfig) => {
+      const response = await POST(request({ builderConfig }));
 
-    expect(response.status).toBe(400);
-    await expect(response.text()).resolves.toBe("Config too large");
-    expect(mocks.streamText).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(400);
+      await expect(response.text()).resolves.toBe("Config too large");
+      expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+      expect(mocks.streamText).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("POST /api/playground-chat access boundary", () => {

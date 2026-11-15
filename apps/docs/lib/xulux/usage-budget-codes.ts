@@ -4,6 +4,7 @@ export type BudgetDenyCode =
   | "CHAT_TURN_LIMIT"
   | "CHAT_BUDGET_EXCEEDED"
   | "DAILY_BUDGET_EXCEEDED"
+  | "NETWORK_DAILY_BUDGET_EXCEEDED"
   | "DAILY_CHAT_LIMIT";
 
 export type BudgetLimits = {
@@ -104,11 +105,13 @@ export function evaluateBudget(
   snap: BudgetSnapshot,
   limits: BudgetLimits,
 ): BudgetDenyCode | null {
+  if (snap.dailySpentMicroUsd >= limits.dailyBudgetMicroUsd) {
+    return "DAILY_BUDGET_EXCEEDED";
+  }
   if (
-    snap.dailySpentMicroUsd >= limits.dailyBudgetMicroUsd ||
     (snap.networkDailySpentMicroUsd ?? 0) >= limits.networkDailyBudgetMicroUsd
   ) {
-    return "DAILY_BUDGET_EXCEEDED";
+    return "NETWORK_DAILY_BUDGET_EXCEEDED";
   }
   if (snap.sessionTurns >= limits.maxTurnsPerChat) {
     return "CHAT_TURN_LIMIT";
@@ -133,13 +136,19 @@ export function budgetDenyMessage(
       return `This chat reached the ~$${limits.chatBudgetMicroUsd / 1_000_000} usage limit. Start a new chat to continue.`;
     case "DAILY_BUDGET_EXCEEDED":
       return `Daily usage limit reached (~$${limits.dailyBudgetMicroUsd / 1_000_000}). Try again tomorrow.`;
+    case "NETWORK_DAILY_BUDGET_EXCEEDED":
+      return "The daily usage limit for your network has been reached. Try again tomorrow.";
     case "DAILY_CHAT_LIMIT":
       return `You reached the ${limits.maxChatsPerDay}-chat limit for today. Try again tomorrow.`;
   }
 }
 
 export function isDailyLimitCode(code: BudgetDenyCode): boolean {
-  return code === "DAILY_BUDGET_EXCEEDED" || code === "DAILY_CHAT_LIMIT";
+  return (
+    code === "DAILY_BUDGET_EXCEEDED" ||
+    code === "NETWORK_DAILY_BUDGET_EXCEEDED" ||
+    code === "DAILY_CHAT_LIMIT"
+  );
 }
 
 export function utcDateKey(date = new Date()): string {

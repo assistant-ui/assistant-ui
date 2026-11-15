@@ -28,6 +28,7 @@ describe("auth route", () => {
     ["a same-site form", { "sec-fetch-site": "same-site" }],
     ["a foreign Origin", { origin: "https://example.com" }],
     ["an unparsable Origin", { origin: "null" }],
+    ["a client with neither header", {}],
   ])("refuses a logout POST from %s", async (_label, headers) => {
     const response = await POST(logout(headers));
     expect(response.status).toBe(403);
@@ -37,7 +38,6 @@ describe("auth route", () => {
   it.each([
     ["a same-origin form", { "sec-fetch-site": "same-origin" }],
     ["its own Origin", { origin: "https://www.assistant-ui.com" }],
-    ["a client without browser headers", {}],
   ])("signs out on a POST from %s", async (_label, headers) => {
     const response = await POST(logout(headers));
     expect(response.status).toBe(303);

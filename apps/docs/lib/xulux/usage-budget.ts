@@ -81,15 +81,13 @@ type UsageBudgetStore = {
 };
 
 function pruneStaleMemoryDailyKeys(
-  dailySpent: Map<string, number>,
-  dailySessions: Map<string, Set<string>>,
   currentDate: string,
+  ...maps: Map<string, unknown>[]
 ) {
-  for (const key of dailySpent.keys()) {
-    if (!key.endsWith(`:${currentDate}`)) dailySpent.delete(key);
-  }
-  for (const key of dailySessions.keys()) {
-    if (!key.endsWith(`:${currentDate}`)) dailySessions.delete(key);
+  for (const map of maps) {
+    for (const key of map.keys()) {
+      if (!key.endsWith(`:${currentDate}`)) map.delete(key);
+    }
   }
 }
 
@@ -103,7 +101,7 @@ function createMemoryStore(): UsageBudgetStore {
 
   return {
     async loadSnapshot(sessionId, distinctId, date) {
-      pruneStaleMemoryDailyKeys(dailySpent, dailySessions, date);
+      pruneStaleMemoryDailyKeys(date, dailySpent, dailySessions, networkSpent);
       const sessionTurns = turns.get(sessionId) ?? 0;
       return {
         sessionTurns,
@@ -140,9 +138,6 @@ function createMemoryStore(): UsageBudgetStore {
       dailySpent.set(dayKey, (dailySpent.get(dayKey) ?? 0) + microUsd);
     },
     async loadNetworkSpent(networkId, date) {
-      for (const key of networkSpent.keys()) {
-        if (!key.endsWith(`:${date}`)) networkSpent.delete(key);
-      }
       return networkSpent.get(`${networkId}:${date}`) ?? 0;
     },
     async addNetworkSpend(networkId, date, microUsd) {

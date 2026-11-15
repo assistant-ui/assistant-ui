@@ -34,6 +34,8 @@ describe("proxy", () => {
         authorization: "Bearer token",
         "x-assistant-ui-anonymous-session": "session",
         "content-type": "application/json",
+        referer: "https://www.assistant-ui.com/private?token=x",
+        "x-custom": "value",
       },
       ...(method === "POST" ? { body: "{}" } : {}),
     });
@@ -63,6 +65,8 @@ describe("proxy", () => {
       "cookie",
       "authorization",
       "x-assistant-ui-anonymous-session",
+      "referer",
+      "x-custom",
     ]) {
       expect(overridden).not.toContain(name);
       expect(response.headers.has(`x-middleware-request-${name}`)).toBe(false);

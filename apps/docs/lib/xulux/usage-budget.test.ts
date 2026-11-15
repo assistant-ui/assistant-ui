@@ -68,7 +68,9 @@ describe("xulux usage budget", () => {
     expect(await spend(budget, "session-c", "203.0.113.7", 1)).toBeNull();
 
     const denied = await spend(budget, "session-d", "203.0.113.7", 1);
-    expect((await denied!.json()).code).toBe("DAILY_BUDGET_EXCEEDED");
+    const body = await denied!.json();
+    expect(body.code).toBe("NETWORK_DAILY_BUDGET_EXCEEDED");
+    expect(body.error).not.toContain("$");
   });
 
   it("keeps other IPs and requests without a known IP apart", async () => {

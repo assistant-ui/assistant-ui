@@ -227,6 +227,11 @@ export async function POST(req: Request) {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return toolsError;
 
+    // The size cap applies to the config as sent, before parsing drops
+    // unknown keys, and again to what reaches the prompt.
+    if ((JSON.stringify(builderConfig ?? {}) ?? "").length > 10_000) {
+      return new Response("Config too large", { status: 400 });
+    }
     // Only the config fields the playground knows reach the prompt, with
     // their declared types; anything else is dropped or refused.
     const parsedConfig = updateConfigSchema.safeParse(builderConfig ?? {});
