@@ -28,6 +28,12 @@ describe("stored part guards", () => {
       { ...file, filename: "a", sourceType: "url" },
     ],
     ["an image with a filename", { ...image, filename: "a.png" }],
+    [
+      "a file with a null filename and source type",
+      { ...file, filename: null, sourceType: null },
+    ],
+    ["an image with a null filename", { ...image, filename: null }],
+    ["a url source with a null title", { ...urlSource, title: null }],
     ["a url source", urlSource],
     ["a url source with a title", { ...urlSource, title: "A" }],
     ["a document source", documentSource],
@@ -38,6 +44,8 @@ describe("stored part guards", () => {
   ])("keeps %s", (_label, part) => {
     expect(isStoredMessagePart(part)).toBe(true);
     expect(isStoredAuiV0RolePart("assistant", part)).toBe(true);
+    if (part.type !== "source")
+      expect(isStoredAuiV0RolePart("user", part)).toBe(true);
   });
 
   it.each([
@@ -52,5 +60,6 @@ describe("stored part guards", () => {
   ])("drops %s", (_label, part) => {
     expect(isStoredMessagePart(part)).toBe(false);
     expect(isStoredAuiV0RolePart("assistant", part)).toBe(false);
+    expect(isStoredAuiV0RolePart("user", part)).toBe(false);
   });
 });

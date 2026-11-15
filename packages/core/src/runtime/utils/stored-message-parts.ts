@@ -12,8 +12,9 @@ export const MAX_STORED_MESSAGE_DEPTH = 100;
 
 type StoredPartGuard = (part: Record<string, unknown>) => boolean;
 
+/** Absent, `null` (common from nullable JSON columns) or a string. */
 const isOptionalString = (value: unknown) =>
-  value === undefined || typeof value === "string";
+  value == null || typeof value === "string";
 
 export type StoredMessagePart = Record<string, unknown> & { type: string };
 
@@ -100,7 +101,7 @@ const makeIsStoredMessagePart = (
       typeof part.data === "string" &&
       typeof part.mimeType === "string" &&
       isOptionalString(part.filename) &&
-      (part.sourceType === undefined ||
+      (part.sourceType == null ||
         part.sourceType === "url" ||
         part.sourceType === "id"),
     audio: (part) =>
