@@ -404,12 +404,9 @@ describe("StreamdownTextPrimitive", () => {
     describe("in-page links", () => {
       beforeEach(() => {
         window.location.hash = "";
+        (document.activeElement as HTMLElement | null)?.blur?.();
       });
-      // The element the URL fragment now names.
-      const targeted = () =>
-        document.getElementById(
-          decodeURIComponent(window.location.hash.slice(1)),
-        );
+      const targeted = () => document.activeElement;
 
       const clickLink = (container: HTMLElement, text: string) => {
         const anchor = [...container.querySelectorAll("a")].find(
@@ -424,7 +421,7 @@ describe("StreamdownTextPrimitive", () => {
         return event;
       };
 
-      it("navigates to the prefixed target across streamed blocks", () => {
+      it("moves to the prefixed target across streamed blocks", () => {
         const { container } = render(
           <TextMessagePartProvider
             text={
@@ -443,9 +440,10 @@ describe("StreamdownTextPrimitive", () => {
         expect(targeted()?.textContent).toBe("A");
         expect(clickLink(container, "to B").defaultPrevented).toBe(true);
         expect(targeted()?.textContent).toBe("B");
+        expect(window.location.hash).toBe("");
       });
 
-      it("navigates footnote links to their footnote, not a model id", () => {
+      it("moves footnote links to their footnote, not a model id", () => {
         const { container } = render(
           <TextMessagePartProvider
             text={'Claim[^1]\n\n<span id="fn-1">decoy</span>\n\n[^1]: Source'}
@@ -469,6 +467,7 @@ describe("StreamdownTextPrimitive", () => {
           new MouseEvent("click", { bubbles: true, cancelable: true }),
         );
         expect(targeted()).toBe(ref);
+        expect(ref?.getAttribute("tabindex")).toBe(null);
       });
 
       it("leaves links to ids from user plugins to the browser", () => {

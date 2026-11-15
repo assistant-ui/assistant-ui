@@ -106,9 +106,11 @@ const streamdownSanitizeSchema: SanitizeSchema = {
  * In-page links keep the `#id` the markdown wrote, while the sanitize step
  * prefixes the ids they point at. Streamdown renders each block on its own, so
  * a link and its target are often in different trees and cannot be matched
- * while rendering. A click on `#id` navigates to `#user-content-id` when the
- * message has that id, so focus, history and `:target` behave as for any
- * fragment link. The prefixed id wins over an exact match, because the exact
+ * while rendering. A click on `#id` moves focus and scroll to
+ * `user-content-id` when the message has that id. It leaves the URL alone, so
+ * a host's hash router is not affected. Only plain anchors get here: with
+ * `linkSafety` on (the default), Streamdown renders links as buttons. The
+ * prefixed id wins over an exact match, because the exact
  * match is usually a different model id that sanitize prefixed (footnotes are
  * the common case). Otherwise the browser handles the link as written, which
  * reaches ids a custom plugin added unprefixed.
@@ -133,14 +135,18 @@ function followPrefixedFragment(event: ReactMouseEvent<HTMLDivElement>) {
     return;
   }
   if (!id) return;
-  const ids = new Set(
-    [...event.currentTarget.querySelectorAll("[id]")].map(
-      (element) => element.id,
-    ),
+  const target = [...event.currentTarget.querySelectorAll("[id]")].find(
+    (element) => element.id === CLOBBER_PREFIX + id,
   );
-  if (!ids.has(CLOBBER_PREFIX + id)) return;
+  if (!(target instanceof HTMLElement)) return;
   event.preventDefault();
-  window.location.hash = CLOBBER_PREFIX + id;
+  // Elements that cannot take focus get tabindex -1, which makes them a
+  // focus target without adding them to the tab order.
+  if (target.tabIndex < 0 && !target.hasAttribute("tabindex")) {
+    target.tabIndex = -1;
+  }
+  target.focus({ preventScroll: true });
+  target.scrollIntoView?.();
 }
 
 function buildSecuritySanitizeSchema(
