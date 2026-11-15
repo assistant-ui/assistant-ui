@@ -2763,7 +2763,7 @@ test("a compare that fails, diverges or is cut short leaves its approvals stale"
   );
 });
 
-test("the comment says which approvals carried over and which protected paths made others stale", async () => {
+test("the comment says which approvals carried over and which later paths made others stale", async () => {
   const recording = fakeClient({
     pr: tapPullRequest({
       reviews: {
@@ -2791,8 +2791,8 @@ test("the comment says which approvals carried over and which protected paths ma
   const comment = renderComment(await evaluationFor(recording), policy);
   for (const expected of [
     "Kinfe123 counted",
-    "Kinfe123 carried over (approved `abcdef1`, later commits touch no protected paths)",
-    "okisdev ignored (approved an older head; later commits touch `api-surface/assistant-ui__tap.ts`, `packages/store/src/c.ts`, `packages/tap/src/a.ts` and 1 more protected path)",
+    "Kinfe123 carried over (approved `abcdef1`, later commits stay within T0)",
+    "okisdev ignored (approved an older head; later commits change `api-surface/assistant-ui__tap.ts`, `packages/store/src/c.ts`, `packages/tap/src/a.ts` and 1 more path, which need a fresh approval)",
     "Yonom ignored (approved an older head, could not compare it with the head)",
   ]) {
     assert.ok(comment.includes(expected), `${expected}\n${comment}`);
