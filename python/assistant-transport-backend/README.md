@@ -57,7 +57,7 @@ python main.py
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-`HOST` applies to the first two commands. The uvicorn command ignores it and uses its own `--host`, so change that flag for remote access.
+`HOST` applies to the first two commands. The uvicorn command ignores it and uses its own `--host`, so change that flag for remote access. Browser clients on another machine also need their frontend origin in `CORS_ORIGINS`.
 
 The server will be available at:
 - **API**: http://localhost:8000
