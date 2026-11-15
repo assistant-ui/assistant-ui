@@ -44,8 +44,8 @@ minimumReleaseAgeExclude:
   - '@farming-labs/farmjs@0.2.145'
   - '@farming-labs/theme@0.2.145'
   - '@farming-labs/next@0.2.145'
-  - '@farm.js/core@0.1.72'
-  - '@farm.js/cli@0.1.72'
+  - '@farm.js/core@0.1.73'
+  - '@farm.js/cli@0.1.73'
   - '@lexical/a11y@0.53.0'
   - '@lexical/clipboard@0.53.0'
   - '@lexical/code-core@0.53.0'
@@ -104,5 +104,3 @@ allowBuilds:
   ssh2: false
   vue-demi: false
   workerd@1.20261019.1: true
-patchedDependencies:
-  '@farm.js/core@0.1.72': patches/@farm.js__core@0.1.72.patch
