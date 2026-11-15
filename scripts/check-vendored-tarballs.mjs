@@ -22,7 +22,28 @@ export function readPackedManifest(archive) {
   let manifest;
   for (let offset = 0; offset + 512 <= tar.length;) {
     const header = tar.subarray(offset, offset + 512);
-    if (header.every((byte) => byte === 0)) break;
+    // node-tar ends the archive only at two empty blocks in a row and keeps
+    // reading after a single one, so an entry after one empty block counts.
+    if (header.every((byte) => byte === 0)) {
+      const next = tar.subarray(offset + 512, offset + 1024);
+      if (next.length === 512 && !next.every((byte) => byte === 0)) {
+        throw new Error("it has an entry after an empty block");
+      }
+      break;
+    }
+    // An extractor may skip a header with a bad checksum and read the next
+    // one, so the entries it sees could differ from the ones read here.
+    let sum = 0;
+    for (let index = 0; index < 512; index += 1) {
+      sum += index >= 148 && index < 156 ? 0x20 : header[index];
+    }
+    const checksum = header
+      .subarray(148, 156)
+      .toString("latin1")
+      .replace(/[\0 ]+$/, "");
+    if (!/^[0-7]+$/.test(checksum) || Number.parseInt(checksum, 8) !== sum) {
+      throw new Error("it has a tar header with a bad checksum");
+    }
     const field = (start, length) =>
       header
         .subarray(start, start + length)
@@ -55,9 +76,10 @@ export function readPackedManifest(archive) {
     // npm pack writes canonical names under package/, so any other spelling
     // (./, .., doubled or trailing slashes, backslashes) is rejected rather
     // than guessed at.
-    const canonical = name.replace(/\/$/, "");
+    const canonical = type === "5" ? name.replace(/\/$/, "") : name;
     if (
       name.includes("\\") ||
+      canonical.endsWith("/") ||
       path.posix.normalize(canonical) !== canonical ||
       !canonical.startsWith("package/")
     ) {

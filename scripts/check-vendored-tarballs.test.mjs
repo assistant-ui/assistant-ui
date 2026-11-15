@@ -15,12 +15,18 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const directory = "template/vendor";
 
 // A minimal ustar archive with one regular file per entry; an entry may set its
-// own type flag or raw size field.
+// own type flag, raw size field or checksum offset. A null entry writes one
+// empty block.
 function tar(entries) {
   const blocks = [];
-  for (const [name, content, options = {}] of Array.isArray(entries)
+  for (const entry of Array.isArray(entries)
     ? entries
     : Object.entries(entries)) {
+    if (entry === null) {
+      blocks.push(Buffer.alloc(512));
+      continue;
+    }
+    const [name, content, options = {}] = entry;
     const body = Buffer.from(content);
     const header = Buffer.alloc(512);
     header.write(name, 0, 100);
@@ -38,6 +44,7 @@ function tar(entries) {
     header.write(options.magic ?? "ustar\u000000", 257, "latin1");
     let sum = 0;
     for (const byte of header) sum += byte;
+    sum += options.checksumOffset ?? 0;
     header.write(`${sum.toString(8).padStart(6, "0")}\0 `, 148);
     blocks.push(header, body, Buffer.alloc((512 - (body.length % 512)) % 512));
   }
@@ -173,6 +180,34 @@ test("rejects any non-canonical spelling of an entry path", () => {
       name,
     );
   }
+});
+
+test("rejects an entry after a single empty block", () => {
+  const manifest = (version) => JSON.stringify({ name: "demo", version });
+  const archive = tar([
+    ["package/package.json", manifest("1.0.0")],
+    null,
+    ["package/package.json", manifest("6.6.6")],
+  ]);
+  assert.throws(() => readPackedManifest(archive), /after an empty block/);
+});
+
+test("rejects a header with a bad checksum", () => {
+  const archive = tar([
+    [
+      "package/package.json",
+      JSON.stringify({ name: "demo", version: "1.0.0" }),
+      { checksumOffset: 1 },
+    ],
+  ]);
+  assert.throws(() => readPackedManifest(archive), /bad checksum/);
+});
+
+test("rejects a trailing slash on a file entry", () => {
+  const archive = tar([
+    ["package/package.json/", JSON.stringify({ name: "demo", version: "1" })],
+  ]);
+  assert.throws(() => readPackedManifest(archive), /non-canonical entry name/);
 });
 
 test("rejects a directory entry in place of the manifest", () => {
