@@ -428,7 +428,7 @@ describe("toAdaptiveCard", () => {
       ]);
     });
 
-    it("breaks the bold, italic and list markers Teams renders in Diagram source", () => {
+    it("breaks the link, underscore italic and list markers in Diagram source", () => {
       const zeroWidthSpace = String.fromCharCode(0x200b);
       const { card } = toAdaptiveCard({
         $type: "Diagram",
@@ -438,7 +438,7 @@ describe("toAdaptiveCard", () => {
         (item) => (item as TeamsTextBlock).text,
       );
       expect(lines).toEqual([
-        `${zeroWidthSpace}- *${zeroWidthSpace}*bold*${zeroWidthSpace}* ${zeroWidthSpace}_it_ a_b`,
+        `${zeroWidthSpace}- **bold** ${zeroWidthSpace}_it_ a_b`,
         `${zeroWidthSpace}1. [x]${zeroWidthSpace}(https://e.com)`,
         "# a\\b `c` ~~d~~",
       ]);

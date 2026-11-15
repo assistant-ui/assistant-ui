@@ -211,12 +211,13 @@ function textBlock(text: string, extra?: TextBlockExtra): TeamsTextBlock {
 /**
  * Source code shown as written. Teams documents no backslash escapes, so the
  * markers it renders are broken with a zero-width space instead: links (via
- * `unlinked`), `**` bold, a word-initial `_` italic, and a leading list marker.
+ * `unlinked`), a word-initial `_` italic, and a leading list marker. A
+ * zero-width space can't break `*` emphasis under CommonMark, so `*` is left
+ * as is.
  */
 const literalMarkdown = (text: string): string => {
   const zeroWidthSpace = String.fromCharCode(0x200b);
   return unlinked(text)
-    .replace(/\*(?=\*)/g, `*${zeroWidthSpace}`)
     .replace(/(^|[^\p{L}\p{N}_])_/gu, `$1${zeroWidthSpace}_`)
     .replace(/^([-+*]|\d+\.)(?=\s|$)/, `${zeroWidthSpace}$1`);
 };
