@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runAgentSetup } from "setup-agent/sdk";
 import {
   clearSetupSession,
@@ -28,7 +28,11 @@ const fakeClient = vi.hoisted(() => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    dispose: () => {},
+    dispose: () => listeners.clear(),
+    reset: () => {
+      listeners.clear();
+      client.state = undefined;
+    },
     emit: (state: { status: string }) => {
       client.state = state;
       for (const listener of [...listeners]) listener();
@@ -56,6 +60,10 @@ vi.mock("setup-agent/sdk", () => ({
     };
   }),
 }));
+
+afterEach(() => {
+  fakeClient.reset();
+});
 
 describe("setup", () => {
   it("lists every agent, marks what it can start, and ends with Other agent", () => {
@@ -220,7 +228,7 @@ describe("setup", () => {
       );
       const exitListeners = process.listeners("exit");
       process.env = { PATH: env.PATH, CLAUDECODE: "1" };
-      fakeClient.state = undefined;
+      fakeClient.reset();
       try {
         await setup.parseAsync(["--no-open"], { from: "user" });
         expect(exit).not.toHaveBeenCalled();
@@ -240,7 +248,7 @@ describe("setup", () => {
         process.env = env;
         write.mockRestore();
         exit.mockRestore();
-        fakeClient.state = undefined;
+        fakeClient.reset();
       }
     },
   );
