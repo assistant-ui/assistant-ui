@@ -431,6 +431,18 @@ export class ToolInvocationTracker {
       this._deleteStatus(toolCallId);
   }
 
+  private _rejectHumanInput(toolCallId: string, reason: Error): void {
+    const handlers = this._humanInput.get(toolCallId);
+    if (!handlers) return;
+    this._humanInput.delete(toolCallId);
+    this._endHumanRequest(toolCallId, handlers.executionId);
+    try {
+      handlers.reject(reason);
+    } catch {
+      // host rejection handler threw; the request is already withdrawn
+    }
+  }
+
   /**
    * Resolve a pending human-input request for the given tool call. Returns
    * `true` if a pending request was resumed, `false` if the tracker has no
@@ -824,6 +836,15 @@ export class ToolInvocationTracker {
           }
           entry.argsText = content.argsText;
           shouldWriteArgsText = false;
+          // The execution holds the args it started with. A human() answer
+          // given while the UI shows the new args would authorize the old
+          // ones, so a pending request is rejected instead (A.4).
+          this._rejectHumanInput(
+            content.toolCallId,
+            new Error(
+              "Tool call arguments changed while waiting for human input",
+            ),
+          );
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {
         if (

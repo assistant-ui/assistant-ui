@@ -240,6 +240,14 @@ export class AcpThreadController {
     const next = reduceAcpThreadState(this.state, event);
     if (next === this.state) return;
     this.state = next;
+    // A prompt the reducer withdrew (its call changed under it) is answered as
+    // cancelled, so the agent never takes a decision on a call the user did
+    // not see.
+    for (const [approvalId, pending] of this.pendingPermissions) {
+      if (next.permissions[approvalId]) continue;
+      this.pendingPermissions.delete(approvalId);
+      pending.resolve({ outcome: "cancelled" });
+    }
     for (const listener of [...this.listeners]) {
       invokeUserCallback("acp", "subscribe", listener);
     }
