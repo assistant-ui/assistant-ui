@@ -34,7 +34,11 @@ vi.mock("setup-agent/sdk", () => ({
     return {
       session,
       stream: { stop: vi.fn(async () => {}) },
-      client: { dispose: vi.fn() },
+      client: {
+        state: undefined,
+        subscribe: () => () => {},
+        dispose: vi.fn(),
+      },
     };
   }),
 }));
@@ -215,7 +219,11 @@ describe("setup", () => {
       return {
         session,
         stream: { stop: vi.fn(async () => {}) },
-        client: { dispose: vi.fn() },
+        client: {
+          state: undefined,
+          subscribe: () => () => {},
+          dispose: vi.fn(),
+        },
       } as unknown as Awaited<ReturnType<typeof runAgentSetup>>;
     });
     process.env = { PATH: env.PATH, CLAUDECODE: "1" };

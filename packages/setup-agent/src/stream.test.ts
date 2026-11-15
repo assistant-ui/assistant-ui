@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { answerNeed } from "./needs";
 import { initialCheckoutState } from "./protocol";
 import type { Checkout } from "./protocol";
-import { followSetup } from "./stream";
+import { followSetup, stopWhenClosed } from "./stream";
 import type { StreamEvent } from "./stream";
 
 const PAGE = "https://setup.test/#link=abc&setup=s1";
@@ -221,5 +221,42 @@ describe("followSetup", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     expect(lines).toEqual([]);
     await stream.stop();
+  });
+});
+
+describe("stopWhenClosed", () => {
+  it("stops the stream once the setup is finished or cancelled, once", async () => {
+    vi.useFakeTimers();
+    try {
+      let state: Checkout.State = {
+        ...initialCheckoutState(),
+        id: "c1",
+        createdAt: 1,
+        status: "installing",
+      };
+      const listeners = new Set<() => void>();
+      const client = {
+        get state() {
+          return state;
+        },
+        subscribe: (listener: () => void) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      };
+      const stop = vi.fn();
+      stopWhenClosed(client, stop);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(stop).not.toHaveBeenCalled();
+      state = { ...state, status: "done" };
+      for (const listener of [...listeners]) listener();
+      for (const listener of [...listeners]) listener();
+      expect(stop).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(250);
+      expect(stop).toHaveBeenCalledOnce();
+      expect(listeners.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

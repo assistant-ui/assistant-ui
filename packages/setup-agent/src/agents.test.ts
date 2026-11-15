@@ -165,7 +165,7 @@ describe("findCommand and runCodingAgent", () => {
   });
 
   it.skipIf(process.platform === "win32")(
-    "skips a symlink from outside the project into it",
+    "skips a symlink into the project, and finds a global npm install",
     async () => {
       const root = await mkdtemp(join(tmpdir(), "setup-agent-link-"));
       onTestFinished(() => rm(root, { recursive: true, force: true }));
@@ -183,6 +183,17 @@ describe("findCommand and runCodingAgent", () => {
         join(linkedBinary, "fake-agent"),
       );
       const home = join(root, "home");
+      // A global npm install: bin/<agent> links into lib/node_modules.
+      const npmPackage = join(root, "prefix", "lib", "node_modules", "pkg");
+      const npmBin = join(root, "prefix", "bin");
+      await mkdir(npmPackage, { recursive: true });
+      await mkdir(npmBin, { recursive: true });
+      await writeFile(join(npmPackage, "cli.js"), "#!/bin/sh\nexit 0\n");
+      await chmod(join(npmPackage, "cli.js"), 0o755);
+      await symlink(join(npmPackage, "cli.js"), join(npmBin, "fake-agent"));
+      expect(findCommand(["fake-agent"], { PATH: npmBin }, project, home)).toBe(
+        join(npmBin, "fake-agent"),
+      );
       for (const entry of [linkedDirectory, linkedBinary]) {
         expect(
           findCommand(["fake-agent"], { PATH: entry }, project, home),

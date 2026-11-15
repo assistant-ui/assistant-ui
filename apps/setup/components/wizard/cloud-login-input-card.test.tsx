@@ -90,7 +90,7 @@ describe("CloudLoginInputCard", () => {
     } as unknown as Checkout.State;
     show(input(), context);
     expect(screen.getByTestId("agent-handoff").textContent).toBe(
-      "Signing in lets the coding agent that says it runs in /home/ada/app on Claude Code use your assistant-ui account.",
+      "Signing in lets the coding agent that says it runs in /home/ada/app on Claude Code, through checkout.test, use your assistant-ui account.",
     );
     const signIn = screen.getByRole<HTMLButtonElement>("button", {
       name: "Sign in",

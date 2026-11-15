@@ -214,21 +214,32 @@ const hasNodeModules = (path: string) =>
     .some((segment) => segment.toLowerCase() === "node_modules");
 
 /**
- * True for a path a project could have planted: one inside the working
- * directory, or in any `node_modules` directory (npx and package scripts put
- * `node_modules/.bin` first). Checked on the path as written and with symlinks
+ * True for a PATH directory a project could have planted: one inside the
+ * working directory, or any `node_modules` directory (npx and package scripts
+ * put `node_modules/.bin` first). Checked as written and with symlinks
  * resolved, so a link from outside the project into it doesn't pass.
  */
-const isProjectPath = (path: string, cwd: string, home: string) => {
-  const resolved = real(path);
+const isProjectDirectory = (directory: string, cwd: string, home: string) => {
+  const resolved = real(directory);
   if (resolved === undefined) return true;
+  return (
+    hasNodeModules(directory) ||
+    hasNodeModules(resolved) ||
+    isInProject(directory, cwd, home)
+  );
+};
+
+/**
+ * True for a path inside the working directory, as written or with symlinks
+ * resolved. Run from the home directory or above it, nothing counts as inside,
+ * or every bin directory would.
+ */
+const isInProject = (path: string, cwd: string, home: string) => {
   const root = real(cwd) ?? cwd;
-  // Run from the home directory or above it, everything would be "inside".
-  const checkInside = !isWithin(root, real(home) ?? home);
+  if (isWithin(root, real(home) ?? home)) return false;
+  const resolved = real(path) ?? path;
   return [path, resolved].some(
-    (candidate) =>
-      hasNodeModules(candidate) ||
-      (checkInside && (isWithin(cwd, candidate) || isWithin(root, candidate))),
+    (candidate) => isWithin(cwd, candidate) || isWithin(root, candidate),
   );
 };
 
@@ -260,9 +271,11 @@ export const findCommand = (
         } catch {
           continue;
         }
-        // The directory and the binary itself, symlinks resolved.
-        if (isProjectPath(directory, cwd, home)) continue;
-        if (isProjectPath(path, cwd, home)) continue;
+        // The directory, then where the binary really lives. A global npm
+        // install links bin/<agent> into lib/node_modules, so only
+        // containment in the project counts for the binary.
+        if (isProjectDirectory(directory, cwd, home)) continue;
+        if (isInProject(path, cwd, home)) continue;
         return path;
       }
     }

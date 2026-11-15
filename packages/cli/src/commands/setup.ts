@@ -8,6 +8,7 @@ import {
   parseTrustedSetupUrl,
   runCodingAgent,
   runSetupCommand,
+  stopWhenClosed,
 } from "setup-agent/cli";
 import { runAgentSetup } from "setup-agent/sdk";
 import type { CodingAgent } from "setup-agent/cli";
@@ -200,7 +201,9 @@ const runForAgent = async (options: SetupOptions) => {
     write: (text) =>
       process.stdout.write(`${text}\n${gateNote(marker !== undefined)}\n`),
   });
-  // The stream's heartbeat keeps the process alive until a signal stops it.
+  // The stream's heartbeat keeps the process alive until a signal stops it,
+  // or until the setup closes: the link holds no other setup.
+  stopWhenClosed(running.client, stop);
 };
 
 export const setup = new Command()

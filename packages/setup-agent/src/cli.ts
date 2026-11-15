@@ -35,11 +35,11 @@ import {
 } from "./protocol";
 import type { Checkout } from "./protocol";
 import { answerNeed } from "./needs";
-import { answerFields, followSetup, shellWord } from "./stream";
+import { answerFields, followSetup, shellWord, stopWhenClosed } from "./stream";
 import { loadGuide, renderText } from "./guide";
 import type { Guide } from "./guide";
 
-export { diffEvents } from "./stream";
+export { diffEvents, stopWhenClosed } from "./stream";
 
 const DEFAULT_COMMAND = "npx setup-agent";
 
@@ -809,6 +809,8 @@ const runStream = async (
   process.on("SIGHUP", stop);
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
+  // The link holds this one setup, so the stream ends with it.
+  stopWhenClosed(client, stop);
   await new Promise(() => {});
 };
 

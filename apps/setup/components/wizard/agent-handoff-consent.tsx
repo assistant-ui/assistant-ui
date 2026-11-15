@@ -71,7 +71,7 @@ export function AgentHandoffConsent({
         on {name}
         {handoff === "key"
           ? `, through ${hostOf(checkout.url)}.`
-          : " use your assistant-ui account."}
+          : `, through ${hostOf(checkout.url)}, use your assistant-ui account.`}
       </p>
       <label htmlFor={id} className="flex items-start gap-2">
         <input
