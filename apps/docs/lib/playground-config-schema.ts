@@ -20,12 +20,19 @@ const fontFamilyString = z
 export const LOADING_TEXT_MAX_LENGTH = 80;
 export const CUSTOM_CSS_MAX_LENGTH = 20_000;
 
+// Lone surrogates encode to 6 bytes in JSON, so no string field accepts them.
+const LONE_SURROGATE =
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+
 // oxlint-disable-next-line no-control-regex -- matches control characters
-const LOADING_TEXT_DISALLOWED = /[\u0000-\u001f\u007f\u2028\u2029]/g;
+const LOADING_TEXT_DISALLOWED = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 
 /** Drops what `loadingText` does not accept, for inputs that edit it. */
 export const toLoadingText = (value: string) =>
-  value.replace(LOADING_TEXT_DISALLOWED, "").slice(0, LOADING_TEXT_MAX_LENGTH);
+  value
+    .replace(LOADING_TEXT_DISALLOWED, "")
+    .slice(0, LOADING_TEXT_MAX_LENGTH)
+    .replace(LONE_SURROGATE, "");
 
 const labelString = z
   .string()
@@ -115,9 +122,7 @@ export const updateConfigSchema = z.strictObject({
       (value) =>
         // oxlint-disable-next-line no-control-regex -- rejects control characters
         !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(value) &&
-        !/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(
-          value,
-        ),
+        !new RegExp(LONE_SURROGATE.source).test(value),
       "Invalid CSS",
     )
     .optional(),

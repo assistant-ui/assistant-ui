@@ -630,3 +630,30 @@ it("accepts custom CSS with line breaks, tabs and emoji", () => {
     }),
   ).toBeUndefined();
 });
+
+it.each([
+  ["a C1 control character", "\u0085"],
+  ["a lone surrogate", "\ud800"],
+])(
+  "drops %s from builder loading text and rejects it in the schema",
+  (_, char) => {
+    expect(toLoadingText(`a${char}b`)).toBe("ab");
+    expect(
+      configIssue({
+        ...DEFAULT_CONFIG,
+        components: { ...DEFAULT_CONFIG.components, loadingText: `a${char}b` },
+      }),
+    ).toMatch(/^components\.loadingText: /);
+  },
+);
+
+it("keeps a surrogate pair whole when trimming builder loading text", () => {
+  const text = toLoadingText(`${"a".repeat(79)}🎨`);
+  expect(text).toBe("a".repeat(79));
+  expect(
+    configIssue({
+      ...DEFAULT_CONFIG,
+      components: { ...DEFAULT_CONFIG.components, loadingText: "🎨" },
+    }),
+  ).toBeUndefined();
+});
