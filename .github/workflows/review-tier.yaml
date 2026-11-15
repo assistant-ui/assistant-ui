@@ -56,9 +56,11 @@ jobs:
       cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
     # Once the policy app key moves into this environment and its branch policy
     # admits main and its merge queue refs only, a workflow on another branch
-    # cannot read it. pull_request_target runs on the base branch, so a pull
-    # request based on another branch is evaluated once it is retargeted to
-    # main, which the edited trigger picks up.
+    # cannot read it. pull_request_target runs on the default branch whatever
+    # the pull request's base, so every pull request event is admitted.
+    # merge_group runs the workflow file from the queued commit, so a queued
+    # change to this job can read the key; the approvals a pull request needs
+    # before it enters the queue are the control on that path.
     # deployment: false uses the environment's secrets and branch policy
     # without recording a deployment on every run.
     environment:

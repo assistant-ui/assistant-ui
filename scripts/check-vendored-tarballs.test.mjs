@@ -14,10 +14,11 @@ import {
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const directory = "template/vendor";
 
-// A minimal ustar archive with one regular file per entry.
+// A minimal ustar archive with one regular file per entry; an entry may set its
+// own type flag or raw size field.
 function tar(entries) {
   const blocks = [];
-  for (const [name, content] of Array.isArray(entries)
+  for (const [name, content, options = {}] of Array.isArray(entries)
     ? entries
     : Object.entries(entries)) {
     const body = Buffer.from(content);
@@ -26,10 +27,13 @@ function tar(entries) {
     header.write("0000644\0", 100);
     header.write("0000000\0", 108);
     header.write("0000000\0", 116);
-    header.write(`${body.length.toString(8).padStart(11, "0")}\0`, 124);
+    header.write(
+      options.size ?? `${body.length.toString(8).padStart(11, "0")}\0`,
+      124,
+    );
     header.write("00000000000\0", 136);
     header.write("        ", 148);
-    header.write("0", 156);
+    header.write(options.type ?? "0", 156);
     header.write("ustar\0", 257);
     header.write("00", 263);
     let sum = 0;
@@ -114,6 +118,60 @@ test("rejects an archive that repeats its manifest", () => {
   setup.artifacts[0].sha256 = sha(archive);
   assert.deepEqual(problemsFor(setup), [
     `${directory}/demo-1.0.0.tgz is not a readable npm archive: it contains more than one package/package.json`,
+  ]);
+});
+
+test("rejects extension headers that could rename an entry", () => {
+  const archive = tar([
+    [
+      "package/package.json",
+      JSON.stringify({ name: "demo", version: "1.0.0" }),
+    ],
+    ["PaxHeader", "30 path=package/package.json\n", { type: "x" }],
+    ["package/other", JSON.stringify({ name: "demo", version: "6.6.6" })],
+  ]);
+  assert.throws(
+    () => readPackedManifest(archive),
+    /unsupported tar entry type "x"/,
+  );
+});
+
+test("matches the manifest under any spelling of its path", () => {
+  const archive = tar([
+    [
+      "package/package.json",
+      JSON.stringify({ name: "demo", version: "1.0.0" }),
+    ],
+    [
+      "package/./package.json",
+      JSON.stringify({ name: "demo", version: "6.6.6" }),
+    ],
+  ]);
+  assert.throws(() => readPackedManifest(archive), /more than one/);
+});
+
+test("rejects a negative or truncated entry size", () => {
+  assert.throws(
+    () =>
+      readPackedManifest(tar([["package/x", "", { size: "-0000001000\0" }]])),
+    /invalid entry size/,
+  );
+  assert.throws(
+    () =>
+      readPackedManifest(tar([["package/x", "", { size: "77777777777\0" }]])),
+    /truncated/,
+  );
+});
+
+test("requires a name and version in provenance", () => {
+  const setup = validRepo();
+  setup.archives["demo-1.0.0.tgz"] = tar({ "package/package.json": "{}" });
+  setup.artifacts[0].sha256 = sha(setup.archives["demo-1.0.0.tgz"]);
+  delete setup.artifacts[0].name;
+  delete setup.artifacts[0].version;
+  setup.dependencies = {};
+  assert.deepEqual(problemsFor(setup), [
+    `${directory}/demo-1.0.0.tgz has no name and version in provenance.json`,
   ]);
 });
 

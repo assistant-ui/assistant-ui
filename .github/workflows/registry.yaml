@@ -12,10 +12,10 @@ on:
         required: true
       VERCEL_REGISTRY_PROJECT_ID:
         required: true
-      # Optional so the deploy keeps working once the token moves to the
-      # vercel-deploy environment; until then the caller passes it.
+      # Once the token moves to the vercel-deploy environment, the job reads the
+      # environment's copy instead of the value the caller passes.
       VERCEL_TOKEN:
-        required: false
+        required: true
   workflow_dispatch:
     inputs:
       releaseSha:

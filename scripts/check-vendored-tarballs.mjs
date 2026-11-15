@@ -11,6 +11,11 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 // template's manifest may point only at recorded archives.
 export const VENDOR_DIRECTORIES = ["templates/cloud-harness/vendor"];
 
+// npm pack writes plain files and directories with short paths. Extension
+// headers (pax, GNU long names) can rename the entry that follows them, so an
+// archive with one is rejected rather than read with different path rules.
+const PLAIN_ENTRY_TYPES = new Set(["0", "\0", "5"]);
+
 /** The parsed `package/package.json` inside an npm-packed `.tgz`. */
 export function readPackedManifest(archive) {
   const tar = gunzipSync(archive);
@@ -25,11 +30,24 @@ export function readPackedManifest(archive) {
         .replace(/\0.*$/s, "");
     const prefix = field(345, 155);
     const name = prefix ? `${prefix}/${field(0, 100)}` : field(0, 100);
-    const size = Number.parseInt(field(124, 12).trim() || "0", 8);
+    const type = String.fromCharCode(header[156]);
+    if (!PLAIN_ENTRY_TYPES.has(type)) {
+      throw new Error(
+        `it has an unsupported tar entry type ${JSON.stringify(type)}`,
+      );
+    }
+    const sizeField = field(124, 12).trim() || "0";
+    if (!/^[0-7]+$/.test(sizeField)) {
+      throw new Error(
+        `it has an invalid entry size ${JSON.stringify(sizeField)}`,
+      );
+    }
+    const size = Number.parseInt(sizeField, 8);
     const body = offset + 512;
+    if (body + size > tar.length) throw new Error("it is truncated");
     // An extractor keeps the last copy of a repeated path, so a second
     // manifest could differ from the one checked here.
-    if (name.replace(/^\.\//, "") === "package/package.json") {
+    if (path.posix.normalize(name) === "package/package.json") {
       if (manifest !== undefined) {
         throw new Error("it contains more than one package/package.json");
       }
@@ -95,6 +113,13 @@ export function findVendorProblems(root, directory) {
     }
     if (!manifest) {
       problems.push(`${label} has no package/package.json`);
+    } else if (
+      typeof name !== "string" ||
+      typeof version !== "string" ||
+      name === "" ||
+      version === ""
+    ) {
+      problems.push(`${label} has no name and version in provenance.json`);
     } else if (manifest.name !== name || manifest.version !== version) {
       problems.push(
         `${label} packs ${manifest.name}@${manifest.version}, but provenance.json records ${name}@${version}`,
