@@ -245,9 +245,11 @@ describe("session fallback", () => {
   it("asks again once when a save answers 503", async () => {
     register();
     let posts = 0;
+    const bodies: unknown[] = [];
     const fetcher = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         if (String(input).endsWith("/ping")) return json({ ok: true });
+        if (init?.method === "POST") bodies.push(init.body);
         if (init?.method === "POST")
           return ++posts === 1
             ? json({ retry: true }, 503)
@@ -259,6 +261,7 @@ describe("session fallback", () => {
     await notes.probe();
     expect(
       await notes.add({
+        id: "n-0000000a",
         group: "demo-cta",
         variant: undefined,
         note: "after a restart",
@@ -266,6 +269,8 @@ describe("session fallback", () => {
       }),
     ).toBeUndefined();
     expect(posts).toBe(2);
+    // The same body, note id included, so a repeated save is a no-op.
+    expect(bodies[1]).toBe(bodies[0]);
   });
 
   it("stays in session mode when the retried probe still answers 503", async () => {

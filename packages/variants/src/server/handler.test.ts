@@ -890,6 +890,8 @@ describe("adapters", () => {
     expect(tagged("/docs/__variants/notes?groups=a")).toBe(true);
     expect(tagged("/")).toBe(false);
     expect(tagged("/api/chat")).toBe(false);
+    expect(tagged("/search?q=/__variants/ping")).toBe(false);
+    expect(tagged("/my__variants/ping")).toBe(false);
   });
 
   it("tags a real Node HTTP request with its socket address", async () => {

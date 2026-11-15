@@ -8,6 +8,10 @@ type StartMessage = {
 
 type PeerTag = { header: string; installed: boolean };
 
+/** `__variants` as a path segment, under any base path; the query is ignored. */
+const isVariantsPath = (url: string | undefined) =>
+  url !== undefined && /(?:^|\/)__variants(?:\/|$)/.test(url.split("?", 1)[0]!);
+
 const KEY = Symbol.for("@assistant-ui/variants/peer-tag");
 
 /**
@@ -31,7 +35,7 @@ export const peerTag = (): PeerTag => {
     subscribe("http.server.request.start", (message) => {
       const { request, socket } = (message ?? {}) as StartMessage;
       // Only the variants endpoints read it; other routes keep their headers.
-      if (!request?.headers || !request.url?.includes("/__variants")) return;
+      if (!request?.headers || !isVariantsPath(request.url)) return;
       request.headers[tag.header] = socket?.remoteAddress ?? "";
     });
     tag.installed = true;

@@ -1,7 +1,11 @@
 // @vitest-environment node
 
 import { channel } from "node:diagnostics_channel";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 it("leaves production requests alone: no address hook, 404 for every route", async () => {
   vi.stubEnv("NODE_ENV", "production");
@@ -21,5 +25,4 @@ it("leaves production requests alone: no address hook, 404 for every route", asy
     ).status,
   ).toBe(404);
   expect(channel("http.server.request.start").hasSubscribers).toBe(false);
-  vi.unstubAllEnvs();
 });
