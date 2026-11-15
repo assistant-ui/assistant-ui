@@ -67,7 +67,7 @@ const sections = [
       "Assistant Cloud, our own hosted backend, stores your AI assistant conversations and their attachments so you can return to them. It also receives the same AI assistant logs, including details that PostHog drops when it ingests them, and reports from your browser on each assistant reply, such as the tools it called, its output, errors, and token usage.",
       'Our AI Service Providers receive your messages and the context needed to answer them, as described in the section titled "Do We Offer Artificial Intelligence-Based Products?"',
       'Vercel hosts the website and receives your requests to it, as well as the analytics described in the section titled "Do We Use Cookies And Other Tracking Technologies?"',
-      "Upstash receives your IP address and a session identifier, which we use to limit how often the AI assistant and other features can be used.",
+      "Upstash receives your IP address, an anonymous session identifier, your account identifier when you are signed in, and AI assistant conversation identifiers, which we use to limit how often the AI assistant and other features can be used.",
       "TypeSafe receives the text you type into site search, so it can suggest relevant pages.",
       "Cloudflare receives the details you submit in the contact sales form and delivers them to our team by email. The form then opens Cal.com with your name, email, and notes filled in so you can book a call.",
       "Blaxel runs the live previews in the Xulux playground, so your browser loads those previews from Blaxel.",
