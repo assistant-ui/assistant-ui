@@ -206,7 +206,7 @@ describe("ModelInputCard", () => {
       target: { value: "gpt-5" },
     });
     expect(screen.getByTestId("agent-handoff").textContent).toBe(
-      "Your key goes to the coding agent in /home/ada/app on Codex, through checkout.example.test.",
+      "Your key goes to the coding agent that says it runs in /home/ada/app on Codex, through checkout.example.test.",
     );
     const next = screen.getByRole("button", { name: "Next" });
     expect(next).toHaveProperty("disabled", true);

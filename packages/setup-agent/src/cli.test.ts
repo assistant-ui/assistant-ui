@@ -669,7 +669,7 @@ describe("begin planning", () => {
     ).toEqual([{ event: "cancelled", next: "[stream.stay-connected]" }]);
   });
 
-  it("announces the next setup the browser creates on the same link", () => {
+  it("announces the setup when it first appears on the link", () => {
     const done: Checkout.State = {
       ...initialCheckoutState(),
       id: "c1",
@@ -734,34 +734,16 @@ describe("begin planning", () => {
   );
 
   it.each(["done", "cancelled"] as const)(
-    "waits past a %s setup for the next one to begin",
+    "returns at once for a %s setup, since no other setup follows on the link",
     async (status) => {
-      let state: Checkout.State = {
-        ...initialCheckoutState(),
-        id: "c1",
-        status,
-      };
-      let notify = () => {};
-      const settled = vi.fn();
-      const result = waitForStart({
-        get state() {
-          return state;
-        },
-        subscribe: (listener) => {
-          notify = listener;
-          return () => {};
-        },
-      }).then(settled);
-      await Promise.resolve();
-      expect(settled).not.toHaveBeenCalled();
-      state = { ...initialCheckoutState(), id: "c2" };
-      notify();
-      await Promise.resolve();
-      expect(settled).not.toHaveBeenCalled();
-      state = { ...state, status: "cancelled" };
-      notify();
-      await result;
-      expect(settled).toHaveBeenCalledWith("cancelled");
+      const unsubscribe = vi.fn();
+      await expect(
+        waitForStart({
+          state: { ...initialCheckoutState(), id: "c1", status },
+          subscribe: () => unsubscribe,
+        }),
+      ).resolves.toBe(status);
+      expect(unsubscribe).toHaveBeenCalledOnce();
     },
   );
 });

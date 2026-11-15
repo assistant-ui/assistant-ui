@@ -90,7 +90,7 @@ describe("CloudLoginInputCard", () => {
     } as unknown as Checkout.State;
     show(input(), context);
     expect(screen.getByTestId("agent-handoff").textContent).toBe(
-      "Signing in lets the coding agent in /home/ada/app on Claude Code use your assistant-ui account.",
+      "Signing in lets the coding agent that says it runs in /home/ada/app on Claude Code use your assistant-ui account.",
     );
     const signIn = screen.getByRole<HTMLButtonElement>("button", {
       name: "Sign in",
@@ -101,6 +101,34 @@ describe("CloudLoginInputCard", () => {
     expect(window.sessionStorage.length).toBe(0);
     confirm();
     expect(signIn.disabled).toBe(false);
+  });
+  it("drops the confirmation when the agent the page shows changes", () => {
+    const first: CheckoutContextValue = checkout();
+    first.state = {
+      agent: { cwd: "/home/ada/app", kind: "claude" },
+    } as unknown as Checkout.State;
+    const { rerender } = show(input(), first);
+    confirm();
+    const signIn = () =>
+      screen.getByRole<HTMLButtonElement>("button", { name: "Sign in" });
+    expect(signIn().disabled).toBe(false);
+    const second: CheckoutContextValue = {
+      ...first,
+      state: {
+        agent: { cwd: "/home/ada/other", kind: "codex" },
+      } as unknown as Checkout.State,
+    };
+    rerender(
+      <WizardHost>
+        <InputCard input={input()} checkout={second} />
+      </WizardHost>,
+    );
+    expect(signIn().disabled).toBe(true);
+    expect(
+      screen.getByRole<HTMLInputElement>("checkbox", {
+        name: "I started this setup from my own coding agent.",
+      }).checked,
+    ).toBe(false);
   });
   it("treats a bound return as waiting, never as an authenticated answer", async () => {
     const request = input();

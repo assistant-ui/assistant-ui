@@ -190,6 +190,14 @@ describe("secret lifecycle", () => {
     expect(
       (await fixture.instance.fetch(secretRequest("setup-b"))).status,
     ).toBe(404);
+    // The original deposit still works for the setup it was made for.
+    await client.commands["checkout/answer"]({
+      inputId: "q1",
+      answer: modelAnswer,
+    });
+    const get = await fixture.instance.fetch(secretRequest("setup-a"));
+    expect(get.status).toBe(200);
+    expect(await get.text()).toBe("old-key");
   });
 });
 

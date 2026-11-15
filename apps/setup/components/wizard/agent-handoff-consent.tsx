@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import type { CheckoutContextValue } from "@/components/checkout-provider";
 import { agentKindName } from "@/lib/agents";
 
@@ -10,6 +10,33 @@ const hostOf = (url: string) => {
   } catch {
     return url;
   }
+};
+
+/** What the user confirms: the agent as it reports itself, and the setup server. */
+const handoffIdentity = (
+  checkout: Pick<CheckoutContextValue, "state" | "url">,
+) =>
+  JSON.stringify([
+    checkout.url,
+    checkout.state?.id ?? null,
+    checkout.state?.agent.cwd ?? null,
+    checkout.state?.agent.kind ?? null,
+  ]);
+
+/**
+ * The user's confirmation, bound to the agent it was given for. If the agent
+ * the page shows changes, the confirmation no longer counts.
+ */
+export const useHandoffConsent = (
+  checkout: Pick<CheckoutContextValue, "state" | "url">,
+) => {
+  const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
+  const identity = handoffIdentity(checkout);
+  return {
+    confirmed: confirmedFor === identity,
+    setConfirmed: (checked: boolean) =>
+      setConfirmedFor(checked ? identity : null),
+  };
 };
 
 /**
@@ -36,8 +63,8 @@ export function AgentHandoffConsent({
     <div className="flex flex-col gap-2 text-base sm:text-sm">
       <p className="text-muted-foreground" data-testid="agent-handoff">
         {handoff === "key"
-          ? "Your key goes to the coding agent in "
-          : "Signing in lets the coding agent in "}
+          ? "Your key goes to the coding agent that says it runs in "
+          : "Signing in lets the coding agent that says it runs in "}
         <span className="text-foreground font-mono text-[0.9em] wrap-anywhere">
           {folder}
         </span>{" "}

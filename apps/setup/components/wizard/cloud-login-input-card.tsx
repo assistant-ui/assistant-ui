@@ -4,7 +4,10 @@ import { useCallback, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import type { CheckoutContextValue } from "@/components/checkout-provider";
 import { useWizardNext } from "./wizard-actions";
-import { AgentHandoffConsent } from "./agent-handoff-consent";
+import {
+  AgentHandoffConsent,
+  useHandoffConsent,
+} from "./agent-handoff-consent";
 import { inputCardClassName, useInputActions } from "./input-shared";
 import { canRestoreCheckoutSession } from "@/lib/checkout/session-store";
 import type { Checkout } from "@/lib/checkout/protocol";
@@ -23,7 +26,8 @@ export function CloudLoginInputCard({
 }) {
   const details = cloudLoginDetails(input);
   const [failure, setFailure] = useState("");
-  const [handoffConfirmed, setHandoffConfirmed] = useState(false);
+  const { confirmed: handoffConfirmed, setConfirmed: setHandoffConfirmed } =
+    useHandoffConsent(checkout);
   const { busy, dismiss } = useInputActions(input, checkout);
   const returned = useSyncExternalStore(
     useCallback((notify) => {

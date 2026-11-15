@@ -75,7 +75,7 @@ Commands (the url always comes first):
                                     --icons is required and names an icon for every option, from: ${OPTION_ICONS.join(", ")}.
   ask <prompt> --entry-points '<JSON array>' [--default <id>] [--optional] [--step <step-id>] [--wait]
                                     Ask where users should access the assistant. Each of 1–3 options has id, label, description and entryPoint {formFactor: modal|sidebar|full-page, placement, trigger, recommended?}. Answers one option id.
-  wait start                        Block until the setup page starts the plan; prints {"ok":false,"status":"cancelled"} if the user cancels first. After a finished or cancelled setup, waits for the next one to begin.
+  wait start                        Block until the setup page starts the plan; prints {"ok":false,"status":"cancelled"} if the user cancels first, and {"ok":false,"status":"done"} once the setup is over.
   wait <input-id> [--timeout <seconds>]
                                     Block until the user answers or dismisses an input. A multi-select answer prints as an array.
   plan (<markdown> | --file <path>) [--wait] [--timeout <seconds>]
@@ -310,20 +310,17 @@ const STEP_STATUSES: readonly Checkout.StepStatus[] = [
   "blocked",
 ];
 
-/** Resolves once a setup is planning or installing, or once the one being waited on is cancelled; a setup already closed when the wait begins is over, so the wait is for the next one. */
+/** Resolves once a setup is planning or installing, or as soon as it is closed: a link holds one setup, so no other one follows. */
 export const waitForStart = (
   client: Pick<CheckoutClient, "state" | "subscribe">,
 ) =>
   new Promise<Checkout.Status>((resolve) => {
-    let previous: Checkout.Status | undefined;
     const check = () => {
       const state = client.state;
       if (state === undefined) return;
       const started =
         state.status === "planning" || state.status === "installing";
-      const ended = isClosed(state) && previous === "waiting";
-      previous = state.status;
-      if (!started && !ended) return;
+      if (!started && !isClosed(state)) return;
       unsubscribe();
       resolve(state.status);
     };
@@ -1005,7 +1002,7 @@ export const runSetupCommand = async (
           rest[0] ?? fail("usage: wait start | wait <input-id> | wait plan");
         const state = requireState(client);
         if (target === "start") {
-          // Waiting for the user's next setup is idle time, so it has no limit by default.
+          // Waiting for the user to open the setup page is idle time, so it has no limit by default.
           const status = await within(
             waitForStart(client),
             waitSeconds(flags, 0),

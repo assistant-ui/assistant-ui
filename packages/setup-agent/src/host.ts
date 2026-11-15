@@ -300,7 +300,10 @@ const useCheckoutHost = (restored: unknown) => {
       // before anyone else knows the link. A later create would let any
       // link holder rewrite the products, guides and instructions the agent
       // reads, so a link holds one setup; another setup takes a new link.
-      if (state.id !== null) {
+      if (typeof id !== "string" || id === "") {
+        throw reject("invalid-input", "a setup needs an id");
+      }
+      if (state.createdAt !== null || state.id !== null) {
         throw reject(
           "already-created",
           state.id === id

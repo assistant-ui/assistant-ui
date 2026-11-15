@@ -143,14 +143,21 @@ describe("CheckoutHost", () => {
     });
   });
 
-  it.each([false, true])(
-    "refuses a second create on the same link, closed: %s",
-    async (closed) => {
+  it.each(["open", "cancelled", "finished"] as const)(
+    "refuses a second create on a link whose setup is %s",
+    async (phase) => {
       const host = mount();
       await host.commands["agent/hello"]({ cwd: "/app", kind: "claude" });
       await host.commands["checkout/create"](seed);
       await host.commands["checkout/begin-plan"]();
-      if (closed) await host.commands["checkout/cancel"]();
+      if (phase === "cancelled") await host.commands["checkout/cancel"]();
+      if (phase === "finished") {
+        await host.commands["agent/plan"]({ markdown: "## Steps\n1. Install" });
+        await host.commands["checkout/plan"]({ decision: "approve" });
+        await host.commands["agent/done"]({ summary: "Installed" });
+        await host.commands["checkout/finish"]();
+        expect(host.state.status).toBe("done");
+      }
       const rewrite = {
         id: "c2",
         products: [
@@ -172,6 +179,26 @@ describe("CheckoutHost", () => {
       expect(host.state.products).toEqual(seed.products);
       expect(host.state.instructions).toBe("");
       expect(host.state.agent.cwd).toBe("/app");
+    },
+  );
+
+  it.each([null, "", 7])(
+    "refuses a create with id %j, so it can't leave the link open to another create",
+    async (id) => {
+      const host = mount();
+      expect(
+        await reason(
+          host.commands["checkout/create"]({
+            ...seed,
+            id: id as unknown as string,
+          }),
+        ),
+      ).toEqual({ reason: "invalid-input" });
+      expect(host.state.createdAt).toBeNull();
+      await host.commands["checkout/create"](seed);
+      expect(
+        await reason(host.commands["checkout/create"]({ ...seed, id: "c2" })),
+      ).toEqual({ reason: "already-created" });
     },
   );
 

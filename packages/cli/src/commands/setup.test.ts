@@ -110,6 +110,19 @@ describe("setup", () => {
     ]);
   });
 
+  it("refuses a step command whose setup page is not the official one or local", async () => {
+    vi.stubEnv("ASSISTANT_UI_SETUP_APP_URL", "https://setup.look-alike.test");
+    try {
+      await expect(
+        setup.parseAsync(["https://checkout.assistant-ui.com/abc", "status"], {
+          from: "user",
+        }),
+      ).rejects.toThrow("is not a setup page this CLI knows");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("offers products and a no-open flag", () => {
     expect(setup.options.map((option) => option.long)).toEqual([
       "--products",

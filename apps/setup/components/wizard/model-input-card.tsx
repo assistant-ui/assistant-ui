@@ -31,7 +31,10 @@ import {
   useWizardNext,
 } from "@/components/wizard/wizard-actions";
 import type { CheckoutContextValue } from "@/components/checkout-provider";
-import { AgentHandoffConsent } from "@/components/wizard/agent-handoff-consent";
+import {
+  AgentHandoffConsent,
+  useHandoffConsent,
+} from "@/components/wizard/agent-handoff-consent";
 import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 import {
   REASONING_EFFORTS,
@@ -72,7 +75,8 @@ export function ModelInputCard({
   const [model, setModel] = useState("");
   const [effort, setEffort] = useState<ReasoningEffort | "default">("default");
   const [note, setNote] = useState("");
-  const [handoffConfirmed, setHandoffConfirmed] = useState(false);
+  const { confirmed: handoffConfirmed, setConfirmed: setHandoffConfirmed } =
+    useHandoffConsent(checkout);
   const [test, setTest] = useState<TestState>({ status: "idle" });
   const providerIdRef = useRef(providerId);
   const apiKeyRef = useRef(apiKey);

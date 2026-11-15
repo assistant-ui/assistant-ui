@@ -1,5 +1,5 @@
 import spawn from "cross-spawn";
-import { accessSync, constants } from "node:fs";
+import { accessSync, constants, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
@@ -192,11 +192,6 @@ export const isDirectInvocation = (
   stdin.isTTY === true &&
   stdout.isTTY === true;
 
-/**
- * True for a PATH entry a project could have planted: a relative entry, one
- * inside the working directory, or any `node_modules` directory (npx and
- * package scripts put `node_modules/.bin` first).
- */
 const isWithin = (parent: string, child: string) => {
   const path = relative(parent, child);
   return (
@@ -205,11 +200,36 @@ const isWithin = (parent: string, child: string) => {
   );
 };
 
-const isProjectDirectory = (directory: string, cwd: string, home: string) => {
-  if (!isAbsolute(directory)) return true;
-  if (directory.split(/[\\/]/).includes("node_modules")) return true;
+const real = (path: string) => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return undefined;
+  }
+};
+
+const hasNodeModules = (path: string) =>
+  path
+    .split(/[\\/]/)
+    .some((segment) => segment.toLowerCase() === "node_modules");
+
+/**
+ * True for a path a project could have planted: one inside the working
+ * directory, or in any `node_modules` directory (npx and package scripts put
+ * `node_modules/.bin` first). Checked on the path as written and with symlinks
+ * resolved, so a link from outside the project into it doesn't pass.
+ */
+const isProjectPath = (path: string, cwd: string, home: string) => {
+  const resolved = real(path);
+  if (resolved === undefined) return true;
+  const root = real(cwd) ?? cwd;
   // Run from the home directory or above it, everything would be "inside".
-  return !isWithin(cwd, home) && isWithin(cwd, directory);
+  const checkInside = !isWithin(root, real(home) ?? home);
+  return [path, resolved].some(
+    (candidate) =>
+      hasNodeModules(candidate) ||
+      (checkInside && (isWithin(cwd, candidate) || isWithin(root, candidate))),
+  );
 };
 
 /**
@@ -223,11 +243,10 @@ export const findCommand = (
   cwd: string = process.cwd(),
   home: string = homedir(),
 ): string | undefined => {
+  // Relative entries (the working directory among them) are never searched.
   const directories = (env.PATH ?? "")
     .split(delimiter)
-    .filter(
-      (directory) => directory && !isProjectDirectory(directory, cwd, home),
-    );
+    .filter((directory) => directory && isAbsolute(directory));
   const extensions =
     process.platform === "win32"
       ? (env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";")
@@ -238,8 +257,13 @@ export const findCommand = (
         const path = join(directory, command + extension);
         try {
           accessSync(path, constants.X_OK);
-          return path;
-        } catch {}
+        } catch {
+          continue;
+        }
+        // The directory and the binary itself, symlinks resolved.
+        if (isProjectPath(directory, cwd, home)) continue;
+        if (isProjectPath(path, cwd, home)) continue;
+        return path;
       }
     }
   }
