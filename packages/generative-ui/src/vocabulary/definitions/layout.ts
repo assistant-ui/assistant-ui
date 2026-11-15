@@ -98,16 +98,20 @@ export const layoutDefinitions = {
   },
   Box: {
     description:
-      "A generic container for composition, e.g. a progress bar built from an outer track Box containing a partial-width fill Box. Size and radius accept arbitrary values; background accepts colors and gradients. These render as inline styles rather than data-attribute hooks.",
+      "A generic container for composition, e.g. a progress bar built from an outer track Box containing a partial-width fill Box. Size accepts numbers (pixels) and CSS lengths; background accepts colors and gradients. These render as inline styles rather than data-attribute hooks.",
     properties: z.object({
       width: z
         .union([z.string(), z.number()])
         .optional()
-        .describe("Width; a number is pixels."),
+        .describe(
+          'Width; a number is pixels, a string is a CSS length such as "50%" or "calc(100% - 8px)".',
+        ),
       height: z
         .union([z.string(), z.number()])
         .optional()
-        .describe("Height; a number is pixels."),
+        .describe(
+          'Height; a number is pixels, a string is a CSS length such as "1.5rem".',
+        ),
       radius: z
         .union([z.literal("full"), z.number()])
         .optional()

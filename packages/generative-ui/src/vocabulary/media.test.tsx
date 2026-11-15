@@ -52,7 +52,7 @@ describe("mediaVocabulary", () => {
     );
   });
 
-  it("Image loads listed origins and data images", () => {
+  it("Image loads listed origins, and data images only when data: is listed", () => {
     for (const src of [
       "https://cdn.example.com/a.png",
       "http://localhost:3000/a.png",
@@ -62,9 +62,21 @@ describe("mediaVocabulary", () => {
         render({ $type: "Image", src, alt: "alt" }, [
           "https://cdn.example.com",
           "http://localhost:3000",
+          "data:",
         ]),
       ).toContain(`src="${src}"`);
     }
+  });
+
+  it("Image leaves only alt text for a data image when the list omits data:", () => {
+    const node = {
+      $type: "Image",
+      src: "data:image/png;base64,YQ==",
+      alt: "alt",
+    };
+    expect(render(node, ["https://cdn.example.com"])).toBe("alt");
+    expect(render(node, [])).toBe("alt");
+    expect(render(node)).toContain('src="data:image/png;base64,YQ=="');
   });
 
   it.each([

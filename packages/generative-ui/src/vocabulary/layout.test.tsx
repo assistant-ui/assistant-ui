@@ -192,6 +192,61 @@ describe("layoutVocabulary Box", () => {
     expect(html).toContain('style="width:100%;height:1.5rem"');
   });
 
+  it.each([
+    "1px;background-image:url(https://example.com/a.png)",
+    "1px; position: fixed",
+    "100%;inset:0",
+    "calc(1px);color:red",
+    "calc(url(https://example.com/a.png))",
+    "1px\\3b color:red",
+    "red",
+    "expression(alert(1))",
+    "",
+  ])("drops a width or height that is not a plain length: %s", (value) => {
+    expect(render({ $type: "Box", width: value, height: value })).toBe(
+      '<div data-aui="box"></div>',
+    );
+  });
+
+  it("drops non-finite and non-length sizes", () => {
+    expect(
+      render({ $type: "Box", width: Number.POSITIVE_INFINITY, height: NaN }),
+    ).toBe('<div data-aui="box"></div>');
+    expect(render({ $type: "Box", width: { px: 1 } })).toBe(
+      '<div data-aui="box"></div>',
+    );
+  });
+
+  it.each([
+    ["50%", "50%"],
+    [" 12rem ", "12rem"],
+    ["-4px", "-4px"],
+    [".5em", ".5em"],
+    ["0", "0"],
+    ["auto", "auto"],
+    ["fit-content", "fit-content"],
+    ["calc(100% - 8px)", "calc(100% - 8px)"],
+    ["clamp(1rem, 50%, 20rem)", "clamp(1rem, 50%, 20rem)"],
+  ])("keeps the CSS length %j", (value, expected) => {
+    expect(render({ $type: "Box", width: value })).toContain(
+      `style="width:${expected}"`,
+    );
+  });
+
+  it.each([
+    "red;position:fixed;inset:0",
+    "#fff;color:red",
+    "red}body{color:red",
+  ])(
+    "Card and Box drop a background that opens another declaration: %s",
+    (background) => {
+      expect(render({ $type: "Box", background })).toBe(
+        '<div data-aui="box"></div>',
+      );
+      expect(render({ $type: "Card", background })).not.toContain("style=");
+    },
+  );
+
   it("applies a numeric radius as an inline pixel border-radius", () => {
     const html = render({ $type: "Box", radius: 6 });
     expect(html).toContain('style="border-radius:6px"');
