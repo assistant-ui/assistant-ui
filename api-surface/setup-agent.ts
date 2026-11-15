@@ -340,6 +340,14 @@ type NeedOption = {
   description?: string;
 };
 
+declare const OFFICIAL_SETUP_APPS: readonly [
+  "https://setup.assistant-ui.com"
+];
+
+declare const OFFICIAL_SETUP_SERVERS: readonly [
+  "https://checkout.assistant-ui.com"
+];
+
 declare const OPTION_ICONS: readonly [
   "code",
   "terminal",
@@ -442,6 +450,7 @@ type RunSetupCommandOptions = {
     setupAppUrl: string;
     canOpen?: boolean;
   };
+  servers?: readonly string[];
 };
 
 type SetupSession = {
@@ -512,7 +521,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { CODING_AGENTS, CodingAgent, HELP, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { CODING_AGENTS, CodingAgent, HELP, OFFICIAL_SETUP_APPS, OFFICIAL_SETUP_SERVERS, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, parseTrustedSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -523,7 +532,7 @@ declare const detectAgentKind: (env?: NodeJS.ProcessEnv) => string | undefined;
 
 declare const diffEvents: (before: Checkout.State, after: Checkout.State, guide: Pick<Guide, "texts">) => StreamEvent[];
 
-declare const findCommand: (commands: readonly string[], env?: NodeJS.ProcessEnv) => string | undefined;
+declare const findCommand: (commands: readonly string[], env?: NodeJS.ProcessEnv, cwd?: string, home?: string) => string | undefined;
 
 declare const finishProposed: (state: Checkout.State) => boolean;
 
@@ -579,6 +588,8 @@ declare const parseMultipleAnswer: (answer: string) => string[] | undefined;
 declare const parsePreviewUrl: (value: string | undefined) => URL | undefined;
 
 declare const parseSetupUrl: (value: string) => string;
+
+declare const parseTrustedSetupUrl: (value: string, origins: readonly string[], what?: string) => string;
 
 declare const planNeedsReview: (state: Checkout.State) => boolean;
 
