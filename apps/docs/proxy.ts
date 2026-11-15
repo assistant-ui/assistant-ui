@@ -48,21 +48,28 @@ const STRIPPED_ANALYTICS_HEADERS = [
   "x-assistant-ui-anonymous-session",
 ];
 
-function analyticsDestination(url: URL): URL | null | undefined {
-  const { pathname, search } = url;
-  let destination: URL;
-  if (pathname === "/umami" || pathname.startsWith("/umami/")) {
-    if (!UMAMI_PATHS.has(pathname)) return null;
-    destination = new URL(pathname.slice("/umami".length), UMAMI_ORIGIN);
-  } else if (pathname.startsWith("/ph/static/")) {
-    destination = new URL(pathname.slice("/ph".length), POSTHOG_ASSETS_ORIGIN);
-  } else if (pathname === "/ph" || pathname.startsWith("/ph/")) {
-    destination = new URL(pathname.slice("/ph".length) || "/", POSTHOG_ORIGIN);
-  } else {
-    return undefined;
-  }
+// Assigning the path keeps the host fixed; resolving the path as a relative
+// URL would let a `//host` path name another host.
+function onHost(origin: string, pathname: string, search: string): URL {
+  const destination = new URL(origin);
+  destination.pathname = pathname || "/";
   destination.search = search;
   return destination;
+}
+
+function analyticsDestination(url: URL): URL | null | undefined {
+  const { pathname, search } = url;
+  if (pathname === "/umami" || pathname.startsWith("/umami/")) {
+    if (!UMAMI_PATHS.has(pathname)) return null;
+    return onHost(UMAMI_ORIGIN, pathname.slice("/umami".length), search);
+  }
+  if (pathname.startsWith("/ph/static/")) {
+    return onHost(POSTHOG_ASSETS_ORIGIN, pathname.slice("/ph".length), search);
+  }
+  if (pathname === "/ph" || pathname.startsWith("/ph/")) {
+    return onHost(POSTHOG_ORIGIN, pathname.slice("/ph".length), search);
+  }
+  return undefined;
 }
 
 function proxyAnalytics(request: NextRequest, destination: URL) {

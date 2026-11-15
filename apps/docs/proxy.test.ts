@@ -79,6 +79,19 @@ describe("proxy", () => {
   });
 
   it.each([
+    ["/ph//evil.example/e/", "https://us.i.posthog.com//evil.example/e/"],
+    [
+      "/ph/static//evil.example/array.js",
+      "https://us-assets.i.posthog.com/static//evil.example/array.js",
+    ],
+  ])("keeps %s on the analytics host", async (path, destination) => {
+    const response = await proxy(
+      analyticsRequest(`https://www.assistant-ui.com${path}`),
+    );
+    expect(response.headers.get("x-middleware-rewrite")).toBe(destination);
+  });
+
+  it.each([
     "/umami",
     "/umami/login",
     "/umami/api/auth/login",
