@@ -254,10 +254,10 @@ describe("ToolInvocationTracker", () => {
   });
 
   it("rejects a pending human-input request when the call's args change under it", async () => {
-    const execute = vi.fn(async (args: { query: string }, { human }) => {
+    const execute = vi.fn(async (args, { human }) => {
       try {
         await human({ request: "approve" });
-        return { ran: args.query };
+        return { ran: args.query as string };
       } catch (error) {
         return { rejected: (error as Error).message };
       }
