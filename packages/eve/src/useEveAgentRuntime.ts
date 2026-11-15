@@ -21,7 +21,6 @@ import {
   type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
   type ThreadMessage,
-  type ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
@@ -230,9 +229,6 @@ const useEveThreadRuntime = (
       : {}),
   });
   const runtimeAdapters = useRuntimeAdapters();
-  const [toolStatuses, setToolStatuses] = useState<
-    Record<string, ToolExecutionStatus>
-  >({});
   const [stagedMessages, setStagedMessages] = useState<ThreadMessage[] | null>(
     null,
   );
@@ -244,15 +240,11 @@ const useEveThreadRuntime = (
     >(),
   );
 
-  const hasExecutingTools = Object.values(toolStatuses).some(
-    (status) => status?.type === "executing",
-  );
   const providerIsRunning =
     agent.status === "busy" ||
     (agent.status !== "resuming" &&
       activeTurn(agent.view) !== undefined &&
       !idle(agent.view));
-  const isRunning = providerIsRunning || hasExecutingTools;
 
   // Kept apart from the message memo so events that teach no timestamp keep
   // the map identity and skip rebuilding every ThreadMessage.
@@ -281,7 +273,7 @@ const useEveThreadRuntime = (
     return convertEveMessages(
       { messages: agent.messages },
       {
-        isRunning,
+        isRunning: providerIsRunning,
         error: agent.error,
         events: interruptionEvents,
         getCreatedAt: (message) => {
@@ -305,7 +297,7 @@ const useEveThreadRuntime = (
     agent.messages,
     agent.error,
     interruptionEvents,
-    isRunning,
+    providerIsRunning,
     turnTimestamps,
   ]);
 
@@ -474,7 +466,6 @@ const useEveThreadRuntime = (
     sendChainRef.current = Promise.resolve();
     setStagedMessages(null);
     stagedInputsRef.current.clear();
-    setToolStatuses({});
     agent.newSession();
   }, [agent, aui, cloudThread]);
 
@@ -499,7 +490,6 @@ const useEveThreadRuntime = (
     // Eve runs every call itself and has no channel for a client result, so a
     // frontend tool of the same name never executes one.
     unstable_isClientToolCall: isEveClientToolCall,
-    setToolStatuses,
     adapters: {
       attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
       speech: adapters?.speech,
@@ -650,7 +640,6 @@ const isEveClientToolCall = () => false;
  * session, supports cancellation, and maps Eve interactions to assistant-ui
  * tool approval UI.
  */
-
 export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [hasCloud] = useState(options.cloud !== undefined);
   if ((options.cloud !== undefined) !== hasCloud) {
