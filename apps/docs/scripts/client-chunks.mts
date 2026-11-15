@@ -1,29 +1,18 @@
-const NODE_MODULES = /[\\/]node_modules[\\/]/;
-const REACT = /[\\/]node_modules[\\/](?:react|react-dom|scheduler)[\\/]/;
-// Pre-render (transformed source) bytes, roughly 150 KB once minified.
-const MAX_GROUP_SIZE = 500_000;
-
 /**
  * Rolldown's automatic chunking emits one chunk per distinct set of importers,
- * which on the docs is thousands of chunks under 10 KB, each one a separate
- * request on page load. These groups collect the modules several routes share
- * into a few size-capped chunks.
+ * so a page loads only modules it uses, but on the docs that is over a
+ * thousand chunks under 10 KB. Inlining the small common chunks into their
+ * importers cuts the request count without merging unrelated code the way
+ * size-capped manual groups did.
  */
-export const CLIENT_CODE_SPLITTING = {
-  groups: [
-    { name: "react", test: REACT, priority: 30 },
-    {
-      name: "vendor",
-      test: NODE_MODULES,
-      minShareCount: 2,
-      maxSize: MAX_GROUP_SIZE,
-      priority: 20,
+export const CLIENT_OUTPUT = {
+  codeSplitting: {
+    experimentalInlineCommonChunks: {
+      maxSize: 30_000,
+      // Chunks that hold styles stay files, as in Vite's own configuration.
+      exclude: /\.(css|scss|sass|less|styl|stylus|pcss|postcss|sss)(\?|$)/,
     },
-    {
-      name: "shared",
-      minShareCount: 2,
-      maxSize: MAX_GROUP_SIZE,
-      priority: 10,
-    },
-  ],
+  },
+  // Inlined chunk copies run in source order only under strict execution order.
+  strictExecutionOrder: true,
 };
