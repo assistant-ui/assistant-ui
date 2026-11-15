@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createAssistantStream } from "../../modules/assistant-stream";
+import {
+  createAssistantStream,
+  createAssistantStreamController,
+} from "../../modules/assistant-stream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { DataStreamDecoder } from "../../serialization/data-stream/DataStream";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
@@ -17,35 +20,45 @@ const collect = async (stream: ReadableStream<AssistantStreamChunk>) => {
 };
 
 describe("merge stream with many open parts", () => {
-  it("keeps a write from an idle part after a later part-start", async () => {
-    const chunks = await collect(
-      createAssistantStream(async (controller) => {
-        const first = controller.addTextPart();
-        first.append("a");
-        // let "a" be delivered so the first part is idle
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        const second = controller.addTextPart();
-        first.append("b");
-        second.append("c");
-        first.close();
-        second.close();
-      }),
-    );
+  it("keeps a write from an idle part behind a part-start that waits on a busy part", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    const reader = stream.getReader();
+    const seen: string[] = [];
+    const read = async (limit = Infinity) => {
+      for (let i = 0; i < limit; i++) {
+        const { done, value } = await reader.read();
+        if (done) return;
+        seen.push(
+          value.type === "part-start"
+            ? "start"
+            : value.type === "text-delta"
+              ? `${value.path.join(".")}:${value.textDelta}`
+              : `${value.type}:${value.path.join(".")}`,
+        );
+      }
+    };
 
-    const summary = chunks.map((chunk) =>
-      chunk.type === "part-start"
-        ? `start:${chunk.path.join(".")}`
-        : chunk.type === "text-delta"
-          ? `${chunk.path.join(".")}:${chunk.textDelta}`
-          : `${chunk.type}:${chunk.path.join(".")}`,
+    const busy = controller.addTextPart();
+    const idle = controller.addTextPart();
+    idle.append("i0");
+    await read(3);
+    busy.append("a1");
+    busy.append("a2");
+    busy.append("a3");
+    const third = controller.addTextPart();
+    idle.append("late");
+    third.append("c");
+    busy.close();
+    idle.close();
+    third.close();
+    controller.close();
+    await read();
+
+    const starts = seen.flatMap((item, index) =>
+      item === "start" ? [index] : [],
     );
-    const starts = summary
-      .map((item, index) => (item === "start:" ? index : -1))
-      .filter((index) => index >= 0);
-    expect(starts).toHaveLength(2);
-    // "b" was written after the second part-start, so it follows it
-    expect(summary.indexOf("0:b")).toBeGreaterThan(starts[1]!);
-    expect(summary.indexOf("0:a")).toBeLessThan(starts[1]!);
+    expect(starts).toHaveLength(3);
+    expect(seen.indexOf("1:late")).toBeGreaterThan(starts[2]!);
   });
 
   it("delivers every chunk of many open tool calls in order per part", async () => {
