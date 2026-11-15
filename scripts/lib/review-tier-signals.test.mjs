@@ -1441,8 +1441,11 @@ for (const name of [
   "install",
   "prepare",
   "prepack",
+  "postpack",
   "preprepare",
   "postprepare",
+  "prepublish",
+  "prepublishOnly",
   "publish",
   "postpublish",
   "pnpm:devPreinstall",
@@ -1482,6 +1485,25 @@ test("a lifecycle script in a new manifest gives T3", () => {
     policy,
   );
   assert.equal(result.tier, 3);
+});
+
+test("a changed lifecycle script gives T3", () => {
+  const result = computeTier(
+    manifestInput(
+      { scripts: { prepare: "husky" } },
+      { scripts: { prepare: "node x.js" } },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.ok(
+    result.reasons.some(
+      (reason) =>
+        reason.code === "lifecycle-script" &&
+        reason.detail === "package.json: scripts.prepare",
+    ),
+  );
 });
 
 test("an unchanged lifecycle script or a changed build script is not flagged", () => {
@@ -1540,6 +1562,25 @@ for (const [field, base, head, key] of [
     { a: "npm:b@^1.0.0" },
     { a: "npm:c@^1.0.0" },
     "devDependencies.a",
+  ],
+  [
+    "peerDependencies",
+    { a: "^1.0.0" },
+    { a: "npm:b@^1.0.0" },
+    "peerDependencies.a",
+  ],
+  [
+    "optionalDependencies",
+    { a: "^1.0.0" },
+    { a: "git+https://gitlab.com/someone/a.git" },
+    "optionalDependencies.a",
+  ],
+  ["resolutions", {}, { a: "http://example.com/a.tgz" }, "resolutions.a"],
+  [
+    "dependencies",
+    { a: "^1.0.0" },
+    { a: "bitbucket:someone/a" },
+    "dependencies.a",
   ],
 ]) {
   test(`${field} entry ${key} set to ${JSON.stringify(head)} gives T3`, () => {

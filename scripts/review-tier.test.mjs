@@ -184,7 +184,8 @@ function fakeClient({
         const pullRequest = structuredClone(
           prByNumber[variables.number] ?? prSnapshots?.[gatherRead++] ?? pr,
         );
-        pullRequest.changedFiles ??= files.length;
+        if (!Object.hasOwn(pullRequest, "changedFiles"))
+          pullRequest.changedFiles = files.length;
         const events = pullRequest.timelineItems.nodes;
         pullRequest.labeledEvents ??= {
           nodes: events
@@ -2953,6 +2954,24 @@ test("a renamed package manifest is still read as a new package", async () => {
       ["packages/b/package.json", false],
       ["packages/a/package.json", true],
     ],
+  );
+});
+
+test("a missing changed-file count from GitHub fails the tier", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ changedFiles: null }),
+    files: [file("README.md")],
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.equal(signalsInput.changedFiles, null);
+  assert.deepEqual(
+    computeTier(signalsInput, policy).failures.map(({ code }) => code),
+    ["files-incomplete"],
   );
 });
 
