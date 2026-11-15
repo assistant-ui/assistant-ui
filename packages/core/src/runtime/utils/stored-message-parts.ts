@@ -94,7 +94,8 @@ const makeIsStoredMessagePart = (
     reasoning: (part) =>
       typeof part.text === "string" ||
       typeof part.unstable_summary === "string",
-    image: (part) => typeof part.image === "string",
+    image: (part) =>
+      typeof part.image === "string" && isOptionalString(part.filename),
     file: (part) =>
       typeof part.data === "string" &&
       typeof part.mimeType === "string" &&

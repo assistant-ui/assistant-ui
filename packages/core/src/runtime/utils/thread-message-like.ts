@@ -154,6 +154,8 @@ export const fromThreadMessageLike = (
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
     if (typeof image !== "string") return null;
+    if (rest.filename !== undefined && typeof rest.filename !== "string")
+      return null;
     if (parseDataUrl(image)?.mimeType.startsWith("image/")) {
       return { ...rest, image };
     }
@@ -301,10 +303,10 @@ export const fromThreadMessageLike = (
             const type = part.type;
             switch (type) {
               case "file":
+              case "image":
                 return keepWellFormed(part);
 
               case "text":
-              case "image":
               case "audio":
               case "data":
                 return part;

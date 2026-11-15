@@ -5,6 +5,7 @@ import {
 } from "./stored-message-parts";
 
 const file = { type: "file", data: "abc", mimeType: "text/plain" };
+const image = { type: "image", image: "https://a.test/a.png" };
 const urlSource = {
   type: "source",
   sourceType: "url",
@@ -26,6 +27,7 @@ describe("stored part guards", () => {
       "a file with a filename and a url source type",
       { ...file, filename: "a", sourceType: "url" },
     ],
+    ["an image with a filename", { ...image, filename: "a.png" }],
     ["a url source", urlSource],
     ["a url source with a title", { ...urlSource, title: "A" }],
     ["a document source", documentSource],
@@ -41,6 +43,7 @@ describe("stored part guards", () => {
   it.each([
     ["a file whose filename is not a string", { ...file, filename: 3 }],
     ["a file with an unknown source type", { ...file, sourceType: 42 }],
+    ["an image whose filename is not a string", { ...image, filename: {} }],
     ["a url source whose title is not a string", { ...urlSource, title: {} }],
     [
       "a document source whose filename is not a string",
