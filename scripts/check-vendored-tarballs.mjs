@@ -96,15 +96,16 @@ export function findVendorProblems(root, directory) {
       templateManifest[field] ?? {},
     )) {
       if (typeof spec !== "string") continue;
-      // npm and pnpm read `file:` specs and bare relative, absolute or `~/`
-      // paths as local packages.
-      const local = spec.startsWith("file:")
-        ? spec.slice("file:".length)
-        : /^(?:\.{1,2}\/|\/|~\/)/.test(spec)
+      // npm reads `file:` specs and anything starting with `.`, `~/`, a slash
+      // or a drive letter as a local path; pnpm adds `link:`.
+      const protocol = /^(?:file|link):/.exec(spec)?.[0];
+      const local = protocol
+        ? spec.slice(protocol.length)
+        : /^(?:\.|~\/|[/\\]|[a-zA-Z]:)/.test(spec)
           ? spec
           : undefined;
       if (local === undefined) continue;
-      const target = path.posix.normalize(local);
+      const target = path.posix.normalize(local.replaceAll("\\", "/"));
       const filename = target.startsWith(`${vendorName}/`)
         ? target.slice(vendorName.length + 1)
         : undefined;

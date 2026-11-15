@@ -132,25 +132,38 @@ test("rejects a manifest dependency on an unrecorded or mismatched archive", () 
   );
 });
 
-test("checks bare relative and absolute paths as local archives", () => {
-  const setup = validRepo();
-  setup.dependencies.demo = "./vendor/demo-1.0.0.tgz";
-  setup.dependencies.outside = "../elsewhere/x.tgz";
-  setup.dependencies.absolute = "/tmp/x.tgz";
-  setup.dependencies.dotted = "file:./vendor/../vendor/demo-1.0.0.tgz";
-  const problems = problemsFor(setup);
-  assert.ok(
-    !problems.some((problem) => problem.includes("dependencies.demo ")),
-  );
-  assert.ok(
-    problems.some((problem) => problem.includes("dependencies.outside")),
-  );
-  assert.ok(
-    problems.some((problem) => problem.includes("dependencies.absolute")),
-  );
-  assert.ok(
-    problems.some((problem) => problem.includes("dependencies.dotted")),
-  );
+test("checks every local spec npm or pnpm accepts against provenance", () => {
+  const local = [
+    "./vendor/demo-1.0.0.tgz",
+    "file:./vendor/../vendor/demo-1.0.0.tgz",
+    ".\\vendor\\demo-1.0.0.tgz",
+  ];
+  for (const spec of local) {
+    const setup = validRepo();
+    setup.dependencies.demo = spec;
+    assert.deepEqual(problemsFor(setup), [], spec);
+  }
+
+  const outside = [
+    "../elsewhere/x.tgz",
+    "/tmp/x.tgz",
+    "file:vendor/../x.tgz",
+    ".vendor/x.tgz",
+    "..",
+    "C:\\x.tgz",
+    "~/x.tgz",
+    "link:../x",
+  ];
+  for (const spec of outside) {
+    const setup = validRepo();
+    setup.dependencies.loose = spec;
+    assert.ok(
+      problemsFor(setup).some((problem) =>
+        problem.includes(`dependencies.loose points at ${spec}, which`),
+      ),
+      spec,
+    );
+  }
 });
 
 test("reports a missing template manifest", () => {
