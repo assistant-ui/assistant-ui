@@ -125,11 +125,13 @@ export async function GET(req: Request) {
 
     if (!upstream.ok) {
       const details = await readBoundedText(upstream);
+      console.error(
+        "[api/xulux/download-proxy] upstream",
+        upstream.status,
+        details.slice(0, 500),
+      );
       return NextResponse.json(
-        {
-          error: `Upstream responded ${upstream.status}.`,
-          details: details.slice(0, 500) || undefined,
-        },
+        { error: `Upstream responded ${upstream.status}.` },
         { status: 502 },
       );
     }
