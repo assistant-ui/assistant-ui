@@ -46,8 +46,23 @@ describe("MarkdownText", () => {
     );
     const frame = lastFrame()!;
     expect(frame).not.toContain("\u001b]8;");
-    expect(frame).toContain(" (file:///etc/passwd)");
-    expect(frame).toContain(" (https://example.com/)");
+    expect(frame).toContain("one");
+    expect(frame).toContain("\u001b[2m (file:///etc/passwd)\u001b[22m");
+    expect(frame).toContain("two");
+    expect(frame).toContain("\u001b[2m (https://example.com/)\u001b[22m");
+  });
+
+  it("highlights each code block once when it falls back", () => {
+    const highlighter = vi.fn((code: string) => code);
+    render(
+      <MarkdownText
+        text={"[a](./a.ts)\n\n```js\nconst x = 1;\n```"}
+        highlighter={highlighter}
+        hyperlinks
+        color
+      />,
+    );
+    expect(highlighter).toHaveBeenCalledTimes(1);
   });
 
   it("keeps table layout when a cell has a refused link", () => {

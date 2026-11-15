@@ -114,18 +114,35 @@ const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
       : options;
 
   const source = sanitizeTerminalText(text);
-  let rendered = render(
-    source,
-    Object.values(resolvedOptions).some((v) => v !== undefined)
-      ? (resolvedOptions as RenderOptions)
-      : undefined,
-  );
   // markdansi has no per-link hook. If any link has a scheme we don't
   // hyperlink, render again without hyperlinks so markdansi lays out every
-  // link as "label (url)" itself, tables and wrapping included.
+  // link as "label (url)" itself, tables and wrapping included. Code blocks
+  // render the same both times, so the second pass reuses the highlighting.
+  const { highlighter } = resolvedOptions;
+  const highlighted = new Map<string, string>();
+  const renderOptions = {
+    ...resolvedOptions,
+    ...(highlighter && {
+      highlighter: (code: string, lang?: string) => {
+        const key = `${lang ?? ""}\u0000${code}`;
+        let result = highlighted.get(key);
+        if (result === undefined) {
+          result = highlighter(code, lang);
+          highlighted.set(key, result);
+        }
+        return result;
+      },
+    }),
+  };
+  let rendered = render(
+    source,
+    Object.values(renderOptions).some((v) => v !== undefined)
+      ? (renderOptions as RenderOptions)
+      : undefined,
+  );
   if (hasRefusedHyperlink(rendered)) {
     rendered = render(source, {
-      ...resolvedOptions,
+      ...renderOptions,
       hyperlinks: false,
     } as RenderOptions);
   }
