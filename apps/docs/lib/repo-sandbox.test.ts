@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createRepoSandbox } from "./repo-sandbox";
+import { createRepoSandbox, TimeBudgetedBash } from "./repo-sandbox";
 
 const mocks = vi.hoisted(() => ({ sourceRoot: "" }));
 
@@ -116,6 +116,86 @@ describe("createRepoSandbox", () => {
     } finally {
       warn.mockRestore();
       mocks.sourceRoot = generated;
+    }
+  });
+
+  it("stops a command at its deadline", async () => {
+    const getToolkit = createRepoSandbox({
+      toolPrompt: "",
+      commandTimeoutMs: 200,
+    });
+
+    const startedAt = Date.now();
+    const output = await run(getToolkit, "sleep 30; echo finished");
+
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+    expect(output).not.toContain("finished");
+    expect(await run(getToolkit, "echo next")).toBe("next");
+  });
+
+  it("stops every command once the sandbox spends its time budget", async () => {
+    const getToolkit = createRepoSandbox({
+      toolPrompt: "",
+      commandTimeoutMs: 10_000,
+      timeBudgetMs: 300,
+    });
+
+    const startedAt = Date.now();
+    expect(await run(getToolkit, "sleep 30; echo finished")).not.toContain(
+      "finished",
+    );
+    expect(await run(getToolkit, "sleep 30; echo finished")).not.toContain(
+      "finished",
+    );
+    expect(await run(getToolkit, "echo after")).not.toContain("after");
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+  });
+
+  it("shares one budget between overlapping commands", async () => {
+    const bash = new TimeBudgetedBash({}, 300);
+
+    const startedAt = Date.now();
+    const results = await Promise.all([
+      bash.exec("sleep 30; echo finished"),
+      new Promise((resolve) => setTimeout(resolve, 150)).then(() =>
+        bash.exec("sleep 30; echo finished"),
+      ),
+    ]);
+
+    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    for (const result of results)
+      expect(result.stdout).not.toContain("finished");
+    expect((await bash.exec("echo after")).stdout).not.toContain("after");
+  });
+
+  it("does not count the time between commands", async () => {
+    const bash = new TimeBudgetedBash({}, 300);
+
+    expect((await bash.exec("sleep 0.1; echo one")).stdout).toBe("one\n");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect((await bash.exec("echo two")).stdout).toBe("two\n");
+  });
+
+  it("stops a command when the caller aborts it", async () => {
+    const bash = new TimeBudgetedBash({}, 60_000);
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 100);
+
+    const startedAt = Date.now();
+    const result = await bash.exec("sleep 30; echo finished", {
+      signal: controller.signal,
+    });
+
+    expect(Date.now() - startedAt).toBeLessThan(5_000);
+    expect(result.stdout).not.toContain("finished");
+    expect((await bash.exec("echo next")).stdout).toBe("next\n");
+  });
+
+  it("keeps quick commands unaffected by the deadline", async () => {
+    const getToolkit = createRepoSandbox({ toolPrompt: "" });
+
+    for (let index = 0; index < 5; index += 1) {
+      expect(await run(getToolkit, "sleep 0.01; echo ok")).toBe("ok");
     }
   });
 
