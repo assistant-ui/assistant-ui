@@ -89,7 +89,7 @@ const toolCallStartWire = (parts: number) => {
 };
 
 describe("assistant-stream: data stream decode + accumulate, one tool-call start per part", () => {
-  for (const n of [100, 500]) {
+  for (const n of [100, 500, 2000]) {
     const wire = toolCallStartWire(n);
     test(`${n} parts`, async ({ bench }) => {
       await bench(`${n} parts`, async () => {
