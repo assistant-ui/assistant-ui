@@ -21,6 +21,20 @@ describe("MarkdownText", () => {
     expect(lastFrame()).not.toContain("\u009d");
   });
 
+  it("only emits hyperlinks for http, https and mailto URLs", () => {
+    const { lastFrame } = render(
+      <MarkdownText
+        text={"[one](file:///etc/passwd) [two](https://example.com/&#x1b;x)"}
+        hyperlinks
+        color
+      />,
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain("one");
+    expect(frame).not.toContain("file:");
+    expect(frame).toContain("\u001b]8;;https://example.com/%EF%BF%BDx\u0007");
+  });
+
   it.each([{ width: 40 }, { wrap: false }])(
     "does not reformat unchanged messages on resize with %j",
     async (options) => {

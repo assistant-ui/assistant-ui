@@ -6,6 +6,7 @@ import {
   type Theme,
 } from "markdansi";
 import { memo, useCallback, useSyncExternalStore } from "react";
+import { filterHyperlinks } from "./filterHyperlinks";
 import { sanitizeTerminalText } from "./sanitizeTerminalText";
 
 export type MarkdownTextProps = {
@@ -30,7 +31,10 @@ export type MarkdownTextProps = {
   codeGutter?: boolean;
   /** Wrap long lines in code blocks (default: true). */
   codeWrap?: boolean;
-  /** Enable OSC 8 hyperlinks (default: auto-detect). */
+  /**
+   * Enable OSC 8 hyperlinks (default: auto-detect). Only http, https and
+   * mailto links become hyperlinks; other links render as plain text.
+   */
   hyperlinks?: boolean;
   /** Enable ANSI colors (default: auto-detect). */
   color?: boolean;
@@ -107,11 +111,13 @@ const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
       ? { ...options, width: terminalWidth }
       : options;
 
-  const rendered = render(
-    sanitizeTerminalText(text),
-    Object.values(resolvedOptions).some((v) => v !== undefined)
-      ? (resolvedOptions as RenderOptions)
-      : undefined,
+  const rendered = filterHyperlinks(
+    render(
+      sanitizeTerminalText(text),
+      Object.values(resolvedOptions).some((v) => v !== undefined)
+        ? (resolvedOptions as RenderOptions)
+        : undefined,
+    ),
   );
   return <Text>{rendered}</Text>;
 };
