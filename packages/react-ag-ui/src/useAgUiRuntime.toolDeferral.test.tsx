@@ -145,6 +145,82 @@ describe("useAgUiRuntime frontend tool deferral", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "a gate beside a non-gate interrupt",
+      [GATE, { id: "int-2", reason: "confirmation" }] as AgUiInterrupt[],
+    ],
+    [
+      "two gates naming the call",
+      [GATE, { ...GATE, id: "int-2" }] as AgUiInterrupt[],
+    ],
+    [
+      "a gate beside one naming an unrendered call",
+      [GATE, { ...GATE, id: "int-2", toolCallId: "tc-missing" }],
+    ],
+    [
+      "two gates sharing an interrupt id",
+      [GATE, { ...GATE, toolCallId: "tc-2" }],
+    ],
+    [
+      "an input_required interrupt naming the call",
+      [{ id: "int-1", reason: "input_required", toolCallId: "tc-1" }],
+    ],
+  ] as [string, AgUiInterrupt[]][])(
+    "does not run a frontend execute on a call named by %s",
+    async (_label, interrupts) => {
+      const { runtime, execute, settle } = await renderHeldRun((subscriber) => {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: "run-1",
+            outcome: { type: "interrupt", interrupts },
+          },
+        });
+      });
+
+      await settle();
+
+      const call = toolCalls(runtime.current)[0]!;
+      expect(call.approval).toBeUndefined();
+      expect(call.result).toBeUndefined();
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the call withheld after the interrupt that named it is answered", async () => {
+    const interrupts: AgUiInterrupt[] = [
+      GATE,
+      { id: "int-2", reason: "confirmation" },
+    ];
+    const { runtime, execute, settle } = await renderHeldRun((subscriber) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: "run-1",
+          outcome: { type: "interrupt", interrupts },
+        },
+      });
+    });
+    await settle();
+    expect(runtime.current.unstable_getPendingInterrupts()).toHaveLength(2);
+
+    await act(async () => {
+      await runtime.current.unstable_submitInterruptResponses([
+        {
+          interruptId: "int-1",
+          status: "resolved",
+          payload: { approved: true },
+        },
+        { interruptId: "int-2", status: "resolved", payload: true },
+      ]);
+    });
+    await flush();
+
+    expect(runtime.current.unstable_getPendingInterrupts()).toHaveLength(0);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("does not run a frontend execute on a call the agent answers itself", async () => {
     const { runtime, execute, settle } = await renderHeldRun((subscriber) => {
       subscriber.onToolCallResultEvent?.({

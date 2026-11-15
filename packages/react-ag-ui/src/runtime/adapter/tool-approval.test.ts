@@ -68,6 +68,15 @@ describe("projectAgUiToolApprovals", () => {
     expect(projectAgUiToolApprovals(interrupts).size).toBe(0);
   });
 
+  it("leaves the whole batch bespoke when two gates share one interrupt id", () => {
+    // One approval id on two calls would let a single decision answer both.
+    const interrupts = [gate("int-1", "tc-1"), gate("int-1", "tc-2")];
+    expect(
+      projectAgUiToolApprovals(interrupts, new Set(["tc-1", "tc-2"])).size,
+    ).toBe(0);
+    expect(projectAgUiToolApprovals(interrupts).size).toBe(0);
+  });
+
   it("leaves the whole batch bespoke when a gate names an unrendered tool call", () => {
     // The unrendered gate could never be clicked, so the batch could never be
     // completed: its rendered sibling would take a decision that no resume
@@ -407,6 +416,19 @@ describe("buildToolApprovalResume", () => {
 });
 
 describe("withToolApprovalDecision", () => {
+  it("decides nothing when one approval id is pending on several calls", () => {
+    const content = [
+      toolCall("tc-1", { id: "int-1" }),
+      toolCall("tc-2", { id: "int-1" }),
+    ];
+    expect(
+      withToolApprovalDecision(content, {
+        approvalId: "int-1",
+        approved: true,
+      }),
+    ).toBe(content);
+  });
+
   it("records the decision on the gate it addresses and leaves the rest alone", () => {
     const content = [
       toolCall("tc-1", { id: "int-1" }),

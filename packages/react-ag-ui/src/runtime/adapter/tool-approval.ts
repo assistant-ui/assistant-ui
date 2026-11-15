@@ -217,6 +217,12 @@ export const projectAgUiToolApprovals = (
   // while the resume array still waits on the id that no part carries.
   const toolCallIds = interrupts.map((interrupt) => interrupt.toolCallId);
   if (new Set(toolCallIds).size !== toolCallIds.length) return EMPTY_APPROVALS;
+  // Two gates sharing one interrupt id would project one approval id onto two
+  // calls, so a single decision would answer both. AG-UI resumes with one
+  // response per interrupt id, so such a batch cannot be decided per call.
+  const interruptIds = interrupts.map((interrupt) => interrupt.id);
+  if (new Set(interruptIds).size !== interruptIds.length)
+    return EMPTY_APPROVALS;
   return new Map(
     interrupts.map((interrupt) => [
       interrupt.toolCallId,
@@ -274,6 +280,13 @@ export const withToolApprovalDecision = (
   content: readonly ThreadAssistantMessagePart[],
   { approvalId, approved, reason }: RespondToToolApprovalOptions,
 ): readonly ThreadAssistantMessagePart[] => {
+  // A decision authorizes one call. An id pending on several calls is never
+  // decided here, so one click cannot approve calls the user did not see.
+  let matches = 0;
+  for (const part of iterateToolCallParts(content)) {
+    if (part.approval?.id === approvalId && isPending(part.approval)) matches++;
+  }
+  if (matches !== 1) return content;
   const { content: next, changed } = mapToolCallPartsDeep(content, (part) => {
     const approval = part.approval;
     if (approval?.id !== approvalId || !isPending(approval)) return part;
