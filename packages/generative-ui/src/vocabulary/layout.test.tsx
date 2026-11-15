@@ -201,6 +201,9 @@ describe("layoutVocabulary Box", () => {
     "1px\\3b color:red",
     "red",
     "expression(alert(1))",
+    "10foo",
+    "calc(foo)",
+    "calc(100% - var(--x))",
     "",
   ])("drops a width or height that is not a plain length: %s", (value) => {
     expect(render({ $type: "Box", width: value, height: value })).toBe(
@@ -222,7 +225,8 @@ describe("layoutVocabulary Box", () => {
     [" 12rem ", "12rem"],
     ["-4px", "-4px"],
     [".5em", ".5em"],
-    ["0", "0"],
+    ["0", "0px"],
+    ["100", "100px"],
     ["auto", "auto"],
     ["fit-content", "fit-content"],
     ["calc(100% - 8px)", "calc(100% - 8px)"],

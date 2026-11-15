@@ -104,7 +104,7 @@ export const layoutDefinitions = {
         .union([z.string(), z.number()])
         .optional()
         .describe(
-          'Width; a number is pixels, a string is a CSS length such as "50%" or "calc(100% - 8px)".',
+          'Width; a number is pixels, a string is a CSS length such as "50%" or "12rem".',
         ),
       height: z
         .union([z.string(), z.number()])

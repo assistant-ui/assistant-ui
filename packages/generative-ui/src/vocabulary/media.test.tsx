@@ -75,6 +75,9 @@ describe("mediaVocabulary", () => {
       alt: "alt",
     };
     expect(render(node, ["https://cdn.example.com"])).toBe("alt");
+    expect(render(node, [" DATA: "])).toContain(
+      'src="data:image/png;base64,YQ=="',
+    );
     expect(render(node, [])).toBe("alt");
     expect(render(node)).toContain('src="data:image/png;base64,YQ=="');
   });
