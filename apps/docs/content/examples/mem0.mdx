@@ -59,6 +59,8 @@ async function getRelevantMemories(userId: string, query: string) {
 
 ### Using Memories in Chat
 
+`auth()` stands for your auth library's session lookup. The session must carry a stable user id; with Auth.js, copy it onto `session.user.id` in the `session` callback.
+
 ```tsx
 // In your API route
 import { auth } from "@/auth";

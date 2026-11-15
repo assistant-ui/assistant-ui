@@ -42,4 +42,6 @@ it("ignores reasons that name object prototype keys", async () => {
 it("ignores repeated reason params", async () => {
   await renderPage({ reason: ["access_denied", "invalid_state"] });
   expect(document.body.textContent).not.toContain("access_denied");
+  expect(document.body.textContent).not.toContain("invalid_state");
+  expect(document.body.textContent).not.toContain("expired");
 });

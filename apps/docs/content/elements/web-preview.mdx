@@ -149,7 +149,7 @@ export function Preview({ url }: { url: string }) {
 }
 ```
 
-The sandbox leaves out `allow-same-origin`, so the page runs on an opaque origin with no access to your cookies or storage. Don't add it for URLs that could be on your own origin: `allow-scripts` with `allow-same-origin` on a same-origin page lets the page remove its own sandbox.
+The sandbox leaves out `allow-same-origin`, so the page runs on an opaque origin with no access to your cookies or storage. Pages that need their own origin (module scripts, same-origin `fetch`, storage) won't work in it. For those, serve the preview from a separate origin, or use [`safe-content-frame`](/safe-content-frame). Don't add `allow-same-origin` for URLs that could be on your own origin: with `allow-scripts`, a same-origin page can remove its own sandbox. The same goes for `onOpenExternal`: a new tab has no sandbox, so don't offer it for untrusted pages on your origin.
 
   </Step>
   <Step>
