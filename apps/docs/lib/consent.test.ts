@@ -307,6 +307,34 @@ describe("followAnalyticsConsent", () => {
     expect(seen.every((allowed) => !allowed)).toBe(true);
   });
 
+  it("stays off when the region lookup fails", async () => {
+    stubWindow();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new Error("offline"))),
+    );
+    const seen: boolean[] = [];
+
+    const { followAnalyticsConsent } = await load();
+    followAnalyticsConsent((allowed) => seen.push(allowed));
+    await flush();
+
+    expect(seen).toEqual([false, false]);
+  });
+
+  it("keeps a decline made before the region answer arrives", async () => {
+    stubWindow();
+    regionRequires(false);
+    const seen: boolean[] = [];
+
+    const { followAnalyticsConsent, setStoredConsent } = await load();
+    followAnalyticsConsent((allowed) => seen.push(allowed));
+    setStoredConsent("denied");
+    await flush();
+
+    expect(seen).toEqual([false, false]);
+  });
+
   it("ignores the region answer once unsubscribed", async () => {
     stubWindow();
     regionRequires(false);
