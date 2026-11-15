@@ -686,6 +686,31 @@ test.describe("security", () => {
     await expect(page.locator("#same-origin-error")).toHaveText("security");
   });
 
+  test("only http(s) URLs load as remotes or overlay content", async ({
+    page,
+  }) => {
+    await page
+      .context()
+      .addCookies([
+        { name: "host-secret", value: "1", url: "http://localhost:5180" },
+      ]);
+    await page.goto("/?case=url-schemes");
+    const title = await page.title();
+    const out = frame(page, "inline").locator("[data-probe=out]");
+    await expect
+      .poll(async () => Object.keys(JSON.parse((await out.textContent())!)))
+      .toHaveLength(3);
+    expect(JSON.parse((await out.textContent())!)).toEqual({
+      javascript: "refused:overlay",
+      data: "refused:overlay",
+      // An inline remote has an opaque origin: no URL is its "same origin".
+      http: "refused:overlay",
+    });
+    await expect(page.locator("#js-src-error")).toHaveText("load");
+    await expect(page.locator("[data-rc-overlay-kind] iframe")).toHaveCount(0);
+    expect(await page.title()).toBe(title);
+  });
+
   test("forged handshake messages are ignored", async ({ page }) => {
     await page.goto("/?case=auto-height");
     await expect(page.locator("#remote [data-rc-revealed]")).toHaveCount(1);
