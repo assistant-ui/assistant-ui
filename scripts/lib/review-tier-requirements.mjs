@@ -24,8 +24,8 @@ export function latestReviews(reviews) {
 }
 
 // An approval of an older commit carries over when that commit is an ancestor
-// of the head and the commits since touch no protected path. Anything that
-// cannot be verified leaves the approval stale.
+// of the head and the commits since stay within T0. Anything that cannot be
+// verified leaves the approval stale.
 function carryOver(comparison, policy) {
   if (comparison === undefined) return { stale: true };
   if (comparison === null) {
