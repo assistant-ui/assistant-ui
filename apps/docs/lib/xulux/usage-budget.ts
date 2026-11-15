@@ -327,12 +327,14 @@ export async function beginTurn(
   // a turn may start while spend is under the cap. Concurrent turns each see
   // a different total, so together they pass the cap by at most one
   // reservation.
-  if (
-    totals.dailySpentMicroUsd - reserve >= limits.dailyBudgetMicroUsd ||
-    (networkTotal !== null &&
-      networkTotal - reserve >= limits.networkDailyBudgetMicroUsd)
-  ) {
+  if (totals.dailySpentMicroUsd - reserve >= limits.dailyBudgetMicroUsd) {
     return release("DAILY_BUDGET_EXCEEDED");
+  }
+  if (
+    networkTotal !== null &&
+    networkTotal - reserve >= limits.networkDailyBudgetMicroUsd
+  ) {
+    return release("NETWORK_DAILY_BUDGET_EXCEEDED");
   }
   if (totals.sessionSpentMicroUsd - reserve >= limits.chatBudgetMicroUsd) {
     return release("CHAT_BUDGET_EXCEEDED");
