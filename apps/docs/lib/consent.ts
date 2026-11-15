@@ -74,3 +74,31 @@ export function isConsentRequired(): Promise<boolean> {
     .catch(() => true);
   return consentRequiredPromise;
 }
+
+/**
+ * Applies the browser analytics rule PostHog follows: off under GPC, on after an
+ * accept, off after a decline, and with no choice yet, on only where the region
+ * does not require consent. Reports false until the region is known. Returns an
+ * unsubscribe function.
+ */
+export function followAnalyticsConsent(
+  apply: (allowed: boolean) => void,
+): () => void {
+  let active = true;
+  const decide = (choice: ConsentChoice | null) => {
+    if (hasGlobalPrivacyControl()) return apply(false);
+    if (choice !== null) return apply(choice === "granted");
+    apply(false);
+    void isConsentRequired().then((required) => {
+      if (!active || getStoredConsent() !== null) return;
+      apply(!required && !hasGlobalPrivacyControl());
+    });
+  };
+
+  decide(getStoredConsent());
+  const unsubscribe = subscribeToConsent(decide);
+  return () => {
+    active = false;
+    unsubscribe();
+  };
+}
