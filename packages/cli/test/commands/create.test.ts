@@ -842,10 +842,49 @@ describe("resolvePresetUrl", () => {
     ).toThrow("--preset URLs must not contain credentials.");
   });
 
-  it("is checked before the project is scaffolded", () => {
-    expect(() =>
-      resolveScaffoldSelector({ preset: "http://example.com/preset" }),
-    ).toThrow("--preset URLs must use https");
+  it("is checked before the project is scaffolded", async () => {
+    const cwd = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    mocks.downloadProject.mockClear();
+    mocks.downloadTemplate.mockClear();
+    mocks.resolveLatestReleaseRef.mockClear();
+    mocks.scaffoldProject.mockClear();
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        create.parseAsync(
+          [
+            "my-app",
+            "--cwd",
+            cwd,
+            "--preset",
+            "http://example.com/preset",
+            "--skip-install",
+            "--no-skills",
+          ],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("process.exit");
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("--preset URLs must use https"),
+      );
+      expect(mocks.scaffoldProject).not.toHaveBeenCalled();
+      expect(mocks.downloadProject).not.toHaveBeenCalled();
+      expect(mocks.downloadTemplate).not.toHaveBeenCalled();
+      expect(mocks.resolveLatestReleaseRef).not.toHaveBeenCalled();
+      expect(fs.readdirSync(cwd)).toEqual([]);
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it("expands a bare preset name to the playground URL", () => {

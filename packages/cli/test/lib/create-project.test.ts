@@ -42,7 +42,15 @@ import {
 } from "../../src/lib/utils/package-manager";
 
 const TEST_PM: PackageManagerName = "pnpm";
-const [TEST_DLX_CMD] = dlxCommand(TEST_PM);
+const [TEST_DLX_CMD, TEST_DLX_ARGS] = dlxCommand(TEST_PM);
+
+function isDlxCall([cmd, args]: unknown[]): boolean {
+  return (
+    cmd === TEST_DLX_CMD &&
+    Array.isArray(args) &&
+    TEST_DLX_ARGS.every((arg, i) => args[i] === arg)
+  );
+}
 
 const defaultOpts = {
   packageManager: TEST_PM,
@@ -491,10 +499,8 @@ describe("transformProject — hasLocalComponents: true", () => {
       hasLocalComponents: true,
     });
 
-    const shadcnCalls = mocks.spawn.mock.calls.filter(
-      ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@4.23.0"),
-    );
-    expect(shadcnCalls).toHaveLength(0);
+    const dlxCalls = mocks.spawn.mock.calls.filter(isDlxCall);
+    expect(dlxCalls).toHaveLength(0);
   });
 });
 
@@ -784,10 +790,8 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(result.registryInstallCommand).toContain(
         "https://r.assistant-ui.com/native/icon.json",
       );
-      const shadcnCalls = mocks.spawn.mock.calls.filter(
-        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@4.23.0"),
-      );
-      expect(shadcnCalls).toHaveLength(0);
+      const dlxCalls = mocks.spawn.mock.calls.filter(isDlxCall);
+      expect(dlxCalls).toHaveLength(0);
     });
 
     it("skips shadcn when skipInstall is true even without local components", async () => {
@@ -798,10 +802,8 @@ describe("transformProject — hasLocalComponents: false", () => {
 
       await run();
 
-      const shadcnCalls = mocks.spawn.mock.calls.filter(
-        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@4.23.0"),
-      );
-      expect(shadcnCalls).toHaveLength(0);
+      const dlxCalls = mocks.spawn.mock.calls.filter(isDlxCall);
+      expect(dlxCalls).toHaveLength(0);
     });
   });
 });
