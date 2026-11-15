@@ -61,6 +61,17 @@ const sections = [
     body: [
       "We may share information in specific situations and with third-party vendors, service providers, contractors, or agents who perform services for us or on our behalf and require access to such information to do that work.",
       "The categories of third parties we may share personal information with include cloud computing services, AI platforms, payment processors, and website hosting service providers.",
+      "When you use assistant-ui.com, these service providers receive personal information:",
+      'PostHog receives product analytics events, error reports from your browser and from our servers, and the AI assistant logs described in the section titled "Do We Offer Artificial Intelligence-Based Products?"',
+      "Axiom receives the same AI assistant logs. We use it to monitor and debug the assistant.",
+      "Assistant Cloud, our own hosted backend, stores your AI assistant conversations and their attachments so you can return to them. It also receives the same AI assistant logs, and reports on each assistant reply, such as the tools it called, its output, errors, and token usage.",
+      'Our AI Service Providers receive your messages and the context needed to answer them, as described in the section titled "Do We Offer Artificial Intelligence-Based Products?"',
+      'Vercel hosts the website and receives your requests to it, as well as the analytics described in the section titled "Do We Use Cookies And Other Tracking Technologies?"',
+      "Upstash receives your IP address and a session identifier, which we use to limit how often the AI assistant and other features can be used.",
+      "TypeSafe receives the text you type into site search, so it can suggest relevant pages.",
+      "Cloudflare receives the details you submit in the contact sales form and delivers them to our team by email. The form then opens Cal.com with your name, email, and notes filled in so you can book a call.",
+      "Blaxel runs the live previews in the Xulux playground, so your browser loads those previews from Blaxel.",
+      "Open-Meteo receives a place name or coordinates when you ask for the weather in one of our demos, and Google Fonts serves the fonts for one of our interactive demos. Both see your IP address and browser details.",
       "We may also share or transfer information in connection with a merger, sale of company assets, financing, acquisition, or similar business transfer. We may share information with affiliates and require those affiliates to honor this Privacy Notice.",
     ],
   },
@@ -68,7 +79,7 @@ const sections = [
     title: "5. Do We Use Cookies And Other Tracking Technologies?",
     body: [
       "We use a small number of cookies and similar technologies to operate the Services and to understand how they are used. We do not use third-party advertising cookies, and we do not sell or share your personal information for cross-context behavioral advertising.",
-      "For product analytics and error monitoring we use PostHog, which stores a pseudonymous identifier in cookies and local storage on your device. Analytics events may include the pages you visit and the search queries you enter on the site. We also use Vercel Analytics and Vercel Speed Insights, which are cookieless and collect aggregate page-view and performance metrics, and a self-hosted instance of Umami, a cookieless, privacy-focused analytics tool that measures a small random sample of visits.",
+      "For product analytics and error monitoring we use PostHog, which stores a pseudonymous identifier in cookies and local storage on your device. Analytics events may include the pages you visit and the search queries you enter on the site. We also use Vercel Analytics and Vercel Speed Insights, which are cookieless and collect page views, performance metrics, and the same site events as PostHog, including search queries, and a self-hosted instance of Umami, a cookieless, privacy-focused analytics tool that measures a small random sample of visits.",
       "We use one strictly necessary cookie (aui_anon_session) to prevent abuse of the free AI assistant on our website. It contains a random, signed identifier and expires after 24 hours.",
       'If you are visiting from the European Economic Area, the United Kingdom, or Switzerland, PostHog\'s analytics in your browser run only after you accept them through our consent banner, and you can decline them there. Vercel Analytics and Speed Insights are cookieless and store nothing on your device, so they run before you answer the banner; declining stops them. Our self-hosted Umami also runs before you answer, and it stores one sampling flag on your device, because it measures audience on our own site only, is never shared with anyone, and builds no profile of you across sites. Declining stops Umami as well, both for the rest of that visit and afterwards. Wherever you are located, we honor the Global Privacy Control (GPC) signal: if your browser broadcasts GPC, we disable all three of these analytics tools for your visit. Two things are not affected, because neither measures your browsing: the strictly necessary cookie described above, and the server-side logging of AI assistant conversations described in the section titled "Do We Offer Artificial Intelligence-Based Products?"',
       <CookieSettingsNotice key="cookie-settings" />,
@@ -79,7 +90,7 @@ const sections = [
     body: [
       "We offer products, features, or tools powered by artificial intelligence, machine learning, or similar technologies. These tools are designed to enhance your experience and provide innovative solutions.",
       "We provide AI Products through third-party service providers, including OpenAI, Anthropic, Microsoft Azure AI, and Google Cloud AI. Your input, output, and personal information may be shared with and processed by these AI Service Providers to enable your use of our AI Products.",
-      "When you use the AI assistant on our website, your messages and the responses generated for you are processed by our AI Service Providers and are logged to PostHog, together with usage metadata such as the model, token counts, and cost, so that we can monitor quality, safety, abuse, and cost. This logging is how we operate the assistant rather than a way of measuring your browsing, so it is not covered by the analytics consent banner or the Global Privacy Control signal, and it applies wherever you are located. Please do not include sensitive personal information in your messages to the assistant.",
+      "When you use the AI assistant on our website, your messages, the responses generated for you, and the tools called to answer them are processed by our AI Service Providers. They are also logged to PostHog, Axiom, and Assistant Cloud, together with usage metadata such as the model, token counts, and cost, and a pseudonymous identifier derived from your IP address, so that we can monitor quality, safety, abuse, and cost. Assistant Cloud also stores the conversation itself so you can return to it. This logging is how we operate the assistant rather than a way of measuring your browsing, so it is not covered by the analytics consent banner or the Global Privacy Control signal, and it applies wherever you are located. Please do not include sensitive personal information in your messages to the assistant.",
       "Our AI Products are designed for AI automation and AI applications. To opt out, you can log in to your account settings and update your user account.",
     ],
   },
@@ -169,7 +180,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="text-muted-foreground mt-3">
-            Last updated August 31, 2026
+            Last updated November 14, 2026
           </p>
           <p className="text-muted-foreground mt-6 leading-relaxed">
             This Privacy Notice for AgentbaseAI Inc. (&quot;we,&quot;
