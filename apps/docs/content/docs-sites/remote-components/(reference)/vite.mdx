@@ -47,7 +47,7 @@ export default {
 
 The dev server sends `frame-ancestors` but no `connect-src`, because HMR needs a websocket.
 
-The dev server serves your project's source, so it answers cross-origin requests only from its own origin, a `localhost` or loopback origin, and opaque remote frames (`Origin: null`). A page on any other site gets a 403. An opaque frame sends no `Referer`, so the dev server can't tell one on your page from a sandboxed frame on another site, and admits both. The plugin's own pages also apply Vite's `server.allowedHosts`, so a rebound host name gets a 403 there too. Set Vite's `server.cors` to allow other origins, such as a host on another machine; the plugin then leaves CORS to it. `vite preview` and built output answer any origin.
+The dev server serves your project's source, so it answers cross-origin requests only from its own origin and `localhost` or loopback origins. A page on any other site gets a 403. A remote in an opaque frame (a sandbox without `allow-same-origin`) sends `Origin: null` with no `Referer`, which a sandboxed frame on any other site sends too, so it is refused as well. URL remotes keep `allow-same-origin` by default and are unaffected. To serve opaque frames in dev, pass `opaqueFrames: true`, which lets any site read the dev server through such a frame. The plugin's own pages also apply Vite's `server.allowedHosts`, so a rebound host name gets a 403 there too. Set Vite's `server.cors` to allow other origins, such as a host on another machine; the plugin then leaves CORS to it. `vite preview` and built output answer any origin.
 
 ## Build
 
@@ -73,6 +73,7 @@ Host the folder on any static host, on a different site from your app. Assets ar
 | `network` | `"public"` | Network policy for the CSP in _headers. "none" or a list of origins. |
 | `frameAncestors` | `any page` | Host origins that may embed the pages (CSP frame-ancestors). Sent by the dev server and written to _headers. |
 | `injectIndex` | `true` | Add the runtime tag to your own index.html. |
+| `opaqueFrames` | `false` | Answer `Origin: null` in dev, for remotes in a sandbox without `allow-same-origin`. Any site can then read the dev server through such a frame. |
 | `head` | `""` | Extra HTML for every generated page's &lt;head&gt;. |
 
 ## Single-file builds

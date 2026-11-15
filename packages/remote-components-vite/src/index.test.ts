@@ -10,7 +10,7 @@ import { devCorsAllows, devHostAllowed, remoteComponents } from "./index";
 describe("devCorsAllows", () => {
   it.each([
     [undefined, undefined, true],
-    ["null", undefined, true],
+    ["null", undefined, false],
     ["http://localhost:3000", undefined, true],
     ["http://app.localhost:3000", undefined, true],
     ["http://127.0.0.1:5173", undefined, true],
@@ -22,6 +22,11 @@ describe("devCorsAllows", () => {
     ["not a url", "localhost:5173", false],
   ])("origin %s, host %s → %s", (origin, host, expected) => {
     expect(devCorsAllows(origin, host)).toBe(expected);
+  });
+
+  it("admits Origin null only when opaque frames are allowed", () => {
+    expect(devCorsAllows("null", "localhost:5173", true)).toBe(true);
+    expect(devCorsAllows("https://evil.example", undefined, true)).toBe(false);
   });
 });
 
@@ -109,16 +114,42 @@ describe("dev server CORS", () => {
     expect(response.cors).toBeUndefined();
   });
 
-  it("answers a loopback page and an opaque remote frame", async () => {
+  it("answers a loopback page and refuses an opaque frame by default", async () => {
     const host = await get({ origin: "http://localhost:3000" });
     expect(host.status).toBe(200);
     expect(host.headers.get("access-control-allow-origin")).toBe(
       "http://localhost:3000",
     );
-    // What a browser sends for an opaque frame's module: Origin null, no Referer.
+    // What a browser sends for an opaque frame's module: Origin null, no
+    // Referer, from the developer's page or any other site alike.
     const frame = await get({ origin: "null" });
-    expect(frame.status).toBe(200);
-    expect(frame.headers.get("access-control-allow-origin")).toBe("null");
+    expect(frame.status).toBe(403);
+    expect(frame.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("answers an opaque frame with opaqueFrames", async () => {
+    const opaque = await createServer({
+      root,
+      configFile: false,
+      logLevel: "silent",
+      plugins: [remoteComponents({ opaqueFrames: true })],
+      server: { host: "127.0.0.1", port: 0, ws: false },
+    });
+    await opaque.listen();
+    try {
+      const { port } = opaque.httpServer!.address() as AddressInfo;
+      const frame = await fetch(`http://127.0.0.1:${port}/secret.ts`, {
+        headers: { origin: "null" },
+      });
+      expect(frame.status).toBe(200);
+      expect(frame.headers.get("access-control-allow-origin")).toBe("null");
+      const other = await fetch(`http://127.0.0.1:${port}/secret.ts`, {
+        headers: { origin: "https://evil.example" },
+      });
+      expect(other.status).toBe(403);
+    } finally {
+      await opaque.close();
+    }
   });
 
   it("refuses a rebound host name on the plugin's own pages, with or without Origin", async () => {

@@ -45,6 +45,13 @@ export interface RemoteComponentsOptions {
   singleFile?: { plugins?: import("vite").PluginOption[] };
   /** Add the runtime tag to the app's own `index.html` too. Default true. */
   injectIndex?: boolean;
+  /**
+   * Answer `Origin: null` in dev, for remotes shown in opaque frames
+   * (sandbox without allow-same-origin) that load modules from the dev
+   * server. This lets a sandboxed frame on any site read the dev server,
+   * since the browser sends nothing that tells the two apart. Default false.
+   */
+  opaqueFrames?: boolean;
 }
 
 /** Vite's own default: loopback origins only. */
@@ -53,19 +60,21 @@ const LOOPBACK_ORIGIN =
 
 /**
  * Whether the dev server answers a cross-origin request. The dev server
- * serves the whole project's source, so it answers its own origin, loopback
- * origins and `Origin: null`. A page on another site is refused.
+ * serves the whole project's source, so it answers its own origin and
+ * loopback origins. A page on another site is refused.
  *
- * `null` is what an opaque remote frame (sandbox without allow-same-origin)
- * sends, with no `Referer`, so the dev server can't tell a frame on a
- * loopback page from a sandboxed frame on another site, and admits both.
- * Set `server.cors` to change this.
+ * `Origin: null` comes from opaque frames (sandbox without
+ * allow-same-origin) and carries no `Referer`, so a frame on the
+ * developer's page and a sandboxed frame on any other site look the same.
+ * It is refused unless `allowOpaque` (the plugin's `opaqueFrames` option).
  */
 export function devCorsAllows(
   origin: string | undefined,
   host?: string,
+  allowOpaque = false,
 ): boolean {
-  if (origin === undefined || origin === "null") return true;
+  if (origin === undefined) return true;
+  if (origin === "null") return allowOpaque;
   if (host !== undefined) {
     try {
       if (new URL(origin).host === host.toLowerCase()) return true;
@@ -250,14 +259,16 @@ export function remoteComponents(
       components = resolveComponents(root, options.components);
       // Built remote code is public, so preview answers any origin. The dev
       // server serves the project's source, so it answers only pages on this
-      // machine or opaque frames (devCorsAllows); opaque-origin remotes (sandbox without
+      // machine (devCorsAllows), and opaque frames only with opaqueFrames; opaque-origin remotes (sandbox without
       // allow-same-origin) fetch their scripts with `Origin: null`.
       if (env.command !== "build") {
         customCors = userConfig.server?.cors !== undefined;
         return {
           server: {
             cors: userConfig.server?.cors ?? {
-              origin: [LOOPBACK_ORIGIN, "null"],
+              origin: options.opaqueFrames
+                ? [LOOPBACK_ORIGIN, "null"]
+                : [LOOPBACK_ORIGIN],
             },
           },
           preview: { cors: userConfig.preview?.cors ?? { origin: "*" } },
@@ -317,7 +328,14 @@ export function remoteComponents(
           !devHostAllowed(req.headers.host, config.server.allowedHosts)
         )
           return refuse(res, "host not allowed; add it to server.allowedHosts");
-        if (!customCors && !devCorsAllows(req.headers.origin, req.headers.host))
+        if (
+          !customCors &&
+          !devCorsAllows(
+            req.headers.origin,
+            req.headers.host,
+            options.opaqueFrames,
+          )
+        )
           return refuse(
             res,
             "cross-origin request refused; set server.cors to allow it",
