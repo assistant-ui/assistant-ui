@@ -116,6 +116,21 @@ describe("singleFileCors", () => {
       ).toBe(expected);
     },
   );
+
+  it("varies on Origin for a refused origin too, so a cache can't reuse it", () => {
+    expect(
+      singleFileCors({ origin: "https://evil.example" }, { customCors: false }),
+    ).toEqual({ vary: "Origin" });
+    expect(
+      singleFileCors(
+        { origin: "http://localhost:3000" },
+        { customCors: false },
+      ),
+    ).toEqual({
+      "access-control-allow-origin": "http://localhost:3000",
+      vary: "Origin",
+    });
+  });
 });
 
 describe("dev server CORS", () => {

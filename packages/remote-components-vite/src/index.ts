@@ -150,9 +150,10 @@ export function singleFileCors(
 ): Record<string, string> {
   const { origin, host } = headers;
   if (options.customCors || origin === undefined) return {};
+  // The answer depends on Origin either way, so a cache must key on it.
   return devCorsAllows(origin, host, options.opaqueFrames)
     ? { "access-control-allow-origin": origin, vary: "Origin" }
-    : {};
+    : { vary: "Origin" };
 }
 
 const ENTRY_PREFIX = "virtual:rc-entry:";
@@ -378,9 +379,11 @@ export function remoteComponents(
           !devHostAllowed(req.headers.host, allowedHosts())
         )
           return refuse(res, "host not allowed; add it to server.allowedHosts");
-        // Cross-origin reads are left to the CORS headers (Vite's, and
-        // singleFileCors below): a response without one can't be read, and
-        // refusing outright would also stop proxied same-origin requests.
+        // Cross-origin reads are left to the CORS headers: Vite's
+        // `server.cors` for its own responses, and singleFileCors (which
+        // applies devCorsAllows) for `single.html`, which the plugin answers
+        // itself. A response without one can't be read, and refusing outright
+        // would also stop proxied same-origin requests.
         next();
       });
       const runtime = remoteComponentsMiddleware({ runtimeBase: base() });
