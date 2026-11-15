@@ -332,7 +332,10 @@ def test_owner_scoped_stream_ids_are_valid_and_distinct() -> None:
     alice = _stream_id("t", "r", "alice")
     bob = _stream_id("t", "r", "bob")
     assert alice != bob
-    assert alice.endswith(":1-t.r") and bob.endswith(":1-t.r")
+    assert _stream_id("t", "r", "alice") == alice
+    # Owned ids stay within the store's limit however long the ids are.
+    long = _stream_id("t" * 200, "r" * 200, "o" * 200)
+    assert len(long) <= 256 and long.startswith("o-")
 
 
 def test_start_run_is_visible_and_cancellable_before_producer_runs() -> None:

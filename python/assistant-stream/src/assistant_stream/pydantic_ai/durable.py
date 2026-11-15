@@ -602,8 +602,10 @@ def _stream_id(thread_id: str, run_id: str, owner: str | None = None) -> str:
         return stream_id
     # Two owners starting the same new thread and run at once each get their
     # own stream, so neither can read the other's run; the store then keeps
-    # one of them and the other is refused.
-    return f"{hashlib.sha256(owner.encode()).hexdigest()[:16]}:{stream_id}"
+    # one of them and the other is refused. A digest keeps the id within the
+    # stream store's length limit.
+    digest = hashlib.sha256(f"{len(owner)}:{owner}:{stream_id}".encode())
+    return f"o-{digest.hexdigest()}"
 
 
 def _not_found() -> Response:
