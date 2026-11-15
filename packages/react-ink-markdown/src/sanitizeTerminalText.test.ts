@@ -51,9 +51,12 @@ describe("sanitizeTerminalText", () => {
   });
 
   it("stays linear on many unterminated strings", () => {
-    const line = "\x1b]x".repeat(50_000);
+    // One unterminated DCS per line, then an OSC that does terminate.
+    const lines = "\x1bPx\n".repeat(100_000);
     const started = performance.now();
-    expect(sanitizeTerminalText(`${line}\n${line}\nend`)).toBe("\n\nend");
+    expect(sanitizeTerminalText(`${lines}\x1b]0;t\x07end`)).toBe(
+      `${"\n".repeat(100_000)}end`,
+    );
     expect(performance.now() - started).toBeLessThan(1_000);
   });
 });
