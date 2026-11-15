@@ -81,8 +81,6 @@ const updatePartForPath = (
   const partIndex = chunk.path[0]!;
   const updatedPart = updater(part);
   if (updatedPart === part) return message;
-  // One copy instead of two slices and a spread; emitted messages keep
-  // their own parts arrays.
   const parts = message.parts.slice();
   parts[partIndex] = updatedPart;
   return withParts(message, parts);

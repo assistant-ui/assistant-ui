@@ -112,7 +112,6 @@ describe("merge stream with many open parts", () => {
       );
 
     expect(parts).toBe(count);
-    // took about 10 s before merging stopped visiting every open part
     expect(performance.now() - started).toBeLessThan(5000);
   });
 });
