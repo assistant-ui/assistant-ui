@@ -207,6 +207,7 @@ export const createChunkNormalizer = (): {
           pendingTools.set(chunk.toolCallId, tool);
         }
         if (tool.hasFinalResult) return;
+        if (!tool.emitted) markServerTool(tool, chunk);
         const pendingResult =
           chunk.type === "tool-output-error"
             ? {

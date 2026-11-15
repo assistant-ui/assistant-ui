@@ -726,6 +726,49 @@ describe("ToolInvocationTracker", () => {
     },
   );
 
+  it("never hands a provider-executed call to the frontend executor", async () => {
+    // A standard-schema validator runs before the wrapped `execute`, so it is
+    // called only if the execution stream schedules the call at all.
+    const validate = vi.fn((value: unknown) => ({ value }));
+    const execute = vi.fn(async () => ({ results: [] }));
+    const getTools = () => ({
+      webSearch: {
+        parameters: { "~standard": { version: 1, vendor: "test", validate } },
+        execute,
+      } as unknown as Tool,
+    });
+    const onResult = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const tracker = new ToolInvocationTracker(
+        getTools,
+        { onResult, onStatusesChange: () => {} },
+        () => true,
+      );
+      tracker.setState(createState([]));
+
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"q":"x"}',
+              { q: "x" },
+              { toolName: "webSearch", providerExecuted: true },
+            ),
+          ],
+          false,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(validate).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("stops executing a call once it is marked provider-executed before its args complete", async () => {
     const execute = vi.fn(async () => ({ results: [] }));
     const getTools = () => ({
