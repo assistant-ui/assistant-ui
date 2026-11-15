@@ -101,90 +101,52 @@ const streamdownSanitizeSchema: SanitizeSchema = {
   clobberPrefix: CLOBBER_PREFIX,
 };
 
-const CLOBBERED_PROPERTIES = [
-  "id",
-  "name",
-  "ariaDescribedBy",
-  "ariaLabelledBy",
-] as const;
-
 type HastNode = {
   type: string;
   properties?: Record<string, unknown>;
   children?: HastNode[];
 };
 
-type HastElement = HastNode & {
-  tagName?: string;
-  properties: Record<string, unknown>;
-};
-
-const isElement = (node: HastNode): node is HastElement =>
-  node.type === "element" && node.properties !== undefined;
-
-const withoutPrefix = (value: unknown) =>
-  typeof value === "string" && value.startsWith(CLOBBER_PREFIX)
-    ? value.slice(CLOBBER_PREFIX.length)
-    : value;
-
-const withPrefix = (value: unknown) =>
-  typeof value === "string" && value !== "" && !value.startsWith(CLOBBER_PREFIX)
-    ? CLOBBER_PREFIX + value
-    : value;
-
-const mapClobbered = (
-  properties: Record<string, unknown>,
-  map: (value: unknown) => unknown,
+const visitElements = (
+  tree: HastNode,
+  visit: (properties: Record<string, unknown>) => void,
 ) => {
-  for (const key of CLOBBERED_PROPERTIES) {
-    const value = properties[key];
-    if (value === undefined) continue;
-    properties[key] = Array.isArray(value) ? value.map(map) : map(value);
-  }
-};
-
-// remark-rehype prefixes the footnote ids it generates, and the links to them,
-// before the sanitize step prefixes every id again. This runs before
-// rehype-raw, so it sees only remark's footnote elements, never raw HTML from
-// the model, and leaves them for the sanitize step to prefix once.
-const unprefixFootnotes = () => (tree: HastNode) => {
-  const walk = (node: HastNode, inFootnotes: boolean) => {
-    let inside = inFootnotes;
-    if (isElement(node)) {
-      const { properties } = node;
-      const isReference =
-        properties["dataFootnoteRef"] !== undefined ||
-        properties["dataFootnoteBackref"] !== undefined;
-      if (isReference || (inFootnotes && node.tagName === "li")) {
-        mapClobbered(properties, withoutPrefix);
-      }
-      const href = properties["href"];
-      if (isReference && typeof href === "string" && href.startsWith("#")) {
-        properties["href"] = `#${withoutPrefix(href.slice(1))}`;
-      }
-      if (properties["dataFootnotes"] !== undefined) inside = true;
-    }
-    node.children?.forEach((child) => walk(child, inside));
-  };
-  walk(tree, false);
-};
-
-// Runs after every other plugin, including the caller's. Ids a later plugin
-// adds (rehype-slug, say) get the prefix too, and every in-page link gets it
-// exactly once, so links still reach their targets and no id or name from
-// any source lands unprefixed.
-const normalizeClobberPrefix = () => (tree: HastNode) => {
   const walk = (node: HastNode) => {
-    if (isElement(node)) {
-      mapClobbered(node.properties, withPrefix);
-      const href = node.properties["href"];
-      if (typeof href === "string" && href.length > 1 && href.startsWith("#")) {
-        node.properties["href"] = `#${CLOBBER_PREFIX}${href.slice(1)}`;
-      }
-    }
+    if (node.type === "element" && node.properties) visit(node.properties);
     node.children?.forEach(walk);
   };
   walk(tree);
+};
+
+const isFragment = (href: unknown): href is string =>
+  typeof href === "string" && href.length > 1 && href.startsWith("#");
+
+// The ids each tree held right after sanitize, all of them prefixed.
+const sanitizedIds = new WeakMap<HastNode, Set<unknown>>();
+
+const recordSanitizedIds = () => (tree: HastNode) => {
+  const ids = new Set<unknown>();
+  visitElements(tree, (properties) => ids.add(properties["id"]));
+  sanitizedIds.set(tree, ids);
+};
+
+// Runs after every other plugin. An in-page link gets the prefix its target
+// got from the sanitize step, unless a later plugin (rehype-slug, say) added an
+// element with exactly that id, which the link then keeps pointing at. Ids
+// remark generates for footnotes are already prefixed and get a second prefix
+// from sanitize, so their links get the same second prefix here.
+const prefixFragmentLinks = () => (tree: HastNode) => {
+  const before = sanitizedIds.get(tree) ?? new Set();
+  const addedLater = new Set<unknown>();
+  visitElements(tree, (properties) => {
+    if (!before.has(properties["id"])) addedLater.add(properties["id"]);
+  });
+  visitElements(tree, (properties) => {
+    const href = properties["href"];
+    if (isFragment(href) && !addedLater.has(href.slice(1))) {
+      properties["href"] = `#${CLOBBER_PREFIX}${href.slice(1)}`;
+    }
+  });
 };
 
 function buildSecuritySanitizeSchema(
@@ -212,9 +174,9 @@ function buildSecurityRehypePlugins(
   allowedTags: AllowedTags | undefined,
 ): NonNullable<StreamdownProps["rehypePlugins"]> {
   return [
-    unprefixFootnotes,
     rehypeRaw,
     [rehypeSanitize, buildSecuritySanitizeSchema(allowedTags)],
+    recordSanitizedIds,
     [
       harden,
       {
@@ -371,7 +333,7 @@ export const StreamdownTextPrimitive = forwardRef<
       () => [
         ...securityPlugins,
         ...(userRehypePlugins ?? []),
-        normalizeClobberPrefix,
+        prefixFragmentLinks,
       ],
       [securityPlugins, userRehypePlugins],
     );

@@ -452,7 +452,7 @@ describe("StreamdownTextPrimitive", () => {
       expect(target("to B")).toBe("B");
     });
 
-    it("prefixes ids added by user plugins and keeps links to them", () => {
+    it("leaves ids added by user plugins alone and keeps links to them", () => {
       type Node = {
         type: string;
         tagName?: string;
@@ -489,10 +489,8 @@ describe("StreamdownTextPrimitive", () => {
         </TextMessagePartProvider>,
       );
 
-      expect(container.querySelector('a[href="#user-content-setup"]')).not.toBe(
-        null,
-      );
-      expect(container.querySelector("h2")?.id).toBe("user-content-setup");
+      expect(container.querySelector("h2")?.id).toBe("setup");
+      expect(container.querySelector('a[href="#setup"]')).not.toBe(null);
     });
 
     it("keeps footnote links pointing at their footnote", () => {
@@ -508,14 +506,71 @@ describe("StreamdownTextPrimitive", () => {
         </TextMessagePartProvider>,
       );
 
+      const byHref = (anchor: Element | null) =>
+        container.querySelector(
+          `[id="${anchor?.getAttribute("href")?.slice(1)}"]`,
+        );
       const ref = container.querySelector("a[data-footnote-ref]");
-      const href = ref?.getAttribute("href");
-      expect(href).toBe("#user-content-fn-1");
-      expect(container.querySelector(href!)?.textContent).toContain("Source");
+      expect(byHref(ref)?.textContent).toContain("Source");
       const backref = container.querySelector("a[data-footnote-backref]");
-      const backHref = backref?.getAttribute("href");
-      expect(backHref).toBe("#user-content-fnref-1");
-      expect(container.querySelector(backHref!)).toBe(ref);
+      expect(byHref(backref)).toBe(ref);
+      expect(ref?.id.startsWith("user-content-")).toBe(true);
+    });
+
+    it("keeps footnotes apart from model ids with the same name", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={'Claim[^1]\n\n<span id="fn-1">decoy</span>\n\n[^1]: Source'}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            allowedTags={{ span: ["id"] }}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const href = container
+        .querySelector("a[data-footnote-ref]")
+        ?.getAttribute("href");
+      const targets = container.querySelectorAll(`[id="${href?.slice(1)}"]`);
+      expect(targets).toHaveLength(1);
+      expect(targets[0]?.textContent).toContain("Source");
+    });
+
+    it("keeps a link to a plugin id that already carries the prefix", () => {
+      const addId = () => (tree: { children: unknown[] }) => {
+        tree.children.push({
+          type: "element",
+          tagName: "h2",
+          properties: { id: "user-content-policy" },
+          children: [{ type: "text", value: "Policy" }],
+        });
+      };
+      Object.defineProperty(addId, "name", { value: "addPrefixedId" });
+
+      const { container } = render(
+        <TextMessagePartProvider
+          text="[see](#user-content-policy)"
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            linkSafety={{ enabled: false }}
+            rehypePlugins={
+              [addId] as unknown as NonNullable<
+                StreamdownProps["rehypePlugins"]
+              >
+            }
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(
+        container.querySelector('a[href="#user-content-policy"]'),
+      ).not.toBe(null);
+      expect(container.querySelector("h2")?.id).toBe("user-content-policy");
     });
   });
 
