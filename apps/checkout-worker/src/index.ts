@@ -42,10 +42,19 @@ const SECRET_PATH = /\/secret\/([^/]+)$/;
 const GUIDE_PATH = /^\/[^/]+\/guide$/;
 const SECRET_TTL_MS = 60 * 60 * 1000;
 const MAX_SECRET_BYTES = 16 * 1024;
+/** The link alphabet and length the setup page accepts (apps/setup). */
+const LINK_PATH = /^\/[A-Za-z0-9]{8,64}(?:\/|$)/;
+/** A setup with no request and no open socket for this long is deleted. */
+export const ROOM_IDLE_MS = 24 * 60 * 60 * 1000;
+/** How stale the stored last-activity time may get before it is rewritten. */
+const ACTIVITY_WRITE_MS = 60 * 60 * 1000;
+const ACTIVITY_KEY = "room:lastActiveAt";
+/** The largest statewire command a client may send, over HTTP or a socket. */
+export const MAX_MESSAGE_BYTES = 256 * 1024;
 
-/** The body as text, or `undefined` once it passes `max` bytes, without reading further. */
-const readCapped = async (request: Request, max: number) => {
-  if (!request.body) return "";
+/** The body's bytes, or `undefined` once it passes `max` bytes, without reading further. */
+const readCappedBytes = async (request: Request, max: number) => {
+  if (!request.body) return new Uint8Array();
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -65,12 +74,73 @@ const readCapped = async (request: Request, max: number) => {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(bytes);
+  return bytes;
+};
+
+/** The body as text, or `undefined` once it passes `max` bytes. */
+const readCapped = async (request: Request, max: number) => {
+  const bytes = await readCappedBytes(request, max);
+  return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
 };
 
 export class CheckoutDO extends StatewireDurableObject<Env>() {
   #state: Checkout.State | undefined;
   #cleanupScope = "";
+  #lastActiveAt: number | undefined;
+
+  /** Records activity and keeps an alarm set for the idle deadline. */
+  #touch() {
+    const now = Date.now();
+    if (
+      this.#lastActiveAt !== undefined &&
+      now - this.#lastActiveAt < ACTIVITY_WRITE_MS
+    )
+      return;
+    this.#lastActiveAt = now;
+    this.ctx.waitUntil(
+      (async () => {
+        await this.ctx.storage.put(ACTIVITY_KEY, now);
+        await this.#armAlarm(now + ROOM_IDLE_MS);
+      })(),
+    );
+  }
+
+  async #armAlarm(at: number) {
+    const alarm = await this.ctx.storage.getAlarm();
+    if (alarm === null || alarm > at) await this.ctx.storage.setAlarm(at);
+  }
+
+  override async fetch(request: Request): Promise<Response> {
+    this.#touch();
+    if (
+      request.method !== "GET" &&
+      request.headers.get("upgrade")?.toLowerCase() !== "websocket"
+    ) {
+      const length = Number(request.headers.get("content-length") ?? "0");
+      if (length > MAX_MESSAGE_BYTES)
+        return new Response("request too large", { status: 413 });
+      if (request.body && !SECRET_PATH.test(new URL(request.url).pathname)) {
+        const body = await readCappedBytes(request, MAX_MESSAGE_BYTES);
+        if (body === undefined)
+          return new Response("request too large", { status: 413 });
+        request = new Request(request, { body });
+      }
+    }
+    return super.fetch(request);
+  }
+
+  override webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+    const size =
+      typeof message === "string"
+        ? new TextEncoder().encode(message).byteLength
+        : message.byteLength;
+    if (size > MAX_MESSAGE_BYTES) {
+      ws.close(1009, "message too large");
+      return;
+    }
+    this.#touch();
+    super.webSocketMessage(ws, message);
+  }
 
   override statewire = statewireHandlers(this.ctx, (restored) => {
     const instance = this;
@@ -151,18 +221,33 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
   async alarm() {
     await this.ctx.blockConcurrencyWhile(async () => {
       const now = Date.now();
+      const lastActiveAt =
+        (await this.ctx.storage.get<number>(ACTIVITY_KEY)) ?? 0;
       let next: number | undefined;
+      if (now - lastActiveAt >= ROOM_IDLE_MS) {
+        if (this.ctx.getWebSockets().length === 0) {
+          await this.ctx.storage.deleteAlarm();
+          await this.ctx.storage.deleteAll();
+          // Drop the in-memory setup too, so the link starts empty if reused.
+          this.ctx.abort("idle setup deleted");
+          return;
+        }
+        // A socket is still open: keep the setup and look again later.
+        next = now + ROOM_IDLE_MS;
+      } else {
+        next = lastActiveAt + ROOM_IDLE_MS;
+      }
       const secrets = await this.ctx.storage.list({ prefix: "secret:" });
       for (const [key, value] of secrets) {
         const expiresAt = (value as Partial<SecretDeposit> | undefined)
           ?.expiresAt;
         if (typeof expiresAt !== "number" || expiresAt <= now) {
           await this.ctx.storage.delete(key);
-        } else if (next === undefined || expiresAt < next) {
+        } else if (expiresAt < next) {
           next = expiresAt;
         }
       }
-      if (next !== undefined) await this.ctx.storage.setAlarm(next);
+      await this.ctx.storage.setAlarm(next);
     });
   }
 
@@ -198,6 +283,8 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       if (request.method === "PUT") {
         if (input.status !== "open")
           return new Response("input closed", { status: 409 });
+        if (input.redeemKeyHash === undefined)
+          return new Response("redeem key required", { status: 409 });
         const answer = url.searchParams.get("answer");
         if (answer === null || !isValidModelAnswer(input, answer)) {
           return new Response("invalid deposit", { status: 400 });
@@ -213,10 +300,7 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
           answer,
           expiresAt,
         } satisfies SecretDeposit);
-        const alarm = await this.ctx.storage.getAlarm();
-        if (alarm === null || alarm > expiresAt) {
-          await this.ctx.storage.setAlarm(expiresAt);
-        }
+        await this.#armAlarm(expiresAt);
         return new Response(null, { status: 204 });
       }
       if (
@@ -229,7 +313,12 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
         await this.ctx.storage.delete(key);
         return new Response("no secret", { status: 404 });
       }
-      if (input.redeemKeyHash !== undefined) {
+      // Every model input carries a redeem key hash since #10066; one without
+      // it never had a deposit accepted, so its key is never served.
+      if (input.redeemKeyHash === undefined) {
+        return new Response("invalid redeem key", { status: 403 });
+      }
+      {
         const redeemKey = request.headers.get("Setup-Agent-Redeem-Key");
         const digest = new Uint8Array(
           await crypto.subtle.digest(
@@ -266,6 +355,9 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
  * CLI's wording, by guide protocol version). Browser presence
  * (`browser/heartbeat`, `browser/bye`, `state.browser`) is additive; CLIs
  * that predate it ignore it, and newer CLIs fall back when it is missing.
+ * Model key deposits need the input's redeem key hash, which every CLI
+ * since setup-agent 0.0.7 (#10066) sends. Links match the setup page's
+ * alphabet, and a setup idle for `ROOM_IDLE_MS` is deleted.
  */
 export default {
   fetch: async (request: Request, env: Env) => {
@@ -279,6 +371,9 @@ export default {
         status,
         headers: { "cache-control": "no-store", ...CORS_HEADERS },
       });
+    }
+    if (!LINK_PATH.test(url.pathname)) {
+      return withCors(new Response("Not found", { status: 404 }));
     }
     url.pathname = `/checkout${url.pathname}`;
     const response = await routeStatewireRequest(

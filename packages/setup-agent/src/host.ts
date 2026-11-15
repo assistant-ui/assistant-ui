@@ -22,6 +22,39 @@ import type { Checkout } from "./protocol";
 const reject = (reason: Checkout.RejectionReason, message: string) =>
   new StatewireReject(message, { payload: { reason } });
 
+/** The largest a setup's state may grow, as JSON, before it takes no more content. */
+const MAX_STATE_BYTES = 1024 * 1024;
+
+/** Commands that still run on a full setup: they end it or keep it alive and add no content. */
+const RUNS_WHEN_FULL = new Set<string>([
+  "checkout/cancel",
+  "checkout/finish",
+  "checkout/dismiss",
+  "agent/heartbeat",
+  "agent/bye",
+  "browser/heartbeat",
+  "browser/bye",
+]);
+
+const capStateSize = <T extends object>(state: object, handlers: T): T =>
+  Object.fromEntries(
+    Object.entries(handlers).map(([name, handler]) => [
+      name,
+      (...args: unknown[]) => {
+        if (
+          !RUNS_WHEN_FULL.has(name) &&
+          JSON.stringify(state).length > MAX_STATE_BYTES
+        ) {
+          throw reject(
+            "setup-full",
+            "this setup is too large to take more content; start a new one",
+          );
+        }
+        return (handler as (...args: unknown[]) => unknown)(...args);
+      },
+    ]),
+  ) as T;
+
 const useCheckoutHost = (restored: unknown) => {
   const [state] = useStatewireState<Checkout.State>(() => {
     const initial = initialCheckoutState();
@@ -92,6 +125,12 @@ const useCheckoutHost = (restored: unknown) => {
       (kind !== "model" || !/^[0-9a-f]{64}$/.test(seed.redeemKeyHash))
     ) {
       throw reject("invalid-input", "invalid model redeem key hash");
+    }
+    if (kind === "model" && seed.redeemKeyHash === undefined) {
+      throw reject(
+        "invalid-input",
+        "a model input needs a redeem key hash; update setup-agent",
+      );
     }
     const options =
       kind === "entry-point"
@@ -220,7 +259,7 @@ const useCheckoutHost = (restored: unknown) => {
     }
   };
 
-  const commands = useStatewireCommands<Checkout.Commands>({
+  const handlers: Checkout.Commands = {
     "checkout/create": ({ id, products, instructions }) => {
       if (state.id === id) {
         throw reject("already-created", "the setup already exists");
@@ -482,7 +521,10 @@ const useCheckoutHost = (restored: unknown) => {
         ...(previewUrl && { preview: previewUrl.href }),
       };
     },
-  });
+  };
+  const commands = useStatewireCommands<Checkout.Commands>(
+    capStateSize(state, handlers),
+  );
 
   const source = getStateHost(state)!;
   return {

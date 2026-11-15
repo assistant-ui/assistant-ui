@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import worker, { CheckoutDO } from "./index";
+import worker, { CheckoutDO, MAX_MESSAGE_BYTES, ROOM_IDLE_MS } from "./index";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
 
@@ -20,19 +20,24 @@ const createInstance = (snapshot?: Checkout.State) => {
   );
   const pending: Promise<unknown>[] = [];
   const alarm = { at: null as number | null };
+  const sockets: unknown[] = [];
   let gate: Promise<unknown> = Promise.resolve();
   const context = {
     waitUntil: (promise: Promise<unknown>) => {
       pending.push(promise);
     },
     acceptWebSocket: vi.fn(),
-    getWebSockets: () => [],
+    getWebSockets: () => sockets,
+    abort: vi.fn(),
     storage: {
       get: async (key: string) => stored.get(key),
       put: async (key: string, value: unknown) => {
         stored.set(key, value);
       },
       delete: async (key: string) => stored.delete(key),
+      deleteAll: async () => {
+        stored.clear();
+      },
       list: async ({ prefix }: { prefix: string }) =>
         new Map([...stored].filter(([key]) => key.startsWith(prefix))),
       getAlarm: async () => alarm.at,
@@ -60,15 +65,25 @@ const createInstance = (snapshot?: Checkout.State) => {
     },
   );
   instances.push(instance);
-  return { instance, stored, alarm, ready: () => Promise.all(pending) };
+  return {
+    instance,
+    context,
+    stored,
+    alarm,
+    sockets,
+    ready: () => Promise.all(pending),
+  };
 };
 
 const request = (path: string, method = "GET", body?: string) =>
-  new Request(`https://checkout.test/session/${path}`, {
+  new Request(`https://checkout.test/session1/${path}`, {
     method,
     ...(body === undefined ? {} : { body }),
   });
 
+/** SHA-256 of "redeem-key". */
+const REDEEM_KEY_HASH =
+  "3389fd9e8dac282ba9df440375f67fbe84dcd70f157d4adabbdd2fd56c7a8f08";
 const modelAnswer = JSON.stringify({ provider: "openai", model: "gpt-5" });
 const modelState = (id = "setup-a"): Checkout.State => ({
   ...initialCheckoutState(),
@@ -85,6 +100,7 @@ const modelState = (id = "setup-a"): Checkout.State => ({
       optional: false,
       status: "open",
       createdAt: 2,
+      redeemKeyHash: REDEEM_KEY_HASH,
     },
   ],
 });
@@ -111,12 +127,15 @@ const secretRequest = (
   method = "GET",
   secret?: string,
   answer = modelAnswer,
-) =>
-  request(
+) => {
+  const req = request(
     `secret/q1?setup=${encodeURIComponent(setup)}${secret === undefined ? "" : `&answer=${encodeURIComponent(answer)}`}`,
     method,
     secret,
   );
+  if (method === "GET") req.headers.set("Setup-Agent-Redeem-Key", "redeem-key");
+  return req;
+};
 
 describe("secret lifecycle", () => {
   it("tracks the setup page's presence and keeps a snapshot from before it working", async () => {
@@ -158,6 +177,7 @@ describe("secret lifecycle", () => {
       kind: "model",
       prompt: "Provider?",
       options: [{ id: "openai", label: "OpenAI" }],
+      redeemKeyHash: REDEEM_KEY_HASH,
     });
     expect(inputId).toBe("q1");
     await client.commands["checkout/answer"]({ inputId, answer: modelAnswer });
@@ -178,10 +198,7 @@ describe("secret lifecycle", () => {
 
 describe("CheckoutDO", () => {
   it("requires the model input's redeem key without consuming a deposit on failure", async () => {
-    const snapshot = modelState();
-    snapshot.inputs[0]!.redeemKeyHash =
-      "3389fd9e8dac282ba9df440375f67fbe84dcd70f157d4adabbdd2fd56c7a8f08";
-    const fixture = createInstance(snapshot);
+    const fixture = createInstance(modelState());
     const client = await connect(fixture);
     expect(
       (
@@ -194,7 +211,9 @@ describe("CheckoutDO", () => {
       inputId: "q1",
       answer: modelAnswer,
     });
-    expect((await fixture.instance.fetch(secretRequest())).status).toBe(403);
+    const withoutKey = secretRequest();
+    withoutKey.headers.delete("Setup-Agent-Redeem-Key");
+    expect((await fixture.instance.fetch(withoutKey)).status).toBe(403);
     expect(
       (
         await fixture.instance.fetch(
@@ -420,7 +439,11 @@ describe("CheckoutDO", () => {
     });
     expect(
       await (
-        await fixture.instance.fetch(request("secret/q%201?setup=setup-a"))
+        await fixture.instance.fetch(
+          new Request(request("secret/q%201?setup=setup-a"), {
+            headers: { "Setup-Agent-Redeem-Key": "redeem-key" },
+          }),
+        )
       ).text(),
     ).toBe("key");
     expect(
@@ -528,7 +551,10 @@ describe("deposits", () => {
     fixture.alarm.at = null;
     await fixture.instance.alarm();
     expect(fixture.stored.has(key)).toBe(false);
-    expect(fixture.alarm.at).toBeNull();
+    // Only the setup's idle deadline is left.
+    expect(fixture.alarm.at).toBe(
+      (fixture.stored.get("room:lastActiveAt") as number) + ROOM_IDLE_MS,
+    );
   });
 });
 
@@ -559,10 +585,10 @@ describe("worker routing", () => {
     const response = await worker.fetch(request("stream"), {
       CHECKOUT: { idFromName, get },
     });
-    expect(idFromName).toHaveBeenCalledWith("session");
-    expect(get).toHaveBeenCalledWith("session");
+    expect(idFromName).toHaveBeenCalledWith("session1");
+    expect(get).toHaveBeenCalledWith("session1");
     expect(fetch.mock.calls[0]?.[0]?.url).toBe(
-      "https://checkout.test/checkout/session/stream",
+      "https://checkout.test/checkout/session1/stream",
     );
     expect(await response.text()).toBe("state");
     expect(response.headers.get("Statewire-Lease")).toBe("lease-1");
@@ -570,4 +596,88 @@ describe("worker routing", () => {
       "Statewire-Lease",
     );
   });
+});
+
+describe("limits", () => {
+  it("refuses deposits and redemption for a model input without a redeem key", async () => {
+    const snapshot = modelState();
+    delete snapshot.inputs[0]!.redeemKeyHash;
+    const fixture = createInstance(snapshot);
+    const client = await connect(fixture);
+    expect(
+      (await fixture.instance.fetch(secretRequest("setup-a", "PUT", "key")))
+        .status,
+    ).toBe(409);
+    await client.commands["checkout/answer"]({
+      inputId: "q1",
+      answer: modelAnswer,
+    });
+    // A deposit an older worker accepted is not served either.
+    fixture.stored.set('secret:["setup-a","q1"]', {
+      setupId: "setup-a",
+      setupCreatedAt: 1,
+      inputId: "q1",
+      inputCreatedAt: 2,
+      answer: modelAnswer,
+      secret: "old-key",
+      expiresAt: Date.now() + 60_000,
+    });
+    const response = await fixture.instance.fetch(secretRequest());
+    expect(response.status).toBe(403);
+    expect(await response.text()).not.toContain("old-key");
+  });
+
+  it("deletes a setup once it has been idle for a day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const lastActiveAt = fixture.stored.get("room:lastActiveAt") as number;
+    expect(fixture.alarm.at).toBe(lastActiveAt + ROOM_IDLE_MS);
+
+    vi.setSystemTime(lastActiveAt + ROOM_IDLE_MS - 1);
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBeGreaterThan(0);
+    expect(fixture.alarm.at).toBe(lastActiveAt + ROOM_IDLE_MS);
+
+    vi.setSystemTime(lastActiveAt + ROOM_IDLE_MS);
+    fixture.sockets.push({});
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBeGreaterThan(0);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+
+    fixture.sockets.length = 0;
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.alarm.at).toBeNull();
+    expect(fixture.context.abort).toHaveBeenCalledOnce();
+  });
+
+  it("refuses oversized statewire requests and socket messages", async () => {
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    const big = "x".repeat(MAX_MESSAGE_BYTES + 1);
+    expect(
+      (await fixture.instance.fetch(request("frames", "POST", big))).status,
+    ).toBe(413);
+    const ws = { close: vi.fn() };
+    fixture.instance.webSocketMessage(ws as unknown as WebSocket, big);
+    expect(ws.close).toHaveBeenCalledWith(1009, "message too large");
+  });
+
+  it.each(["/", "/short", "/has-dash-link", `/${"a".repeat(65)}`, "/../x"])(
+    "answers 404 for %s without addressing a durable object",
+    async (path) => {
+      const idFromName = vi.fn((name: string) => name);
+      const response = await worker.fetch(
+        new Request(`https://checkout.test${path}`),
+        { CHECKOUT: { idFromName, get: vi.fn() } },
+      );
+      expect(response.status).toBe(404);
+      expect(idFromName).not.toHaveBeenCalled();
+    },
+  );
 });

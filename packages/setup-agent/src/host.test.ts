@@ -2,6 +2,8 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import { StatewireSendError } from "statewire";
 import { CheckoutHost } from "./host";
+
+const MAX_STATE_BYTES = 1024 * 1024;
 import { isPresetId, presetInput } from "./presets";
 import {
   classifyChoiceAnswer,
@@ -753,7 +755,10 @@ describe("model inputs", () => {
     const host = mount();
     await host.commands["checkout/create"](seed);
     await host.commands["checkout/begin-plan"]();
-    const asked = await host.commands["agent/ask"](presetInput("llm-provider"));
+    const asked = await host.commands["agent/ask"]({
+      ...presetInput("llm-provider"),
+      redeemKeyHash: "a".repeat(64),
+    });
     const input = host.state.inputs.find((entry) => entry.id === asked.inputId);
     expect(input?.kind).toBe("model");
     expect(input?.default).toBe("openai");
@@ -1155,5 +1160,35 @@ describe("choice option ids", () => {
   it("knows only its own presets", () => {
     expect(isPresetId("framework")).toBe(true);
     expect(isPresetId("toString")).toBe(false);
+  });
+});
+
+describe("limits", () => {
+  it("refuses a model input without a redeem key hash", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/begin-plan"]();
+    expect(
+      await reason(host.commands["agent/ask"](presetInput("llm-provider"))),
+    ).toEqual({ reason: "invalid-input" });
+  });
+
+  it("stops taking content once the state passes its size cap", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/begin-plan"]();
+    const text = "x".repeat(200 * 1024);
+    for (let i = 0; JSON.stringify(host.state).length <= MAX_STATE_BYTES; i++) {
+      await host.commands["agent/log"]({ text: `${i}${text}` });
+    }
+    expect(
+      await reason(host.commands["agent/log"]({ text: "one more" })),
+    ).toEqual({ reason: "setup-full" });
+    expect(
+      await reason(host.commands["checkout/message"]({ text: "hi" })),
+    ).toEqual({ reason: "setup-full" });
+    await host.commands["agent/heartbeat"]();
+    await host.commands["checkout/cancel"]();
+    expect(host.state.status).toBe("cancelled");
   });
 });
