@@ -104,6 +104,26 @@ export type UseAssistantFormProps<
     | undefined;
 };
 
+const isSensitiveElement = (element: unknown): boolean => {
+  if (!(element instanceof HTMLElement)) return false;
+  const autocomplete = (element.getAttribute("autocomplete") ?? "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  const autofillField =
+    autocomplete.at(-1) === "webauthn"
+      ? autocomplete.at(-2)
+      : autocomplete.at(-1);
+  return (
+    (element instanceof HTMLInputElement && element.type === "password") ||
+    (autofillField !== undefined &&
+      (["current-password", "new-password", "one-time-code"].includes(
+        autofillField,
+      ) ||
+        autofillField.startsWith("cc-")))
+  );
+};
+
 export const useAssistantForm = <
   TFieldValues extends FieldValues = FieldValues,
   TContext = any,
@@ -242,35 +262,22 @@ export const useAssistantForm = <
       }
       for (const name of control._names.mount) {
         const field: Field | undefined = get(control._fields, name);
+        if (typeof HTMLElement === "undefined") break;
         const fieldReference: unknown = Array.isArray(field?._f?.refs)
           ? field._f.refs[0]
           : field?._f?.ref;
-        if (
-          typeof HTMLElement === "undefined" ||
-          !(fieldReference instanceof HTMLElement)
-        )
-          continue;
-        const autocomplete = (fieldReference.getAttribute("autocomplete") ?? "")
-          .toLowerCase()
-          .split(/\s+/)
-          .filter(Boolean);
-        const autofillField =
-          autocomplete.at(-1) === "webauthn"
-            ? autocomplete.at(-2)
-            : autocomplete.at(-1);
-        if (
-          (fieldReference instanceof HTMLInputElement &&
-            fieldReference.type === "password") ||
-          (autofillField !== undefined &&
-            (["current-password", "new-password", "one-time-code"].includes(
-              autofillField,
-            ) ||
-              autofillField.startsWith("cc-")))
-        ) {
-          const path = toFieldPath(name);
-          detectedSensitiveFieldsRef.current.add(path);
-          sensitiveFields.add(path);
-        }
+        // A `Controller` field stores a methods-only proxy instead of the
+        // element, so look its input up by name.
+        const elements: unknown[] =
+          fieldReference instanceof HTMLElement
+            ? [fieldReference]
+            : typeof document === "undefined"
+              ? []
+              : [...document.getElementsByName(name)];
+        if (!elements.some(isSensitiveElement)) continue;
+        const path = toFieldPath(name);
+        detectedSensitiveFieldsRef.current.add(path);
+        sensitiveFields.add(path);
       }
       return sensitiveFields;
     };

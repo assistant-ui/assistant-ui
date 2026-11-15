@@ -31,3 +31,9 @@ export type InternalToolExecutionOptions = {
     | ((toolCallId: string, toolName: string, executionId: symbol) => void)
     | undefined;
 };
+
+/**
+ * Responses produced without running the tool (for example the error result
+ * for a disabled tool). They skip the execution lifecycle callbacks.
+ */
+export const nonExecutingToolResponses = new WeakSet<object>();

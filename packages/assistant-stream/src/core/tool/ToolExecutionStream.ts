@@ -14,7 +14,10 @@ import { ToolResponse } from "./ToolResponse";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 import { ToolCallReaderImpl } from "./ToolCallReader";
 import type { ToolCallReader } from "./tool-types";
-import type { InternalToolExecutionOptions } from "./internal-tool-execution-options";
+import {
+  type InternalToolExecutionOptions,
+  nonExecutingToolResponses,
+} from "./internal-tool-execution-options";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
@@ -287,7 +290,10 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     });
 
                     // Only mark as executing if the tool has frontend execution
-                    if (executeResult !== undefined) {
+                    if (
+                      executeResult !== undefined &&
+                      !nonExecutingToolResponses.has(executeResult)
+                    ) {
                       isExecuting = true;
                       invokeExecutionCallback(
                         "onExecutionStart",
