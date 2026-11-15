@@ -160,8 +160,12 @@ export function computeTier(input, policy) {
       if (packageName) packages.add(packageName);
     }
 
+    // A manifest renamed in from another directory is a new package path too.
     if (
-      file.status === "added" &&
+      (file.status === "added" ||
+        (file.status === "renamed" &&
+          typeof file.previousPath === "string" &&
+          file.previousPath !== file.path)) &&
       matchesAny(file.path, ["packages/*/package.json"])
     ) {
       addReason(3, "new-package", file.path);
@@ -417,11 +421,16 @@ export function pathsAboveT0(files, policy) {
     },
     policy,
   );
-  return [
-    ...new Set(
-      reasons
-        .filter((reason) => reason.tier > 0)
-        .map((reason) => reason.detail),
-    ),
-  ].toSorted();
+  const paths = new Set(
+    reasons.filter((reason) => reason.tier > 0).map((reason) => reason.detail),
+  );
+  // The comparison has no manifest contents, so the install-script and
+  // dependency-source signals cannot run here. Any changed package.json stays
+  // above T0 so an approval never carries over a new postinstall or alias.
+  for (const file of files) {
+    for (const path of [file.path, file.previousPath]) {
+      if (path && /(^|\/)package\.json$/.test(path)) paths.add(path);
+    }
+  }
+  return [...paths].toSorted();
 }

@@ -181,6 +181,28 @@ test("an added package manifest gives T3", () => {
   );
 });
 
+test("a package manifest renamed from another directory introduces a package", () => {
+  const result = computeTier(
+    input({
+      files: [
+        file("packages/gadget/package.json", {
+          status: "renamed",
+          previousPath: "packages/widget/package.json",
+        }),
+      ],
+    }),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.ok(
+    result.reasons.some(
+      (reason) =>
+        reason.code === "new-package" &&
+        reason.detail === "packages/gadget/package.json",
+    ),
+  );
+});
+
 for (const [path, status] of [
   ["packages/widget/package.json", "modified"],
   ["packages/widget/package.json", "removed"],
@@ -1244,6 +1266,32 @@ test("paths above T0 skip docs, low risk paths and new test files", () => {
       policy,
     ),
     [],
+  );
+});
+
+test("paths above T0 cover every package.json, including app and example manifests", () => {
+  assert.deepEqual(
+    pathsAboveT0(
+      [
+        file("package.json", { patch: '+    "postinstall": "node x.js",' }),
+        file("apps/docs/package.json", { patch: '+    "postinstall": "x"' }),
+        file("examples/with-ai-sdk-v7/package.json", { patch: "+x" }),
+        file("templates/next/package.json", {
+          status: "renamed",
+          previousPath: "templates/old/package.json",
+          patch: "",
+        }),
+        file("apps/docs/src/package.ts", { patch: "+x" }),
+      ],
+      policy,
+    ),
+    [
+      "apps/docs/package.json",
+      "examples/with-ai-sdk-v7/package.json",
+      "package.json",
+      "templates/next/package.json",
+      "templates/old/package.json",
+    ],
   );
 });
 
