@@ -5,10 +5,11 @@ import {
 import { updateConfigSchema } from "./playground-config-schema";
 
 /**
- * Longest encoded config accepted from a URL. Every config the schema accepts
- * encodes shorter than this, even with each string at its longest and made of
- * 3-byte characters, so `encodeConfig` never writes a value `decodeConfig`
- * refuses for its length.
+ * Longest encoded config accepted from a URL. The schema limits every string
+ * to characters that encode to at most 3 bytes (no control characters or lone
+ * surrogates in the long fields), so every config it accepts encodes shorter
+ * than this and `encodeConfig` never writes a value `decodeConfig` refuses
+ * for its length. `configIssue` checks both on the encoder side.
  */
 export const MAX_ENCODED_CONFIG_LENGTH = 100_000;
 

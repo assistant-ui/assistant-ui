@@ -609,3 +609,21 @@ it.each(PRESETS.map((preset) => [preset.id, preset.config] as const))(
     expect(decodeConfig(encodeConfig(config))).toEqual(config);
   },
 );
+
+it.each([
+  ["a NUL character", "\u0000"],
+  ["a lone surrogate", "\ud800"],
+])("rejects custom CSS with %s", (_, char) => {
+  expect(configIssue({ ...DEFAULT_CONFIG, customCSS: `a${char}b` })).toMatch(
+    /^customCSS: /,
+  );
+});
+
+it("accepts custom CSS with line breaks, tabs and emoji", () => {
+  expect(
+    configIssue({
+      ...DEFAULT_CONFIG,
+      customCSS: ".a {\n\tcolor: red; /* 🎨 */\r\n}",
+    }),
+  ).toBeUndefined();
+});

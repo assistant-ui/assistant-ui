@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+import { render } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { createPlaygroundChatToolkit } from "@/lib/playground-chat-toolkit";
 import { generateCliCommands } from "./create-dialog";
@@ -30,4 +32,23 @@ it("reports a refused config update to the model", async () => {
   await expect(
     tool.execute({ components: { loadingText: "x" } }),
   ).resolves.toEqual({ success: false, error: "too long" });
+});
+
+it("shows a refused config update as not updated", () => {
+  const toolkit = createPlaygroundChatToolkit(vi.fn(() => undefined));
+  const Render = (
+    toolkit["update_config"] as unknown as {
+      render: (props: unknown) => React.ReactElement;
+    }
+  ).render;
+  const view = render(
+    Render({
+      args: { components: {} },
+      status: { type: "complete" },
+      result: { success: false, error: "Configuration is too long" },
+    }),
+  );
+  expect(view.container.textContent).toBe(
+    "Not updated: Configuration is too long",
+  );
 });

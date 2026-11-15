@@ -23,15 +23,22 @@ export function createPlaygroundChatToolkit(
         const changedSections = Object.keys(args).join(", ");
         return { success: true, changed: changedSections };
       },
-      render: ({ args, status }) => {
+      render: ({ args, status, result }) => {
         const isRunning = status?.type === "running";
         const sections = Object.keys(args ?? {});
+        const refused =
+          (result as { success?: boolean; error?: string })?.success === false
+            ? ((result as { error?: string }).error ?? "invalid config")
+            : undefined;
         return (
           <div className="border-border/60 bg-muted/30 text-muted-foreground my-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
             <Settings2 className="size-3" />
             <span className="flex-1 truncate">
-              {isRunning ? "Updating" : "Updated"}{" "}
-              {sections.length > 0 ? sections.join(", ") : "config"}
+              {refused
+                ? `Not updated: ${refused}`
+                : `${isRunning ? "Updating" : "Updated"} ${
+                    sections.length > 0 ? sections.join(", ") : "config"
+                  }`}
             </span>
           </div>
         );

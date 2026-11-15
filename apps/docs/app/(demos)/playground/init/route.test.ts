@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { DEFAULT_CONFIG } from "@/components/pages/playground/types";
-import { encodeConfig } from "@/lib/playground-config-codec";
+import {
+  encodeConfig,
+  MAX_ENCODED_CONFIG_LENGTH,
+} from "@/lib/playground-config-codec";
 import { GET } from "./route";
 
 function request(diff: unknown) {
@@ -64,7 +67,10 @@ describe("GET /playground/init", () => {
   it("rejects an oversized encoded configuration", () => {
     const response = GET(
       new NextRequest(
-        `https://www.assistant-ui.com/playground/init?c=${"a".repeat(32_001)}`,
+        `https://www.assistant-ui.com/playground/init?c=${encodeConfig({
+          ...DEFAULT_CONFIG,
+          customCSS: "a".repeat(MAX_ENCODED_CONFIG_LENGTH),
+        })}`,
       ),
     );
     expect(response.status).toBe(400);
