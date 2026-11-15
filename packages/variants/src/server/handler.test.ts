@@ -23,6 +23,7 @@ import {
   readJsonBody,
   type NotesRequest,
 } from "./handler";
+import { peerTag } from "./peer";
 import { confine, locateGroup } from "./project";
 
 const page = `export const Page = () => (
@@ -81,6 +82,8 @@ const request = (
 
 /** Tags a request the way Node does for a socket at `address`, as `next dev` would see it. */
 const fromPeer = (req: Request, address = "127.0.0.1") => {
+  // The Next handler subscribes on its first development request.
+  peerTag();
   const headers: Record<string, unknown> = {};
   channel("http.server.request.start").publish({
     request: { headers },
@@ -876,6 +879,7 @@ describe("adapters", () => {
   it("tags a real Node HTTP request with its socket address", async () => {
     vi.spyOn(process, "cwd").mockReturnValue(root);
     vi.stubEnv("NODE_ENV", "development");
+    peerTag();
     const server = createServer((req, res) => {
       const headers = new Headers();
       for (const [name, value] of Object.entries(req.headers))

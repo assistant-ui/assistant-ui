@@ -242,6 +242,32 @@ describe("session fallback", () => {
     expect(notes.mode).toBe("server");
   });
 
+  it("asks again once when a save answers 503", async () => {
+    register();
+    let posts = 0;
+    const fetcher = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).endsWith("/ping")) return json({ ok: true });
+        if (init?.method === "POST")
+          return ++posts === 1
+            ? json({ retry: true }, 503)
+            : json({ id: "n-00000002" }, 201);
+        return json({ notes: [] });
+      },
+    );
+    const notes = createNotes(store, fetcher as typeof fetch);
+    await notes.probe();
+    expect(
+      await notes.add({
+        group: "demo-cta",
+        variant: undefined,
+        note: "after a restart",
+        hint: undefined,
+      }),
+    ).toBeUndefined();
+    expect(posts).toBe(2);
+  });
+
   it("stays in session mode when the retried probe still answers 503", async () => {
     let pings = 0;
     const notes = createNotes(store, (async () => {

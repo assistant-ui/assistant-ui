@@ -54,8 +54,14 @@ const writeSession = (notes: ClientNote[]) => {
  */
 export const createNotes = (
   store: Store,
-  request: typeof fetch = (...args) => fetch(...args),
+  fetcher: typeof fetch = (...args) => fetch(...args),
 ) => {
+  // The Next.js handler can't see the address of the request that first loads
+  // it after a (re)start and answers 503; asking once more reaches it.
+  const request: typeof fetch = async (input, init) => {
+    const response = await fetcher(input, init);
+    return response.status === 503 ? fetcher(input, init) : response;
+  };
   let mode: "probing" | "server" | "session" = "probing";
   let generation = 0;
 
@@ -95,11 +101,9 @@ export const createNotes = (
 
   const detect = async () => {
     try {
-      const ping = () =>
-        request(`${NOTES_ENDPOINT}/ping`, { headers: HEADERS });
-      let response = await ping();
-      // The Next.js handler can't see the first request's address; ask again.
-      if (response.status === 503) response = await ping();
+      const response = await request(`${NOTES_ENDPOINT}/ping`, {
+        headers: HEADERS,
+      });
       const body = response.ok
         ? ((await response.json()) as { ok?: boolean })
         : undefined;

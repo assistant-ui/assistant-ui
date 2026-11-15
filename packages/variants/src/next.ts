@@ -34,8 +34,6 @@ export type VariantsRouteOptions = {
   allowRemoteClients?: boolean | undefined;
 };
 
-const tag = peerTag();
-
 const handle = async (
   request: Request,
   options: VariantsRouteOptions,
@@ -43,8 +41,12 @@ const handle = async (
   const url = new URL(request.url);
   const at = url.pathname.indexOf(MOUNT);
   const path = `${at === -1 ? url.pathname : url.pathname.slice(at + MOUNT.length) || "/"}${url.search}`;
-  const remoteAddress = request.headers.get(tag.header) ?? undefined;
   const dev = process.env.NODE_ENV === "development";
+  // Subscribed on the first development request only, so production requests
+  // never gain the address header.
+  const remoteAddress = dev
+    ? (request.headers.get(peerTag().header) ?? undefined)
+    : undefined;
   const { status, body } =
     dev && remoteAddress === undefined && !options.allowRemoteClients
       ? {
