@@ -280,3 +280,113 @@ describe("fromThreadMessageLike", () => {
     },
   );
 });
+
+describe("fromThreadMessageLike with part fields of the wrong type", () => {
+  const status = { type: "complete", reason: "stop" } as const;
+  const convert = (role: "assistant" | "user", content: unknown[]) =>
+    fromThreadMessageLike({ role, content: content as never }, "id", status)
+      .content;
+
+  it.each(["assistant", "user"] as const)(
+    "defaults a missing or non-string file mime type on %s messages",
+    (role) => {
+      expect(
+        convert(role, [
+          { type: "file", data: "abc" },
+          { type: "file", data: "abc", mimeType: { x: 1 }, filename: 3 },
+          {
+            type: "file",
+            data: "abc",
+            mimeType: "image/png",
+            filename: "a.png",
+          },
+        ]),
+      ).toEqual([
+        { type: "file", data: "abc", mimeType: "application/octet-stream" },
+        { type: "file", data: "abc", mimeType: "application/octet-stream" },
+        { type: "file", data: "abc", mimeType: "image/png", filename: "a.png" },
+      ]);
+    },
+  );
+
+  it.each(["assistant", "user"] as const)(
+    "drops a file part whose data is not a string on %s messages",
+    (role) => {
+      expect(
+        convert(role, [
+          { type: "file", data: { x: 1 }, mimeType: "text/plain" },
+        ]),
+      ).toEqual([]);
+    },
+  );
+
+  it("drops a non-string url source title and a source without a string url", () => {
+    expect(
+      convert("assistant", [
+        {
+          type: "source",
+          sourceType: "url",
+          id: "a",
+          url: "https://a.test",
+          title: { t: 1 },
+        },
+        { type: "source", sourceType: "url", id: "b", url: { href: "x" } },
+        {
+          type: "source",
+          sourceType: "url",
+          id: "c",
+          url: "https://c.test",
+          title: "C",
+        },
+      ]),
+    ).toEqual([
+      { type: "source", sourceType: "url", id: "a", url: "https://a.test" },
+      {
+        type: "source",
+        sourceType: "url",
+        id: "c",
+        url: "https://c.test",
+        title: "C",
+      },
+    ]);
+  });
+
+  it("gives a document source string title and media type", () => {
+    expect(
+      convert("assistant", [
+        {
+          type: "source",
+          sourceType: "document",
+          id: "d",
+          title: [1],
+          mediaType: 2,
+          filename: {},
+        },
+      ]),
+    ).toEqual([
+      {
+        type: "source",
+        sourceType: "document",
+        id: "d",
+        title: "",
+        mediaType: "application/octet-stream",
+      },
+    ]);
+  });
+
+  it("drops text parts whose text is not a string", () => {
+    expect(convert("assistant", [{ type: "text", text: { a: 1 } }])).toEqual(
+      [],
+    );
+    expect(convert("user", [{ type: "text", text: { a: 1 } }])).toEqual([]);
+  });
+
+  it("keeps reasoning with a string summary when text is not a string", () => {
+    expect(
+      convert("assistant", [
+        { type: "reasoning", text: { a: 1 }, unstable_summary: "S" },
+        { type: "reasoning", text: 5, unstable_summary: { b: 1 } },
+      ]),
+    ).toEqual([{ type: "reasoning", text: "", unstable_summary: "S" }]);
+  });
+});

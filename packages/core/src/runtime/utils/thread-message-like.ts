@@ -12,6 +12,8 @@ import type {
   ThreadUserMessage,
   ThreadSystemMessage,
   DataMessagePart,
+  FileMessagePart,
+  SourceMessagePart,
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
@@ -119,6 +121,44 @@ const convertDataPrefixedPart = (
   };
 };
 
+const isString = (value: unknown): value is string => typeof value === "string";
+
+/**
+ * Stored or streamed history can carry fields of the wrong type. Parts are
+ * normalized here so components never receive a non-string mime type, title
+ * or url. A part whose payload is not a string is dropped.
+ */
+const sanitizeFilePart = <T extends FileMessagePart>(part: T): T | null => {
+  if (!isString(part.data)) return null;
+  const { filename, ...rest } = part;
+  return {
+    ...rest,
+    mimeType: isString(part.mimeType)
+      ? part.mimeType
+      : "application/octet-stream",
+    ...(isString(filename) && { filename }),
+  } as T;
+};
+
+const sanitizeSourcePart = (
+  part: SourceMessagePart,
+): SourceMessagePart | null => {
+  if (part.sourceType === "document") {
+    const { filename, ...rest } = part;
+    return {
+      ...rest,
+      title: isString(part.title) ? part.title : "",
+      mediaType: isString(part.mediaType)
+        ? part.mediaType
+        : "application/octet-stream",
+      ...(isString(filename) && { filename }),
+    };
+  }
+  if (!isString(part.url)) return null;
+  const { title, ...rest } = part;
+  return { ...rest, ...(isString(title) && { title }) };
+};
+
 /**
  * @deprecated Experimental since 2024-07-25. Not scheduled for removal; the API may change in any release.
  */
@@ -172,17 +212,30 @@ export const fromThreadMessageLike = (
             const type = part.type;
             switch (type) {
               case "text":
-                if (!part.text?.trim()) return null;
+                if (!isString(part.text) || !part.text.trim()) return null;
                 return part;
 
-              case "reasoning":
-                if (!part.text?.trim() && !part.unstable_summary?.trim())
-                  return null;
-                return part.text == null ? { ...part, text: "" } : part;
+              case "reasoning": {
+                const text = isString(part.text) ? part.text : "";
+                const summary = isString(part.unstable_summary)
+                  ? part.unstable_summary
+                  : undefined;
+                if (!text.trim() && !summary?.trim()) return null;
+                if (text === part.text && summary === part.unstable_summary)
+                  return part;
+                const { unstable_summary: _summary, ...rest } = part;
+                return {
+                  ...rest,
+                  text,
+                  ...(summary !== undefined && { unstable_summary: summary }),
+                };
+              }
 
               case "file":
+                return sanitizeFilePart(part);
+
               case "source":
-                return part;
+                return sanitizeSourcePart(part);
 
               case "image":
                 return sanitizeImageContent(part);
@@ -274,14 +327,16 @@ export const fromThreadMessageLike = (
         ...common,
         role,
         content: content
-          .filter((part) => part.type !== "text" || part.text != null)
-          .map((part): ThreadUserMessagePart => {
+          .filter((part) => part.type !== "text" || isString(part.text))
+          .map((part): ThreadUserMessagePart | null => {
             const type = part.type;
             switch (type) {
+              case "file":
+                return sanitizeFilePart(part);
+
               case "text":
               case "image":
               case "audio":
-              case "file":
               case "data":
                 return part;
 
@@ -311,7 +366,8 @@ export const fromThreadMessageLike = (
                 );
               }
             }
-          }),
+          })
+          .filter((part) => part !== null),
         attachments: (attachments ?? []).map((att) => ({
           ...att,
           content: (att.content ?? []).map((part): ThreadUserMessagePart => {

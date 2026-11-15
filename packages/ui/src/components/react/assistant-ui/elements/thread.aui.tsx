@@ -869,16 +869,19 @@ const AssistantActionBar: FC = () => {
 };
 
 const MessageFile: FileMessagePartComponent = (part) => {
-  const image = part.mimeType.toLowerCase().startsWith("image/")
-    ? getFileHref(part.data, part.mimeType, part.sourceType)
-    : null;
+  const image =
+    typeof part.mimeType === "string" &&
+    typeof part.data === "string" &&
+    part.mimeType.toLowerCase().startsWith("image/")
+      ? getFileHref(part.data, part.mimeType, part.sourceType)
+      : null;
   if (!image) return <File {...part} />;
   return (
     <Image
       type="image"
       image={image}
       status={part.status}
-      {...(part.filename !== undefined && { filename: part.filename })}
+      {...(typeof part.filename === "string" && { filename: part.filename })}
     />
   );
 };

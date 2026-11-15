@@ -198,12 +198,15 @@ function FileOpen({
   );
 }
 
-const FileImpl: FileMessagePartComponent = ({
-  filename,
-  data,
-  mimeType,
-  sourceType,
-}) => {
+const FileImpl: FileMessagePartComponent = (part) => {
+  // History from storage can carry fields of the wrong type; render a generic
+  // file instead of throwing.
+  const data = typeof part.data === "string" ? part.data : "";
+  const mimeType =
+    typeof part.mimeType === "string" ? part.mimeType : undefined;
+  const filename =
+    typeof part.filename === "string" ? part.filename : undefined;
+  const { sourceType } = part;
   const kind = getFileDataKind(data, sourceType);
   const showSize = kind === "base64" || kind === "data-uri";
 
