@@ -60,28 +60,41 @@ function createRepoToolkit({
   });
 }
 
-/** Stops every command once the sandbox has spent its total time budget. */
-class TimeBudgetedBash extends Bash {
-  private remainingMs: number;
+/**
+ * Stops every command once the sandbox has been busy for its total time
+ * budget. Commands that overlap share one deadline, so running them in
+ * parallel cannot stretch the budget, and the time between commands, while
+ * the model is generating, does not count against it.
+ */
+export class TimeBudgetedBash extends Bash {
+  private spentMs = 0;
+  private running = 0;
+  private busySince = 0;
 
-  constructor(options: BashOptions, budgetMs: number) {
+  constructor(
+    options: BashOptions,
+    private readonly budgetMs: number,
+  ) {
     super(options);
-    this.remainingMs = budgetMs;
   }
 
   override async exec(commandLine: string, options: ExecOptions = {}) {
+    const now = Date.now();
+    if (this.running === 0) this.busySince = now;
+    const deadline = this.busySince + this.budgetMs - this.spentMs;
     const budget =
-      this.remainingMs > 0
-        ? AbortSignal.timeout(this.remainingMs)
+      deadline > now
+        ? AbortSignal.timeout(deadline - now)
         : AbortSignal.abort();
     const signal = options.signal
       ? AbortSignal.any([options.signal, budget])
       : budget;
-    const startedAt = Date.now();
+    this.running += 1;
     try {
       return await super.exec(commandLine, { ...options, signal });
     } finally {
-      this.remainingMs -= Date.now() - startedAt;
+      this.running -= 1;
+      if (this.running === 0) this.spentMs += Date.now() - this.busySince;
     }
   }
 }
