@@ -38,8 +38,16 @@ const createInstance = (snapshot?: Checkout.State) => {
       deleteAll: async () => {
         stored.clear();
       },
-      list: async ({ prefix }: { prefix: string }) =>
-        new Map([...stored].filter(([key]) => key.startsWith(prefix))),
+      list: async ({
+        prefix = "",
+        limit,
+      }: {
+        prefix?: string;
+        limit?: number;
+      }) =>
+        new Map(
+          [...stored].filter(([key]) => key.startsWith(prefix)).slice(0, limit),
+        ),
       getAlarm: async () => alarm.at,
       setAlarm: async (at: number) => {
         alarm.at = at;
@@ -516,6 +524,42 @@ describe("deposits", () => {
     expect(put.status).toBe(413);
   });
 
+  it("keeps a deposit's expiry alarm when an activity write overlaps it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    // A setup with no alarm pending, whose activity is due to be rewritten.
+    fixture.alarm.at = null;
+    vi.setSystemTime(Date.now() + 2 * 60 * 60 * 1000);
+    const { getAlarm } = fixture.context.storage;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    fixture.context.storage.getAlarm = async () => {
+      const at = await getAlarm();
+      if (calls++ === 0) await held;
+      return at;
+    };
+
+    const deposit = fixture.instance.fetch(
+      secretRequest("setup-a", "PUT", "key"),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    release();
+    expect((await deposit).status).toBe(204);
+    await fixture.ready();
+    const { expiresAt } = fixture.stored.get('secret:["setup-a","q1"]') as {
+      expiresAt: number;
+    };
+    expect(fixture.alarm.at).toBe(expiresAt);
+  });
+
   it("refuses an oversized key", async () => {
     const fixture = createInstance(modelState());
     await connect(fixture);
@@ -653,7 +697,44 @@ describe("limits", () => {
     await fixture.instance.alarm();
     expect(fixture.stored.size).toBe(0);
     expect(fixture.alarm.at).toBeNull();
-    expect(fixture.context.abort).toHaveBeenCalledOnce();
+    expect(fixture.context.abort).toHaveBeenCalledExactlyOnceWith(
+      "idle setup deleted",
+      { retryAlarm: false },
+    );
+
+    // Alarms run at least once, so the deleted setup's alarm can run again.
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.alarm.at).toBeNull();
+  });
+
+  it("starts the idle clock when the last socket closes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+    const ws = {};
+    fixture.sockets.push(ws);
+
+    vi.setSystemTime(start + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.alarm.at).toBe(start + 2 * ROOM_IDLE_MS);
+
+    const closedAt = start + 2 * ROOM_IDLE_MS - 60_000;
+    vi.setSystemTime(closedAt);
+    fixture.sockets.length = 0;
+    fixture.instance.webSocketClose(ws as WebSocket);
+    await fixture.ready();
+
+    vi.setSystemTime(start + 2 * ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+    expect(fixture.alarm.at).toBe(closedAt + ROOM_IDLE_MS);
   });
 
   it("starts the idle clock of a setup stored before activity was recorded", async () => {

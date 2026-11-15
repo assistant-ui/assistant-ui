@@ -44,7 +44,11 @@ const SECRET_TTL_MS = 60 * 60 * 1000;
 const MAX_SECRET_BYTES = 16 * 1024;
 /** The link alphabet and length the setup page accepts (apps/setup). */
 const LINK_PATH = /^\/[A-Za-z0-9]{8,64}(?:\/|$)/;
-/** A setup with no request and no open socket for this long is deleted. */
+/**
+ * A setup with no request and no open socket for this long is deleted. A
+ * request is recorded at most every `ACTIVITY_WRITE_MS`, so deletion can come
+ * up to that much sooner after one.
+ */
 export const ROOM_IDLE_MS = 24 * 60 * 60 * 1000;
 /** How stale the stored last-activity time may get before it is rewritten. */
 const ACTIVITY_WRITE_MS = 60 * 60 * 1000;
@@ -89,19 +93,20 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
   #lastActiveAt: number | undefined;
 
   /** Records activity and keeps an alarm set for the idle deadline. */
-  #touch() {
+  #touch(force = false) {
     const now = Date.now();
     if (
+      !force &&
       this.#lastActiveAt !== undefined &&
       now - this.#lastActiveAt < ACTIVITY_WRITE_MS
     )
       return;
     this.#lastActiveAt = now;
     this.ctx.waitUntil(
-      (async () => {
+      this.ctx.blockConcurrencyWhile(async () => {
         await this.ctx.storage.put(ACTIVITY_KEY, now);
         await this.#armAlarm(now + ROOM_IDLE_MS);
-      })(),
+      }),
     );
   }
 
@@ -140,6 +145,16 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
     }
     this.#touch();
     super.webSocketMessage(ws, message);
+  }
+
+  override webSocketClose(ws: WebSocket) {
+    this.#touch(true);
+    super.webSocketClose(ws);
+  }
+
+  override webSocketError(ws: WebSocket) {
+    this.#touch(true);
+    super.webSocketError(ws);
   }
 
   override statewire = statewireHandlers(this.ctx, (restored) => {
@@ -224,6 +239,8 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       let lastActiveAt = await this.ctx.storage.get<number>(ACTIVITY_KEY);
       // A setup stored before activity was recorded starts its idle clock now.
       if (lastActiveAt === undefined) {
+        // An empty object (a deleted setup's alarm running again) stays empty.
+        if ((await this.ctx.storage.list({ limit: 1 })).size === 0) return;
         lastActiveAt = now;
         await this.ctx.storage.put(ACTIVITY_KEY, now);
       }
@@ -233,7 +250,7 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
           await this.ctx.storage.deleteAlarm();
           await this.ctx.storage.deleteAll();
           // Drop the in-memory setup too, so the link starts empty if reused.
-          this.ctx.abort("idle setup deleted");
+          this.ctx.abort("idle setup deleted", { retryAlarm: false });
           return;
         }
         // A socket is still open: keep the setup and look again later.
