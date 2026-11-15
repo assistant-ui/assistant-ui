@@ -221,8 +221,12 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
   async alarm() {
     await this.ctx.blockConcurrencyWhile(async () => {
       const now = Date.now();
-      const lastActiveAt =
-        (await this.ctx.storage.get<number>(ACTIVITY_KEY)) ?? 0;
+      let lastActiveAt = await this.ctx.storage.get<number>(ACTIVITY_KEY);
+      // A setup stored before activity was recorded starts its idle clock now.
+      if (lastActiveAt === undefined) {
+        lastActiveAt = now;
+        await this.ctx.storage.put(ACTIVITY_KEY, now);
+      }
       let next: number | undefined;
       if (now - lastActiveAt >= ROOM_IDLE_MS) {
         if (this.ctx.getWebSockets().length === 0) {

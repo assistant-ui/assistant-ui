@@ -656,6 +656,28 @@ describe("limits", () => {
     expect(fixture.context.abort).toHaveBeenCalledOnce();
   });
 
+  it("starts the idle clock of a setup stored before activity was recorded", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await fixture.ready();
+    expect(fixture.stored.has("room:lastActiveAt")).toBe(false);
+
+    const now = Date.now();
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+    expect(fixture.stored.get("room:lastActiveAt")).toBe(now);
+    expect(fixture.alarm.at).toBe(now + ROOM_IDLE_MS);
+
+    vi.setSystemTime(now + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.context.abort).toHaveBeenCalledOnce();
+  });
+
   it("refuses oversized statewire requests and socket messages", async () => {
     const fixture = createInstance(modelState());
     await connect(fixture);
