@@ -252,6 +252,26 @@ describe("remote media", () => {
     expect(container.querySelector("audio")!.hasAttribute("src")).toBe(false);
   });
 
+  it("holds a played remote source again after switching away and back", () => {
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockReturnValue(
+      new Promise(() => {}),
+    );
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    const { container, rerender } = render(
+      <AudioPlayer src="https://media.example/a.mp3" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+    rerender(<AudioPlayer src="https://media.example/b.mp3" />);
+    rerender(<AudioPlayer src="https://media.example/a.mp3" />);
+    const audio = container.querySelector("audio")!;
+
+    expect(audio.hasAttribute("src")).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+
+    expect(audio.getAttribute("src")).toBe("https://media.example/a.mp3");
+  });
+
   it("preloads an allowed remote audio source and artwork", () => {
     const { container } = render(
       <AudioPlayer

@@ -63,6 +63,7 @@ function useDeferredSource(
 ) {
   const preload = canPreload(src, mediaOrigins);
   const [armedSrc, setArmedSrc] = useState<string | undefined>(undefined);
+  if (armedSrc !== undefined && armedSrc !== src) setArmedSrc(undefined);
   const armed = preload || armedSrc === src;
 
   // `arm` sets the attribute outside React, so clear it when `src` changes.

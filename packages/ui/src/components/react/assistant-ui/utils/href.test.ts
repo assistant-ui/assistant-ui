@@ -123,6 +123,10 @@ describe("safeBackgroundImage", () => {
       "var(--swatch)",
       "linear-gradient(red, var(--c))",
       "src('https://tracker.example/p.png')",
+      "url(https://tracker.example/p.png",
+      'url("https://tracker.example/p.png)',
+      "url('https://tracker.example/p.png)",
+      "url(/ok.png), url(https://tracker.example/p.png",
     ]) {
       expect(safeBackgroundImage(value, undefined)).toBeUndefined();
     }

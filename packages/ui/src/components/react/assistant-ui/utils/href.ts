@@ -95,7 +95,7 @@ export function canPreload(
   }
 }
 
-const CSS_URL = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi;
+const CSS_URL = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^"'()\s]*))\s*\)/gi;
 
 /** CSS that can load or substitute an image without a plain `url(...)`. */
 const INDIRECT_CSS = /\\|image-set\(|\b(?:var|env|attr|src)\(/i;
@@ -112,9 +112,13 @@ export function safeBackgroundImage(
 ): string | undefined {
   if (typeof value !== "string" || value.trim() === "") return undefined;
   if (INDIRECT_CSS.test(value)) return undefined;
-  for (const match of value.matchAll(CSS_URL)) {
-    const url = match[1] ?? match[2] ?? match[3] ?? "";
-    if (!canPreload(url, origins)) return undefined;
-  }
+  let allowed = true;
+  const rest = value.replace(CSS_URL, (_, double, single, bare) => {
+    if (!canPreload(double ?? single ?? bare ?? "", origins)) allowed = false;
+    return "";
+  });
+  // CSS closes an unterminated `url(` or string at the end of the value, so
+  // any `url(` or quote left unmatched could still name a URL.
+  if (!allowed || /url\(|["']/i.test(rest)) return undefined;
   return value;
 }
