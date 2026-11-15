@@ -328,6 +328,7 @@ it("sets sendAutomaticallyWhen for a surface that opts in", async () => {
 });
 
 it("omits api and cloud when the surface supplies neither", async () => {
+  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", "");
   renderHook(() => useDocsChatRuntime());
 
   expect("cloud" in options()).toBe(false);

@@ -155,7 +155,6 @@ export function useDocsCloud() {
   return { cloud, claims };
 }
 
-/** Turns a cloud's engagement events on and off with analytics consent. */
 export function useEngagementConsent(cloud: AssistantCloud | undefined) {
   useEffect(() => {
     if (!cloud) return;
