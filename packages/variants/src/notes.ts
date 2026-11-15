@@ -95,9 +95,11 @@ export const createNotes = (
 
   const detect = async () => {
     try {
-      const response = await request(`${NOTES_ENDPOINT}/ping`, {
-        headers: HEADERS,
-      });
+      const ping = () =>
+        request(`${NOTES_ENDPOINT}/ping`, { headers: HEADERS });
+      let response = await ping();
+      // The Next.js handler can't see the first request's address; ask again.
+      if (response.status === 503) response = await ping();
       const body = response.ok
         ? ((await response.json()) as { ok?: boolean })
         : undefined;

@@ -23,6 +23,7 @@ export type NotesRequest = {
   method: string;
   /** Path after the mount point, with the query string, e.g. `/notes?groups=a`. */
   path: string;
+  /** The socket's peer address. Unknown is refused unless `allowRemoteClients`. */
   remoteAddress?: string | undefined;
   header: (name: string) => string | null;
   json: () => Promise<unknown>;
@@ -142,15 +143,19 @@ export const checkRequest = (
   allowedHosts?: AllowedHosts,
   allowRemoteClients = false,
 ): NotesResponse | undefined => {
-  if (
-    request.remoteAddress !== undefined &&
-    !allowRemoteClients &&
-    !isLoopbackClient(request.remoteAddress)
-  )
-    return fail(
-      403,
-      "remote client not allowed; set allowRemoteClients to admit it",
-    );
+  if (!allowRemoteClients) {
+    // An adapter that can't tell who is calling is refused, not trusted.
+    if (request.remoteAddress === undefined)
+      return fail(
+        403,
+        "client address unknown; set allowRemoteClients to admit it",
+      );
+    if (!isLoopbackClient(request.remoteAddress))
+      return fail(
+        403,
+        "remote client not allowed; set allowRemoteClients to admit it",
+      );
+  }
   const host = request.header("host");
   if (!host) return fail(400, "missing host header");
   if (!isAllowedHost(host, allowedHosts))

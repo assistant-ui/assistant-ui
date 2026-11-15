@@ -226,6 +226,33 @@ describe("session fallback", () => {
     expect(store.getSnapshot().notes).toEqual([]);
   });
 
+  it("asks again once when the first probe answers 503", async () => {
+    register();
+    let pings = 0;
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("/ping"))
+        return ++pings === 1
+          ? json({ error: "client address unknown; retry", retry: true }, 503)
+          : json({ ok: true });
+      return json({ notes: [] });
+    });
+    const notes = createNotes(store, fetcher as typeof fetch);
+    await notes.probe();
+    expect(pings).toBe(2);
+    expect(notes.mode).toBe("server");
+  });
+
+  it("stays in session mode when the retried probe still answers 503", async () => {
+    let pings = 0;
+    const notes = createNotes(store, (async () => {
+      pings++;
+      return json({ retry: true }, 503);
+    }) as typeof fetch);
+    await notes.probe();
+    expect(pings).toBe(2);
+    expect(notes.mode).toBe("session");
+  });
+
   it("falls back on a non-ok probe and ignores corrupt storage", async () => {
     window.sessionStorage.setItem(SESSION_NOTES_KEY, "{not json");
     const notes = createNotes(store, (async () =>

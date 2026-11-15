@@ -9,6 +9,9 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { channel } from "node:diagnostics_channel";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,10 +72,24 @@ const request = (
   return {
     method,
     path,
-    remoteAddress: options.remoteAddress,
+    remoteAddress:
+      "remoteAddress" in options ? options.remoteAddress : "127.0.0.1",
     header: (name) => headers[name.toLowerCase()] ?? null,
     json: async () => options.body,
   };
+};
+
+/** Tags a request the way Node does for a socket at `address`, as `next dev` would see it. */
+const fromPeer = (req: Request, address = "127.0.0.1") => {
+  const headers: Record<string, unknown> = {};
+  channel("http.server.request.start").publish({
+    request: { headers },
+    socket: { remoteAddress: address },
+  });
+  const tagged = new Headers(req.headers);
+  for (const [name, value] of Object.entries(headers))
+    tagged.set(name, String(value));
+  return new Request(req, { headers: tagged });
 };
 
 const call = (req: NotesRequest, dev = true) =>
@@ -90,19 +107,44 @@ describe("guards", () => {
     expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toBe(page);
   });
 
-  it("allows loopback client addresses and an unknown address", async () => {
+  it("allows loopback client addresses", async () => {
     for (const remoteAddress of [
       "127.0.0.1",
       "127.42.0.1",
       "::1",
       "::ffff:127.0.0.1",
       "::ffff:7f00:1",
-      undefined,
     ]) {
       expect(
         (await call(request("GET", "/ping", { remoteAddress }))).status,
       ).toBe(200);
     }
+  });
+
+  it("refuses an unknown client address unless allowRemoteClients is true", async () => {
+    const req = request("POST", "/notes", {
+      remoteAddress: undefined,
+      body: { group: "demo-cta", note: "no address" },
+    });
+    expect(await call(req)).toEqual({
+      status: 403,
+      body: {
+        error: "client address unknown; set allowRemoteClients to admit it",
+      },
+    });
+    expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toBe(page);
+    expect(
+      (
+        await handleNotesRequest(
+          request("GET", "/ping", { remoteAddress: undefined }),
+          {
+            root,
+            dev: true,
+            allowRemoteClients: true,
+          },
+        )
+      ).status,
+    ).toBe(200);
   });
 
   it("allows a LAN client when allowRemoteClients is true", async () => {
@@ -741,24 +783,28 @@ describe("adapters", () => {
       new Request(`http://${host}/__variants/ping`, {
         headers: { "x-variants": "1", host },
       });
-    expect((await GET(ping("dev.example.test"))).status).toBe(403);
+    expect((await GET(fromPeer(ping("dev.example.test")))).status).toBe(403);
     const routes = createVariantsRoutes({ allowedHosts: ["dev.example.test"] });
-    expect((await routes.GET(ping("dev.example.test"))).status).toBe(200);
+    expect((await routes.GET(fromPeer(ping("dev.example.test")))).status).toBe(
+      200,
+    );
   });
 
   it("serves Next.js route handlers only in development", async () => {
     vi.spyOn(process, "cwd").mockReturnValue(root);
     const make = (method: string, path: string, body?: unknown) =>
-      new Request(`http://localhost:3000/__variants${path}`, {
-        method,
-        headers: {
-          "x-variants": "1",
-          origin: "http://localhost:3000",
-          host: "localhost:3000",
-          ...(body ? { "content-type": "application/json" } : {}),
-        },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-      });
+      fromPeer(
+        new Request(`http://localhost:3000/__variants${path}`, {
+          method,
+          headers: {
+            "x-variants": "1",
+            origin: "http://localhost:3000",
+            host: "localhost:3000",
+            ...(body ? { "content-type": "application/json" } : {}),
+          },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+        }),
+      );
     vi.stubEnv("NODE_ENV", "production");
     expect((await GET(make("GET", "/ping"))).status).toBe(404);
     vi.stubEnv("NODE_ENV", "development");
@@ -779,5 +825,79 @@ describe("adapters", () => {
       make("POST", "/notes", { group: "demo-cta", note: "x".repeat(MAX_BODY) }),
     );
     expect(oversized.status).toBe(413);
+  });
+
+  it("refuses a Next.js request from a LAN peer even with a forged loopback Host", async () => {
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.stubEnv("NODE_ENV", "development");
+    const forged = new Request("http://localhost:3000/__variants/notes", {
+      method: "POST",
+      headers: {
+        "x-variants": "1",
+        host: "localhost:3000",
+        origin: "http://localhost:3000",
+        "content-type": "application/json",
+        "x-forwarded-for": "127.0.0.1",
+      },
+      body: JSON.stringify({ group: "demo-cta", note: "forged" }),
+    });
+    const result = await POST(fromPeer(forged, "192.168.1.42"));
+    expect(result.status).toBe(403);
+    expect(await result.json()).toEqual({
+      error: "remote client not allowed; set allowRemoteClients to admit it",
+    });
+    expect(await readFile(join(root, "src", "page.tsx"), "utf8")).toBe(page);
+    const routes = createVariantsRoutes({ allowRemoteClients: true });
+    const ping = new Request("http://localhost:3000/__variants/ping", {
+      headers: { "x-variants": "1", host: "localhost:3000" },
+    });
+    expect((await routes.GET(fromPeer(ping, "192.168.1.42"))).status).toBe(200);
+  });
+
+  it("answers 503 to a Next.js request whose address was never tagged", async () => {
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.stubEnv("NODE_ENV", "development");
+    const untagged = new Request("http://localhost:3000/__variants/ping", {
+      headers: { "x-variants": "1", host: "localhost:3000" },
+    });
+    const result = await GET(untagged);
+    expect(result.status).toBe(503);
+    expect(await result.json()).toEqual({
+      error: "client address unknown; retry",
+      retry: true,
+    });
+    vi.stubEnv("NODE_ENV", "production");
+    expect((await GET(untagged)).status).toBe(404);
+    vi.stubEnv("NODE_ENV", "development");
+    const routes = createVariantsRoutes({ allowRemoteClients: true });
+    expect((await routes.GET(untagged)).status).toBe(200);
+  });
+
+  it("tags a real Node HTTP request with its socket address", async () => {
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.stubEnv("NODE_ENV", "development");
+    const server = createServer((req, res) => {
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(req.headers))
+        if (typeof value === "string") headers.set(name, value);
+      void GET(
+        new Request(`http://${req.headers.host}${req.url}`, { headers }),
+      ).then(async (response) => {
+        res.statusCode = response.status;
+        res.end(await response.text());
+      });
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const { port } = server.address() as AddressInfo;
+      const response = await fetch(`http://127.0.0.1:${port}/__variants/ping`, {
+        headers: { "x-variants": "1" },
+      });
+      expect(response.status).toBe(200);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });
