@@ -4,6 +4,7 @@ import { useCallback, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import type { CheckoutContextValue } from "@/components/checkout-provider";
 import { useWizardNext } from "./wizard-actions";
+import { AgentHandoffConsent } from "./agent-handoff-consent";
 import { inputCardClassName, useInputActions } from "./input-shared";
 import { canRestoreCheckoutSession } from "@/lib/checkout/session-store";
 import type { Checkout } from "@/lib/checkout/protocol";
@@ -22,6 +23,7 @@ export function CloudLoginInputCard({
 }) {
   const details = cloudLoginDetails(input);
   const [failure, setFailure] = useState("");
+  const [handoffConfirmed, setHandoffConfirmed] = useState(false);
   const { busy, dismiss } = useInputActions(input, checkout);
   const returned = useSyncExternalStore(
     useCallback((notify) => {
@@ -58,7 +60,7 @@ export function CloudLoginInputCard({
   );
   const signIn = () => {
     setFailure("");
-    if (!details || expired) return;
+    if (!details || expired || !handoffConfirmed) return;
     if (!canRestoreCheckoutSession(checkout.session.id, checkout.url)) {
       setFailure(
         "Allow browser storage to return to this setup, or use the sign-in link printed by your CLI.",
@@ -83,7 +85,7 @@ export function CloudLoginInputCard({
   };
   useWizardNext({
     label: returned ? "Waiting for CLI" : "Sign in",
-    disabled: busy || !details || expired || returned,
+    disabled: busy || !details || expired || returned || !handoffConfirmed,
     onClick: signIn,
   });
   return (
@@ -111,6 +113,14 @@ export function CloudLoginInputCard({
               {details.host}
             </span>
           </div>
+          {returned ? null : (
+            <AgentHandoffConsent
+              checkout={checkout}
+              handoff="sign-in"
+              checked={handoffConfirmed}
+              onCheckedChange={setHandoffConfirmed}
+            />
+          )}
         </>
       )}
       {failure ? (

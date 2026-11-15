@@ -51,11 +51,20 @@ const checkout = (dismiss = vi.fn().mockResolvedValue(undefined)) =>
       "checkout/dismiss": dismiss,
     } as unknown as CheckoutContextValue["commands"],
   }) satisfies CheckoutContextValue;
-const show = (request: Checkout.Input, context = checkout()) =>
+const show = (
+  request: Checkout.Input,
+  context: CheckoutContextValue = checkout(),
+) =>
   render(
     <WizardHost>
       <InputCard input={request} checkout={context} />
     </WizardHost>,
+  );
+const confirm = () =>
+  fireEvent.click(
+    screen.getByRole("checkbox", {
+      name: "I started this setup from my own coding agent.",
+    }),
   );
 afterEach(() => {
   cleanup();
@@ -67,11 +76,31 @@ describe("CloudLoginInputCard", () => {
     show(input());
     expect(screen.getByLabelText("Sign-in code").textContent).toBe("ABCD-EFGH");
     expect(screen.getByText("accounts.assistant-ui.com")).toBeTruthy();
+    confirm();
     expect(
       screen.getByRole<HTMLButtonElement>("button", { name: "Sign in" })
         .disabled,
     ).toBe(false);
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+  it("names the agent the sign-in goes to and waits for the user to confirm they started it", () => {
+    const context: CheckoutContextValue = checkout();
+    context.state = {
+      agent: { cwd: "/home/ada/app", kind: "claude" },
+    } as unknown as Checkout.State;
+    show(input(), context);
+    expect(screen.getByTestId("agent-handoff").textContent).toBe(
+      "Signing in lets the coding agent in /home/ada/app on Claude Code use your assistant-ui account.",
+    );
+    const signIn = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Sign in",
+    });
+    expect(signIn.disabled).toBe(true);
+    fireEvent.click(signIn);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(window.sessionStorage.length).toBe(0);
+    confirm();
+    expect(signIn.disabled).toBe(false);
   });
   it("treats a bound return as waiting, never as an authenticated answer", async () => {
     const request = input();
@@ -93,6 +122,7 @@ describe("CloudLoginInputCard", () => {
   it("ignores a forged return that this tab did not start", () => {
     window.location.hash = `setup-login=${attempt}`;
     show(input());
+    confirm();
     expect(
       screen.getByRole<HTMLButtonElement>("button", { name: "Sign in" })
         .disabled,
@@ -103,6 +133,7 @@ describe("CloudLoginInputCard", () => {
   });
   it("refuses navigation when the checkout cannot be restored, even with session storage available", () => {
     show(input());
+    confirm();
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(screen.getByRole("alert").textContent).toContain(
       "Allow browser storage",

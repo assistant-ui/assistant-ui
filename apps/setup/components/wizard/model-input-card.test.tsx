@@ -70,6 +70,8 @@ const checkout = (): CheckoutContextValue => ({
   } as unknown as CheckoutContextValue["commands"],
 });
 
+const CONSENT = "I started this setup from my own coding agent.";
+
 const toKeyStep = () =>
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
@@ -160,6 +162,11 @@ describe("ModelInputCard", () => {
     fireEvent.change(screen.getByLabelText("Model"), {
       target: { value: "gpt-5" },
     });
+    expect(screen.getByRole("button", { name: "Next" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: CONSENT }));
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() =>
       expect(context.commands["checkout/answer"]).toHaveBeenCalledWith({
@@ -171,6 +178,42 @@ describe("ModelInputCard", () => {
       `https://checkout.example.test/session/secret/model?setup=setup-a&answer=${encodeURIComponent(JSON.stringify({ provider: "openai", model: "gpt-5" }))}`,
       { method: "PUT", body: "openai-key" },
     );
+    vi.unstubAllGlobals();
+  });
+
+  it("names the agent a key goes to and sends nothing until the user confirms they started it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    testProviderKey.mockResolvedValueOnce({ status: "unauthorized" });
+    const context = checkout();
+    context.state = {
+      ...context.state!,
+      agent: { ...context.state!.agent, cwd: "/home/ada/app", kind: "codex" },
+    };
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={context} />
+      </WizardHost>,
+    );
+    toKeyStep();
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "openai-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Test key" }));
+    await screen.findByText("The provider rejected this key.");
+    fireEvent.click(screen.getByRole("button", { name: "Continue anyway" }));
+    fireEvent.change(screen.getByLabelText("Model"), {
+      target: { value: "gpt-5" },
+    });
+    expect(screen.getByTestId("agent-handoff").textContent).toBe(
+      "Your key goes to the coding agent in /home/ada/app on Codex, through checkout.example.test.",
+    );
+    const next = screen.getByRole("button", { name: "Next" });
+    expect(next).toHaveProperty("disabled", true);
+    fireEvent.submit(next.closest("form") ?? document.querySelector("form")!);
+    await act(async () => {});
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(context.commands["checkout/answer"]).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 

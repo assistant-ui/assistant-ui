@@ -31,6 +31,7 @@ import {
   useWizardNext,
 } from "@/components/wizard/wizard-actions";
 import type { CheckoutContextValue } from "@/components/checkout-provider";
+import { AgentHandoffConsent } from "@/components/wizard/agent-handoff-consent";
 import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 import {
   REASONING_EFFORTS,
@@ -71,6 +72,7 @@ export function ModelInputCard({
   const [model, setModel] = useState("");
   const [effort, setEffort] = useState<ReasoningEffort | "default">("default");
   const [note, setNote] = useState("");
+  const [handoffConfirmed, setHandoffConfirmed] = useState(false);
   const [test, setTest] = useState<TestState>({ status: "idle" });
   const providerIdRef = useRef(providerId);
   const apiKeyRef = useRef(apiKey);
@@ -128,6 +130,7 @@ export function ModelInputCard({
       return;
     }
     if (!provider || chosenModel === "") return;
+    if (!keySkipped && !handoffConfirmed) return;
     const payload = JSON.stringify({
       provider: provider.id,
       model: chosenModel,
@@ -155,7 +158,8 @@ export function ModelInputCard({
           }
         : {
             label: "Next",
-            disabled: busy || chosenModel === "",
+            disabled:
+              busy || chosenModel === "" || (!keySkipped && !handoffConfirmed),
             submit: true,
             back: () => {
               if (!busy) setStep("key");
@@ -374,6 +378,14 @@ export function ModelInputCard({
               ) : null}
             </div>
             <NoteField value={note} onChange={setNote} />
+            {keySkipped ? null : (
+              <AgentHandoffConsent
+                checkout={checkout}
+                handoff="key"
+                checked={handoffConfirmed}
+                onCheckedChange={setHandoffConfirmed}
+              />
+            )}
           </>
         ) : null}
       </fieldset>
