@@ -132,6 +132,27 @@ test("rejects a manifest dependency on an unrecorded or mismatched archive", () 
   );
 });
 
+test("checks bare relative and absolute paths as local archives", () => {
+  const setup = validRepo();
+  setup.dependencies.demo = "./vendor/demo-1.0.0.tgz";
+  setup.dependencies.outside = "../elsewhere/x.tgz";
+  setup.dependencies.absolute = "/tmp/x.tgz";
+  setup.dependencies.dotted = "file:./vendor/../vendor/demo-1.0.0.tgz";
+  const problems = problemsFor(setup);
+  assert.ok(
+    !problems.some((problem) => problem.includes("dependencies.demo ")),
+  );
+  assert.ok(
+    problems.some((problem) => problem.includes("dependencies.outside")),
+  );
+  assert.ok(
+    problems.some((problem) => problem.includes("dependencies.absolute")),
+  );
+  assert.ok(
+    problems.some((problem) => problem.includes("dependencies.dotted")),
+  );
+});
+
 test("reports a missing template manifest", () => {
   const root = createRepo(validRepo());
   try {

@@ -95,8 +95,16 @@ export function findVendorProblems(root, directory) {
     for (const [dependency, spec] of Object.entries(
       templateManifest[field] ?? {},
     )) {
-      if (typeof spec !== "string" || !spec.startsWith("file:")) continue;
-      const target = spec.slice("file:".length).replace(/^\.\//, "");
+      if (typeof spec !== "string") continue;
+      // npm and pnpm read `file:` specs and bare relative, absolute or `~/`
+      // paths as local packages.
+      const local = spec.startsWith("file:")
+        ? spec.slice("file:".length)
+        : /^(?:\.{1,2}\/|\/|~\/)/.test(spec)
+          ? spec
+          : undefined;
+      if (local === undefined) continue;
+      const target = path.posix.normalize(local);
       const filename = target.startsWith(`${vendorName}/`)
         ? target.slice(vendorName.length + 1)
         : undefined;
