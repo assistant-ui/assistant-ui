@@ -174,9 +174,11 @@ class MarkdownRenderer extends Renderer {
 
   // The base renderer hands every href to `Linking.openURL`, which also opens
   // `tel:`, `sms:` and app deep links, so a link only gets a press handler when
-  // its scheme is one the web kit allows.
+  // its scheme is one the web kit allows. Any other link renders as plain text,
+  // without the link style. The title is left out of the accessible label, the
+  // same as the base renderer, so a screen reader reads the visible text.
   override link(
-    ...[children, href, styles, title]: Parameters<Renderer["link"]>
+    ...[children, href, styles]: Parameters<Renderer["link"]>
   ): ReactNode {
     const url = openableUrl(href);
     return (
@@ -184,7 +186,6 @@ class MarkdownRenderer extends Renderer {
         key={this.getKey()}
         selectable
         accessibilityRole={url ? "link" : undefined}
-        accessibilityLabel={title || undefined}
         onPress={
           url
             ? () => {
@@ -192,7 +193,7 @@ class MarkdownRenderer extends Renderer {
               }
             : undefined
         }
-        style={styles}
+        style={url ? styles : undefined}
       >
         {children}
       </Text>

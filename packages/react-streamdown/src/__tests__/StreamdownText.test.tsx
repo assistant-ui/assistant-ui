@@ -320,6 +320,36 @@ describe("StreamdownTextPrimitive", () => {
     });
   });
 
+  it("does not re-parse when inline props are recreated", () => {
+    let parses = 0;
+    const countParses = () => () => {
+      parses += 1;
+    };
+    Object.defineProperty(countParses, "name", { value: "countParses inline" });
+    const view = () => (
+      <TextMessagePartProvider text="plain **text**" isRunning={false}>
+        <StreamdownTextPrimitive
+          mode="static"
+          security={{ allowedProtocols: ["https"] }}
+          allowedTags={{ mark: [] }}
+          rehypePlugins={
+            [countParses] as unknown as NonNullable<
+              StreamdownProps["rehypePlugins"]
+            >
+          }
+        />
+      </TextMessagePartProvider>
+    );
+
+    const { rerender } = render(view());
+    const afterMount = parses;
+    rerender(view());
+    rerender(view());
+
+    expect(afterMount).toBeGreaterThan(0);
+    expect(parses).toBe(afterMount);
+  });
+
   describe("clobber prefix", () => {
     const createElement = document.createElement;
     afterEach(() => {
@@ -347,6 +377,53 @@ describe("StreamdownTextPrimitive", () => {
       const img = container.querySelector("img");
       expect(img?.getAttribute("name")).toBe("user-content-createElement");
       expect(img?.getAttribute("id")).toBe("user-content-getElementById");
+    });
+
+    it("keeps in-page links pointing at their prefixed target", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={
+            '[Setup](#setup) and <a href="#install">Install</a>\n\n<h3 id="setup">Setup</h3>\n\n<h2 id="install">Install</h2>'
+          }
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(
+        container.querySelector('a[href="#user-content-setup"]')?.textContent,
+      ).toBe("Setup");
+      expect(container.querySelector("#user-content-setup")).not.toBe(null);
+      expect(
+        container.querySelector('a[href="#user-content-install"]')?.textContent,
+      ).toBe("Install");
+      expect(container.querySelector("#user-content-install")).not.toBe(null);
+    });
+
+    it("keeps model ids that already carry the prefix distinct", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={'<span id="foo">a</span> <span id="user-content-foo">b</span>'}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            allowedTags={{ span: ["id"] }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const ids = [...container.querySelectorAll("span[id]")].map(
+        (span) => span.id,
+      );
+      expect(ids).toEqual([
+        "user-content-foo",
+        "user-content-user-content-foo",
+      ]);
     });
 
     it("keeps footnote links pointing at their footnote", () => {

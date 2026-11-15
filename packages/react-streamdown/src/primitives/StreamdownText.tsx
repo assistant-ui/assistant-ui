@@ -89,8 +89,9 @@ const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
 const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
 
 // Streamdown clears the clobber prefix, so an `id` or `name` from model output
-// lands on the element as written, and a named element becomes a property of
-// `document` (`<img name="createElement">` shadows `document.createElement`).
+// would land on the element as written and could shadow properties of
+// `document`. Every id and name gets this prefix, and so does every in-page
+// `#fragment` link, so links to them keep working.
 const CLOBBER_PREFIX = "user-content-";
 
 const streamdownSanitizeSchema: SanitizeSchema = {
@@ -100,7 +101,6 @@ const streamdownSanitizeSchema: SanitizeSchema = {
   clobberPrefix: CLOBBER_PREFIX,
 };
 
-const DOUBLE_CLOBBER_PREFIX = CLOBBER_PREFIX + CLOBBER_PREFIX;
 const CLOBBERED_PROPERTIES = [
   "id",
   "name",
@@ -114,29 +114,49 @@ type HastNode = {
   children?: HastNode[];
 };
 
-// remark-rehype already prefixes the ids it generates for footnotes and links
-// to them by that id, so the sanitize pass prefixing them again would break
-// those links. Collapsing the doubled prefix keeps them matching.
-const collapseClobberPrefix = () => (tree: HastNode) => {
-  const strip = (value: unknown) =>
-    typeof value === "string" && value.startsWith(DOUBLE_CLOBBER_PREFIX)
-      ? value.slice(CLOBBER_PREFIX.length)
-      : value;
+const visitElements = (
+  tree: HastNode,
+  visit: (properties: Record<string, unknown>) => void,
+) => {
   const walk = (node: HastNode) => {
-    const properties = node.properties;
-    if (properties) {
-      for (const key of CLOBBERED_PROPERTIES) {
-        const value = properties[key];
-        if (value === undefined) continue;
-        properties[key] = Array.isArray(value)
-          ? value.map(strip)
-          : strip(value);
-      }
-    }
+    if (node.type === "element" && node.properties) visit(node.properties);
     node.children?.forEach(walk);
   };
   walk(tree);
 };
+
+const withoutPrefix = (value: unknown) =>
+  typeof value === "string" && value.startsWith(CLOBBER_PREFIX)
+    ? value.slice(CLOBBER_PREFIX.length)
+    : value;
+
+// remark-rehype prefixes the footnote ids it generates, and their links,
+// before the sanitize step prefixes them again. This runs before rehype-raw,
+// so it sees only remark's elements, never raw HTML from the model, and leaves
+// them for the sanitize step to prefix once.
+const unprefixGeneratedIds = () => (tree: HastNode) =>
+  visitElements(tree, (properties) => {
+    for (const key of CLOBBERED_PROPERTIES) {
+      const value = properties[key];
+      if (value === undefined) continue;
+      properties[key] = Array.isArray(value)
+        ? value.map(withoutPrefix)
+        : withoutPrefix(value);
+    }
+    const href = properties["href"];
+    if (typeof href === "string" && href.startsWith(`#${CLOBBER_PREFIX}`)) {
+      properties["href"] = `#${href.slice(CLOBBER_PREFIX.length + 1)}`;
+    }
+  });
+
+// Points in-page links at the prefixed ids the sanitize step produced.
+const prefixFragmentLinks = () => (tree: HastNode) =>
+  visitElements(tree, (properties) => {
+    const href = properties["href"];
+    if (typeof href === "string" && href.length > 1 && href.startsWith("#")) {
+      properties["href"] = `#${CLOBBER_PREFIX}${href.slice(1)}`;
+    }
+  });
 
 function buildSecuritySanitizeSchema(
   allowedTags: AllowedTags | undefined,
@@ -163,9 +183,10 @@ function buildSecurityRehypePlugins(
   allowedTags: AllowedTags | undefined,
 ): NonNullable<StreamdownProps["rehypePlugins"]> {
   return [
+    unprefixGeneratedIds,
     rehypeRaw,
     [rehypeSanitize, buildSecuritySanitizeSchema(allowedTags)],
-    collapseClobberPrefix,
+    prefixFragmentLinks,
     [
       harden,
       {
@@ -308,12 +329,19 @@ export const StreamdownTextPrimitive = forwardRef<
     // The sanitize pipeline always runs first: custom plugins extend it rather
     // than replace it, and without `security` it uses Streamdown's allow-all
     // URL policy.
+    // Inline `security`, `allowedTags` and `rehypePlugins` values are fresh
+    // every render, so the pipeline is keyed on their content and the merged
+    // list keeps its entries' identities; otherwise the memoized body would
+    // re-parse on every render.
+    const securityKey = JSON.stringify([security ?? {}, allowedTags ?? null]);
+    const securityPlugins = useMemo(
+      () => buildSecurityRehypePlugins(security ?? {}, allowedTags),
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- securityKey is the content of security and allowedTags
+      [securityKey],
+    );
     const rehypePlugins = useMemo(
-      () => [
-        ...buildSecurityRehypePlugins(security ?? {}, allowedTags),
-        ...(userRehypePlugins ?? []),
-      ],
-      [allowedTags, security, userRehypePlugins],
+      () => [...securityPlugins, ...(userRehypePlugins ?? [])],
+      [securityPlugins, userRehypePlugins],
     );
 
     const optionalProps = {
