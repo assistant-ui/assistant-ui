@@ -58,6 +58,7 @@ describe("merge stream with many open parts", () => {
       item === "start" ? [index] : [],
     );
     expect(starts).toHaveLength(3);
+    expect(seen.slice(0, starts[2])).toContain("0:a3");
     expect(seen.indexOf("1:late")).toBeGreaterThan(starts[2]!);
   });
 
