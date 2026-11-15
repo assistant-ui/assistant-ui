@@ -508,6 +508,34 @@ describe("Thread", () => {
     expect(screen.queryByText("Unnamed file")).toBeNull();
   });
 
+  it("renders the well-formed file parts beside ones with fields of the wrong type", () => {
+    render(
+      <AssistantContentTestThread
+        content={
+          [
+            {
+              type: "file",
+              mimeType: { type: "image/png" },
+              data: PNG_DATA_URI,
+            },
+            { type: "file", mimeType: "image/png", data: { nested: true } },
+            { type: "file", mimeType: "image/png", data: PNG_DATA_URI },
+          ] as never
+        }
+      />,
+    );
+
+    const files = document.querySelectorAll<HTMLElement>(
+      '[data-slot="aui_assistant-message-file"]',
+    );
+    expect(files).toHaveLength(1);
+    expect(
+      files[0]!
+        .querySelector('[data-slot="image-preview"] img')
+        ?.getAttribute("src"),
+    ).toBe(PNG_DATA_URI);
+  });
+
   it("shows feedback actions only when the runtime supports feedback", () => {
     const { unmount } = render(<FeedbackTestThread />);
 

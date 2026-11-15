@@ -33,18 +33,36 @@ describe("stock part components with fields of the wrong type", () => {
     expect(container.querySelector(".aui-file-root")).not.toBeNull();
   });
 
-  it("renders a file part whose mime type, data and filename are objects", () => {
-    expect(() =>
-      render(
-        <File
-          {...fileProps({
-            data: { nested: true },
-            mimeType: { type: "image/png" },
-            filename: { name: "x" },
-          })}
-        />,
-      ),
-    ).not.toThrow();
+  it("renders a file part whose mime type, data and filename are objects, with no size or download", () => {
+    const { container } = render(
+      <File
+        {...fileProps({
+          data: { nested: true },
+          mimeType: { type: "image/png" },
+          filename: { name: "x" },
+        })}
+      />,
+    );
+    expect(container.querySelector(".aui-file-root")).not.toBeNull();
+    expect(container.querySelector('[data-slot="file-download"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/\d B/);
+  });
+
+  it("infers the data kind when the source type is not url or id", () => {
+    const { container } = render(
+      <File
+        {...fileProps({
+          data: "https://example.com/report.pdf",
+          mimeType: "application/pdf",
+          sourceType: 42,
+        })}
+      />,
+    );
+    expect(
+      container
+        .querySelector('[data-slot="file-download"]')
+        ?.getAttribute("href"),
+    ).toBe("https://example.com/report.pdf");
   });
 
   it("drops a url source title that is not a string", () => {

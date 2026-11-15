@@ -288,90 +288,87 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
       .content;
 
   it.each(["assistant", "user"] as const)(
-    "defaults a missing or non-string file mime type on %s messages",
+    "drops a file part with a field of the wrong type on %s messages",
     (role) => {
+      const good = {
+        type: "file",
+        data: "abc",
+        mimeType: "image/png",
+        filename: "a.png",
+      };
       expect(
         convert(role, [
           { type: "file", data: "abc" },
-          { type: "file", data: "abc", mimeType: { x: 1 }, filename: 3 },
-          {
-            type: "file",
-            data: "abc",
-            mimeType: "image/png",
-            filename: "a.png",
-          },
-        ]),
-      ).toEqual([
-        { type: "file", data: "abc", mimeType: "application/octet-stream" },
-        { type: "file", data: "abc", mimeType: "application/octet-stream" },
-        { type: "file", data: "abc", mimeType: "image/png", filename: "a.png" },
-      ]);
-    },
-  );
-
-  it.each(["assistant", "user"] as const)(
-    "drops a file part whose data is not a string on %s messages",
-    (role) => {
-      expect(
-        convert(role, [
           { type: "file", data: { x: 1 }, mimeType: "text/plain" },
+          { type: "file", data: "abc", mimeType: { x: 1 } },
+          { type: "file", data: "abc", mimeType: "text/plain", filename: 3 },
+          { type: "file", data: "abc", mimeType: "text/plain", sourceType: 42 },
+          good,
         ]),
-      ).toEqual([]);
+      ).toEqual([good]);
     },
   );
 
-  it("drops a non-string url source title and a source without a string url", () => {
-    expect(
-      convert("assistant", [
-        {
-          type: "source",
-          sourceType: "url",
-          id: "a",
-          url: "https://a.test",
-          title: { t: 1 },
-        },
-        { type: "source", sourceType: "url", id: "b", url: { href: "x" } },
-        {
-          type: "source",
-          sourceType: "url",
-          id: "c",
-          url: "https://c.test",
-          title: "C",
-        },
-      ]),
-    ).toEqual([
-      { type: "source", sourceType: "url", id: "a", url: "https://a.test" },
+  it("drops a malformed file part inside a user attachment", () => {
+    const good = { type: "file", data: "abc", mimeType: "text/plain" };
+    const message = fromThreadMessageLike(
       {
-        type: "source",
-        sourceType: "url",
-        id: "c",
-        url: "https://c.test",
-        title: "C",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "att",
+            type: "file",
+            name: "a.txt",
+            status: { type: "complete" },
+            content: [{ type: "file", data: "abc", mimeType: 7 }, good],
+          },
+        ] as never,
       },
+      "id",
+      status,
+    );
+    expect(message.role === "user" && message.attachments[0]!.content).toEqual([
+      good,
     ]);
   });
 
-  it("gives a document source string title and media type", () => {
+  it("drops a source with a field of the wrong type", () => {
+    const url = {
+      type: "source",
+      sourceType: "url",
+      id: "c",
+      url: "https://c.test",
+      title: "C",
+    };
+    const document = {
+      type: "source",
+      sourceType: "document",
+      id: "e",
+      title: "E",
+      mediaType: "application/pdf",
+    };
     expect(
       convert("assistant", [
-        {
-          type: "source",
-          sourceType: "document",
-          id: "d",
-          title: [1],
-          mediaType: 2,
-          filename: {},
-        },
+        { ...url, id: "a", title: { t: 1 } },
+        { type: "source", sourceType: "url", id: "b", url: { href: "x" } },
+        { ...document, id: "d", title: [1] },
+        { ...document, id: "f", mediaType: 2 },
+        { ...document, id: "g", filename: {} },
+        url,
+        document,
       ]),
-    ).toEqual([
-      {
-        type: "source",
-        sourceType: "document",
-        id: "d",
-        title: "",
-        mediaType: "application/octet-stream",
-      },
-    ]);
+    ).toEqual([url, document]);
+  });
+
+  it("gives a system message whose text is not a string an empty text", () => {
+    expect(
+      fromThreadMessageLike(
+        { role: "system", content: [{ type: "text", text: 5 }] as never },
+        "id",
+        status,
+      ).content,
+    ).toEqual([{ type: "text", text: "" }]);
   });
 
   it("drops text parts whose text is not a string", () => {

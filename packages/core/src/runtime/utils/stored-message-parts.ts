@@ -12,6 +12,9 @@ export const MAX_STORED_MESSAGE_DEPTH = 100;
 
 type StoredPartGuard = (part: Record<string, unknown>) => boolean;
 
+const isOptionalString = (value: unknown) =>
+  value === undefined || typeof value === "string";
+
 export type StoredMessagePart = Record<string, unknown> & { type: string };
 
 export const parseStoredDate = (value: unknown): Date | null => {
@@ -93,7 +96,12 @@ const makeIsStoredMessagePart = (
       typeof part.unstable_summary === "string",
     image: (part) => typeof part.image === "string",
     file: (part) =>
-      typeof part.data === "string" && typeof part.mimeType === "string",
+      typeof part.data === "string" &&
+      typeof part.mimeType === "string" &&
+      isOptionalString(part.filename) &&
+      (part.sourceType === undefined ||
+        part.sourceType === "url" ||
+        part.sourceType === "id"),
     audio: (part) =>
       isRecord(part.audio) &&
       typeof part.audio.data === "string" &&
@@ -102,10 +110,11 @@ const makeIsStoredMessagePart = (
     source: (part) =>
       typeof part.id === "string" &&
       (part.sourceType === "url"
-        ? typeof part.url === "string"
+        ? typeof part.url === "string" && isOptionalString(part.title)
         : part.sourceType === "document" &&
           typeof part.title === "string" &&
-          typeof part.mediaType === "string"),
+          typeof part.mediaType === "string" &&
+          isOptionalString(part.filename)),
     "generative-ui": (part) => isRecord(part.spec),
     "tool-call": (part) =>
       typeof part.toolCallId === "string" &&

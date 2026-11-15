@@ -12,10 +12,9 @@ import type {
   ThreadUserMessage,
   ThreadSystemMessage,
   DataMessagePart,
-  FileMessagePart,
-  SourceMessagePart,
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
+import { isStoredMessagePart } from "./stored-message-parts";
 import type {
   MessageModality,
   MessageTiming,
@@ -124,40 +123,12 @@ const convertDataPrefixedPart = (
 const isString = (value: unknown): value is string => typeof value === "string";
 
 /**
- * Stored or streamed history can carry fields of the wrong type. Parts are
- * normalized here so components never receive a non-string mime type, title
- * or url. A part whose payload is not a string is dropped.
+ * Input can carry fields of the wrong type. File and source parts follow the
+ * same drop-or-keep rule as the storage readers (`isStoredMessagePart`), so a
+ * malformed part is dropped the same way whichever path delivered it.
  */
-const sanitizeFilePart = <T extends FileMessagePart>(part: T): T | null => {
-  if (!isString(part.data)) return null;
-  const { filename, ...rest } = part;
-  return {
-    ...rest,
-    mimeType: isString(part.mimeType)
-      ? part.mimeType
-      : "application/octet-stream",
-    ...(isString(filename) && { filename }),
-  } as T;
-};
-
-const sanitizeSourcePart = (
-  part: SourceMessagePart,
-): SourceMessagePart | null => {
-  if (part.sourceType === "document") {
-    const { filename, ...rest } = part;
-    return {
-      ...rest,
-      title: isString(part.title) ? part.title : "",
-      mediaType: isString(part.mediaType)
-        ? part.mediaType
-        : "application/octet-stream",
-      ...(isString(filename) && { filename }),
-    };
-  }
-  if (!isString(part.url)) return null;
-  const { title, ...rest } = part;
-  return { ...rest, ...(isString(title) && { title }) };
-};
+const keepWellFormed = <T>(part: T): T | null =>
+  isStoredMessagePart(part) ? part : null;
 
 /**
  * @deprecated Experimental since 2024-07-25. Not scheduled for removal; the API may change in any release.
@@ -232,10 +203,8 @@ export const fromThreadMessageLike = (
               }
 
               case "file":
-                return sanitizeFilePart(part);
-
               case "source":
-                return sanitizeSourcePart(part);
+                return keepWellFormed(part);
 
               case "image":
                 return sanitizeImageContent(part);
@@ -332,7 +301,7 @@ export const fromThreadMessageLike = (
             const type = part.type;
             switch (type) {
               case "file":
-                return sanitizeFilePart(part);
+                return keepWellFormed(part);
 
               case "text":
               case "image":
@@ -370,14 +339,19 @@ export const fromThreadMessageLike = (
           .filter((part) => part !== null),
         attachments: (attachments ?? []).map((att) => ({
           ...att,
-          content: (att.content ?? []).map((part): ThreadUserMessagePart => {
-            const converted = convertDataPrefixedPart(
-              part.type,
-              (part as DataPrefixedPart).data,
-              "id" in part ? part.id : undefined,
-            );
-            return converted ?? (part as ThreadUserMessagePart);
-          }),
+          content: (att.content ?? [])
+            .map((part): ThreadUserMessagePart | null => {
+              const converted = convertDataPrefixedPart(
+                part.type,
+                (part as DataPrefixedPart).data,
+                "id" in part ? part.id : undefined,
+              );
+              if (converted) return converted;
+              return part.type === "file"
+                ? keepWellFormed(part)
+                : (part as ThreadUserMessagePart);
+            })
+            .filter((part) => part !== null),
         })),
         metadata: {
           custom: metadata?.custom ?? {},
@@ -392,10 +366,13 @@ export const fromThreadMessageLike = (
           "System messages must have exactly one text message part.",
         );
 
+      const [systemPart] = content as [TextMessagePart];
       return {
         ...common,
         role,
-        content: content as [TextMessagePart],
+        content: isString(systemPart.text)
+          ? [systemPart]
+          : [{ ...systemPart, text: "" }],
         metadata: {
           custom: metadata?.custom ?? {},
         },
