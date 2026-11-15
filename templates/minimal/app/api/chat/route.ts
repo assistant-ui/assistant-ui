@@ -6,10 +6,18 @@ import {
   convertToModelMessages,
   type UIMessage,
 } from "ai";
+import { isAllowedRequestContext } from "../request-context";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
+  if (!isAllowedRequestContext(req)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   const {
     messages,
     system,
