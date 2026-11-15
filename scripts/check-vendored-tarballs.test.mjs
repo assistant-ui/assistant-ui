@@ -192,6 +192,16 @@ test("rejects an entry after a single empty block", () => {
   assert.throws(() => readPackedManifest(archive), /after an empty block/);
 });
 
+test("rejects an archive that ends after one empty block", () => {
+  const full = gunzipSync(
+    tar({
+      "package/package.json": JSON.stringify({ name: "a", version: "1" }),
+    }),
+  );
+  const cut = gzipSync(full.subarray(0, full.length - 512));
+  assert.throws(() => readPackedManifest(cut), /incomplete end-of-archive/);
+});
+
 test("rejects a header with a bad checksum", () => {
   const archive = tar([
     [

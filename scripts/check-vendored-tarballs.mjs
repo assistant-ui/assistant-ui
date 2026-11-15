@@ -26,7 +26,10 @@ export function readPackedManifest(archive) {
     // reading after a single one, so an entry after one empty block counts.
     if (header.every((byte) => byte === 0)) {
       const next = tar.subarray(offset + 512, offset + 1024);
-      if (next.length === 512 && !next.every((byte) => byte === 0)) {
+      if (next.length !== 512) {
+        throw new Error("it has an incomplete end-of-archive marker");
+      }
+      if (!next.every((byte) => byte === 0)) {
         throw new Error("it has an entry after an empty block");
       }
       break;
