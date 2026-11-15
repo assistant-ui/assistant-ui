@@ -14,7 +14,10 @@ import type {
   DataMessagePart,
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
-import { isStoredMessagePart } from "./stored-message-parts";
+import {
+  isStoredMessagePart,
+  withoutNullOptionals,
+} from "./stored-message-parts";
 import type {
   MessageModality,
   MessageTiming,
@@ -129,20 +132,6 @@ const isString = (value: unknown): value is string => typeof value === "string";
  */
 const keepWellFormed = <T>(part: T): T | null =>
   isStoredMessagePart(part) ? withoutNullOptionals(part) : null;
-
-/**
- * The guards accept `null` for optional fields (nullable JSON columns), but
- * the part types say `string | undefined`, so a `null` is removed here.
- */
-const withoutNullOptionals = <T>(part: T): T => {
-  const record = part as Record<string, unknown>;
-  if (!["filename", "title", "sourceType"].some((key) => record[key] === null))
-    return part;
-  const copy = { ...record };
-  for (const key of ["filename", "title", "sourceType"])
-    if (copy[key] === null) delete copy[key];
-  return copy as T;
-};
 
 /**
  * @deprecated Experimental since 2024-07-25. Not scheduled for removal; the API may change in any release.

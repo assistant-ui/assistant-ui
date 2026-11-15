@@ -333,6 +333,30 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
     },
   );
 
+  it("removes a null file filename and sourceType and a null url source title", () => {
+    expect(
+      convert("assistant", [
+        {
+          type: "file",
+          data: "abc",
+          mimeType: "text/plain",
+          filename: null,
+          sourceType: null,
+        },
+        {
+          type: "source",
+          sourceType: "url",
+          id: "u",
+          url: "https://a.test",
+          title: null,
+        },
+      ]),
+    ).toEqual([
+      { type: "file", data: "abc", mimeType: "text/plain" },
+      { type: "source", sourceType: "url", id: "u", url: "https://a.test" },
+    ]);
+  });
+
   it("drops a malformed file part inside a user attachment", () => {
     const good = { type: "file", data: "abc", mimeType: "text/plain" };
     const message = fromThreadMessageLike(

@@ -143,6 +143,20 @@ const makeIsStoredMessagePart = (
 export const isStoredMessagePart = makeIsStoredMessagePart({}, () => true);
 
 /**
+ * The guards accept `null` for optional fields (nullable JSON columns), but
+ * the part types say `string | undefined`, so a `null` is removed here.
+ */
+export const withoutNullOptionals = <T>(part: T): T => {
+  const record = part as Record<string, unknown>;
+  if (!["filename", "title", "sourceType"].some((key) => record[key] === null))
+    return part;
+  const copy = { ...record };
+  for (const key of ["filename", "title", "sourceType"])
+    if (copy[key] === null) delete copy[key];
+  return copy as T;
+};
+
+/**
  * The aui/v0 decoder dereferences each present field rather than reading only
  * the one it needs, so this boundary checks every field it will touch, while
  * local storage stays no stricter than what the runtime itself writes.
@@ -222,6 +236,6 @@ export const parseStoredAttachment = (
 
   return {
     ...value,
-    content: value.content.filter(isPart),
+    content: value.content.filter(isPart).map(withoutNullOptionals),
   } as CompleteAttachment;
 };
