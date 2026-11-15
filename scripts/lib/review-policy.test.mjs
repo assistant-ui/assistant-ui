@@ -170,3 +170,37 @@ test("packageOwnerOf matches the owned package and its API surface", () => {
     undefined,
   );
 });
+
+for (const [file, check, expected] of [
+  [".github/workflows/.hidden.yml", "decision-or-area", true],
+  ["packages/tap/.npmrc", "decision-or-area", true],
+  ["packages/store/src/.cache/x.ts", "decision-or-area", true],
+  ["scripts/lib/.review-x.mjs", "decision-or-area", false],
+  ["apps/docs/.env.example", "low-risk", false],
+  ["packages/react/src/.x.test.ts", "test", false],
+  ["api-surface/.x.ts", "generated", false],
+  [".changeset/brave-dogs.md", "low-risk", true],
+]) {
+  test(`dot-prefixed path ${file} (${check}) matches: ${expected}`, () => {
+    const matched =
+      check === "decision-or-area"
+        ? isDecisionPath(policy, file) || areasOf(policy, file).length > 0
+        : check === "low-risk"
+          ? isLowRiskPath(policy, file)
+          : check === "test"
+            ? isTestPath(policy, file)
+            : isGeneratedPath(policy, file);
+    assert.equal(matched, expected);
+  });
+}
+
+test("dot-prefixed files get the package owner of their package", () => {
+  assert.equal(
+    packageOwnerOf(policy, "packages/docs-theme/.npmrc")?.id,
+    "docs-theme",
+  );
+});
+
+test("a literal dot segment still has to match", () => {
+  assert.equal(areasOf(policy, "github/workflows/x.yml").length, 0);
+});

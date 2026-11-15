@@ -1372,3 +1372,203 @@ test("paths above T0 cover packages with their own owners", () => {
     ],
   );
 });
+
+for (const patch of [
+  "+          SECRETS: ${{ toJSON(secrets) }}",
+  "+          VALUE: ${{ format('{0}', secrets) }}",
+]) {
+  test(`workflow lines that pass all secrets give T3: ${patch}`, () => {
+    const path = ".github/workflows/code-quality.yaml";
+    const result = computeTier(
+      input({ files: [file(path, { patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, 3);
+    assert.ok(
+      result.reasons.some(
+        (reason) => reason.code === "ci-permissions" && reason.detail === path,
+      ),
+    );
+  });
+}
+
+test("a dot-prefixed workflow file lands in the CI and policy area", () => {
+  const path = ".github/workflows/.hidden.yml";
+  const result = computeTier(
+    input({ files: [file(path, { patch: "+permissions: write-all" })] }),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.deepEqual(result.areas, ["ci-policy"]);
+});
+
+test("a dot-prefixed file in a contract package is a contract-area change", () => {
+  const result = computeTier(
+    input({ files: [file("packages/tap/.npmrc")] }),
+    policy,
+  );
+  assert.equal(result.tier, 2);
+  assert.deepEqual(result.areas, ["reactivity"]);
+});
+
+for (const [files, changedFiles] of [
+  [[file("README.md")], 3001],
+  [[file("README.md")], null],
+  [[file("README.md")], "1"],
+]) {
+  test(`a changed-file list GitHub cut short fails: ${changedFiles}`, () => {
+    const result = computeTier(input({ files, changedFiles }), policy);
+    assert.deepEqual(
+      result.failures.filter(({ code }) => code === "files-incomplete"),
+      [
+        {
+          code: "files-incomplete",
+          detail: `1 of ${Number.isInteger(changedFiles) ? changedFiles : "an unknown number of"}`,
+          override: null,
+        },
+      ],
+    );
+  });
+}
+
+test("a complete changed-file list passes", () => {
+  const result = computeTier(
+    input({ files: [file("README.md")], changedFiles: 1 }),
+    policy,
+  );
+  assert.deepEqual(result.failures, []);
+  assert.equal(result.tier, 0);
+});
+
+for (const name of [
+  "postinstall",
+  "preinstall",
+  "install",
+  "prepare",
+  "prepack",
+]) {
+  for (const path of [
+    "packages/react/package.json",
+    "package.json",
+    "apps/docs/package.json",
+  ]) {
+    test(`an added ${name} script in ${path} gives T3`, () => {
+      const result = computeTier(
+        manifestInput(
+          { scripts: { build: "tsc" } },
+          {
+            scripts: { build: "tsc", [name]: "node x.js" },
+          },
+          path,
+        ),
+        policy,
+      );
+      assert.equal(result.tier, 3);
+      assert.ok(
+        result.reasons.some(
+          (reason) =>
+            reason.code === "lifecycle-script" &&
+            reason.detail === `${path}: scripts.${name}`,
+        ),
+      );
+    });
+  }
+}
+
+test("a lifecycle script in a new manifest gives T3", () => {
+  const path = "examples/new/package.json";
+  const result = computeTier(
+    manifestInput(null, { scripts: { postinstall: "node x.js" } }, path),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+});
+
+test("an unchanged lifecycle script or a changed build script is not flagged", () => {
+  const result = computeTier(
+    manifestInput(
+      { scripts: { prepare: "husky", build: "tsc" } },
+      { scripts: { prepare: "husky", build: "tsc -b" } },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.ok(!result.reasons.some(({ code }) => code === "lifecycle-script"));
+});
+
+for (const [field, base, head, key] of [
+  [
+    "dependencies",
+    { zod: "^3.0.0" },
+    { zod: "npm:zod-fork@3.0.0" },
+    "dependencies.zod",
+  ],
+  [
+    "devDependencies",
+    { vitest: "^4.0.0" },
+    { vitest: "npm:other@4.0.0" },
+    "devDependencies.vitest",
+  ],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "github:someone/a" },
+    "devDependencies.a",
+  ],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "https://example.com/a.tgz" },
+    "devDependencies.a",
+  ],
+  ["overrides", {}, { b: { c: "npm:d@1.0.0" } }, "overrides.b.c"],
+]) {
+  test(`${field} entry ${key} set to ${JSON.stringify(head)} gives T3`, () => {
+    for (const path of ["packages/react/package.json", "package.json"]) {
+      const result = computeTier(
+        manifestInput({ [field]: base }, { [field]: head }, path),
+        policy,
+      );
+      assert.equal(result.tier, 3);
+      assert.ok(
+        result.reasons.some(
+          (reason) =>
+            reason.code === "dependency-source" &&
+            reason.detail === `${path}: ${key}`,
+        ),
+      );
+    }
+  });
+}
+
+test("pnpm overrides with an npm alias give T3", () => {
+  const result = computeTier(
+    manifestInput(
+      {},
+      { pnpm: { overrides: { x: "npm:y@1.0.0" } } },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.ok(
+    result.reasons.some(
+      (reason) =>
+        reason.code === "dependency-source" &&
+        reason.detail === "package.json: pnpm.overrides.x",
+    ),
+  );
+});
+
+test("an alias kept from the base and workspace or catalog specs are not flagged", () => {
+  const result = computeTier(
+    manifestInput(
+      { devDependencies: { a: "npm:b@1.0.0", c: "^1.0.0" } },
+      {
+        devDependencies: { a: "npm:b@1.0.0", c: "workspace:*", d: "catalog:" },
+      },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.ok(!result.reasons.some(({ code }) => code === "dependency-source"));
+});

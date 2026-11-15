@@ -183,6 +183,7 @@ function fakeClient({
         const pullRequest = structuredClone(
           prByNumber[variables.number] ?? prSnapshots?.[gatherRead++] ?? pr,
         );
+        pullRequest.changedFiles ??= files.length;
         const events = pullRequest.timelineItems.nodes;
         pullRequest.labeledEvents ??= {
           nodes: events
@@ -2797,4 +2798,44 @@ test("the comment says which approvals carried over and which later paths made o
   ]) {
     assert.ok(comment.includes(expected), `${expected}\n${comment}`);
   }
+});
+
+test("root and app manifests are read for install scripts without an exports diff", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ changedFiles: 2 }),
+    files: [file("package.json"), file("apps/docs/package.json")],
+    contents: {
+      [`${repo}/contents/package.json?ref=merge-base`]: '{"exports":"./a.js"}',
+      [`${repo}/contents/package.json?ref=head`]:
+        '{"exports":"./b.js","scripts":{"postinstall":"node x.js"}}',
+      [`${repo}/contents/apps/docs/package.json?ref=merge-base`]: "{}",
+      [`${repo}/contents/apps/docs/package.json?ref=head`]: "{}",
+    },
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.equal(signalsInput.changedFiles, 2);
+  assert.deepEqual(
+    signalsInput.manifests.map(({ path }) => path),
+    ["package.json", "apps/docs/package.json"],
+  );
+  assert.deepEqual(signalsInput.exportsDiffs, []);
+});
+
+test("the changed-file count from GitHub reaches the signals", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ changedFiles: 3001 }),
+    files: [file("README.md")],
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.equal(signalsInput.changedFiles, 3001);
 });

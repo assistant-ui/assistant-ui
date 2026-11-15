@@ -35,6 +35,46 @@ function majorsOf(range) {
     : [...new Set(majors)].toSorted((a, b) => a - b).join(",");
 }
 
+// Scripts a package manager runs on its own during install, pack or publish.
+const lifecycleScripts = [
+  "preinstall",
+  "install",
+  "postinstall",
+  "prepare",
+  "prepublish",
+  "prepublishOnly",
+  "prepack",
+  "postpack",
+];
+// Specs that resolve somewhere other than the registry entry the name implies.
+const nonRegistrySpec = /^\s*(npm:|git[+:]|github:|gitlab:|bitbucket:|https?:)/;
+const dependencyFields = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
+  "overrides",
+  "resolutions",
+];
+
+function* stringLeaves(value, prefix) {
+  if (typeof value === "string") {
+    yield [prefix, value];
+  } else if (value !== null && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) {
+      yield* stringLeaves(item, `${prefix}.${key}`);
+    }
+  }
+}
+
+function* dependencySpecs(manifest) {
+  if (manifest === null || typeof manifest !== "object") return;
+  for (const field of dependencyFields) {
+    yield* stringLeaves(manifest[field], field);
+  }
+  yield* stringLeaves(manifest.pnpm?.overrides, "pnpm.overrides");
+}
+
 export function computeTier(input, policy) {
   const type = parseTitleType(policy, input.title);
   const reasons = new Map();
@@ -129,7 +169,7 @@ export function computeTier(input, policy) {
       file.path.startsWith(".github/workflows/") &&
       (file.patch === null ||
         [...added, ...removed].some((line) =>
-          /^\s*permissions:|^\s*[a-z-]+:\s*(read|write|none)\s*(#.*)?$|\bsecrets\s*[.:[]|\b(pull_request_target|workflow_run|issue_comment|pull_request_review_comment|discussion_comment|repository_dispatch)\b|^\s*(-\s*)?(issues|discussion)\s*(:|$)|^\s*on\s*:.*\b(issues|discussion)\b/.test(
+          /^\s*permissions:|^\s*[a-z-]+:\s*(read|write|none)\s*(#.*)?$|\bsecrets\s*[.:[)]|[(,]\s*secrets\b|\b(pull_request_target|workflow_run|issue_comment|pull_request_review_comment|discussion_comment|repository_dispatch)\b|^\s*(-\s*)?(issues|discussion)\s*(:|$)|^\s*on\s*:.*\b(issues|discussion)\b/.test(
             line.slice(1),
           ),
         ))
@@ -151,6 +191,22 @@ export function computeTier(input, policy) {
   }
 
   if (input.files.length === 0) addReason(1, "no-files", "No changed files");
+  // The pull request files API stops at a fixed number of files. A list
+  // shorter than the pull request's own count could leave out any path, so
+  // the result cannot be trusted and the check fails.
+  if (
+    input.changedFiles !== undefined &&
+    !(
+      Number.isInteger(input.changedFiles) &&
+      input.files.length >= input.changedFiles
+    )
+  ) {
+    failures.push({
+      code: "files-incomplete",
+      detail: `${input.files.length} of ${Number.isInteger(input.changedFiles) ? input.changedFiles : "an unknown number of"}`,
+      override: null,
+    });
+  }
   if (input.labels.includes(policy.labels.behaviorChange)) {
     addReason(3, "behavior-change-label", policy.labels.behaviorChange);
   }
@@ -208,6 +264,20 @@ export function computeTier(input, policy) {
   }
 
   for (const { path, base, head } of input.manifests) {
+    if (head !== null) {
+      for (const name of lifecycleScripts) {
+        const script = head.scripts?.[name];
+        if (script !== undefined && script !== base?.scripts?.[name]) {
+          addReason(3, "lifecycle-script", `${path}: scripts.${name}`, path);
+        }
+      }
+      const baseSpecs = new Map(dependencySpecs(base));
+      for (const [key, spec] of dependencySpecs(head)) {
+        if (nonRegistrySpec.test(spec) && baseSpecs.get(key) !== spec) {
+          addReason(3, "dependency-source", `${path}: ${key}`, path);
+        }
+      }
+    }
     if (
       !matchesAny(path, ["packages/*/package.json"]) ||
       base === null ||

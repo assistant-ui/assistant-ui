@@ -27,6 +27,7 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       title body isDraft state headRefOid baseRefOid createdAt updatedAt
+      changedFiles
       author { login __typename }
       labels(first: 100) { nodes { name } }
       labeledEvents: timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
@@ -301,11 +302,7 @@ export async function gatherPullRequest(
           changed.path === file &&
           isCoverageConfig(changed.previousPath),
       );
-    if (
-      !isSurface &&
-      !isCoverage &&
-      !/^packages\/[^/]+\/package\.json$/.test(file)
-    )
+    if (!isSurface && !isCoverage && !/(^|\/)package\.json$/.test(file))
       continue;
     const contents = `${repo}/contents/${file.split("/").map(encodeURIComponent).join("/")}`;
     const baseContents = renamedConfig
@@ -335,6 +332,7 @@ export async function gatherPullRequest(
         continue;
       }
       manifests.push({ path: file, base, head });
+      if (!/^packages\/[^/]+\/package\.json$/.test(file)) continue;
       const diff = diffExportsMap(base?.exports, head?.exports);
       if (diff.added.length || diff.removed.length || diff.changed.length) {
         exportsDiffs.push({ path: file, diff });
@@ -405,6 +403,7 @@ export async function gatherPullRequest(
       title: node.title,
       labels: labels.map(({ name: label }) => label),
       files,
+      changedFiles: node.changedFiles ?? null,
       apiSurface,
       manifests,
       invalidManifests,
@@ -512,6 +511,8 @@ const signalLabels = {
   "new-runtime-dependency": "new runtime dependency",
   "upstream-major": "upstream major",
   "manifest-contract-field": "manifest contract field",
+  "lifecycle-script": "install or publish script",
+  "dependency-source": "dependency from outside the registry",
   "cross-package-refactor": "refactor across packages",
   "no-files": "no changed files",
 };
@@ -525,6 +526,7 @@ const requirementLabels = {
   "refactor-changes-exports": "Refactor claim",
   "refactor-changes-assertions": "Refactor claim",
   "manifest-invalid": "Manifest",
+  "files-incomplete": "Changed files",
   "open-pr-cap": "Open pull requests",
 };
 const ignoredLabels = {
@@ -591,6 +593,8 @@ const failureDetails = {
   "refactor-changes-assertions": (detail) =>
     `a \`refactor\` must not change test assertions in ${code(detail)}`,
   "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
+  "files-incomplete": (detail) =>
+    `GitHub listed ${detail} changed files, so the tier cannot be computed; split the pull request`,
 };
 
 function windowEnd(tier, context, policy) {
