@@ -210,11 +210,7 @@ class MarkdownRenderer extends Renderer {
 
 const OPENABLE_SCHEMES = new Set(["http", "https", "mailto"]);
 
-/**
- * `href` trimmed when its scheme is `http`, `https` or `mailto`, otherwise
- * `undefined`.
- */
-export const openableUrl = (href: string | undefined): string | undefined => {
+const openableUrl = (href: string | undefined): string | undefined => {
   if (typeof href !== "string") return undefined;
   const trimmed = href.trim();
   const scheme = /^([a-z][a-z\d+.-]*):/i.exec(trimmed)?.[1]?.toLowerCase();
