@@ -279,7 +279,7 @@ describe("StreamdownTextPrimitive", () => {
       ).not.toBeNull();
     });
 
-    it("passes user rehypePlugins through when security is not set", async () => {
+    it("runs user rehypePlugins after the default pipeline when security is not set", async () => {
       const { container } = render(
         <TextMessagePartProvider text={markdown} isRunning={false}>
           <StreamdownTextPrimitive
@@ -294,6 +294,82 @@ describe("StreamdownTextPrimitive", () => {
       );
       expect(evilAnchor).not.toBeNull();
       expect(evilAnchor!.getAttribute("data-user-plugin")).toBe("true");
+    });
+
+    it("keeps sanitizing when user rehypePlugins are set without security", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={
+            '[run](javascript:alert(1)) and [data](data:text/html,hi)\n\n<img src="https://example.com/a.png" onerror="alert(1)">'
+          }
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            rehypePlugins={userRehypePlugins}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(container.querySelector('a[href^="javascript:"]')).toBeNull();
+      expect(container.querySelector('a[href^="data:"]')).toBeNull();
+      const img = container.querySelector("img");
+      expect(img).not.toBeNull();
+      expect(img!.hasAttribute("onerror")).toBe(false);
+    });
+  });
+
+  describe("clobber prefix", () => {
+    const createElement = document.createElement;
+    afterEach(() => {
+      expect(document.createElement).toBe(createElement);
+    });
+
+    it.each([
+      ["defaults", {}],
+      ["security", { security: {} }],
+      ["allowedTags", { allowedTags: { mark: ["id"] } }],
+      ["user rehypePlugins", { rehypePlugins: [] }],
+    ])("prefixes ids and names from model output with %s", (_name, props) => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={
+            '<img name="createElement" id="getElementById" src="https://example.com/a.png">'
+          }
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive mode="static" {...props} />
+        </TextMessagePartProvider>,
+      );
+
+      expect(typeof document.createElement).toBe("function");
+      const img = container.querySelector("img");
+      expect(img?.getAttribute("name")).toBe("user-content-createElement");
+      expect(img?.getAttribute("id")).toBe("user-content-getElementById");
+    });
+
+    it("keeps footnote links pointing at their footnote", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={"Claim[^1]\n\n[^1]: Source"}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const ref = container.querySelector("a[data-footnote-ref]");
+      const href = ref?.getAttribute("href");
+      expect(href).toBe("#user-content-fn-1");
+      expect(container.querySelector(href!)?.textContent).toContain("Source");
+      const backref = container.querySelector("a[data-footnote-backref]");
+      const backHref = backref?.getAttribute("href");
+      expect(backHref).toBe("#user-content-fnref-1");
+      expect(container.querySelector(backHref!)).toBe(ref);
     });
   });
 

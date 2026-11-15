@@ -87,9 +87,56 @@ const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
 // unrecognized shape falls back to that default, which hast-util-sanitize
 // shallow-merges, so a partial schema here would strip every unlisted tag.
 const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
-const streamdownSanitizeSchema = (
-  Array.isArray(sanitizeEntry) ? sanitizeEntry[1] : defaultSchema
-) as SanitizeSchema;
+
+// Streamdown clears the clobber prefix, so an `id` or `name` from model output
+// lands on the element as written, and a named element becomes a property of
+// `document` (`<img name="createElement">` shadows `document.createElement`).
+const CLOBBER_PREFIX = "user-content-";
+
+const streamdownSanitizeSchema: SanitizeSchema = {
+  ...((Array.isArray(sanitizeEntry)
+    ? sanitizeEntry[1]
+    : defaultSchema) as SanitizeSchema),
+  clobberPrefix: CLOBBER_PREFIX,
+};
+
+const DOUBLE_CLOBBER_PREFIX = CLOBBER_PREFIX + CLOBBER_PREFIX;
+const CLOBBERED_PROPERTIES = [
+  "id",
+  "name",
+  "ariaDescribedBy",
+  "ariaLabelledBy",
+] as const;
+
+type HastNode = {
+  type: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+};
+
+// remark-rehype already prefixes the ids it generates for footnotes and links
+// to them by that id, so the sanitize pass prefixing them again would break
+// those links. Collapsing the doubled prefix keeps them matching.
+const collapseClobberPrefix = () => (tree: HastNode) => {
+  const strip = (value: unknown) =>
+    typeof value === "string" && value.startsWith(DOUBLE_CLOBBER_PREFIX)
+      ? value.slice(CLOBBER_PREFIX.length)
+      : value;
+  const walk = (node: HastNode) => {
+    const properties = node.properties;
+    if (properties) {
+      for (const key of CLOBBERED_PROPERTIES) {
+        const value = properties[key];
+        if (value === undefined) continue;
+        properties[key] = Array.isArray(value)
+          ? value.map(strip)
+          : strip(value);
+      }
+    }
+    node.children?.forEach(walk);
+  };
+  walk(tree);
+};
 
 function buildSecuritySanitizeSchema(
   allowedTags: AllowedTags | undefined,
@@ -118,6 +165,7 @@ function buildSecurityRehypePlugins(
   return [
     rehypeRaw,
     [rehypeSanitize, buildSecuritySanitizeSchema(allowedTags)],
+    collapseClobberPrefix,
     [
       harden,
       {
@@ -257,13 +305,16 @@ export const StreamdownTextPrimitive = forwardRef<
       return classes || undefined;
     }, [containerClassName, containerProps?.className]);
 
-    const rehypePlugins = useMemo(() => {
-      if (!security) return userRehypePlugins;
-      return [
-        ...buildSecurityRehypePlugins(security, allowedTags),
+    // The sanitize pipeline always runs first: custom plugins extend it rather
+    // than replace it, and without `security` it uses Streamdown's allow-all
+    // URL policy.
+    const rehypePlugins = useMemo(
+      () => [
+        ...buildSecurityRehypePlugins(security ?? {}, allowedTags),
         ...(userRehypePlugins ?? []),
-      ];
-    }, [allowedTags, security, userRehypePlugins]);
+      ],
+      [allowedTags, security, userRehypePlugins],
+    );
 
     const optionalProps = {
       ...(className && { className }),
@@ -279,7 +330,7 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(resolvedPlugins && { plugins: resolvedPlugins }),
       ...(resolvedShikiTheme && { shikiTheme: resolvedShikiTheme }),
       ...(remarkRehypeOptions && { remarkRehypeOptions }),
-      ...(rehypePlugins && { rehypePlugins }),
+      rehypePlugins,
       ...(BlockComponent && { BlockComponent }),
       ...(parseMarkdownIntoBlocksFn && { parseMarkdownIntoBlocksFn }),
     };

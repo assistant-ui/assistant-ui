@@ -13,7 +13,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import {
   MarkedLexer,
   type MarkedStyles,
@@ -164,7 +171,54 @@ class MarkdownRenderer extends Renderer {
   override code(text: string, language?: string): ReactNode {
     return <CodeBlock key={this.getKey()} code={text} language={language} />;
   }
+
+  // The base renderer hands every href to `Linking.openURL`, which also opens
+  // `tel:`, `sms:` and app deep links, so a link only gets a press handler when
+  // its scheme is one the web kit allows.
+  override link(
+    ...[children, href, styles, title]: Parameters<Renderer["link"]>
+  ): ReactNode {
+    const url = openableUrl(href);
+    return (
+      <Text
+        key={this.getKey()}
+        selectable
+        accessibilityRole={url ? "link" : undefined}
+        accessibilityLabel={title || undefined}
+        onPress={
+          url
+            ? () => {
+                void Linking.openURL(url).catch(() => {});
+              }
+            : undefined
+        }
+        style={styles}
+      >
+        {children}
+      </Text>
+    );
+  }
+
+  override linkImage(...args: Parameters<Renderer["linkImage"]>): ReactNode {
+    const [href, imageUrl, alt, style, title] = args;
+    return openableUrl(href)
+      ? super.linkImage(...args)
+      : this.image(imageUrl, alt, style, title);
+  }
 }
+
+const OPENABLE_SCHEMES = new Set(["http", "https", "mailto"]);
+
+/**
+ * `href` trimmed when its scheme is `http`, `https` or `mailto`, otherwise
+ * `undefined`.
+ */
+export const openableUrl = (href: string | undefined): string | undefined => {
+  if (typeof href !== "string") return undefined;
+  const trimmed = href.trim();
+  const scheme = /^([a-z][a-z\d+.-]*):/i.exec(trimmed)?.[1]?.toLowerCase();
+  return scheme && OPENABLE_SCHEMES.has(scheme) ? trimmed : undefined;
+};
 
 const asColor = (value: string | number | undefined) =>
   typeof value === "string" ? value : undefined;
