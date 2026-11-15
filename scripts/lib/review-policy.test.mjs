@@ -105,6 +105,8 @@ test("areasOf matches area paths and contract docs", () => {
 test("path classes follow the policy patterns", () => {
   assert.ok(isDecisionPath(policy, ".github/review-policy.json"));
   assert.ok(isDecisionPath(policy, "scripts/lib/review-tier-signals.mjs"));
+  assert.ok(isDecisionPath(policy, ".pnpmfile.cjs"));
+  assert.ok(isDecisionPath(policy, ".pnpmfile.mjs"));
   assert.ok(!isDecisionPath(policy, ".github/workflows/code-quality.yaml"));
   assert.ok(isLowRiskPath(policy, "README.md"));
   assert.ok(isLowRiskPath(policy, "examples/with-ai-sdk-v7/app/page.tsx"));
