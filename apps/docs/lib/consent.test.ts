@@ -249,3 +249,73 @@ it("lets a fresh decline outrank a grant that is still persisted", async () => {
 
   expect(getStoredConsent()).toBe("denied");
 });
+
+describe("followAnalyticsConsent", () => {
+  const regionRequires = (required: boolean) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ required }),
+        }),
+      ),
+    );
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("stays off in a consent region until the visitor accepts", async () => {
+    stubWindow();
+    regionRequires(true);
+    const seen: boolean[] = [];
+
+    const { followAnalyticsConsent, setStoredConsent } = await load();
+    followAnalyticsConsent((allowed) => seen.push(allowed));
+    await flush();
+    expect(seen.at(-1)).toBe(false);
+
+    setStoredConsent("granted");
+    expect(seen.at(-1)).toBe(true);
+
+    setStoredConsent("denied");
+    expect(seen.at(-1)).toBe(false);
+  });
+
+  it("turns on without a choice where the region needs no consent", async () => {
+    stubWindow();
+    regionRequires(false);
+    const seen: boolean[] = [];
+
+    const { followAnalyticsConsent } = await load();
+    followAnalyticsConsent((allowed) => seen.push(allowed));
+    expect(seen).toEqual([false]);
+    await flush();
+
+    expect(seen).toEqual([false, true]);
+  });
+
+  it("stays off under GPC even after an accept", async () => {
+    stubWindow();
+    regionRequires(false);
+    vi.stubGlobal("navigator", { globalPrivacyControl: true });
+    const seen: boolean[] = [];
+
+    const { followAnalyticsConsent, setStoredConsent } = await load();
+    followAnalyticsConsent((allowed) => seen.push(allowed));
+    setStoredConsent("granted");
+    await flush();
+
+    expect(seen.every((allowed) => !allowed)).toBe(true);
+  });
+
+  it("ignores the region answer once unsubscribed", async () => {
+    stubWindow();
+    regionRequires(false);
+    const seen: boolean[] = [];
+
+    const { followAnalyticsConsent } = await load();
+    followAnalyticsConsent((allowed) => seen.push(allowed))();
+    await flush();
+
+    expect(seen).toEqual([false]);
+  });
+});

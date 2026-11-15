@@ -15,12 +15,17 @@ import {
 } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
+import { followAnalyticsConsent } from "@/lib/consent";
 import { refreshDemoUsage } from "@/lib/demo-usage-client";
 import { useSession } from "@/lib/session";
 
 type Adapters = UseChatRuntimeOptions["adapters"];
 
+// Engagement events (copies, suggestion clicks, branch switches) are analytics,
+// so they start off and follow the consent banner; see useDocsCloud. Run
+// reports and stored threads are how the assistant works and stay on.
 const cloudTelemetry = {
+  events: false,
   ...(process.env.NEXT_PUBLIC_VERCEL_ENV
     ? { environment: process.env.NEXT_PUBLIC_VERCEL_ENV }
     : {}),
@@ -143,6 +148,14 @@ export function useDocsCloud() {
             telemetry: cloudTelemetry,
           }),
     [baseUrl, userKey],
+  );
+
+  useEffect(
+    () =>
+      followAnalyticsConsent((allowed) => {
+        cloud.telemetry.events = allowed;
+      }),
+    [cloud],
   );
 
   return { cloud, claims };
