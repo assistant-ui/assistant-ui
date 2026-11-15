@@ -516,6 +516,26 @@ describe("StreamdownTextPrimitive", () => {
         expect(window.location.hash).toBe("");
       });
 
+      it("moves to a prefixed target that is not an HTML element", () => {
+        const { container } = render(
+          <TextMessagePartProvider
+            text={
+              '[chart](#chart)\n\n<svg id="chart"><circle r="1"></circle></svg>'
+            }
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              allowedTags={{ svg: ["id"], circle: ["r"] }}
+              linkSafety={{ enabled: false }}
+            />
+          </TextMessagePartProvider>,
+        );
+
+        expect(container.querySelector("svg")?.id).toBe("user-content-chart");
+        expect(clickLink(container, "chart").defaultPrevented).toBe(true);
+      });
+
       it("handles fragments that are not valid in a selector", () => {
         const { container } = render(
           <TextMessagePartProvider

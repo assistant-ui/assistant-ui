@@ -138,14 +138,16 @@ function followPrefixedFragment(event: ReactMouseEvent<HTMLDivElement>) {
   const target = [...event.currentTarget.querySelectorAll("[id]")].find(
     (element) => element.id === CLOBBER_PREFIX + id,
   );
-  if (!(target instanceof HTMLElement)) return;
+  if (!target) return;
   event.preventDefault();
-  // Elements that cannot take focus get tabindex -1, which makes them a
-  // focus target without adding them to the tab order.
-  if (target.tabIndex < 0 && !target.hasAttribute("tabindex")) {
-    target.tabIndex = -1;
+  if (target instanceof HTMLElement || target instanceof SVGElement) {
+    // Elements that cannot take focus get tabindex -1, which makes them a
+    // focus target without adding them to the tab order.
+    if (target.tabIndex < 0 && !target.hasAttribute("tabindex")) {
+      target.tabIndex = -1;
+    }
+    target.focus({ preventScroll: true });
   }
-  target.focus({ preventScroll: true });
   target.scrollIntoView?.();
 }
 
