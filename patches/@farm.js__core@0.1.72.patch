@@ -1,8 +1,8 @@
-diff --git a/dist/chunk-X7LGLF33.mjs b/dist/chunk-X7LGLF33.mjs
-index 0083a32621e996877ae93d02c33b0a16ae087504..5a9eea7c9fd1fed870b3b5f7c0d9f750658579c9 100644
---- a/dist/chunk-X7LGLF33.mjs
-+++ b/dist/chunk-X7LGLF33.mjs
-@@ -2437,6 +2437,13 @@ function enforceFarmIsolatedHydrationRouteBudget(layouts, routes, layoutAppliesT
+diff --git a/dist/chunk-3JN5M3T5.mjs b/dist/chunk-3JN5M3T5.mjs
+index 44de2155d6d8c3a4d71b36c82b827b714b3c8746..f67c82f1b674585c0bb16f0fc4712bccff20fbf4 100644
+--- a/dist/chunk-3JN5M3T5.mjs
++++ b/dist/chunk-3JN5M3T5.mjs
+@@ -2591,6 +2591,13 @@ function enforceFarmIsolatedHydrationRouteBudget(layouts, routes, layoutAppliesT
        (ancestor) => ancestor !== layout && ancestor.depth < layout.depth && ancestor.metadata.shouldHydrate && layoutAppliesToRoute(ancestor.pattern, layout.pattern)
      );
      if (hasRouteWideAncestor && layout.metadata.hasIsolatedClientBoundaries) {
