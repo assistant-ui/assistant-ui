@@ -685,6 +685,14 @@ export class MessageRepository {
 }
 
 /**
+ * Throws if `data` cannot be placed on an empty repository, without touching
+ * any existing one.
+ */
+export const assertImportable = (data: ExportedMessageRepository) => {
+  new MessageRepository().import(data);
+};
+
+/**
  * Replaces everything in `repository` with `data`. The data is placed on a
  * scratch repository first, so data that cannot be placed throws before the
  * existing messages are cleared.
@@ -693,7 +701,7 @@ export const replaceMessageRepository = (
   repository: MessageRepository,
   data: ExportedMessageRepository,
 ) => {
-  new MessageRepository().import(data);
+  assertImportable(data);
   repository.clear();
   repository.import(data);
 };
