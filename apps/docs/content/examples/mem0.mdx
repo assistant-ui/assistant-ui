@@ -61,8 +61,16 @@ async function getRelevantMemories(userId: string, query: string) {
 
 ```tsx
 // In your API route
+import { auth } from "@/auth";
+
 export async function POST(req: Request) {
-  const { messages, userId } = await req.json();
+  // Take the user id from the session, never from the request body.
+  // A client-sent id would let any caller read and write another user's memories.
+  const session = await auth();
+  if (!session?.user?.id) return new Response(null, { status: 401 });
+  const userId = session.user.id;
+
+  const { messages } = await req.json();
   const lastMessage = messages[messages.length - 1].content;
 
   // Get relevant memories

@@ -140,7 +140,7 @@ export function Preview({ url }: { url: string }) {
       <iframe
         key={key}
         src={url}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
         className="h-56 w-full border-0"
         onLoad={() => setLoading(false)}
       />
@@ -148,6 +148,8 @@ export function Preview({ url }: { url: string }) {
   );
 }
 ```
+
+The sandbox leaves out `allow-same-origin`, so the page runs on an opaque origin with no access to your cookies or storage. Don't add it for URLs that could be on your own origin: `allow-scripts` with `allow-same-origin` on a same-origin page lets the page remove its own sandbox.
 
   </Step>
   <Step>
