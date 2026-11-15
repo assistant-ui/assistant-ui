@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import {
   findVendorProblems,
   readPackedManifest,
@@ -151,18 +151,43 @@ test("rejects headers that are not POSIX ustar", () => {
   assert.throws(() => readPackedManifest(archive), /non-POSIX tar header/);
 });
 
-test("matches the manifest under any spelling of its path", () => {
-  const archive = tar([
-    [
-      "package/package.json",
-      JSON.stringify({ name: "demo", version: "1.0.0" }),
-    ],
-    [
-      "package/./package.json",
-      JSON.stringify({ name: "demo", version: "6.6.6" }),
-    ],
-  ]);
-  assert.throws(() => readPackedManifest(archive), /more than one/);
+test("rejects any non-canonical spelling of an entry path", () => {
+  const manifest = JSON.stringify({ name: "demo", version: "1.0.0" });
+  for (const name of [
+    "package/./package.json",
+    "./package/package.json",
+    "package//package.json",
+    "package\\package.json",
+    "package/../package.json",
+    "other/package.json",
+  ]) {
+    assert.throws(
+      () =>
+        readPackedManifest(
+          tar([
+            ["package/package.json", manifest],
+            [name, manifest],
+          ]),
+        ),
+      /non-canonical entry name/,
+      name,
+    );
+  }
+});
+
+test("rejects a directory entry in place of the manifest", () => {
+  const archive = tar([["package/package.json", "", { type: "5" }]]);
+  assert.throws(() => readPackedManifest(archive), /is a directory/);
+});
+
+test("rejects an entry whose padding is cut off", () => {
+  const archive = gunzipSync(
+    tar({
+      "package/package.json": JSON.stringify({ name: "a", version: "1" }),
+    }),
+  );
+  const cut = gzipSync(archive.subarray(0, 512 + 100));
+  assert.throws(() => readPackedManifest(cut), /truncated/);
 });
 
 test("rejects a negative or truncated entry size", () => {

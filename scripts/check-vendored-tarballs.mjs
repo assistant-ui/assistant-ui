@@ -50,16 +50,32 @@ export function readPackedManifest(archive) {
     }
     const size = Number.parseInt(sizeField, 8);
     const body = offset + 512;
-    if (body + size > tar.length) throw new Error("it is truncated");
+    const end = body + Math.ceil(size / 512) * 512;
+    if (end > tar.length) throw new Error("it is truncated");
+    // npm pack writes canonical names under package/, so any other spelling
+    // (./, .., doubled or trailing slashes, backslashes) is rejected rather
+    // than guessed at.
+    const canonical = name.replace(/\/$/, "");
+    if (
+      name.includes("\\") ||
+      path.posix.normalize(canonical) !== canonical ||
+      !canonical.startsWith("package/")
+    ) {
+      throw new Error(
+        `it has a non-canonical entry name ${JSON.stringify(name)}`,
+      );
+    }
     // An extractor keeps the last copy of a repeated path, so a second
     // manifest could differ from the one checked here.
-    if (path.posix.normalize(name) === "package/package.json") {
+    if (name === "package/package.json") {
+      if (type === "5")
+        throw new Error("its package/package.json is a directory");
       if (manifest !== undefined) {
         throw new Error("it contains more than one package/package.json");
       }
       manifest = JSON.parse(tar.subarray(body, body + size).toString("utf8"));
     }
-    offset = body + Math.ceil(size / 512) * 512;
+    offset = end;
   }
   return manifest;
 }
