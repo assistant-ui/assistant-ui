@@ -14,6 +14,7 @@ export const VENDOR_DIRECTORIES = ["templates/cloud-harness/vendor"];
 /** The parsed `package/package.json` inside an npm-packed `.tgz`. */
 export function readPackedManifest(archive) {
   const tar = gunzipSync(archive);
+  let manifest;
   for (let offset = 0; offset + 512 <= tar.length;) {
     const header = tar.subarray(offset, offset + 512);
     if (header.every((byte) => byte === 0)) break;
@@ -26,12 +27,17 @@ export function readPackedManifest(archive) {
     const name = prefix ? `${prefix}/${field(0, 100)}` : field(0, 100);
     const size = Number.parseInt(field(124, 12).trim() || "0", 8);
     const body = offset + 512;
-    if (name === "package/package.json") {
-      return JSON.parse(tar.subarray(body, body + size).toString("utf8"));
+    // An extractor keeps the last copy of a repeated path, so a second
+    // manifest could differ from the one checked here.
+    if (name.replace(/^\.\//, "") === "package/package.json") {
+      if (manifest !== undefined) {
+        throw new Error("it contains more than one package/package.json");
+      }
+      manifest = JSON.parse(tar.subarray(body, body + size).toString("utf8"));
     }
     offset = body + Math.ceil(size / 512) * 512;
   }
-  return undefined;
+  return manifest;
 }
 
 export function findVendorProblems(root, directory) {
@@ -106,7 +112,8 @@ export function findVendorProblems(root, directory) {
   let templateManifest;
   try {
     templateManifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-  } catch {
+  } catch (error) {
+    problems.push(`${path.relative(root, manifestPath)}: ${error.message}`);
     return problems;
   }
   const vendorName = path.basename(vendor);
@@ -130,7 +137,7 @@ export function findVendorProblems(root, directory) {
         );
         continue;
       }
-      const artifact = artifacts.find((entry) => entry.filename === filename);
+      const artifact = artifacts.find((entry) => entry?.filename === filename);
       if (artifact.name !== dependency) {
         problems.push(
           `${path.relative(root, manifestPath)} ${field}.${dependency} points at ${filename}, which provenance.json records as ${artifact.name}`,
@@ -159,5 +166,7 @@ export function runCheck(root = repoRoot, directories = VENDOR_DIRECTORIES) {
 }
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
-  if (!runCheck(process.env.VENDORED_TARBALLS_CHECK_ROOT)) process.exit(1);
+  if (!runCheck(process.env.VENDORED_TARBALLS_CHECK_ROOT)) {
+    process.exitCode = 1;
+  }
 }

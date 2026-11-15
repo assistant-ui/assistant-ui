@@ -12,8 +12,8 @@ on:
         required: true
       VERCEL_REGISTRY_PROJECT_ID:
         required: true
-      # Read from the vercel-deploy environment once the token moves there; a
-      # passed value still works until then.
+      # Optional so the deploy keeps working once the token moves to the
+      # vercel-deploy environment; until then the caller passes it.
       VERCEL_TOKEN:
         required: false
   workflow_dispatch:
@@ -33,8 +33,8 @@ env:
 jobs:
   deploy-production:
     name: Deploy Production
-    # The Vercel token lives in this environment, whose branch policy admits
-    # main only, so a workflow on another branch cannot read it.
+    # Once the Vercel token moves into this environment and its branch policy
+    # admits main only, a workflow on another branch cannot read it.
     environment: vercel-deploy
     runs-on: ubuntu-latest
     # A literal group, because inside a workflow_call github.workflow names the

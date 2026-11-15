@@ -17,7 +17,9 @@ const directory = "template/vendor";
 // A minimal ustar archive with one regular file per entry.
 function tar(entries) {
   const blocks = [];
-  for (const [name, content] of Object.entries(entries)) {
+  for (const [name, content] of Array.isArray(entries)
+    ? entries
+    : Object.entries(entries)) {
     const body = Buffer.from(content);
     const header = Buffer.alloc(512);
     header.write(name, 0, 100);
@@ -99,6 +101,22 @@ test("reads the manifest out of a packed archive", () => {
   assert.equal(readPackedManifest(tar({ "package/x": "y" })), undefined);
 });
 
+test("rejects an archive that repeats its manifest", () => {
+  const manifest = (version) => JSON.stringify({ name: "demo", version });
+  const archive = tar([
+    ["package/package.json", manifest("1.0.0")],
+    ["package/package.json", manifest("6.6.6")],
+  ]);
+  assert.throws(() => readPackedManifest(archive), /more than one/);
+
+  const setup = validRepo();
+  setup.archives["demo-1.0.0.tgz"] = archive;
+  setup.artifacts[0].sha256 = sha(archive);
+  assert.deepEqual(problemsFor(setup), [
+    `${directory}/demo-1.0.0.tgz is not a readable npm archive: it contains more than one package/package.json`,
+  ]);
+});
+
 test("accepts archives that match their provenance", () => {
   assert.deepEqual(problemsFor(validRepo()), []);
 });
@@ -168,6 +186,27 @@ test("rejects a manifest dependency on an unrecorded or mismatched archive", () 
       problem.includes("dependencies.renamed points at demo-1.0.0.tgz"),
     ),
   );
+});
+
+test("reports a missing template manifest", () => {
+  const root = createRepo(validRepo());
+  try {
+    rmSync(path.join(root, "template/package.json"));
+    const problems = findVendorProblems(root, directory);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /^template\/package\.json: /);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports a null provenance entry without throwing", () => {
+  const setup = validRepo();
+  setup.artifacts.push(null);
+  setup.dependencies.other = "file:vendor/other-1.0.0.tgz";
+  const problems = problemsFor(setup);
+  assert.ok(problems.some((problem) => problem.includes("invalid filename")));
+  assert.ok(problems.some((problem) => problem.includes("dependencies.other")));
 });
 
 test("the committed vendor directories match their provenance", () => {

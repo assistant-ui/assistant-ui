@@ -21,7 +21,9 @@ jobs:
   report:
     if: vars.REVIEW_POLICY_APP_ID != ''
     # Holds the policy app key; see review-tier.yaml.
-    environment: review-policy
+    environment:
+      name: review-policy
+      deployment: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
