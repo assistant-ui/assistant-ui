@@ -2001,6 +2001,17 @@ describe("disabled tools", () => {
     });
   });
 
+  it("leaves a disabled typeless tool with no handler to the UI", async () => {
+    const message = createPendingToolMessage("call-1");
+    const result = await unstable_runPendingTools(
+      message,
+      { tool: { parameters: { type: "object" }, disabled: true } },
+      new AbortController().signal,
+      async () => {},
+    );
+    expect(result).toBe(message);
+  });
+
   it("leaves a disabled backend tool to the backend", async () => {
     const message = createPendingToolMessage("call-1");
     const result = await unstable_runPendingTools(

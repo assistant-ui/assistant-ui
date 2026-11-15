@@ -105,10 +105,7 @@ function getToolResponse(
   // gets an error result instead of running.
   if (
     tool?.disabled &&
-    (tool.type === undefined ||
-      tool.type === "frontend" ||
-      tool.execute ||
-      tool.streamCall)
+    (tool.type === "frontend" || tool.execute || tool.streamCall)
   ) {
     return Promise.resolve(disabledToolResponse(toolCall.toolName));
   }
