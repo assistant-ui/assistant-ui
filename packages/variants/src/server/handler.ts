@@ -145,7 +145,7 @@ export const checkRequest = (
 ): NotesResponse | undefined => {
   if (!allowRemoteClients) {
     // An adapter that can't tell who is calling is refused, not trusted.
-    if (request.remoteAddress === undefined)
+    if (!request.remoteAddress)
       return fail(
         403,
         "client address unknown; set allowRemoteClients to admit it",

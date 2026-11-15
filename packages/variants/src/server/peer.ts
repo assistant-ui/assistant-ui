@@ -2,7 +2,7 @@ import { subscribe } from "node:diagnostics_channel";
 import { randomBytes } from "node:crypto";
 
 type StartMessage = {
-  request?: { headers?: Record<string, unknown> };
+  request?: { url?: string; headers?: Record<string, unknown> };
   socket?: { remoteAddress?: string | undefined };
 };
 
@@ -30,7 +30,8 @@ export const peerTag = (): PeerTag => {
   try {
     subscribe("http.server.request.start", (message) => {
       const { request, socket } = (message ?? {}) as StartMessage;
-      if (!request?.headers) return;
+      // Only the variants endpoints read it; other routes keep their headers.
+      if (!request?.headers || !request.url?.includes("/__variants")) return;
       request.headers[tag.header] = socket?.remoteAddress ?? "";
     });
     tag.installed = true;

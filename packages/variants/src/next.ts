@@ -89,7 +89,9 @@ const handle = async (
  * ```
  *
  * They answer 404 unless `NODE_ENV` is `development`, and 403 unless both the
- * client address and the `Host` are loopback. For another dev host, or a
+ * client address and the `Host` are loopback. The first request after the
+ * route loads arrives before the address hook exists and gets a 503 with
+ * `retry: true`; the sidebar asks again once. For another dev host, or a
  * client outside loopback, use `createVariantsRoutes`.
  * `next dev` listens on all network interfaces by default. On an untrusted
  * network, start it with `next dev -H 127.0.0.1`.

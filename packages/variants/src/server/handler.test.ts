@@ -86,7 +86,7 @@ const fromPeer = (req: Request, address = "127.0.0.1") => {
   peerTag();
   const headers: Record<string, unknown> = {};
   channel("http.server.request.start").publish({
-    request: { headers },
+    request: { url: new URL(req.url).pathname, headers },
     socket: { remoteAddress: address },
   });
   const tagged = new Headers(req.headers);
@@ -687,7 +687,7 @@ describe("adapters", () => {
     expect(response).toEqual({
       status: 403,
       body: JSON.stringify({
-        error: "remote client not allowed; set allowRemoteClients to admit it",
+        error: "client address unknown; set allowRemoteClients to admit it",
       }),
     });
   });
@@ -874,6 +874,22 @@ describe("adapters", () => {
     vi.stubEnv("NODE_ENV", "development");
     const routes = createVariantsRoutes({ allowRemoteClients: true });
     expect((await routes.GET(untagged)).status).toBe(200);
+  });
+
+  it("tags only requests to the variants endpoints", () => {
+    const { header } = peerTag();
+    const tagged = (url: string) => {
+      const headers: Record<string, unknown> = {};
+      channel("http.server.request.start").publish({
+        request: { url, headers },
+        socket: { remoteAddress: "127.0.0.1" },
+      });
+      return header in headers;
+    };
+    expect(tagged("/__variants/ping")).toBe(true);
+    expect(tagged("/docs/__variants/notes?groups=a")).toBe(true);
+    expect(tagged("/")).toBe(false);
+    expect(tagged("/api/chat")).toBe(false);
   });
 
   it("tags a real Node HTTP request with its socket address", async () => {
