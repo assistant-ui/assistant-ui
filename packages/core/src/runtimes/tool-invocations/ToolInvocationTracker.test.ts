@@ -689,10 +689,12 @@ describe("ToolInvocationTracker", () => {
     "never executes a provider-executed tool call with $label",
     async ({ predicate }) => {
       const execute = vi.fn(async () => ({ results: [] }));
+      const streamCall = vi.fn();
       const getTools = () => ({
         webSearch: {
           parameters: { type: "object", properties: {} },
           execute,
+          streamCall,
         } satisfies Tool,
       });
       const onResult = vi.fn();
@@ -715,6 +717,7 @@ describe("ToolInvocationTracker", () => {
         tracker.setState(createState([call('{"q":"x"}', { q: "x" })], false));
         await new Promise((r) => setTimeout(r, 0));
 
+        expect(streamCall).toHaveBeenCalledOnce();
         expect(execute).not.toHaveBeenCalled();
         expect(onResult).not.toHaveBeenCalled();
       } finally {

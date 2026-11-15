@@ -69,13 +69,13 @@ afterEach(() => {
 });
 
 describe("useDataStreamRuntime backend-owned tool calls", () => {
-  const input = (extra: object) => [
+  const input = (extra: object, startExtra: object = extra) => [
     { type: "start", messageId: "m1" },
     {
       type: "tool-input-start",
       toolCallId: "call_1",
       toolName: "web_search",
-      ...extra,
+      ...startExtra,
     },
     {
       type: "tool-input-available",
@@ -125,16 +125,26 @@ describe("useDataStreamRuntime backend-owned tool calls", () => {
   it.each([
     { name: "provider-executed", extra: { providerExecuted: true } },
     { name: "dynamic", extra: { dynamic: true } },
+    {
+      name: "provider-executed (marked on input-available only)",
+      extra: { providerExecuted: true },
+      startExtra: {},
+    },
+    {
+      name: "dynamic (marked on input-available only)",
+      extra: { dynamic: true },
+      startExtra: {},
+    },
   ])(
     "leaves a $name call without a result to the server",
-    async ({ extra }) => {
+    async ({ extra, startExtra }) => {
       vi.stubGlobal(
         "fetch",
         vi.fn(async () =>
           sse([
             { type: "start", messageId: "m1" },
             { type: "start-step" },
-            ...input(extra).slice(1),
+            ...input(extra, startExtra).slice(1),
             { type: "finish-step" },
             { type: "finish" },
           ]),

@@ -1911,7 +1911,13 @@ describe("toolResultStream inside a provider step", () => {
       await close();
 
       expect(execute).not.toHaveBeenCalled();
-      expect(output.map((chunk) => chunk.type)).not.toContain("result");
+      expect(output.map((chunk) => chunk.type)).toEqual([
+        ...(withStep ? ["step-start"] : []),
+        "part-start",
+        "text-delta",
+        "tool-call-args-text-finish",
+        "part-finish",
+      ]);
     },
   );
 
