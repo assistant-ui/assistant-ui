@@ -174,6 +174,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -208,6 +209,7 @@ describe("createXuluxChatHandler access boundary", () => {
       usage,
       "2026-08-27",
       "203.0.113.7",
+      50_000,
     );
   });
 
@@ -221,6 +223,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -244,6 +247,7 @@ describe("createXuluxChatHandler access boundary", () => {
       { inputTokens: 30, outputTokens: 12 },
       "2026-08-27",
       null,
+      50_000,
     );
   });
 
@@ -256,6 +260,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -277,6 +282,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -300,6 +306,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -325,6 +332,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
