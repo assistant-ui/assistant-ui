@@ -112,6 +112,49 @@ export function devHostAllowed(
   });
 }
 
+/** The hosts Vite's own host check admits for this config. */
+export function devAllowedHosts(config: {
+  server: Pick<
+    ResolvedConfig["server"],
+    "allowedHosts" | "host" | "hmr" | "origin"
+  >;
+  preview: Pick<ResolvedConfig["preview"], "host">;
+}): readonly string[] | true {
+  const listed = config.server.allowedHosts;
+  if (listed === true) return true;
+  const extra: string[] = [];
+  const add = (value: unknown) => {
+    if (typeof value === "string" && value) extra.push(value);
+  };
+  add(config.server.host);
+  add(config.preview.host);
+  const hmr = config.server.hmr;
+  if (typeof hmr === "object") add(hmr.host);
+  if (config.server.origin) {
+    try {
+      add(new URL(config.server.origin).hostname);
+    } catch {}
+  }
+  return [...(listed ?? []), ...extra];
+}
+
+/**
+ * CORS headers for `/<name>/single.html`, which the plugin answers itself.
+ * With the project's own `server.cors` it adds none: Vite 8 has already
+ * applied that policy, and on Vite 6 an allowed origin gets none (fails
+ * closed). Otherwise it echoes an origin `devCorsAllows` admits.
+ */
+export function singleFileCors(
+  headers: { origin?: string | undefined; host?: string | undefined },
+  options: { customCors: boolean; opaqueFrames?: boolean | undefined },
+): Record<string, string> {
+  const { origin, host } = headers;
+  if (options.customCors || origin === undefined) return {};
+  return devCorsAllows(origin, host, options.opaqueFrames)
+    ? { "access-control-allow-origin": origin, vary: "Origin" }
+    : {};
+}
+
 const ENTRY_PREFIX = "virtual:rc-entry:";
 const RESOLVED_PREFIX = "\0" + ENTRY_PREFIX;
 const RUNTIME_SHIM = "\0rc-runtime-shim";
@@ -322,25 +365,7 @@ export function remoteComponents(
         res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
         res.end(`[rc] ${why}`);
       };
-      // Vite also admits the hosts its own config names.
-      const allowedHosts = (): readonly string[] | true => {
-        const listed = config.server.allowedHosts;
-        if (listed === true) return true;
-        const extra: string[] = [];
-        const add = (value: unknown) => {
-          if (typeof value === "string" && value) extra.push(value);
-        };
-        add(config.server.host);
-        add(config.preview.host);
-        const hmr = config.server.hmr;
-        if (typeof hmr === "object") add(hmr.host);
-        if (config.server.origin) {
-          try {
-            add(new URL(config.server.origin).hostname);
-          } catch {}
-        }
-        return [...(listed ?? []), ...extra];
-      };
+      const allowedHosts = () => devAllowedHosts(config);
       server.middlewares.use((req, res, next) => {
         // Only the plugin's own pages: Vite checks the rest itself.
         const page = /^\/([^/]+)(?:\/(?:index\.html|single\.html)?)?$/.exec(
@@ -353,18 +378,9 @@ export function remoteComponents(
           !devHostAllowed(req.headers.host, allowedHosts())
         )
           return refuse(res, "host not allowed; add it to server.allowedHosts");
-        if (
-          !customCors &&
-          !devCorsAllows(
-            req.headers.origin,
-            req.headers.host,
-            options.opaqueFrames,
-          )
-        )
-          return refuse(
-            res,
-            "cross-origin request refused; set server.cors to allow it",
-          );
+        // Cross-origin reads are left to the CORS headers (Vite's, and
+        // singleFileCors below): a response without one can't be read, and
+        // refusing outright would also stop proxied same-origin requests.
         next();
       });
       const runtime = remoteComponentsMiddleware({ runtimeBase: base() });
@@ -375,17 +391,12 @@ export function remoteComponents(
         if (sm !== null && options.singleFile && components.has(sm[1]!)) {
           single(sm[1]!, components.get(sm[1]!)!)
             .then((html) => {
-              const origin = req.headers.origin;
               res.writeHead(200, {
                 "content-type": "text/html; charset=utf-8",
-                // With the project's own server.cors, this response adds no
-                // CORS header: Vite 8 has already applied that policy to it,
-                // and on Vite 6 an allowed origin gets none (fails closed).
-                ...(customCors
-                  ? {}
-                  : origin !== undefined
-                    ? { "access-control-allow-origin": origin, vary: "Origin" }
-                    : {}),
+                ...singleFileCors(req.headers, {
+                  customCors,
+                  opaqueFrames: options.opaqueFrames,
+                }),
               });
               res.end(html);
             })

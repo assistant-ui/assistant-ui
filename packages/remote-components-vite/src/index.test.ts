@@ -5,7 +5,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createServer, type ViteDevServer } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { devCorsAllows, devHostAllowed, remoteComponents } from "./index";
+import {
+  devAllowedHosts,
+  devCorsAllows,
+  devHostAllowed,
+  remoteComponents,
+  singleFileCors,
+} from "./index";
 
 describe("devCorsAllows", () => {
   it.each([
@@ -66,6 +72,52 @@ describe("devHostAllowed", () => {
   });
 });
 
+describe("devAllowedHosts", () => {
+  const config = (server: Record<string, unknown>, preview = {}) =>
+    ({ server: { allowedHosts: [], ...server }, preview }) as never;
+
+  it("adds the hosts Vite's config names", () => {
+    expect(devAllowedHosts(config({ host: "a.test" }))).toEqual(["a.test"]);
+    expect(devAllowedHosts(config({}, { host: "b.test" }))).toEqual(["b.test"]);
+    expect(devAllowedHosts(config({ hmr: { host: "c.test" } }))).toEqual([
+      "c.test",
+    ]);
+    expect(devAllowedHosts(config({ origin: "http://d.test:5173" }))).toEqual([
+      "d.test",
+    ]);
+    expect(
+      devAllowedHosts(config({ allowedHosts: ["e.test"], host: true })),
+    ).toEqual(["e.test"]);
+    expect(devAllowedHosts(config({ allowedHosts: true }))).toBe(true);
+  });
+});
+
+describe("singleFileCors", () => {
+  it.each([
+    [
+      { origin: "http://localhost:3000" },
+      false,
+      false,
+      "http://localhost:3000",
+    ],
+    [{ origin: "https://evil.example" }, false, false, undefined],
+    [{ origin: "null" }, false, false, undefined],
+    [{ origin: "null" }, false, true, "null"],
+    [{ origin: "http://localhost:3000" }, true, false, undefined],
+    [{ origin: "https://app.example" }, true, false, undefined],
+    [{}, false, false, undefined],
+  ])(
+    "headers %j, customCors %s, opaqueFrames %s → %s",
+    (headers, customCors, opaqueFrames, expected) => {
+      expect(
+        singleFileCors(headers, { customCors, opaqueFrames })[
+          "access-control-allow-origin"
+        ],
+      ).toBe(expected);
+    },
+  );
+});
+
 describe("dev server CORS", () => {
   let root: string;
   let server: ViteDevServer;
@@ -98,9 +150,8 @@ describe("dev server CORS", () => {
   const get = (headers: Record<string, string>) =>
     fetch(`${base}/secret.ts`, { headers });
 
-  it("refuses a page on another site", async () => {
+  it("gives a page on another site no CORS header, so it can't read the response", async () => {
     const response = await get({ origin: "https://evil.example" });
-    expect(response.status).toBe(403);
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
   });
 
@@ -114,7 +165,7 @@ describe("dev server CORS", () => {
     expect(response.cors).toBeUndefined();
   });
 
-  it("answers a loopback page and refuses an opaque frame by default", async () => {
+  it("answers a loopback page, and gives an opaque frame no CORS header by default", async () => {
     const host = await get({ origin: "http://localhost:3000" });
     expect(host.status).toBe(200);
     expect(host.headers.get("access-control-allow-origin")).toBe(
@@ -123,7 +174,6 @@ describe("dev server CORS", () => {
     // What a browser sends for an opaque frame's module: Origin null, no
     // Referer, from the developer's page or any other site alike.
     const frame = await get({ origin: "null" });
-    expect(frame.status).toBe(403);
     expect(frame.headers.get("access-control-allow-origin")).toBeNull();
   });
 
@@ -146,7 +196,7 @@ describe("dev server CORS", () => {
       const other = await fetch(`http://127.0.0.1:${port}/secret.ts`, {
         headers: { origin: "https://evil.example" },
       });
-      expect(other.status).toBe(403);
+      expect(other.headers.get("access-control-allow-origin")).toBeNull();
     } finally {
       await opaque.close();
     }
@@ -194,6 +244,15 @@ describe("dev server CORS", () => {
       }
     },
   );
+
+  it("does not refuse a request for its Origin alone", async () => {
+    // A same-origin POST behind a Host-rewriting proxy carries its public
+    // Origin; only the CORS header decides whether a page can read.
+    const response = await fetch(`${base}/secret.ts`, {
+      headers: { origin: "https://dev.example" },
+    });
+    expect(response.status).toBe(200);
+  });
 
   it("leaves other paths to Vite's own host check", async () => {
     const { port } = new URL(base);
