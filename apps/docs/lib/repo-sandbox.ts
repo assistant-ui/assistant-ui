@@ -78,12 +78,12 @@ export class TimeBudgetedBash extends Bash {
   }
 
   override async exec(commandLine: string, options: ExecOptions = {}) {
-    const now = Date.now();
+    const now = performance.now();
     if (this.running === 0) this.busySince = now;
     const deadline = this.busySince + this.budgetMs - this.spentMs;
     const budget =
       deadline > now
-        ? AbortSignal.timeout(deadline - now)
+        ? AbortSignal.timeout(Math.ceil(deadline - now))
         : AbortSignal.abort();
     const signal = options.signal
       ? AbortSignal.any([options.signal, budget])
@@ -93,7 +93,8 @@ export class TimeBudgetedBash extends Bash {
       return await super.exec(commandLine, { ...options, signal });
     } finally {
       this.running -= 1;
-      if (this.running === 0) this.spentMs += Date.now() - this.busySince;
+      if (this.running === 0)
+        this.spentMs += performance.now() - this.busySince;
     }
   }
 }
