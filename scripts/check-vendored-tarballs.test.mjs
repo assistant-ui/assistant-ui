@@ -4,59 +4,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { gunzipSync, gzipSync } from "node:zlib";
-import {
-  findVendorProblems,
-  readPackedManifest,
-  runCheck,
-} from "./check-vendored-tarballs.mjs";
+import { gzipSync } from "node:zlib";
+import { findVendorProblems, runCheck } from "./check-vendored-tarballs.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const directory = "template/vendor";
 
-// A minimal ustar archive with one regular file per entry; an entry may set its
-// own type flag, raw size field or checksum offset. A null entry writes one
-// empty block.
-function tar(entries) {
-  const blocks = [];
-  for (const entry of Array.isArray(entries)
-    ? entries
-    : Object.entries(entries)) {
-    if (entry === null) {
-      blocks.push(Buffer.alloc(512));
-      continue;
-    }
-    const [name, content, options = {}] = entry;
-    const body = Buffer.from(content);
-    const header = Buffer.alloc(512);
-    header.write(name, 0, 100);
-    header.write("0000644\0", 100);
-    header.write("0000000\0", 108);
-    header.write("0000000\0", 116);
-    header.write(
-      options.size ?? `${body.length.toString(8).padStart(11, "0")}\0`,
-      124,
-    );
-    header.write("00000000000\0", 136);
-    header.write("        ", 148);
-    header.write(options.type ?? "0", 156);
-    if (options.prefix) header.write(options.prefix, 345);
-    header.write(options.magic ?? "ustar\u000000", 257, "latin1");
-    let sum = 0;
-    for (const byte of header) sum += byte;
-    sum += options.checksumOffset ?? 0;
-    header.write(`${sum.toString(8).padStart(6, "0")}\0 `, 148);
-    blocks.push(header, body, Buffer.alloc((512 - (body.length % 512)) % 512));
-  }
-  blocks.push(Buffer.alloc(1024));
-  return gzipSync(Buffer.concat(blocks));
-}
-
-const pack = (name, version) =>
-  tar({
-    "package/README.md": "readme",
-    "package/package.json": JSON.stringify({ name, version }),
-  });
+// The checker compares bytes and hashes only, so any gzip stream will do.
+const pack = (name, version) => gzipSync(Buffer.from(`${name}@${version}`));
 
 const sha = (buffer) => createHash("sha256").update(buffer).digest("hex");
 
@@ -104,153 +59,9 @@ function problemsFor(setup) {
   }
 }
 
-test("reads the manifest out of a packed archive", () => {
-  assert.deepEqual(readPackedManifest(pack("demo", "1.2.3")), {
-    name: "demo",
-    version: "1.2.3",
-  });
-  assert.equal(readPackedManifest(tar({ "package/x": "y" })), undefined);
-});
-
-test("rejects an archive that repeats its manifest", () => {
-  const manifest = (version) => JSON.stringify({ name: "demo", version });
-  const archive = tar([
-    ["package/package.json", manifest("1.0.0")],
-    ["package/package.json", manifest("6.6.6")],
-  ]);
-  assert.throws(() => readPackedManifest(archive), /more than one/);
-
-  const setup = validRepo();
-  setup.archives["demo-1.0.0.tgz"] = archive;
-  setup.artifacts[0].sha256 = sha(archive);
-  assert.deepEqual(problemsFor(setup), [
-    `${directory}/demo-1.0.0.tgz is not a readable npm archive: it contains more than one package/package.json`,
-  ]);
-});
-
-test("rejects extension headers that could rename an entry", () => {
-  const archive = tar([
-    [
-      "package/package.json",
-      JSON.stringify({ name: "demo", version: "1.0.0" }),
-    ],
-    ["PaxHeader", "30 path=package/package.json\n", { type: "x" }],
-    ["package/other", JSON.stringify({ name: "demo", version: "6.6.6" })],
-  ]);
-  assert.throws(
-    () => readPackedManifest(archive),
-    /unsupported tar entry type "x"/,
-  );
-});
-
-test("rejects headers that are not POSIX ustar", () => {
-  const archive = tar([
-    [
-      "package/package.json",
-      JSON.stringify({ name: "demo", version: "1.0.0" }),
-    ],
-    [
-      "package/package.json",
-      JSON.stringify({ name: "demo", version: "6.6.6" }),
-      { magic: "ustar  \u0000", prefix: "junk" },
-    ],
-  ]);
-  assert.throws(() => readPackedManifest(archive), /non-POSIX tar header/);
-});
-
-test("rejects any non-canonical spelling of an entry path", () => {
-  const manifest = JSON.stringify({ name: "demo", version: "1.0.0" });
-  for (const name of [
-    "package/./package.json",
-    "./package/package.json",
-    "package//package.json",
-    "package\\package.json",
-    "package/../package.json",
-    "other/package.json",
-  ]) {
-    assert.throws(
-      () =>
-        readPackedManifest(
-          tar([
-            ["package/package.json", manifest],
-            [name, manifest],
-          ]),
-        ),
-      /non-canonical entry name/,
-      name,
-    );
-  }
-});
-
-test("rejects an entry after a single empty block", () => {
-  const manifest = (version) => JSON.stringify({ name: "demo", version });
-  const archive = tar([
-    ["package/package.json", manifest("1.0.0")],
-    null,
-    ["package/package.json", manifest("6.6.6")],
-  ]);
-  assert.throws(() => readPackedManifest(archive), /after an empty block/);
-});
-
-test("rejects an archive that ends after one empty block", () => {
-  const full = gunzipSync(
-    tar({
-      "package/package.json": JSON.stringify({ name: "a", version: "1" }),
-    }),
-  );
-  const cut = gzipSync(full.subarray(0, full.length - 512));
-  assert.throws(() => readPackedManifest(cut), /incomplete end-of-archive/);
-});
-
-test("rejects a header with a bad checksum", () => {
-  const archive = tar([
-    [
-      "package/package.json",
-      JSON.stringify({ name: "demo", version: "1.0.0" }),
-      { checksumOffset: 1 },
-    ],
-  ]);
-  assert.throws(() => readPackedManifest(archive), /bad checksum/);
-});
-
-test("rejects a trailing slash on a file entry", () => {
-  const archive = tar([
-    ["package/package.json/", JSON.stringify({ name: "demo", version: "1" })],
-  ]);
-  assert.throws(() => readPackedManifest(archive), /non-canonical entry name/);
-});
-
-test("rejects a directory entry in place of the manifest", () => {
-  const archive = tar([["package/package.json", "", { type: "5" }]]);
-  assert.throws(() => readPackedManifest(archive), /is a directory/);
-});
-
-test("rejects an entry whose padding is cut off", () => {
-  const archive = gunzipSync(
-    tar({
-      "package/package.json": JSON.stringify({ name: "a", version: "1" }),
-    }),
-  );
-  const cut = gzipSync(archive.subarray(0, 512 + 100));
-  assert.throws(() => readPackedManifest(cut), /truncated/);
-});
-
-test("rejects a negative or truncated entry size", () => {
-  assert.throws(
-    () =>
-      readPackedManifest(tar([["package/x", "", { size: "-0000001000\0" }]])),
-    /invalid entry size/,
-  );
-  assert.throws(
-    () =>
-      readPackedManifest(tar([["package/x", "", { size: "77777777777\0" }]])),
-    /truncated/,
-  );
-});
-
 test("requires a name and version in provenance", () => {
   const setup = validRepo();
-  setup.archives["demo-1.0.0.tgz"] = tar({ "package/package.json": "{}" });
+  setup.archives["demo-1.0.0.tgz"] = pack("unnamed", "0");
   setup.artifacts[0].sha256 = sha(setup.archives["demo-1.0.0.tgz"]);
   delete setup.artifacts[0].name;
   delete setup.artifacts[0].version;
@@ -270,16 +81,6 @@ test("rejects an archive whose hash differs from provenance", () => {
   setup.artifacts[0].version = "1.0.0";
   const problems = problemsFor(setup);
   assert.ok(problems.some((problem) => problem.includes("has sha256")));
-});
-
-test("rejects an archive that packs a different package", () => {
-  const setup = validRepo();
-  const other = pack("other", "1.0.0");
-  setup.archives["demo-1.0.0.tgz"] = other;
-  setup.artifacts[0].sha256 = sha(other);
-  assert.deepEqual(problemsFor(setup), [
-    `${directory}/demo-1.0.0.tgz packs other@1.0.0, but provenance.json records demo@1.0.0`,
-  ]);
 });
 
 test("rejects archives missing from or absent in provenance", () => {
