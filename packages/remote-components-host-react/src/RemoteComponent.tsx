@@ -20,6 +20,7 @@ import {
 } from "@assistant-ui/remote-components-protocol";
 import { FrameController, type FrameSource } from "./controller.js";
 import { frameCsp, prepareDocument, type NetworkPolicy } from "./document.js";
+import { checkOverlaySrc, isSameOrigin, parseHttpUrl } from "./origins.js";
 import {
   OverlayContext,
   escapeInFrame,
@@ -61,7 +62,7 @@ export interface RemoteComponentHandle {
 
 /** Host-only props. Everything else is passed to the remote component. */
 export interface HostProps {
-  /** URL of the remote component: any HTML page on the widget origin. */
+  /** URL of the remote component: any http(s) HTML page on the widget origin. */
   src?: string;
   /**
    * Or the document itself (model output that never touches a server). The
@@ -218,14 +219,13 @@ export function RemoteFrame(
 
   const absoluteSrc = useMemo(() => {
     if (html !== undefined) return "about:srcdoc";
-    try {
-      return new URL(
+    // Only http(s): a javascript: URL would run in the host's origin.
+    return (
+      parseHttpUrl(
         src,
         typeof document !== "undefined" ? document.baseURI : undefined,
-      ).href;
-    } catch {
-      return null;
-    }
+      )?.href ?? null
+    );
   }, [src, html]);
   const htmlRef = useRef(html);
   htmlRef.current = html;
@@ -366,7 +366,7 @@ export function RemoteFrame(
       isolation === "url" &&
       !inline &&
       !opaque &&
-      remoteOrigin === window.location.origin &&
+      isSameOrigin(absoluteSrc, window.location.href) &&
       config.dangerouslyAllowSameOrigin !== true
     ) {
       const err = new RemoteComponentError(
@@ -546,23 +546,12 @@ export function RemoteFrame(
       // HTML content is shown like the `html` prop (opaque, the owner's
       // network policy), so it needs no origin check.
       if ("src" in params.content) {
-        const allowed = configRef.current.overlayOrigins ?? "same-origin";
-        let contentOrigin: string;
-        try {
-          contentOrigin = new URL(params.content.src).origin;
-        } catch {
-          throw new RemoteComponentError("overlay", "Invalid overlay src");
-        }
-        const ok =
-          allowed === "any" ||
-          (allowed === "same-origin"
-            ? contentOrigin === remoteOrigin
-            : allowed.includes(contentOrigin));
-        if (!ok)
-          throw new RemoteComponentError(
-            "overlay",
-            `Overlay content from ${contentOrigin} is not allowed by this host`,
-          );
+        const check = checkOverlaySrc(
+          params.content.src,
+          absoluteSrc,
+          configRef.current.overlayOrigins ?? "same-origin",
+        );
+        if (!check.ok) throw new RemoteComponentError("overlay", check.reason);
       }
       if (params.kind === "popover" && params.anchor === undefined)
         throw new RemoteComponentError("overlay", "Popovers need an anchor");
