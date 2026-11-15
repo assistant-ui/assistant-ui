@@ -85,24 +85,33 @@ export function canPreload(
       }
     });
   }
-  // Protocol-relative URLs (`//host/x`) reach another host.
-  if (trimmed.startsWith("//")) return false;
-  return RELATIVE.test(trimmed) || !trimmed.includes(":");
+  // Resolve the way a browser does, so `//host`, `/\host` and URLs with
+  // tabs or newlines inside count as the other host they reach.
+  const base = "https://relative.invalid";
+  try {
+    return new URL(trimmed, `${base}/`).origin === base;
+  } catch {
+    return false;
+  }
 }
 
 const CSS_URL = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi;
 
+/** CSS that can load or substitute an image without a plain `url(...)`. */
+const INDIRECT_CSS = /\\|image-set\(|\b(?:var|env|attr|src)\(/i;
+
 /**
  * `value` when every `url(...)` in this CSS `background-image` value passes
- * `canPreload`, otherwise `undefined`. Values with `image-set(` or an escape
- * are refused, since they can name a URL without a plain `url(...)`.
+ * `canPreload`, otherwise `undefined`. Escapes, `image-set()`, `var()`,
+ * `env()`, `attr()` and `src()` are refused, since they can name a URL
+ * without a plain `url(...)`.
  */
 export function safeBackgroundImage(
   value: string | undefined,
   origins: readonly string[] | undefined,
 ): string | undefined {
   if (typeof value !== "string" || value.trim() === "") return undefined;
-  if (/image-set\(|\\/i.test(value)) return undefined;
+  if (INDIRECT_CSS.test(value)) return undefined;
   for (const match of value.matchAll(CSS_URL)) {
     const url = match[1] ?? match[2] ?? match[3] ?? "";
     if (!canPreload(url, origins)) return undefined;

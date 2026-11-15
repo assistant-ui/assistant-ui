@@ -76,7 +76,7 @@ The static element is controlled. `open` and `onOpenChange` belong to the caller
 ```tsx
 {/* sourceType: "url" */}
 <a data-slot="source" href={safeHref(url)}>
-  <span data-slot="source-icon-fallback" aria-hidden>{domain initial}</span>
+  <span data-slot="source-icon-fallback" aria-hidden>{domainInitial}</span>
   {/* or, with faviconUrl: <img data-slot="source-icon" alt="" /> */}
   <span data-slot="source-title">{title ?? domain}</span>
 </a>

@@ -52,6 +52,40 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
+/**
+ * Holds back a `src` that `canPreload` refuses: the element gets it only
+ * when `arm` runs, from the click that plays it.
+ */
+function useDeferredSource(
+  mediaRef: RefObject<HTMLMediaElement | null>,
+  src: string,
+  mediaOrigins: readonly string[] | undefined,
+) {
+  const preload = canPreload(src, mediaOrigins);
+  const [armedSrc, setArmedSrc] = useState<string | undefined>(undefined);
+  const armed = preload || armedSrc === src;
+
+  // `arm` sets the attribute outside React, so clear it when `src` changes.
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (!preload && armedSrc !== src && media?.hasAttribute("src")) {
+      media.removeAttribute("src");
+      media.load();
+    }
+  }, [mediaRef, src, preload, armedSrc]);
+
+  return {
+    preload,
+    armed,
+    arm: () => {
+      const media = mediaRef.current;
+      if (!media || armed) return;
+      media.src = src;
+      setArmedSrc(src);
+    },
+  };
+}
+
 function useMediaDuration(
   mediaRef: RefObject<HTMLMediaElement | null>,
   src: string,
@@ -97,6 +131,7 @@ export function AudioPlayer({
   ...props
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const source = useDeferredSource(audioRef, src, mediaOrigins);
   const [playback, setPlayback] = useState({
     src,
     currentTime: 0,
@@ -141,6 +176,7 @@ export function AudioPlayer({
       return;
     }
 
+    source.arm();
     void audio.play().then(
       () => update({ playing: true }),
       () =>
@@ -211,8 +247,8 @@ export function AudioPlayer({
       </span>
       <audio
         ref={audioRef}
-        src={src}
-        preload={canPreload(src, mediaOrigins) ? "metadata" : "none"}
+        src={source.preload ? src : undefined}
+        preload={source.preload ? "metadata" : "none"}
         className="hidden"
         onLoadedMetadata={(event) => {
           setDurationFromMetadata(event.currentTarget.duration);
@@ -244,6 +280,7 @@ export function VideoPlayer({
   ...props
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const source = useDeferredSource(videoRef, src, mediaOrigins);
   const { duration, setDurationFromMetadata } = useMediaDuration(
     videoRef,
     src,
@@ -266,14 +303,20 @@ export function VideoPlayer({
       className={cn("flex w-full max-w-xl flex-col gap-2", className)}
       {...props}
     >
-      <div className={cn(field, "overflow-hidden rounded-xl", ratioClassName)}>
+      <div
+        className={cn(
+          field,
+          "relative overflow-hidden rounded-xl",
+          ratioClassName,
+        )}
+      >
         <video
           ref={videoRef}
-          src={src}
+          src={source.preload ? src : undefined}
           poster={canPreload(poster, mediaOrigins) ? poster : undefined}
-          controls
+          controls={source.armed}
           playsInline
-          preload={canPreload(src, mediaOrigins) ? "metadata" : "none"}
+          preload={source.preload ? "metadata" : "none"}
           aria-label={title ?? "Video"}
           className={cn(
             "block max-w-full",
@@ -283,6 +326,26 @@ export function VideoPlayer({
             setDurationFromMetadata(event.currentTarget.duration);
           }}
         />
+        {source.armed ? null : (
+          <button
+            type="button"
+            aria-label={`Play ${title ?? "video"}`}
+            onClick={() => {
+              source.arm();
+              void videoRef.current?.play().catch(() => {});
+            }}
+            className="absolute inset-0 flex items-center justify-center"
+          >
+            <span
+              className={cn(
+                inkButton,
+                "flex size-11 items-center justify-center rounded-full",
+              )}
+            >
+              <PlayIcon aria-hidden className="ml-0.5 size-5" />
+            </span>
+          </button>
+        )}
       </div>
       {(title || duration !== undefined) && (
         <div className="flex min-w-0 items-center gap-2 px-1">

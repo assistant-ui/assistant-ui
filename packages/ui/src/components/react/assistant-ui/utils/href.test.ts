@@ -68,6 +68,10 @@ describe("canPreload", () => {
       "https://tracker.example/pixel.png",
       "http://tracker.example/a.mp3",
       "//tracker.example/a.png",
+      "/\\tracker.example/a.png",
+      "\\\\tracker.example/a.png",
+      "/\t/tracker.example/a.png",
+      "\n//tracker.example/a.png",
       "data:text/html,<b>x</b>",
       "javascript:alert(1)",
       "ftp://files.example/a.mp3",
@@ -115,6 +119,10 @@ describe("safeBackgroundImage", () => {
       'linear-gradient(red, blue), url("//tracker.example/p.png")',
       "image-set('https://tracker.example/p.png' 1x)",
       "url(\\68 ttps://tracker.example/p.png)",
+      'url("/\t/tracker.example/p.png")',
+      "var(--swatch)",
+      "linear-gradient(red, var(--c))",
+      "src('https://tracker.example/p.png')",
     ]) {
       expect(safeBackgroundImage(value, undefined)).toBeUndefined();
     }
