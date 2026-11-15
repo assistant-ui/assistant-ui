@@ -325,6 +325,21 @@ def test_concurrent_starts_by_two_owners_do_not_share_a_stream() -> None:
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
+def test_owned_runs_refuse_the_same_bad_ids_as_ownerless_ones() -> None:
+    async def scenario() -> None:
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=Model().stream)),
+            owner=_user_header,
+        )
+        for thread_id, run_id in [("bad id", "run"), ("a/b", "run"), ("t", "x" * 300)]:
+            response = await _start_run_as(
+                durable, _run_input(thread_id, [_user("Hi")], run_id), "alice"
+            )
+            assert response.status_code == 400, (thread_id, run_id)
+
+    asyncio.run(scenario())
+
+
 def test_owner_scoped_stream_ids_are_valid_and_distinct() -> None:
     from assistant_stream.pydantic_ai.durable import _stream_id
 

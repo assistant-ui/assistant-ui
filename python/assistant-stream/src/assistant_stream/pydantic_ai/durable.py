@@ -53,6 +53,7 @@ from assistant_stream.resumable import (
     ResumableStreamRole,
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
+    validate_stream_id,
 )
 from assistant_stream.serialization.heartbeat import add_keepalive
 
@@ -216,6 +217,12 @@ class DurableAGUI(Generic[AgentDepsT]):
         if previous is not None and previous.owner != owner:
             return _not_found()
 
+        # The ids follow the stream store's rules with or without an owner,
+        # though an owned stream id is a digest of them.
+        try:
+            validate_stream_id(_stream_id(thread_id, run_id))
+        except ResumableStreamError:
+            return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
         stream_id = _stream_id(thread_id, run_id, owner)
         status = await self._safe_status(stream_id)
         if status is None:
