@@ -75,7 +75,7 @@ const sections = [
       "Cloudflare receives the details you submit in the contact sales form and delivers them to our team by email. The form then opens Cal.com with your name, email, and notes filled in so you can book a call.",
       "Stripe processes your payment details when you buy a paid plan from us.",
       "Blaxel runs the live previews in the Xulux playground, so your browser loads those previews from Blaxel.",
-      "Open-Meteo receives a place name or coordinates when you ask for the weather in one of our demos, Google Fonts serves the fonts for one of our interactive demos, and Unsplash and Pravatar serve the sample photos and avatars in our component demos. Each of them sees your IP address and browser details.",
+      "Open-Meteo receives the place name or coordinates you give when you ask for the weather in one of our demos. Most of these requests come from our servers; one remote-components demo sends them from your browser. Google Fonts serves the fonts for one of our interactive demos, and Unsplash and Pravatar serve the sample photos and avatars in our component demos. Your browser loads these directly, so they see your IP address and browser details.",
       "We may also share or transfer information in connection with a merger, sale of company assets, financing, acquisition, or similar business transfer. We may share information with affiliates and require those affiliates to honor this Privacy Notice.",
       "We may disclose information when we believe in good faith that the law requires it, such as to answer a subpoena, court order, or other legal process, and when it is needed to protect the rights, property, or safety of AgentbaseAI Inc., our users, or others, or to enforce our terms.",
     ],
