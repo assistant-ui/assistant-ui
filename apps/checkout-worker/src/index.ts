@@ -313,28 +313,26 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
         await this.ctx.storage.delete(key);
         return new Response("no secret", { status: 404 });
       }
-      // Every model input carries a redeem key hash since #10066; one without
-      // it never had a deposit accepted, so its key is never served.
+      // A model input without a redeem key hash never had a deposit
+      // accepted here, so its key is never served.
       if (input.redeemKeyHash === undefined) {
         return new Response("invalid redeem key", { status: 403 });
       }
-      {
-        const redeemKey = request.headers.get("Setup-Agent-Redeem-Key");
-        const digest = new Uint8Array(
-          await crypto.subtle.digest(
-            "SHA-256",
-            new TextEncoder().encode(redeemKey ?? ""),
-          ),
-        );
-        let difference = 0;
-        for (let i = 0; i < digest.length; i++) {
-          difference |=
-            digest[i]! ^
-            Number.parseInt(input.redeemKeyHash.slice(i * 2, i * 2 + 2), 16);
-        }
-        if (redeemKey === null || difference !== 0) {
-          return new Response("invalid redeem key", { status: 403 });
-        }
+      const redeemKey = request.headers.get("Setup-Agent-Redeem-Key");
+      const digest = new Uint8Array(
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(redeemKey ?? ""),
+        ),
+      );
+      let difference = 0;
+      for (let i = 0; i < digest.length; i++) {
+        difference |=
+          digest[i]! ^
+          Number.parseInt(input.redeemKeyHash.slice(i * 2, i * 2 + 2), 16);
+      }
+      if (redeemKey === null || difference !== 0) {
+        return new Response("invalid redeem key", { status: 403 });
       }
       await this.ctx.storage.delete(key);
       return new Response(value.secret, {
@@ -356,7 +354,7 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
  * (`browser/heartbeat`, `browser/bye`, `state.browser`) is additive; CLIs
  * that predate it ignore it, and newer CLIs fall back when it is missing.
  * Model key deposits need the input's redeem key hash, which every CLI
- * since setup-agent 0.0.7 (#10066) sends. Links match the setup page's
+ * since setup-agent 0.0.7 sends. Links match the setup page's
  * alphabet, and a setup idle for `ROOM_IDLE_MS` is deleted.
  */
 export default {
@@ -365,15 +363,15 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
     const url = new URL(request.url);
+    if (!LINK_PATH.test(url.pathname)) {
+      return withCors(new Response("Not found", { status: 404 }));
+    }
     if (request.method === "GET" && GUIDE_PATH.test(url.pathname)) {
       const { status, body } = respondToGuideRequest(url.searchParams);
       return Response.json(body, {
         status,
         headers: { "cache-control": "no-store", ...CORS_HEADERS },
       });
-    }
-    if (!LINK_PATH.test(url.pathname)) {
-      return withCors(new Response("Not found", { status: 404 }));
     }
     url.pathname = `/checkout${url.pathname}`;
     const response = await routeStatewireRequest(

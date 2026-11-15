@@ -3,7 +3,7 @@ import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import { StatewireSendError } from "statewire";
 import { CheckoutHost } from "./host";
 
-const MAX_STATE_BYTES = 1024 * 1024;
+const MAX_STATE_BYTES = 512 * 1024;
 import { isPresetId, presetInput } from "./presets";
 import {
   classifyChoiceAnswer,
@@ -1178,7 +1178,9 @@ describe("limits", () => {
     await host.commands["checkout/create"](seed);
     await host.commands["checkout/begin-plan"]();
     const text = "x".repeat(200 * 1024);
-    for (let i = 0; JSON.stringify(host.state).length <= MAX_STATE_BYTES; i++) {
+    const size = () =>
+      new TextEncoder().encode(JSON.stringify(host.state)).byteLength;
+    for (let i = 0; size() <= MAX_STATE_BYTES; i++) {
       await host.commands["agent/log"]({ text: `${i}${text}` });
     }
     expect(
@@ -1188,7 +1190,12 @@ describe("limits", () => {
       await reason(host.commands["checkout/message"]({ text: "hi" })),
     ).toEqual({ reason: "setup-full" });
     await host.commands["agent/heartbeat"]();
+    await host.commands["agent/hello"]({ cwd: "/app" });
     await host.commands["checkout/cancel"]();
     expect(host.state.status).toBe("cancelled");
+    // The same link can start over with a fresh setup.
+    await host.commands["checkout/create"]({ ...seed, id: "c2" });
+    expect(host.state.log).toEqual([]);
+    await host.commands["agent/log"]({ text: "fresh" });
   });
 });

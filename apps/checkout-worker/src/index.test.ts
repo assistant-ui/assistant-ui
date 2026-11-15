@@ -668,16 +668,20 @@ describe("limits", () => {
     expect(ws.close).toHaveBeenCalledWith(1009, "message too large");
   });
 
-  it.each(["/", "/short", "/has-dash-link", `/${"a".repeat(65)}`, "/../x"])(
-    "answers 404 for %s without addressing a durable object",
-    async (path) => {
-      const idFromName = vi.fn((name: string) => name);
-      const response = await worker.fetch(
-        new Request(`https://checkout.test${path}`),
-        { CHECKOUT: { idFromName, get: vi.fn() } },
-      );
-      expect(response.status).toBe(404);
-      expect(idFromName).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    "/",
+    "/short",
+    "/short/guide",
+    "/has-dash-link",
+    `/${"a".repeat(65)}`,
+    "/../x",
+  ])("answers 404 for %s without addressing a durable object", async (path) => {
+    const idFromName = vi.fn((name: string) => name);
+    const response = await worker.fetch(
+      new Request(`https://checkout.test${path}`),
+      { CHECKOUT: { idFromName, get: vi.fn() } },
+    );
+    expect(response.status).toBe(404);
+    expect(idFromName).not.toHaveBeenCalled();
+  });
 });

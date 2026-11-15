@@ -22,11 +22,17 @@ import type { Checkout } from "./protocol";
 const reject = (reason: Checkout.RejectionReason, message: string) =>
   new StatewireReject(message, { payload: { reason } });
 
-/** The largest a setup's state may grow, as JSON, before it takes no more content. */
-const MAX_STATE_BYTES = 1024 * 1024;
+/**
+ * The largest a setup's state may grow, as UTF-8 JSON, before it takes no
+ * more content. Kept well under the 2 MB storage value limit, which the
+ * snapshot plus one more command must fit.
+ */
+const MAX_STATE_BYTES = 512 * 1024;
 
-/** Commands that still run on a full setup: they end it or keep it alive and add no content. */
+/** Commands that still run on a full setup: they replace or end it, or keep a connection alive. */
 const RUNS_WHEN_FULL = new Set<string>([
+  "checkout/create",
+  "agent/hello",
   "checkout/cancel",
   "checkout/finish",
   "checkout/dismiss",
@@ -43,7 +49,8 @@ const capStateSize = <T extends object>(state: object, handlers: T): T =>
       (...args: unknown[]) => {
         if (
           !RUNS_WHEN_FULL.has(name) &&
-          JSON.stringify(state).length > MAX_STATE_BYTES
+          new TextEncoder().encode(JSON.stringify(state)).byteLength >
+            MAX_STATE_BYTES
         ) {
           throw reject(
             "setup-full",
