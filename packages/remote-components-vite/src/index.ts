@@ -303,9 +303,9 @@ export function remoteComponents(
       const root = path.resolve(userConfig.root ?? process.cwd());
       components = resolveComponents(root, options.components);
       // Built remote code is public, so preview answers any origin. The dev
-      // server serves the project's source, so it answers only pages on this
-      // machine (devCorsAllows), and opaque frames only with opaqueFrames; opaque-origin remotes (sandbox without
-      // allow-same-origin) fetch their scripts with `Origin: null`.
+      // server serves the project's source, so its CORS admits only loopback
+      // origins, plus `Origin: null` (opaque frames, sandbox without
+      // allow-same-origin) with `opaqueFrames`.
       if (env.command !== "build") {
         customCors = userConfig.server?.cors !== undefined;
         return {

@@ -21,7 +21,8 @@
  *     CSP cannot exclude private or loopback addresses; see SPEC §12.
  *   "none": no fetch, XHR, WebSocket or EventSource (`connect-src 'none'`),
  *     and images and media only from the page itself, data: and blob:.
- *   a list: exactly these origins for connections, images and media
+ *   a list: exactly these origins for connections; images and media also
+ *     allow the page itself, data:, blob: and the listed http(s) origins
  *     (`https://api.example.com`, `https://*.example.com`).
  *
  * Neither "none" nor a list is a data boundary: scripts, styles, fonts,
