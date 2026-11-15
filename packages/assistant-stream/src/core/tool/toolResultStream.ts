@@ -101,12 +101,12 @@ function getToolResponse(
   human: InternalHumanCallback,
 ) {
   const tool = tools?.[toolCall.toolName];
-  if (!tool?.execute) return undefined;
   // A disabled tool is hidden from the model; a call that names it anyway
   // gets an error result instead of running.
-  if (tool.disabled) {
+  if (tool?.disabled && (tool.execute || tool.streamCall)) {
     return Promise.resolve(disabledToolResponse(toolCall.toolName));
   }
+  if (!tool?.execute) return undefined;
 
   const getResult = async (
     toolExecute: ToolExecuteFunction<Record<string, unknown>, unknown>,

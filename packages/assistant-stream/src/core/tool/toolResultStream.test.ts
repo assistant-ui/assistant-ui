@@ -1965,6 +1965,22 @@ describe("disabled tools", () => {
     );
   });
 
+  it("returns an error result for a disabled streamCall-only tool", async () => {
+    const streamCall = vi.fn();
+    const result = await unstable_runPendingTools(
+      createPendingToolMessage("call-1"),
+      { tool: { parameters: { type: "object" }, disabled: true, streamCall } },
+      new AbortController().signal,
+      async () => {},
+    );
+    expect(streamCall).not.toHaveBeenCalled();
+    expect(result.parts[0]).toMatchObject({
+      state: "result",
+      result: 'Tool "tool" is disabled.',
+      isError: true,
+    });
+  });
+
   it("runs the tool again once it is enabled", async () => {
     const execute = vi.fn(() => "ran");
     const result = await unstable_runPendingTools(

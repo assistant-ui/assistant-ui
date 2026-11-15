@@ -282,12 +282,20 @@ export const useAssistantForm = <
           parameters: formTools.set_form_field.parameters,
           execute: async (args) => {
             // Only fields the form renders can be set, and sensitive fields
-            // stay out of the model's reach in both directions.
-            const name = toFieldPath(args.name);
-            if (
-              !control._names.mount.has(name) ||
-              collectSensitiveFields().has(name)
-            ) {
+            // (and anything under one) stay out of the model's reach in both
+            // directions.
+            const path = toFieldPath(args.name);
+            const name = [...control._names.mount].find(
+              (mounted) => toFieldPath(mounted) === path,
+            );
+            const field: Field | undefined =
+              name === undefined ? undefined : get(control._fields, name);
+            const sensitiveFields = collectSensitiveFields();
+            const segments = path.split(".");
+            const underSensitive = segments.some((_, index) =>
+              sensitiveFields.has(segments.slice(0, index + 1).join(".")),
+            );
+            if (name === undefined || !field?._f?.mount || underSensitive) {
               return {
                 success: false,
                 message: `The form has no field named "${args.name}" that can be set.`,

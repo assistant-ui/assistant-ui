@@ -314,6 +314,67 @@ describe("useAssistantForm", () => {
       expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
     });
 
+    it("sets a field registered with bracket paths", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ items: { label: string }[] }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({ defaultValues: { items: [{ label: "" }] } });
+        return (
+          <input {...form.register("items[0].label" as "items.0.label")} />
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("items.0.label", "First")).resolves.toEqual({
+        success: true,
+      });
+      expect(form.getValues("items.0.label")).toBe("First");
+    });
+
+    it("refuses a field that was unmounted", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ name: string; nickname: string }>
+      >;
+      const Form = ({ showNickname }: { showNickname: boolean }) => {
+        form = useAssistantForm({
+          defaultValues: { name: "", nickname: "Ada" },
+        });
+        return (
+          <>
+            <input {...form.register("name")} />
+            {showNickname && <input {...form.register("nickname")} />}
+          </>
+        );
+      };
+      const { rerender } = render(<Form showNickname />);
+      rerender(<Form showNickname={false} />);
+
+      await expect(setField("nickname", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues("nickname")).toBe("Ada");
+    });
+
+    it("refuses fields under a sensitive parent", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ billing: { iban: string } }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { billing: { iban: "" } },
+          assistant: { sensitiveFields: ["billing"] },
+        });
+        return <input {...form.register("billing.iban")} />;
+      };
+      render(<Form />);
+
+      await expect(setField("billing.iban", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues("billing.iban")).toBe("");
+    });
+
     it("refuses sensitive fields", async () => {
       let form!: ReturnType<
         typeof useAssistantForm<{ password: string; email: string }>
