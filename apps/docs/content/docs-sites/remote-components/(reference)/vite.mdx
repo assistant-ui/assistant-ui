@@ -47,7 +47,7 @@ export default {
 
 The dev server sends `frame-ancestors` but no `connect-src`, because HMR needs a websocket.
 
-The dev server serves your project's source, so it answers cross-origin requests only from its own origin, a `localhost` or loopback origin, and opaque remote frames (`Origin: null`). A page on any other site gets a 403. An opaque frame sends no `Referer`, so the dev server can't tell one on your page from a sandboxed frame on another site, and admits both. Set Vite's `server.cors` to allow other origins, such as a host on another machine; the plugin then leaves CORS to it. `vite preview` and built output answer any origin.
+The dev server serves your project's source, so it answers cross-origin requests only from its own origin, a `localhost` or loopback origin, and opaque remote frames (`Origin: null`). A page on any other site gets a 403. An opaque frame sends no `Referer`, so the dev server can't tell one on your page from a sandboxed frame on another site, and admits both. The plugin's own pages also apply Vite's `server.allowedHosts`, so a rebound host name gets a 403 there too. Set Vite's `server.cors` to allow other origins, such as a host on another machine; the plugin then leaves CORS to it. `vite preview` and built output answer any origin.
 
 ## Build
 

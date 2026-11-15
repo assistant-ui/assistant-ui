@@ -766,7 +766,7 @@ host callbacks, which the host implements and authorizes.
     exactly those.
   - With `"none"` or a list, `img-src` and `media-src` are `'self' data:
     blob:` plus the listed http(s) origins, so the image and media URLs a
-    page builds at run time can't carry data out either.
+    page builds at run time can reach only those sources.
   - Not a data boundary: under `"none"` or a list, a page can still send
     data in the URL of a script, stylesheet, font, frame, worker or form
     it adds, through WebRTC, or by navigating. Those stay open so pages

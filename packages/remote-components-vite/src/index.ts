@@ -74,6 +74,35 @@ export function devCorsAllows(
   return LOOPBACK_ORIGIN.test(origin);
 }
 
+/**
+ * Vite's `allowedHosts` rule, for the plugin's own responses: Vite 6 runs
+ * plugin middleware before its host check, so a rebound host name would
+ * otherwise reach them. Loopback names, IP literals and listed hosts pass;
+ * an entry starting with `.` also allows its subdomains.
+ */
+export function devHostAllowed(
+  host: string | undefined,
+  allowedHosts: readonly string[] | true | undefined,
+): boolean {
+  if (allowedHosts === true) return true;
+  if (host === undefined) return false;
+  let name: string;
+  try {
+    name = new URL(`http://${host}`).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (name === "localhost" || name.endsWith(".localhost")) return true;
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(name) || name.startsWith("["))
+    return true;
+  return (allowedHosts ?? []).some((entry) => {
+    const allowed = entry.toLowerCase();
+    return allowed.startsWith(".")
+      ? name === allowed.slice(1) || name.endsWith(allowed)
+      : name === allowed;
+  });
+}
+
 const ENTRY_PREFIX = "virtual:rc-entry:";
 const RESOLVED_PREFIX = "\0" + ENTRY_PREFIX;
 const RUNTIME_SHIM = "\0rc-runtime-shim";
@@ -278,15 +307,23 @@ export function remoteComponents(
       server.watcher.on("add", refresh);
       server.watcher.on("unlink", refresh);
       server.watcher.on("change", () => singleCache.clear());
-      if (!customCors)
-        server.middlewares.use((req, res, next) => {
-          if (devCorsAllows(req.headers.origin, req.headers.host))
-            return next();
-          res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
-          res.end(
-            "[rc] cross-origin request refused; set server.cors to allow it",
+      const refuse = (res: import("node:http").ServerResponse, why: string) => {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end(`[rc] ${why}`);
+      };
+      server.middlewares.use((req, res, next) => {
+        if (
+          !config.server.https &&
+          !devHostAllowed(req.headers.host, config.server.allowedHosts)
+        )
+          return refuse(res, "host not allowed; add it to server.allowedHosts");
+        if (!customCors && !devCorsAllows(req.headers.origin, req.headers.host))
+          return refuse(
+            res,
+            "cross-origin request refused; set server.cors to allow it",
           );
-        });
+        next();
+      });
       const runtime = remoteComponentsMiddleware({ runtimeBase: base() });
       server.middlewares.use((req, res, next) => void runtime(req, res, next));
       server.middlewares.use((req, res, next) => {
@@ -298,8 +335,9 @@ export function remoteComponents(
               const origin = req.headers.origin;
               res.writeHead(200, {
                 "content-type": "text/html; charset=utf-8",
-                // With the project's own server.cors, this response sends
-                // no CORS header of its own.
+                // With the project's own server.cors, this response adds no
+                // CORS header: Vite 8 has already applied that policy to it,
+                // and on Vite 6 an allowed origin gets none (fails closed).
                 ...(customCors
                   ? {}
                   : origin !== undefined

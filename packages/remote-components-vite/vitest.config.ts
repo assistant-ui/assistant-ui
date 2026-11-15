@@ -4,5 +4,16 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.{ts,tsx}"],
     environment: "node",
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+      thresholds: {
+        lines: 50,
+        functions: 52,
+        branches: 43,
+        statements: 49,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
+    },
   },
 });
