@@ -66,6 +66,7 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.StartToolCall]: {
     toolCallId: string;
     toolName: string;
+    providerExecuted?: boolean;
     parentId?: string;
   };
   [DataStreamStreamChunkType.ToolCallArgsTextDelta]: {
