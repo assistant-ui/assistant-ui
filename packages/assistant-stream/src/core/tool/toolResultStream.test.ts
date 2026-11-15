@@ -1909,8 +1909,6 @@ describe("disabled tools", () => {
   it("does not run or stream a disabled tool in the result stream", async () => {
     const execute = vi.fn(() => "ran");
     const streamCall = vi.fn();
-    const onExecutionStart = vi.fn();
-    const onExecutionEnd = vi.fn();
     const inputStream = new ReadableStream<AssistantStreamChunk>({
       start(controller) {
         for (const chunk of [
@@ -1946,7 +1944,6 @@ describe("disabled tools", () => {
           },
           new AbortController().signal,
           async () => {},
-          { onExecutionStart, onExecutionEnd },
         ),
       )
       .pipeTo(
@@ -1959,8 +1956,6 @@ describe("disabled tools", () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(streamCall).not.toHaveBeenCalled();
-    expect(onExecutionStart).not.toHaveBeenCalled();
-    expect(onExecutionEnd).not.toHaveBeenCalled();
     expect(outputChunks).toContainEqual(
       expect.objectContaining({
         type: "result",

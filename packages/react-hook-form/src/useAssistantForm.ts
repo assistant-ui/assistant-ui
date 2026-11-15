@@ -267,7 +267,8 @@ export const useAssistantForm = <
           ? field._f.refs[0]
           : field?._f?.ref;
         // A `Controller` field stores a methods-only proxy instead of the
-        // element, so look its input up by name.
+        // element, so look its input up by name. This searches the whole
+        // page; a sensitive input with the same name elsewhere fails closed.
         const elements: unknown[] =
           fieldReference instanceof HTMLElement
             ? [fieldReference]

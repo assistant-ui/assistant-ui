@@ -782,6 +782,52 @@ describe("ToolInvocationTracker", () => {
     expect(onResult).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["execute", { execute: vi.fn(async () => ({ deleted: true })) }],
+    ["streamCall", { streamCall: vi.fn() }],
+  ] as const)(
+    "reports an error result for a disabled %s tool without running it",
+    async (_kind, handlers) => {
+      const getTools = () => ({
+        deleteFile: {
+          parameters: { type: "object", properties: {} },
+          disabled: true,
+          ...handlers,
+        } as Tool,
+      });
+      const onResult = vi.fn();
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange: () => {},
+      });
+      tracker.setState(createState([]));
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"path":"/tmp/a"}',
+              { path: "/tmp/a" },
+              { toolName: "deleteFile" },
+            ),
+          ],
+          false,
+        ),
+      );
+
+      await waitFor(() =>
+        expect(onResult).toHaveBeenCalledWith(
+          expect.objectContaining({
+            toolCallId: "tool-1",
+            result: 'Tool "deleteFile" is disabled.',
+            isError: true,
+          }),
+        ),
+      );
+      for (const handler of Object.values(handlers))
+        expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not execute a registered tool while the provider's run is open", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({

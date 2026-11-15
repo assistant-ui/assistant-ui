@@ -7,10 +7,7 @@ import type {
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
-import {
-  type InternalToolExecutionOptions,
-  nonExecutingToolResponses,
-} from "./internal-tool-execution-options";
+import type { InternalToolExecutionOptions } from "./internal-tool-execution-options";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
@@ -86,14 +83,11 @@ const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
 
 const disabledToolResponse = (
   toolName: string,
-): ToolResponse<ReadonlyJSONValue> => {
-  const response = new ToolResponse<ReadonlyJSONValue>({
+): ToolResponse<ReadonlyJSONValue> =>
+  new ToolResponse({
     result: `Tool "${toolName}" is disabled.`,
     isError: true,
   });
-  nonExecutingToolResponses.add(response);
-  return response;
-};
 
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
@@ -110,7 +104,7 @@ function getToolResponse(
   // A disabled tool is hidden from the model; a call that names it anyway
   // gets an error result instead of running.
   if (tool?.disabled && (tool.execute || tool.streamCall)) {
-    return disabledToolResponse(toolCall.toolName);
+    return Promise.resolve(disabledToolResponse(toolCall.toolName));
   }
   if (!tool?.execute) return undefined;
 
