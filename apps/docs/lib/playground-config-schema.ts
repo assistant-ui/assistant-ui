@@ -17,11 +17,20 @@ const fontFamilyString = z
   .max(200)
   .regex(/^[\w ,'".-]*$/, "Invalid font family");
 
+export const LOADING_TEXT_MAX_LENGTH = 80;
+export const CUSTOM_CSS_MAX_LENGTH = 20_000;
+
+// oxlint-disable-next-line no-control-regex -- matches control characters
+const LOADING_TEXT_DISALLOWED = /[\u0000-\u001f\u007f\u2028\u2029]/g;
+
+/** Drops what `loadingText` does not accept, for inputs that edit it. */
+export const toLoadingText = (value: string) =>
+  value.replace(LOADING_TEXT_DISALLOWED, "").slice(0, LOADING_TEXT_MAX_LENGTH);
+
 const labelString = z
   .string()
-  .max(80)
-  // oxlint-disable-next-line no-control-regex -- rejects control characters
-  .regex(/^[^\u0000-\u001f\u007f\u2028\u2029<>{}]*$/, "Invalid text");
+  .max(LOADING_TEXT_MAX_LENGTH)
+  .refine((value) => toLoadingText(value) === value, "Invalid text");
 
 const themeColorSchema = z
   .strictObject({
@@ -96,7 +105,7 @@ export const updateConfigSchema = z.strictObject({
       animations: z.boolean().optional(),
     })
     .optional(),
-  customCSS: z.string().max(20_000).optional(),
+  customCSS: z.string().max(CUSTOM_CSS_MAX_LENGTH).optional(),
 });
 
 export type PartialBuilderConfig = z.infer<typeof updateConfigSchema>;

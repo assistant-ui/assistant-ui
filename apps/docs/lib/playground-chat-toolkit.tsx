@@ -8,7 +8,8 @@ import {
 } from "./playground-config-schema";
 
 export function createPlaygroundChatToolkit(
-  onConfigUpdate: (update: PartialBuilderConfig) => void,
+  /** Applies an update, or returns why it was refused. */
+  onConfigUpdate: (update: PartialBuilderConfig) => string | undefined,
 ): Toolkit {
   return {
     update_config: {
@@ -17,7 +18,8 @@ export function createPlaygroundChatToolkit(
         "Update the playground's BuilderConfig. Only include the fields you want to change.",
       parameters: updateConfigSchema,
       execute: async (args: PartialBuilderConfig) => {
-        onConfigUpdate(args);
+        const error = onConfigUpdate(args);
+        if (error) return { success: false, error };
         const changedSections = Object.keys(args).join(", ");
         return { success: true, changed: changedSections };
       },

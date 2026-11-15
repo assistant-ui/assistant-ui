@@ -4,8 +4,13 @@ import {
 } from "@/components/pages/playground/types";
 import { updateConfigSchema } from "./playground-config-schema";
 
-/** Longest encoded config accepted from a URL. */
-export const MAX_ENCODED_CONFIG_LENGTH = 32_000;
+/**
+ * Longest encoded config accepted from a URL. Every config the schema accepts
+ * encodes shorter than this, even with each string at its longest and made of
+ * 3-byte characters, so `encodeConfig` never writes a value `decodeConfig`
+ * refuses for its length.
+ */
+export const MAX_ENCODED_CONFIG_LENGTH = 100_000;
 
 function computeDiff(
   config: BuilderConfig,
@@ -94,6 +99,26 @@ export function encodeConfig(config: BuilderConfig): string {
   const diff = computeDiff(config, DEFAULT_CONFIG);
   const json = JSON.stringify(diff);
   return base64UrlEncode(json);
+}
+
+/**
+ * Why a config cannot be shared as a link, or undefined when it can. Uses the
+ * same schema and length limit `decodeConfig` applies.
+ */
+export function configIssue(config: BuilderConfig): string | undefined {
+  const result = updateConfigSchema.safeParse(
+    computeDiff(config, DEFAULT_CONFIG),
+  );
+  if (!result.success) {
+    const issue = result.error.issues[0];
+    return issue
+      ? `${issue.path.join(".") || "config"}: ${issue.message}`
+      : "Invalid configuration";
+  }
+  if (encodeConfig(config).length > MAX_ENCODED_CONFIG_LENGTH) {
+    return "Configuration is too long";
+  }
+  return undefined;
 }
 
 /**

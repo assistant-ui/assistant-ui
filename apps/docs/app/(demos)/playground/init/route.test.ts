@@ -23,10 +23,6 @@ describe("GET /playground/init", () => {
 
   it.each<[string, unknown]>([
     [
-      "JSX markup in loading text",
-      { components: { loadingText: "</span><script>bad()</script>" } },
-    ],
-    [
       "quotes in the font family",
       { styles: { fontFamily: 'system-ui", onClick: bad()' } },
     ],
@@ -81,6 +77,17 @@ describe("GET /playground/init", () => {
       ),
     );
     expect(response.status).toBe(400);
+  });
+
+  it("writes JSX markup in loading text as a string literal", async () => {
+    const response = GET(
+      request({ components: { loadingText: "</span><script>bad()</script>" } }),
+    );
+    expect(response.status).toBe(200);
+    const content: string = (await response.json()).files[0].content;
+    expect(content).toContain(
+      '<span className="text-sm">{"</span><script>bad()</script>"}</span>',
+    );
   });
 
   it("accepts the values the builder offers", async () => {
