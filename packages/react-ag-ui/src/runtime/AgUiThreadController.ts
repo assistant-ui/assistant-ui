@@ -1811,6 +1811,7 @@ export class AgUiThreadController {
     this.dispatch({ type: "resetThread" });
     this.snapshotHeadMovedAssistantIds.clear();
     this.subagentParentToolCallIds.clear();
+    this.interruptNamedToolCallIds.clear();
 
     if (controller) {
       this.abortController = null;
