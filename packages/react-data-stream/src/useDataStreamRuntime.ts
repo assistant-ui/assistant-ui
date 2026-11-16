@@ -25,6 +25,7 @@ export type UseDataStreamRuntimeOptions = {
   onData?: (data: {
     type: string;
     name: string;
+    id?: string;
     data: unknown;
     transient?: boolean;
   }) => void;
