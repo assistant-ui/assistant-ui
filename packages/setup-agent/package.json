@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "cross-spawn": "^7.0.6",
-    "statewire": "^0.22.1"
+    "statewire": "^0.28.2"
   },
   "peerDependencies": {
     "@assistant-ui/tap": "workspace:^"
@@ -68,11 +68,11 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "react": "^19.3.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=20"

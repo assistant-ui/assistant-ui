@@ -11,15 +11,15 @@
   },
   "dependencies": {
     "@assistant-ui/tap": "^0.9.26",
-    "@statewire/cloudflare": "^0.5.1",
+    "@statewire/cloudflare": "^0.7.0",
     "setup-agent": "workspace:*",
-    "statewire": "^0.22.1"
+    "statewire": "^0.28.2"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@cloudflare/workers-types": "^5.20261026.1",
+    "@cloudflare/workers-types": "^5.20261115.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5",
-    "wrangler": "^4.152.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.162.0"
   }
 }
