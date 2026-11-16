@@ -14,6 +14,12 @@ export type BudgetLimits = {
   networkDailyBudgetMicroUsd: number;
   maxTurnsPerChat: number;
   maxChatsPerDay: number;
+  /**
+   * Spend held when a turn starts and replaced by its real cost when it ends.
+   * A turn that never reports usage, such as one whose model call fails,
+   * keeps this charge.
+   */
+  turnReserveMicroUsd: number;
 };
 
 export type BudgetSnapshot = {
@@ -48,6 +54,7 @@ export const DEFAULT_BUDGET_LIMITS: BudgetLimits = {
   networkDailyBudgetMicroUsd: usdToMicroUsd(20),
   maxTurnsPerChat: 8,
   maxChatsPerDay: 10,
+  turnReserveMicroUsd: usdToMicroUsd(0.05),
 };
 
 export function parseUsdEnv(name: string, fallbackUsd: number): number {
@@ -88,6 +95,10 @@ export function getBudgetLimits(): BudgetLimits {
     maxChatsPerDay: parseIntEnv(
       "XULUX_MAX_CHATS_PER_DAY",
       DEFAULT_BUDGET_LIMITS.maxChatsPerDay,
+    ),
+    turnReserveMicroUsd: parseUsdEnv(
+      "XULUX_TURN_RESERVE_USD",
+      DEFAULT_BUDGET_LIMITS.turnReserveMicroUsd / 1_000_000,
     ),
   };
 }

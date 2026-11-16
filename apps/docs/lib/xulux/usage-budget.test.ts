@@ -24,7 +24,7 @@ async function spend(
   turns: number,
 ) {
   for (let turn = 0; turn < turns; turn++) {
-    const { denied, budgetDate } = await budget.beginTurn(
+    const { denied, budgetDate, reservedMicroUsd } = await budget.beginTurn(
       `${sessionId}:chat`,
       sessionId,
       networkId,
@@ -36,6 +36,7 @@ async function spend(
       turnUsage,
       budgetDate,
       networkId,
+      reservedMicroUsd,
     );
   }
   return null;
@@ -71,6 +72,167 @@ describe("xulux usage budget", () => {
     const body = await denied!.json();
     expect(body.code).toBe("NETWORK_DAILY_BUDGET_EXCEEDED");
     expect(body.error).not.toContain("$");
+  });
+
+  it("lets only as many concurrent turns start as the budget allows", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.25");
+    const budget = await loadBudget();
+    // $1 a day at $0.25 a turn: four turns start before the cap, the rest
+    // are refused even though none has finished yet.
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        budget.beginTurn("session-a:chat", "session-a", "203.0.113.7"),
+      ),
+    );
+    const started = results.filter((r) => r.denied === null);
+    expect(started).toHaveLength(4);
+    expect(started.every((r) => r.reservedMicroUsd === 250_000)).toBe(true);
+    const codes = await Promise.all(
+      results
+        .filter((r) => r.denied !== null)
+        .map(async (r) => (await r.denied!.json()).code),
+    );
+    expect(new Set(codes)).toEqual(new Set(["DAILY_BUDGET_EXCEEDED"]));
+  });
+
+  it("does not let refused reservations take daily chat slots", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.25");
+    vi.stubEnv("XULUX_DAILY_BUDGET_USD", "0.5");
+    vi.stubEnv("XULUX_MAX_CHATS_PER_DAY", "3");
+    const budget = await loadBudget();
+    // Five new chats start at once: two fit the $0.50 budget, three are
+    // refused for spend before they are registered.
+    const results = await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        budget.beginTurn(`session-a:chat-${i}`, "session-a", null),
+      ),
+    );
+    const started = results
+      .map((result, i) => ({ result, i }))
+      .filter(({ result }) => result.denied === null);
+    expect(started).toHaveLength(2);
+    for (const { result, i } of started) {
+      await budget.finishTurn(
+        `session-a:chat-${i}`,
+        "session-a",
+        { outputTokens: 1_000 },
+        result.budgetDate,
+        null,
+        result.reservedMicroUsd,
+      );
+    }
+    // Two chats are registered, so a third distinct chat still fits the cap.
+    const next = await budget.beginTurn("session-a:chat-5", "session-a", null);
+    expect(next.denied).toBeNull();
+  });
+
+  it("keeps the reservation as the charge for a turn that reports no usage", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
+    const budget = await loadBudget();
+    // Two failed turns hold $0.50 each and reach the $1 cap.
+    for (let i = 0; i < 2; i++) {
+      const { denied } = await budget.beginTurn(
+        "session-a:chat",
+        "session-a",
+        null,
+      );
+      expect(denied).toBeNull();
+    }
+    const { denied } = await budget.beginTurn(
+      "session-a:chat",
+      "session-a",
+      null,
+    );
+    expect((await denied!.json()).code).toBe("DAILY_BUDGET_EXCEEDED");
+  });
+
+  it("replaces the reservation with the real cost when a turn finishes", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
+    const budget = await loadBudget();
+    // Each finished turn costs about $0.0004, far below the reservation, so
+    // many turns fit under the $1 cap once they are settled.
+    for (let i = 0; i < 10; i++) {
+      const turn = await budget.beginTurn(
+        "session-a:chat",
+        "session-a",
+        "203.0.113.7",
+      );
+      expect(turn.denied).toBeNull();
+      await budget.finishTurn(
+        "session-a:chat",
+        "session-a",
+        { outputTokens: 1_000 },
+        turn.budgetDate,
+        "203.0.113.7",
+        turn.reservedMicroUsd,
+      );
+    }
+  });
+
+  it("leaves the turn count alone when a reservation is refused", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.25");
+    vi.stubEnv("XULUX_MAX_TURNS_PER_CHAT", "6");
+    const budget = await loadBudget();
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        budget.beginTurn("session-a:chat", "session-a", null),
+      ),
+    );
+    const started = results.filter((r) => r.denied === null);
+    expect(started).toHaveLength(4);
+    // Settling the four turns at a low cost frees the budget; the two turns
+    // left under the six-turn limit can still start.
+    for (const turn of started) {
+      await budget.finishTurn(
+        "session-a:chat",
+        "session-a",
+        { outputTokens: 1_000 },
+        turn.budgetDate,
+        null,
+        turn.reservedMicroUsd,
+      );
+    }
+    for (let i = 0; i < 2; i++) {
+      expect(
+        (await budget.beginTurn("session-a:chat", "session-a", null)).denied,
+      ).toBeNull();
+    }
+    const refused = await budget.beginTurn("session-a:chat", "session-a", null);
+    expect((await refused.denied!.json()).code).toBe("CHAT_TURN_LIMIT");
+  });
+
+  it("keeps the reservation when a turn reports zero tokens", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
+    const budget = await loadBudget();
+    for (let i = 0; i < 2; i++) {
+      const turn = await budget.beginTurn("session-a:chat", "session-a", null);
+      expect(turn.denied).toBeNull();
+      await budget.finishTurn(
+        "session-a:chat",
+        "session-a",
+        { inputTokens: 0, outputTokens: 0 },
+        turn.budgetDate,
+        null,
+        turn.reservedMicroUsd,
+      );
+    }
+    const refused = await budget.beginTurn("session-a:chat", "session-a", null);
+    expect((await refused.denied!.json()).code).toBe("DAILY_BUDGET_EXCEEDED");
+  });
+
+  it("does not hold a reservation for a refused turn", async () => {
+    vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
+    vi.stubEnv("XULUX_MAX_TURNS_PER_CHAT", "1");
+    const budget = await loadBudget();
+    expect(
+      (await budget.beginTurn("session-a:chat", "session-a", null)).denied,
+    ).toBeNull();
+    const refused = await budget.beginTurn("session-a:chat", "session-a", null);
+    expect((await refused.denied!.json()).code).toBe("CHAT_TURN_LIMIT");
+    // A new chat in the same session still has the other $0.50 of the day.
+    expect(
+      (await budget.beginTurn("session-a:chat-2", "session-a", null)).denied,
+    ).toBeNull();
   });
 
   it("keeps other IPs and requests without a known IP apart", async () => {

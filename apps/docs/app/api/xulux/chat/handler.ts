@@ -303,6 +303,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         });
       }
       const budgetDate = budget.budgetDate;
+      const reservedMicroUsd = budget.reservedMicroUsd;
 
       const evalRunId = req.headers.get("x-agent-eval-run-id");
       const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
@@ -378,10 +379,13 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             usage,
             budgetDate,
             clientIp,
+            reservedMicroUsd,
           );
           await prism?.end();
         },
         onError: async ({ error }) => {
+          // No usage is reported for a failed turn, so the reservation made
+          // by beginTurn stays as its charge.
           console.error(error);
           await prism?.end({ status: "error" });
         },
@@ -399,6 +403,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             usage,
             budgetDate,
             clientIp,
+            reservedMicroUsd,
           );
           await prism?.end();
         },
