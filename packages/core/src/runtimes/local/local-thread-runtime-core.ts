@@ -10,6 +10,8 @@ import { getAutoStatus } from "../../runtime/utils/auto-status";
 import {
   type ExportedMessageRepository,
   type ExportedMessageRepositoryItem,
+  assertImportable,
+  replaceMessageRepository,
   withoutOrphanedMessages,
 } from "../../runtime/utils/message-repository";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
@@ -740,10 +742,12 @@ export class LocalThreadRuntimeCore
         repository.messages.length > 0 ||
         this._unwrittenSeedMessages.size === 0
       ) {
+        replaceMessageRepository(
+          this.repository,
+          withLocalPauseReasons(repository),
+        );
         this._unwrittenSeedMessages.clear();
         this._loadImports++;
-        this.repository.clear();
-        this.repository.import(withLocalPauseReasons(repository));
       }
       if (repository.messages.length > 0) {
         this.ensureInitialized();
@@ -1135,12 +1139,14 @@ export class LocalThreadRuntimeCore
   }
 
   public override import(data: ExportedMessageRepository) {
+    const imported = withLocalPauseReasons(data);
+    assertImportable(imported);
     this._roundtripsInFlight.clear();
     this._followedDuringRun.clear();
     this._unwrittenMessages.clear();
     this._unwrittenSeedMessages.clear();
     this._deletedMessages.clear();
-    super.import(withLocalPauseReasons(data));
+    super.import(imported);
   }
 
   public importExternalState(): void {
