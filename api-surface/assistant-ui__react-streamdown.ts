@@ -63,9 +63,9 @@ type BlockProps = {
   content: string;
   shouldParseIncompleteMarkdown: boolean;
   index: number;
-  components?: StreamdownProps$2["components"];
-  rehypePlugins?: StreamdownProps$2["rehypePlugins"];
-  remarkPlugins?: StreamdownProps$2["remarkPlugins"];
+  components?: StreamdownProps$1["components"];
+  rehypePlugins?: StreamdownProps$1["rehypePlugins"];
+  remarkPlugins?: StreamdownProps$1["remarkPlugins"];
   remarkRehypeOptions?: RemarkRehypeOptions;
 };
 
@@ -138,8 +138,8 @@ type ControlsConfig = boolean | {
 };
 
 declare const DEFAULT_SHIKI_THEME: [
-  BundledTheme,
-  BundledTheme
+  BundledTheme$1,
+  BundledTheme$1
 ];
 
 interface DevToolsApiEntry {
@@ -219,7 +219,7 @@ type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "sou
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
-type ResolvedPluginConfig = NonNullable<StreamdownProps$2["plugins"]>;
+type ResolvedPluginConfig = NonNullable<StreamdownProps$1["plugins"]>;
 
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
@@ -255,12 +255,12 @@ interface SpeechRecognitionInstance extends EventTarget {
   abort(): void;
 }
 
-type StreamdownTextComponents = NonNullable<StreamdownProps$2["components"]> & {
+type StreamdownTextComponents = NonNullable<StreamdownProps$1["components"]> & {
   SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
   CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
 };
 
-declare const StreamdownTextPrimitive: import("react").ForwardRefExoticComponent<Omit<StreamdownProps, "BlockComponent" | "caret" | "children" | "components" | "controls" | "linkSafety" | "mermaid" | "parseMarkdownIntoBlocksFn" | "plugins" | "remend"> & {
+declare const StreamdownTextPrimitive: import("react").ForwardRefExoticComponent<Omit<StreamdownProps$2, "BlockComponent" | "caret" | "children" | "components" | "controls" | "linkSafety" | "mermaid" | "parseMarkdownIntoBlocksFn" | "plugins" | "remend"> & {
   components?: StreamdownTextComponents | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
   plugins?: PluginConfig | undefined;
@@ -278,11 +278,11 @@ declare const StreamdownTextPrimitive: import("react").ForwardRefExoticComponent
   allowedTags?: AllowedTags | undefined;
   remarkRehypeOptions?: import("remark-rehype").Options | undefined;
   security?: SecurityConfig | undefined;
-  BlockComponent?: StreamdownProps["BlockComponent"] | undefined;
+  BlockComponent?: StreamdownProps$2["BlockComponent"] | undefined;
   parseMarkdownIntoBlocksFn?: ((markdown: string) => string[]) | undefined;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
-type StreamdownTextPrimitiveProps = Omit<StreamdownProps$2, "BlockComponent" | "caret" | "children" | "components" | "controls" | "linkSafety" | "mermaid" | "parseMarkdownIntoBlocksFn" | "plugins" | "remend"> & {
+type StreamdownTextPrimitiveProps = Omit<StreamdownProps$1, "BlockComponent" | "caret" | "children" | "components" | "controls" | "linkSafety" | "mermaid" | "parseMarkdownIntoBlocksFn" | "plugins" | "remend"> & {
   components?: StreamdownTextComponents | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
   plugins?: PluginConfig | undefined;
@@ -300,7 +300,7 @@ type StreamdownTextPrimitiveProps = Omit<StreamdownProps$2, "BlockComponent" | "
   allowedTags?: AllowedTags | undefined;
   remarkRehypeOptions?: RemarkRehypeOptions | undefined;
   security?: SecurityConfig | undefined;
-  BlockComponent?: StreamdownProps$2["BlockComponent"] | undefined;
+  BlockComponent?: StreamdownProps$1["BlockComponent"] | undefined;
   parseMarkdownIntoBlocksFn?: ((markdown: string) => string[]) | undefined;
 };
 
@@ -353,7 +353,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AllowedTags, BlockProps, BundledLanguage, BundledTheme$1 as BundledTheme, CaretStyle, CjkPlugin, CodeHeaderProps, CodeHighlighterPlugin, ComponentsByLanguage, ControlsConfig, DEFAULT_SHIKI_THEME, DiagramPlugin, HighlightOptions, LinkSafetyConfig, LinkSafetyModalProps, MathPlugin, MermaidErrorComponentProps, MermaidOptions, PluginConfig, RemarkRehypeOptions, RemendConfig, RemendHandler, ResolvedPluginConfig, SecurityConfig, StreamdownContext, StreamdownProps$1 as StreamdownProps, StreamdownTextComponents, StreamdownTextPrimitive, StreamdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, findRemendWindowStart, memoCompareNodes, normalizeMathDelimiters, parseMarkdownIntoBlocks, rewriteCustomMathTags, rewriteLatexBracketDelimiters, tailBoundedRemend, useIsStreamdownCodeBlock, useStreamdownPreProps };
+  export { AllowedTags, BlockProps, BundledLanguage, BundledTheme, CaretStyle, CjkPlugin, CodeHeaderProps, CodeHighlighterPlugin, ComponentsByLanguage, ControlsConfig, DEFAULT_SHIKI_THEME, DiagramPlugin, HighlightOptions, LinkSafetyConfig, LinkSafetyModalProps, MathPlugin, MermaidErrorComponentProps, MermaidOptions, PluginConfig, RemarkRehypeOptions, RemendConfig, RemendHandler, ResolvedPluginConfig, SecurityConfig, StreamdownContext, StreamdownProps, StreamdownTextComponents, StreamdownTextPrimitive, StreamdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, findRemendWindowStart, memoCompareNodes, normalizeMathDelimiters, parseMarkdownIntoBlocks, rewriteCustomMathTags, rewriteLatexBracketDelimiters, tailBoundedRemend, useIsStreamdownCodeBlock, useStreamdownPreProps };
 }
 
 declare function memoCompareNodes<T extends {
