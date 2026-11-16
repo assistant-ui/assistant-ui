@@ -416,19 +416,6 @@ describe("buildToolApprovalResume", () => {
 });
 
 describe("withToolApprovalDecision", () => {
-  it("decides nothing when one approval id is pending on several calls", () => {
-    const content = [
-      toolCall("tc-1", { id: "int-1" }),
-      toolCall("tc-2", { id: "int-1" }),
-    ];
-    expect(
-      withToolApprovalDecision(content, {
-        approvalId: "int-1",
-        approved: true,
-      }),
-    ).toBe(content);
-  });
-
   it("records the decision on the gate it addresses and leaves the rest alone", () => {
     const content = [
       toolCall("tc-1", { id: "int-1" }),

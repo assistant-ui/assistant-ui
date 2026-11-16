@@ -280,13 +280,6 @@ export const withToolApprovalDecision = (
   content: readonly ThreadAssistantMessagePart[],
   { approvalId, approved, reason }: RespondToToolApprovalOptions,
 ): readonly ThreadAssistantMessagePart[] => {
-  // A decision authorizes one call. An id pending on several calls is never
-  // decided here, so one click cannot approve calls the user did not see.
-  let matches = 0;
-  for (const part of iterateToolCallParts(content)) {
-    if (part.approval?.id === approvalId && isPending(part.approval)) matches++;
-  }
-  if (matches !== 1) return content;
   const { content: next, changed } = mapToolCallPartsDeep(content, (part) => {
     const approval = part.approval;
     if (approval?.id !== approvalId || !isPending(approval)) return part;
