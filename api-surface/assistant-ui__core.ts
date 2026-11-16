@@ -3511,8 +3511,13 @@ declare class OptimisticState<TState> extends BaseSubscribable {
   get value(): TState;
   update(state: TState): void;
   reset(state: TState): void;
-  optimisticUpdate<TResult>(transform: Transform<TState, TResult>): Promise<TResult>;
+  reorder(orders: readonly OrderSlot[]): void;
+  optimisticUpdate<TResult>(transform: Transform<TState, TResult>, order?: OrderSlot): Promise<TResult>;
 }
+
+type OrderSlot = {
+  current: number;
+};
 
 type OverrideOptionalField<T, TKey extends keyof T, TValue> = undefined extends T[TKey] ? Exclude<T[TKey], undefined> extends never ? {
   [K in TKey]?: undefined;
