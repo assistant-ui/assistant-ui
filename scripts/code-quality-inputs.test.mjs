@@ -12,10 +12,9 @@ const read = (file) => readFileSync(path.join(repoRoot, file), "utf8");
 const packageJson = JSON.parse(read("package.json"));
 const workflow = read(".github/workflows/code-quality.yaml");
 
-// The suites this workflow runs through an npm script. A test file listed here
-// is one the workflow executes, so a change to it has to re-run the workflow --
-// on a pull request and on `main` alike.
-const SUITES = ["api-surface:test", "review-policy:test"];
+// Suites the workflow runs through an npm script in a job that also runs on a
+// push to `main`, so a change to a file they run has to trigger that push.
+const SUITES = ["api-surface:test"];
 
 const pushPaths = (() => {
   const trigger = workflow
