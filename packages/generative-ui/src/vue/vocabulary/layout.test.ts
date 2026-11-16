@@ -459,8 +459,11 @@ describe("invalid controls in Tabs", () => {
           ? form.querySelector<HTMLButtonElement>('[data-aui="card-confirm"]')!
           : form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
       if (framework === "react") {
+        // React 18 commits the revealed tab only when act exits, so the deferred focus runs in a later act.
         await act(async () => {
           form.requestSubmit(button);
+        });
+        await act(async () => {
           await vi.runAllTimersAsync();
         });
       } else {
