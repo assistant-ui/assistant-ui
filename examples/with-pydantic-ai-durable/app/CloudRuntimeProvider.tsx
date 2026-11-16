@@ -10,7 +10,6 @@ import {
 } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { DurableHttpAgent } from "@/lib/durable-agent";
-import { demoUserHeaders } from "@/lib/demo-user";
 import { useDurableTakeover, withDurableRuns } from "@/lib/cloud-durable";
 
 const baseUrl =
@@ -30,10 +29,7 @@ function useDurableThreadRuntime() {
   const threadId = useAuiState(
     (s) => s.threadListItem.externalId ?? s.threadListItem.id,
   );
-  const [agent] = useState(
-    () =>
-      new DurableHttpAgent({ baseUrl, threadId, headers: demoUserHeaders() }),
-  );
+  const [agent] = useState(() => new DurableHttpAgent({ baseUrl, threadId }));
   useEffect(() => {
     agent.threadId = threadId;
   }, [agent, threadId]);

@@ -22,7 +22,7 @@ import httpx
 import uvicorn
 from ag_ui.core import RunAgentInput
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage
+from pydantic_ai.messages import ModelMessage, UserPromptPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.ui.ag_ui import AGUIAdapter
 from starlette.applications import Starlette
@@ -39,6 +39,7 @@ from assistant_stream.pydantic_ai.durable import KEEPALIVE_LINE, SSE
 from assistant_stream.resumable import (
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
+    validate_stream_id,
 )
 
 WORDS = [f"w{index} " for index in range(12)]
@@ -271,8 +272,17 @@ def test_concurrent_starts_by_two_owners_do_not_share_a_stream() -> None:
         release_bob = asyncio.Event()
         started = asyncio.Event()
         release_model = asyncio.Event()
+        prompts: list[list[str]] = []
 
         async def stream(messages: list[ModelMessage], info: AgentInfo):
+            prompts.append(
+                [
+                    part.content
+                    for message in messages
+                    for part in message.parts
+                    if isinstance(part, UserPromptPart)
+                ]
+            )
             yield "Alice's answer"
             started.set()
             await release_model.wait()
@@ -321,6 +331,7 @@ def test_concurrent_starts_by_two_owners_do_not_share_a_stream() -> None:
         thread = await asyncio.wait_for(alice_done(), timeout=5)
         assert _assistant_texts(thread) == ["Alice's answer"]
         assert await durable.get_thread("thread", owner="bob") is None
+        assert prompts == [["Alice"]]
 
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
@@ -348,9 +359,10 @@ def test_owner_scoped_stream_ids_are_valid_and_distinct() -> None:
     bob = _stream_id("t", "r", "bob")
     assert alice != bob
     assert _stream_id("t", "r", "alice") == alice
-    # Owned ids stay within the store's limit however long the ids are.
     long = _stream_id("t" * 200, "r" * 200, "o" * 200)
-    assert len(long) <= 256 and long.startswith("o-")
+    assert long.startswith("o-")
+    for stream_id in (alice, bob, long, _stream_id("t", "r", "a/b c\n")):
+        validate_stream_id(stream_id)
 
 
 def test_start_run_is_visible_and_cancellable_before_producer_runs() -> None:

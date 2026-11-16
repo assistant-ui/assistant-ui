@@ -16,7 +16,6 @@ import {
   toThreadMessages,
   type DurableThreadSummary,
 } from "@/lib/durable-agent";
-import { demoUserHeaders } from "@/lib/demo-user";
 
 const baseUrl =
   process.env["NEXT_PUBLIC_DURABLE_AGENT_URL"] ?? "http://localhost:8000";
@@ -40,11 +39,7 @@ export function MyRuntimeProvider({
   const [agent] = useState(() => {
     const threadId = initialThreadId();
     showThread(threadId);
-    return new DurableHttpAgent({
-      baseUrl,
-      threadId,
-      headers: demoUserHeaders(),
-    });
+    return new DurableHttpAgent({ baseUrl, threadId });
   });
   const [threadId, setThreadId] = useState(agent.threadId);
   const [threads, setThreads] = useState<DurableThreadSummary[]>([]);
