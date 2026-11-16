@@ -16,7 +16,7 @@ import type {
 import type { CompleteAttachment } from "../../types/attachment";
 import {
   isStoredMessagePart,
-  withoutNullOptionals,
+  withoutInvalidOptionals,
 } from "./stored-message-parts";
 import type {
   MessageModality,
@@ -127,11 +127,12 @@ const isString = (value: unknown): value is string => typeof value === "string";
 
 /**
  * Input can carry fields of the wrong type. File and source parts follow the
- * same drop-or-keep rule as the storage readers (`isStoredMessagePart`), so a
- * malformed part is dropped the same way whichever path delivered it.
+ * same rule as the storage readers (`isStoredMessagePart`): a part missing a
+ * field it needs to render is dropped and a malformed optional field is
+ * removed, the same way whichever path delivered it.
  */
 const keepWellFormed = <T>(part: T): T | null =>
-  isStoredMessagePart(part) ? withoutNullOptionals(part) : null;
+  isStoredMessagePart(part) ? withoutInvalidOptionals(part) : null;
 
 /**
  * @deprecated Experimental since 2024-07-25. Not scheduled for removal; the API may change in any release.
@@ -157,12 +158,11 @@ export const fromThreadMessageLike = (
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
     if (typeof image !== "string") return null;
-    if (rest.filename != null && typeof rest.filename !== "string") return null;
     if (
       parseDataUrl(image)?.mimeType.startsWith("image/") ||
       /^(https:\/\/|blob:)/i.test(image)
     ) {
-      return withoutNullOptionals({ ...rest, image });
+      return withoutInvalidOptionals({ ...rest, image });
     }
     console.warn(`Invalid image data format detected`);
     return null;

@@ -141,6 +141,49 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
+  it("keeps stored file, image and source parts whose optional fields have the wrong type, without them", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("malformed-optionals", "assistant"),
+              content: [
+                {
+                  type: "file",
+                  data: "abc",
+                  mimeType: "text/plain",
+                  filename: 3,
+                  sourceType: "blob",
+                },
+                {
+                  type: "image",
+                  image: "https://a.test/a.png",
+                  filename: { name: "a" },
+                },
+                {
+                  type: "source",
+                  sourceType: "url",
+                  id: "u",
+                  url: "https://a.test",
+                  title: ["A"],
+                },
+                { type: "file", data: "abc", filename: "a.txt" },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]!.message.content).toEqual([
+      { type: "file", data: "abc", mimeType: "text/plain" },
+      { type: "image", image: "https://a.test/a.png" },
+      { type: "source", sourceType: "url", id: "u", url: "https://a.test" },
+    ]);
+  });
+
   it("preserves modality on user and assistant messages", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({

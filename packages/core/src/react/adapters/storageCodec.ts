@@ -9,7 +9,7 @@ import {
   MAX_STORED_MESSAGE_DEPTH,
   isStoredMessageStatus,
   isStoredMessagePart,
-  withoutNullOptionals,
+  withoutInvalidOptionals,
   isStoredMessageRole,
   parseStoredAttachment,
   parseStoredDate,
@@ -105,7 +105,7 @@ const parseStoredMessageParts = (
   content.flatMap((part) => {
     if (!isStoredMessagePart(part)) return [];
     if (part.type !== "tool-call" || part.messages === undefined)
-      return [withoutNullOptionals(part)];
+      return [withoutInvalidOptionals(part)];
 
     const { messages, ...toolCall } = part;
     if (!Array.isArray(messages)) return [toolCall];

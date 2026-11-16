@@ -288,7 +288,7 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
       .content;
 
   it.each(["assistant", "user"] as const)(
-    "drops a file part with a field of the wrong type on %s messages",
+    "drops a file part missing a field it needs to render on %s messages",
     (role) => {
       const good = {
         type: "file",
@@ -301,8 +301,6 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
           { type: "file", data: "abc" },
           { type: "file", data: { x: 1 }, mimeType: "text/plain" },
           { type: "file", data: "abc", mimeType: { x: 1 } },
-          { type: "file", data: "abc", mimeType: "text/plain", filename: 3 },
-          { type: "file", data: "abc", mimeType: "text/plain", sourceType: 42 },
           good,
         ]),
       ).toEqual([good]);
@@ -310,12 +308,24 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
   );
 
   it.each(["assistant", "user"] as const)(
-    "drops an image part whose filename is not a string on %s messages",
+    "keeps a file part whose optional fields have the wrong type on %s messages, without them",
+    (role) => {
+      const file = { type: "file", data: "abc", mimeType: "text/plain" };
+      expect(
+        convert(role, [
+          { ...file, filename: 3 },
+          { ...file, sourceType: 42 },
+          { ...file, filename: "a.txt", sourceType: "blob" },
+        ]),
+      ).toEqual([file, file, { ...file, filename: "a.txt" }]);
+    },
+  );
+
+  it.each(["assistant", "user"] as const)(
+    "keeps an image part whose filename is not a string on %s messages, without it",
     (role) => {
       const image = { type: "image", image: "https://a.test/a.png" };
-      expect(convert(role, [{ ...image, filename: {} }, image])).toEqual([
-        image,
-      ]);
+      expect(convert(role, [{ ...image, filename: {} }])).toEqual([image]);
     },
   );
 
@@ -357,7 +367,7 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
     ]);
   });
 
-  it("drops a malformed file part inside a user attachment", () => {
+  it("drops a file part missing a required field inside a user attachment and strips a malformed filename", () => {
     const good = { type: "file", data: "abc", mimeType: "text/plain" };
     const message = fromThreadMessageLike(
       {
@@ -369,7 +379,11 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
             type: "file",
             name: "a.txt",
             status: { type: "complete" },
-            content: [{ type: "file", data: "abc", mimeType: 7 }, good],
+            content: [
+              { type: "file", data: "abc", mimeType: 7 },
+              { ...good, filename: 3 },
+              good,
+            ],
           },
         ] as never,
       },
@@ -378,10 +392,11 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
     );
     expect(message.role === "user" && message.attachments[0]!.content).toEqual([
       good,
+      good,
     ]);
   });
 
-  it("drops a source with a field of the wrong type", () => {
+  it("drops a source missing a field it needs to render", () => {
     const url = {
       type: "source",
       sourceType: "url",
@@ -398,13 +413,34 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
     };
     expect(
       convert("assistant", [
-        { ...url, id: "a", title: { t: 1 } },
         { type: "source", sourceType: "url", id: "b", url: { href: "x" } },
+        { ...url, id: 1 },
         { ...document, id: "d", title: [1] },
         { ...document, id: "f", mediaType: 2 },
-        { ...document, id: "g", filename: {} },
         url,
         document,
+      ]),
+    ).toEqual([url, document]);
+  });
+
+  it("keeps a source whose optional fields have the wrong type, without them", () => {
+    const url = {
+      type: "source",
+      sourceType: "url",
+      id: "a",
+      url: "https://a.test",
+    };
+    const document = {
+      type: "source",
+      sourceType: "document",
+      id: "g",
+      title: "G",
+      mediaType: "application/pdf",
+    };
+    expect(
+      convert("assistant", [
+        { ...url, title: { t: 1 } },
+        { ...document, filename: {} },
       ]),
     ).toEqual([url, document]);
   });

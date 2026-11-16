@@ -12,10 +12,6 @@ export const MAX_STORED_MESSAGE_DEPTH = 100;
 
 type StoredPartGuard = (part: Record<string, unknown>) => boolean;
 
-/** Absent, `null` (common from nullable JSON columns) or a string. */
-const isOptionalString = (value: unknown) =>
-  value == null || typeof value === "string";
-
 export type StoredMessagePart = Record<string, unknown> & { type: string };
 
 export const parseStoredDate = (value: unknown): Date | null => {
@@ -95,15 +91,9 @@ const makeIsStoredMessagePart = (
     reasoning: (part) =>
       typeof part.text === "string" ||
       typeof part.unstable_summary === "string",
-    image: (part) =>
-      typeof part.image === "string" && isOptionalString(part.filename),
+    image: (part) => typeof part.image === "string",
     file: (part) =>
-      typeof part.data === "string" &&
-      typeof part.mimeType === "string" &&
-      isOptionalString(part.filename) &&
-      (part.sourceType == null ||
-        part.sourceType === "url" ||
-        part.sourceType === "id"),
+      typeof part.data === "string" && typeof part.mimeType === "string",
     audio: (part) =>
       isRecord(part.audio) &&
       typeof part.audio.data === "string" &&
@@ -112,11 +102,10 @@ const makeIsStoredMessagePart = (
     source: (part) =>
       typeof part.id === "string" &&
       (part.sourceType === "url"
-        ? typeof part.url === "string" && isOptionalString(part.title)
+        ? typeof part.url === "string"
         : part.sourceType === "document" &&
           typeof part.title === "string" &&
-          typeof part.mediaType === "string" &&
-          isOptionalString(part.filename)),
+          typeof part.mediaType === "string"),
     "generative-ui": (part) => isRecord(part.spec),
     "tool-call": (part) =>
       typeof part.toolCallId === "string" &&
@@ -142,29 +131,42 @@ const makeIsStoredMessagePart = (
 
 export const isStoredMessagePart = makeIsStoredMessagePart({}, () => true);
 
-/** Optional fields the guards accept as `null`, per known part type. */
-const nullableOptionalFields: Record<string, readonly string[]> = {
-  file: ["filename", "sourceType"],
-  image: ["filename"],
-  source: ["title", "filename"],
+const isString = (value: unknown) => typeof value === "string";
+
+/** Optional fields of known part types, with the values each one accepts. */
+const optionalFieldGuards: Record<
+  string,
+  Readonly<Record<string, (value: unknown) => boolean>>
+> = {
+  file: {
+    filename: isString,
+    sourceType: (value) => value === "url" || value === "id",
+  },
+  image: { filename: isString },
+  source: { title: isString, filename: isString },
 };
 
 /**
- * The guards accept `null` for optional fields (nullable JSON columns), but
- * the part types say `string | undefined`, so a `null` is removed here. Only
- * known file, image and source parts are touched; other parts, including
- * unknown extension types, pass through unchanged.
+ * The guards require only the fields a file, image or source part needs to
+ * render, so an optional field of the wrong type, including `null` from a
+ * nullable JSON column, is removed here and the part is kept. Other parts,
+ * including unknown extension types, pass through unchanged.
  */
-export const withoutNullOptionals = <T>(part: T): T => {
+export const withoutInvalidOptionals = <T>(part: T): T => {
   const record = part as Record<string, unknown>;
-  const keys =
+  const fields =
     typeof record.type === "string" &&
-    Object.hasOwn(nullableOptionalFields, record.type)
-      ? nullableOptionalFields[record.type]!
-      : [];
-  if (!keys.some((key) => record[key] === null)) return part;
+    Object.hasOwn(optionalFieldGuards, record.type)
+      ? optionalFieldGuards[record.type]!
+      : {};
+  const invalid = Object.entries(fields)
+    .filter(
+      ([key, isValid]) => record[key] !== undefined && !isValid(record[key]),
+    )
+    .map(([key]) => key);
+  if (invalid.length === 0) return part;
   const copy = { ...record };
-  for (const key of keys) if (copy[key] === null) delete copy[key];
+  for (const key of invalid) delete copy[key];
   return copy as T;
 };
 
@@ -248,6 +250,6 @@ export const parseStoredAttachment = (
 
   return {
     ...value,
-    content: value.content.filter(isPart).map(withoutNullOptionals),
+    content: value.content.filter(isPart).map(withoutInvalidOptionals),
   } as CompleteAttachment;
 };
