@@ -464,14 +464,14 @@ importers:
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@farm.js/core':
-        specifier: 0.1.73
-        version: 0.1.73(ade43b491d5cb4d02d3fc7b587bbaf0d)
+        specifier: 0.1.74
+        version: 0.1.74(ade43b491d5cb4d02d3fc7b587bbaf0d)
       '@farming-labs/docs':
         specifier: 0.2.146
         version: 0.2.146(react@19.3.1)(supports-color@10.2.2)
       '@farming-labs/farmjs':
         specifier: 0.2.146
-        version: 0.2.146(d51061344f343f171d7140a223135b4c)
+        version: 0.2.146(96c19ea623a51b7e20e37e091e7ac4f2)
       '@farming-labs/next':
         specifier: 0.2.146
         version: 0.2.146(ec016f6d75a55ed1bbdd91e866c58f03)
@@ -750,8 +750,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@farm.js/cli':
-        specifier: 0.1.73
-        version: 0.1.73(ade43b491d5cb4d02d3fc7b587bbaf0d)
+        specifier: 0.1.74
+        version: 0.1.74(ade43b491d5cb4d02d3fc7b587bbaf0d)
       '@fumadocs/tailwind':
         specifier: ^0.1.4
         version: 0.1.4(tailwindcss@4.3.3)
@@ -9387,13 +9387,13 @@ packages:
     resolution: {integrity: sha512-EbxYllZ7/ozONVZd425cm4XnolfW+AmSFT5aP7Jdno6oc3WrYQcHz2CO20z/2rwWwYgztmV2PXvYH+BQ8YFjqg==}
     hasBin: true
 
-  '@farm.js/cli@0.1.73':
-    resolution: {integrity: sha512-WTESN6VWSWvXPLV2/Xs0TfjXv7ZbJ7j3vXkqxrhUhKiM+dln8xom36g5qmrdDWZNk1IhljTNP7EoKj9I123M/Q==}
+  '@farm.js/cli@0.1.74':
+    resolution: {integrity: sha512-ax9lATgobnwAw6dS7q2J3NgrVgt0xJ2Qqd7IvvfbLZd9BRtDT3dJh04nkAMuOLPmOrxKQUNNl0F3Ltn4zQM9eg==}
     engines: {node: '>=22.13.0'}
     hasBin: true
 
-  '@farm.js/core@0.1.73':
-    resolution: {integrity: sha512-8YSGbcZhgFz+ozJ7eoUqgwlTIAyZAE2FufYr7++2vQCCV5Q52Z9UPloFUEbs9jkuhzQ+rRq3RY6XNOZF6emmLg==}
+  '@farm.js/core@0.1.74':
+    resolution: {integrity: sha512-DpicG2xGdojt48yqo5xf6C9WIDfmTxQmXeg9mNM/1Qp/IKOHqErMdDu457tpqkBhqVJ6ZtVOZQP9HTFqRtOn9g==}
     engines: {node: '>=22.13.0'}
     peerDependencies:
       '@farming-labs/docs': ^0.2.118
@@ -25983,9 +25983,9 @@ snapshots:
       chalk: 4.1.2
       js-yaml: 4.3.2
 
-  '@farm.js/cli@0.1.73(ade43b491d5cb4d02d3fc7b587bbaf0d)':
+  '@farm.js/cli@0.1.74(ade43b491d5cb4d02d3fc7b587bbaf0d)':
     dependencies:
-      '@farm.js/core': 0.1.73(ade43b491d5cb4d02d3fc7b587bbaf0d)
+      '@farm.js/core': 0.1.74(ade43b491d5cb4d02d3fc7b587bbaf0d)
       '@farm.js/tunnel': 0.1.2
       commander: 11.1.0
       croner: 9.1.0
@@ -26053,7 +26053,7 @@ snapshots:
       - uploadthing
       - yaml
 
-  '@farm.js/core@0.1.73(ade43b491d5cb4d02d3fc7b587bbaf0d)':
+  '@farm.js/core@0.1.74(ade43b491d5cb4d02d3fc7b587bbaf0d)':
     dependencies:
       '@farm.js/islx': 0.0.23(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@tanstack/react-start@1.169.4(esbuild@0.28.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.15)(rollup@4.65.1)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
       '@farming-labs/orm': 0.0.66
@@ -26259,9 +26259,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@farming-labs/farmjs@0.2.146(d51061344f343f171d7140a223135b4c)':
+  '@farming-labs/farmjs@0.2.146(96c19ea623a51b7e20e37e091e7ac4f2)':
     dependencies:
-      '@farm.js/core': 0.1.73(ade43b491d5cb4d02d3fc7b587bbaf0d)
+      '@farm.js/core': 0.1.74(ade43b491d5cb4d02d3fc7b587bbaf0d)
       '@farming-labs/docs': 0.2.146(react@19.3.1)(supports-color@10.2.2)
       '@farming-labs/theme': 0.2.146(@farming-labs/docs@0.2.146(react@19.3.1)(supports-color@10.2.2))(@mdx-js/mdx@3.1.1(supports-color@10.2.2))(@modelcontextprotocol/server@2.4.0)(@pierre/highlights@0.2.0)(@tanstack/react-router@1.170.46(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/estree-jsx@1.0.5)(@types/hast@3.0.5)(@types/mdast@4.0.4)(@types/mdx@2.0.14)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(lucide-react@1.61.0(@types/react@19.3.0)(react@19.3.1))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-router@8.5.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)(tailwindcss@4.3.3)
       '@mdx-js/mdx': 3.1.1(supports-color@10.2.2)
