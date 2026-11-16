@@ -94,6 +94,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
     >();
     const toolCallIdsWithBackendResult = new Set<symbol>();
     const toolCallIdsWithApproval = new Set<symbol>();
+    // Calls the backend runs and answers itself. Their frontend `execute`
+    // never runs, whether or not the backend's result arrives in this stream.
+    const providerExecutedIds = new Set<symbol>();
     const executionIdsByPath = new Map<string, symbol>();
     const pendingExecutions = new Map<symbol, () => void>();
     const heldPartFinishes = new Map<
@@ -117,6 +120,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
         toolCallControllers.delete(executionId);
         toolCallIdsWithBackendResult.delete(executionId);
         toolCallIdsWithApproval.delete(executionId);
+        providerExecutedIds.delete(executionId);
         executionIdsByPath.delete(pathKey(chunk.path));
       };
       if (toolCallPromise) {
@@ -188,6 +192,8 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 const executionId = Symbol();
                 executionIdsByPath.set(String(partIndex), executionId);
                 toolCallControllers.set(executionId, reader);
+                if (chunk.part.providerExecuted)
+                  providerExecutedIds.add(executionId);
 
                 const streamCallResult = internalOptions.streamCall({
                   reader,
@@ -263,6 +269,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
               // execute the frontend tool, or enqueue a second result.
               if (toolCallIdsWithBackendResult.has(executionId!)) break;
               if (toolCallIdsWithApproval.has(executionId!)) break;
+              if (providerExecutedIds.has(executionId!)) break;
 
               const execute = () => {
                 let isExecuting = false;

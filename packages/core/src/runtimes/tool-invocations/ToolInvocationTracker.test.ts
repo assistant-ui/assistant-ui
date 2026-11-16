@@ -51,6 +51,7 @@ const createAssistantMessage = (
     toolName?: string;
     nestedMessages?: ThreadAssistantMessage[];
     approval?: { id: string; approved?: boolean };
+    providerExecuted?: boolean;
   },
 ): ThreadAssistantMessage => ({
   id: "m-1",
@@ -78,6 +79,9 @@ const createAssistantMessage = (
       }),
       ...(options?.nestedMessages && { messages: options.nestedMessages }),
       ...(options?.approval && { approval: options.approval }),
+      ...(options?.providerExecuted !== undefined && {
+        providerExecuted: options.providerExecuted,
+      }),
     },
   ],
 });
@@ -671,6 +675,132 @@ describe("ToolInvocationTracker", () => {
 
     tracker.setState(
       createState([gated({ id: "approval-1", approved: true })], true),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { predicate: undefined, label: "no ownership predicate" },
+    { predicate: () => true, label: "a predicate that claims the call" },
+  ])(
+    "never executes a provider-executed tool call with $label",
+    async ({ predicate }) => {
+      const execute = vi.fn(async () => ({ results: [] }));
+      const streamCall = vi.fn();
+      const getTools = () => ({
+        webSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+          streamCall,
+        } satisfies Tool,
+      });
+      const onResult = vi.fn();
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const tracker = new ToolInvocationTracker(
+          getTools,
+          { onResult, onStatusesChange: () => {} },
+          predicate,
+        );
+        tracker.setState(createState([]));
+
+        const call = (argsText: string, args: Record<string, unknown>) =>
+          createAssistantMessage(argsText, args, {
+            toolName: "webSearch",
+            providerExecuted: true,
+          });
+        tracker.setState(createState([call('{"q":', {})], true));
+        tracker.setState(createState([call('{"q":"x"}', { q: "x" })], true));
+        tracker.setState(createState([call('{"q":"x"}', { q: "x" })], false));
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(streamCall).toHaveBeenCalledOnce();
+        expect(execute).not.toHaveBeenCalled();
+        expect(onResult).not.toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
+    },
+  );
+
+  it("never hands a provider-executed call to the frontend executor", async () => {
+    // A standard-schema validator runs before the wrapped `execute`, so it is
+    // called only if the execution stream schedules the call at all.
+    const validate = vi.fn((value: unknown) => ({ value }));
+    const execute = vi.fn(async () => ({ results: [] }));
+    const getTools = () => ({
+      webSearch: {
+        parameters: { "~standard": { version: 1, vendor: "test", validate } },
+        execute,
+      } as unknown as Tool,
+    });
+    const onResult = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const tracker = new ToolInvocationTracker(
+        getTools,
+        { onResult, onStatusesChange: () => {} },
+        () => true,
+      );
+      tracker.setState(createState([]));
+
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"q":"x"}',
+              { q: "x" },
+              { toolName: "webSearch", providerExecuted: true },
+            ),
+          ],
+          false,
+        ),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(validate).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("stops executing a call once it is marked provider-executed before its args complete", async () => {
+    const execute = vi.fn(async () => ({ results: [] }));
+    const getTools = () => ({
+      webSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"q":', {}, { toolName: "webSearch" })],
+        true,
+      ),
+    );
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"q":"x"}',
+            { q: "x" },
+            { toolName: "webSearch", providerExecuted: true },
+          ),
+        ],
+        false,
+      ),
     );
     await new Promise((r) => setTimeout(r, 0));
 

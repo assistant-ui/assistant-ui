@@ -737,10 +737,14 @@ export class ToolInvocationTracker {
     discarded: boolean,
     clientOwned: boolean,
     ownershipDeferred: boolean,
+    providerExecuted: boolean,
   ): ToolCallEntry {
+    // Forwarding the mark lets the execution stream skip the call outright,
+    // so no never-settling execution holds its part open.
     const toolCallController = this._controller.addToolCallPart({
       toolName,
       toolCallId,
+      ...(providerExecuted && { providerExecuted: true }),
     });
     const entry: ToolCallEntry = {
       toolName,
@@ -962,12 +966,17 @@ export class ToolInvocationTracker {
           discarded,
           ownership === true,
           ownership === undefined || (!this._isRunning && ownership === false),
+          content.providerExecuted === true,
         );
       }
 
       if (content.result !== undefined) entry.skipExecute = true;
 
       if (content.approval !== undefined) entry.skipExecute = true;
+
+      // A backend-owned call is never handed to the frontend tool, whatever
+      // the ownership predicate says (EDGE_CASES.md A.9).
+      if (content.providerExecuted === true) entry.skipExecute = true;
 
       this._resolveDeferredOwnership(entry, content);
 

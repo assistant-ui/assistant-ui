@@ -323,6 +323,68 @@ describe("UIMessageStreamDecoder", () => {
     expect(result?.result).toEqual({ temp: 72 });
   });
 
+  it.each([
+    { label: "output", output: { type: "tool-output-available", output: 1 } },
+    {
+      label: "output error",
+      output: { type: "tool-output-error", errorText: "x" },
+    },
+  ])(
+    "keeps the provider-executed mark on a call its $label opens",
+    async ({ output }) => {
+      const events = [
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          ...output,
+          toolCallId: "call_abc",
+          providerExecuted: true,
+        }),
+        "[DONE]",
+      ];
+
+      const chunks = await collectChunks(
+        createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+      );
+
+      const toolCallStart = chunks.find(
+        (c): c is AssistantStreamChunk & { type: "part-start" } =>
+          c.type === "part-start" && c.part.type === "tool-call",
+      );
+      expect(toolCallStart?.part).toMatchObject({ providerExecuted: true });
+    },
+  );
+
+  it("leaves a dynamic call without providerExecuted unmarked", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "tool-input-start",
+        toolCallId: "call_abc",
+        toolName: "web_search",
+        dynamic: true,
+      }),
+      JSON.stringify({
+        type: "tool-input-available",
+        toolCallId: "call_abc",
+        toolName: "web_search",
+        input: { query: "weather" },
+        dynamic: true,
+      }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    const toolCallStart = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "tool-call",
+    );
+    expect(toolCallStart?.part).toBeDefined();
+    expect(toolCallStart?.part).not.toHaveProperty("providerExecuted");
+  });
+
   it("should decode source-url parts", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),

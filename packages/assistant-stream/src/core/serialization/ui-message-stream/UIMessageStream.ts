@@ -193,6 +193,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 controller.addToolCallPart({
                   toolCallId: chunk.toolCallId,
                   toolName: chunk.toolName,
+                  ...(chunk.providerExecuted && { providerExecuted: true }),
                 }),
               );
               activeToolCallId = chunk.toolCallId;

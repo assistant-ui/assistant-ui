@@ -116,6 +116,8 @@ Outside production, a call classified as provider-owned when first observed on a
 
 The predicate is also what licenses running a frontend tool before the provider's run ends, so an adapter that supplies it keeps the overlap between a client tool's work and the run tail (A.10).
 
+A part marked `providerExecuted` sets `skipExecute` on every snapshot that carries it, whatever the predicate answers, so the frontend `execute` never runs for it, even when the run ends before a result arrives. The mark does not change ownership: a predicate `true` answer still marks the call `clientOwned`, so its args stream closes once they parse, and an unanswered call still waits for the run to settle (A.10). As with a provider-owned answer, `streamCall` still fires.
+
 ### A.10. Args complete while the provider's run is still open
 Closing the args stream hands the call to the client executor, so it may
 only happen once the provider can no longer speak about that call. A

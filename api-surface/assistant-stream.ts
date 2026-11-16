@@ -588,6 +588,7 @@ type PartInit = {
   readonly type: "tool-call";
   readonly toolCallId: string;
   readonly toolName: string;
+  readonly providerExecuted?: boolean;
   readonly parentId?: string;
 } | {
   readonly type: "source";
@@ -934,6 +935,7 @@ type ToolCallPartBase = {
   argsText: string;
   args: ReadonlyJSONObject;
   approval?: ToolCallApproval;
+  providerExecuted?: boolean;
   timing?: ToolCallTiming;
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
@@ -945,6 +947,7 @@ type ToolCallPartBase = {
 type ToolCallPartInit = {
   toolCallId?: string;
   toolName: string;
+  providerExecuted?: boolean;
   argsText?: string;
   args?: ReadonlyJSONObject;
   response?: ToolResponseLike<ReadonlyJSONValue>;
@@ -1178,6 +1181,7 @@ type UIMessageStreamChunk = {
   id: string;
   toolCallId: string;
   toolName: string;
+  providerExecuted?: boolean;
 } | {
   type: "tool-call-delta";
   argsText: string;
