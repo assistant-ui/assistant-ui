@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-An archived thread stays archived when initializing a draft merges it with a listed copy that has an in-flight unarchive. The list no longer shows that thread as regular while the server still has it archived.
+an archived thread stays archived and a rename keeps its title when initializing a draft merges its queued mutations with a listed copy's in-flight ones; the list now applies them in the same merged order as the server.

@@ -76,9 +76,12 @@ const runMergedQueueArchive = async (archiveDraft: boolean) => {
   );
   handle.subscribe(() => {});
   const threads = handle.getClient().threads;
+  let initializing: Promise<unknown> | undefined;
+  let draftArchive: Promise<unknown> | undefined;
+  let switched: Promise<unknown> | undefined;
   try {
     const draft = threads.getState().mainThreadId;
-    const initializing = threads.item({ id: draft }).initialize();
+    initializing = threads.item({ id: draft }).initialize();
     await vi.waitFor(() => expect(calls).toEqual(["initialize"]));
     list.resolve({
       threads: [
@@ -91,15 +94,13 @@ const runMergedQueueArchive = async (archiveDraft: boolean) => {
       expect(threads.getState().threadIds).toContain("r1");
     });
 
-    const draftArchive = archiveDraft
-      ? threads.item({ id: draft }).archive()
-      : undefined;
+    if (archiveDraft) draftArchive = threads.item({ id: draft }).archive();
     await yieldTasks();
     await threads.item({ id: "r1" }).archive();
     await vi.waitFor(() => {
       expect(threads.item({ id: "r1" }).getState().status).toBe("archived");
     });
-    const switched = threads.switchToThread("r1");
+    switched = threads.switchToThread("r1");
     await vi.waitFor(() => expect(calls).toContain("unarchive r1"));
     initialization.resolve({ remoteId: "r1", externalId: "r1" });
     await initializing;
@@ -118,6 +119,91 @@ const runMergedQueueArchive = async (archiveDraft: boolean) => {
     unarchiveGate.resolve();
     initialization.resolve({ remoteId: "r1", externalId: "r1" });
     list.resolve({ threads: [] });
+    await Promise.allSettled([initializing, draftArchive, switched]);
+    handle.destroy();
+  }
+};
+
+const runMergedQueueRename = async () => {
+  const server: Record<string, string> = { r0: "r0" };
+  const calls: string[] = [];
+  const list = deferred<{
+    threads: { remoteId: string; status: "regular"; title: string }[];
+  }>();
+  const initialization = deferred<{ remoteId: string; externalId: string }>();
+  const renameGate = deferred<void>();
+  const adapter: RemoteThreadListAdapter = {
+    list: vi.fn(() => list.promise),
+    initialize: vi.fn(async () => {
+      calls.push("initialize");
+      server.r1 = "r1";
+      return initialization.promise;
+    }),
+    rename: vi.fn(async (id: string, title: string) => {
+      calls.push(`rename ${id} ${title}`);
+      if (title === "B") await renameGate.promise;
+      server[id] = title;
+    }),
+    archive: vi.fn(async () => {}),
+    unarchive: vi.fn(async () => {}),
+    delete: vi.fn(async () => {}),
+    fetch: vi.fn(async (id: string) => ({
+      remoteId: id,
+      status: "regular" as const,
+      title: server[id],
+    })),
+    generateTitle: vi.fn(async () => new ReadableStream() as never),
+  };
+  const handle = createAssistantClient(
+    AuiConfig({
+      threads: RemoteThreadList({
+        adapter,
+        thread: () => StubThread() as never,
+      }),
+    }),
+  );
+  handle.subscribe(() => {});
+  const threads = handle.getClient().threads;
+  let initializing: Promise<unknown> | undefined;
+  let draftRename: Promise<unknown> | undefined;
+  let listedRename: Promise<unknown> | undefined;
+  try {
+    const draft = threads.getState().mainThreadId;
+    initializing = threads.item({ id: draft }).initialize();
+    await vi.waitFor(() => expect(calls).toEqual(["initialize"]));
+    list.resolve({
+      threads: [
+        { remoteId: "r1", status: "regular", title: "r1" },
+        { remoteId: "r0", status: "regular", title: "r0" },
+      ],
+    });
+    await threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(threads.getState().threadIds).toContain("r1");
+    });
+
+    draftRename = threads.item({ id: draft }).rename("A");
+    await yieldTasks();
+    listedRename = threads.item({ id: "r1" }).rename("B");
+    await vi.waitFor(() => expect(calls).toContain("rename r1 B"));
+    initialization.resolve({ remoteId: "r1", externalId: "r1" });
+    await initializing;
+    renameGate.resolve();
+    await Promise.all([draftRename, listedRename]);
+    await yieldTasks(20);
+    flushTapSync(() => {});
+
+    const state = threads.getState();
+    const shown = [...state.threadIds, ...state.archivedThreadIds]
+      .map((id) => threads.item({ id }).getState())
+      .filter((thread) => thread.remoteId === "r1")
+      .map((thread) => thread.title);
+    return { shown, server: server.r1, calls };
+  } finally {
+    renameGate.resolve();
+    initialization.resolve({ remoteId: "r1", externalId: "r1" });
+    list.resolve({ threads: [] });
+    await Promise.allSettled([initializing, draftRename, listedRename]);
     handle.destroy();
   }
 };
@@ -138,6 +224,15 @@ describe("RemoteThreadList initialize queue merge", () => {
       shown: ["regular"],
       server: "regular",
       calls: ["initialize", "archive r1", "unarchive r1"],
+    });
+  });
+
+  it("shows the draft's rename when initialize merges it behind an in-flight rename of the listed copy", async () => {
+    const result = await runMergedQueueRename();
+    expect(result).toEqual({
+      shown: ["A"],
+      server: "A",
+      calls: ["initialize", "rename r1 B", "rename r1 A"],
     });
   });
 });

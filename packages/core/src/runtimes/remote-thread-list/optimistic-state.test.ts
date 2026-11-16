@@ -132,6 +132,41 @@ describe("OptimisticState", () => {
     expect(state.value.title).toBe("Project Beta");
   });
 
+  it("reorders a group of transforms within the positions it already holds", async () => {
+    const state = new OptimisticState<{ log: string[] }>({ log: [] });
+    const request = deferred();
+    const first = { current: -1 };
+    const second = { current: -1 };
+    const unregistered = { current: -1 };
+    const append = (name: string) => (value: { log: string[] }) =>
+      value.log.includes(name) ? value : { log: [...value.log, name] };
+
+    const updates = [
+      state.optimisticUpdate(
+        { execute: () => request.promise, optimistic: append("first") },
+        first,
+      ),
+      state.optimisticUpdate({
+        execute: () => request.promise,
+        optimistic: append("outside"),
+      }),
+      state.optimisticUpdate(
+        { execute: () => request.promise, optimistic: append("second") },
+        second,
+      ),
+    ];
+    expect(state.value.log).toEqual(["first", "outside", "second"]);
+
+    state.reorder([second, unregistered, first]);
+    state.update(state.baseValue);
+
+    expect(state.value.log).toEqual(["second", "outside", "first"]);
+    expect(unregistered.current).toBe(-1);
+
+    request.resolve();
+    await Promise.all(updates);
+  });
+
   it("drops an in-flight transform after reset", async () => {
     const state = new OptimisticState({ title: "Untitled", extra: 0 });
     const request = deferred();

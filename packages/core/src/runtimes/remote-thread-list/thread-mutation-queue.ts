@@ -1,7 +1,5 @@
 type Mutation = {
   order: number;
-  // Shared with the optimistic update registered for this mutation. A queue
-  // merge reassigns it so replay follows the merged execution order.
   optimisticOrder: { current: number };
   done: Promise<void>;
   previous: Promise<void> | undefined;
