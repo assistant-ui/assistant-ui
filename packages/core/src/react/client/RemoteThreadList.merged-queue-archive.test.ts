@@ -27,7 +27,10 @@ const StubThread = resource(() => ({
   suggestions: () => suggestions,
 }));
 
-const runMergedQueueArchive = async (archiveDraft: boolean) => {
+const runMergedQueueArchive = async (
+  archiveDraft: boolean,
+  unarchiveSettlesFirst = false,
+) => {
   const server: Record<string, "regular" | "archived"> = { r0: "regular" };
   const calls: string[] = [];
   const list = deferred<{
@@ -76,9 +79,9 @@ const runMergedQueueArchive = async (archiveDraft: boolean) => {
   );
   handle.subscribe(() => {});
   const threads = handle.getClient().threads;
-  let initializing: Promise<unknown> | undefined;
-  let draftArchive: Promise<unknown> | undefined;
-  let switched: Promise<unknown> | undefined;
+  let initializing: unknown;
+  let draftArchive: unknown;
+  let switched: unknown;
   try {
     const draft = threads.getState().mainThreadId;
     initializing = threads.item({ id: draft }).initialize();
@@ -102,6 +105,11 @@ const runMergedQueueArchive = async (archiveDraft: boolean) => {
     });
     switched = threads.switchToThread("r1");
     await vi.waitFor(() => expect(calls).toContain("unarchive r1"));
+    if (unarchiveSettlesFirst) {
+      unarchiveGate.resolve();
+      await vi.waitFor(() => expect(server.r1).toBe("regular"));
+      await yieldTasks();
+    }
     initialization.resolve({ remoteId: "r1", externalId: "r1" });
     await initializing;
     unarchiveGate.resolve();
@@ -164,9 +172,9 @@ const runMergedQueueRename = async () => {
   );
   handle.subscribe(() => {});
   const threads = handle.getClient().threads;
-  let initializing: Promise<unknown> | undefined;
-  let draftRename: Promise<unknown> | undefined;
-  let listedRename: Promise<unknown> | undefined;
+  let initializing: unknown;
+  let draftRename: unknown;
+  let listedRename: unknown;
   try {
     const draft = threads.getState().mainThreadId;
     initializing = threads.item({ id: draft }).initialize();
@@ -211,6 +219,15 @@ const runMergedQueueRename = async () => {
 describe("RemoteThreadList initialize queue merge", () => {
   it("keeps the thread archived when initialize merges an in-flight unarchive behind a later archive", async () => {
     const result = await runMergedQueueArchive(true);
+    expect(result).toEqual({
+      shown: ["archived"],
+      server: "archived",
+      calls: ["initialize", "archive r1", "unarchive r1", "archive r1"],
+    });
+  });
+
+  it("keeps the thread archived when the unarchive settles before initialize merges the queues", async () => {
+    const result = await runMergedQueueArchive(true, true);
     expect(result).toEqual({
       shown: ["archived"],
       server: "archived",

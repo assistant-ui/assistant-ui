@@ -132,7 +132,7 @@ describe("OptimisticState", () => {
     expect(state.value.title).toBe("Project Beta");
   });
 
-  it("reorders a group of transforms within the positions it already holds", async () => {
+  it("moves a reordered group after every registered transform, in the given order", async () => {
     const state = new OptimisticState<{ log: string[] }>({ log: [] });
     const request = deferred();
     const first = { current: -1 };
@@ -160,7 +160,7 @@ describe("OptimisticState", () => {
     state.reorder([second, unregistered, first]);
     state.update(state.baseValue);
 
-    expect(state.value.log).toEqual(["second", "outside", "first"]);
+    expect(state.value.log).toEqual(["outside", "second", "first"]);
     expect(unregistered.current).toBe(-1);
 
     request.resolve();

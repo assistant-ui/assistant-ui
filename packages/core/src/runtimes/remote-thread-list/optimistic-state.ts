@@ -116,12 +116,15 @@ export class OptimisticState<TState> extends BaseSubscribable {
     this._notifySubscribers();
   }
 
+  /**
+   * Moves the given registered orders after every transform registered so
+   * far, in the given order. It recomputes nothing, so call it from a
+   * transform's `then`; the new order applies when that transform settles.
+   */
   public reorder(orders: readonly OrderSlot[]): void {
-    const assigned = orders.filter((order) => order.current >= 0);
-    const values = assigned.map((order) => order.current).sort((a, b) => a - b);
-    assigned.forEach((order, index) => {
-      order.current = values[index]!;
-    });
+    for (const order of orders) {
+      if (order.current >= 0) order.current = this._nextTransformOrder++;
+    }
   }
 
   public async optimisticUpdate<TResult>(
