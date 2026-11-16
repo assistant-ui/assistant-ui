@@ -428,7 +428,7 @@ async def test_cancelled_before_startup_finalizes_for_live_and_resumed_readers(
 
     stream = await ctx.run("a", source)
     await asyncio.gather(*tasks, return_exceptions=True)
-    await asyncio.gather(*tasks[1:])
+    await asyncio.wait_for(asyncio.gather(*tasks[1:]), timeout=1)
 
     # Python 3.11 added propagation of task cancellation messages to observers.
     message = (
@@ -477,7 +477,7 @@ async def test_startup_cancellation_cleanup_is_registered_until_finalization(
         assert await ctx.status("a") == "streaming"
     finally:
         release.set()
-        await asyncio.gather(*tasks[1:])
+        await asyncio.wait_for(asyncio.gather(*tasks[1:]), timeout=1)
         await stream.aclose()
 
     assert await ctx.status("a") == "error"
@@ -554,7 +554,7 @@ async def test_startup_cancellation_logs_finalization_failure(
     tasks[0].cancel()
     now[0] += 101
     await asyncio.gather(tasks[0], return_exceptions=True)
-    await asyncio.gather(*tasks[1:])
+    await asyncio.wait_for(asyncio.gather(*tasks[1:]), timeout=1)
 
     assert tasks[0].cancelled()
     assert await ctx.status("a") == "missing"
