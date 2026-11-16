@@ -170,9 +170,9 @@ overrides:
   '@earendil-works/pi-coding-agent>undici': ^8.12.2
   guarded-fetch>undici: ^7.30.1
   miniflare>undici: ^7.30.1
-  '@modelcontextprotocol/client@>=2.0.0 <2.3.0': ^2.3.0
+  '@modelcontextprotocol/client@>=2.0.0 <2.2.0': ^2.2.0
   '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0
-  '@modelcontextprotocol/server@>=2.0.0 <2.3.0': ^2.3.0
+  '@modelcontextprotocol/server@>=2.0.0 <2.1.0': ^2.1.0
   ajv@>=8.0.0 <8.18.0: ^8.18.0
   fflate@>=0.7.0 <0.7.5: ^0.7.5
   js-yaml@>=4.0.0 <4.3.2: ^4.3.2
@@ -15417,9 +15417,9 @@ packages:
     peerDependencies:
       '@ai-sdk/react': ^3.0.0 || ^4.0.0
       '@cloudflare/codemode': '>=0.5.0'
-      '@modelcontextprotocol/client': ^2.3.0
+      '@modelcontextprotocol/client': ^2.2.0
       '@modelcontextprotocol/sdk': ^1.32.0
-      '@modelcontextprotocol/server': ^2.3.0
+      '@modelcontextprotocol/server': ^2.1.0
       '@tanstack/ai': '>=0.10.2 <1.0.0'
       '@x402/core': ^2.0.0
       '@x402/evm': ^2.0.0
@@ -17897,7 +17897,7 @@ packages:
     peerDependencies:
       '@mdx-js/mdx': '*'
       '@mixedbread/sdk': 0.x.x
-      '@modelcontextprotocol/server': ^2.3.0
+      '@modelcontextprotocol/server': ^2.1.0
       '@orama/core': 1.x.x
       '@oramacloud/client': 2.x.x
       '@pierre/highlights': ^0.2.0
@@ -20783,8 +20783,8 @@ packages:
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
-  papaparse@5.7.0:
-    resolution: {integrity: sha512-qBGxg/7Q3Kl9Wfhrz2Z74UnvnHTXLNG6jmKJFeBvP2+y4lV7So+7SR62+Zd47JvdrCkX+nDcnr0ObPzek/+6RA==}
+  papaparse@5.7.1:
+    resolution: {integrity: sha512-qOR+UDWv6D3hMxnWWOk0ZpBdCkd+kw5Yh7aXOaNSQU8A+73EA2bhW7EiUix/hY0yulUi5FRvt7PpYSI2VDvY0g==}
 
   parse-css-color@0.2.1:
     resolution: {integrity: sha512-bwS/GGIFV3b6KS4uwpzCFj4w297Yl3uqnSgIPsoQkx7GMLROXfMnWvxfNkL0oh8HVhZA4hvJoEoEIqonfJ3BWg==}
@@ -37409,7 +37409,7 @@ snapshots:
       guarded-fetch: 0.1.3
       ini: 6.0.0
       modern-tar: 0.7.7
-      papaparse: 5.7.0
+      papaparse: 5.7.1
       re2js: 1.3.3
       run: 2.1.3(typescript@5.9.3)
       seek-bzip: 2.0.0
@@ -40515,7 +40515,7 @@ snapshots:
 
   pako@1.0.11: {}
 
-  papaparse@5.7.0: {}
+  papaparse@5.7.1: {}
 
   parse-css-color@0.2.1:
     dependencies:
