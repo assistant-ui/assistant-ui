@@ -111,8 +111,10 @@ export type RemoteThreadListProps = {
    * runs, and a freshly initialized thread generates its title automatically.
    * A body unmounts on delete, detach, or a store change (`reload()` after
    * the adapter moves to a different `storeKey`, or to a different object when
-   * no `storeKey` is set); visited threads otherwise stay mounted for the
-   * client's lifetime. Each body reads its own thread through the ambient
+   * no `storeKey` is set). A store change releases every body, except on the
+   * hosted `__internal_ensureThread` path, where it releases only threads the
+   * replacement list no longer contains. Visited threads otherwise stay mounted
+   * for the client's lifetime. Each body reads its own thread through the ambient
    * `threadListItem` scope, and `unstable_useAdapters` runs once per mounted
    * body. Off (the default), only the visible thread is mounted and a switch
    * unmounts it. The mode is fixed at mount.
