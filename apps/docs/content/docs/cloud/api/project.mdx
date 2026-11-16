@@ -360,7 +360,7 @@ GET /v1/projects/threads/{thread_id}/messages
 | `threadId` | string | yes | | 1 to 255 characters. |
 | `format` | string | no | Stored format | Requests a supported conversion of message content. |
 | `limit` | integer | no | 200 | 1 to 200. |
-| `after` | message id | no | | Continue after this message. |
+| `after` | message id | no | | The `next_cursor` of the previous page. |
 
 The route applies the same format conversion as the user message list. Stored `aui/v0` rows can convert to `ai-sdk/v5` or `ai-sdk/v6`, and stored `ai-sdk/v5` rows can convert to `ai-sdk/v6`. Other formats are returned as stored. A conversion that cannot parse a row skips that row rather than failing the whole list. When attachment storage is configured, attachment URLs in the content are replaced with signed reads.
 
@@ -390,15 +390,17 @@ curl "https://backend.assistant-api.com/v1/projects/threads/thread_0qzof3jPoDwr7
       },
       "height": 0
     }
-  ]
+  ],
+  "has_more": false,
+  "next_cursor": null
 }
 ```
 
-The response contains raw message rows with the requested `format` and converted `content`.
+The response contains raw message rows with the requested `format` and converted `content`. Paging follows the user message list: keep paging while `has_more` is `true`, passing `next_cursor`, a message id, as `after`.
 
 | Status | Body | When |
 |---|---|---|
-| `200` | A `messages` array. | The project wide message read completed. |
+| `200` | A `messages` array, `has_more`, and `next_cursor`. | The project wide message read completed. |
 | `400` | A schema validation error object. | A parameter or query value failed validation. |
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
 | `403` | `{ "error": "Project-wide message listing requires API key authentication" }` | The request does not use an API key, or API key access failed. |

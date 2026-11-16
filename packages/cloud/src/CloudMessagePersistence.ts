@@ -538,7 +538,9 @@ export class CloudMessagePersistence {
    * Load messages from the cloud and populate the ID mapping.
    *
    * The list endpoint caps a response at 200 rows, so pages are followed by
-   * message ID cursor until a short page and concatenated in server order.
+   * message ID cursor and concatenated in server order. A server that sends
+   * `has_more` is followed while it is true, using `next_cursor` as the next
+   * cursor; an older one ends at a short page.
    *
    * The ID mapping is populated so that `isPersisted()` returns true for
    * loaded messages, preventing re-persistence of already-stored messages.

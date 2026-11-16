@@ -111,7 +111,7 @@ GET /v1/threads/{thread_id}/messages
 | `thread_id` | string | | 1 to 255 characters. A thread outside the caller's workspace returns an empty list. |
 | `format` | string | | 1 to 255 characters. It asks Assistant Cloud to convert recognized stored formats on read. |
 | `limit` | integer | 200 | 1 to 200. |
-| `after` | message id | | The last id of the previous page. |
+| `after` | message id | | The `next_cursor` of the previous page. |
 
 Messages are ordered by `height`, then `created_at`, then `id`, all descending. A page continues after the cursor message in that same ordering.
 
@@ -144,13 +144,17 @@ curl "https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D
       "content": { "role": "user", "content": [] },
       "height": 0
     }
-  ]
+  ],
+  "has_more": false,
+  "next_cursor": null
 }
 ```
 
+A page can hold fewer than `limit` messages, or none, while more remain, because rows that cannot be parsed or converted are skipped. Keep paging while `has_more` is `true`, passing `next_cursor` as `after`. `next_cursor` is a message id while `has_more` is `true` and `null` otherwise.
+
 | Status | Body | When |
 |---|---|---|
-| `200` | `{ "messages": [...] }` | Always, including when no messages match or the thread is outside the caller's workspace. |
+| `200` | `{ "messages": [...], "has_more", "next_cursor" }` | Always, including when no messages match or the thread is outside the caller's workspace. |
 | `400` | `{ "error": "Schema validation error", "details": […] }` | A query value is out of range. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
