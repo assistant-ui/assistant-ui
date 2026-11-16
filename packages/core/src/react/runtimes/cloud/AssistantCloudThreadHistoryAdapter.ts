@@ -806,9 +806,21 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
               if (merged) copied.interactions.set(part.toolCallId, merged);
             }
           }
-          const last = page.messages.at(-1);
-          if (fresh.length === 0 || page.messages.length < 200 || !last) break;
-          after = last.id;
+          if (page.messages.length > 0 && fresh.length === 0) break;
+          // A page can end before its limit when its messages are large, so a
+          // server that sends `has_more` is followed by it; an older one ends
+          // at a short page.
+          const last = page.messages.at(-1)?.id;
+          const next =
+            page.has_more !== undefined
+              ? page.has_more
+                ? (page.next_cursor ?? last)
+                : undefined
+              : page.messages.length >= 200
+                ? last
+                : undefined;
+          if (next === undefined || next === after) break;
+          after = next;
         }
         return copied;
       })();

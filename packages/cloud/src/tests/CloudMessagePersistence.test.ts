@@ -740,6 +740,62 @@ describe("CloudMessagePersistence", () => {
     });
   });
 
+  it("follows has_more past a page cut short by its size", async () => {
+    const rows = createCloudMessages(5);
+    vi.mocked(cloud.threads.messages.list).mockImplementation(
+      async (_threadId, query) => {
+        // Two messages a page, as a server cuts pages of large messages.
+        const start = query?.after
+          ? rows.findIndex((row) => row.id === query.after) + 1
+          : 0;
+        const page = rows.slice(start, start + 2);
+        const hasMore = start + 2 < rows.length;
+        return {
+          messages: page,
+          has_more: hasMore,
+          next_cursor: hasMore ? page.at(-1)!.id : null,
+        };
+      },
+    );
+
+    const messages = await persistence.load("thread-1");
+
+    expect(messages.map((message) => message.id)).toEqual(
+      rows.map((row) => row.id),
+    );
+    expect(cloud.threads.messages.list).toHaveBeenCalledTimes(3);
+  });
+
+  it("follows next_cursor past a page with no readable messages", async () => {
+    const rows = createCloudMessages(3);
+    vi.mocked(cloud.threads.messages.list)
+      .mockResolvedValueOnce({
+        messages: [],
+        has_more: true,
+        next_cursor: "message-0",
+      })
+      .mockResolvedValueOnce({ messages: rows, has_more: false });
+
+    const messages = await persistence.load("thread-1");
+
+    expect(messages).toHaveLength(3);
+    expect(cloud.threads.messages.list).toHaveBeenNthCalledWith(2, "thread-1", {
+      limit: 200,
+      after: "message-0",
+    });
+  });
+
+  it("stops at has_more false even on a full page", async () => {
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages: createCloudMessages(200),
+      has_more: false,
+    });
+
+    await persistence.load("thread-1");
+
+    expect(cloud.threads.messages.list).toHaveBeenCalledTimes(1);
+  });
+
   it("stops without duplicates when a later cursor stops resolving", async () => {
     const rows = createCloudMessages(450);
     vi.mocked(cloud.threads.messages.list).mockImplementation(
