@@ -17,8 +17,24 @@ const MATH_TOKEN = new RegExp(
 
 /** True for a `calc`/`min`/`max`/`clamp` built only from lengths, numbers and operators. */
 const HAS_LENGTH = new RegExp(`\\d(?:${UNITS})(?![a-z])`, "i");
+/**
+ * True when every parenthesis closes and no comment opens. A server-rendered
+ * style is one string, so an open `(` or `/*` would swallow the declarations
+ * that follow it.
+ */
+const isSelfContained = (value: string) => {
+  if (value.includes("/*")) return false;
+  let depth = 0;
+  for (const char of value) {
+    if (char === "(") depth++;
+    else if (char === ")" && --depth < 0) return false;
+  }
+  return depth === 0;
+};
+
 const isMath = (value: string) =>
   MATH.test(value) &&
+  isSelfContained(value) &&
   HAS_LENGTH.test(value) &&
   /^[\s()+\-*/,]*$/.test(value.replace(MATH_TOKEN, ""));
 
@@ -43,7 +59,10 @@ export const toCssLength = (value: unknown): string | undefined => {
 };
 
 export const safeBackground = (value: unknown) =>
-  typeof value === "string" && !/[\\;{}]/.test(value) && !RESOURCE.test(value)
+  typeof value === "string" &&
+  !/[\\;{}]/.test(value) &&
+  !RESOURCE.test(value) &&
+  isSelfContained(value)
     ? value
     : undefined;
 

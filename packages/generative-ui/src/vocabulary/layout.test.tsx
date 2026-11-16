@@ -224,6 +224,16 @@ describe("layoutVocabulary Box", () => {
   });
 
   it.each([
+    ["an open parenthesis", { width: "calc((10px)" }],
+    ["a comment opener", { width: "calc(10px/*)" }],
+    ["an unclosed gradient", { background: "linear-gradient(red" }],
+  ])("drops a value with %s so the next declarations survive", (_, props) => {
+    expect(render({ $type: "Box", height: 8, radius: "full", ...props })).toBe(
+      '<div data-aui="box" data-aui-radius="full" style="height:8px;border-radius:9999px"></div>',
+    );
+  });
+
+  it.each([
     ["50%", "50%"],
     [" 12rem ", "12rem"],
     ["-4px", "-4px"],
