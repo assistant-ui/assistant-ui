@@ -150,7 +150,7 @@ curl "https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D
 }
 ```
 
-A page can hold fewer than `limit` messages, or none, while more remain, because rows that cannot be parsed or converted are skipped. Keep paging while `has_more` is `true`, passing `next_cursor` as `after`. `next_cursor` is a message id while `has_more` is `true` and `null` otherwise.
+A page can hold fewer than `limit` messages, or none, while more remain, because a page ends early once its messages reach the response size budget and rows that cannot be parsed or converted are skipped. Keep paging while `has_more` is `true`, passing `next_cursor` as `after`. `next_cursor` is a message id while `has_more` is `true` and `null` otherwise.
 
 | Status | Body | When |
 |---|---|---|
