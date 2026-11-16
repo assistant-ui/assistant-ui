@@ -8,8 +8,8 @@ export const sanitizeTerminalText = (value: string): string => {
   if (start === value.length) return value;
 
   let result = value.slice(0, start);
-  // Once a scan reaches the end without a terminator, no later string can
-  // find one either, so each later unterminated string skips the scan.
+  // Each kind of terminator caches where a scan for it ran off the end, so a
+  // later string that needs the same kind skips the rescan.
   let noStringTerminatorFrom = Infinity;
   let noBellFrom = Infinity;
   let noNewlineFrom = Infinity;
