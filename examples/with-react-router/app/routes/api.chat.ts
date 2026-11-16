@@ -1,6 +1,25 @@
 import type { Route } from "./+types/api.chat";
 import OpenAI from "openai";
 
+// Refuses chat requests that a browser sends from another site, so a page the
+// visitor opens cannot spend this app's model key. This is not authentication:
+// add your own before you deploy the route publicly.
+function isAllowedRequestContext(req: Request) {
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === new URL(req.url).origin;
+  } catch {
+    return false;
+  }
+}
+
 type ChatCompletionMessageParam =
   OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -51,6 +70,13 @@ async function executeTool(
 }
 
 export async function action({ request }: Route.ActionArgs) {
+  if (!isAllowedRequestContext(request)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   const { messages } = await request.json();
 
   const openaiMessages: ChatCompletionMessageParam[] = messages.map(

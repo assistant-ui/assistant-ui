@@ -42,6 +42,14 @@ const chatBody = {
   tools: {},
 };
 
+const loadPOST = (path: string) => async () => {
+  const route = await import(
+    new URL(`../../../../../${path}`, import.meta.url).href
+  );
+  const POST: (request: Request) => Promise<Response> = route.POST;
+  return POST;
+};
+
 const examples = [
   "with-ai-sdk-v7",
   "with-artifacts",
@@ -65,26 +73,17 @@ const examples = [
     name === "with-google-adk"
       ? { message: "Hello", sessionId: "session-1" }
       : chatBody,
-  load: async () => {
-    const route = await import(
-      new URL(
-        `../../../../../examples/${name}/app/api/chat/route.ts`,
-        import.meta.url,
-      ).href
-    );
-    const POST: (request: Request) => Promise<Response> = route.POST;
-    return POST;
-  },
+  load: loadPOST(`examples/${name}/app/api/chat/route.ts`),
 }));
 
-// The Nuxt template runs on h3 with Nitro auto-imports, so the test provides
-// the same globals from the h3 version Nuxt's server installs.
-const loadNuxtRoute = async () => {
+// Nuxt apps run on h3 with Nitro auto-imports, so the test provides the same
+// globals from the h3 version Nuxt's server installs.
+const loadNuxtRoute = (app: string) => async () => {
   const resolveFrom = (from: string, id: string) =>
     createRequire(from).resolve(id);
   const nuxt = resolveFrom(
     fileURLToPath(
-      new URL("../../../../../templates/nuxt/package.json", import.meta.url),
+      new URL(`../../../../../${app}/package.json`, import.meta.url),
     ),
     "nuxt/package.json",
   );
@@ -99,8 +98,7 @@ const loadNuxtRoute = async () => {
     vi.stubGlobal(name, h3[name]);
   }
   const nuxtFile = (path: string) =>
-    new URL(`../../../../../templates/nuxt/server/${path}`, import.meta.url)
-      .href;
+    new URL(`../../../../../${app}/server/${path}`, import.meta.url).href;
   const { isAllowedRequestContext } = await import(
     nuxtFile("utils/request-context.ts")
   );
@@ -113,9 +111,45 @@ const loadNuxtRoute = async () => {
   return POST;
 };
 
+const loadReactRouterRoute = async () => {
+  const route = await import(
+    new URL(
+      "../../../../../examples/with-react-router/app/routes/api.chat.ts",
+      import.meta.url,
+    ).href
+  );
+  const action: (args: { request: Request }) => Promise<Response> =
+    route.action;
+  return async (request: Request) => {
+    const response = await action({ request });
+    const streamedText = await response.text().catch(() => "");
+    return new Response(streamedText, response);
+  };
+};
+
 const routes = [
   ...examples,
-  { name: "nuxt template", body: chatBody, load: loadNuxtRoute },
+  {
+    name: "with-expo",
+    body: chatBody,
+    load: loadPOST("examples/with-expo/app/api/chat+api.ts"),
+  },
+  {
+    name: "with-mcp",
+    body: chatBody,
+    load: loadPOST("examples/with-mcp/app/app/api/chat/route.ts"),
+  },
+  {
+    name: "with-nuxt",
+    body: chatBody,
+    load: loadNuxtRoute("examples/with-nuxt"),
+  },
+  { name: "with-react-router", body: chatBody, load: loadReactRouterRoute },
+  {
+    name: "nuxt template",
+    body: chatBody,
+    load: loadNuxtRoute("templates/nuxt"),
+  },
 ];
 
 describe.each(routes)("$name chat route request context", ({ body, load }) => {
@@ -125,14 +159,20 @@ describe.each(routes)("$name chat route request context", ({ body, load }) => {
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
     });
+  const unparsableRequest = (headers: Record<string, string>) =>
+    new Request("http://localhost/api/chat", {
+      method: "POST",
+      headers: { "content-type": "text/plain", ...headers },
+      body: "not json",
+    });
 
   it.each([
     ["a cross-site fetch", { "sec-fetch-site": "cross-site" }],
     ["a same-site fetch", { "sec-fetch-site": "same-site" }],
     ["a foreign Origin", { origin: "https://example.net" }],
-  ])("rejects %s before calling the model", async (_label, headers) => {
+  ])("rejects %s before reading the body", async (_label, headers) => {
     const POST = await load();
-    const response = await POST(request(headers));
+    const response = await POST(unparsableRequest(headers));
     await response.text();
 
     expect(response.status).toBe(403);
