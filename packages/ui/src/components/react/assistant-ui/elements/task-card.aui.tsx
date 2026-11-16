@@ -128,10 +128,15 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
     offersInterruptAction(part.status, part.approval, part.interrupt) &&
     (canAnswer || part.approval?.prompt) ? (
       <>
-        <ToolFallbackArgs
-          argsText={part.argsText}
-          className="max-h-48 overflow-y-auto"
-        />
+        {canAnswer && (
+          <ToolFallbackArgs
+            argsText={part.argsText}
+            className="max-h-48 overflow-y-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Tool arguments"
+          />
+        )}
         <ToolFallbackApproval
           status={part.status}
           {...(part.approval !== undefined && { approval: part.approval })}
