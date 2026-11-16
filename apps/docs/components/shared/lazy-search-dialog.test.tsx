@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, onTestFinished, vi } from "vitest";
 import { SearchDialog } from "./lazy-search-dialog";
 
 const stubSearchDialog = vi.hoisted(() => () => ({
@@ -33,6 +33,9 @@ it("retries the dialog chunk after a failed load", async () => {
     if (fail) throw new Error("chunk failed");
     return stubSearchDialog();
   });
+  onTestFinished(() => {
+    vi.doMock("./search-dialog", stubSearchDialog);
+  });
   const lazyModule = await import("./lazy-search-dialog");
   const { findByRole, rerender } = render(
     <lazyModule.SearchDialog open onOpenChange={() => {}} />,
@@ -43,5 +46,4 @@ it("retries the dialog chunk after a failed load", async () => {
   rerender(<lazyModule.SearchDialog open={false} onOpenChange={() => {}} />);
   rerender(<lazyModule.SearchDialog open onOpenChange={() => {}} />);
   expect(await findByRole("dialog")).not.toBeNull();
-  vi.doMock("./search-dialog", stubSearchDialog);
 });
