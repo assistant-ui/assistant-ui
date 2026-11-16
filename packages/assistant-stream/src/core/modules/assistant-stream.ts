@@ -28,7 +28,7 @@ import { createControllerStreamPair } from "../utils/stream/createControllerStre
 type ToolCallPartInit = {
   toolCallId?: string;
   toolName: string;
-  /** The backend owns this call, such as a provider-executed or dynamic (MCP) tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
+  /** The backend owns this call, such as a provider-executed tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
   providerExecuted?: boolean;
   argsText?: string;
   args?: ReadonlyJSONObject;

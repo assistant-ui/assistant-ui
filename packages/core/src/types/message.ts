@@ -368,9 +368,8 @@ export type ToolCallMessagePart<
   /** Human-input request that must be resolved before the run can continue. */
   readonly interrupt?: { type: "human"; payload: unknown };
   /**
-   * The backend owns this call, such as a provider-executed or dynamic (MCP)
-   * tool. A frontend tool of the same name never executes it, whether or not
-   * a result arrives.
+   * The backend owns this call, such as a provider-executed tool. A frontend
+   * tool of the same name never executes it, whether or not a result arrives.
    */
   readonly providerExecuted?: boolean | undefined;
   /** Server-side approval gate. `respondToApproval` may only be called while `approved` is undefined and no `resolution` is recorded. */

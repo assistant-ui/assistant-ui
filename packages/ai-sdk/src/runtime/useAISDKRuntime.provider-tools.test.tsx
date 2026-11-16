@@ -81,23 +81,26 @@ const setup = async (request: UIMessageChunk[]) => {
 };
 
 describe("useAISDKRuntime backend-owned tool calls", () => {
+  it("leaves a provider-executed call without a result to the server", async () => {
+    const { execute, part, toolPart } = await setup(
+      toolCallStep({ providerExecuted: true }),
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(part()).toMatchObject({ providerExecuted: true });
+    expect(toolPart()).toMatchObject({ state: "input-available" });
+  });
+
   it.each([
-    { name: "provider-executed", extra: { providerExecuted: true } },
+    { name: "static", extra: {} },
     { name: "dynamic", extra: { dynamic: true } },
   ])(
-    "leaves a $name call without a result to the server",
+    "still runs a frontend tool for a $name call the server hands to the client",
     async ({ extra }) => {
-      const { execute, part, toolPart } = await setup(toolCallStep(extra));
+      const { execute, part } = await setup(toolCallStep(extra));
 
-      expect(execute).not.toHaveBeenCalled();
-      expect(part()).toMatchObject({ providerExecuted: true });
-      expect(toolPart()).toMatchObject({ state: "input-available" });
+      await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      expect(part()).not.toHaveProperty("providerExecuted");
     },
   );
-
-  it("still runs a frontend tool the server hands to the client", async () => {
-    const { execute } = await setup(toolCallStep({}));
-
-    await waitFor(() => expect(execute).toHaveBeenCalledOnce());
-  });
 });

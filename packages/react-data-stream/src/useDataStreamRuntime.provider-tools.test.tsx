@@ -86,10 +86,7 @@ describe("useDataStreamRuntime backend-owned tool calls", () => {
     },
   ];
 
-  it.each([
-    { name: "provider-executed", extra: { providerExecuted: true } },
-    { name: "dynamic", extra: { dynamic: true } },
-  ])(
+  it.each([{ name: "provider-executed", extra: { providerExecuted: true } }])(
     "keeps the server's result for a $name call without steps",
     async ({ extra }) => {
       vi.stubGlobal(
@@ -124,15 +121,9 @@ describe("useDataStreamRuntime backend-owned tool calls", () => {
 
   it.each([
     { name: "provider-executed", extra: { providerExecuted: true } },
-    { name: "dynamic", extra: { dynamic: true } },
     {
       name: "provider-executed (marked on input-available only)",
       extra: { providerExecuted: true },
-      startExtra: {},
-    },
-    {
-      name: "dynamic (marked on input-available only)",
-      extra: { dynamic: true },
       startExtra: {},
     },
   ])(
@@ -165,28 +156,40 @@ describe("useDataStreamRuntime backend-owned tool calls", () => {
     },
   );
 
-  it("still runs a frontend tool the server hands to the client", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn(async () => sse([{ type: "start" }, { type: "finish" }]))
-        .mockImplementationOnce(async () =>
-          sse([
-            { type: "start", messageId: "m1" },
-            { type: "start-step" },
-            ...input({}).slice(1),
-            { type: "finish-step" },
-            { type: "finish" },
-          ]),
-        ),
-    );
-    const runtime = await mountRuntime();
-    const execute = registerFrontendTool(runtime, "web_search");
+  it.each([
+    { name: "static", extra: {} },
+    { name: "dynamic", extra: { dynamic: true } },
+  ])(
+    "still runs a frontend tool for a $name call the server hands to the client",
+    async ({ extra }) => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn(async () => sse([{ type: "start" }, { type: "finish" }]))
+          .mockImplementationOnce(async () =>
+            sse([
+              { type: "start", messageId: "m1" },
+              { type: "start-step" },
+              ...input(extra).slice(1),
+              { type: "finish-step" },
+              { type: "finish" },
+            ]),
+          ),
+      );
+      const runtime = await mountRuntime();
+      const execute = registerFrontendTool(runtime, "web_search");
 
-    await send(runtime);
+      await send(runtime);
 
-    await waitFor(() => {
-      expect(execute).toHaveBeenCalledOnce();
-    });
-  });
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledOnce();
+      });
+      expect(
+        runtime.thread
+          .getMessageByIndex(1)
+          .getMessagePartByToolCallId("call_1")
+          .getState(),
+      ).not.toHaveProperty("providerExecuted");
+    },
+  );
 });

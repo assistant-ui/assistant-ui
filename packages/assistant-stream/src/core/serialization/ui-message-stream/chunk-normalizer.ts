@@ -39,15 +39,11 @@ export const createChunkNormalizer = (): {
     hasFinalResult: false,
     pendingResults: [],
   });
-  // A provider-executed call is answered by the provider, and a dynamic call
-  // (an MCP tool or a `dynamicTool`) by the server's own `execute`; neither is
-  // handed to the client.
-  const markServerTool = (
+  const markProviderExecuted = (
     tool: PendingTool,
     chunk: Record<string, unknown>,
   ) => {
-    if (chunk.providerExecuted === true || chunk.dynamic === true)
-      tool.providerExecuted = true;
+    if (chunk.providerExecuted === true) tool.providerExecuted = true;
   };
   const emitPendingTool = (out: ChunkController, tool: PendingTool) => {
     if (!tool.emitted) {
@@ -148,7 +144,7 @@ export const createChunkNormalizer = (): {
         if (typeof chunk.toolCallId !== "string") return;
         if (pendingTools.has(chunk.toolCallId)) return;
         const tool = createPendingTool(chunk.toolCallId, chunk.toolName);
-        markServerTool(tool, chunk);
+        markProviderExecuted(tool, chunk);
         pendingTools.set(chunk.toolCallId, tool);
         return;
       }
@@ -171,7 +167,7 @@ export const createChunkNormalizer = (): {
           pendingTools.set(chunk.toolCallId, tool);
         }
         if (tool.emitted) return;
-        markServerTool(tool, chunk);
+        markProviderExecuted(tool, chunk);
         if (chunk.input !== undefined) {
           const isUnparsedInputText =
             chunk.type === "tool-input-error" &&
@@ -207,7 +203,7 @@ export const createChunkNormalizer = (): {
           pendingTools.set(chunk.toolCallId, tool);
         }
         if (tool.hasFinalResult) return;
-        if (!tool.emitted) markServerTool(tool, chunk);
+        if (!tool.emitted) markProviderExecuted(tool, chunk);
         const pendingResult =
           chunk.type === "tool-output-error"
             ? {
