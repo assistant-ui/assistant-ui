@@ -14,6 +14,7 @@ middleware or wrap responses, call the building blocks `start_run`,
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import inspect
 import logging
 import math
@@ -52,6 +53,7 @@ from assistant_stream.resumable import (
     ResumableStreamRole,
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
+    validate_stream_id,
 )
 from assistant_stream.serialization.heartbeat import add_keepalive
 
@@ -215,7 +217,13 @@ class DurableAGUI(Generic[AgentDepsT]):
         if previous is not None and previous.owner != owner:
             return _not_found()
 
-        stream_id = _stream_id(thread_id, run_id)
+        # The ids follow the stream store's rules with or without an owner,
+        # though an owned stream id is a digest of them.
+        try:
+            validate_stream_id(_stream_id(thread_id, run_id))
+        except ResumableStreamError:
+            return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
+        stream_id = _stream_id(thread_id, run_id, owner)
         status = await self._safe_status(stream_id)
         if status is None:
             return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
@@ -594,9 +602,17 @@ async def _stop(task: asyncio.Task[None]) -> None:
     await asyncio.wait({task})
 
 
-def _stream_id(thread_id: str, run_id: str) -> str:
+def _stream_id(thread_id: str, run_id: str, owner: str | None = None) -> str:
     # The length prefix keeps the id unambiguous when either part contains ".".
-    return f"{len(thread_id)}-{thread_id}.{run_id}"
+    stream_id = f"{len(thread_id)}-{thread_id}.{run_id}"
+    if owner is None:
+        return stream_id
+    # Two owners starting the same new thread and run at once each get their
+    # own stream, so neither can read the other's run; the store then keeps
+    # one of them and the other is refused. A digest keeps the id within the
+    # stream store's length limit.
+    digest = hashlib.sha256(f"{len(owner)}:{owner}:{stream_id}".encode())
+    return f"o-{digest.hexdigest()}"
 
 
 def _not_found() -> Response:
