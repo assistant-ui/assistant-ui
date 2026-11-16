@@ -428,22 +428,6 @@ describe("toAdaptiveCard", () => {
       ]);
     });
 
-    it("breaks the link, underscore italic and list markers in Diagram source", () => {
-      const zeroWidthSpace = String.fromCharCode(0x200b);
-      const { card } = toAdaptiveCard({
-        $type: "Diagram",
-        code: "- **bold** _it_ a_b\n1. [x](https://e.com)\n# a\\b `c` ~~d~~",
-      });
-      const lines = (card.body[0] as TeamsContainer).items.map(
-        (item) => (item as TeamsTextBlock).text,
-      );
-      expect(lines).toEqual([
-        `${zeroWidthSpace}- **bold** ${zeroWidthSpace}_it_ a_b`,
-        `${zeroWidthSpace}1. [x]${zeroWidthSpace}(https://e.com)`,
-        "# a\\b `c` ~~d~~",
-      ]);
-    });
-
     it("clamps a Diagram to its first 200 lines", () => {
       const { card, warnings } = toAdaptiveCard({
         $type: "Diagram",

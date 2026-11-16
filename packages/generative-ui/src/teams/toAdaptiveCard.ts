@@ -208,20 +208,6 @@ function textBlock(text: string, extra?: TextBlockExtra): TeamsTextBlock {
   return markdownBlock(unlinked(text), extra);
 }
 
-/**
- * Source code shown as written. Teams documents no backslash escapes, so the
- * markers it renders are broken with a zero-width space instead: links (via
- * `unlinked`), a word-initial `_` italic, and a leading list marker. A
- * zero-width space can't break `*` emphasis under CommonMark, so `*` is left
- * as is.
- */
-const literalMarkdown = (text: string): string => {
-  const zeroWidthSpace = String.fromCharCode(0x200b);
-  return unlinked(text)
-    .replace(/(^|[^\p{L}\p{N}_])_/gu, `$1${zeroWidthSpace}_`)
-    .replace(/^([-+*]|\d+\.)(?=\s|$)/, `${zeroWidthSpace}$1`);
-};
-
 const escapeLinkText = (text: string): string =>
   text.replace(/[\\[\]]/g, "\\$&");
 
@@ -1114,10 +1100,9 @@ export function convertElement(
           type: "Container",
           // Teams breaks a TextBlock's line only inside a list and trims leading spaces, so each source line gets a block of its own and keeps its indent as non-breaking spaces.
           items: lines.slice(0, DIAGRAM_LINE_CAP).map((line, index) =>
-            markdownBlock(
-              literalMarkdown(line).replace(/^ +/, (indent) =>
-                space.repeat(indent.length),
-              ) || space,
+            textBlock(
+              line.replace(/^ +/, (indent) => space.repeat(indent.length)) ||
+                space,
               {
                 fontType: "Monospace",
                 ...(index > 0 ? { spacing: "none" as const } : {}),
