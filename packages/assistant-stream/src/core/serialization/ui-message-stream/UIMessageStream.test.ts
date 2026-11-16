@@ -589,9 +589,6 @@ describe("UIMessageStreamDecoder", () => {
     await collectChunks(
       stream.pipeThrough(new UIMessageStreamDecoder({ onData })),
     );
-
-    // `onData` declares `id?: string`; the decoder only validates `type`, so a
-    // numbering id on the wire must not reach a consumer expecting a string.
     expect(onData).toHaveBeenCalledExactlyOnceWith({
       type: "data-weather",
       name: "weather",

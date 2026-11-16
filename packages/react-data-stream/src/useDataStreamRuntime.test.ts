@@ -523,10 +523,6 @@ describe("useDataStreamRuntime data callbacks", () => {
     });
 
     await runToCompletion(adapter, createRunOptions());
-
-    // The same id twice is one part updated in place, a new id is a new part,
-    // and the id-less chunk has no id at all - assert the whole callback
-    // argument so a dropped name/data/type cannot pass unnoticed.
     expect(onData.mock.calls.map(([data]) => data)).toStrictEqual([
       {
         type: "data-weather",
