@@ -126,6 +126,27 @@ describe("xulux usage budget", () => {
     expect(next.denied).toBeNull();
   });
 
+  it("refuses a chat that lost the race for the last daily slot when it retries", async () => {
+    vi.stubEnv("XULUX_MAX_CHATS_PER_DAY", "1");
+    const budget = await loadBudget();
+    const results = await Promise.all(
+      ["chat-0", "chat-1"].map((chat) =>
+        budget.beginTurn(`session-a:${chat}`, "session-a", null),
+      ),
+    );
+    const refused = results.findIndex((result) => result.denied !== null);
+    expect((await results[refused]!.denied!.json()).code).toBe(
+      "DAILY_CHAT_LIMIT",
+    );
+
+    const retry = await budget.beginTurn(
+      `session-a:chat-${refused}`,
+      "session-a",
+      null,
+    );
+    expect((await retry.denied!.json()).code).toBe("DAILY_CHAT_LIMIT");
+  });
+
   it("keeps the reservation as the charge for a turn that reports no usage", async () => {
     vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
     const budget = await loadBudget();

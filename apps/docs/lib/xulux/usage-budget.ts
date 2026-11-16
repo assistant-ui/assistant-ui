@@ -65,6 +65,11 @@ type UsageBudgetStore = {
     distinctId: string,
     date: string,
   ) => Promise<number>;
+  unregisterChat: (
+    sessionId: string,
+    distinctId: string,
+    date: string,
+  ) => Promise<void>;
   /** Adds `delta` (default 1) to the session's turn count; returns the count. */
   incrementTurn: (sessionId: string, delta?: number) => Promise<number>;
   /** Adds to the session and daily totals and returns the new totals. */
@@ -126,6 +131,10 @@ function createMemoryStore(): UsageBudgetStore {
       set.add(sessionId);
       dailySessions.set(dayKey, set);
       return set.size;
+    },
+    async unregisterChat(sessionId, distinctId, date) {
+      registered.delete(`${sessionId}:${date}`);
+      dailySessions.get(`${distinctId}:${date}`)?.delete(sessionId);
     },
     async incrementTurn(sessionId, delta = 1) {
       const next = (turns.get(sessionId) ?? 0) + delta;
@@ -191,6 +200,10 @@ function createRedisStore(redis: Redis): UsageBudgetStore {
       await redis.sadd(dailySessionsKey(distinctId, date), sessionId);
       await redis.expire(dailySessionsKey(distinctId, date), DAY_TTL_SEC);
       return redis.scard(dailySessionsKey(distinctId, date));
+    },
+    async unregisterChat(sessionId, distinctId, date) {
+      await redis.srem(dailySessionsKey(distinctId, date), sessionId);
+      await redis.del(sessionRegisteredKey(sessionId, date));
     },
     async incrementTurn(sessionId, delta = 1) {
       const turns = await redis.incrby(sessionTurnsKey(sessionId), delta);
@@ -348,6 +361,7 @@ export async function beginTurn(
       budgetDate,
     );
     if (chatCount > limits.maxChatsPerDay) {
+      await store.unregisterChat(sessionId, distinctId, budgetDate);
       return release("DAILY_CHAT_LIMIT");
     }
   }
