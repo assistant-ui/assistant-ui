@@ -60,7 +60,7 @@ export const toCssLength = (value: unknown): string | undefined => {
 
 export const safeBackground = (value: unknown) =>
   typeof value === "string" &&
-  !/[\\;{}]/.test(value) &&
+  !/[\\;{}'"[\]]/.test(value) &&
   !RESOURCE.test(value) &&
   isSelfContained(value)
     ? value

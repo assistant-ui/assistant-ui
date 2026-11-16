@@ -227,6 +227,8 @@ describe("layoutVocabulary Box", () => {
     ["an open parenthesis", { width: "calc((10px)" }],
     ["a comment opener", { width: "calc(10px/*)" }],
     ["an unclosed gradient", { background: "linear-gradient(red" }],
+    ["an unclosed string", { background: "red '" }],
+    ["an unclosed bracket", { background: "red [" }],
   ])("drops a value with %s so the next declarations survive", (_, props) => {
     expect(render({ $type: "Box", height: 8, radius: "full", ...props })).toBe(
       '<div data-aui="box" data-aui-radius="full" style="height:8px;border-radius:9999px"></div>',
