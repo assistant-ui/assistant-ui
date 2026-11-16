@@ -189,9 +189,16 @@ describe.each(routes)("$name chat route", ({ path, hasTools, resumable }) => {
 
 describe.each(
   routes.filter(({ name }) =>
-    ["registry", "default", "minimal", "cloud", "cloud-clerk", "mcp"].includes(
-      name,
-    ),
+    [
+      "registry",
+      "default",
+      "minimal",
+      "cloud",
+      "cloud-clerk",
+      "cloud-harness",
+      "mcp",
+      "resumable registry",
+    ].includes(name),
   ),
 )("$name chat route request context", ({ path }) => {
   const request = (headers: Record<string, string>) =>
