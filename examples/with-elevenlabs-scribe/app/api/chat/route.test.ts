@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe("chat route", () => {
-  it.each([
+  it.each<{ label: string; headers: Record<string, string> }>([
     {
       label: "a same-site browser request",
       headers: { "sec-fetch-site": "same-site" },

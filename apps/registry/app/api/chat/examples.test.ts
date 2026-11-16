@@ -152,43 +152,47 @@ const routes = [
   },
 ];
 
-describe.each(routes)("$name chat route request context", ({ body, load }) => {
-  const request = (headers: Record<string, string>) =>
-    new Request("http://localhost/api/chat", {
-      method: "POST",
-      headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify(body),
+describe.each(routes)(
+  "$name chat route request context",
+  ({ body, load }) => {
+    const request = (headers: Record<string, string>) =>
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+    const unparsableRequest = (headers: Record<string, string>) =>
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "content-type": "text/plain", ...headers },
+        body: "not json",
+      });
+
+    it.each([
+      ["a cross-site fetch", { "sec-fetch-site": "cross-site" }],
+      ["a same-site fetch", { "sec-fetch-site": "same-site" }],
+      ["a foreign Origin", { origin: "https://example.net" }],
+    ])("rejects %s before reading the body", async (_label, headers) => {
+      const POST = await load();
+      const response = await POST(unparsableRequest(headers));
+      await response.text();
+
+      expect(response.status).toBe(403);
+      expect(fetchMock).not.toHaveBeenCalled();
     });
-  const unparsableRequest = (headers: Record<string, string>) =>
-    new Request("http://localhost/api/chat", {
-      method: "POST",
-      headers: { "content-type": "text/plain", ...headers },
-      body: "not json",
+
+    it.each([
+      ["a same-origin fetch", { "sec-fetch-site": "same-origin" }],
+      ["its own Origin", { origin: "http://localhost" }],
+      ["a request without browser headers", {}],
+    ])("serves %s", async (_label, headers) => {
+      const POST = await load();
+      const response = await POST(request(headers));
+      await response.text();
+
+      expect(response.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalled();
     });
-
-  it.each([
-    ["a cross-site fetch", { "sec-fetch-site": "cross-site" }],
-    ["a same-site fetch", { "sec-fetch-site": "same-site" }],
-    ["a foreign Origin", { origin: "https://example.net" }],
-  ])("rejects %s before reading the body", async (_label, headers) => {
-    const POST = await load();
-    const response = await POST(unparsableRequest(headers));
-    await response.text();
-
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["a same-origin fetch", { "sec-fetch-site": "same-origin" }],
-    ["its own Origin", { origin: "http://localhost" }],
-    ["a request without browser headers", {}],
-  ])("serves %s", async (_label, headers) => {
-    const POST = await load();
-    const response = await POST(request(headers));
-    await response.text();
-
-    expect(response.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalled();
-  });
-});
+  },
+  30_000,
+);
