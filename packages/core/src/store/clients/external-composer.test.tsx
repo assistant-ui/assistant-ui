@@ -3,7 +3,7 @@
 import { act, cleanup, render } from "@testing-library/react";
 import type { FC } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { resource, useResource } from "@assistant-ui/tap";
+import { flushTapSync, resource, useResource } from "@assistant-ui/tap";
 import {
   AuiConfig,
   AuiProvider,
@@ -111,7 +111,7 @@ it("forwards send and text changes from the ExternalThread composer", async () =
 
 it("tags reset, returned-send, and edit-seed text writes with their origins", async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
-  onNew.mockImplementation(() => {
+  onNew.mockImplementationOnce(() => {
     throw new Error("send failed");
   });
   const message = {
@@ -214,8 +214,10 @@ it("forwards cancel for a send still being prepared", async () => {
     await composer.addAttachment(
       new File(["notes"], "notes.txt", { type: "text/plain" }),
     );
-    composer.setText("with file");
-    composer.send();
+    flushTapSync(() => {
+      composer.setText("with file");
+      composer.send();
+    });
   });
   expect(getAui().thread.composer().getState().canCancel).toBe(true);
 
