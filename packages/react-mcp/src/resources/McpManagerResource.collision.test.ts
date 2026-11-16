@@ -9,19 +9,6 @@ const mocks = vi.hoisted(() => ({
   callTool: vi.fn(async (_url: string, _params: unknown) => ({ content: [] })),
 }));
 
-// Finding a real 64-bit collision is slow, so every tool named `collide*`
-// maps to one alias here.
-vi.mock("../utils/toolName", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../utils/toolName")>();
-  return {
-    ...actual,
-    getMcpToolName: (serverId: string, toolName: string) =>
-      toolName.startsWith("collide")
-        ? "__mcp_0000000000000000_collide"
-        : actual.getMcpToolName(serverId, toolName),
-  };
-});
-
 vi.mock("@modelcontextprotocol/client", async (importOriginal) => ({
   ...(await importOriginal()),
   Client: class {
@@ -65,8 +52,8 @@ const connector = (id: string, url: string) =>
 describe("McpManagerResource tool name collisions", () => {
   it("registers neither tool when two servers' tools share a name", async () => {
     mocks.toolsByUrl = {
-      "https://docs.example.com/mcp": ["collide.a", "search"],
-      "https://other.example.com/mcp": ["collide.b"],
+      "https://docs.example.com/mcp": ["b", "search"],
+      "https://other.example.com/mcp": ["_b"],
     };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     onTestFinished(() => warn.mockRestore());
@@ -74,8 +61,8 @@ describe("McpManagerResource tool name collisions", () => {
       mcp: McpManagerResource({
         autoConnect: false,
         connectors: [
-          connector("docs", "https://docs.example.com/mcp"),
-          connector("other", "https://other.example.com/mcp"),
+          connector("a_", "https://docs.example.com/mcp"),
+          connector("a", "https://other.example.com/mcp"),
         ],
         storage: McpMemoryStorage(),
       }),
@@ -86,30 +73,25 @@ describe("McpManagerResource tool name collisions", () => {
       await aui.mcp.connector({ index: 0 }).connect();
       await vi.waitFor(() =>
         expect(aui.modelContext.getState().toolNames).toEqual(
-          expect.arrayContaining([
-            "docs__search",
-            "__mcp_0000000000000000_collide",
-          ]),
+          expect.arrayContaining(["a___search", "a___b"]),
         ),
       );
       await aui.mcp.connector({ index: 1 }).connect();
       await vi.waitFor(() =>
-        expect(aui.modelContext.getState().toolNames).toEqual(["docs__search"]),
+        expect(aui.modelContext.getState().toolNames).toEqual(["a___search"]),
       );
       expect(warn).toHaveBeenCalledExactlyOnceWith(
-        expect.stringContaining('"__mcp_0000000000000000_collide"'),
+        expect.stringContaining('"a___b"'),
       );
       // Reconnecting recomputes the toolkit; the warning doesn't repeat.
       await aui.mcp.connector({ index: 0 }).disconnect?.();
       await aui.mcp.connector({ index: 0 }).connect();
       await vi.waitFor(() =>
-        expect(aui.modelContext.getState().toolNames).toEqual(["docs__search"]),
+        expect(aui.modelContext.getState().toolNames).toEqual(["a___search"]),
       );
       expect(warn).toHaveBeenCalledTimes(1);
       expect(
-        aui.modelContext.getModelContext().tools?.[
-          "__mcp_0000000000000000_collide"
-        ],
+        aui.modelContext.getModelContext().tools?.["a___b"],
       ).toBeUndefined();
     } finally {
       handle.destroy();
@@ -118,7 +100,7 @@ describe("McpManagerResource tool name collisions", () => {
 
   it("keeps one tool when a server lists the same tool twice", async () => {
     mocks.toolsByUrl = {
-      "https://docs.example.com/mcp": ["collide.a", "collide.a"],
+      "https://docs.example.com/mcp": ["search", "search"],
     };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     onTestFinished(() => warn.mockRestore());
@@ -134,9 +116,7 @@ describe("McpManagerResource tool name collisions", () => {
       const aui = handle.getClient();
       await aui.mcp.connector({ index: 0 }).connect();
       await vi.waitFor(() =>
-        expect(aui.modelContext.getState().toolNames).toEqual([
-          "__mcp_0000000000000000_collide",
-        ]),
+        expect(aui.modelContext.getState().toolNames).toEqual(["docs__search"]),
       );
       expect(warn).not.toHaveBeenCalled();
     } finally {
