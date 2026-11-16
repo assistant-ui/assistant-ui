@@ -1,5 +1,8 @@
 type Mutation = {
   order: number;
+  // Shared with the optimistic update registered for this mutation. A queue
+  // merge reassigns it so replay follows the merged execution order.
+  optimisticOrder: { current: number };
   done: Promise<void>;
   previous: Promise<void> | undefined;
   running: boolean;
@@ -19,10 +22,13 @@ export class ThreadMutationQueue {
     return threadId;
   }
 
-  merge(threadId: string, otherThreadId: string) {
+  merge(
+    threadId: string,
+    otherThreadId: string,
+  ): { current: number }[] | undefined {
     const target = this.resolve(threadId);
     const source = this.resolve(otherThreadId);
-    if (target === source) return;
+    if (target === source) return undefined;
     this.aliases.set(source, target);
     const mutations = [
       ...(this.pending.get(target) ?? []),
@@ -31,13 +37,14 @@ export class ThreadMutationQueue {
       (a, b) => Number(b.running) - Number(a.running) || a.order - b.order,
     );
     this.pending.delete(source);
-    if (mutations.length === 0) return;
+    if (mutations.length === 0) return undefined;
     let previous: Promise<void> | undefined;
     for (const mutation of mutations) {
       mutation.previous = previous;
       previous = mutation.done;
     }
     this.pending.set(target, mutations);
+    return mutations.map((mutation) => mutation.optimisticOrder);
   }
 
   reserve(
@@ -57,6 +64,7 @@ export class ThreadMutationQueue {
     });
     const current: Mutation = {
       order: this.nextOrder++,
+      optimisticOrder: { current: -1 },
       done,
       previous: mutations.at(-1)?.done,
       running: false,
@@ -80,6 +88,7 @@ export class ThreadMutationQueue {
       return call();
     };
     return {
+      optimisticOrder: current.optimisticOrder,
       run: async <T>(call: () => Promise<T>): Promise<T> => {
         if (started)
           throw new Error("Thread mutation already cancelled or run");
