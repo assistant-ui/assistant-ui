@@ -103,7 +103,7 @@ type ToolCallPartBase = {
   argsText: string;
   args: ReadonlyJSONObject;
   approval?: ToolCallApproval;
-  /** The backend owns this call, such as a provider-executed tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
+  /** The call is answered outside the frontend, such as by a provider-executed tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
   providerExecuted?: boolean;
   timing?: ToolCallTiming;
   artifact?: ReadonlyJSONValue;
