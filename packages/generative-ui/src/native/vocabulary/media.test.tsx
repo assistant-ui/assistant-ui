@@ -29,8 +29,8 @@ afterEach(() => {
 });
 
 describe("media vocabulary on React Native", () => {
-  it("loads only listed origins when imageOrigins is set, and data images only when data: is listed", () => {
-    const render = (src: string, imageOrigins = ["https://cdn.example.com"]) =>
+  it("loads only listed origins and data images when imageOrigins is set", () => {
+    const render = (src: string) =>
       renderElement(
         <>
           {renderGenerativeUI(
@@ -38,7 +38,7 @@ describe("media vocabulary on React Native", () => {
             mediaVocabulary,
             {
               status: "done",
-              imageOrigins,
+              imageOrigins: ["https://cdn.example.com"],
             },
           )}
         </>,
@@ -48,12 +48,6 @@ describe("media vocabulary on React Native", () => {
     ).not.toBeNull();
     expect(
       render("data:image/png;base64,YQ==").querySelector("img"),
-    ).toBeNull();
-    expect(
-      render("data:image/png;base64,YQ==", [
-        "https://cdn.example.com",
-        "data:",
-      ]).querySelector("img"),
     ).not.toBeNull();
     const blocked = render("https://other.example.com/a.png");
     expect(blocked.querySelector("img")).toBeNull();

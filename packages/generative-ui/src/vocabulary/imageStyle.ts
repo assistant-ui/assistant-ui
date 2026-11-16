@@ -4,12 +4,7 @@ export function allowedImageSrc(
 ): boolean {
   if (imageOrigins === undefined) return true;
   if (typeof src !== "string") return false;
-  // A closed list admits inline images only when it names `data:` itself.
-  if (/^data:image\//i.test(src))
-    return imageOrigins.some(
-      (entry) =>
-        typeof entry === "string" && entry.trim().toLowerCase() === "data:",
-    );
+  if (/^data:image\//i.test(src)) return true;
   if (!/^https?:\/\//i.test(src)) return false;
   let origin: string;
   try {
