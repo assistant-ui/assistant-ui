@@ -271,8 +271,8 @@ jobs:
     environment: pypi publish
     runs-on: ubuntu-24.04
     permissions:
-      # Required for PyPI trusted publishing (OIDC).
       contents: read
+      # Required for PyPI trusted publishing (OIDC).
       id-token: write
     concurrency:
       group: pypi-publish-exec
@@ -366,3 +366,9 @@ jobs:
               --title "$tag" \
               --notes "First $PYTHON_PACKAGE_NAME release published via this workflow."
           fi
+
+      - name: Recovery guidance
+        if: failure()
+        run: |
+          echo "::error::Creating the GitHub release failed for $PYTHON_PACKAGE_NAME@${VERSION} on release SHA ${RELEASE_SHA}; the PyPI upload already succeeded."
+          echo "::error::Use \"Re-run failed jobs\" on this run to retry only the release job."
