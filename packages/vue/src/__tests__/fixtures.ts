@@ -10,8 +10,6 @@ export type AnyClient = Record<string, any>;
 
 export const flushEvents = () => new Promise((resolve) => setTimeout(resolve));
 
-export const trackers = { threadCleanups: 0 };
-
 const useMessageClient = ({ id }: { id: string }) => {
   const emit = useAssistantEmit();
   const [text, setText] = useState("");
@@ -24,16 +22,12 @@ const useMessageClient = ({ id }: { id: string }) => {
 };
 export const MessageClient = resource(useMessageClient);
 
-const useThreadClient = () => {
+const useThreadClient = ({ onCleanup }: { onCleanup?: () => void } = {}) => {
   const [selected, setSelected] = useState(0);
   const m0 = useClientResource(MessageClient({ id: "m0" }));
   const m1 = useClientResource(MessageClient({ id: "m1" }));
   const messages = [m0, m1];
-  useEffect(() => {
-    return () => {
-      trackers.threadCleanups++;
-    };
-  }, []);
+  useEffect(() => () => onCleanup?.(), [onCleanup]);
   return {
     getState: () => ({ selected }),
     setSelected,

@@ -15,7 +15,6 @@ import {
   MessageClient,
   ThreadClient,
   messageDerived,
-  trackers,
   type AnyClient,
 } from "./fixtures";
 
@@ -225,25 +224,28 @@ describe("AuiProvider", () => {
   });
 
   it("releases the client on unmount, soft unmounting its scopes", async () => {
-    const before = trackers.threadCleanups;
+    const onCleanup = vi.fn();
     const { Probe } = captureAui();
     const { unmount } = mountApp(
       defineComponent({
         setup: () => () =>
           h(
             AuiProvider,
-            { config: AuiConfig({ thread: ThreadClient() } as never) },
+            {
+              config: AuiConfig({
+                thread: ThreadClient({ onCleanup }),
+              } as never),
+            },
             { default: () => h(Probe) },
           ),
       }),
     );
 
-    const afterMount = trackers.threadCleanups;
+    const afterMount = onCleanup.mock.calls.length;
     unmount();
     await vi.waitFor(() =>
-      expect(trackers.threadCleanups).toBe(afterMount + 1),
+      expect(onCleanup).toHaveBeenCalledTimes(afterMount + 1),
     );
-    expect(afterMount).toBeGreaterThanOrEqual(before);
   });
 
   it("returns the throwing default client outside a provider", () => {
