@@ -60,11 +60,16 @@ type UsageBudgetStore = {
     distinctId: string,
     date: string,
   ) => Promise<import("./usage-budget-codes").BudgetSnapshot>;
+  /**
+   * Registers the session as one of the day's chats. `claimed` is false when
+   * another request registered it first.
+   */
   registerChat: (
     sessionId: string,
     distinctId: string,
     date: string,
-  ) => Promise<number>;
+  ) => Promise<{ chatCount: number; claimed: boolean }>;
+  /** Undoes a registration this request claimed. */
   unregisterChat: (
     sessionId: string,
     distinctId: string,
@@ -123,14 +128,15 @@ function createMemoryStore(): UsageBudgetStore {
     async registerChat(sessionId, distinctId, date) {
       const regKey = `${sessionId}:${date}`;
       if (registered.has(regKey)) {
-        return dailySessions.get(`${distinctId}:${date}`)?.size ?? 0;
+        const chatCount = dailySessions.get(`${distinctId}:${date}`)?.size ?? 0;
+        return { chatCount, claimed: false };
       }
       registered.add(regKey);
       const dayKey = `${distinctId}:${date}`;
       const set = dailySessions.get(dayKey) ?? new Set<string>();
       set.add(sessionId);
       dailySessions.set(dayKey, set);
-      return set.size;
+      return { chatCount: set.size, claimed: true };
     },
     async unregisterChat(sessionId, distinctId, date) {
       registered.delete(`${sessionId}:${date}`);
@@ -195,15 +201,19 @@ function createRedisStore(redis: Redis): UsageBudgetStore {
         ex: DAY_TTL_SEC,
       });
       if (!wasSet) {
-        return redis.scard(dailySessionsKey(distinctId, date));
+        const chatCount = await redis.scard(dailySessionsKey(distinctId, date));
+        return { chatCount, claimed: false };
       }
       await redis.sadd(dailySessionsKey(distinctId, date), sessionId);
       await redis.expire(dailySessionsKey(distinctId, date), DAY_TTL_SEC);
-      return redis.scard(dailySessionsKey(distinctId, date));
+      const chatCount = await redis.scard(dailySessionsKey(distinctId, date));
+      return { chatCount, claimed: true };
     },
     async unregisterChat(sessionId, distinctId, date) {
-      await redis.srem(dailySessionsKey(distinctId, date), sessionId);
+      // The marker goes first: a retry that lands before the SREM is a new
+      // chat again and still counts this session, so it is refused.
       await redis.del(sessionRegisteredKey(sessionId, date));
+      await redis.srem(dailySessionsKey(distinctId, date), sessionId);
     },
     async incrementTurn(sessionId, delta = 1) {
       const turns = await redis.incrby(sessionTurnsKey(sessionId), delta);
@@ -355,13 +365,14 @@ export async function beginTurn(
   }
 
   if (snap.isNewSession) {
-    const chatCount = await store.registerChat(
+    const { chatCount, claimed } = await store.registerChat(
       sessionId,
       distinctId,
       budgetDate,
     );
     if (chatCount > limits.maxChatsPerDay) {
-      await store.unregisterChat(sessionId, distinctId, budgetDate);
+      if (claimed)
+        await store.unregisterChat(sessionId, distinctId, budgetDate);
       return release("DAILY_CHAT_LIMIT");
     }
   }

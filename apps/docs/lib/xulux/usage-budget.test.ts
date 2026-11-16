@@ -147,6 +147,21 @@ describe("xulux usage budget", () => {
     expect((await retry.denied!.json()).code).toBe("DAILY_CHAT_LIMIT");
   });
 
+  it("keeps a chat's registration when its own duplicate first turn is refused", async () => {
+    vi.stubEnv("XULUX_MAX_CHATS_PER_DAY", "1");
+    const budget = await loadBudget();
+    // chat-0 takes the only slot, chat-1 overflows it, and chat-0's second
+    // first turn sees the overflowed count but did not register anything.
+    await Promise.all(
+      ["chat-0", "chat-1", "chat-0"].map((chat) =>
+        budget.beginTurn(`session-a:${chat}`, "session-a", null),
+      ),
+    );
+
+    const fresh = await budget.beginTurn("session-a:chat-2", "session-a", null);
+    expect((await fresh.denied!.json()).code).toBe("DAILY_CHAT_LIMIT");
+  });
+
   it("keeps the reservation as the charge for a turn that reports no usage", async () => {
     vi.stubEnv("XULUX_TURN_RESERVE_USD", "0.5");
     const budget = await loadBudget();
