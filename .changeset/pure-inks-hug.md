@@ -5,7 +5,6 @@
 "@assistant-ui/react-ag-ui": patch
 "@assistant-ui/react-data-stream": patch
 "@assistant-ui/react-ink-markdown": patch
-"@assistant-ui/react-ink": patch
 "@assistant-ui/react-opencode": patch
 "@assistant-ui/react-streamdown": patch
 "@assistant-ui/react": patch

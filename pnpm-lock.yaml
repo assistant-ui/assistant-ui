@@ -5518,8 +5518,8 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0
       string-width:
-        specifier: ^9.0.0
-        version: 9.0.0
+        specifier: ^8.3.0
+        version: 8.3.0
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -22553,10 +22553,6 @@ packages:
   string-width@8.3.0:
     resolution: {integrity: sha512-ZbmZM0JCihQN91dWnxoipT2KOEyHqEyfRXUyjuRhW8b/xnqPDoq4gWEVApTVa9db2wN8mmoikgFBbjh71+cGeQ==}
     engines: {node: '>=20'}
-
-  string-width@9.0.0:
-    resolution: {integrity: sha512-2MOboAIRIszVGZVPA2Zqwj0ujd0o+xAZ5y2ft4OcD4kuVQ4phZxq0Sv7YTY8yaDA2CSMXch1EWTkJw+tTJZTzA==}
-    engines: {node: '>=22'}
 
   string.prototype.codepointat@0.2.1:
     resolution: {integrity: sha512-2cBVCj6I4IOvEnjgO/hWqXjqBGsY+zwPmHl12Srk9IXSZ56Jwwmy+66XO5Iut/oQVR7t5ihYdLB0GMa4alEUcg==}
@@ -43467,11 +43463,6 @@ snapshots:
       strip-ansi: 7.2.0
 
   string-width@8.3.0:
-    dependencies:
-      get-east-asian-width: 1.7.0
-      strip-ansi: 7.2.0
-
-  string-width@9.0.0:
     dependencies:
       get-east-asian-width: 1.7.0
       strip-ansi: 7.2.0
