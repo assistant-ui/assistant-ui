@@ -2016,6 +2016,89 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("keeps history-loaded message IDs mapped when the thread list arrives later", async () => {
+    let currentThreadId = "thread-delayed";
+    const item = (getId: () => string) => ({
+      source: "threads",
+      getState: () => ({ id: getId(), remoteId: getId() }),
+      initialize: async () => ({
+        remoteId: getId(),
+        externalId: undefined,
+      }),
+    });
+    const liveItem = item(() => currentThreadId);
+    const listedItem = item(() => "thread-delayed");
+    let listed = false;
+    mocks.aui = {
+      threadListItem: liveItem,
+      threads: {
+        item: vi.fn(() => listedItem),
+        getState: () => ({
+          mainThreadId: "thread-delayed",
+          threadItems: listed
+            ? [{ id: "thread-delayed", remoteId: "thread-delayed" }]
+            : [],
+        }),
+      },
+      thread: { getState: () => ({ isEmpty: false, suggestions: [] }) },
+      on: () => () => {},
+      subscribe: () => () => {},
+    } as unknown as import("@assistant-ui/store").AssistantClient;
+    const cloud = makeCloud();
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages: [
+        {
+          id: "history-message",
+          parent_id: null,
+          height: 0,
+          created_at: new Date(0),
+          updated_at: new Date(0),
+          format: "test",
+          content: { id: "history-message" },
+        },
+      ],
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const formatted = result.current.withFormat!({
+      format: "test",
+      encode: ({ message }: { message: { id: string } }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+
+    const history = await formatted.load();
+    expect(history.messages.map((entry) => entry.message.id)).toEqual([
+      "history-message",
+    ]);
+    listed = true;
+    currentThreadId = "thread-other";
+    await (
+      result.current as typeof result.current & {
+        resolveEngagementEventIds: (threadId: string) => Promise<unknown>;
+      }
+    ).resolveEngagementEventIds("thread-delayed");
+    currentThreadId = "thread-delayed";
+    formatted.pin?.();
+    assertDefined(formatted.update);
+    await formatted.update(
+      { parentId: null, message: { id: "history-message" } },
+      "history-message",
+    );
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(cloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-delayed",
+      "history-message",
+      expect.anything(),
+    );
+  });
+
   it("reports a run once when its settled message is rewritten", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();

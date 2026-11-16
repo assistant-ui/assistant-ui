@@ -67,6 +67,11 @@ const globalPersistence = new WeakMap<
   ScopedPersistence
 >();
 
+const threadPersistenceByList = new WeakMap<
+  getClientId.ClientId,
+  Map<string, WeakRef<ScopedPersistence>>
+>();
+
 export const DEFAULT_CLOUD_SCOPE = Symbol("assistant-ui:cloud-default-scope");
 
 // Kept per persistence so they share the id mapping's lifetime: ids whose stored aui/v0 entry is settled, and ids whose run a write has reported.
@@ -297,9 +302,40 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
     snapshot = this.captureScopeSnapshot(),
   ): CloudMessagePersistence {
-    const key = getClientId(threadListItem);
-    let entry = globalPersistence.get(key);
-    if (!entry || !Object.is(entry.scope, snapshot.scope)) {
+    const threadListClientId = getClientId(this.aui.threads);
+    const state = threadListItem.getState();
+    const threadKeys = [
+      `id:${state.id}`,
+      ...(state.remoteId ? [`remote:${state.remoteId}`] : []),
+    ];
+    const keys = new Set([getClientId(threadListItem)]);
+    const live = this.aui.threadListItem;
+    if (
+      [state.id, state.remoteId].some(
+        (id) => typeof id === "string" && this.ownsThread(id),
+      )
+    ) {
+      keys.add(getClientId(live));
+    }
+    const cachedThreads = threadPersistenceByList.get(threadListClientId);
+    let entry: ScopedPersistence | undefined;
+    for (const threadKey of threadKeys) {
+      const cached = cachedThreads?.get(threadKey);
+      const candidate = cached?.deref();
+      if (cached && !candidate) cachedThreads?.delete(threadKey);
+      if (candidate && Object.is(candidate.scope, snapshot.scope)) {
+        entry = candidate;
+        break;
+      }
+    }
+    for (const key of keys) {
+      if (entry) break;
+      const candidate = globalPersistence.get(key);
+      if (candidate && Object.is(candidate.scope, snapshot.scope)) {
+        entry = candidate;
+      }
+    }
+    if (!entry) {
       const cloudRef = { current: this.cloudRef };
       entry = {
         cloudRef,
@@ -309,11 +345,20 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           { staleAfter: this.getStaleAfter() },
         ),
       };
-      globalPersistence.set(key, entry);
     } else {
       // Thread items can outlive the hook that created their persistence, so a
       // later adapter must reconnect the retained mapping to its live client ref.
       entry.cloudRef.current = this.cloudRef;
+    }
+    for (const key of keys) globalPersistence.set(key, entry);
+    let threadCache = cachedThreads;
+    if (!threadCache) {
+      threadCache = new Map();
+      threadPersistenceByList.set(threadListClientId, threadCache);
+    }
+    // Thread IDs span item client instances; weak values keep this index from retaining old histories.
+    for (const threadKey of threadKeys) {
+      threadCache.set(threadKey, new WeakRef(entry));
     }
     return entry.persistence;
   }
