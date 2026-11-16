@@ -20,6 +20,10 @@ const externalSources = [
   "templates/mcp/app/api/request-context.ts",
   "templates/vscode/src/openai.ts",
   "examples/with-expo/app/showcase/thread.tsx",
+  "examples/with-cloud/app/api/chat/route.ts",
+  "examples/with-generative-ui/lib/render-gui-tool.ts",
+  "templates/nuxt/server/utils/request-context.ts",
+  "packages/react-google-adk/src/server/createAdkApiRoute.ts",
 ];
 
 type PlannedTask = { taskId: string; hash: string };
