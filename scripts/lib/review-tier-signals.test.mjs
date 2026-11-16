@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy } from "./review-policy.mjs";
-import { computeTier, protectedPaths } from "./review-tier-signals.mjs";
+import { computeTier, pathsAboveT0 } from "./review-tier-signals.mjs";
 
 const policy = loadReviewPolicy(path.resolve(import.meta.dirname, "../.."));
 
@@ -1231,14 +1231,15 @@ test("a package owner never takes over a contract area other than Public API", (
   assert.deepEqual(result.ownedPackages, []);
 });
 
-test("protected paths skip docs, tests and package source with a patch", () => {
+test("paths above T0 skip docs, low risk paths and new test files", () => {
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("README.md", { patch: "+docs" }),
         file("apps/docs/content/docs/guides/x.mdx", { patch: "+docs" }),
-        file("packages/react/src/index.ts", { patch: "+const a = 1;" }),
-        file("packages/react/src/index.test.ts"),
+        file(".changeset/brave-owls.md", { patch: "+x" }),
+        file("apps/web/app/page.tsx", { patch: null }),
+        file("packages/react/src/index.test.ts", { deletions: 0 }),
       ],
       policy,
     ),
@@ -1246,9 +1247,47 @@ test("protected paths skip docs, tests and package source with a patch", () => {
   );
 });
 
-test("protected paths cover owner areas, contract docs and decision paths", () => {
+test("paths above T0 is empty for an empty file list", () => {
+  assert.deepEqual(pathsAboveT0([], policy), []);
+});
+
+test("paths above T0 cover source, manifests, the lockfile and root config", () => {
+  const paths = [
+    "packages/react/src/index.ts",
+    "packages/core/src/index.ts",
+    "packages/cli/src/index.ts",
+    "packages/react/package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "package.json",
+    "turbo.json",
+  ];
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
+      paths.map((path) => file(path, { patch: "+x" })),
+      policy,
+    ),
+    paths.toSorted(),
+  );
+  assert.deepEqual(
+    pathsAboveT0([file("packages/react/src/b.ts", { patch: null })], policy),
+    ["packages/react/src/b.ts"],
+  );
+});
+
+test("paths above T0 cover a changed test file", () => {
+  assert.deepEqual(
+    pathsAboveT0(
+      [file("packages/react/src/index.test.ts", { deletions: 2 })],
+      policy,
+    ),
+    ["packages/react/src/index.test.ts"],
+  );
+});
+
+test("paths above T0 cover owner areas, contract docs and decision paths", () => {
+  assert.deepEqual(
+    pathsAboveT0(
       [
         file("packages/tap/src/core/scheduler.ts", { patch: "+x" }),
         file("apps/docs/content/docs/store/index.mdx", { patch: "+x" }),
@@ -1266,33 +1305,29 @@ test("protected paths cover owner areas, contract docs and decision paths", () =
   );
 });
 
-test("protected paths cover the public API surface", () => {
+test("paths above T0 cover the public API surface", () => {
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("api-surface/assistant-ui__react.ts", { patch: "+x" }),
-        file("packages/react/package.json", { patch: "+x" }),
         file("packages/new-pkg/package.json", { status: "added" }),
         file("packages/react/src/a.ts", {
           patch: "@@ -1 +1 @@\n+/** @deprecated use b */",
         }),
-        file("packages/react/src/b.ts", { patch: null }),
       ],
       policy,
     ),
     [
       "api-surface/assistant-ui__react.ts",
       "packages/new-pkg/package.json",
-      "packages/react/package.json",
       "packages/react/src/a.ts",
-      "packages/react/src/b.ts",
     ],
   );
 });
 
-test("a rename out of a protected path is protected", () => {
+test("a rename out of a path above T0 is reported", () => {
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("packages/react/src/tap.ts", {
           status: "renamed",
@@ -1302,11 +1337,11 @@ test("a rename out of a protected path is protected", () => {
       ],
       policy,
     ),
-    ["packages/tap/src/tap.ts"],
+    ["packages/react/src/tap.ts", "packages/tap/src/tap.ts"],
   );
 });
 
-test("protected paths cover packages with their own owners", () => {
+test("paths above T0 cover packages with their own owners", () => {
   const custom = {
     ...policy,
     packageOwners: [
@@ -1318,7 +1353,7 @@ test("protected paths cover packages with their own owners", () => {
     ],
   };
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("packages/docs-theme/src/index.ts", { patch: "+const a = 1;" }),
         file("packages/react/src/theme.ts", {
@@ -1326,10 +1361,14 @@ test("protected paths cover packages with their own owners", () => {
           previousPath: "packages/docs-theme/src/theme.ts",
           patch: "",
         }),
-        file("packages/react/src/index.ts", { patch: "+const a = 1;" }),
+        file("apps/web/app/page.tsx", { patch: "+const a = 1;" }),
       ],
       custom,
     ),
-    ["packages/docs-theme/src/index.ts", "packages/docs-theme/src/theme.ts"],
+    [
+      "packages/docs-theme/src/index.ts",
+      "packages/docs-theme/src/theme.ts",
+      "packages/react/src/theme.ts",
+    ],
   );
 });

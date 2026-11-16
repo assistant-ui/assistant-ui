@@ -446,6 +446,12 @@ export class AgUiThreadController {
   private runCount = 0;
   private history: ThreadHistoryAdapter | undefined;
   private readonly snapshotHeadMovedAssistantIds = new Set<string>();
+  /**
+   * Tool calls an interrupt has named. Such a call is the agent's to decide,
+   * so the client never runs its frontend `execute`, whether or not the
+   * approval seam could project the interrupt that named it.
+   */
+  private readonly interruptNamedToolCallIds = new Set<string>();
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly subagentParentToolCallIds = new Map<
     string,
@@ -609,6 +615,7 @@ export class AgUiThreadController {
       this.snapshotHeadMovedAssistantIds.clear();
       this.assistantHistoryParents.clear();
       this.subagentParentToolCallIds.clear();
+      this.interruptNamedToolCallIds.clear();
       this.snapshotHistoryIds.clear();
       this.persistedHistoryIds.clear();
       this.unappendedHistoryIds.clear();
@@ -963,6 +970,31 @@ export class AgUiThreadController {
     return { messageId: assistant.id, interrupts: stored };
   }
 
+  /**
+   * Whether a tool call is withheld from client-side execution because an
+   * interrupt names it. The approval seam marks a call it can answer with an
+   * `approval`, but a batch it cannot project (a gate beside a non-gate
+   * interrupt, two gates on one call, a gate naming an unrendered call) leaves
+   * the parts unmarked, so the interrupt itself is the signal. Once named, a
+   * call stays withheld after the interrupt closes, as a call with an approval
+   * does.
+   */
+  isToolCallNamedByInterrupt(toolCallId: string): boolean {
+    this.rememberInterruptNamedToolCalls(
+      this.getPendingInterrupts()?.interrupts,
+    );
+    return this.interruptNamedToolCallIds.has(toolCallId);
+  }
+
+  private rememberInterruptNamedToolCalls(
+    interrupts: readonly AgUiInterrupt[] | undefined,
+  ): void {
+    for (const interrupt of interrupts ?? []) {
+      if (typeof interrupt.toolCallId === "string")
+        this.interruptNamedToolCallIds.add(interrupt.toolCallId);
+    }
+  }
+
   getPendingToolCalls(): {
     messageId: string;
     toolCallIds: string[];
@@ -1297,6 +1329,10 @@ export class AgUiThreadController {
   ): void {
     const changedMessageIds: string[] = [];
     const pending = this.getPendingInterrupts();
+    // Record the named calls before the interrupt metadata is dropped, so a
+    // call the resumed run introduces stays withheld even if core never asked
+    // about it while the interrupt was open.
+    this.rememberInterruptNamedToolCalls(pending?.interrupts);
     const assistants = new Map(
       this.getAssistantMessagesForInterrupts(pending?.interrupts ?? []).map(
         (message) => [message.id, message],
@@ -1788,6 +1824,7 @@ export class AgUiThreadController {
     this.dispatch({ type: "resetThread" });
     this.snapshotHeadMovedAssistantIds.clear();
     this.subagentParentToolCallIds.clear();
+    this.interruptNamedToolCallIds.clear();
 
     if (controller) {
       this.abortController = null;

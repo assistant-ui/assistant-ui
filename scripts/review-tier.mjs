@@ -541,7 +541,8 @@ function ignoredReason({ reason, detail, paths }) {
   const label = ignoredLabels[reason] ?? reason;
   if (paths?.length) {
     const more = paths.length - shownPaths;
-    return `${label}; later commits touch ${paths.slice(0, shownPaths).map(code).join(", ")}${more > 0 ? ` and ${plural(more, "more protected path")}` : ""}`;
+    const shown = paths.slice(0, shownPaths).map(code).join(", ");
+    return `${label}; later commits change ${shown}${more > 0 ? ` and ${plural(more, "more path")}` : ""}, which ${paths.length === 1 ? "needs" : "need"} a fresh approval`;
   }
   return detail ? `${label}, ${detail}` : label;
 }
@@ -666,7 +667,7 @@ export function renderComment(evaluation, policy) {
       : `_Shadow mode: advice only, this check never blocks a merge. Rules in ${rules}._`,
     "",
     `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} ${code(top.detail)}${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
-    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${(approvals.carried ?? []).map(({ login, sha }) => ` · ${login} carried over (approved ${code(shortSha(sha))}, later commits touch no protected paths)`).join("")}${approvals.ignored.length ? ` · ${approvals.ignored.map((item) => `${item.login} ignored (${ignoredReason(item)})`).join(", ")}` : ""}`,
+    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${(approvals.carried ?? []).map(({ login, sha }) => ` · ${login} carried over (approved ${code(shortSha(sha))}, later commits stay within T0)`).join("")}${approvals.ignored.length ? ` · ${approvals.ignored.map((item) => `${item.login} ignored (${ignoredReason(item)})`).join(", ")}` : ""}`,
     ...waived.map(
       ({ code, signal, by }) =>
         `- **Waived:** ${requirementLabel(code, policy)}, by ${by} with \`${policy.labels.overridePrefix}${signal}\``,

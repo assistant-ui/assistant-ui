@@ -166,12 +166,28 @@ const useMcpManagerResource = (
     };
   }, [lookup.state, isHydrated]);
 
-  const toolkit = useMemo<Record<string, Tool<any, any>>>(() => {
+  const { toolkit, collided } = useMemo(() => {
     const out: Record<string, Tool<any, any>> = {};
+    // Two different (server, tool) pairs that map to one name would let either
+    // server's tool run under the other's name, so a shared name registers
+    // neither.
+    const owners = new Map<string, string>();
+    const collided = new Set<string>();
     for (const server of state.servers) {
       if (server.connectionState !== "connected") continue;
       for (const tool of server.tools) {
         const fullName = getMcpToolName(server.id, tool.name);
+        const identity = JSON.stringify([server.id, tool.name]);
+        const owner = owners.get(fullName);
+        if (owner === undefined) owners.set(fullName, identity);
+        else if (owner !== identity) collided.add(fullName);
+      }
+    }
+    for (const server of state.servers) {
+      if (server.connectionState !== "connected") continue;
+      for (const tool of server.tools) {
+        const fullName = getMcpToolName(server.id, tool.name);
+        if (collided.has(fullName)) continue;
         out[fullName] = {
           type: "frontend",
           ...(tool.description !== undefined
@@ -211,8 +227,24 @@ const useMcpManagerResource = (
         };
       }
     }
-    return out;
+    return { toolkit: out, collided: [...collided].sort().join("\n") };
   }, [state, lookup]);
+
+  // Warned once per name, after commit, however often the toolkit recomputes.
+  const [warnedCollisions] = useState(() => new Set<string>());
+  useAssistantScopeEffect(
+    "modelContext",
+    () => {
+      for (const name of collided ? collided.split("\n") : []) {
+        if (warnedCollisions.has(name)) continue;
+        warnedCollisions.add(name);
+        console.warn(
+          `[assistant-ui] Different MCP tools map to the tool name "${name}"; none of them is registered.`,
+        );
+      }
+    },
+    [collided],
+  );
 
   const clientRef = useAssistantClientRef();
 

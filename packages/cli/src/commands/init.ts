@@ -5,6 +5,7 @@ import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import { logger } from "../lib/utils/logger";
 import {
   dlxCommand,
+  SHADCN_PACKAGE,
   resolvePackageManager,
   resolvePackageManagerForCwd,
 } from "../lib/utils/package-manager";
@@ -30,9 +31,9 @@ export function createExistingProjectInitPlan(params: {
 }): ExistingProjectInitPlan {
   const { yes, overwrite } = params;
   const initArgs = yes
-    ? [`shadcn@latest`, "init", "--defaults", "--yes"]
-    : [`shadcn@latest`, "init"];
-  const addArgs = [`shadcn@latest`, "add"];
+    ? [SHADCN_PACKAGE, "init", "--defaults", "--yes"]
+    : [SHADCN_PACKAGE, "init"];
+  const addArgs = [SHADCN_PACKAGE, "add"];
   if (yes) addArgs.push("--yes");
   if (overwrite) addArgs.push("--overwrite");
 

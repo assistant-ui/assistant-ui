@@ -215,6 +215,8 @@ type AssistantCloudProjectThreadMessageListQuery = {
 
 type AssistantCloudProjectThreadMessageListResponse = {
   messages: CloudMessage[];
+  has_more?: boolean;
+  next_cursor?: string | null;
 };
 
 declare class AssistantCloudProjectThreadMessages {
@@ -401,6 +403,8 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
+  has_more?: boolean;
+  next_cursor?: string | null;
 };
 
 type AssistantCloudThreadMessageUpdateBody = {

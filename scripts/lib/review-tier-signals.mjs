@@ -307,22 +307,10 @@ export function computeTier(input, policy) {
   };
 }
 
-const protectedCodes = new Set([
-  "decision-path",
-  "contract-area",
-  "contract-docs",
-  "new-package",
-  "deprecation",
-  "ci-permissions",
-]);
-
-// The paths among `files` that an approval cannot carry over: owner areas and
-// their contract docs (what CODEOWNERS is generated from), the paths of
-// packages with their own owners, decision paths,
-// package manifests (entry points, exports maps and contract fields), and any
-// change the signals treat as public API. A package source file without a
-// patch counts too, since a new @deprecated cannot be ruled out.
-export function protectedPaths(files, policy) {
+// The paths among `files` behind a reason above T0, which an approval of an
+// earlier commit never covered.
+export function pathsAboveT0(files, policy) {
+  if (files.length === 0) return [];
   const { reasons } = computeTier(
     {
       title: "",
@@ -335,28 +323,11 @@ export function protectedPaths(files, policy) {
     },
     policy,
   );
-  const paths = new Set(
-    reasons
-      .filter((reason) => protectedCodes.has(reason.code))
-      .map((reason) => reason.detail),
-  );
-  for (const file of files) {
-    for (const path of [file.path, file.previousPath]) {
-      if (
-        path &&
-        (matchesAny(path, ["packages/*/package.json"]) ||
-          packageOwnerOf(policy, path))
-      ) {
-        paths.add(path);
-      }
-    }
-    if (
-      (file.patch ?? null) === null &&
-      file.path.startsWith("packages/") &&
-      !isTestPath(policy, file.path)
-    ) {
-      paths.add(file.path);
-    }
-  }
-  return [...paths].toSorted();
+  return [
+    ...new Set(
+      reasons
+        .filter((reason) => reason.tier > 0)
+        .map((reason) => reason.detail),
+    ),
+  ].toSorted();
 }

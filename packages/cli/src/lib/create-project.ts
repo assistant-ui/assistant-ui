@@ -8,7 +8,11 @@ import {
 } from "jsonc-parser";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
-import { dlxCommand, type PackageManagerName } from "./utils/package-manager";
+import {
+  dlxCommand,
+  SHADCN_PACKAGE,
+  type PackageManagerName,
+} from "./utils/package-manager";
 import { resolveGitHubAuthToken, withStagedDownload } from "./utils/download";
 import { readProjectFiles } from "./utils/file-scanner";
 import {
@@ -243,7 +247,7 @@ export async function transformProject(
     if (!components) return {};
     const [cmd, dlxArgs] = dlxCommand(pm);
     return {
-      registryInstallCommand: `${cmd} ${[...dlxArgs, "shadcn@latest", "add", ...components].join(" ")}`,
+      registryInstallCommand: `${cmd} ${[...dlxArgs, SHADCN_PACKAGE, "add", ...components].join(" ")}`,
     };
   }
 
@@ -648,7 +652,7 @@ async function installShadcnRegistry(
   const [cmd, dlxArgs] = dlxCommand(pm);
   // For npm, dlxArgs may already include `--yes` for npx auto-install.
   // The trailing `--yes` is for shadcn's own confirmation prompt.
-  const retryArgs = [...dlxArgs, "shadcn@latest", "add", ...components];
+  const retryArgs = [...dlxArgs, SHADCN_PACKAGE, "add", ...components];
   const addArgs = [...retryArgs, "--yes"];
 
   try {

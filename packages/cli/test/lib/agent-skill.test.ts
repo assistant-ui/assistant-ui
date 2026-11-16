@@ -52,19 +52,19 @@ describe("buildSkillsAddCommand", () => {
   it("delegates to the skills CLI via the package manager's dlx runner", () => {
     expect(buildSkillsAddCommand("pnpm", { stdinIsTTY: true })).toEqual([
       "pnpm",
-      ["dlx", "skills", "add", SKILLS_PACKAGE],
+      ["dlx", "skills@1.7.4", "add", SKILLS_PACKAGE],
     ]);
     expect(buildSkillsAddCommand("yarn", { stdinIsTTY: true })).toEqual([
       "yarn",
-      ["dlx", "skills", "add", SKILLS_PACKAGE],
+      ["dlx", "skills@1.7.4", "add", SKILLS_PACKAGE],
     ]);
     expect(buildSkillsAddCommand("bun", { stdinIsTTY: true })).toEqual([
       "bunx",
-      ["skills", "add", SKILLS_PACKAGE],
+      ["skills@1.7.4", "add", SKILLS_PACKAGE],
     ]);
     expect(buildSkillsAddCommand("npm", { stdinIsTTY: true })).toEqual([
       "npx",
-      ["--yes", "skills", "add", SKILLS_PACKAGE],
+      ["--yes", "skills@1.7.4", "add", SKILLS_PACKAGE],
     ]);
   });
 
@@ -76,20 +76,20 @@ describe("buildSkillsAddCommand", () => {
   it("appends the skills CLI's --yes for every package manager when non-TTY", () => {
     expect(buildSkillsAddCommand("pnpm", { stdinIsTTY: false })).toEqual([
       "pnpm",
-      ["dlx", "skills", "add", SKILLS_PACKAGE, "--yes"],
+      ["dlx", "skills@1.7.4", "add", SKILLS_PACKAGE, "--yes"],
     ]);
     expect(buildSkillsAddCommand("yarn", { stdinIsTTY: false })).toEqual([
       "yarn",
-      ["dlx", "skills", "add", SKILLS_PACKAGE, "--yes"],
+      ["dlx", "skills@1.7.4", "add", SKILLS_PACKAGE, "--yes"],
     ]);
     expect(buildSkillsAddCommand("bun", { stdinIsTTY: false })).toEqual([
       "bunx",
-      ["skills", "add", SKILLS_PACKAGE, "--yes"],
+      ["skills@1.7.4", "add", SKILLS_PACKAGE, "--yes"],
     ]);
     // npm carries npx's own --yes (auto-confirm the package download) plus the skills CLI's --yes
     expect(buildSkillsAddCommand("npm", { stdinIsTTY: false })).toEqual([
       "npx",
-      ["--yes", "skills", "add", SKILLS_PACKAGE, "--yes"],
+      ["--yes", "skills@1.7.4", "add", SKILLS_PACKAGE, "--yes"],
     ]);
   });
 });
