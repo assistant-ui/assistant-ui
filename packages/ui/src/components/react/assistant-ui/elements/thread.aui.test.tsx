@@ -152,6 +152,36 @@ function AssistantContentTestThread({
   );
 }
 
+/** Hands parts to the components as-is: no `convertMessage`, so core never filters them. */
+function RawAssistantPartsTestThread({ content }: { content: unknown[] }) {
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
+    messages: [
+      {
+        id: "raw-message",
+        role: "assistant",
+        createdAt: new Date(0),
+        content: content as ThreadMessage["content"],
+        status: { type: "complete", reason: "stop" },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      } as ThreadMessage,
+    ],
+    isRunning: false,
+    onNew: async () => {},
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
 function ApprovalTestThread({ pending }: { pending: boolean }) {
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
     messages: [
@@ -506,6 +536,54 @@ describe("Thread", () => {
       files[1]!.querySelector('[data-slot="file-name"]')?.textContent,
     ).toBe("Text file");
     expect(screen.queryByText("Unnamed file")).toBeNull();
+  });
+
+  it("renders the well-formed file parts beside ones with fields of the wrong type", () => {
+    render(
+      <AssistantContentTestThread
+        content={
+          [
+            {
+              type: "file",
+              mimeType: { type: "image/png" },
+              data: PNG_DATA_URI,
+            },
+            { type: "file", mimeType: "image/png", data: { nested: true } },
+            { type: "file", mimeType: "image/png", data: PNG_DATA_URI },
+          ] as never
+        }
+      />,
+    );
+
+    const files = document.querySelectorAll<HTMLElement>(
+      '[data-slot="aui_assistant-message-file"]',
+    );
+    expect(files).toHaveLength(1);
+    expect(
+      files[0]!
+        .querySelector('[data-slot="image-preview"] img')
+        ?.getAttribute("src"),
+    ).toBe(PNG_DATA_URI);
+  });
+
+  it("renders a file card, not an image, for a file part that reaches the component with fields of the wrong type", () => {
+    render(
+      <RawAssistantPartsTestThread
+        content={[
+          { type: "file", mimeType: { type: "image/png" }, data: PNG_DATA_URI },
+          { type: "file", mimeType: "image/png", data: { nested: true } },
+        ]}
+      />,
+    );
+
+    const files = document.querySelectorAll<HTMLElement>(
+      '[data-slot="aui_assistant-message-file"]',
+    );
+    expect(files).toHaveLength(2);
+    for (const file of files) {
+      expect(file.querySelector('[data-slot="image-preview"]')).toBeNull();
+      expect(file.querySelector(".aui-file-root")).not.toBeNull();
+    }
   });
 
   it("shows feedback actions only when the runtime supports feedback", () => {

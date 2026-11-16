@@ -14,6 +14,10 @@ import type {
   DataMessagePart,
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
+import {
+  isStoredMessagePart,
+  withoutInvalidOptionals,
+} from "./stored-message-parts";
 import type {
   MessageModality,
   MessageTiming,
@@ -119,6 +123,17 @@ const convertDataPrefixedPart = (
   };
 };
 
+const isString = (value: unknown): value is string => typeof value === "string";
+
+/**
+ * Input can carry fields of the wrong type. File and source parts follow the
+ * same rule as the storage readers (`isStoredMessagePart`): a part missing a
+ * field it needs to render is dropped and a malformed optional field is
+ * removed, the same way whichever path delivered it.
+ */
+const keepWellFormed = <T>(part: T): T | null =>
+  isStoredMessagePart(part) ? withoutInvalidOptionals(part) : null;
+
 /**
  * @deprecated Experimental since 2024-07-25. Not scheduled for removal; the API may change in any release.
  */
@@ -143,11 +158,11 @@ export const fromThreadMessageLike = (
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
     if (typeof image !== "string") return null;
-    if (parseDataUrl(image)?.mimeType.startsWith("image/")) {
-      return { ...rest, image };
-    }
-    if (/^(https:\/\/|blob:)/i.test(image)) {
-      return { ...rest, image };
+    if (
+      parseDataUrl(image)?.mimeType.startsWith("image/") ||
+      /^(https:\/\/|blob:)/i.test(image)
+    ) {
+      return withoutInvalidOptionals({ ...rest, image });
     }
     console.warn(`Invalid image data format detected`);
     return null;
@@ -172,17 +187,28 @@ export const fromThreadMessageLike = (
             const type = part.type;
             switch (type) {
               case "text":
-                if (!part.text?.trim()) return null;
+                if (!isString(part.text) || !part.text.trim()) return null;
                 return part;
 
-              case "reasoning":
-                if (!part.text?.trim() && !part.unstable_summary?.trim())
-                  return null;
-                return part.text == null ? { ...part, text: "" } : part;
+              case "reasoning": {
+                const text = isString(part.text) ? part.text : "";
+                const summary = isString(part.unstable_summary)
+                  ? part.unstable_summary
+                  : undefined;
+                if (!text.trim() && !summary?.trim()) return null;
+                if (text === part.text && summary === part.unstable_summary)
+                  return part;
+                const { unstable_summary: _summary, ...rest } = part;
+                return {
+                  ...rest,
+                  text,
+                  ...(summary !== undefined && { unstable_summary: summary }),
+                };
+              }
 
               case "file":
               case "source":
-                return part;
+                return keepWellFormed(part);
 
               case "image":
                 return sanitizeImageContent(part);
@@ -274,14 +300,16 @@ export const fromThreadMessageLike = (
         ...common,
         role,
         content: content
-          .filter((part) => part.type !== "text" || part.text != null)
-          .map((part): ThreadUserMessagePart => {
+          .filter((part) => part.type !== "text" || isString(part.text))
+          .map((part): ThreadUserMessagePart | null => {
             const type = part.type;
             switch (type) {
-              case "text":
-              case "image":
-              case "audio":
               case "file":
+              case "image":
+                return keepWellFormed(part);
+
+              case "text":
+              case "audio":
               case "data":
                 return part;
 
@@ -311,17 +339,23 @@ export const fromThreadMessageLike = (
                 );
               }
             }
-          }),
+          })
+          .filter((part) => part !== null),
         attachments: (attachments ?? []).map((att) => ({
           ...att,
-          content: (att.content ?? []).map((part): ThreadUserMessagePart => {
-            const converted = convertDataPrefixedPart(
-              part.type,
-              (part as DataPrefixedPart).data,
-              "id" in part ? part.id : undefined,
-            );
-            return converted ?? (part as ThreadUserMessagePart);
-          }),
+          content: (att.content ?? [])
+            .map((part): ThreadUserMessagePart | null => {
+              const converted = convertDataPrefixedPart(
+                part.type,
+                (part as DataPrefixedPart).data,
+                "id" in part ? part.id : undefined,
+              );
+              if (converted) return converted;
+              return part.type === "file"
+                ? keepWellFormed(part)
+                : (part as ThreadUserMessagePart);
+            })
+            .filter((part) => part !== null),
         })),
         metadata: {
           custom: metadata?.custom ?? {},
@@ -336,10 +370,13 @@ export const fromThreadMessageLike = (
           "System messages must have exactly one text message part.",
         );
 
+      const [systemPart] = content as [TextMessagePart];
       return {
         ...common,
         role,
-        content: content as [TextMessagePart],
+        content: isString(systemPart.text)
+          ? [systemPart]
+          : [{ ...systemPart, text: "" }],
         metadata: {
           custom: metadata?.custom ?? {},
         },
