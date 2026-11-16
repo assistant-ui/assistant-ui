@@ -4139,8 +4139,8 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
       '@types/vscode':
-        specifier: ^1.146.0
-        version: 1.146.0
+        specifier: ^1.110.0
+        version: 1.140.0
       '@vscode/test-electron':
         specifier: ^3.1.0
         version: 3.1.0(supports-color@10.2.2)
@@ -7808,8 +7808,8 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
       '@types/vscode':
-        specifier: ^1.146.0
-        version: 1.146.0
+        specifier: ^1.110.0
+        version: 1.140.0
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -14858,8 +14858,8 @@ packages:
   '@types/uuid@10.0.0':
     resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
 
-  '@types/vscode@1.146.0':
-    resolution: {integrity: sha512-OtU25faeM997QQsW+D07FN9cX06j+EEI4aQaPw/UO3HWlCM39N1W7fG8ewhdZKluut31KffyMsmDzJzgMu6t8Q==}
+  '@types/vscode@1.140.0':
+    resolution: {integrity: sha512-KAB5RBZIgnUhpp4mKsVJPPHLOQKu6WtGy2xpfWjaajEXO4xIIC+UESAXLiQ9ewx6QD1uBmvC/S8BJzkbvv4bRA==}
 
   '@types/web-bluetooth@0.0.21':
     resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
@@ -33005,7 +33005,7 @@ snapshots:
 
   '@types/uuid@10.0.0': {}
 
-  '@types/vscode@1.146.0': {}
+  '@types/vscode@1.140.0': {}
 
   '@types/web-bluetooth@0.0.21': {}
 
