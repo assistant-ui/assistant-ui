@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
+import { isLoopbackHostname } from "../lib/cloud-url";
 import {
   cleanupPendingProjectDownloads,
   downloadProject,
@@ -22,6 +23,7 @@ import {
 } from "../lib/run-spawn";
 import {
   dlxCommand,
+  SHADCN_PACKAGE,
   resolvePackageManager,
   resolvePackageManagerForCwd,
 } from "../lib/utils/package-manager";
@@ -466,11 +468,31 @@ export function resolveProjectDirectoryGuidance(params: {
 const PLAYGROUND_PRESET_BASE_URL =
   "https://www.assistant-ui.com/playground/init";
 
+/**
+ * The registry URL for a preset name or URL. A URL must use https (http only
+ * on localhost) and carry no credentials, because shadcn writes what it serves
+ * into the project.
+ */
 export function resolvePresetUrl(preset: string): string {
-  if (preset.startsWith("http://") || preset.startsWith("https://")) {
-    return preset;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(preset)) {
+    return `${PLAYGROUND_PRESET_BASE_URL}?preset=${encodeURIComponent(preset)}`;
   }
-  return `${PLAYGROUND_PRESET_BASE_URL}?preset=${encodeURIComponent(preset)}`;
+  let url: URL;
+  try {
+    url = new URL(preset);
+  } catch {
+    throw new Error(`--preset "${preset}" is not a valid URL.`);
+  }
+  if (
+    url.protocol !== "https:" &&
+    !(url.protocol === "http:" && isLoopbackHostname(url.hostname))
+  ) {
+    throw new Error("--preset URLs must use https (http only on localhost).");
+  }
+  if (url.username || url.password) {
+    throw new Error("--preset URLs must not contain credentials.");
+  }
+  return preset;
 }
 
 export interface ScaffoldSelectorOptions {
@@ -520,6 +542,9 @@ export function resolveScaffoldSelector(
       `Cannot use --preset with ${presetConflict}. ${scaffoldSelectorHelp}`,
     );
   }
+
+  // Check the preset before anything is scaffolded; it is applied last.
+  if (opts.preset !== undefined) resolvePresetUrl(opts.preset);
 
   if (opts.native) return { example: "with-expo" };
   if (opts.ink) return { example: "with-react-ink" };
@@ -805,7 +830,7 @@ export const create = new Command()
             dlxCmd,
             [
               ...dlxArgs,
-              "shadcn@latest",
+              SHADCN_PACKAGE,
               "add",
               "--yes",
               "--overwrite",
@@ -816,7 +841,7 @@ export const create = new Command()
         } catch (error) {
           if (error instanceof SpawnSignalError) throw error;
           logger.warn(
-            `Preset application failed. You can retry manually with:\n  ${dlxCmd} ${[...dlxArgs, "shadcn@latest", "add", presetUrl].join(" ")}`,
+            `Preset application failed. You can retry manually with:\n  ${dlxCmd} ${[...dlxArgs, SHADCN_PACKAGE, "add", presetUrl].join(" ")}`,
           );
         }
       }

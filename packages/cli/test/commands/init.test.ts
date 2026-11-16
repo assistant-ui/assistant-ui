@@ -31,8 +31,8 @@ describe("init command", () => {
       overwrite: false,
     });
 
-    expect(plan.initArgs).toEqual(["shadcn@latest", "init"]);
-    expect(plan.addArgs).toEqual(["shadcn@latest", "add"]);
+    expect(plan.initArgs).toEqual(["shadcn@4.23.0", "init"]);
+    expect(plan.addArgs).toEqual(["shadcn@4.23.0", "add"]);
   });
 
   it("uses non-interactive init+add flow when --yes is passed and config is missing", () => {
@@ -42,13 +42,13 @@ describe("init command", () => {
     });
 
     expect(plan.initArgs).toEqual([
-      "shadcn@latest",
+      "shadcn@4.23.0",
       "init",
       "--defaults",
       "--yes",
     ]);
     expect(plan.addArgs).toEqual([
-      "shadcn@latest",
+      "shadcn@4.23.0",
       "add",
       "--yes",
       "--overwrite",
