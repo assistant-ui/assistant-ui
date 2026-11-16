@@ -35,6 +35,61 @@ function majorsOf(range) {
     : [...new Set(majors)].toSorted((a, b) => a - b).join(",");
 }
 
+// Scripts a package manager runs on its own during install, pack or publish.
+const lifecycleScripts = [
+  "pnpm:devPreinstall",
+  "preinstall",
+  "install",
+  "postinstall",
+  "preprepare",
+  "prepare",
+  "postprepare",
+  "prepublish",
+  "prepublishOnly",
+  "prepack",
+  "postpack",
+  "publish",
+  "postpublish",
+];
+const localSpec = /^(workspace|catalog|file|link):/;
+const npmAlias = /^npm:((?:@[^/@\s]+\/)?[^/@\s]+)(?:@|$)/;
+
+// An `npm:` alias resolves from the package it names, so only a new target is a
+// new source. No registry range or tag contains `:` or `/`, so any other spec
+// with one (git, ssh, URL, hosted shorthand, path) counts as a whole.
+function dependencySource(spec) {
+  const trimmed = spec.trim();
+  if (localSpec.test(trimmed)) return undefined;
+  const alias = npmAlias.exec(trimmed);
+  if (alias) return `npm:${alias[1]}`;
+  return /[:/]/.test(trimmed) ? trimmed : undefined;
+}
+const dependencyFields = [
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
+  "overrides",
+  "resolutions",
+];
+
+function* stringLeaves(value, keys) {
+  if (typeof value === "string") {
+    yield [keys, value];
+  } else if (value !== null && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) {
+      yield* stringLeaves(item, [...keys, key]);
+    }
+  }
+}
+
+function* dependencySpecs(manifest) {
+  if (manifest === null || typeof manifest !== "object") return;
+  for (const field of dependencyFields) {
+    yield* stringLeaves(manifest[field], [field]);
+  }
+}
+
 export function computeTier(input, policy) {
   const type = parseTitleType(policy, input.title);
   const reasons = new Map();
@@ -104,9 +159,13 @@ export function computeTier(input, policy) {
       if (packageName) packages.add(packageName);
     }
 
+    // A manifest renamed in from another directory is a new package path too.
     if (
-      file.status === "added" &&
-      matchesAny(file.path, ["packages/*/package.json"])
+      (file.status === "added" ||
+        (file.status === "renamed" &&
+          typeof file.previousPath === "string" &&
+          file.previousPath !== file.path)) &&
+      matchesAny(file.path, ["packages/*/package.json"], { dot: false })
     ) {
       addReason(3, "new-package", file.path);
     }
@@ -129,7 +188,7 @@ export function computeTier(input, policy) {
       file.path.startsWith(".github/workflows/") &&
       (file.patch === null ||
         [...added, ...removed].some((line) =>
-          /^\s*permissions:|^\s*[a-z-]+:\s*(read|write|none)\s*(#.*)?$|\bsecrets\s*[.:[]|\b(pull_request_target|workflow_run|issue_comment|pull_request_review_comment|discussion_comment|repository_dispatch)\b|^\s*(-\s*)?(issues|discussion)\s*(:|$)|^\s*on\s*:.*\b(issues|discussion)\b/.test(
+          /^\s*permissions:|^\s*[a-z-]+:\s*(read|write|none)\s*(#.*)?$|\bsecrets\s*[.:[)]|[(,]\s*secrets\b|\b(pull_request_target|workflow_run|issue_comment|pull_request_review_comment|discussion_comment|repository_dispatch)\b|^\s*(-\s*)?(issues|discussion)\s*(:|$)|^\s*on\s*:.*\b(issues|discussion)\b/.test(
             line.slice(1),
           ),
         ))
@@ -151,6 +210,21 @@ export function computeTier(input, policy) {
   }
 
   if (input.files.length === 0) addReason(1, "no-files", "No changed files");
+  // The pull request files API stops at a fixed number of files. A list
+  // shorter than the pull request's own count could leave out any path, so
+  // the result cannot be trusted and the check fails.
+  const countValid =
+    Number.isInteger(input.changedFiles) && input.changedFiles >= 0;
+  if (
+    input.changedFiles !== undefined &&
+    !(countValid && input.files.length >= input.changedFiles)
+  ) {
+    failures.push({
+      code: "files-incomplete",
+      detail: `${input.files.length} of ${countValid ? input.changedFiles : "an unknown number of"}`,
+      override: null,
+    });
+  }
   if (input.labels.includes(policy.labels.behaviorChange)) {
     addReason(3, "behavior-change-label", policy.labels.behaviorChange);
   }
@@ -208,8 +282,31 @@ export function computeTier(input, policy) {
   }
 
   for (const { path, base, head } of input.manifests) {
+    if (head !== null) {
+      for (const name of lifecycleScripts) {
+        const script = head.scripts?.[name];
+        if (script !== undefined && script !== base?.scripts?.[name]) {
+          addReason(3, "lifecycle-script", `${path}: scripts.${name}`, path);
+        }
+      }
+      const baseSources = new Map(
+        [...dependencySpecs(base)].map(([keys, spec]) => [
+          JSON.stringify(keys),
+          dependencySource(spec),
+        ]),
+      );
+      for (const [keys, spec] of dependencySpecs(head)) {
+        const source = dependencySource(spec);
+        if (
+          source !== undefined &&
+          baseSources.get(JSON.stringify(keys)) !== source
+        ) {
+          addReason(3, "dependency-source", `${path}: ${keys.join(".")}`, path);
+        }
+      }
+    }
     if (
-      !matchesAny(path, ["packages/*/package.json"]) ||
+      !matchesAny(path, ["packages/*/package.json"], { dot: false }) ||
       base === null ||
       head === null
     ) {
@@ -323,11 +420,16 @@ export function pathsAboveT0(files, policy) {
     },
     policy,
   );
-  return [
-    ...new Set(
-      reasons
-        .filter((reason) => reason.tier > 0)
-        .map((reason) => reason.detail),
-    ),
-  ].toSorted();
+  const paths = new Set(
+    reasons.filter((reason) => reason.tier > 0).map((reason) => reason.detail),
+  );
+  // The comparison has no manifest contents, so the install-script and
+  // dependency-source signals cannot run here. Any changed package.json stays
+  // above T0 so an approval never carries over a new postinstall or alias.
+  for (const file of files) {
+    for (const path of [file.path, file.previousPath]) {
+      if (path && /(^|\/)package\.json$/.test(path)) paths.add(path);
+    }
+  }
+  return [...paths].toSorted();
 }
