@@ -280,6 +280,30 @@ describe("toAdaptiveCard", () => {
       ]);
     });
 
+    it("keeps markdown links in plain text props as literal text", () => {
+      const zeroWidthSpace = String.fromCharCode(0x200b);
+      const link = "[https://sso.example](https://other.example)";
+      const literal = `[https://sso.example]${zeroWidthSpace}(https://other.example)`;
+      const { card } = toAdaptiveCard([
+        { $type: "Header", text: link },
+        { $type: "Text", value: link },
+        { $type: "Caption", value: link },
+        { $type: "Badge", value: link },
+        { $type: "Fact", label: link, value: link },
+        { $type: "Citation", title: link },
+        { $type: "Markdown", value: link },
+      ]);
+      expect(card.body).toMatchObject([
+        { text: literal },
+        { text: literal },
+        { text: literal },
+        { text: literal },
+        { type: "FactSet", facts: [{ title: literal, value: literal }] },
+        { items: [{ text: literal }] },
+        { text: link },
+      ]);
+    });
+
     it("keeps a link written in a Citation's snippet or source from becoming clickable", () => {
       const { card } = toAdaptiveCard({
         $type: "Citation",
