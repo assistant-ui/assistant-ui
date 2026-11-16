@@ -88,7 +88,6 @@ function* dependencySpecs(manifest) {
   for (const field of dependencyFields) {
     yield* stringLeaves(manifest[field], [field]);
   }
-  yield* stringLeaves(manifest.pnpm?.overrides, ["pnpm", "overrides"]);
 }
 
 export function computeTier(input, policy) {

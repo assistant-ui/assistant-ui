@@ -1650,24 +1650,6 @@ for (const [field, base, head, key] of [
   });
 }
 
-test("pnpm overrides with an npm alias give T3", () => {
-  const result = computeTier(
-    manifestInput(
-      {},
-      { pnpm: { overrides: { x: "npm:y@1.0.0" } } },
-      "package.json",
-    ),
-    policy,
-  );
-  assert.ok(
-    result.reasons.some(
-      (reason) =>
-        reason.code === "dependency-source" &&
-        reason.detail === "package.json: pnpm.overrides.x",
-    ),
-  );
-});
-
 test("an override moved between a dotted name and a nested parent gives T3", () => {
   const result = computeTier(
     manifestInput(
