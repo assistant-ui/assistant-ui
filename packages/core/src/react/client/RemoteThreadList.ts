@@ -109,9 +109,10 @@ export type RemoteThreadListProps = {
    * Keeps every thread the session switched to mounted, so a run continues
    * after the user switches away, per-item `isRunning` reflects background
    * runs, and a freshly initialized thread generates its title automatically.
-   * A body unmounts on delete, detach, or an adapter replacement (`reload()`
-   * after swapping the adapter); visited threads otherwise stay mounted for
-   * the client's lifetime. Each body reads its own thread through the ambient
+   * A body unmounts on delete, detach, or a store change (`reload()` after
+   * the adapter moves to a different `storeKey`, or to a different object when
+   * no `storeKey` is set); visited threads otherwise stay mounted for the
+   * client's lifetime. Each body reads its own thread through the ambient
    * `threadListItem` scope, and `unstable_useAdapters` runs once per mounted
    * body. Off (the default), only the visible thread is mounted and a switch
    * unmounts it. The mode is fixed at mount.

@@ -125,6 +125,8 @@ const setup = (options: {
     return new Promise<Held>((resolve) => waiters.push({ kind, resolve }));
   };
 
+  const sent = (kind: string) => held.filter((h) => h.kind === kind);
+
   // Applies a held request to the backend without answering the client yet.
   const apply = (h: Held) => {
     try {
@@ -220,6 +222,7 @@ const setup = (options: {
     answer,
     fail,
     requested,
+    sent,
     changeAdapter,
     currentAdapter: () => adapter,
     item,
@@ -367,9 +370,42 @@ describe("RemoteThreadList storeKey: in-flight mutations across an adapter chang
     const renamed = t.settled(t.actions().rename("r0", "renamed"));
     expect(await t.statusOf("r0")).toBe("archived");
     expect(await t.titleOf("r0")).toBe("renamed");
+    expect(t.sent("rename")).toEqual([]);
 
     t.answer(t.apply(archive));
     expect(await archived).toBeUndefined();
+    t.answer(await t.run("rename"));
+    expect(await renamed).toBeUndefined();
+
+    expect(t.backendThread("r0")).toEqual({
+      remoteId: "r0",
+      status: "archived",
+      title: "renamed",
+    });
+    expect(await t.statusOf("r0")).toBe("archived");
+    expect(await t.titleOf("r0")).toBe("renamed");
+    t.handle.destroy();
+  });
+
+  it("sends a rename queued before a same-store adapter change only after the archive ahead of it settles", async () => {
+    const t = setup({ hosted: false, storeKey: "store-a" });
+    await loadRegular(t);
+
+    const archived = t.settled(t.actions().archive("r0"));
+    const archive = await t.requested("archive");
+    const renamed = t.settled(t.actions().rename("r0", "renamed"));
+
+    t.changeAdapter("store-a");
+    const reloading = t.settled(t.reload());
+    t.answer(await t.run("list"));
+    await reloading;
+    expect(await t.titleOf("r0")).toBe("renamed");
+    expect(t.sent("rename")).toEqual([]);
+
+    t.answer(t.apply(archive));
+    expect(await archived).toBeUndefined();
+    expect(await t.titleOf("r0")).toBe("renamed");
+    expect(t.sent("rename")).toHaveLength(1);
     t.answer(await t.run("rename"));
     expect(await renamed).toBeUndefined();
 
