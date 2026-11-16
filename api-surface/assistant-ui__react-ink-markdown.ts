@@ -20,7 +20,7 @@ type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text"> & {
 type MarkdownTextProps = {
   text: string;
   highlighter?: (code: string, lang?: string) => string;
-  theme?: ThemeName | Theme;
+  theme?: ThemeName$1 | Theme$1;
   width?: number;
   wrap?: boolean;
   codeBox?: boolean;
@@ -43,7 +43,7 @@ type UseShikiHighlighterOptions = {
 };
 
 declare namespace entry_root_exports {
-  export { MarkdownText, MarkdownTextPrimitive, MarkdownTextPrimitiveProps, MarkdownTextProps, RenderOptions, Theme$1 as Theme, ThemeName$1 as ThemeName, UseShikiHighlighterOptions, useShikiHighlighter };
+  export { MarkdownText, MarkdownTextPrimitive, MarkdownTextPrimitiveProps, MarkdownTextProps, RenderOptions, Theme, ThemeName, UseShikiHighlighterOptions, useShikiHighlighter };
 }
 
 declare function useShikiHighlighter(options?: UseShikiHighlighterOptions): ((code: string, lang?: string) => string) | undefined;

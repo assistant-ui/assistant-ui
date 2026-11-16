@@ -2,9 +2,9 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { JSONSchema7 } from "json-schema";
 
-import { DropdownMenu, Popover, Slot } from "radix-ui";
+import { DropdownMenu, Popover } from "radix-ui";
 
-import { Primitive } from "radix-ui/internal";
+import "radix-ui/internal";
 
 import React, { CSSProperties, ComponentPropsWithoutRef, ComponentRef, ComponentType, ElementRef, ElementType, FC, ForwardRefExoticComponent, KeyboardEventHandler, MouseEvent, PropsWithChildren, ReactElement, ReactNode, RefAttributes, RefCallback, RefObject } from "react";
 
@@ -152,7 +152,7 @@ declare const ActionBarPrimitiveResume: import("react").ForwardRefExoticComponen
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ActionBarPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
   type Props = PrimitiveDivProps$5 & {
     hideWhenRunning?: boolean | undefined;
     autohide?: "always" | "not-last" | "never" | undefined;
@@ -192,7 +192,7 @@ declare const ActionBarPrimitiveStopSpeaking: import("react").ForwardRefExoticCo
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
-type ActionButtonElement = ComponentRef<typeof Primitive$1.button>;
+type ActionButtonElement = ComponentRef<typeof Primitive.button>;
 
 type ActionButtonProps<THook> = PrimitiveButtonProps & (THook extends ((props: infer TProps) => unknown) ? TProps : never);
 
@@ -1004,7 +1004,7 @@ declare const AttachmentPrimitiveRemove: import("react").ForwardRefExoticCompone
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace AttachmentPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
   type Props = PrimitiveDivProps$4;
 }
 
@@ -1015,7 +1015,7 @@ declare const AttachmentPrimitiveRoot: import("react").ForwardRefExoticComponent
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace AttachmentPrimitiveThumb {
-  type Element = ComponentRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
   type Props = PrimitiveDivProps$3;
 }
 
@@ -1311,8 +1311,8 @@ declare const BranchPickerPrimitivePrevious: import("react").ForwardRefExoticCom
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace BranchPickerPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div> & {
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
     hideWhenSingleBranch?: boolean | undefined;
   };
 }
@@ -1359,7 +1359,7 @@ type ChainOfThoughtPartsComponentConfig = {
 
 declare namespace ChainOfThoughtPrimitiveAccordionTrigger {
   type Element = ActionButtonElement;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
 }
 
 declare const ChainOfThoughtPrimitiveAccordionTrigger: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -1383,7 +1383,7 @@ declare namespace ChainOfThoughtPrimitiveParts {
 declare const ChainOfThoughtPrimitiveParts: FC<ChainOfThoughtPrimitiveParts.Props>;
 
 declare namespace ChainOfThoughtPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
   type Props = PrimitiveDivProps$2;
 }
 
@@ -1674,8 +1674,8 @@ declare const ComposerPrimitiveDictate: import("react").ForwardRefExoticComponen
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveDictationTranscript {
-  type Element = ComponentRef<typeof Primitive$1.span>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.span>;
+  type Element = ComponentRef<typeof Primitive.span>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 declare const ComposerPrimitiveDictationTranscript: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
@@ -1730,8 +1730,8 @@ declare const ComposerPrimitiveQueue: import("react").NamedExoticComponent<{
 }>;
 
 declare namespace ComposerPrimitiveQuote {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 declare const ComposerPrimitiveQuote: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
@@ -1741,8 +1741,8 @@ declare const ComposerPrimitiveQuote: import("react").ForwardRefExoticComponent<
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace ComposerPrimitiveQuoteDismiss {
-  type Element = ComponentRef<typeof Primitive$1.button>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.button>;
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
 }
 
 declare const ComposerPrimitiveQuoteDismiss: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -1752,8 +1752,8 @@ declare const ComposerPrimitiveQuoteDismiss: import("react").ForwardRefExoticCom
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveQuoteText {
-  type Element = ComponentRef<typeof Primitive$1.span>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.span>;
+  type Element = ComponentRef<typeof Primitive.span>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 declare const ComposerPrimitiveQuoteText: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
@@ -1774,8 +1774,8 @@ declare const ComposerPrimitiveResume: import("react").ForwardRefExoticComponent
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.form>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.form> & {
+  type Element = ComponentRef<typeof Primitive.form>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.form> & {
     compact?: boolean | undefined;
   };
 }
@@ -1835,8 +1835,8 @@ declare namespace ComposerPrimitiveTriggerPopoverAction {
 declare const ComposerPrimitiveTriggerPopoverAction: FC<ComposerPrimitiveTriggerPopoverAction.Props>;
 
 declare namespace ComposerPrimitiveTriggerPopoverBack {
-  type Element = ComponentRef<typeof Primitive$1.button>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.button>;
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
 }
 
 declare const ComposerPrimitiveTriggerPopoverBack: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -1846,8 +1846,8 @@ declare const ComposerPrimitiveTriggerPopoverBack: import("react").ForwardRefExo
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverCategories {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive$1.div>, "children"> & {
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.div>, "children"> & {
     children: (categories: readonly TriggerCategory[]) => ReactNode;
   };
 }
@@ -1861,8 +1861,8 @@ declare const ComposerPrimitiveTriggerPopoverCategories: import("react").Forward
 } & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverCategoryItem {
-  type Element = ComponentRef<typeof Primitive$1.button>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.button> & {
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button> & {
     categoryId: string;
   };
 }
@@ -1885,8 +1885,8 @@ declare namespace ComposerPrimitiveTriggerPopoverDirective {
 declare const ComposerPrimitiveTriggerPopoverDirective: FC<ComposerPrimitiveTriggerPopoverDirective.Props>;
 
 declare namespace ComposerPrimitiveTriggerPopoverItem {
-  type Element = ComponentRef<typeof Primitive$1.button>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.button> & {
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button> & {
     item: TriggerItem;
     index?: number | undefined;
   };
@@ -1902,8 +1902,8 @@ declare const ComposerPrimitiveTriggerPopoverItem: import("react").ForwardRefExo
 } & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ComposerPrimitiveTriggerPopoverItems {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive$1.div>, "children"> & {
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.div>, "children"> & {
     children: (items: readonly TriggerItem[]) => ReactNode;
   };
 }
@@ -2336,8 +2336,8 @@ type EnrichedPartState = (Extract<PartState, {
 }>;
 
 declare namespace ErrorPrimitiveMessage {
-  type Element = ComponentRef<typeof Primitive$1.span>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.span>;
+  type Element = ComponentRef<typeof Primitive.span>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 declare const ErrorPrimitiveMessage: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
@@ -2347,8 +2347,8 @@ declare const ErrorPrimitiveMessage: import("react").ForwardRefExoticComponent<O
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace ErrorPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 declare const ErrorPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
@@ -3114,8 +3114,8 @@ type MessagePartGroup = {
 };
 
 declare namespace MessagePartPrimitiveImage {
-  type Element = ComponentRef<typeof Primitive$1.img>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.img>;
+  type Element = ComponentRef<typeof Primitive.img>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.img>;
 }
 
 declare const MessagePartPrimitiveImage: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLImageElement> & import("react").ImgHTMLAttributes<HTMLImageElement> & {
@@ -3131,8 +3131,8 @@ declare namespace MessagePartPrimitiveInProgress {
 declare const MessagePartPrimitiveInProgress: FC<MessagePartPrimitiveInProgress.Props>;
 
 declare namespace MessagePartPrimitiveText {
-  type Element = ComponentRef<typeof Primitive$1.span>;
-  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive$1.span>, "asChild" | "children"> & {
+  type Element = ComponentRef<typeof Primitive.span>;
+  type Props = Omit<ComponentPropsWithoutRef<typeof Primitive.span>, "asChild" | "children"> & {
     smooth?: boolean | SmoothOptions;
     component?: ElementType;
   };
@@ -3374,8 +3374,8 @@ declare namespace MessagePrimitiveQuote {
 declare const MessagePrimitiveQuote: import("react").NamedExoticComponent<MessagePrimitiveQuote.Props>;
 
 declare namespace MessagePrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 declare const MessagePrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
@@ -3810,7 +3810,7 @@ type PendingAttachmentStatus = {
   message?: string;
 };
 
-declare const Primitive$1: {
+declare const Primitive: {
   a: ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLAnchorElement> & import("react").AnchorHTMLAttributes<HTMLAnchorElement> & {
     asChild?: boolean | undefined;
   }, "ref"> & {
@@ -3898,19 +3898,19 @@ declare const Primitive$1: {
   } & RefAttributes<HTMLUListElement>>;
 };
 
-type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive$1.button>;
+type PrimitiveButtonProps = ComponentPropsWithoutRef<typeof Primitive.button>;
 
-type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type PrimitiveDivProps$1 = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+type PrimitiveDivProps$1 = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type PrimitiveDivProps$2 = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+type PrimitiveDivProps$2 = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type PrimitiveDivProps$3 = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+type PrimitiveDivProps$3 = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type PrimitiveDivProps$4 = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+type PrimitiveDivProps$4 = ComponentPropsWithoutRef<typeof Primitive.div>;
 
-type PrimitiveDivProps$5 = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+type PrimitiveDivProps$5 = ComponentPropsWithoutRef<typeof Primitive.div>;
 
 type PropFieldStatus = "complete" | "streaming";
 
@@ -3966,8 +3966,8 @@ declare const QueueItemPrimitiveSteer: import("react").ForwardRefExoticComponent
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace QueueItemPrimitiveText {
-  type Element = ComponentRef<typeof Primitive$1.span>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.span>;
+  type Element = ComponentRef<typeof Primitive.span>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 declare const QueueItemPrimitiveText: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
@@ -4276,8 +4276,8 @@ type SdkIdentity = {
 type SelectItemOverride = (item: Unstable_TriggerItem, onInserted: () => void) => boolean;
 
 declare namespace SelectionToolbarPrimitiveQuote {
-  type Element = ComponentRef<typeof Primitive$1.button>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.button>;
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
 }
 
 declare const SelectionToolbarPrimitiveQuote: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -4287,8 +4287,8 @@ declare const SelectionToolbarPrimitiveQuote: import("react").ForwardRefExoticCo
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace SelectionToolbarPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 declare const SelectionToolbarPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
@@ -4512,8 +4512,8 @@ type SuggestionConfig = string | {
 };
 
 declare namespace SuggestionPrimitiveDescription {
-  type Element = ElementRef<typeof Primitive$1.span>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.span>;
+  type Element = ElementRef<typeof Primitive.span>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 declare const SuggestionPrimitiveDescription: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
@@ -4523,8 +4523,8 @@ declare const SuggestionPrimitiveDescription: import("react").ForwardRefExoticCo
 } & import("react").RefAttributes<HTMLSpanElement>, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace SuggestionPrimitiveTitle {
-  type Element = ElementRef<typeof Primitive$1.span>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.span>;
+  type Element = ElementRef<typeof Primitive.span>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
 }
 
 declare const SuggestionPrimitiveTitle: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
@@ -4800,7 +4800,7 @@ declare const ThreadListItemPrimitiveDelete: import("react").ForwardRefExoticCom
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ThreadListItemPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
   type Props = PrimitiveDivProps;
 }
 
@@ -4991,7 +4991,7 @@ declare const ThreadListPrimitiveNew: import("react").ForwardRefExoticComponent<
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace ThreadListPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
   type Props = PrimitiveDivProps$1;
 }
 
@@ -5220,8 +5220,8 @@ declare namespace ThreadPrimitiveMessages {
 declare const ThreadPrimitiveMessages: import("react").NamedExoticComponent<ThreadPrimitiveMessages.Props>;
 
 declare namespace ThreadPrimitiveRoot {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 declare const ThreadPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
@@ -5320,8 +5320,8 @@ declare namespace ThreadPrimitiveUnstable_MessageById {
 declare const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props>;
 
 declare namespace ThreadPrimitiveViewport {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div> & {
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
     autoScroll?: boolean | undefined;
     turnAnchor?: "top" | "bottom" | undefined;
     topAnchorMessageClamp?: {
@@ -5351,8 +5351,8 @@ declare const ThreadPrimitiveViewport: import("react").ForwardRefExoticComponent
 } & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace ThreadPrimitiveViewportFooter {
-  type Element = ComponentRef<typeof Primitive$1.div>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive$1.div>;
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 declare const ThreadPrimitiveViewportFooter: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {

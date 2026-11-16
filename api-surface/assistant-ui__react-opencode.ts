@@ -1,4 +1,4 @@
-import { AssistantMessage, Event, FilePart, GlobalSession, Message, Message as Message$1, Model, OpencodeClient, OpencodeClient as OpencodeClient$1, OpencodeClientConfig, Part, Part as Part$1, PermissionRequest, PermissionRequest as PermissionRequest$1, Provider, QuestionAnswer, QuestionAnswer as QuestionAnswer$1, QuestionRequest, QuestionRequest as QuestionRequest$1, ReasoningPart, Session, Session as Session$1, SessionStatus, SessionStatus as SessionStatus$1, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpencodeClient as createOpencodeClient$1 } from "@opencode-ai/sdk/v2/client";
+import { AssistantMessage, Event, FilePart, GlobalSession, Message, Message as Message$1, Model, OpencodeClient, OpencodeClient as OpencodeClient$1, OpencodeClientConfig, Part, Part as Part$1, PermissionRequest, PermissionRequest as PermissionRequest$1, Provider, QuestionAnswer, QuestionAnswer as QuestionAnswer$1, QuestionRequest, QuestionRequest as QuestionRequest$1, ReasoningPart, Session, Session as Session$1, SessionStatus, SessionStatus as SessionStatus$1, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -7,6 +7,8 @@ import { JSONSchema7 } from "json-schema";
 import "radix-ui";
 
 import "radix-ui/internal";
+
+import "react";
 
 import "react-textarea-autosize";
 
@@ -1360,8 +1362,8 @@ type MessageTiming = {
 };
 
 type MessageWithParts = {
-  info: Message;
-  parts: Part[];
+  info: Message$1;
+  parts: Part$1[];
 };
 
 type ModelContext = {
@@ -1400,7 +1402,7 @@ type OpenCodeAttachmentAdapterOptions = {
 
 declare class OpenCodeEventSource {
   #private;
-  constructor(client: OpencodeClient);
+  constructor(client: OpencodeClient$1);
   subscribe(listener: Listener): () => void;
   dispose(): void;
 }
@@ -1430,19 +1432,19 @@ type OpenCodePermissionRequest = {
   patterns: readonly string[];
   metadata: Record<string, unknown>;
   always: readonly string[];
-  tool?: PermissionRequest["tool"] | undefined;
+  tool?: PermissionRequest$1["tool"] | undefined;
   toolName?: string | undefined;
   toolInput?: unknown;
   title?: string | undefined;
   askedAt: number;
-  raw: PermissionRequest;
+  raw: PermissionRequest$1;
 };
 
 type OpenCodePermissionResponse = "always" | "once" | "reject";
 
 type OpenCodeProjectedThreadMessage = ThreadMessageLike;
 
-type OpenCodeQuestionRequest = QuestionRequest & {
+type OpenCodeQuestionRequest = QuestionRequest$1 & {
   askedAt: number;
 };
 
@@ -1462,7 +1464,7 @@ type OpenCodeRunState = {
 type OpenCodeRuntime = AssistantRuntime;
 
 type OpenCodeRuntimeExtras = {
-  session: Session | null;
+  session: Session$1 | null;
   state: OpenCodeThreadState;
   permissions: OpenCodeThreadState["interactions"]["permissions"]["pending"];
   questions: OpenCodeThreadState["interactions"]["questions"]["pending"];
@@ -1472,14 +1474,14 @@ type OpenCodeRuntimeExtras = {
   cancel: () => Promise<void>;
   refresh: () => Promise<void>;
   replyToPermission: (permissionId: string, response: OpenCodePermissionResponse) => Promise<void>;
-  replyToQuestion: (questionId: string, answers: readonly QuestionAnswer[]) => Promise<void>;
+  replyToQuestion: (questionId: string, answers: readonly QuestionAnswer$1[]) => Promise<void>;
   rejectQuestion: (questionId: string) => Promise<void>;
 };
 
 type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
   cloud?: AssistantCloud | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
-  client?: OpencodeClient;
+  client?: OpencodeClient$1;
   baseUrl?: string | undefined;
   initialSessionId?: string | undefined;
   defaultModel?: {
@@ -1506,8 +1508,8 @@ type OpenCodeServerEvent = {
 
 type OpenCodeServerMessage = {
   id: string;
-  info: Message | undefined;
-  parts: readonly Part[];
+  info: Message$1 | undefined;
+  parts: readonly Part$1[];
   shadowParts: readonly ThreadUserMessagePart[] | undefined;
 };
 
@@ -1515,17 +1517,17 @@ type OpenCodeStateEvent = {
   type: "history.loading";
 } | {
   type: "history.loaded";
-  session: Session | null;
+  session: Session$1 | null;
   messages: readonly MessageWithParts[];
 } | {
   type: "history.failed";
   error: unknown;
 } | {
   type: "session.updated";
-  session: Session;
+  session: Session$1;
 } | {
   type: "session.status";
-  status: SessionStatus;
+  status: SessionStatus$1;
 } | {
   type: "session.idle";
   sessionId: string;
@@ -1543,14 +1545,14 @@ type OpenCodeStateEvent = {
   error: unknown;
 } | {
   type: "message.updated";
-  info: Message;
+  info: Message$1;
 } | {
   type: "message.removed";
   messageId: string;
 } | {
   type: "part.updated";
   messageId: string;
-  part: Part;
+  part: Part$1;
 } | {
   type: "part.delta";
   messageId: string;
@@ -1574,7 +1576,7 @@ type OpenCodeStateEvent = {
 } | {
   type: "question.replied";
   questionId: string;
-  answers: readonly QuestionAnswer[];
+  answers: readonly QuestionAnswer$1[];
 } | {
   type: "question.rejected";
   questionId: string;
@@ -1596,7 +1598,7 @@ type OpenCodeStateEvent = {
 
 declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   #private;
-  constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
+  constructor(client: OpencodeClient$1, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
   dispose(): void;
   getState: () => OpenCodeThreadState;
   subscribe: (listener: () => void) => () => void;
@@ -1610,7 +1612,7 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   unrevert(): Promise<void>;
   fork(messageId: string): Promise<string>;
   replyToPermission(permissionId: string, response: OpenCodePermissionResponse): Promise<void>;
-  replyToQuestion(questionId: string, answers: readonly QuestionAnswer$1[]): Promise<void>;
+  replyToQuestion(questionId: string, answers: readonly QuestionAnswer[]): Promise<void>;
   rejectQuestion(questionId: string): Promise<void>;
 }
 
@@ -1627,7 +1629,7 @@ type OpenCodeThreadControllerLike = {
   unrevert(): Promise<void>;
   fork(messageId: string): Promise<string>;
   replyToPermission(permissionId: string, response: OpenCodePermissionResponse): Promise<void>;
-  replyToQuestion(questionId: string, answers: readonly QuestionAnswer[]): Promise<void>;
+  replyToQuestion(questionId: string, answers: readonly QuestionAnswer$1[]): Promise<void>;
   rejectQuestion(questionId: string): Promise<void>;
 };
 
@@ -1635,8 +1637,8 @@ type OpenCodeThreadControllerSnapshot = OpenCodeThreadState;
 
 type OpenCodeThreadState = {
   sessionId: string;
-  session: Session | null;
-  sessionStatus: SessionStatus | null;
+  session: Session$1 | null;
+  sessionStatus: SessionStatus$1 | null;
   loadState: OpenCodeLoadState;
   runState: OpenCodeRunState;
   messageOrder: readonly string[];
@@ -1656,7 +1658,7 @@ type OpenCodeThreadState = {
       pending: Readonly<Record<string, OpenCodeQuestionRequest>>;
       answered: Readonly<Record<string, {
         request: OpenCodeQuestionRequest;
-        answers: readonly QuestionAnswer[];
+        answers: readonly QuestionAnswer$1[];
         respondedAt: number;
       }>>;
       rejected: Readonly<Record<string, {
@@ -2671,7 +2673,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, Event, FilePart, GlobalSession, Message$1 as Message, MessageWithParts, Model, OpenCodeAttachmentAdapter, OpenCodeAttachmentAdapterOptions, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
+  export { AssistantMessage, Event, FilePart, GlobalSession, Message, MessageWithParts, Model, OpenCodeAttachmentAdapter, OpenCodeAttachmentAdapterOptions, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient, OpencodeClientConfig, Part, PendingUserMessage, PermissionRequest, Provider, QuestionAnswer, QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session, SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
 }
 
 declare function projectOpenCodeThreadMessages(state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>): OpenCodeProjectedThreadMessage[];
