@@ -280,6 +280,14 @@ describe("TaskGroup", () => {
     expect(
       within(actions as HTMLElement).getAllByRole("button").length,
     ).toBeGreaterThan(0);
+    expect(
+      actions?.querySelector('[data-slot="tool-fallback-args"]')?.textContent,
+    ).toBe(
+      JSON.stringify({
+        description: "Ship the release",
+        subagent_type: "researcher",
+      }),
+    );
   });
 
   it("renders a call waiting inside a transcript with its prompt and without controls", () => {

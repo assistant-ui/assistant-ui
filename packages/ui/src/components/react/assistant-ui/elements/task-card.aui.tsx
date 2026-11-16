@@ -19,6 +19,7 @@ import {
   offersInterruptAction,
   ToolFallback,
   ToolFallbackApproval,
+  ToolFallbackArgs,
   ToolFallbackError,
 } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { cn } from "@/lib/utils";
@@ -126,16 +127,22 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
     approvalPending &&
     offersInterruptAction(part.status, part.approval, part.interrupt) &&
     (canAnswer || part.approval?.prompt) ? (
-      <ToolFallbackApproval
-        status={part.status}
-        {...(part.approval !== undefined && { approval: part.approval })}
-        {...(part.interrupt !== undefined && { interrupt: part.interrupt })}
-        {...(part.addResult && { addResult: part.addResult })}
-        {...(part.resume && { resume: part.resume })}
-        {...(part.respondToApproval && {
-          respondToApproval: part.respondToApproval,
-        })}
-      />
+      <>
+        <ToolFallbackArgs
+          argsText={part.argsText}
+          className="max-h-48 overflow-y-auto"
+        />
+        <ToolFallbackApproval
+          status={part.status}
+          {...(part.approval !== undefined && { approval: part.approval })}
+          {...(part.interrupt !== undefined && { interrupt: part.interrupt })}
+          {...(part.addResult && { addResult: part.addResult })}
+          {...(part.resume && { resume: part.resume })}
+          {...(part.respondToApproval && {
+            respondToApproval: part.respondToApproval,
+          })}
+        />
+      </>
     ) : undefined;
 
   return (
