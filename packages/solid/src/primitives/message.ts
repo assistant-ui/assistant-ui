@@ -5,7 +5,7 @@ import {
   splitProps,
   type JSX,
 } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic, isServer } from "solid-js/web";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { callEventHandler } from "./callEventHandler";
@@ -24,7 +24,7 @@ export const MessagePrimitiveRoot = (
   let active = true;
   onCleanup(() => {
     active = false;
-    aui.message.setIsHovering(false);
+    if (!isServer) aui.message.setIsHovering(false);
   });
   return createComponent(
     Dynamic,

@@ -44,4 +44,4 @@ export const App = () => (
 
 `AuiProvider` creates the client and provides it to the subtree; its `config` prop is live, and under a parent provider `extends` is mandatory (`extends={aui}` to inherit, `extends={null}` to isolate). `useAui` returns the stable client facade, `useAuiState` returns an accessor over a state slice that updates when the slice changes by `Object.is`, and `useAuiEvent` subscribes to assistant events until its owner is disposed. Render conditionally with Solid's `<Show when={...}>` over a `useAuiState` accessor.
 
-Mount the provider on the client only: server rendering is not supported yet.
+On the server, `AuiProvider` renders the client's initial state without subscribing or mounting runtime effects, then destroys the client when Solid disposes the render root. The client mounts during hydration, where state updates and runtime effects run normally.
