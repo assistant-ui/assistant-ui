@@ -25,6 +25,7 @@ import {
 import {
   useEffect,
   useState,
+  useSyncExternalStore,
   type ComponentProps,
   type FormEvent,
 } from "react";
@@ -161,108 +162,128 @@ export function FormatToolbar() {
     };
   }, [editor]);
 
+  const editable = useSyncExternalStore(
+    (onChange) => editor.registerEditableListener(onChange),
+    () => editor.isEditable(),
+    () => true,
+  );
+
   return (
     <div
       role="toolbar"
       aria-label="Formatting"
-      className="border-foreground/10 bg-background flex h-11 shrink-0 items-center gap-0.5 overflow-x-auto border-b px-3"
+      className="border-foreground/10 bg-background h-11 shrink-0 overflow-x-auto border-b px-3"
     >
-      <ToolbarButton
-        tooltip="Undo"
-        disabled={!canUndo}
-        onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+      {/* A read-only editor still runs commands, so the buttons are turned
+          off with it while the assistant writes. */}
+      <fieldset
+        disabled={!editable}
+        className="flex h-full min-w-0 items-center gap-0.5"
       >
-        <UndoIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        tooltip="Redo"
-        disabled={!canRedo}
-        onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-      >
-        <RedoIcon />
-      </ToolbarButton>
-      <Divider />
-      {TEXT_STYLES.filter(({ style }) => style !== "quote").map(
-        ({ style, label, icon: Icon }) => (
+        <ToolbarButton
+          tooltip="Undo"
+          disabled={!canUndo}
+          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+        >
+          <UndoIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          tooltip="Redo"
+          disabled={!canRedo}
+          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+        >
+          <RedoIcon />
+        </ToolbarButton>
+        <Divider />
+        {TEXT_STYLES.filter(({ style }) => style !== "quote").map(
+          ({ style, label, icon: Icon }) => (
+            <ToolbarButton
+              key={style}
+              tooltip={label}
+              active={format.block === style}
+              onClick={() => setTextStyle(editor, style)}
+            >
+              <Icon />
+            </ToolbarButton>
+          ),
+        )}
+        <Divider />
+        <ToolbarButton
+          tooltip="Bold"
+          active={format.bold}
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
+        >
+          <BoldIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          tooltip="Italic"
+          active={format.italic}
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
+        >
+          <ItalicIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          tooltip="Underline"
+          active={format.underline}
+          onClick={() =>
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")
+          }
+        >
+          <UnderlineIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          tooltip="Strikethrough"
+          active={format.strike}
+          onClick={() =>
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")
+          }
+        >
+          <StrikethroughIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          tooltip="Code"
+          active={format.code}
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}
+        >
+          <CodeIcon />
+        </ToolbarButton>
+        <ToolbarButton
+          tooltip="Highlight"
+          active={format.highlight}
+          onClick={() =>
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, "highlight")
+          }
+        >
+          <HighlighterIcon />
+        </ToolbarButton>
+        <LinkButton address={format.link} />
+        <Divider />
+        {LIST_STYLES.map(({ style, label, icon: Icon }) => (
           <ToolbarButton
             key={style}
             tooltip={label}
             active={format.block === style}
-            onClick={() => setTextStyle(editor, style)}
+            onClick={() => toggleList(editor, style)}
           >
             <Icon />
           </ToolbarButton>
-        ),
-      )}
-      <Divider />
-      <ToolbarButton
-        tooltip="Bold"
-        active={format.bold}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
-      >
-        <BoldIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        tooltip="Italic"
-        active={format.italic}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
-      >
-        <ItalicIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        tooltip="Underline"
-        active={format.underline}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
-      >
-        <UnderlineIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        tooltip="Strikethrough"
-        active={format.strike}
-        onClick={() =>
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")
-        }
-      >
-        <StrikethroughIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        tooltip="Code"
-        active={format.code}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}
-      >
-        <CodeIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        tooltip="Highlight"
-        active={format.highlight}
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "highlight")}
-      >
-        <HighlighterIcon />
-      </ToolbarButton>
-      <LinkButton address={format.link} />
-      <Divider />
-      {LIST_STYLES.map(({ style, label, icon: Icon }) => (
+        ))}
         <ToolbarButton
-          key={style}
-          tooltip={label}
-          active={format.block === style}
-          onClick={() => toggleList(editor, style)}
+          tooltip="Quote"
+          active={format.block === "quote"}
+          onClick={() =>
+            setTextStyle(
+              editor,
+              format.block === "quote" ? "paragraph" : "quote",
+            )
+          }
         >
-          <Icon />
+          <TextQuoteIcon />
         </ToolbarButton>
-      ))}
-      <ToolbarButton
-        tooltip="Quote"
-        active={format.block === "quote"}
-        onClick={() =>
-          setTextStyle(editor, format.block === "quote" ? "paragraph" : "quote")
-        }
-      >
-        <TextQuoteIcon />
-      </ToolbarButton>
-      <ToolbarButton tooltip="Divider" onClick={() => insertDivider(editor)}>
-        <MinusIcon />
-      </ToolbarButton>
+        <ToolbarButton tooltip="Divider" onClick={() => insertDivider(editor)}>
+          <MinusIcon />
+        </ToolbarButton>
+      </fieldset>
     </div>
   );
 }

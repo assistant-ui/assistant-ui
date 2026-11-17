@@ -53,7 +53,7 @@ The model picker in the composer lists only the models whose provider has a key.
 
 The document is state the user and the model both write to. `unstable_useInteractable("document", ...)` registers it with a schema of a title and an ordered list of blocks, each with an `id`, a `type` and inline `text`. The text is markdown for bold, italic, strikethrough, code and links, plus `<u>` and `<mark>` for underline and highlight, which markdown has no syntax for. assistant-ui generates an `update_document` tool from that schema, so there is no hand-written edit tool. The model sends only what changes (`blocks.update`, `blocks.add`, `blocks.remove`, or `blocks.set` to insert or reorder), and the arguments are applied to the state as they stream.
 
-`DocumentSync` connects that state to the Lexical editor in both directions. What you type is serialized to blocks and written to the interactable; what the model writes there is patched into the editor block by block, so the rest of the page stays still. The editor is read-only while a run is in progress.
+`DocumentSync` connects that state to the Lexical editor in both directions. What you type is serialized to blocks and written to the interactable; what the model writes there is patched into the editor block by block, so the rest of the page stays still. The editor and its toolbars are read-only while a run is in progress.
 
 ### Showing an edit as it happens
 
@@ -103,6 +103,7 @@ There is no server to keep a document on, so the Share dialog makes a link that 
 
 - History covers the current chat. The document and comments are saved to local storage and survive a reload; the chat and the version list do not.
 - Lists are flat, and there are no images or tables.
+- Stopping a run in the middle of an edit keeps what had arrived so far, which can be a cut-off block or, when the assistant was rewriting the block list, a shorter document. Undo or History brings the earlier version back.
 - Two tabs on the same document do not update each other until one reloads.
 - A share link is as long as the document it holds, and it carries the text only, not the comments or the chat.
 - Dictation uses the browser's own speech recognition, which Firefox does not have.

@@ -33,7 +33,7 @@ The user's document is the "document" interactable: a title and an ordered list 
 
 - To change the document, call update_document. Change only what the user asked for and leave every other block exactly as it is.
 - When a message quotes a passage, the request is about that passage. Edit only the block that holds it, and keep the rest of that block's text.
-- Block text takes inline markdown only: **bold**, *italic*, \`code\` and [label](url).
+- Block text takes inline formatting only: **bold**, *italic*, ~~strikethrough~~, \`code\`, [label](url), <u>underline</u> and <mark>highlight</mark>.
 - To give feedback without changing the text, add comments with update_comments.
 - After a tool call, reply in one or two short sentences that say what you changed. Never paste the document or the new text into the chat.`;
 

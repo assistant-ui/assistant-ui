@@ -148,7 +148,8 @@ export function SlashMenu() {
                       )}
                       <li
                         role="option"
-                        id={`slash-option-${index}`}
+                        // Lexical points the editor's aria-activedescendant at this id.
+                        id={`typeahead-item-${index}`}
                         aria-selected={selectedIndex === index}
                         tabIndex={-1}
                         ref={option.setRefElement}
