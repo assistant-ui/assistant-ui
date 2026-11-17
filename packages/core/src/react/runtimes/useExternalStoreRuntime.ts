@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useInsertionEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
@@ -68,6 +74,35 @@ const useRuntimeModelContext = (
 const createAssistantRuntime = (runtime: ExternalStoreRuntimeCore) => () =>
   new AssistantRuntimeImpl(runtime);
 
+const subscribeToNothing = () => () => {};
+const adapterCapabilitiesUnavailableOnServer = () => false;
+
+const hasAdapterCapabilities = <T>(store: ExternalStoreAdapter<T>) =>
+  !!store.adapters?.attachments ||
+  store.adapters?.dictation !== undefined ||
+  !!store.adapters?.feedback ||
+  store.adapters?.speech !== undefined ||
+  store.adapters?.voice !== undefined;
+
+const createHydrationSafeStore = <T>(store: ExternalStoreAdapter<T>) => {
+  if (!hasAdapterCapabilities(store)) {
+    return store;
+  }
+
+  const adapters = store.adapters ?? {};
+  return {
+    ...store,
+    adapters: {
+      ...adapters,
+      attachments: undefined,
+      dictation: undefined,
+      feedback: undefined,
+      speech: undefined,
+      voice: undefined,
+    },
+  };
+};
+
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
 ): AssistantRuntime => {
@@ -90,7 +125,19 @@ export const useExternalStoreRuntime = <T>(
       unstable_onRecordToolInteraction: historyCopy.recordInteraction,
     };
   }, [copiesHistory, feedback, historyCopy, store]);
-  const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
+  const adapterCapabilitiesReady = useSyncExternalStore(
+    subscribeToNothing,
+    () => hasAdapterCapabilities(adaptedStore),
+    adapterCapabilitiesUnavailableOnServer,
+  );
+  const [runtime] = useState(
+    () =>
+      new ExternalStoreRuntimeCore(
+        adapterCapabilitiesReady
+          ? adaptedStore
+          : createHydrationSafeStore(adaptedStore),
+      ),
+  );
   const isHosted = useIsRemoteThreadRuntimeHosted();
   const [lifetime] = useState(() => ({ generation: 0 }));
 
