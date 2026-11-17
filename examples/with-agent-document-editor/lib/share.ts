@@ -56,7 +56,13 @@ export function documentToMarkdown(document: DocumentState) {
     const previous = document.blocks[index - 1];
     const sameList = isListType(block.type) && previous?.type === block.type;
     if (markdown) markdown += sameList ? "\n" : "\n\n";
-    markdown += blockToMarkdown(block);
+    markdown +=
+      block.type === "quote"
+        ? block.text
+            .split("\n")
+            .map((line) => (line ? `> ${line}` : ">"))
+            .join("\n")
+        : blockToMarkdown(block);
   });
   return `${markdown}\n`;
 }

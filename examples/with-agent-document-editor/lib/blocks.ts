@@ -61,7 +61,19 @@ const WRAPPERS = [
 ] as const;
 
 const ESCAPABLE = new Set(["\\", "*", "`", "[", "~", "<"]);
-const LINK = /^\[((?:\\.|[^\]\\])+)\]\(([^()\s]+)\)/;
+// An address may hold one level of parentheses, as in `/wiki/Name_(film)`.
+const ADDRESS = String.raw`(?:[^()\s]|\([^()\s]*\))+`;
+const LINK = new RegExp(String.raw`^\[((?:\\.|[^\]\\])+)\]\((${ADDRESS})\)`);
+const WHOLE_ADDRESS = new RegExp(`^${ADDRESS}$`);
+
+// Anything else that would end the link early is written percent-encoded.
+const writeAddress = (href: string) =>
+  WHOLE_ADDRESS.test(href)
+    ? href
+    : href.replace(
+        /[()\s]/g,
+        (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+      );
 
 const isSpace = (char: string | undefined) =>
   char === undefined || /\s/.test(char);
@@ -271,7 +283,7 @@ export function serializeInline(runs: readonly InlineRun[]): string {
     }
     let end = i;
     while (end < runs.length && runs[end]!.href === href) end++;
-    out += `[${runs.slice(i, end).map(serializeRun).join("")}](${href})`;
+    out += `[${runs.slice(i, end).map(serializeRun).join("")}](${writeAddress(href)})`;
     i = end;
   }
   return out;

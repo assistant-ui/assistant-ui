@@ -88,6 +88,15 @@ describe("markdown export", () => {
     expect(documentToMarkdown(titled)).toBe("# Café plan\n");
   });
 
+  it("keeps every line of a quote inside the quote", () => {
+    const quoted: DocumentState = {
+      title: "",
+      blocks: [{ id: "b1", type: "quote", text: "First\n\nSecond" }],
+    };
+
+    expect(documentToMarkdown(quoted)).toBe("> First\n>\n> Second\n");
+  });
+
   it("keeps a title that the opening heading no longer matches", () => {
     const renamed: DocumentState = {
       title: "Autumn menu",

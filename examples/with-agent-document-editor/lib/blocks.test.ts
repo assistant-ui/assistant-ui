@@ -119,6 +119,16 @@ describe("serializeInline", () => {
     expect(parseInline(serializeInline(literal))).toEqual(literal);
   });
 
+  it("round trips a link whose address holds parentheses", () => {
+    const runs = [{ text: "film", href: "https://example.com/a_(b)" }];
+    expect(parseInline(serializeInline(runs))).toEqual(runs);
+    expect(
+      parseInline(
+        serializeInline([{ text: "x", href: "https://e.com/a)b c" }]),
+      ),
+    ).toEqual([{ text: "x", href: "https://e.com/a%29b%20c" }]);
+  });
+
   it("round trips struck, underlined and highlighted text that holds its own markers", () => {
     for (const runs of [
       [{ text: "about ~", strike: true }],
