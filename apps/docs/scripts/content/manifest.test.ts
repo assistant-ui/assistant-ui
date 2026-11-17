@@ -246,10 +246,14 @@ Install the package.
   );
   const { content: generated, data } = await createContentManifest(root);
   expect(generated).toContain('import("../content/docs/(start)/index.mdx")');
+  expect(generated).toMatch(
+    /if \(import\.meta\.hot\) import\.meta\.hot\.accept\(\[[^\]]*"\.\.\/content\/docs\/\(start\)\/index\.mdx"[^\]]*"\.\/content-data\/docs"[^\]]*\], \(\) => \{\}\);/,
+  );
   const instantiate = new Function(
     "createContentSource",
     generated
       .replace(/^import[^\n]+\n/, "")
+      .replace(/^if \(import\.meta\.hot\)[^\n]+\n/m, "")
       .replaceAll("export const ", "const ") + "\nreturn docs;",
   );
   const source = loader({
@@ -304,6 +308,7 @@ it("escapes source literals while preserving authored metadata and filenames", a
     "createContentSource",
     content
       .replace(/^import[^\n]+\n/, "")
+      .replace(/^if \(import\.meta\.hot\)[^\n]+\n/m, "")
       .replaceAll("export const ", "const ") + "\nreturn docs;",
   );
   const source = instantiate(createContentSource) as ReturnType<

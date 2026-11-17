@@ -106,6 +106,7 @@ async function compileContent(
     'import { createContentSource } from "../lib/content-source";',
   ];
   const data: Record<string, string> = {};
+  const loaded: string[] = [];
   for (const { collection, files } of collections) {
     const pages = [];
     const metadata = [];
@@ -148,8 +149,10 @@ async function compileContent(
         : await compile();
       pages.push({ path, metadata: page.metadata });
       search[path] = page.search;
+      const pending = lite && !lite.compiled.has(`${collection}/${path}`);
+      if (!pending) loaded.push(`../${relative(root, absolute)}`);
       modules.push(
-        lite && !lite.compiled.has(`${collection}/${path}`)
+        pending
           ? `${serializeSourceLiteral(path)}: () => import("../lib/content-lite").then((module) => module.pendingPage(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(path)}))`
           : `${serializeSourceLiteral(path)}: () => import(${serializeSourceLiteral(`../${relative(root, absolute)}`)})`,
       );
@@ -158,7 +161,13 @@ async function compileContent(
       `export const ${collection} = createContentSource(${serializeSourceLiteral(collection)}, ${serializeSourceLiteral(pages)}, ${serializeSourceLiteral(metadata)}, {${modules.join(",\n")}}, () => import("./content-data/${collection}").then((module) => module.default));`,
     );
     data[collection] = `export default ${serializeSourceLiteral(search)};\n`;
+    loaded.push(`./content-data/${collection}`);
   }
+  // Every page and search module is loaded through import() on each call, so an edit to one
+  // reaches the next render without re-evaluating this index and every route that imports it.
+  output.push(
+    `if (import.meta.hot) import.meta.hot.accept(${serializeSourceLiteral(loaded)}, () => {});`,
+  );
   return { content: `${output.join("\n")}\n`, data };
 }
 
