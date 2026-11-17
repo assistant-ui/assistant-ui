@@ -121,7 +121,7 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply overscroll-y-none scroll-smooth;
+    @apply overscroll-y-none motion-safe:scroll-smooth;
   }
 }
 

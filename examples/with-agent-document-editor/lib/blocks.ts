@@ -120,6 +120,15 @@ const findClosing = (source: string, from: number, marker: string) => {
   return -1;
 };
 
+// The first `marker` at or after `from` that is not part of an escape.
+const findUnescaped = (source: string, marker: string, from: number) => {
+  for (let i = from; i < source.length; i++) {
+    if (source[i] === "\\" && ESCAPABLE.has(source[i + 1] ?? "")) i++;
+    else if (source.startsWith(marker, i)) return i;
+  }
+  return -1;
+};
+
 const pushRun = (runs: InlineRun[], run: InlineRun) => {
   const last = runs[runs.length - 1];
   if (
@@ -181,7 +190,7 @@ const parseInto = (source: string, marks: Marks, runs: InlineRun[]) => {
     );
     if (wrapper) {
       const start = i + wrapper.open.length;
-      const end = source.indexOf(wrapper.close, start);
+      const end = findUnescaped(source, wrapper.close, start);
       if (end > start) {
         flush();
         parseInto(
@@ -240,6 +249,8 @@ const serializeRun = (run: InlineRun) => {
   if (!core) return run.text;
 
   let body = run.code && !core.includes("`") ? `\`${core}\`` : escapeText(core);
+  // A tilde right before the closing `~~` would be read as part of it.
+  if (run.strike && body.endsWith("~")) body = `${body.slice(0, -1)}\\~`;
   if (run.bold && run.italic) body = `***${body}***`;
   else if (run.bold) body = `**${body}**`;
   else if (run.italic) body = `*${body}*`;

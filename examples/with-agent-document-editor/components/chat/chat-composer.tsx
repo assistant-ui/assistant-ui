@@ -37,9 +37,7 @@ function useModelOptions() {
   return useMemo(() => {
     const options: ModelOption[] = MODELS.map((model) => {
       const available =
-        !!keys[model.provider] ||
-        serverProviders === undefined ||
-        serverProviders.includes(model.provider);
+        !!keys[model.provider] || !!serverProviders?.includes(model.provider);
       return {
         id: model.id,
         name: model.name,

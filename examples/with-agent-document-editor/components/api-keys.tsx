@@ -25,15 +25,16 @@ function ApiKeysForm({ onDone }: { onDone: () => void }) {
   const saved = useApiKeys();
   const serverProviders = useServerProviders();
   const [draft, setDraft] = useState<SavedKeys>(saved);
+  const [failed, setFailed] = useState(false);
 
   const save = (event: FormEvent) => {
     event.preventDefault();
-    setApiKeys(draft);
-    onDone();
+    if (setApiKeys(draft)) onDone();
+    else setFailed(true);
   };
 
   const removeAll = () => {
-    setApiKeys({});
+    setFailed(!setApiKeys({}));
     setDraft({});
   };
 
@@ -49,10 +50,16 @@ function ApiKeysForm({ onDone }: { onDone: () => void }) {
           <div key={provider.id} className="flex flex-col gap-1.5">
             <div className="flex items-baseline justify-between gap-2">
               <Label htmlFor={`api-key-${provider.id}`}>{provider.name}</Label>
-              <span className="text-muted-foreground text-xs">{status}</span>
+              <span
+                id={`api-key-${provider.id}-status`}
+                className="text-muted-foreground text-xs"
+              >
+                {status}
+              </span>
             </div>
             <Input
               id={`api-key-${provider.id}`}
+              aria-describedby={`api-key-${provider.id}-status`}
               type="password"
               autoComplete="off"
               spellCheck={false}
@@ -66,6 +73,11 @@ function ApiKeysForm({ onDone }: { onDone: () => void }) {
           </div>
         );
       })}
+      {failed && (
+        <p role="alert" className="text-destructive text-xs">
+          This browser did not let the keys be saved.
+        </p>
+      )}
       <div className="flex items-center justify-between pt-1">
         <Button
           type="button"

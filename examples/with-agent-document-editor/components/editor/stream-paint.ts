@@ -27,7 +27,7 @@ const supportsHighlights = () =>
 const isLineBreak = (node: Node) =>
   node.nodeName === "BR" && !!(node.previousSibling || node.nextSibling);
 
-function textOf(root: HTMLElement) {
+export function textOf(root: HTMLElement) {
   const walker = document.createTreeWalker(
     root,
     NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
@@ -40,7 +40,7 @@ function textOf(root: HTMLElement) {
   return text;
 }
 
-function textRange(root: HTMLElement, start: number, end: number) {
+export function textRange(root: HTMLElement, start: number, end: number) {
   if (start >= end) return null;
   const walker = document.createTreeWalker(
     root,

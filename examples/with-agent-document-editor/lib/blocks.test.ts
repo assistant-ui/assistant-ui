@@ -118,6 +118,17 @@ describe("serializeInline", () => {
     const literal = [{ text: "2 * 3 [x] `y` \\z ~~ <u> a < b ~ c" }];
     expect(parseInline(serializeInline(literal))).toEqual(literal);
   });
+
+  it("round trips struck, underlined and highlighted text that holds its own markers", () => {
+    for (const runs of [
+      [{ text: "about ~", strike: true }],
+      [{ text: "a ~~ b", strike: true }],
+      [{ text: "x </u> y", underline: true }],
+      [{ text: "x </mark> y", highlight: true }],
+    ]) {
+      expect(parseInline(serializeInline(runs))).toEqual(runs);
+    }
+  });
 });
 
 describe("plainText", () => {

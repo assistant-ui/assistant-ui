@@ -68,7 +68,7 @@ const initialConfig: InitialConfigType = {
     HorizontalRuleNode,
   ],
   onError: (error) => {
-    throw error;
+    console.error("[with-agent-document-editor]", error);
   },
 };
 

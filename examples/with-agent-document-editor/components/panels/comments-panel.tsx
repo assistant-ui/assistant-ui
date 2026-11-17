@@ -80,6 +80,17 @@ export function CommentsPanel() {
     );
     return index === -1 ? Number.MAX_SAFE_INTEGER : index;
   };
+  const byId = new Map(saved.map((comment) => [comment.id, comment]));
+  // A reply can answer another reply. It is shown under the thread at the top.
+  const threadOf = (comment: DocumentComment) => {
+    let top = comment;
+    for (let hops = 0; top.replyTo && hops < saved.length; hops++) {
+      const parent = byId.get(top.replyTo);
+      if (!parent) break;
+      top = parent;
+    }
+    return top.id;
+  };
   const threads = saved
     .filter((comment) => !comment.replyTo)
     .sort(
@@ -114,9 +125,7 @@ export function CommentsPanel() {
     );
 
   const remove = (id: string) => {
-    update((all) =>
-      all.filter((comment) => comment.id !== id && comment.replyTo !== id),
-    );
+    update((all) => all.filter((comment) => threadOf(comment) !== id));
     if (activeCommentId === id) showComment(null);
   };
 
@@ -134,7 +143,7 @@ export function CommentsPanel() {
       {threads.map((thread) => {
         const active = thread.id === activeCommentId;
         const replies = saved.filter(
-          (comment) => comment.replyTo === thread.id,
+          (comment) => comment.replyTo && threadOf(comment) === thread.id,
         );
         return (
           <li

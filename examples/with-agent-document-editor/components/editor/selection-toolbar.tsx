@@ -241,7 +241,12 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       // The toolbar's menus open in a portal, outside the toolbar element.
       if (target?.closest('[data-slot^="dropdown-menu"]')) return;
       dragging = true;
-      if (modeRef.current !== "actions") close();
+      if (modeRef.current === "actions") return;
+      // A click into the chat panel carries on with the same quote there.
+      if (modeRef.current === "ask" && !target?.closest("aside")) {
+        aui.thread.composer().setQuote(undefined);
+      }
+      close();
     };
     const onMouseUp = () => {
       dragging = false;
@@ -260,7 +265,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       document.removeEventListener("mouseup", onMouseUp, true);
       document.removeEventListener("selectionchange", onSelectionChange);
     };
-  }, [close, readSelection]);
+  }, [aui, close, readSelection]);
 
   useEffect(() => {
     if (!captured) return;

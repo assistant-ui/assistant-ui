@@ -125,7 +125,10 @@ function Panels() {
         </ResizablePanel>
         {panel && !isNarrow && (
           <>
-            <ResizableHandle className="bg-foreground/10" />
+            <ResizableHandle
+              aria-label="Resize the panel"
+              className="bg-foreground/10"
+            />
             <ResizablePanel
               id={SIDE_PANEL}
               defaultSize={sideSize}

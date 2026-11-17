@@ -31,7 +31,7 @@ function SaveStatus() {
     <Badge
       role="status"
       variant={!isRunning && error ? "destructive" : "secondary"}
-      className="max-sm:hidden"
+      className="max-sm:sr-only"
     >
       {isRunning ? (
         <span className="shimmer">Assistant is working</span>

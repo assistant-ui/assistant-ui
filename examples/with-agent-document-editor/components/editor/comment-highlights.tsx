@@ -4,6 +4,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { useCallback, useEffect, useRef } from "react";
 import { useCommentsState, useWorkspace } from "@/components/workspace-context";
 import { $findBlockKey, plainText, type BlockIds } from "@/lib/blocks";
+import { textOf, textRange } from "./stream-paint";
 
 const HIGHLIGHT = "doc-comment";
 const ACTIVE_HIGHLIGHT = "doc-comment-active";
@@ -11,15 +12,8 @@ const ACTIVE_HIGHLIGHT = "doc-comment-active";
 const supportsHighlights = () =>
   typeof CSS !== "undefined" && "highlights" in CSS;
 
-export function findTextRange(root: HTMLElement, quote: string): Range | null {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  const nodes: Text[] = [];
-  let text = "";
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    nodes.push(node as Text);
-    text += (node as Text).data;
-  }
-
+function findTextRange(root: HTMLElement, quote: string): Range | null {
+  const text = textOf(root);
   let start = text.indexOf(quote);
   let length = quote.length;
   if (start === -1) {
@@ -28,23 +22,7 @@ export function findTextRange(root: HTMLElement, quote: string): Range | null {
     length = plain.length;
   }
   if (start === -1 || length === 0) return null;
-
-  const range = document.createRange();
-  let offset = 0;
-  let started = false;
-  for (const node of nodes) {
-    const end = offset + node.data.length;
-    if (!started && start < end) {
-      range.setStart(node, start - offset);
-      started = true;
-    }
-    if (started && start + length <= end) {
-      range.setEnd(node, start + length - offset);
-      return range;
-    }
-    offset = end;
-  }
-  return null;
+  return textRange(root, start, start + length);
 }
 
 /**
@@ -59,7 +37,6 @@ export function CommentHighlights({ ids }: { ids: BlockIds }) {
   const ranges = useRef(new Map<string, Range>());
 
   const paint = useCallback(() => {
-    if (!supportsHighlights()) return;
     const anchored = comments.filter(
       (comment) =>
         comment?.id &&
@@ -82,6 +59,8 @@ export function CommentHighlights({ ids }: { ids: BlockIds }) {
       if (range) next.set(comment.id, range);
     });
     ranges.current = next;
+    // The ranges also serve clicks and scrolling, which need no highlights.
+    if (!supportsHighlights()) return;
 
     const active = activeCommentId ? next.get(activeCommentId) : undefined;
     const rest = [...next].flatMap(([id, range]) =>

@@ -18,7 +18,7 @@ Open [http://localhost:3000](http://localhost:3000).
 The example needs a key for at least one provider. There are two ways to give it one:
 
 - Click the round key button at the top right and paste a key for OpenAI, Anthropic or Google. The key is kept in your browser's local storage and sent only to this app's own `/api/chat` route, which uses it for that request and does not store it.
-- Or copy `.env.example` to `.env.local` and set a key there. A key from the key button wins over one from the environment.
+- Or copy `examples/with-agent-document-editor/.env.example` to `.env.local` in the same folder and set a key there. A key from the key button wins over one from the environment. The route has no sign-in, so anyone who can reach a deployment can spend a key set this way: add your own authentication and rate limiting before you deploy it with one.
 
 The model picker in the composer lists only the models whose provider has a key.
 
@@ -103,6 +103,7 @@ There is no server to keep a document on, so the Share dialog makes a link that 
 
 - History covers the current chat. The document and comments are saved to local storage and survive a reload; the chat and the version list do not.
 - Lists are flat, and there are no images or tables.
+- A comment is anchored by its block and its quoted text, so when a block holds the same passage twice the mark lands on the first.
 - Stopping a run in the middle of an edit keeps what had arrived so far, which can be a cut-off block or, when the assistant was rewriting the block list, a shorter document. Undo or History brings the earlier version back.
 - Two tabs on the same document do not update each other until one reloads.
 - A share link is as long as the document it holds, and it carries the text only, not the comments or the chat.

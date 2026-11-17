@@ -42,6 +42,7 @@ export function getApiKeys(): ApiKeys {
   return keys;
 }
 
+/** Saves the keys, and says whether the browser let it. */
 export function setApiKeys(keys: ApiKeys) {
   const entries = Object.entries(keys).filter(([, value]) => value?.trim());
   try {
@@ -55,9 +56,10 @@ export function setApiKeys(keys: ApiKeys) {
       );
     }
   } catch {
-    return;
+    return false;
   }
   notify();
+  return true;
 }
 
 export function apiKeyHeaders(): Record<string, string> {
@@ -77,16 +79,20 @@ const requestServerProviders = () => {
   if (serverProvidersRequested) return;
   serverProvidersRequested = true;
   fetch("/api/chat")
-    .then((response) => (response.ok ? response.json() : undefined))
-    .then((data: { providers?: unknown } | undefined) => {
-      serverProviders = Array.isArray(data?.providers)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Status ${response.status}`);
+      return response.json();
+    })
+    .then((data: { providers?: unknown }) => {
+      serverProviders = Array.isArray(data.providers)
         ? data.providers.filter(isProviderId)
         : NO_PROVIDERS;
+      notify();
     })
     .catch(() => {
-      serverProviders = NO_PROVIDERS;
-    })
-    .finally(notify);
+      // Unknown stays unknown, and the next subscriber asks again.
+      serverProvidersRequested = false;
+    });
 };
 
 const subscribe = (listener: () => void) => {

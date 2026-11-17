@@ -109,6 +109,9 @@ export const DocumentEditMarker: ToolCallMessagePartComponent = ({
   if (failed(result)) {
     return <Marker icon={<PencilLineIcon />} label="The edit did not apply" />;
   }
+  if (status.type === "incomplete") {
+    return <Marker icon={<PencilLineIcon />} label="The edit was cut short" />;
+  }
 
   const isLatest = index !== -1 && index === versions.length - 1;
   const undone =
@@ -159,6 +162,14 @@ export const CommentsEditMarker: ToolCallMessagePartComponent = ({
   if (failed(result)) {
     return (
       <Marker icon={<MessageSquareIcon />} label="The comment did not save" />
+    );
+  }
+  if (status.type === "incomplete") {
+    return (
+      <Marker
+        icon={<MessageSquareIcon />}
+        label="The comments were cut short"
+      />
     );
   }
 
