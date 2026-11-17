@@ -1,0 +1,106 @@
+import { onCleanup, type Accessor } from "solid-js";
+
+const findScrollableAncestor = (element: HTMLElement | null | undefined) => {
+  let current = element;
+  while (current) {
+    const { overflowY } = getComputedStyle(current);
+    if (overflowY === "scroll" || overflowY === "auto") return current;
+    current = current.parentElement;
+  }
+  return null;
+};
+
+const scrollLocks = new WeakMap<
+  HTMLElement,
+  { count: number; restore: () => void }
+>();
+
+const acquireScrollLock = (scrollContainer: HTMLElement) => {
+  const existing = scrollLocks.get(scrollContainer);
+  if (existing) {
+    existing.count++;
+    return existing;
+  }
+
+  const scrollPosition = scrollContainer.scrollTop;
+  const scrollbarWidth = scrollContainer.style.scrollbarWidth;
+  const computed = getComputedStyle(scrollContainer);
+  const paddingSide =
+    computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
+  const previousPadding = scrollContainer.style[paddingSide];
+  const elementScrollbarSize =
+    scrollContainer.offsetWidth -
+    scrollContainer.clientWidth -
+    parseFloat(computed.borderLeftWidth) -
+    parseFloat(computed.borderRightWidth);
+  // Root offsetWidth excludes the viewport scrollbar, so use the viewport
+  // width only when the element's own gutter is absent.
+  const ownerDocument = scrollContainer.ownerDocument;
+  const isRootScroller =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.body;
+  const scrollbarSize =
+    isRootScroller && elementScrollbarSize <= 0
+      ? (ownerDocument.defaultView?.innerWidth ?? 0) -
+        ownerDocument.documentElement.clientWidth
+      : elementScrollbarSize;
+
+  scrollContainer.style.scrollbarWidth = "none";
+  if (scrollbarSize > 0) {
+    scrollContainer.style[paddingSide] = `${
+      parseFloat(computed[paddingSide]) + scrollbarSize
+    }px`;
+  }
+
+  const restoreStyles = () => {
+    scrollContainer.style.scrollbarWidth = scrollbarWidth;
+    scrollContainer.style[paddingSide] = previousPadding;
+  };
+  const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
+  scrollContainer.addEventListener("scroll", resetPosition);
+
+  const lock = {
+    count: 1,
+    restore: () => {
+      scrollContainer.removeEventListener("scroll", resetPosition);
+      restoreStyles();
+    },
+  };
+  scrollLocks.set(scrollContainer, lock);
+  return lock;
+};
+
+/**
+ * Returns a function that locks the target's nearest scrollable ancestor for the animation duration, compensates its scrollbar gutter, and releases the lock when its reactive owner is disposed. Overlapping locks share the container until the last animation finishes.
+ */
+export const useScrollLock = (
+  target: Accessor<HTMLElement | null | undefined>,
+  animationDuration: number,
+) => {
+  let cleanup: (() => void) | null = null;
+
+  onCleanup(() => cleanup?.());
+
+  return () => {
+    cleanup?.();
+
+    const scrollContainer = findScrollableAncestor(target());
+    if (!scrollContainer) {
+      cleanup = null;
+      return;
+    }
+
+    const lock = acquireScrollLock(scrollContainer);
+
+    const timeoutId = setTimeout(() => cleanup?.(), animationDuration);
+
+    cleanup = () => {
+      clearTimeout(timeoutId);
+      if (--lock.count === 0) {
+        lock.restore();
+        scrollLocks.delete(scrollContainer);
+      }
+      cleanup = null;
+    };
+  };
+};
