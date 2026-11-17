@@ -190,17 +190,20 @@ const setup = (options: {
   const threads = () => handle.getClient().threads;
   const item = (id: string) => threads().item({ id });
   const actions = () => threads().__internal_getRawActions!();
-  // Reads after the scheduled tap render has committed the store change.
-  const committed = async () => {
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    flushTapSync(() => {});
-  };
+  // A copy of the config re-renders the client root without changing any
+  // scope, and inside flushTapSync that render applies every store change
+  // still waiting for tap's scheduled flush.
+  const committed = () =>
+    flushTapSync(() => {
+      config = AuiConfig({ ...config });
+      for (const l of [...listeners]) l();
+    });
   const statusOf = async (id: string) => {
-    await committed();
+    committed();
     return item(id).getState().status;
   };
   const titleOf = async (id: string) => {
-    await committed();
+    committed();
     return item(id).getState().title;
   };
   const backendThread = (id: string) =>
