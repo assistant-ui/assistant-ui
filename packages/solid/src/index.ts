@@ -54,6 +54,13 @@ export {
   BranchPickerPrimitiveNumber,
   BranchPickerPrimitiveCount,
 } from "./primitives/branchPicker";
+export {
+  SuggestionByIndexProvider,
+  ThreadPrimitiveSuggestions,
+  SuggestionPrimitiveTrigger,
+  SuggestionPrimitiveTitle,
+  SuggestionPrimitiveDescription,
+} from "./primitives/suggestions";
 
 export { AttachmentByIndexProvider } from "./primitives/AttachmentByIndexProvider";
 export {
