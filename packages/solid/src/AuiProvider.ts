@@ -82,7 +82,12 @@ export const AuiProvider = (props: AuiProviderProps): JSX.Element => {
   const release = handle.subscribe(() => trigger());
   onCleanup(() => {
     release();
-    handle.destroy();
+    // A throwing cleanup would stop Solid from disposing the rest of the tree
+    try {
+      handle.destroy();
+    } catch (error) {
+      console.error("[assistant-ui] AuiProvider cleanup threw an error", error);
+    }
   });
 
   return createComponent(AuiContext.Provider, {

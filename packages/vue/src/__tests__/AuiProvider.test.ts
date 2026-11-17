@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   createApp,
   defineComponent,
   h,
+  onScopeDispose,
   nextTick,
   shallowRef,
   type Component,
@@ -17,6 +18,7 @@ import {
   messageDerived,
   trackers,
   type AnyClient,
+  ThrowingCleanup,
 } from "./fixtures";
 
 const mountApp = (root: Component) => {
@@ -224,7 +226,7 @@ describe("AuiProvider", () => {
     unmount();
   });
 
-  it("releases the client on unmount, soft unmounting its scopes", async () => {
+  it("destroys the client on unmount, releasing its scopes at once", () => {
     const before = trackers.threadCleanups;
     const { Probe } = captureAui();
     const { unmount } = mountApp(
@@ -240,10 +242,37 @@ describe("AuiProvider", () => {
 
     const afterMount = trackers.threadCleanups;
     unmount();
-    await vi.waitFor(() =>
-      expect(trackers.threadCleanups).toBe(afterMount + 1),
-    );
+    expect(trackers.threadCleanups).toBe(afterMount + 1);
     expect(afterMount).toBeGreaterThanOrEqual(before);
+  });
+
+  it("reports a throwing cleanup and still unmounts its subtree", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
+    const childDisposed = vi.fn();
+    const Child = defineComponent({
+      setup() {
+        onScopeDispose(childDisposed);
+        return () => null;
+      },
+    });
+    const { unmount } = mountApp(
+      defineComponent({
+        setup: () => () =>
+          h(
+            AuiProvider,
+            { config: AuiConfig({ thread: ThrowingCleanup() } as never) },
+            { default: () => h(Child) },
+          ),
+      }),
+    );
+
+    expect(() => unmount()).not.toThrow();
+    expect(childDisposed).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[assistant-ui] AuiProvider cleanup threw an error",
+      expect.anything(),
+    );
   });
 
   it("returns the throwing default client outside a provider", () => {

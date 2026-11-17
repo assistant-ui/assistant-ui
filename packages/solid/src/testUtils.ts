@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useInsertionEffect } from "react";
 import { resource } from "@assistant-ui/tap";
 import { createComponent, type JSX } from "solid-js";
 import { render } from "solid-js/web";
@@ -83,3 +83,14 @@ export const providerWith = (
       return child();
     },
   });
+
+const useThrowingCleanup = () => {
+  useInsertionEffect(
+    () => () => {
+      throw new Error("cleanup failed");
+    },
+    [],
+  );
+  return { getState: () => ({}) };
+};
+export const ThrowingCleanup = resource(useThrowingCleanup);
