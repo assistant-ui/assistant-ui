@@ -2772,6 +2772,10 @@ export class AgUiThreadController {
           settleRunSubagents({ type: "incomplete", reason: "cancelled" });
         }
         if (settlingRun) persistRunAssistants(false);
+        // The response may stay open for server cleanup after RUN_FINISHED;
+        // abortController keeps owning the run until it closes, so deferred
+        // continuations still wait for the drain.
+        if (event.type === "RUN_FINISHED") this.setRunning(false);
       } finally {
         deferUpdateNotifications = previousDeferredNotifications;
         settlingRun = false;
@@ -2789,7 +2793,7 @@ export class AgUiThreadController {
       () => {
         cancelRun();
         this.finishRun(abortController);
-        invokeRuntimeCallback("onCancel", this.onCancel);
+        if (!runFinished) invokeRuntimeCallback("onCancel", this.onCancel);
       },
       { once: true },
     );

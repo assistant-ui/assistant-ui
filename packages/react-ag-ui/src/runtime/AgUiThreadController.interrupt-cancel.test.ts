@@ -148,7 +148,7 @@ describe("AgUiThreadController Stop after an interrupt", () => {
     const { core, runAgent, abortRun } = createOpenRun(true);
     const firstRun = core.append(userMessage("start"));
 
-    expect(core.isRunning()).toBe(true);
+    expect(core.isRunning()).toBe(false);
     expect(core.getMessages().at(-1)?.status).toEqual({
       type: "requires-action",
       reason: "interrupt",

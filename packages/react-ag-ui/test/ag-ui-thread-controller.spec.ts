@@ -2257,7 +2257,7 @@ describe("AGUIThreadRuntimeCore", () => {
         (core.getMessages().at(-1) as ThreadAssistantMessage).status,
       ).toMatchObject({ type: "complete" }),
     );
-    expect(core.isRunning()).toBe(true);
+    expect(core.isRunning()).toBe(false);
 
     await core.cancel();
     await run;
@@ -2339,6 +2339,99 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "unknown",
     });
     expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
+  it("stops running at RUN_FINISHED while the response is still open", async () => {
+    const http = createStreamingHttpAgent();
+    const core = createCore(http.agent);
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "done",
+    });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m1" });
+    await vi.waitFor(() =>
+      expect(assistantText(core.getMessages().at(-1))).toBe("done"),
+    );
+    expect(core.isRunning()).toBe(true);
+
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "complete",
+    });
+
+    http.close();
+    await expect(run).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("starts a new run when the user sends while the finished response drains", async () => {
+    const writers: ReadableStreamDefaultController<Uint8Array>[] = [];
+    const encoder = new TextEncoder();
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async (_url, init) => {
+        const body = new ReadableStream<Uint8Array>({
+          start: (c) => {
+            writers.push(c);
+            init?.signal?.addEventListener("abort", () =>
+              c.error(new DOMException("aborted", "AbortError")),
+            );
+          },
+        });
+        return new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      },
+    });
+    const write = (index: number, event: object) =>
+      writers[index]!.enqueue(
+        encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+      );
+    const onCancel = vi.fn();
+    const core = createCore(agent, { onCancel });
+
+    const first = core.append(createAppendMessage());
+    await vi.waitFor(() => expect(writers).toHaveLength(1));
+    write(0, { type: "RUN_STARTED", threadId: "thread", runId: "run-1" });
+    write(0, {
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    write(0, { type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "one" });
+    write(0, { type: "TEXT_MESSAGE_END", messageId: "m1" });
+    write(0, { type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    const firstAnswer = core.getMessages().at(-1)!;
+
+    const second = core.append({
+      ...createAppendMessage(),
+      parentId: firstAnswer.id,
+    });
+    await vi.waitFor(() => expect(writers).toHaveLength(2));
+    expect(core.isRunning()).toBe(true);
+    await expect(first).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(true);
+    expect(
+      core.getMessages().find((message) => message.id === firstAnswer.id)
+        ?.status,
+    ).toMatchObject({ type: "complete" });
+
+    expect(onCancel).not.toHaveBeenCalled();
+    write(1, { type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
+    write(1, { type: "RUN_FINISHED", threadId: "thread", runId: "run-2" });
+    writers[1]!.close();
+    await expect(second).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
   });
 
   it("renders a backend that still streams legacy THINKING_* and chunk events", async () => {
@@ -6261,7 +6354,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
-  it("steerAway throws when a run is still in progress", async () => {
+  it("steerAway starts a new run while the finished run's response drains", async () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((r) => {
       release = r;
@@ -6269,6 +6362,10 @@ describe("AGUIThreadRuntimeCore", () => {
     let runCount = 0;
     const runAgent = vi.fn(async (_input: any, subscriber: any) => {
       runCount++;
+      if (runCount > 1) {
+        notifyRunFinished(subscriber, "run-2");
+        return;
+      }
       subscriber.onToolCallStartEvent?.({
         event: {
           type: "TOOL_CALL_START",
@@ -6283,20 +6380,23 @@ describe("AGUIThreadRuntimeCore", () => {
       await gate;
     });
 
-    const core = createCore({ runAgent } as unknown as HttpAgent);
+    const core = createCore({
+      runAgent,
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent);
     const appendPromise = core.append(createAppendMessage());
     await new Promise((r) => setTimeout(r, 0));
 
     expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["call-1"]);
-    expect(core.isRunning()).toBe(true);
+    expect(core.isRunning()).toBe(false);
 
-    await expect(core.steerAway("x")).rejects.toThrow(
-      "a run is already in progress",
-    );
+    await core.steerAway("x");
 
+    expect(runCount).toBe(2);
+    expect(core.getPendingToolCalls()).toBeNull();
     release();
     await appendPromise;
-    expect(runCount).toBe(1);
+    expect(core.isRunning()).toBe(false);
   });
 
   const createPendingToolCallAgent = (

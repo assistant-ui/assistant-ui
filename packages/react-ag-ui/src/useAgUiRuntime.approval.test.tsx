@@ -496,7 +496,7 @@ describe("useAgUiRuntime tool approvals", () => {
 
 describe("useAgUiRuntime tool approvals under an unsettled run", () => {
   // Exposes the gate through RUN_FINISHED while runAgent is still pending, so
-  // a click lands in the window where the run has not finalized.
+  // a click lands while the finished run's response is still open.
   const heldGatingAgent = () => {
     let release!: () => void;
     const held = new Promise<void>((resolve) => {
@@ -535,7 +535,7 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     };
   };
 
-  it("keeps the gate answerable after a click the in-flight run rejects", async () => {
+  it("answers the gate while the finished run's response is still open", async () => {
     const { agent, runAgent, release } = heldGatingAgent();
     const onError = vi.fn();
     const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
@@ -552,27 +552,7 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     await waitFor(() =>
       expect(allToolCalls(result.current)[0]?.approval).toEqual(gateApproval()),
     );
-    expect(result.current.thread.getState().isRunning).toBe(true);
-
-    await act(async () => {
-      await expect(
-        gatedPart(result.current).respondToToolApproval({ approved: true }),
-      ).rejects.toThrow("a run is already in progress");
-    });
-    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
-    expect((onError.mock.calls[0]![0] as Error).message).toContain(
-      "a run is already in progress",
-    );
-    // The rejected click must not have recorded a decision, or the retry
-    // below would report the approval as already decided.
-    expect(allToolCalls(result.current)[0]!.approval).toEqual(gateApproval());
-
-    await act(async () => {
-      release();
-    });
-    await waitFor(() =>
-      expect(result.current.thread.getState().isRunning).toBe(false),
-    );
+    expect(result.current.thread.getState().isRunning).toBe(false);
 
     await act(async () => {
       await gatedPart(result.current).respondToToolApproval({ approved: true });
@@ -581,6 +561,15 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     expect(resumeOf(runAgent)).toEqual([
       { interruptId: "int-1", status: "resolved", payload: { approved: true } },
     ]);
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() =>
+      expect(result.current.thread.getState().isRunning).toBe(false),
+    );
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(onError).not.toHaveBeenCalled();
   });
 });
 
