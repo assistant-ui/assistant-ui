@@ -71,7 +71,8 @@ export default function App() {
               </ThreadPrimitiveMessages>
               <Show when={isRunning()}>
                 <li class="text-foreground px-2 leading-relaxed">
-                  <span role="status" aria-label="Generating response">
+                  <span role="status">
+                    <span class="sr-only">Generating response</span>
                     <span
                       class="animate-pulse motion-reduce:animate-none"
                       aria-hidden="true"

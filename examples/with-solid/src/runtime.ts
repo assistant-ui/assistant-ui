@@ -123,12 +123,6 @@ export const createEchoRuntime = () => {
     },
     onCancel: async () => {
       clearTimeout(replyTimer);
-      if (isRunning && current().messages.at(-1)?.role === "user") {
-        updateCurrent((thread) => ({
-          ...thread,
-          messages: thread.messages.slice(0, -1),
-        }));
-      }
       isRunning = false;
       // cancelRun restores the trailing user message into the composer
       // synchronously after onCancel returns; an eager sync would delete it
