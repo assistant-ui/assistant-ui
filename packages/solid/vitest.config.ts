@@ -22,9 +22,9 @@ export default defineConfig({
       exclude: ["src/testUtils.ts"],
       thresholds: {
         lines: 97,
-        functions: 93,
-        branches: 77,
-        statements: 95,
+        functions: 95,
+        branches: 87,
+        statements: 96,
         autoUpdate: (threshold, previous) =>
           Math.max(previous, Math.floor(threshold) - 1),
       },
