@@ -1,7 +1,7 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
-import { isCompositionKey } from "../../utils/isCompositionKey";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import {
   type ComponentRef,
   forwardRef,

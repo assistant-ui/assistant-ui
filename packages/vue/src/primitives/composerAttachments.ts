@@ -12,7 +12,8 @@ import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { AttachmentByIndexProvider } from "./AttachmentByIndexProvider";
-import { getAttachmentKeys, useStableKeys } from "./stableKeys";
+import { getAttachmentKeys } from "@assistant-ui/core/internal";
+import { useStableKeys } from "./stableKeys";
 
 /**
  * Renders the composer's pending attachments in order, each scoped through
