@@ -384,13 +384,13 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
 
   const applyLink = (event: FormEvent) => {
     event.preventDefault();
-    setLink(editor, draft);
+    if (editor.isEditable()) setLink(editor, draft);
     close();
     editor.focus();
   };
 
   const removeLink = () => {
-    setLink(editor, null);
+    if (editor.isEditable()) setLink(editor, null);
     close();
     editor.focus();
   };

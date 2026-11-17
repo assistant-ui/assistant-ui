@@ -129,9 +129,12 @@ export function DocumentSync({
       }
       frame.current = 0;
       setTyping(false);
+      // Typing that starts and ends in one frame never changes `typing`, so
+      // the effect below would not run again to hand the editor back.
+      if (!wasRunning.current) editor.setEditable(true);
     };
     frame.current = requestAnimationFrame(step);
-  }, [show]);
+  }, [editor, show]);
 
   useEffect(() => {
     if (!wasRunning.current && isRunning && !stream.current.active) {
