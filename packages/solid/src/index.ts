@@ -40,6 +40,17 @@ export { ThreadPrimitiveRoot } from "./primitives/thread";
 export { MessagePrimitiveRoot } from "./primitives/message";
 
 export {
+  ActionBarPrimitiveEdit,
+  ActionBarPrimitiveReload,
+  ActionBarPrimitiveCopy,
+} from "./primitives/actionBar";
+export {
+  BranchPickerPrimitivePrevious,
+  BranchPickerPrimitiveNext,
+  BranchPickerPrimitiveNumber,
+  BranchPickerPrimitiveCount,
+} from "./primitives/branchPicker";
+export {
   SuggestionByIndexProvider,
   ThreadPrimitiveSuggestions,
   SuggestionPrimitiveTrigger,
