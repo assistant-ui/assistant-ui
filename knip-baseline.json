@@ -398,6 +398,7 @@
     "packages/react-markdown/src/primitives/MarkdownText.overrides.test.tsx": [
       "jsdom"
     ],
+    "packages/solid/src/testUtils.ts": ["react"],
     "packages/svelte/src/__tests__/clients.ts": ["react"],
     "packages/ui/src/components/react-native/assistant-ui/elements/markdown-text.compiler.test.ts": [
       "@babel/core"
