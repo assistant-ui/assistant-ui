@@ -154,7 +154,25 @@ describe("DictationSessionController", () => {
     expect(notify).toHaveBeenCalledOnce();
 
     controller.startDictation();
+    onTestFinished(() => controller.cancel());
     expect(controller.lastDictationEnd).toBeUndefined();
+  });
+
+  it("records cancelled when the adapter ends speech while cancelling", () => {
+    const recording = makeSession();
+    recording.session.cancel = vi.fn(() => recording.emitEnd());
+    const controller = new DictationSessionController({
+      getAdapter: () => ({ listen: () => recording.session }),
+      getText: () => "",
+      setText: () => {},
+      notify: () => {},
+    });
+
+    controller.startDictation();
+    controller.cancel();
+
+    expect(controller.dictation).toBeUndefined();
+    expect(controller.lastDictationEnd).toEqual({ reason: "cancelled" });
   });
 
   it.each([
@@ -201,6 +219,7 @@ describe("DictationSessionController", () => {
 
     controller.startDictation();
     controller.startDictation();
+    onTestFinished(() => controller.cancel());
 
     expect(controller.lastDictationEnd).toBeUndefined();
   });

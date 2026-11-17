@@ -33,12 +33,13 @@ export class DictationSessionController {
     if (!this._dictationSession) return;
 
     const sessionId = this._activeDictationSessionId;
+    this._cancellingSessionId = sessionId;
     try {
       this._dictationSession.cancel();
     } catch (error) {
       console.error("[assistant-ui] Dictation session cancel threw", error);
     } finally {
-      this._cleanupDictation({ sessionId, reason: "cancelled" });
+      this._cleanupDictation({ sessionId });
     }
   }
 
@@ -52,6 +53,7 @@ export class DictationSessionController {
   private _activeDictationSessionId: number | undefined;
   private _isCleaningDictation = false;
   private _lastDictationEnd: DictationEnd | undefined;
+  private _cancellingSessionId: number | undefined;
 
   public get dictation(): DictationState | undefined {
     return this._dictation;
@@ -283,9 +285,15 @@ export class DictationSessionController {
           status.error === undefined
             ? { reason: status.reason }
             : { reason: status.reason, error: status.error };
+      } else if (
+        this._cancellingSessionId !== undefined &&
+        this._cancellingSessionId === this._activeDictationSessionId
+      ) {
+        this._lastDictationEnd = { reason: "cancelled" };
       } else if (options?.reason !== undefined) {
         this._lastDictationEnd = { reason: options.reason };
       }
+      this._cancellingSessionId = undefined;
 
       const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];

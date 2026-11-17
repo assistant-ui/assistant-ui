@@ -144,6 +144,8 @@ const ComposerWithDictation = () => (
 `composer.dictation` is `undefined` once a session ends. `composer.lastDictationEnd` keeps how it ended, `{ reason, error? }`, until the next session starts. `WebSpeechDictationAdapter` sets `error` to `{ code, message }` from the browser, so a UI can tell a blocked microphone (`not-allowed`) from silence (`no-speech`):
 
 ```tsx
+import { useAuiState } from "@assistant-ui/react";
+
 const end = useAuiState((s) => s.composer.lastDictationEnd);
 const micBlocked =
   end?.reason === "error" &&
@@ -196,12 +198,17 @@ export class ServerDictationAdapter implements DictationAdapter {
     let stream: MediaStream | null = null;
     let cancelled = false;
     const chunks: BlobPart[] = [];
+    let settle!: () => void;
+    const settled = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
 
     const session: DictationAdapter.Session = {
       status: { type: "starting" },
 
       stop: async () => {
         mediaRecorder?.stop();
+        await settled;
       },
 
       cancel: () => {
@@ -209,6 +216,7 @@ export class ServerDictationAdapter implements DictationAdapter {
         mediaRecorder?.stop();
         stream?.getTracks().forEach((t) => t.stop());
         session.status = { type: "ended", reason: "cancelled" };
+        settle();
       },
 
       onSpeechStart: (cb) => {
@@ -230,6 +238,7 @@ export class ServerDictationAdapter implements DictationAdapter {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
+          settle();
           return;
         }
         mediaRecorder = new MediaRecorder(stream);
@@ -266,11 +275,14 @@ export class ServerDictationAdapter implements DictationAdapter {
             session.status = { type: "ended", reason: "stopped" };
           } catch (error) {
             session.status = { type: "ended", reason: "error", error };
+          } finally {
+            settle();
           }
         };
         mediaRecorder.start();
       } catch (error) {
         session.status = { type: "ended", reason: "error", error };
+        settle();
       }
     })();
 
