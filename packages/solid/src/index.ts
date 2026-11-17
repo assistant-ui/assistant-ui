@@ -24,6 +24,17 @@ export {
   ThreadListItemPrimitiveDelete,
 } from "./primitives/threadListStructural";
 
+export { MessageByIdProvider } from "./primitives/MessageByIdProvider";
+export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
+export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
+export {
+  MessagePrimitiveParts,
+  type ToolUIProps,
+  type DataUIProps,
+} from "./primitives/MessagePrimitiveParts";
+export { ThreadPrimitiveRoot } from "./primitives/thread";
+export { MessagePrimitiveRoot } from "./primitives/message";
+
 export {
   AuiConfig,
   Derived,

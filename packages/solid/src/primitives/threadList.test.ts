@@ -11,6 +11,10 @@ import {
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
+import { ThreadPrimitiveMessages } from "./ThreadPrimitiveMessages";
+import { ThreadPrimitiveViewport } from "./ThreadPrimitiveViewport";
+import { MessagePrimitiveRoot } from "./message";
+import { MessagePrimitiveParts } from "./MessagePrimitiveParts";
 import { ThreadListPrimitiveNew } from "./ThreadListPrimitiveNew";
 import { ThreadListItemPrimitiveTrigger } from "./ThreadListItemPrimitiveTrigger";
 import {
@@ -148,6 +152,47 @@ const items = (el: HTMLElement) => [
 ];
 
 describe("thread list primitives", () => {
+  it("scrolls the viewport to the bottom on thread switch", async () => {
+    const { runtime } = createMultiThreadRuntime();
+    const el = mountView(runtime, () => [
+      createComponent(SidebarView, {}),
+      createComponent(ThreadPrimitiveViewport, {
+        class: "viewport",
+        scrollToBottomOnInitialize: false,
+        get children() {
+          return createComponent(ThreadPrimitiveMessages, {
+            get children() {
+              return createComponent(MessagePrimitiveRoot, {
+                get children() {
+                  return createComponent(MessagePrimitiveParts, {});
+                },
+              });
+            },
+          });
+        },
+      }),
+    ]);
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    Object.defineProperties(div, {
+      scrollHeight: { get: () => 500, configurable: true },
+      clientHeight: { get: () => 100, configurable: true },
+    });
+    const scrollTo = vi.fn();
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+    expect(div.textContent).toBe("hello from one");
+    expect(scrollTo).not.toHaveBeenCalled();
+    flushTapSync(() => items(el)[1]!.click());
+    await vi.waitFor(() => {
+      expect(scrollTo).toHaveBeenCalledWith({ top: 500, behavior: "instant" });
+      expect(div.textContent).toBe("hello from two");
+      expect(div.querySelector('[data-message-id="m1"]')).toBeNull();
+      expect(div.querySelector('[data-message-id="m2"]')).not.toBeNull();
+    });
+  });
+
   it("renders one scoped item per thread with titles", () => {
     const { runtime } = createMultiThreadRuntime();
     const el = mountView(runtime, SidebarView);
