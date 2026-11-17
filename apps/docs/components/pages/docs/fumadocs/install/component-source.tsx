@@ -1,9 +1,23 @@
 import { unstable_cache } from "@farm.js/core/cache";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { Highlight } from "@/components/shared/highlight";
+import { codeToHtml } from "shiki";
 import { CodeBlock } from "@/components/ui/code-block";
 import { CodeCollapsible } from "@/components/pages/docs/fumadocs/code-collapsible";
+
+const highlightSource = unstable_cache(
+  async function highlightSource(code: string, lang: string): Promise<string> {
+    return codeToHtml(code, {
+      lang,
+      themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },
+      defaultColor: false,
+    });
+  },
+  [
+    "components/pages/docs/fumadocs/install/component-source.tsx#highlightSource",
+  ],
+  { revalidate: false },
+);
 
 type RegistryFile = {
   content: string;
@@ -321,6 +335,7 @@ export async function ComponentSource({
 
   const lang = (filePath.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
   const displayTitle = title ?? filePath;
+  const html = await highlightSource(code, lang);
 
   const content = (
     <CodeBlock
@@ -328,7 +343,7 @@ export async function ComponentSource({
       copyText={code}
       viewportClassName="max-h-[450px]"
     >
-      <Highlight language={lang} code={code} />
+      <div dangerouslySetInnerHTML={{ __html: html }} />
     </CodeBlock>
   );
 
@@ -339,7 +354,7 @@ export async function ComponentSource({
   return <CodeCollapsible code={code}>{content}</CodeCollapsible>;
 }
 
-export function ComponentSourceFromFile({
+export async function ComponentSourceFromFile({
   file,
   collapsible = true,
 }: {
@@ -351,6 +366,7 @@ export function ComponentSourceFromFile({
   code = code.replaceAll("export default", "export");
 
   const lang = (file.path.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
+  const html = await highlightSource(code, lang);
 
   const content = (
     <CodeBlock
@@ -358,7 +374,7 @@ export function ComponentSourceFromFile({
       copyText={code}
       viewportClassName="max-h-[450px]"
     >
-      <Highlight language={lang} code={code} />
+      <div dangerouslySetInnerHTML={{ __html: html }} />
     </CodeBlock>
   );
 
