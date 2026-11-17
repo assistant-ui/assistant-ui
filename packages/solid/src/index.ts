@@ -27,6 +27,14 @@ export {
 export { ComposerPrimitiveInput } from "./primitives/ComposerPrimitiveInput";
 export { ComposerPrimitiveSend } from "./primitives/ComposerPrimitiveSend";
 export { ComposerPrimitiveCancel } from "./primitives/ComposerPrimitiveCancel";
+export { MessageByIdProvider } from "./primitives/MessageByIdProvider";
+export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
+export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
+export {
+  MessagePrimitiveParts,
+  type ToolUIProps,
+  type DataUIProps,
+} from "./primitives/MessagePrimitiveParts";
 
 export {
   AuiConfig,
