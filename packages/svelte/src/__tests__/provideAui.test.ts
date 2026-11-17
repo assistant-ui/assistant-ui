@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { useInsertionEffect } from "react";
 import { flushSync, mount, unmount } from "svelte";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
 import { provideAui } from "../provideAui";
 import { useAui } from "../useAui";
@@ -13,20 +12,10 @@ import {
   MessageClient,
   ThreadClient,
   type AnyClient,
+  ThrowingCleanup,
 } from "./clients";
 
 const target = () => document.createElement("div");
-
-const useThrowingCleanup = () => {
-  useInsertionEffect(
-    () => () => {
-      throw new Error("cleanup failed");
-    },
-    [],
-  );
-  return { getState: () => ({}) };
-};
-const ThrowingCleanup = resource(useThrowingCleanup);
 
 describe("provideAui", () => {
   it("provides a client and returns the stable facade", () => {

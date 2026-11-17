@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { useInsertionEffect } from "react";
 import {
   createApp,
   defineComponent,
@@ -9,7 +8,7 @@ import {
   shallowRef,
   type Component,
 } from "vue";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
@@ -19,6 +18,7 @@ import {
   messageDerived,
   trackers,
   type AnyClient,
+  ThrowingCleanup,
 } from "./fixtures";
 
 const mountApp = (root: Component) => {
@@ -38,17 +38,6 @@ const captureAui = () => {
   });
   return { Probe, getAui: () => aui };
 };
-
-const useThrowingCleanup = () => {
-  useInsertionEffect(
-    () => () => {
-      throw new Error("cleanup failed");
-    },
-    [],
-  );
-  return { getState: () => ({}) };
-};
-const ThrowingCleanup = resource(useThrowingCleanup);
 
 describe("AuiProvider", () => {
   it("provides a client built from the config", () => {

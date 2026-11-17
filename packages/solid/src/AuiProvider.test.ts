@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { useInsertionEffect } from "react";
 import { createComponent, createSignal, onCleanup } from "solid-js";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
 import { AuiProvider } from "./AuiProvider";
 import { useAui } from "./useAui";
@@ -14,18 +13,8 @@ import {
   providerWith,
   trackers,
   type AnyClient,
+  ThrowingCleanup,
 } from "./testUtils";
-
-const useThrowingCleanup = () => {
-  useInsertionEffect(
-    () => () => {
-      throw new Error("cleanup failed");
-    },
-    [],
-  );
-  return { getState: () => ({}) };
-};
-const ThrowingCleanup = resource(useThrowingCleanup);
 
 describe("AuiProvider", () => {
   it("provides a client built from the config", () => {
