@@ -131,6 +131,7 @@ export const createThreadViewportAutoScroll = (input: {
   let lastScrollHeight = 0;
   let lastObservedScrollHeight = 0;
   let lastObservedClientHeight = 0;
+  let lastObservedContentInset = 0;
   let frame: number | null = null;
   let firstMessage: MessageOffset | null = null;
   let prependAnchor: MessageOffset | null = null;
@@ -293,20 +294,21 @@ export const createThreadViewportAutoScroll = (input: {
     }
     const insetGrew = recalculateContentInset();
     const { scrollHeight, clientHeight } = element;
-    if (
+    const dimensionsUnchanged =
       scrollHeight === lastObservedScrollHeight &&
-      clientHeight === lastObservedClientHeight
-    ) {
-      if (insetGrew !== null) {
-        if (insetGrew) followGrowth();
-        handleScroll({ insetShrank: !insetGrew });
-      }
+      clientHeight === lastObservedClientHeight;
+    if (
+      dimensionsUnchanged &&
+      contentInset === lastObservedContentInset &&
+      insetGrew === null
+    )
       return;
-    }
+
     lastObservedScrollHeight = scrollHeight;
     lastObservedClientHeight = clientHeight;
+    lastObservedContentInset = contentInset;
 
-    followGrowth();
+    if (!dimensionsUnchanged || insetGrew) followGrowth();
     handleScroll({ insetShrank: insetGrew === false });
   };
 
@@ -426,6 +428,7 @@ export const createThreadViewportAutoScroll = (input: {
       lastScrollHeight = el.scrollHeight;
       lastObservedScrollHeight = 0;
       lastObservedClientHeight = 0;
+      lastObservedContentInset = contentInset;
       initialized = false;
       followBottom = true;
       followPaused = false;
