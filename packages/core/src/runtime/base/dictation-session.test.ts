@@ -1,5 +1,6 @@
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, onTestFinished, vi } from "vitest";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { AssistantError } from "../../types/error";
 import { DictationSessionController } from "./dictation-session";
 
 const makeSession = () => {
@@ -151,6 +152,11 @@ describe("DictationSessionController", () => {
 
     expect(controller.dictation).toBeUndefined();
     expect(controller.lastDictationEnd).toEqual({ reason: "error", error });
+    expect(controller.lastDictationEnd?.error?.code).toBe("not-allowed");
+    expect(controller.lastDictationEnd?.error).toBe(error);
+    expectTypeOf(controller.lastDictationEnd?.error).toEqualTypeOf<
+      AssistantError | undefined
+    >();
     expect(notify).toHaveBeenCalledOnce();
 
     controller.startDictation();
@@ -200,6 +206,11 @@ describe("DictationSessionController", () => {
       await Promise.resolve();
 
       expect(controller.lastDictationEnd).toEqual({ reason });
+      const recorded = controller.lastDictationEnd;
+      recording.emitEnd();
+      controller.stopDictation();
+      controller.cancel();
+      expect(controller.lastDictationEnd).toBe(recorded);
     },
   );
 
@@ -222,5 +233,193 @@ describe("DictationSessionController", () => {
     onTestFinished(() => controller.cancel());
 
     expect(controller.lastDictationEnd).toBeUndefined();
+  });
+
+  it.each([
+    [new Error("Permission denied"), "Permission denied"],
+    ["Permission denied", "Permission denied"],
+    [{ code: "not-allowed" }, "[object] [object Object]"],
+  ])("normalizes adapter errors in composer state: %j", (error, message) => {
+    const recording = makeSession();
+    const controller = new DictationSessionController({
+      getAdapter: () => ({ listen: () => recording.session }),
+      getText: () => "",
+      setText: () => {},
+      notify: () => {},
+    });
+
+    controller.startDictation();
+    recording.session.status = { type: "ended", reason: "error", error };
+    recording.emitEnd();
+
+    expect(controller.lastDictationEnd).toEqual({
+      reason: "error",
+      error: { code: "unknown", message },
+    });
+  });
+
+  it("clears the previous end before calling listen", () => {
+    const recording = makeSession();
+    const listen = vi.fn(() => recording.session);
+    const controller = new DictationSessionController({
+      getAdapter: () => ({ listen }),
+      getText: () => "",
+      setText: () => {},
+      notify: () => {},
+    });
+    controller.startDictation();
+    recording.emitEnd();
+    expect(controller.lastDictationEnd).toEqual({ reason: "stopped" });
+    listen.mockImplementationOnce(() => {
+      expect(controller.lastDictationEnd).toBeUndefined();
+      return recording.session;
+    });
+    onTestFinished(() => controller.cancel());
+
+    controller.startDictation();
+  });
+
+  it("records and publishes a synchronous listen failure, then rethrows it", () => {
+    const error = new Error("SpeechRecognition is not supported");
+    const notify = vi.fn();
+    const controller = new DictationSessionController({
+      getAdapter: () => ({
+        listen: () => {
+          throw error;
+        },
+      }),
+      getText: () => "",
+      setText: () => {},
+      notify,
+    });
+
+    expect(() => controller.startDictation()).toThrow(error);
+    expect(controller.dictation).toBeUndefined();
+    expect(controller.lastDictationEnd).toEqual({
+      reason: "error",
+      error: { code: "unknown", message: error.message },
+    });
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it.each(["status", "onSpeechStart"] as const)(
+    "records and publishes a failure reading %s during setup",
+    (property) => {
+      const error = new Error("Session setup failed");
+      const recording = makeSession();
+      Object.defineProperty(recording.session, property, {
+        get: () => {
+          throw error;
+        },
+      });
+      const ends: unknown[] = [];
+      const controller = new DictationSessionController({
+        getAdapter: () => ({ listen: () => recording.session }),
+        getText: () => "",
+        setText: () => {},
+        notify: () => ends.push(controller.lastDictationEnd),
+      });
+
+      expect(() => controller.startDictation()).toThrow(error);
+      expect(controller.dictation).toBeUndefined();
+      expect(controller.lastDictationEnd).toEqual({
+        reason: "error",
+        error: { code: "unknown", message: error.message },
+      });
+      expect(ends.filter((end) => end !== undefined)).toEqual([
+        controller.lastDictationEnd,
+      ]);
+      expect(recording.session.cancel).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(["stop throw", "stop rejection", "cancel throw"])(
+    "records the thrown value when a session terminates with %s",
+    async (failure) => {
+      const error = new Error("Shutdown failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
+      const recording = makeSession();
+      if (failure === "stop rejection") {
+        recording.session.stop = vi.fn().mockRejectedValue(error);
+      } else if (failure === "stop throw") {
+        recording.session.stop = () => {
+          throw error;
+        };
+      } else {
+        recording.session.cancel = () => {
+          throw error;
+        };
+      }
+      const controller = new DictationSessionController({
+        getAdapter: () => ({ listen: () => recording.session }),
+        getText: () => "",
+        setText: () => {},
+        notify: () => {},
+      });
+
+      controller.startDictation();
+      if (failure === "cancel throw") controller.cancel();
+      else controller.stopDictation();
+      await Promise.resolve();
+
+      expect(controller.lastDictationEnd).toEqual({
+        reason: "error",
+        error: { code: "unknown", message: error.message },
+      });
+    },
+  );
+
+  it("never records the ended status of a replaced session", async () => {
+    const first = makeSession();
+    const second = makeSession();
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(first.session)
+      .mockReturnValueOnce(second.session);
+    const controller = new DictationSessionController({
+      getAdapter: () => ({ listen }),
+      getText: () => "",
+      setText: () => {},
+      notify: () => {},
+    });
+    controller.startDictation();
+    first.session.status = { type: "ended", reason: "error", error: "stale" };
+    const ends: unknown[] = [];
+    first.session.stop = async () => {
+      ends.push(controller.lastDictationEnd);
+    };
+    onTestFinished(() => controller.cancel());
+
+    controller.startDictation();
+    await Promise.resolve();
+
+    expect(ends).toEqual([undefined]);
+  });
+
+  it("keeps the newer session when listen starts a replacement", () => {
+    const first = makeSession();
+    const second = makeSession();
+    second.session.status = { type: "running" };
+    const listen = vi.fn(() => second.session);
+    const controller = new DictationSessionController({
+      getAdapter: () => ({ listen }),
+      getText: () => "",
+      setText: () => {},
+      notify: () => {},
+    });
+    listen.mockImplementationOnce(() => {
+      controller.startDictation();
+      return first.session;
+    });
+    onTestFinished(() => controller.cancel());
+
+    controller.startDictation();
+
+    expect(controller.dictation?.status).toEqual({ type: "running" });
+    expect(controller.lastDictationEnd).toBeUndefined();
+    expect(first.session.stop).toHaveBeenCalledOnce();
   });
 });

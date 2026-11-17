@@ -498,6 +498,16 @@ type AssistantDataUIProps<T = any> = {
   render: DataMessagePartComponent<T>;
 };
 
+type AssistantError = {
+  readonly code: AssistantErrorCode;
+  readonly message: string;
+  readonly statusCode?: number;
+  readonly severity?: ErrorSeverity;
+  readonly display?: ErrorDisplay;
+};
+
+type AssistantErrorCode = "unknown" | "network" | "provider" | (string & {});
+
 type AssistantEventCallback<TEvent extends AssistantEventName> = (payload: AssistantEventPayload[TEvent]) => void;
 
 type AssistantEventName = keyof AssistantEventPayload;
@@ -1620,8 +1630,10 @@ type DictationAdapter = {
 };
 
 type DictationEnd = {
-  readonly reason: "cancelled" | "error" | "stopped";
-  readonly error?: unknown;
+  readonly reason: Extract<DictationAdapter.Status, {
+    type: "ended";
+  }>["reason"];
+  readonly error?: AssistantError;
 };
 
 type DictationState = {
@@ -1717,6 +1729,8 @@ type EnrichedPartState = (Extract<PartState, {
   type: "data";
 }>;
 
+type ErrorDisplay = "dev-only" | "inline" | "silent" | "toast";
+
 declare function ErrorMessage(_param19: ErrorMessageProps): import("react").JSX.Element | null;
 
 declare namespace ErrorMessage {
@@ -1736,6 +1750,8 @@ declare namespace ErrorRoot {
 type ErrorRootProps = ViewProps & {
   children: ReactNode;
 };
+
+type ErrorSeverity = "critical" | "info" | "warning";
 
 type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${string}` ? Source : never;
 

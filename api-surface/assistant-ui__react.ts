@@ -652,6 +652,16 @@ type AssistantDataUIProps<T = any> = {
   render: DataMessagePartComponent<T>;
 };
 
+type AssistantError = {
+  readonly code: AssistantErrorCode;
+  readonly message: string;
+  readonly statusCode?: number;
+  readonly severity?: ErrorSeverity;
+  readonly display?: ErrorDisplay;
+};
+
+type AssistantErrorCode = "unknown" | "network" | "provider" | (string & {});
+
 type AssistantEventCallback<TEvent extends AssistantEventName> = (payload: AssistantEventPayload[TEvent]) => void;
 
 type AssistantEventName = keyof AssistantEventPayload;
@@ -2248,8 +2258,10 @@ type DictationAdapter = {
 };
 
 type DictationEnd = {
-  readonly reason: "cancelled" | "error" | "stopped";
-  readonly error?: unknown;
+  readonly reason: Extract<DictationAdapter.Status, {
+    type: "ended";
+  }>["reason"];
+  readonly error?: AssistantError;
 };
 
 type DictationState = {
@@ -2345,6 +2357,8 @@ type EnrichedPartState = (Extract<PartState, {
   type: "data";
 }>;
 
+type ErrorDisplay = "dev-only" | "inline" | "silent" | "toast";
+
 declare namespace ErrorPrimitiveMessage {
   type Element = ComponentRef<typeof Primitive$1.span>;
   type Props = ComponentPropsWithoutRef<typeof Primitive$1.span>;
@@ -2366,6 +2380,8 @@ declare const ErrorPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit
 }, "ref"> & {
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+
+type ErrorSeverity = "critical" | "info" | "warning";
 
 interface EventLog {
   time: Date;

@@ -2,6 +2,7 @@ import type { MessageRole } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
 import type { Attachment, CreateAttachment } from "../../types/attachment";
 import type { Unsubscribe } from "../../types/unsubscribe";
+import type { AssistantError } from "../../types/error";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { QueueItemState } from "../queue/queue-item";
@@ -79,8 +80,11 @@ export type DictationState = {
 };
 
 export type DictationEnd = {
-  readonly reason: "stopped" | "cancelled" | "error";
-  readonly error?: unknown;
+  readonly reason: Extract<
+    DictationAdapter.Status,
+    { type: "ended" }
+  >["reason"];
+  readonly error?: AssistantError;
 };
 
 /**

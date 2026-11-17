@@ -1846,8 +1846,10 @@ type DictationAdapter = {
 };
 
 type DictationEnd = {
-  readonly reason: "cancelled" | "error" | "stopped";
-  readonly error?: unknown;
+  readonly reason: Extract<DictationAdapter.Status, {
+    type: "ended";
+  }>["reason"];
+  readonly error?: AssistantError;
 };
 
 type DictationState = {

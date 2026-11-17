@@ -141,15 +141,16 @@ const ComposerWithDictation = () => (
 
 `ComposerPrimitive.Dictate` is disabled when no dictation adapter is configured. For a separate interim transcript display, `ComposerPrimitive.DictationTranscript` and `composer.dictation?.transcript` are available.
 
-`composer.dictation` is `undefined` once a session ends. `composer.lastDictationEnd` keeps how it ended, `{ reason, error? }`, until the next session starts. `WebSpeechDictationAdapter` sets `error` to `{ code, message }` from the browser, so a UI can tell a blocked microphone (`not-allowed`) from silence (`no-speech`):
+`composer.dictation` is `undefined` once a session ends. `composer.lastDictationEnd` keeps how it ended, `{ reason, error? }`, until the next session starts, with errors normalized to `AssistantError`. `WebSpeechDictationAdapter` sets `error` to `{ code, message }` from the browser, so a UI can tell a blocked microphone (`not-allowed`) from silence (`no-speech`):
+
+`cancelled` is also recorded when a message is sent or an edit is cancelled during dictation, so a UI should show a message only for `error`.
 
 ```tsx
 import { useAuiState } from "@assistant-ui/react";
 
 const end = useAuiState((s) => s.composer.lastDictationEnd);
 const micBlocked =
-  end?.reason === "error" &&
-  (end.error as { code?: string } | undefined)?.code === "not-allowed";
+  end?.reason === "error" && end.error?.code === "not-allowed";
 ```
 
 ## Server-side transcription
@@ -207,7 +208,12 @@ export class ServerDictationAdapter implements DictationAdapter {
       status: { type: "starting" },
 
       stop: async () => {
-        mediaRecorder?.stop();
+        if (session.status.type === "ended") return;
+        if (!mediaRecorder) {
+          session.cancel();
+          return;
+        }
+        mediaRecorder.stop();
         await settled;
       },
 
@@ -281,7 +287,15 @@ export class ServerDictationAdapter implements DictationAdapter {
         };
         mediaRecorder.start();
       } catch (error) {
-        session.status = { type: "ended", reason: "error", error };
+        if (cancelled) return;
+        session.status = {
+          type: "ended",
+          reason: "error",
+          error:
+            error instanceof DOMException && error.name === "NotAllowedError"
+              ? { code: "not-allowed", message: error.message }
+              : error,
+        };
         settle();
       }
     })();

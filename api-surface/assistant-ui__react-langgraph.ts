@@ -395,6 +395,16 @@ type AssistantCloudThreadsUpdateBody = {
   is_archived?: boolean | undefined;
 };
 
+type AssistantError = {
+  readonly code: AssistantErrorCode;
+  readonly message: string;
+  readonly statusCode?: number;
+  readonly severity?: ErrorSeverity;
+  readonly display?: ErrorDisplay;
+};
+
+type AssistantErrorCode = "unknown" | "network" | "provider" | (string & {});
+
 type AssistantMessageContent = string | AssistantMessageContentComplex[];
 
 type AssistantMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentToolUse | MessageContentFile | MessageContentAudio | MessageContentReasoning | MessageContentThinking | MessageContentComputerCall;
@@ -828,8 +838,10 @@ type DictationAdapter = {
 };
 
 type DictationEnd = {
-  readonly reason: "cancelled" | "error" | "stopped";
-  readonly error?: unknown;
+  readonly reason: Extract<DictationAdapter.Status, {
+    type: "ended";
+  }>["reason"];
+  readonly error?: AssistantError;
 };
 
 type DictationState = {
@@ -859,6 +871,10 @@ type EditComposerState = BaseComposerState & {
   readonly parentId: string | null;
   readonly sourceId: string | null;
 };
+
+type ErrorDisplay = "dev-only" | "inline" | "silent" | "toast";
+
+type ErrorSeverity = "critical" | "info" | "warning";
 
 type EventType = LangGraphKnownEventTypes | CustomEventType;
 

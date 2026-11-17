@@ -30,7 +30,7 @@ describe("useExternalStoreRuntime dictation", () => {
     const Composer = () => {
       const { startDictation } = useComposerDictate();
       const end = useAuiState((s) => s.composer.lastDictationEnd);
-      const code = (end?.error as { code?: string } | undefined)?.code;
+      const code = end?.error?.code;
       return (
         <>
           <button onClick={startDictation}>dictate</button>

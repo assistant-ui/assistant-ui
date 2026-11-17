@@ -1,4 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
+import type { AssistantError } from "../types/error";
 import { notifyEventListeners } from "../utils/notify-event-listeners";
 
 const DICTATION_STOP_TIMEOUT_MS = 5_000;
@@ -344,7 +345,10 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
         updateStatus({
           type: "ended",
           reason: "error",
-          error: { code: errorEvent.error, message: errorEvent.message },
+          error: {
+            code: errorEvent.error,
+            message: errorEvent.message,
+          } satisfies AssistantError,
         });
         console.error("Dictation error:", errorEvent.error, errorEvent.message);
       }
