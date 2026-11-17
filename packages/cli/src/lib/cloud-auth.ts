@@ -173,11 +173,12 @@ export const loginToCloud = async (
     AbortSignal.timeout(10 * 60 * 1000),
     ...(setup ? [setup.signal] : []),
   ]);
+  const deviceName = os.hostname().trim().slice(0, 64);
   const login = createDeviceLogin({
     issuer: config.issuer,
     clientId: config.clientId,
     // Names this login on the accounts Sessions page, as aui-auth/cli does.
-    deviceName: os.hostname().trim().slice(0, 64) || undefined,
+    ...(deviceName && { deviceName }),
     fetch: (input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input));
       return fetch(
