@@ -693,6 +693,82 @@ def test_dead_producer_does_not_reclaim_a_concurrent_run(
 
 
 @pytest.mark.parametrize("kind", ["memory", "sqlite"])
+def test_producer_dead_after_its_claim_gives_the_thread_back_to_the_live_run(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        cancelled = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = (
+            InMemoryThreadStore()
+            if kind == "memory"
+            else SqliteThreadStore(tmp_path / "threads.db")
+        )
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Partial answer"
+            started.set()
+            try:
+                await release_model.wait()
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
+            yield " completed"
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(), wait_until=producers.append
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)), threads=threads, streams=streams
+        )
+        question = _user("First")
+        try:
+            assert (
+                await _start_run(durable, _run_input("thread", [question], "first"))
+            ).status_code == 200
+            await started.wait()
+            live = await threads.get("thread")
+            assert live is not None and live.running is True
+
+            second_producer = len(producers)
+            put_if_stream = threads.put_if_stream
+
+            async def die_after_claim(thread_id, record, *, expected):
+                claimed = await put_if_stream(thread_id, record, expected=expected)
+                if record.run_id == "second":
+                    assert claimed, "the second run did not claim the thread"
+                    producers[second_producer].cancel()
+                    await asyncio.gather(
+                        producers[second_producer], return_exceptions=True
+                    )
+                return claimed
+
+            monkeypatch.setattr(threads, "put_if_stream", die_after_claim)
+            assert (
+                await _start_run(
+                    durable, _run_input("thread", [_user("Second")], "second")
+                )
+            ).status_code == 200
+
+            assert await threads.get("thread") == live
+        finally:
+            release_model.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+
+        assert cancelled.is_set() is False
+        thread = await durable.get_thread("thread")
+        assert thread is not None
+        assert thread["runId"] == "first"
+        assert thread["running"] is False
+        assert thread["messages"][0] == question
+        assert _assistant_texts(thread) == ["Partial answer completed"]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", ["memory", "sqlite"])
 def test_producer_dead_before_first_claim_leaves_existing_record_untouched(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

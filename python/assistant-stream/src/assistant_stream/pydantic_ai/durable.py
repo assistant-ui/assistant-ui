@@ -373,6 +373,10 @@ class DurableAGUI(Generic[AgentDepsT]):
                 if settled or (producer_task is not None and producer_task.done()):
                     self._tokens.pop(stream_id, None)
                     await settle([])
+                    if previous is not None and previous.running:
+                        await self.threads.put_if_stream(
+                            thread_id, previous, expected=stream_id
+                        )
                 elif previous is not None and previous.running and previous.stream_id:
                     self._cancel_local(previous.stream_id)
                 if not ready.done():
