@@ -52,6 +52,7 @@ function useDictationAdapter() {
   );
 }
 
+// Inside your provider component:
 const dictation = useDictationAdapter();
 const runtime = useChatRuntime({ adapters: { dictation } });
 ```

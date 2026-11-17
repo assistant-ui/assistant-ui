@@ -39,6 +39,7 @@ function useDictationAdapter() {
   );
 }
 
+// Inside your provider component:
 const dictation = useDictationAdapter();
 const runtime = useLocalRuntime(chatModel, { adapters: { dictation } });
 ```
