@@ -40,6 +40,14 @@ export { ThreadPrimitiveRoot } from "./primitives/thread";
 export { MessagePrimitiveRoot } from "./primitives/message";
 
 export {
+  SuggestionByIndexProvider,
+  ThreadPrimitiveSuggestions,
+  SuggestionPrimitiveTrigger,
+  SuggestionPrimitiveTitle,
+  SuggestionPrimitiveDescription,
+} from "./primitives/suggestions";
+
+export {
   AuiConfig,
   Derived,
   createAssistantClient,
