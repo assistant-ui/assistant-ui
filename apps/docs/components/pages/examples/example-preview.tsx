@@ -5,6 +5,7 @@ import { ChatGPT } from "@/components/pages/examples/chatgpt";
 import { Claude } from "@/components/pages/examples/claude";
 import { Gemini } from "@/components/pages/examples/gemini";
 import { Grok } from "@/components/pages/examples/grok";
+import { HumanInTheLoop } from "@/components/pages/examples/human-in-the-loop";
 import { ModalChat } from "@/components/pages/examples/modal";
 import { Perplexity } from "@/components/pages/examples/perplexity";
 import { DemoIframe } from "@/components/pages/docs/demo-iframe";
@@ -28,6 +29,7 @@ export function hasExamplePreview(slug: string): boolean {
     case "mem0":
     case "stockbroker":
     case "artifacts":
+    case "human-in-the-loop":
       return true;
     default:
       return false;
@@ -108,6 +110,8 @@ export function ExamplePreview({ slug }: { slug: string }): ReactNode {
           <Artifacts />
         </ArtifactsRuntimeProvider>
       );
+    case "human-in-the-loop":
+      return <HumanInTheLoop />;
     default:
       return null;
   }

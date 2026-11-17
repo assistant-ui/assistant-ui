@@ -89,6 +89,11 @@ const TECH_BY_SLUG: Record<string, XuluxTemplate["tech"]> = {
     runtime: "Local runtime",
     frontendPattern: "Chat clone",
   },
+  "human-in-the-loop": {
+    framework: "Next.js",
+    runtime: "AI SDK",
+    frontendPattern: "Human-in-the-loop",
+  },
   mem0: {
     framework: "React",
     runtime: "Mem0",
@@ -129,7 +134,9 @@ function categoryForSlug(slug: string): XuluxTemplateCategory {
   if (["artifacts", "form-demo", "generative-ui", "modal"].includes(slug)) {
     return CATEGORIES[2]!;
   }
-  if (["stockbroker"].includes(slug)) return CATEGORIES[1]!;
+  if (["human-in-the-loop", "stockbroker"].includes(slug)) {
+    return CATEGORIES[1]!;
+  }
   return CATEGORIES[0]!;
 }
 
@@ -142,6 +149,7 @@ function tagsForSlug(slug: string, item: ExampleItem): string[] {
   if (slug === "artifacts") tags.add("Artifacts");
   if (slug === "form-demo") tags.add("Forms");
   if (slug === "generative-ui") tags.add("Generative UI");
+  if (slug === "human-in-the-loop") tags.add("Approvals");
   if (slug === "modal") tags.add("Modal");
   if (item.title.toLowerCase().includes("clone")) tags.add("Clone");
   tags.add("Example");

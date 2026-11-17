@@ -1,0 +1,259 @@
+---
+title: Human in the Loop Example
+description: Open-source React example of human-in-the-loop tools on the AI SDK. A human tool asks which items to refund, and a server approval gate holds large refunds until a person decides, built on assistant-ui.
+---
+
+## Overview
+
+`examples/with-human-in-the-loop` is a support desk copilot. It looks up an order, asks which items to refund, and holds any refund over $100.00 until the rep approves it. A run stops for a person in two ways, and each has its own API:
+
+| | Human tool | Approval gate |
+|---|---|---|
+| The person | supplies the tool's result | allows or blocks an action the server performs |
+| Declared with | `execute: humanTool()` | `toolApproval` on `streamText` |
+| Answered with | `addResult` | `respondToApproval` |
+| In the example | `select_items` | `issue_refund` |
+
+The preview above runs the example's own components, toolkit, and script in your browser on `LocalRuntime`, so it needs no API key. The app streams from an AI SDK route instead, and that route answers from the same script when `OPENAI_API_KEY` is unset.
+
+- **Order 1042** asks which items are coming back. Pick the headphones and the refund waits for approval; pick only the cable and it runs within the limit
+- **Order 1063** has a $420.00 desk frame, so the refund waits. Deny it, then ask for the cable tray instead
+- **Order 1057** has one item under the limit, so it is refunded without a prompt
+- **A message sent while a card waits** closes the request as a receipt, and the run moves on
+
+## Patterns Demonstrated
+
+### Three kinds of tool in one toolkit
+
+`find_order` and `issue_refund` execute on the server, and `select_items` has no executor: `humanTool()` marks it as answered by its renderer. A backend tool renders inside the collapsed tool group by default, so the two cards set `display: "standalone"`.
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit, humanTool } from "@assistant-ui/react";
+import { z } from "zod";
+import { OrderCard } from "../components/order-card";
+import { RefundApproval } from "../components/refund-approval";
+import { ReturnItems } from "../components/return-items";
+import { findOrder, issueRefund, refundParameters } from "../lib/orders";
+
+export default defineToolkit({
+  find_order: {
+    description:
+      "Look up an order by its number. Call it before saying anything about an order.",
+    parameters: z.object({
+      orderId: z.string().describe("The order number, digits only."),
+    }),
+    execute: async ({ orderId }) => findOrder(orderId),
+    display: "standalone",
+    render: OrderCard,
+  },
+  select_items: {
+    description:
+      "Ask which items of an order to refund when the request does not name them. Offer every item on the order with the id find_order returned. Ask the question in your message, not in the options.",
+    parameters: z.object({
+      orderId: z.string(),
+      items: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          description: z.string().optional(),
+        }),
+      ),
+    }),
+    execute: humanTool(),
+    render: ReturnItems,
+  },
+  issue_refund: {
+    description:
+      "Refund items of an order to its original payment method. The server prices the refund from the order on record.",
+    parameters: refundParameters,
+    execute: async (request) => issueRefund(request),
+    display: "standalone",
+    render: RefundApproval,
+  },
+});
+```
+
+### A gate decided on the server
+
+The route passes a policy for `issue_refund` to `streamText`. It also sets its own system prompt and tool set and ignores the `system` and `tools` fields of the request body, because those come from the browser.
+
+```ts title="app/api/chat/route.ts · abridged"
+const aiToolkit = new AISDKToolkit({ toolkit });
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const aiSDKTools = await aiToolkit.tools();
+
+  const result = streamText({
+    abortSignal: req.signal,
+    model: process.env.OPENAI_API_KEY
+      ? openai("gpt-6-luna")
+      : createScriptedModel(),
+    system: SYSTEM,
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
+    stopWhen: stepCountIs(8),
+    toolApproval: { issue_refund: refundApproval },
+  });
+
+  return result.toUIMessageStreamResponse({
+    onError: (error) =>
+      error instanceof Error ? error.message : String(error),
+  });
+}
+```
+
+The policy prices the refund from the order on record, so the model cannot describe a smaller refund to get under the limit. A `user-approval` status pauses the run, and its `reason` reaches the renderer as `approval.prompt`. An `approved` status runs the tool and marks the call `approval.isAutomatic`.
+
+The decision comes back in the next request, so the gate stops the model from refunding on its own, not a caller who forges a request. Authenticate the route before you deploy it.
+
+```ts title="lib/refund-policy.ts · abridged"
+export function refundApproval(input: unknown): ToolApprovalStatus {
+  const request = refundParameters.safeParse(input);
+  if (!request.success) return "not-applicable";
+
+  const quote = quoteRefund(request.data);
+  if (isFailure(quote)) return "not-applicable";
+
+  if (quote.total <= AUTO_REFUND_LIMIT) {
+    return {
+      type: "approved",
+      reason: `Within the ${formatMoney(AUTO_REFUND_LIMIT)} automatic refund limit`,
+    };
+  }
+  return { type: "user-approval", reason: refundSummary(quote) };
+}
+```
+
+### The approval card
+
+The renderer maps the tool call onto the kit's [`ApprovalCard`](/elements/approval-card). `approval.approved` is `undefined` while the gate is open, which is the only time `respondToApproval` may be called. Once the decision is recorded the card shows a receipt in place of its buttons.
+
+```tsx title="components/refund-approval.tsx · abridged"
+export const RefundApproval: ToolCallMessagePartComponent<
+  RefundRequest,
+  RefundResult
+> = (call) => {
+  const { args, approval, respondToApproval, result, isError } = call;
+  const [error, setError] = useState<string>();
+
+  const answer = async (response: ToolApprovalResponse) => {
+    setError(undefined);
+    try {
+      await respondToApproval(response);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
+  const { state, receipt } = refundState(call);
+  const refund = result && !isError && !isFailure(result) ? result : undefined;
+
+  return (
+    <div className="my-2 flex flex-col gap-2">
+      <ApprovalCard
+        state={state}
+        icon={<BanknoteIcon className="size-4" />}
+        title={`Refund order ${args.orderId ?? ""}`}
+        subtitle={
+          approval?.isAutomatic
+            ? (approval.reason ?? "Approved by policy")
+            : approval
+              ? `Over the ${formatMoney(AUTO_REFUND_LIMIT)} automatic refund limit`
+              : "Customer refund"
+        }
+        description={approval?.prompt ?? (refund && refundSummary(refund))}
+        details={args.reason ? [{ label: "Reason", value: args.reason }] : []}
+        allowOnceLabel="Approve refund"
+        statusLabel={receipt}
+        onAllowOnce={() => void answer({ approved: true })}
+        onDeny={() => void answer({ approved: false })}
+      />
+      {error && (
+        <p role="alert" className="text-destructive max-w-sm text-xs">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
+```
+
+### The item picker
+
+The human tool renders the kit's [`OptionList`](/elements/option-list). The model supplies the order's items with their ids, the list commits the pick through `addResult`, and the same result turns the list into a receipt.
+
+```tsx title="components/return-items.tsx · abridged"
+export const ReturnItems: ToolCallMessagePartComponent<
+  { orderId: string; items: OptionListOption[] },
+  { selected: string[] }
+> = ({ args, status, result, isError, addResult }) => {
+  const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
+  const waiting = status.type === "requires-action" && canAnswer;
+  const unanswered = isError || status.type === "incomplete" ? [] : undefined;
+
+  return (
+    <OptionList
+      aria-label={`Items to refund from order ${args.orderId}`}
+      className="my-2"
+      selectionMode="multiple"
+      confirmLabel="Confirm items"
+      options={args.items ?? []}
+      choice={result?.selected ?? unanswered}
+      onConfirm={waiting ? (ids) => addResult({ selected: ids }) : undefined}
+    />
+  );
+};
+```
+
+### Continuing after either answer
+
+Neither answer sends a request on its own. `sendAutomaticallyWhen` returns the conversation to the route once the picker has a result or the gate has a decision.
+
+```tsx title="app/assistant.tsx · abridged"
+const continueWhenAnswered: typeof lastAssistantMessageIsCompleteWithToolCalls =
+  (options) =>
+    lastAssistantMessageIsCompleteWithToolCalls(options) ||
+    lastAssistantMessageIsCompleteWithApprovalResponses(options);
+
+export function Assistant({ scripted }: { scripted: boolean }) {
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: continueWhenAnswered,
+  });
+  // ...
+}
+```
+
+## Key Concepts
+
+| Concept | Used In | Description |
+|---------|---------|-------------|
+| `humanTool()` | `select_items` | Mark a tool as answered by its renderer |
+| `addResult` | `ReturnItems` | Complete a human tool with the user's answer |
+| `toolApproval` | `route.ts` | Decide on the server whether a tool call waits for a person |
+| `approval` | `RefundApproval` | The gate on a tool call: `prompt`, `approved`, `isAutomatic`, `resolution` |
+| `respondToApproval` | `RefundApproval` | Record the decision; rejects when the runtime cannot record it |
+| `display: "standalone"` | `find_order`, `issue_refund` | Render a backend tool outside the collapsed tool group |
+| `sendAutomaticallyWhen` | `assistant.tsx` | Continue the run after an answer |
+| `thread.capabilities.answerToolCall` | `ReturnItems` | Hide controls in a thread that cannot take an answer |
+
+See [Tool UI](/docs/tools/tool-ui#interactive-tool-uis) for the full approval surface, and [AI SDK v7](/docs/runtimes/ai-sdk/v7#server-side-tool-approval) for the server setup.
+
+## Run It
+
+```bash
+git clone https://github.com/assistant-ui/assistant-ui.git
+cd assistant-ui
+pnpm install
+pnpm turbo build --filter='with-human-in-the-loop^...'
+pnpm --filter with-human-in-the-loop dev
+```
+
+No API key is needed. To use a model, set `OPENAI_API_KEY` in `examples/with-human-in-the-loop/.env.local`.
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-human-in-the-loop" />

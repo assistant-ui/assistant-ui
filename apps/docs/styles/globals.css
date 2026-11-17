@@ -105,6 +105,8 @@
 }
 
 @source "../../../packages/ui/src";
+@source "../../../examples/with-human-in-the-loop/app";
+@source "../../../examples/with-human-in-the-loop/components";
 @source "../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));

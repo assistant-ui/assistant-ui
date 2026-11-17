@@ -116,6 +116,15 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui",
   },
   {
+    title: "Human in the Loop",
+    image: "/screenshot/examples/human-in-the-loop.png",
+    description:
+      "A support agent that asks which items to refund and waits for approval before a large refund runs.",
+    link: "/examples/human-in-the-loop",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-human-in-the-loop",
+  },
+  {
     title: "Interactables",
     image: "/screenshot/examples/interactables.png",
     description:
