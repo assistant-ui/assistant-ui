@@ -32,15 +32,31 @@ const runtime = useChatRuntime({
 });
 ```
 
-You can gate the feature on browser support:
+You can gate the feature on browser support. `SpeechRecognition` never exists on the server, so in a server-rendered app read `isSupported()` through `useSyncExternalStore` with a `false` server snapshot instead of calling it while rendering. The first client render then matches the server, and the adapter arrives right after hydration:
 
 ```tsx
+import { useMemo, useSyncExternalStore } from "react";
 import { WebSpeechDictationAdapter } from "@assistant-ui/react";
 
-if (WebSpeechDictationAdapter.isSupported()) {
-  // Dictation is available
+const subscribe = () => () => {};
+
+function useDictationAdapter() {
+  const supported = useSyncExternalStore(
+    subscribe,
+    WebSpeechDictationAdapter.isSupported,
+    () => false,
+  );
+  return useMemo(
+    () => (supported ? new WebSpeechDictationAdapter() : undefined),
+    [supported],
+  );
 }
+
+const dictation = useDictationAdapter();
+const runtime = useChatRuntime({ adapters: { dictation } });
 ```
+
+A direct `isSupported()` call in render gives the server and the browser different answers, and a server-rendered `ComposerPrimitive.Dictate` can then stay disabled after hydration.
 
 ## DictationAdapter interface
 
