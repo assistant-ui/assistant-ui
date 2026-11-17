@@ -92,12 +92,14 @@ export async function DocsRoutePage({
   return (
     <DocsPageShell
       toc={
-        <TableOfContents
-          items={toc}
-          githubEditUrl={githubEditUrl}
-          markdownUrl={markdownUrl}
-          platformAwareMarkdown={platformAware}
-        />
+        toc.length > 0 ? (
+          <TableOfContents
+            items={toc}
+            githubEditUrl={githubEditUrl}
+            markdownUrl={markdownUrl}
+            platformAwareMarkdown={platformAware}
+          />
+        ) : undefined
       }
     >
       <DocsBody data-page-content="">

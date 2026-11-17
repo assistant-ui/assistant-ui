@@ -13,7 +13,8 @@ export function DocsPageShell({
   mainProps?: Omit<ComponentProps<"main">, "children">;
 }) {
   return (
-    <div className="docs-layout">
+    // The TOC follows <main>, so a column keyed only on `:has(.docs-toc)` appears mid-parse and shifts the article.
+    <div className="docs-layout" data-toc={toc ? "" : undefined}>
       <main
         {...mainProps}
         className={cn(

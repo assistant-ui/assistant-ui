@@ -10,6 +10,7 @@
   grid-template-columns: minmax(0, 1fr);
 
   @media (min-width: 1280px) {
+    &[data-toc],
     &:has(.docs-toc) {
       grid-template-columns: minmax(0, 1fr) 14rem;
     }
