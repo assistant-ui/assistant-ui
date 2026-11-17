@@ -27,9 +27,18 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
   const ownerDocument = scrollContainer.ownerDocument;
   const isRootScroller =
     scrollContainer === ownerDocument.documentElement ||
-    scrollContainer === ownerDocument.body ||
-    scrollContainer === ownerDocument.scrollingElement;
-  const positionElement = isRootScroller
+    scrollContainer === ownerDocument.body;
+  // A body scrolls the viewport only while the root leaves overflow visible;
+  // otherwise its overflow does not propagate and it owns its scroll box.
+  const rootStyle = getComputedStyle(ownerDocument.documentElement);
+  const rootClips = (value: string) => value !== "" && value !== "visible";
+  const isViewportScroller =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.scrollingElement ||
+    (scrollContainer === ownerDocument.body &&
+      !rootClips(rootStyle.overflowX) &&
+      !rootClips(rootStyle.overflowY));
+  const positionElement = isViewportScroller
     ? (ownerDocument.scrollingElement ?? ownerDocument.documentElement)
     : scrollContainer;
   const scrollPosition = positionElement.scrollTop;
@@ -73,7 +82,9 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
   const resetPosition = () =>
     positionElement.scrollTo({ top: scrollPosition, behavior: "instant" });
   // Viewport scroll events target the document, not the root element.
-  const scrollEventTarget = isRootScroller ? ownerDocument : scrollContainer;
+  const scrollEventTarget = isViewportScroller
+    ? ownerDocument
+    : scrollContainer;
   scrollEventTarget.addEventListener("scroll", resetPosition);
 
   const lock = {

@@ -349,4 +349,32 @@ describe("useScrollLock", () => {
     document.dispatchEvent(new Event("scroll"));
     expect(root.scrollTop).toBe(90);
   });
+
+  it("holds a body that scrolls on its own when the root clips overflow", () => {
+    vi.useFakeTimers();
+    const root = document.documentElement;
+    const body = document.body;
+    root.style.overflowX = "hidden";
+    root.style.overflowY = "hidden";
+    Object.defineProperty(document, "scrollingElement", {
+      configurable: true,
+      value: root,
+    });
+    body.style.overflowY = "auto";
+    const scrollTo = stubScrollTo(body);
+    const rootScrollTo = stubScrollTo(root);
+    body.scrollTop = 120;
+
+    lockWithin(body)();
+    body.scrollTop = 90;
+    body.dispatchEvent(new Event("scroll"));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 120, behavior: "instant" });
+    expect(body.scrollTop).toBe(120);
+    expect(rootScrollTo).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(200);
+    body.scrollTop = 90;
+    body.dispatchEvent(new Event("scroll"));
+    expect(body.scrollTop).toBe(90);
+  });
 });
