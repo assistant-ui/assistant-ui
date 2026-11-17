@@ -1,0 +1,119 @@
+name: Durable Example Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/durable-example-tests.yaml"
+      - "scripts/durable-example-tests.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/lib/workspace.mjs"
+      - "examples/with-pydantic-ai-durable/**"
+      - "python/assistant-stream/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "packages/ai-sdk/**"
+      - "packages/assistant-stream/**"
+      - "packages/cloud/**"
+      - "packages/core/**"
+      - "packages/generative-frame/**"
+      - "packages/generative-ui/**"
+      - "packages/heat-graph/**"
+      - "packages/next/**"
+      - "packages/react/**"
+      - "packages/react-ag-ui/**"
+      - "packages/react-markdown/**"
+      - "packages/react-mcp/**"
+      - "packages/react-native/**"
+      - "packages/react-syntax-highlighter/**"
+      - "packages/safe-content-frame/**"
+      - "packages/store/**"
+      - "packages/tap/**"
+      - "packages/ui/**"
+      - "packages/vue/**"
+      - "packages/x-buildutils/**"
+      - "packages/x-generative-compiler/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/durable-example-tests.yaml"
+      - "scripts/durable-example-tests.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/lib/workspace.mjs"
+      - "examples/with-pydantic-ai-durable/**"
+      - "python/assistant-stream/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "packages/ai-sdk/**"
+      - "packages/assistant-stream/**"
+      - "packages/cloud/**"
+      - "packages/core/**"
+      - "packages/generative-frame/**"
+      - "packages/generative-ui/**"
+      - "packages/heat-graph/**"
+      - "packages/next/**"
+      - "packages/react/**"
+      - "packages/react-ag-ui/**"
+      - "packages/react-markdown/**"
+      - "packages/react-mcp/**"
+      - "packages/react-native/**"
+      - "packages/react-syntax-highlighter/**"
+      - "packages/safe-content-frame/**"
+      - "packages/store/**"
+      - "packages/tap/**"
+      - "packages/ui/**"
+      - "packages/vue/**"
+      - "packages/x-buildutils/**"
+      - "packages/x-generative-compiler/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Durable Python server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter '{.}...' --filter 'with-pydantic-ai-durable...' --filter '@assistant-ui/react-devtools...'
+
+      - name: Test durable example routing
+        run: node --test scripts/durable-example-tests.test.mjs
+
+      - name: Setup uv and Python
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: examples/with-pydantic-ai-durable/server/uv.lock
+
+      - name: Install server dependencies
+        working-directory: examples/with-pydantic-ai-durable/server
+        run: uv sync --locked
+
+      - name: Build workspace dependencies
+        run: pnpm turbo build --filter='with-pydantic-ai-durable^...'
+
+      - name: Run server-backed tests
+        run: pnpm --filter with-pydantic-ai-durable test:e2e

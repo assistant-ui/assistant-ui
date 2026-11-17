@@ -94,12 +94,14 @@ for (const file of [
   "scripts/coverage-summary.mjs",
   "scripts/coverage-summary.test.mjs",
   "scripts/test-coverage-contract.test.mjs",
+  "scripts/durable-example-tests.test.mjs",
   "scripts/lib/workspace.mjs",
   "turbo.json",
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   ".github/workflows/test-coverage.yaml",
+  ".github/workflows/durable-example-tests.yaml",
   ".github/workflows/code-quality.yaml",
 ]) {
   test(`coverage runs for ${file} in PRs and merge groups`, (t) => {
@@ -146,7 +148,7 @@ test("coverage reports for all PRs and merge groups while gating expensive steps
   assert.match(coverageWorkflow, /needs: \[plan, shards\]\n    if: always\(\)/);
   assert.match(
     coverageWorkflow,
-    /node --test scripts\/test-coverage-contract\.test\.mjs scripts\/coverage-summary\.test\.mjs scripts\/coverage-shards\.test\.mjs/,
+    /node --test scripts\/test-coverage-contract\.test\.mjs scripts\/durable-example-tests\.test\.mjs scripts\/coverage-summary\.test\.mjs scripts\/coverage-shards\.test\.mjs/,
   );
 });
 
@@ -197,6 +199,25 @@ const executableTasks = () =>
       { cwd: root, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
     ),
   ).tasks.filter((task) => task.command !== "<NONEXISTENT>"));
+
+test("the durable example runs in the normal test and coverage graph", () => {
+  const name = "with-pydantic-ai-durable";
+  const { pkg } = manifests.find(({ pkg }) => pkg.name === name);
+  assert.equal(typeof pkg.scripts.test, "string");
+  assert.equal(typeof pkg.scripts["test:coverage"], "string");
+  assert.deepEqual(
+    coverageShards()
+      .flat()
+      .filter((pkg) => pkg === name),
+    [name],
+  );
+  for (const task of ["test", "test:coverage"]) {
+    assert.ok(
+      executableTasks().some((entry) => entry.taskId === `${name}#${task}`),
+      `${name}#${task} must execute`,
+    );
+  }
+});
 
 function commands(script, scripts) {
   return script.split(/\s*&&\s*/).flatMap((command) => {
