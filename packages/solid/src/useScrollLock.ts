@@ -23,9 +23,6 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
   }
 
   const ownerDocument = scrollContainer.ownerDocument;
-  const isRootScroller =
-    scrollContainer === ownerDocument.documentElement ||
-    scrollContainer === ownerDocument.body;
   // A body scrolls the viewport only while the root leaves overflow visible;
   // otherwise its overflow does not propagate and it owns its scroll box.
   const rootStyle = getComputedStyle(ownerDocument.documentElement);
@@ -53,7 +50,7 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
   // Root offsetWidth excludes the viewport scrollbar, so use the viewport
   // width only when the element's own gutter is absent.
   const scrollbarSize =
-    isRootScroller && elementScrollbarSize <= 0
+    isViewportScroller && elementScrollbarSize <= 0
       ? (ownerDocument.defaultView?.innerWidth ?? 0) -
         ownerDocument.documentElement.clientWidth
       : elementScrollbarSize;
