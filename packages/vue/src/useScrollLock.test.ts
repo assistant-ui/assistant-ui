@@ -10,6 +10,8 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   Reflect.deleteProperty(document.documentElement, "scrollTo");
+  Reflect.deleteProperty(document.body, "scrollTo");
+  Reflect.deleteProperty(document, "scrollingElement");
   document.documentElement.scrollTop = 0;
   document.documentElement.removeAttribute("style");
   document.body.removeAttribute("style");
@@ -311,6 +313,35 @@ describe("useScrollLock", () => {
     lockWithin(document.body)();
     root.scrollTop = 90;
     document.dispatchEvent(new Event("scroll"));
+    expect(root.scrollTop).toBe(120);
+
+    vi.advanceTimersByTime(200);
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(root.scrollTop).toBe(90);
+  });
+
+  it("locks viewport position when body overflow propagates to the root", () => {
+    vi.useFakeTimers();
+    const root = document.documentElement;
+    const body = document.body;
+    root.style.overflowY = "visible";
+    Object.defineProperty(document, "scrollingElement", {
+      configurable: true,
+      value: root,
+    });
+    body.style.overflowY = "auto";
+    body.scrollTop = 0;
+    body.scrollTo = vi.fn();
+    const scrollTo = stubScrollTo(root);
+    root.scrollTop = 120;
+
+    lockWithin(body)();
+    expect(body.style.scrollbarWidth).toBe("none");
+    expect(root.style.scrollbarWidth).toBe("");
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 120, behavior: "instant" });
     expect(root.scrollTop).toBe(120);
 
     vi.advanceTimersByTime(200);

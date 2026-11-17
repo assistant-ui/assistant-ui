@@ -24,7 +24,15 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
     return existing;
   }
 
-  const scrollPosition = scrollContainer.scrollTop;
+  const ownerDocument = scrollContainer.ownerDocument;
+  const isRootScroller =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.body ||
+    scrollContainer === ownerDocument.scrollingElement;
+  const positionElement = isRootScroller
+    ? (ownerDocument.scrollingElement ?? ownerDocument.documentElement)
+    : scrollContainer;
+  const scrollPosition = positionElement.scrollTop;
   const scrollbarWidth = scrollContainer.style.scrollbarWidth;
 
   // Hiding the scrollbar collapses its gutter on classic scrollbars, which
@@ -44,10 +52,6 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
   // viewport, and only then does the viewport measure apply. A body that
   // scrolls in its own right is measured by the element formula like any
   // other scroller, whether or not the viewport is scrolling too.
-  const ownerDocument = scrollContainer.ownerDocument;
-  const isRootScroller =
-    scrollContainer === ownerDocument.documentElement ||
-    scrollContainer === ownerDocument.body;
   const scrollbarSize =
     isRootScroller && elementScrollbarSize <= 0
       ? (ownerDocument.defaultView?.innerWidth ?? 0) -
@@ -67,13 +71,9 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
   };
 
   const resetPosition = () =>
-    scrollContainer.scrollTo({ top: scrollPosition, behavior: "instant" });
+    positionElement.scrollTo({ top: scrollPosition, behavior: "instant" });
   // Viewport scroll events target the document, not the root element.
-  const scrollEventTarget =
-    scrollContainer === ownerDocument.documentElement ||
-    scrollContainer === ownerDocument.scrollingElement
-      ? ownerDocument
-      : scrollContainer;
+  const scrollEventTarget = isRootScroller ? ownerDocument : scrollContainer;
   scrollEventTarget.addEventListener("scroll", resetPosition);
 
   const lock = {

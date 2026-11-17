@@ -22,7 +22,15 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
     return existing;
   }
 
-  const scrollPosition = scrollContainer.scrollTop;
+  const ownerDocument = scrollContainer.ownerDocument;
+  const isRootScroller =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.body ||
+    scrollContainer === ownerDocument.scrollingElement;
+  const positionElement = isRootScroller
+    ? (ownerDocument.scrollingElement ?? ownerDocument.documentElement)
+    : scrollContainer;
+  const scrollPosition = positionElement.scrollTop;
   const scrollbarWidth = scrollContainer.style.scrollbarWidth;
   const computed = getComputedStyle(scrollContainer);
   const paddingSide =
@@ -35,10 +43,6 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
     parseFloat(computed.borderRightWidth);
   // Root offsetWidth excludes the viewport scrollbar, so use the viewport
   // width only when the element's own gutter is absent.
-  const ownerDocument = scrollContainer.ownerDocument;
-  const isRootScroller =
-    scrollContainer === ownerDocument.documentElement ||
-    scrollContainer === ownerDocument.body;
   const scrollbarSize =
     isRootScroller && elementScrollbarSize <= 0
       ? (ownerDocument.defaultView?.innerWidth ?? 0) -
@@ -57,13 +61,9 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
     scrollContainer.style[paddingSide] = previousPadding;
   };
   const resetPosition = () =>
-    scrollContainer.scrollTo({ top: scrollPosition, behavior: "instant" });
+    positionElement.scrollTo({ top: scrollPosition, behavior: "instant" });
   // Viewport scroll events target the document, not the root element.
-  const scrollEventTarget =
-    scrollContainer === ownerDocument.documentElement ||
-    scrollContainer === ownerDocument.scrollingElement
-      ? ownerDocument
-      : scrollContainer;
+  const scrollEventTarget = isRootScroller ? ownerDocument : scrollContainer;
   scrollEventTarget.addEventListener("scroll", resetPosition);
 
   const lock = {
