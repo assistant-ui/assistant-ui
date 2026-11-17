@@ -62,14 +62,9 @@ type CloudScopeContext = CloudScopeSnapshot & {
   persistence: CloudMessagePersistence;
 };
 
-const globalPersistence = new WeakMap<
-  getClientId.ClientId,
-  ScopedPersistence
->();
-
 const threadPersistenceByList = new WeakMap<
   getClientId.ClientId,
-  Map<string, WeakRef<ScopedPersistence>>
+  Map<string, ScopedPersistence>
 >();
 
 export const DEFAULT_CLOUD_SCOPE = Symbol("assistant-ui:cloud-default-scope");
@@ -309,16 +304,11 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       ...(state.remoteId ? [`remote:${state.remoteId}`] : []),
     ];
     const cachedThreads = threadPersistenceByList.get(threadListClientId);
-    let entry: ScopedPersistence | undefined;
-    for (const threadKey of threadKeys) {
-      const cached = cachedThreads?.get(threadKey);
-      const candidate = cached?.deref();
-      if (cached && !candidate) cachedThreads?.delete(threadKey);
-      if (candidate && Object.is(candidate.scope, snapshot.scope)) {
-        entry = candidate;
-        break;
-      }
-    }
+    let entry = threadKeys
+      .map((threadKey) => cachedThreads?.get(threadKey))
+      .find(
+        (candidate) => candidate && Object.is(candidate.scope, snapshot.scope),
+      );
     if (!entry) {
       const cloudRef = { current: this.cloudRef };
       entry = {
@@ -334,15 +324,13 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       // later adapter must reconnect the retained mapping to its live client ref.
       entry.cloudRef.current = this.cloudRef;
     }
-    globalPersistence.set(getClientId(threadListItem), entry);
     let threadCache = cachedThreads;
     if (!threadCache) {
       threadCache = new Map();
       threadPersistenceByList.set(threadListClientId, threadCache);
     }
-    // Thread IDs span item client instances; weak values keep this index from retaining old histories.
     for (const threadKey of threadKeys) {
-      threadCache.set(threadKey, new WeakRef(entry));
+      threadCache.set(threadKey, entry);
     }
     return entry.persistence;
   }
