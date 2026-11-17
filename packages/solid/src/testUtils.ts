@@ -1,5 +1,5 @@
 import { useEffect, useState, useInsertionEffect } from "react";
-import { resource } from "@assistant-ui/tap";
+import { resource, useResource } from "@assistant-ui/tap";
 import { createComponent, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 import {
@@ -9,6 +9,8 @@ import {
   type AssistantClient,
   type AuiConfig,
 } from "@assistant-ui/store/client";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import { Suggestions } from "@assistant-ui/core/store";
 import { AuiProvider } from "./AuiProvider";
 import { useAui } from "./useAui";
 
@@ -94,3 +96,34 @@ const useThrowingCleanup = () => {
   return { getState: () => ({}) };
 };
 export const ThrowingCleanup = resource(useThrowingCleanup);
+
+const useMountEffectItems = () => {
+  const [items, setItems] = useState<string[]>([]);
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- Mount updates must be synchronous to detect hydration mismatches.
+    setItems(["loaded"]);
+  }, []);
+  return { getState: () => ({ items }), setItems };
+};
+export const MountEffectItems = resource(useMountEffectItems);
+
+export const TrackedSuggestions = resource(
+  function useTrackedSuggestions(lifecycle: {
+    effects: number;
+    insertionEffects: number;
+    signals: Set<AbortSignal>;
+  }) {
+    lifecycle.signals.add(useAssistantClientDestroySignal()!);
+    useEffect(() => {
+      lifecycle.effects++;
+    }, [lifecycle]);
+    useInsertionEffect(() => {
+      lifecycle.insertionEffects++;
+    }, [lifecycle]);
+    return useResource(
+      Suggestions([
+        { title: "Say hello", label: "A friendly opener", prompt: "Hello!" },
+      ]),
+    );
+  },
+);

@@ -1,4 +1,5 @@
-import { onCleanup } from "solid-js";
+import { onCleanup, onMount } from "solid-js";
+import { isServer } from "solid-js/web";
 import { isDevelopment } from "@assistant-ui/core/store/internal";
 import {
   normalizeEventSelector,
@@ -11,8 +12,7 @@ import {
 import { useAuiContext } from "./context";
 
 /**
- * Subscribes to an assistant event until the current reactive owner is
- * disposed.
+ * Subscribes to an assistant event until the current reactive owner is disposed. Does not subscribe on the server.
  *
  * The subscription follows the provider's current client across structural
  * changes. Use `scope: "*"` to receive emissions from any descendant scope.
@@ -29,6 +29,7 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
   callback: AssistantEventCallback<TEvent>,
 ): void => {
   const { source } = useAuiContext();
+  if (isServer) return;
   const { scope, event } = normalizeEventSelector(selector);
 
   let bound: AssistantClient | undefined;
@@ -55,10 +56,13 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
     off = next;
   };
 
-  bind();
-  const unsubscribe = source.subscribe(bind);
+  let unsubscribe: Unsubscribe | undefined;
+  onMount(() => {
+    bind();
+    unsubscribe = source.subscribe(bind);
+  });
   onCleanup(() => {
-    unsubscribe();
+    unsubscribe?.();
     off?.();
   });
 };

@@ -6,13 +6,16 @@ import {
   getOwner,
   on,
   onCleanup,
+  onMount,
   type JSX,
 } from "solid-js";
+import { isServer } from "solid-js/web";
 import {
   createAssistantClient,
   createClientFacade,
   type AssistantClient,
   type AuiConfig,
+  type Unsubscribe,
 } from "@assistant-ui/store/client";
 import { isDevelopment } from "@assistant-ui/core/store/internal";
 import { AuiContext, defaultContext, useAuiContext } from "./context";
@@ -36,6 +39,8 @@ export type AuiProviderProps = {
  * in place (scopes keep their state) and mounts or unmounts added and removed
  * scopes. `extends` is captured when the provider mounts; remount the
  * provider to change the parent.
+ *
+ * On the server, the initial config is captured without subscribing or mounting client effects. The client is destroyed when Solid disposes the render root. On the client, effects mount in Solid's `onMount` so the initial render matches the server state.
  */
 export const AuiProvider = (props: AuiProviderProps): JSX.Element => {
   const injected = useAuiContext();
@@ -63,25 +68,33 @@ export const AuiProvider = (props: AuiProviderProps): JSX.Element => {
 
   const owner = getOwner();
   const handle = createAssistantClient(
-    {
-      getConfig: () => props.config,
-      // The store subscribes outside any Solid owner, so each subscription
-      // runs in its own root that the store disposes through the returned
-      // unsubscribe
-      subscribe: (listener) =>
-        createRoot((dispose) => {
-          createEffect(on(() => props.config, listener, { defer: true }));
-          return dispose;
-        }, owner),
-    },
+    isServer
+      ? props.config
+      : {
+          getConfig: () => props.config,
+          // The store subscribes outside any Solid owner, so each subscription
+          // runs in its own root that the store disposes through the returned
+          // unsubscribe
+          subscribe: (listener) =>
+            createRoot((dispose) => {
+              createEffect(on(() => props.config, listener, { defer: true }));
+              return dispose;
+            }, owner),
+        },
     parent ? { parent } : undefined,
   );
   // One subscription writes one signal per store update, so every accessor in
   // the subtree recomputes before any dependent effect runs
   const [track, trigger] = createSignal(undefined, { equals: false });
-  const release = handle.subscribe(() => trigger());
+  let release: Unsubscribe | undefined;
+  onMount(() => {
+    // Parent mount effects can change its snapshot after this handle first renders.
+    handle.getClient();
+    release = handle.subscribe(() => trigger());
+    trigger();
+  });
   onCleanup(() => {
-    release();
+    release?.();
     // A throwing cleanup would stop Solid from disposing the rest of the tree
     try {
       handle.destroy();
@@ -91,7 +104,11 @@ export const AuiProvider = (props: AuiProviderProps): JSX.Element => {
   });
 
   return createComponent(AuiContext.Provider, {
-    value: { source: handle, aui: createClientFacade(handle), track },
+    value: {
+      source: handle,
+      aui: createClientFacade(handle),
+      track: isServer ? () => {} : track,
+    },
     get children() {
       return props.children;
     },

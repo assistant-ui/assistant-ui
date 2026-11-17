@@ -22,9 +22,10 @@ export const MessagePrimitiveRoot = (
   const aui = useAui();
   const messageId = useAuiState((s) => s.message.id);
   let active = true;
+  let hovering = false;
   onCleanup(() => {
     active = false;
-    aui.message.setIsHovering(false);
+    if (hovering) aui.message.setIsHovering(false);
   });
   return createComponent(
     Dynamic,
@@ -35,8 +36,10 @@ export const MessagePrimitiveRoot = (
       },
       ref: (element: HTMLDivElement) => {
         queueMicrotask(() => {
-          if (active && element.matches(":hover"))
+          if (active && element.matches(":hover")) {
+            hovering = true;
             aui.message.setIsHovering(true);
+          }
         });
         if (typeof local.ref === "function") local.ref(element);
       },
@@ -45,6 +48,7 @@ export const MessagePrimitiveRoot = (
       ) => {
         callEventHandler(local.onMouseEnter, event);
         if (!active) return;
+        hovering = true;
         aui.message.setIsHovering(true);
       },
       onMouseLeave: (
@@ -52,6 +56,7 @@ export const MessagePrimitiveRoot = (
       ) => {
         callEventHandler(local.onMouseLeave, event);
         if (!active) return;
+        hovering = false;
         aui.message.setIsHovering(false);
       },
     }),
