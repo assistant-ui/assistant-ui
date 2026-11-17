@@ -2832,14 +2832,13 @@ export class AgUiThreadController {
     abortSignal.addEventListener(
       "abort",
       () => {
-        const wasRunning = !runFinished || this.state.isRunning;
         if (this.drainingRun?.owner === abortController) {
           this.drainingRun = null;
           closeDrain();
         }
         cancelRun();
         this.finishRun(abortController);
-        if (wasRunning) invokeRuntimeCallback("onCancel", this.onCancel);
+        invokeRuntimeCallback("onCancel", this.onCancel);
       },
       { once: true },
     );
