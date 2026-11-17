@@ -14,17 +14,18 @@ import type { SizeHandle } from "../../context/stores/ThreadViewport";
  * @returns A ref callback to attach to the element
  */
 export const useSizeHandle = (
-  register: (() => SizeHandle) | null | undefined,
+  register: ((measure?: () => number) => SizeHandle) | null | undefined,
   getHeight?: (el: HTMLElement) => number,
 ) => {
   const callbackRef = useCallback(
     (el: HTMLElement) => {
       if (!register) return;
 
-      const sizeHandle = register();
+      const measure = () => (getHeight ? getHeight(el) : el.offsetHeight);
+      const sizeHandle = register(measure);
 
       const updateHeight = () => {
-        const height = getHeight ? getHeight(el) : el.offsetHeight;
+        const height = measure();
         sizeHandle.setHeight(height);
       };
 

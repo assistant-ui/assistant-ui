@@ -234,6 +234,61 @@ describe("ThreadPrimitiveViewport initial pinning", () => {
 });
 
 describe("ThreadPrimitiveViewportFooter", () => {
+  it("remeasures an auto margin as content consumes the free space", async () => {
+    const observers = installResizeObserver();
+    let contentHeight = 20;
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.classList.contains("footer") ? 40 : 0;
+      },
+    );
+    const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+      element.classList.contains("footer")
+        ? ({
+            marginTop: `${Math.max(0, 100 - contentHeight)}px`,
+          } as CSSStyleDeclaration)
+        : nativeGetComputedStyle(element),
+    );
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          {
+            class: "viewport",
+            autoScroll: false,
+            scrollToBottomOnInitialize: false,
+          },
+          {
+            default: () => [
+              h("p", { class: "content" }, "history"),
+              h(ThreadPrimitiveViewportFooter, { class: "footer mt-auto" }),
+              h(ThreadPrimitiveScrollToBottom, { class: "jump" }),
+            ],
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(createTestRuntime(), View);
+    const viewport = el.querySelector<HTMLElement>("div.viewport")!;
+    const geometry = installViewportGeometry(viewport);
+    const content = el.querySelector<HTMLElement>("p.content")!;
+    const button = el.querySelector<HTMLButtonElement>("button.jump")!;
+    geometry.setScrollHeight(100);
+    observers.trigger(content);
+    contentHeight = 100;
+    observers.trigger(content);
+    geometry.setScrollHeight(500);
+    geometry.setScrollTop(358);
+    viewport.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    expect(button.disabled).toBe(false);
+    geometry.setScrollTop(359);
+    viewport.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    expect(button.disabled).toBe(true);
+    unmount();
+  });
+
   it("updates the inset when only the footer margin changes", async () => {
     installResizeObserver();
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(

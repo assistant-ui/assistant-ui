@@ -18,7 +18,7 @@ export type SizeHandle = {
 };
 
 type SizeRegistry = {
-  register: () => SizeHandle;
+  register: (measure?: () => number) => SizeHandle;
 };
 
 const createSizeRegistry = (
@@ -105,10 +105,10 @@ export type ThreadViewportState = {
   } | null;
 
   /** Register a viewport and get a handle to update its height */
-  readonly registerViewport: () => SizeHandle;
+  readonly registerViewport: (measure?: () => number) => SizeHandle;
 
   /** Register a content inset (footer, anchor message, etc.) and get a handle to update its height */
-  readonly registerContentInset: () => SizeHandle;
+  readonly registerContentInset: (measure?: () => number) => SizeHandle;
 
   /** Register the scroll viewport element */
   readonly registerViewportElement: (

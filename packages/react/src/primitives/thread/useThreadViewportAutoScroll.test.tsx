@@ -370,6 +370,30 @@ const FooterThread = ({
 );
 
 describe("viewport footer insets", () => {
+  it("remeasures an auto margin as content consumes the free space", () => {
+    let contentHeight = 20;
+    const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+      element.getAttribute("data-testid") === "footer"
+        ? ({
+            marginTop: `${Math.max(0, 100 - contentHeight)}px`,
+          } as CSSStyleDeclaration)
+        : nativeGetComputedStyle(element),
+    );
+    forceShortViewportMeasurement = true;
+    render(<FooterThread footerHeight={40} />);
+    const footer = screen.getByTestId("footer");
+    footer.classList.add("mt-auto");
+    act(() => notifyResizeOf(messageRows()[0]!));
+    expect(screen.getByTestId("footer-inset").textContent).toBe("120");
+    contentHeight = 100;
+    act(() => notifyResizeOf(messageRows()[0]!));
+    expect(screen.getByTestId("footer-inset").textContent).toBe("40");
+    forceShortViewportMeasurement = false;
+    act(() => notifyResizeOf(messageRows()[0]!));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+  });
+
   it("updates the inset when only the footer margin changes", async () => {
     const nativeGetComputedStyle = window.getComputedStyle.bind(window);
     vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>

@@ -1,6 +1,7 @@
 ---
+"@assistant-ui/store": patch
 "@assistant-ui/react": patch
 "@assistant-ui/vue": patch
 ---
 
-The viewport footer remeasures its inset when a class, inline style, or window resize changes only its top margin.
+keep the viewport footer inset accurate as content grows and its top margin changes.

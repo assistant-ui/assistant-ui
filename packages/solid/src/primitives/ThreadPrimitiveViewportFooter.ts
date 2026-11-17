@@ -24,11 +24,12 @@ export const ThreadPrimitiveViewportFooter = (
   onMount(() => {
     if (!viewport) return;
 
-    const contentInset = viewport.registerContentInset();
-    const updateHeight = () => {
+    const measure = () => {
       const marginTop = Number.parseFloat(getComputedStyle(div).marginTop) || 0;
-      contentInset.setHeight(div.offsetHeight + marginTop);
+      return div.offsetHeight + marginTop;
     };
+    const contentInset = viewport.registerContentInset(measure);
+    const updateHeight = () => contentInset.setHeight(measure());
     updateHeight();
 
     let resizeObserver: ResizeObserver | undefined;
