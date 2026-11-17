@@ -80,7 +80,8 @@ export const SuggestionByIndexProvider = (props: {
 export const ThreadPrimitiveSuggestions = (props: {
   children?: JSX.Element;
 }): JSX.Element => {
-  const keys = useAuiState((s) => getSuggestionKeys(s.suggestions.suggestions));
+  const suggestions = useAuiState((s) => s.suggestions.suggestions);
+  const keys = createMemo(() => getSuggestionKeys(suggestions()));
   return createComponent(For<readonly string[], JSX.Element>, {
     get each() {
       return keys();
