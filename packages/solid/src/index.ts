@@ -36,6 +36,9 @@ export {
   type DataUIProps,
 } from "./primitives/MessagePrimitiveParts";
 
+export { ThreadPrimitiveRoot } from "./primitives/thread";
+export { MessagePrimitiveRoot } from "./primitives/message";
+
 export {
   AuiConfig,
   Derived,
