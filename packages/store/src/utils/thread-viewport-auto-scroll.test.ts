@@ -1448,6 +1448,60 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("remeasures registered insets even when viewport metrics are unchanged", () => {
+    const view = geometry(100, 100);
+    const onContentInsetChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange: vi.fn(),
+      onContentInsetChange,
+    });
+    controller.attach(view.element);
+    let height = 80;
+    const measure = vi.fn(() => height);
+    const inset = controller.registerContentInset(measure);
+    inset.setHeight(80);
+    observers[0]!.trigger();
+    onContentInsetChange.mockClear();
+    height = 40;
+    observers[0]!.trigger();
+    expect(measure).toHaveBeenCalledTimes(2);
+    expect(onContentInsetChange).toHaveBeenCalledExactlyOnceWith(40);
+    controller.dispose();
+  });
+
+  it("does not notify for an unchanged inset measurement", () => {
+    const view = geometry();
+    const onContentInsetChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+      onContentInsetChange,
+    });
+    controller.attach(view.element);
+    const measure = vi.fn(() => 40);
+    controller.registerContentInset(measure).setHeight(40);
+    onContentInsetChange.mockClear();
+    observers[0]!.trigger();
+    expect(measure).toHaveBeenCalledOnce();
+    expect(onContentInsetChange).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("does not measure an unregistered inset", () => {
+    const view = geometry();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    const measure = vi.fn(() => 40);
+    controller.registerContentInset(measure).unregister();
+    observers[0]!.trigger();
+    expect(measure).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
   it("sums registered insets and removes them on unregister", () => {
     const view = geometry(600, 100);
     const controller = createThreadViewportAutoScroll({

@@ -5742,7 +5742,7 @@ type ThreadViewportState = {
     readonly targetId: string;
   } | null;
   readonly registerViewport: () => SizeHandle;
-  readonly registerContentInset: () => SizeHandle;
+  readonly registerContentInset: (measure?: () => number) => SizeHandle;
   readonly registerViewportElement: (element: HTMLElement | null) => Unsubscribe;
   readonly registerAnchorElement: (element: HTMLElement | null) => Unsubscribe;
   readonly registerAnchorTargetElement: (element: HTMLElement | null, config?: {
