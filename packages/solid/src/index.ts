@@ -24,6 +24,9 @@ export {
   ThreadListItemPrimitiveDelete,
 } from "./primitives/threadListStructural";
 
+export { ComposerPrimitiveInput } from "./primitives/ComposerPrimitiveInput";
+export { ComposerPrimitiveSend } from "./primitives/ComposerPrimitiveSend";
+export { ComposerPrimitiveCancel } from "./primitives/ComposerPrimitiveCancel";
 export { MessageByIdProvider } from "./primitives/MessageByIdProvider";
 export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
 export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
