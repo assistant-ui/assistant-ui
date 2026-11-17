@@ -44,6 +44,18 @@ export { ChainOfThoughtPrimitiveAccordionTrigger } from "./primitives/ChainOfTho
 export { ChainOfThoughtPrimitiveParts } from "./primitives/ChainOfThoughtPrimitiveParts";
 
 export {
+  ActionBarPrimitiveEdit,
+  ActionBarPrimitiveReload,
+  ActionBarPrimitiveCopy,
+} from "./primitives/actionBar";
+export {
+  BranchPickerPrimitivePrevious,
+  BranchPickerPrimitiveNext,
+  BranchPickerPrimitiveNumber,
+  BranchPickerPrimitiveCount,
+} from "./primitives/branchPicker";
+
+export {
   AuiConfig,
   Derived,
   createAssistantClient,
