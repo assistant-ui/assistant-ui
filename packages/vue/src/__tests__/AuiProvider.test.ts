@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   createApp,
   defineComponent,
@@ -248,6 +248,7 @@ describe("AuiProvider", () => {
 
   it("reports a throwing cleanup and still unmounts its subtree", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
     const childDisposed = vi.fn();
     const Child = defineComponent({
       setup() {
@@ -266,16 +267,12 @@ describe("AuiProvider", () => {
       }),
     );
 
-    try {
-      expect(() => unmount()).not.toThrow();
-      expect(childDisposed).toHaveBeenCalledTimes(1);
-      expect(errorSpy).toHaveBeenCalledWith(
-        "[assistant-ui] AuiProvider cleanup threw an error",
-        expect.anything(),
-      );
-    } finally {
-      errorSpy.mockRestore();
-    }
+    expect(() => unmount()).not.toThrow();
+    expect(childDisposed).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[assistant-ui] AuiProvider cleanup threw an error",
+      expect.anything(),
+    );
   });
 
   it("returns the throwing default client outside a provider", () => {

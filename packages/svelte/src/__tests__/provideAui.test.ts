@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
@@ -60,6 +60,7 @@ describe("provideAui", () => {
 
   it("reports a throwing cleanup without breaking unmount", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
     const app = mount(Host, {
       target: target(),
       props: {
@@ -69,15 +70,11 @@ describe("provideAui", () => {
       },
     });
 
-    try {
-      expect(() => flushSync(() => void unmount(app))).not.toThrow();
-      expect(errorSpy).toHaveBeenCalledWith(
-        "[assistant-ui] provideAui cleanup threw an error",
-        expect.anything(),
-      );
-    } finally {
-      errorSpy.mockRestore();
-    }
+    expect(() => flushSync(() => void unmount(app))).not.toThrow();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[assistant-ui] provideAui cleanup threw an error",
+      expect.anything(),
+    );
   });
 
   it("throws on a nested provider without extends", () => {
