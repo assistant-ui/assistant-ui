@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createComponent, createSignal, Show } from "solid-js";
+import {
+  createComponent,
+  createRoot,
+  createSignal,
+  onMount,
+  Show,
+} from "solid-js";
 import { Dynamic, render } from "solid-js/web";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
@@ -194,6 +200,39 @@ describe("MessagePrimitiveRoot", () => {
       expect(onMouseLeave).toHaveBeenCalledOnce();
     },
   );
+
+  it("disposes before the client mounts without writing hover", () => {
+    const runtime = new AssistantRuntimeImpl(
+      new ExternalStoreRuntimeCore({
+        messages: [{ id: "message-id", role: "assistant", content: "Hello" }],
+        convertMessage: (message: {
+          id: string;
+          role: "assistant";
+          content: string;
+        }) => message,
+        onNew: async () => {},
+      }),
+    );
+    const mounted = vi.fn();
+    expect(() =>
+      createRoot((dispose) => {
+        createComponent(AuiProvider, {
+          config: AuiConfig({ threads: RuntimeAdapter(runtime) }),
+          get children() {
+            return createComponent(MessageByIdProvider, {
+              id: "message-id",
+              get children() {
+                onMount(mounted);
+                return createComponent(MessagePrimitiveRoot, {});
+              },
+            });
+          },
+        });
+        dispose();
+      }),
+    ).not.toThrow();
+    expect(mounted).not.toHaveBeenCalled();
+  });
 
   it("forwards refs, reactive attributes and children, and resets hover on disposal", () => {
     const ref = vi.fn();
