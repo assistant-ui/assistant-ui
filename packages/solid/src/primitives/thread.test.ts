@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComponent, createSignal } from "solid-js";
-import { Dynamic, render } from "solid-js/web";
+import { clearDelegatedEvents, Dynamic, render } from "solid-js/web";
 import { resource } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
@@ -19,9 +19,10 @@ afterEach(() => {
 const mount = (
   config: AuiConfig,
   props: Parameters<typeof ThreadPrimitiveRoot>[0] = {},
+  container: HTMLElement | ShadowRoot = document.body,
 ) => {
   const el = document.createElement("div");
-  document.body.append(el);
+  container.append(el);
   const dispose = render(
     () =>
       createComponent(AuiProvider, {
@@ -75,7 +76,7 @@ describe("ThreadPrimitiveRoot", () => {
     expect(() => keydown(document, "Escape")).not.toThrow();
   });
 
-  it("stops active speech on Escape outside every thread root and removes its document listener on disposal", () => {
+  it("stops active speech on Escape outside every thread root and removes its listener on disposal", () => {
     const stopSpeaking = vi.fn();
     const { unmount } = mount(speechConfig(stopSpeaking));
     expect(keydown(document, "Enter")).toBe(true);
@@ -87,21 +88,50 @@ describe("ThreadPrimitiveRoot", () => {
     expect(stopSpeaking).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["sibling", "nested", "shadow"] as const)(
+  it("honors the first delegated Escape veto from a child mounted after the root", () => {
+    clearDelegatedEvents();
+    const stopSpeaking = vi.fn();
+    const { el } = mount(speechConfig(stopSpeaking));
+    const handler = vi.fn((event: KeyboardEvent) => {
+      if (event.key === "Escape") event.preventDefault();
+    });
+    disposers.push(
+      render(
+        () =>
+          createComponent(Dynamic, {
+            component: "input",
+            onKeyDown: handler,
+          }),
+        el.firstElementChild!,
+      ),
+    );
+    expect(keydown(el.querySelector("input")!, "Escape")).toBe(false);
+    expect(handler).toHaveBeenCalledOnce();
+    expect(stopSpeaking).not.toHaveBeenCalled();
+  });
+
+  it.each(["sibling", "nested", "shadow", "closed shadow"] as const)(
     "stops only the nearest thread's speech on Escape (%s)",
     (placement) => {
       const stopSpeaking = vi.fn();
       const stopOtherSpeaking = vi.fn();
       const { el } = mount(speechConfig(stopSpeaking));
-      const other = mount(speechConfig(stopOtherSpeaking), {
-        get children() {
-          return createComponent(Dynamic, { component: "input" });
-        },
-      });
       const root = el.firstElementChild as HTMLDivElement;
-      if (placement === "nested") root.append(other.el);
-      if (placement === "shadow")
-        root.attachShadow({ mode: "open" }).append(other.el);
+      let container: HTMLElement | ShadowRoot = document.body;
+      if (placement === "nested") container = root;
+      if (placement === "shadow" || placement === "closed shadow")
+        container = root.attachShadow({
+          mode: placement === "shadow" ? "open" : "closed",
+        });
+      const other = mount(
+        speechConfig(stopOtherSpeaking),
+        {
+          get children() {
+            return createComponent(Dynamic, { component: "input" });
+          },
+        },
+        container,
+      );
       expect(keydown(other.el.querySelector("input")!, "Escape")).toBe(false);
       expect(stopSpeaking).not.toHaveBeenCalled();
       expect(stopOtherSpeaking).toHaveBeenCalledOnce();

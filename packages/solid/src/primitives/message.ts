@@ -44,12 +44,14 @@ export const MessagePrimitiveRoot = (
         event: MouseEvent & { currentTarget: HTMLDivElement; target: Element },
       ) => {
         callEventHandler(local.onMouseEnter, event);
+        if (!active) return;
         aui.message.setIsHovering(true);
       },
       onMouseLeave: (
         event: MouseEvent & { currentTarget: HTMLDivElement; target: Element },
       ) => {
         callEventHandler(local.onMouseLeave, event);
+        if (!active) return;
         aui.message.setIsHovering(false);
       },
     }),

@@ -143,6 +143,21 @@ describe("MessagePrimitiveRoot", () => {
     );
   });
 
+  it("does not restore hover when the caller's enter handler unmounts the root", () => {
+    const [visible, setVisible] = createSignal(true);
+    const { el, client } = mount(
+      { onMouseEnter: () => setVisible(false) },
+      visible,
+    );
+    const root = el.querySelector("div")!;
+    flushTapSync(() => root.dispatchEvent(new MouseEvent("mouseenter")));
+    expect(el.querySelector("[data-message-id]")).toBeNull();
+    expect(client().message.getState().isHovering).toBe(false);
+    expect(el.querySelector(".hover")?.getAttribute("data-hovering")).toBe(
+      "false",
+    );
+  });
+
   it.each([false, true])(
     "runs caller hover handlers first without a native event veto (bound=%s)",
     (bound) => {
