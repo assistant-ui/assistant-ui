@@ -6,7 +6,7 @@ import {
   createStaleReporter,
   type AssistantClient,
 } from "@assistant-ui/store/client";
-import type { AttachmentMethods } from "@assistant-ui/core/store";
+import type { AttachmentMethods, MessageState } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 
@@ -32,8 +32,9 @@ export const AttachmentByIndexProvider = (props: {
       const state =
         source === "message" ? aui.message.getState() : aui.composer.getState();
       return (
-        ("submission" in state
-          ? (state.submission?.attachments ?? state.attachments)
+        (source === "message"
+          ? ((state as MessageState).submission?.attachments ??
+            state.attachments)
           : state.attachments
         )?.length ?? 0
       );

@@ -56,12 +56,14 @@ export const ComposerPrimitiveAddAttachment = (
     (s) => s.thread.isDisabled || !s.composer.isEditing,
   );
   let generation = 0;
+  const pickers = new Set<HTMLInputElement>();
   createComputed(() => {
     threadId();
     generation++;
   });
   onCleanup(() => {
     generation++;
+    pickers.forEach((input) => input.remove());
   });
   return createComponent(
     Dynamic,
@@ -81,6 +83,11 @@ export const ComposerPrimitiveAddAttachment = (
         if (event.defaultPrevented || disabled() || rest.disabled) return;
         const pickerGeneration = generation;
         const input = document.createElement("input");
+        pickers.add(input);
+        const remove = () => {
+          input.remove();
+          pickers.delete(input);
+        };
         input.type = "file";
         input.multiple = local.multiple ?? true;
         input.hidden = true;
@@ -92,9 +99,9 @@ export const ComposerPrimitiveAddAttachment = (
             for (const file of Array.from(input.files))
               aui.composer.addAttachment(file).catch(() => {});
           }
-          input.remove();
+          remove();
         };
-        input.oncancel = () => input.remove();
+        input.oncancel = remove;
         input.click();
       },
     }),
@@ -111,24 +118,28 @@ export const ComposerPrimitiveAttachmentDropzone = (
   props: JSX.HTMLAttributes<HTMLDivElement> & {
     disabled?: boolean;
     "data-dragging"?: string;
+  } & {
+    [
+      K in `oncapture:${"dragenter" | "dragover" | "dragleave" | "drop"}`
+    ]?: JSX.EventHandler<HTMLDivElement, DragEvent>;
   },
 ): JSX.Element => {
   const [local, rest] = splitProps(props, [
     "disabled",
-    "onDragEnter",
-    "onDragOver",
-    "onDragLeave",
-    "onDrop",
+    "oncapture:dragenter",
+    "oncapture:dragover",
+    "oncapture:dragleave",
+    "oncapture:drop",
     "data-dragging",
   ]);
   const aui = useAui();
   const [dragging, setDragging] = createSignal(false);
-  const threadDisabled = useAuiState((s) => s.thread.isDisabled);
+  const supported = useAuiState(
+    (s) => !s.thread.isDisabled && s.thread.capabilities.attachments,
+  );
   createComputed(() => {
-    if (local.disabled || threadDisabled()) setDragging(false);
+    if (local.disabled || !supported()) setDragging(false);
   });
-  const supported = () =>
-    !threadDisabled() && aui.thread.getState().capabilities.attachments;
   type Drag = DragEvent & { currentTarget: HTMLDivElement; target: Element };
   const isFileDrag = (event: Drag) =>
     event.dataTransfer?.types.includes("Files") === true;
@@ -150,14 +161,16 @@ export const ComposerPrimitiveAttachmentDropzone = (
     mergeProps(rest, {
       component: "div",
       get "data-dragging"() {
-        return !local.disabled && !threadDisabled() && dragging()
+        return !local.disabled && supported() && dragging()
           ? "true"
           : local["data-dragging"];
       },
-      onDragEnter: (event: Drag) => hover(local.onDragEnter, event),
-      onDragOver: (event: Drag) => hover(local.onDragOver, event),
-      onDragLeave: (event: Drag) => {
-        callEventHandler(local.onDragLeave, event);
+      "oncapture:dragenter": (event: Drag) =>
+        hover(local["oncapture:dragenter"], event),
+      "oncapture:dragover": (event: Drag) =>
+        hover(local["oncapture:dragover"], event),
+      "oncapture:dragleave": (event: Drag) => {
+        callEventHandler(local["oncapture:dragleave"], event);
         if (local.disabled || !isFileDrag(event)) return;
         if (
           event.relatedTarget &&
@@ -166,11 +179,11 @@ export const ComposerPrimitiveAttachmentDropzone = (
           return;
         setDragging(false);
       },
-      onDrop: (event: Drag) => {
-        callEventHandler(local.onDrop, event);
-        if (event.defaultPrevented || local.disabled || !isFileDrag(event))
-          return;
+      "oncapture:drop": (event: Drag) => {
+        callEventHandler(local["oncapture:drop"], event);
+        if (local.disabled || !isFileDrag(event)) return;
         setDragging(false);
+        if (event.defaultPrevented) return;
         event.preventDefault();
         if (!supported()) return;
         for (const file of Array.from(event.dataTransfer?.files ?? []))

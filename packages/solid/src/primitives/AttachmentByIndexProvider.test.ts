@@ -13,6 +13,7 @@ import type {
   ExternalStoreAdapter,
   ThreadMessageLike,
 } from "@assistant-ui/core";
+import { SimpleTextAttachmentAdapter } from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
@@ -40,6 +41,7 @@ const mount = (
     index: 0,
   },
   visible: () => boolean = () => true,
+  options: Partial<ExternalStoreAdapter<ThreadMessageLike>> = {},
 ) => {
   let attachments = [attachment("first"), attachment("second")];
   const makeAdapter = (): ExternalStoreAdapter<ThreadMessageLike> => ({
@@ -47,6 +49,7 @@ const mount = (
     convertMessage: (message) => message,
     onNew: async () => {},
     onEdit: async () => {},
+    ...options,
   });
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
@@ -114,6 +117,55 @@ const mount = (
 };
 
 describe("AttachmentByIndexProvider", () => {
+  it("validates composer rows against the detached draft during a thread send", async () => {
+    const [visible, setVisible] = createSignal(true);
+    const [source, setSource] = createSignal<"composer" | "message">("message");
+    let finish!: () => void;
+    const upload = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const adapter = new SimpleTextAttachmentAdapter();
+    vi.spyOn(adapter, "send").mockImplementation(async (attachment) => {
+      await upload;
+      return { ...attachment, status: { type: "complete" }, content: [] };
+    });
+    const onNew = vi.fn(async () => {});
+    const { el, runtime, client } = mount(
+      {
+        get source() {
+          return source();
+        },
+        index: 0,
+      },
+      visible,
+      { adapters: { attachments: adapter }, onNew },
+    );
+    const composer = runtime.thread.composer;
+    await composer.addAttachment(
+      new File(["data"], "sending.txt", { type: "text/plain" }),
+    );
+    flushTapSync(() => {});
+    await vi.waitFor(() =>
+      expect(client().composer.getState().attachments).toHaveLength(1),
+    );
+    setSource("composer");
+    await vi.waitFor(() => expect(el.textContent).toBe("sending.txt"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      flushTapSync(() => composer.send());
+      expect(composer.getState().attachments).toEqual([]);
+      expect(composer.getState().submission?.attachments).toHaveLength(1);
+      expect(onNew).not.toHaveBeenCalled();
+      expect(el.textContent).toBe("sending.txt");
+      setVisible(false);
+      await Promise.resolve();
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      finish();
+      await vi.waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+    }
+  });
+
   it("follows live index and source props", async () => {
     const [index, setIndex] = createSignal(1);
     const [source, setSource] = createSignal<"composer" | "message">("message");

@@ -98,6 +98,24 @@ describe("attachment display primitives", () => {
     expect(el.textContent).toBe("image");
   });
 
+  it.each([
+    [undefined, "notes.md", ".md"],
+    [null, "notes.md", ".md"],
+    [undefined, "photo", "image"],
+    [null, "photo", "image"],
+  ] as const)("falls back from %s children for %s", (children, name, label) => {
+    const el = mount(
+      () => [
+        createComponent(AttachmentPrimitiveName, { children }),
+        createComponent(AttachmentPrimitiveThumb, { class: "thumb", children }),
+      ],
+      name,
+      "image",
+    );
+    expect(el.querySelector(".thumb")?.textContent).toBe(label);
+    expect(el.childNodes[0]?.textContent).toBe(name);
+  });
+
   it("forwards refs and reactive attributes and renders children overrides", () => {
     const ref = vi.fn();
     const [label, setLabel] = createSignal("custom");
@@ -136,7 +154,7 @@ describe("attachment display primitives", () => {
 
   it("honors explicitly empty children for name and thumb", () => {
     const el = mount(() => [
-      createComponent(AttachmentPrimitiveName, { children: null }),
+      createComponent(AttachmentPrimitiveName, { children: "" }),
       createComponent(AttachmentPrimitiveThumb, { children: "" }),
     ]);
     expect(el.textContent).toBe("");

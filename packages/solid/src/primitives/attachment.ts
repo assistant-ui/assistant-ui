@@ -17,8 +17,7 @@ export const AttachmentPrimitiveName = (props: {
   children?: JSX.Element;
 }): JSX.Element => {
   const name = useAuiState((s) => s.attachment.name);
-  return (() =>
-    "children" in props ? props.children : name()) as unknown as JSX.Element;
+  return (() => props.children ?? name()) as unknown as JSX.Element;
 };
 
 /**
@@ -41,7 +40,7 @@ export const AttachmentPrimitiveThumb = (
     mergeProps(rest, {
       component: "div",
       get children() {
-        return "children" in props ? local.children : label();
+        return local.children ?? label();
       },
     }),
   );

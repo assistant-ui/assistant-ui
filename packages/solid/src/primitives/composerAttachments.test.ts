@@ -80,6 +80,10 @@ const createRuntime = ({
       isDisabled = value;
       flushTapSync(() => core.setAdapter(makeAdapter()));
     },
+    setSupported: (value: boolean) => {
+      withAttachments = value;
+      flushTapSync(() => core.setAdapter(makeAdapter()));
+    },
   };
 };
 const disposers: (() => void)[] = [];
@@ -383,6 +387,8 @@ describe("ComposerPrimitiveAddAttachment", () => {
     el.querySelector("button")!.click();
     const input = picker();
     unmount();
+    expect(input.isConnected).toBe(false);
+    expect(picker()).toBeNull();
     select(input, [file("late.txt")]);
     await Promise.resolve();
     expect(added).toEqual([]);
@@ -456,6 +462,29 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     };
   };
 
+  it.each(["dragenter", "dragover"])(
+    "keeps dragging when a child prevents %s",
+    (type) => {
+      const { dz } = mountDropzone(
+        {},
+        {
+          get children() {
+            return createComponent(Dynamic, {
+              component: "span",
+              children: "editor",
+            });
+          },
+        },
+      );
+      const child = dz.querySelector("span")!;
+      const handler = vi.fn((event: Event) => event.preventDefault());
+      child.addEventListener(type, handler);
+      child.dispatchEvent(drag(type));
+      expect(handler).toHaveBeenCalledOnce();
+      expect(dz.dataset.dragging).toBe("true");
+    },
+  );
+
   it("flags file drags and adds each dropped file once", async () => {
     const { dz, added, client } = mountDropzone();
     expect(dz.textContent).toBe("drop here");
@@ -522,6 +551,21 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     },
   );
 
+  it("clears dragging when attachment support is removed mid drag", () => {
+    const { dz, added, setSupported } = mountDropzone();
+    dz.dispatchEvent(drag("dragenter"));
+    expect(dz.dataset.dragging).toBe("true");
+    setSupported(false);
+    expect(dz.hasAttribute("data-dragging")).toBe(false);
+    setSupported(true);
+    expect(dz.hasAttribute("data-dragging")).toBe(false);
+    dz.dispatchEvent(drag("dragover"));
+    expect(dz.dataset.dragging).toBe("true");
+    setSupported(false);
+    expect(dz.dispatchEvent(drag("drop", [file("ignored.txt")]))).toBe(false);
+    expect(added).toEqual([]);
+  });
+
   it.each([{ isDisabled: true }, { withAttachments: false }])(
     "claims file drops without adding when unavailable (%j)",
     (options) => {
@@ -565,19 +609,16 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
   });
 
   it.each(["dragenter", "dragover", "drop"] as const)(
-    "runs bound caller %s first and honors its veto",
+    "runs caller capture %s first and honors its veto",
     (type) => {
-      const handler = vi.fn((data: string, event: DragEvent) => {
-        expect(data).toBe("caller");
+      const handler = vi.fn((event: DragEvent) => {
         expect(event.defaultPrevented).toBe(false);
         event.preventDefault();
       });
-      const key = {
-        dragenter: "onDragEnter",
-        dragover: "onDragOver",
-        drop: "onDrop",
-      }[type];
-      const { dz, added } = mountDropzone({}, { [key]: [handler, "caller"] });
+      const { dz, added } = mountDropzone(
+        {},
+        { [`oncapture:${type}`]: handler },
+      );
       dz.dispatchEvent(drag(type, [file("veto.txt")]));
       expect(handler).toHaveBeenCalledOnce();
       expect(dz.hasAttribute("data-dragging")).toBe(false);
@@ -585,51 +626,83 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     },
   );
 
+  it("clears dragging when the caller vetoes a file drop", () => {
+    const handler = vi.fn((event: DragEvent) => {
+      expect(dz.dataset.dragging).toBe("true");
+      event.preventDefault();
+    });
+    const { dz, added } = mountDropzone({}, { "oncapture:drop": handler });
+    dz.dispatchEvent(drag("dragenter"));
+    expect(dz.dataset.dragging).toBe("true");
+    expect(dz.dispatchEvent(drag("drop", [file("veto.txt")]))).toBe(false);
+    expect(handler).toHaveBeenCalledOnce();
+    expect(dz.hasAttribute("data-dragging")).toBe(false);
+    expect(added).toEqual([]);
+  });
+
   it("runs a noncancelable dragleave handler first and still clears dragging", () => {
     const handler = vi.fn((event: DragEvent) => {
       expect(event.cancelable).toBe(false);
       expect(dz.dataset.dragging).toBe("true");
       event.preventDefault();
     });
-    const { dz } = mountDropzone({}, { onDragLeave: handler });
+    const { dz } = mountDropzone({}, { "oncapture:dragleave": handler });
     dz.dispatchEvent(drag("dragenter"));
     dz.dispatchEvent(drag("dragleave"));
     expect(handler).toHaveBeenCalledOnce();
     expect(dz.hasAttribute("data-dragging")).toBe(false);
   });
 
-  it("keeps caller handlers in their bubbling phase and forwards refs and reactive props", () => {
-    const order: string[] = [];
-    const ref = vi.fn();
-    const [label, setLabel] = createSignal("Drop");
-    const { dz } = mountDropzone(
-      {},
-      {
-        ref,
-        onDragOver: () => {
-          order.push("zone");
+  it.each([false, true])(
+    "keeps bubbling caller handlers after capture and forwards reactive props (bound=%s)",
+    (bound) => {
+      const order: string[] = [];
+      const ref = vi.fn();
+      const [label, setLabel] = createSignal("Drop");
+      const bubble = vi.fn((event: DragEvent) => {
+        expect(event.defaultPrevented).toBe(true);
+        expect(dz.dataset.dragging).toBe("true");
+        order.push("zone");
+      });
+      const tuple = vi.fn((data: string, event: DragEvent) => {
+        expect(data).toBe("caller");
+        bubble(event);
+      });
+      const { dz } = mountDropzone(
+        {},
+        {
+          ref,
+          "oncapture:dragover": (event) => {
+            expect(event.defaultPrevented).toBe(false);
+            expect(dz.hasAttribute("data-dragging")).toBe(false);
+            order.push("capture");
+          },
+          onDragOver: bound ? [tuple, "caller"] : bubble,
+          get "aria-label"() {
+            return label();
+          },
+          get children() {
+            return createComponent(Dynamic, {
+              component: "span",
+              onDragOver: (event: DragEvent) => {
+                expect(event.defaultPrevented).toBe(true);
+                expect(dz.dataset.dragging).toBe("true");
+                order.push("child");
+              },
+              get children() {
+                return label();
+              },
+            });
+          },
         },
-        get "aria-label"() {
-          return label();
-        },
-        get children() {
-          return createComponent(Dynamic, {
-            component: "span",
-            onDragOver: () => {
-              order.push("child");
-            },
-            get children() {
-              return label();
-            },
-          });
-        },
-      },
-    );
-    expect(ref.mock.calls[0]?.[0]).toBe(dz);
-    dz.querySelector("span")!.dispatchEvent(drag("dragover"));
-    expect(order).toEqual(["child", "zone"]);
-    setLabel("Updated");
-    expect(dz.getAttribute("aria-label")).toBe("Updated");
-    expect(dz.textContent).toBe("Updated");
-  });
+      );
+      expect(ref.mock.calls[0]?.[0]).toBe(dz);
+      dz.querySelector("span")!.dispatchEvent(drag("dragover"));
+      expect(order).toEqual(["capture", "child", "zone"]);
+      expect(bubble).toHaveBeenCalledOnce();
+      setLabel("Updated");
+      expect(dz.getAttribute("aria-label")).toBe("Updated");
+      expect(dz.textContent).toBe("Updated");
+    },
+  );
 });
