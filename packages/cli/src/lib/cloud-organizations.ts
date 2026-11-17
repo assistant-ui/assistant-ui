@@ -35,8 +35,21 @@ export const fetchOrganizations = async (
       `Failed to load organizations: ${response.status}`,
       response.status,
     );
-  const organizations: unknown = await response.json();
-  if (!Array.isArray(organizations))
+  let organizations: unknown;
+  try {
+    organizations = await response.json();
+  } catch {
     throw new AccountsRequestError("Accounts returned no organizations", 502);
-  return organizations as AccountsOrganization[];
+  }
+  if (!Array.isArray(organizations) || !organizations.every(isOrganization))
+    throw new AccountsRequestError("Accounts returned no organizations", 502);
+  return organizations;
+};
+
+const isOrganization = (value: unknown): value is AccountsOrganization => {
+  if (value === null || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (["id", "slug", "name", "role"] as const).every(
+    (key) => typeof row[key] === "string" && row[key] !== "",
+  );
 };
