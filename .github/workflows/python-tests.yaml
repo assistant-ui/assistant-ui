@@ -100,7 +100,8 @@ jobs:
       - name: Run tests
         if: steps.selection.outputs.run == 'true'
         env:
-          # The Postgres thread store cases skip without a database; the service above
-          # only exists for assistant-stream, so leave the sync server without one.
+          # The Postgres thread store cases skip without a database. The service is
+          # declared on the shared job, so its container also starts on the sync-server
+          # legs, but only assistant-stream gets DATABASE_URL and runs those cases.
           DATABASE_URL: ${{ matrix.package == 'assistant-stream' && 'postgresql://postgres:postgres@127.0.0.1:5432/assistant_stream' || '' }}
         run: uv run pytest
