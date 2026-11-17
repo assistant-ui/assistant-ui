@@ -1,13 +1,11 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // `react` resolves to tap's standalone shim, so this suite is the
 // react-less integration proof for the whole chain: tap standalone shim,
-// the store client entry (dist), and the Solid bridge. solid-js is inlined
-// so the browser condition selects its reactive build instead of the
-// server build Node resolves by default.
+// the store client entry (dist), and the Solid bridge. The browser project
+// inlines solid-js so its browser condition selects the reactive build.
 export default defineConfig({
   resolve: {
-    conditions: ["browser", "development"],
     alias: [
       {
         find: /^react\/compiler-runtime$/,
@@ -29,13 +27,27 @@ export default defineConfig({
           Math.max(previous, Math.floor(threshold) - 1),
       },
     },
-    environment: "jsdom",
     fsModuleCache: true,
     globals: true,
-    server: {
-      deps: {
-        inline: [/solid-js/],
+    projects: [
+      {
+        resolve: { conditions: ["browser", "development"] },
+        test: {
+          name: "jsdom",
+          environment: "jsdom",
+          exclude: [...configDefaults.exclude, "src/**/*.ssr.test.ts"],
+          server: {
+            deps: { inline: [/solid-js/] },
+          },
+        },
       },
-    },
+      {
+        test: {
+          name: "server",
+          environment: "node",
+          include: ["src/**/*.ssr.test.ts"],
+        },
+      },
+    ],
   },
 });
