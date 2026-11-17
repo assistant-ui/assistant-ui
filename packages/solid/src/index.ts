@@ -39,6 +39,22 @@ export {
 export { ThreadPrimitiveRoot } from "./primitives/thread";
 export { MessagePrimitiveRoot } from "./primitives/message";
 
+export { ErrorPrimitiveRoot, ErrorPrimitiveMessage } from "./primitives/error";
+export { ChainOfThoughtPrimitiveAccordionTrigger } from "./primitives/ChainOfThoughtPrimitiveAccordionTrigger";
+export { ChainOfThoughtPrimitiveParts } from "./primitives/ChainOfThoughtPrimitiveParts";
+
+export {
+  ActionBarPrimitiveEdit,
+  ActionBarPrimitiveReload,
+  ActionBarPrimitiveCopy,
+} from "./primitives/actionBar";
+export {
+  BranchPickerPrimitivePrevious,
+  BranchPickerPrimitiveNext,
+  BranchPickerPrimitiveNumber,
+  BranchPickerPrimitiveCount,
+} from "./primitives/branchPicker";
+
 export { AttachmentByIndexProvider } from "./primitives/AttachmentByIndexProvider";
 export {
   AttachmentPrimitiveRoot,
