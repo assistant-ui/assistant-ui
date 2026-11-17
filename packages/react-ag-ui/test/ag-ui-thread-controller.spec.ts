@@ -500,6 +500,8 @@ const createCore = (
 
 // On teardown @ag-ui/client rethrows an errored body's reader.cancel()
 // rejection as an unhandled rejection; the wrapped cancel absorbs it.
+const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 const createStreamingHttpAgent = () => {
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   const stream = new ReadableStream<Uint8Array>({
@@ -2373,16 +2375,19 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.isRunning()).toBe(false);
   });
 
-  it("starts a new run when the user sends while the finished response drains", async () => {
+  it("waits for the finished response to close before the next run starts", async () => {
     const writers: ReadableStreamDefaultController<Uint8Array>[] = [];
+    const signals: AbortSignal[] = [];
     const encoder = new TextEncoder();
     const agent = new HttpAgent({
       url: "https://example.invalid",
       fetch: async (_url, init) => {
+        const signal = init!.signal!;
+        signals.push(signal);
         const body = new ReadableStream<Uint8Array>({
           start: (c) => {
             writers.push(c);
-            init?.signal?.addEventListener("abort", () =>
+            signal.addEventListener("abort", () =>
               c.error(new DOMException("aborted", "AbortError")),
             );
           },
@@ -2411,26 +2416,127 @@ describe("AGUIThreadRuntimeCore", () => {
     write(0, { type: "TEXT_MESSAGE_END", messageId: "m1" });
     write(0, { type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
     await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    let firstSettled = false;
+    void first.then(() => {
+      firstSettled = true;
+    });
     const firstAnswer = core.getMessages().at(-1)!;
 
     const second = core.append({
       ...createAppendMessage(),
       parentId: firstAnswer.id,
     });
-    await vi.waitFor(() => expect(writers).toHaveLength(2));
     expect(core.isRunning()).toBe(true);
+    await flushPromises();
+    expect(firstSettled).toBe(false);
+    expect(writers).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(false);
+
+    writers[0]!.close();
     await expect(first).resolves.toBeUndefined();
+    await vi.waitFor(() => expect(writers).toHaveLength(2));
+    expect(signals[0]?.aborted).toBe(false);
     expect(core.isRunning()).toBe(true);
     expect(
       core.getMessages().find((message) => message.id === firstAnswer.id)
         ?.status,
     ).toMatchObject({ type: "complete" });
 
-    expect(onCancel).not.toHaveBeenCalled();
     write(1, { type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
     write(1, { type: "RUN_FINISHED", threadId: "thread", runId: "run-2" });
     writers[1]!.close();
     await expect(second).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("drops the waiting run when Stop lands while the finished response drains", async () => {
+    let releaseFirst!: () => void;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length > 1) return;
+      notifyRunFinished(subscriber, input.runId);
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+    });
+    const abortRun = vi.fn(() => releaseFirst());
+    const onCancel = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent, {
+      onCancel,
+    });
+
+    const first = core.append(createAppendMessage());
+    await flushPromises();
+    expect(core.isRunning()).toBe(false);
+
+    const second = core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+    expect(core.isRunning()).toBe(true);
+
+    await core.cancel();
+    await first;
+    await second;
+
+    expect(abortRun).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("runs only the user's send when a frontend tool result also waits on the drain", async () => {
+    let releaseFirst!: () => void;
+    const runInputs: any[] = [];
+    let core!: AgUiThreadController;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runAgent.mock.calls.length > 1) {
+        notifyRunFinished(subscriber, input.runId);
+        return;
+      }
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-1",
+          toolCallName: "tool_a",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+      });
+      notifyRunFinished(subscriber, input.runId);
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+
+    const first = core.append(createAppendMessage());
+    await flushPromises();
+    expect(core.isRunning()).toBe(false);
+    const assistant = core.getMessages().at(-1)!;
+
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "tool_a",
+      result: "ok",
+      isError: false,
+    });
+    expect(core.isRunning()).toBe(true);
+    const second = core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    releaseFirst();
+    await first;
+    await second;
+    await flushPromises();
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(
+      runInputs[1].messages.filter((m: { role: string }) => m.role === "user"),
+    ).toHaveLength(2);
     expect(core.isRunning()).toBe(false);
   });
 
@@ -6354,7 +6460,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
-  it("steerAway starts a new run while the finished run's response drains", async () => {
+  it("steerAway starts its run once the finished run's response closes", async () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((r) => {
       release = r;
@@ -6390,12 +6496,15 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["call-1"]);
     expect(core.isRunning()).toBe(false);
 
-    await core.steerAway("x");
+    const steer = core.steerAway("x");
+    await flushPromises();
+    expect(runCount).toBe(1);
 
-    expect(runCount).toBe(2);
-    expect(core.getPendingToolCalls()).toBeNull();
     release();
     await appendPromise;
+    await steer;
+    expect(runCount).toBe(2);
+    expect(core.getPendingToolCalls()).toBeNull();
     expect(core.isRunning()).toBe(false);
   });
 

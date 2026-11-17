@@ -535,7 +535,7 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     };
   };
 
-  it("answers the gate while the finished run's response is still open", async () => {
+  it("sends an answer given during the drain once the response closes", async () => {
     const { agent, runAgent, release } = heldGatingAgent();
     const onError = vi.fn();
     const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
@@ -554,21 +554,29 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     );
     expect(result.current.thread.getState().isRunning).toBe(false);
 
+    let answered!: Promise<void>;
+    act(() => {
+      answered = gatedPart(result.current).respondToToolApproval({
+        approved: true,
+      });
+    });
     await act(async () => {
-      await gatedPart(result.current).respondToToolApproval({ approved: true });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(result.current.thread.getState().isRunning).toBe(true);
+
+    await act(async () => {
+      release();
+      await answered;
     });
     await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
     expect(resumeOf(runAgent)).toEqual([
       { interruptId: "int-1", status: "resolved", payload: { approved: true } },
     ]);
-
-    await act(async () => {
-      release();
-    });
     await waitFor(() =>
       expect(result.current.thread.getState().isRunning).toBe(false),
     );
-    expect(runAgent).toHaveBeenCalledTimes(2);
     expect(onError).not.toHaveBeenCalled();
   });
 });
