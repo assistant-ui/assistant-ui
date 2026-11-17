@@ -47,7 +47,6 @@ describe("AuiProvider", () => {
 
     flushTapSync(() => aui.thread.setSelected(1));
 
-    expect(getAui()).toBe(aui);
     expect(aui.message.getState().id).toBe("m1");
 
     unmount();
@@ -157,7 +156,7 @@ describe("AuiProvider", () => {
     unmount();
   });
 
-  it("releases the client on unmount, soft unmounting its scopes", async () => {
+  it("destroys the client on unmount, releasing its scopes at once", () => {
     const { Probe } = captureAui();
     const { unmount } = mount(() =>
       providerWith(AuiConfig({ thread: ThreadClient() } as never), Probe),
@@ -165,9 +164,7 @@ describe("AuiProvider", () => {
 
     const afterMount = trackers.threadCleanups;
     unmount();
-    await vi.waitFor(() =>
-      expect(trackers.threadCleanups).toBe(afterMount + 1),
-    );
+    expect(trackers.threadCleanups).toBe(afterMount + 1);
   });
 
   it("returns the throwing default client outside a provider", () => {

@@ -2,6 +2,7 @@ import {
   createComponent,
   createEffect,
   createRoot,
+  createSignal,
   getOwner,
   on,
   onCleanup,
@@ -75,12 +76,17 @@ export const AuiProvider = (props: AuiProviderProps): JSX.Element => {
     },
     parent ? { parent } : undefined,
   );
-  // The provider holds the lifetime subscription that keeps the client
-  // mounted while descendants come and go
-  onCleanup(handle.subscribe(() => {}));
+  // One subscription writes one signal per store update, so every accessor in
+  // the subtree recomputes before any dependent effect runs
+  const [track, trigger] = createSignal(undefined, { equals: false });
+  const release = handle.subscribe(() => trigger());
+  onCleanup(() => {
+    release();
+    handle.destroy();
+  });
 
   return createComponent(AuiContext.Provider, {
-    value: { source: handle, aui: createClientFacade(handle) },
+    value: { source: handle, aui: createClientFacade(handle), track },
     get children() {
       return props.children;
     },

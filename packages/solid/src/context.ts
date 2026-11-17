@@ -8,6 +8,7 @@ import {
 export type AuiContextValue = {
   source: AssistantClientSource;
   aui: AssistantClient;
+  track: () => void;
 };
 
 export const defaultContext: AuiContextValue = {
@@ -16,6 +17,7 @@ export const defaultContext: AuiContextValue = {
     subscribe: () => () => {},
   },
   aui: DefaultAssistantClient,
+  track: () => {},
 };
 
 export const AuiContext = createContext<AuiContextValue>(defaultContext);

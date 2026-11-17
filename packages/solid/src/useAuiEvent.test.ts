@@ -64,6 +64,10 @@ describe("useAuiEvent", () => {
 
     flushTapSync(() => aui.thread.setSelected(1));
 
+    flushTapSync(() => aui.thread.message({ index: 0 }).ping("old"));
+    await flushEvents();
+    expect(cb).not.toHaveBeenCalled();
+
     flushTapSync(() => aui.message.ping("after-rebind"));
     await flushEvents();
     expect(cb).toHaveBeenCalledTimes(1);

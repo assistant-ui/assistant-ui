@@ -3,6 +3,7 @@ import {
   createComponent,
   createEffect,
   createSignal,
+  createRoot,
   on,
   type Accessor,
 } from "solid-js";
@@ -88,6 +89,24 @@ describe("useAuiState", () => {
     unmount();
   });
 
+  it("settles every accessor before dependents run", () => {
+    let aui!: AnyClient;
+    const seen: [number, number][] = [];
+    const { unmount } = mountWithProvider(() => {
+      aui = useAui() as AnyClient;
+      const a = useAuiState((s) => (s as AnyClient).thread.selected as number);
+      const b = useAuiState(
+        (s) => ((s as AnyClient).thread.selected as number) * 10,
+      );
+      createEffect(on([a, b], ([x, y]) => seen.push([x, y]), { defer: true }));
+    });
+
+    flushTapSync(() => aui.thread.setSelected(1));
+    expect(seen).toEqual([[1, 10]]);
+
+    unmount();
+  });
+
   it("tracks signals the selector reads", () => {
     let aui!: AnyClient;
     let text!: Accessor<string>;
@@ -114,6 +133,15 @@ describe("useAuiState", () => {
     ).toThrow("You tried to return the entire AssistantState.");
   });
 
+  it("throws the provider error outside a provider", () => {
+    expect(() =>
+      mount(() => {
+        useAuiState((s) => (s as AnyClient).thread.selected);
+        return null;
+      }),
+    ).toThrow("Wrap your component in an <AuiProvider> component.");
+  });
+
   it("resolves unavailable scopes to undefined via optional", () => {
     let missing!: Accessor<unknown>;
     const { unmount } = mountWithProvider(() => {
@@ -125,17 +153,30 @@ describe("useAuiState", () => {
     unmount();
   });
 
-  it("releases the store subscription with its owner", () => {
+  it("stops recomputing once its owner is disposed", () => {
     let aui!: AnyClient;
+    let live!: Accessor<number>;
+    let disposeConsumer!: () => void;
     const selector = vi.fn((s: AnyClient) => s.thread.selected);
     const { unmount } = mountWithProvider(() => {
       aui = useAui() as AnyClient;
-      useAuiState(selector as never);
+      live = useAuiState((s) => (s as AnyClient).thread.selected);
+      createRoot((dispose) => {
+        disposeConsumer = dispose;
+        useAuiState(selector as never);
+      });
     });
 
-    const runs = selector.mock.calls.length;
-    unmount();
+    const initialRuns = selector.mock.calls.length;
     flushTapSync(() => aui.thread.setSelected(1));
+    expect(selector.mock.calls.length).toBeGreaterThan(initialRuns);
+
+    disposeConsumer();
+    const runs = selector.mock.calls.length;
+    flushTapSync(() => aui.thread.setSelected(0));
+    expect(live()).toBe(0);
     expect(selector).toHaveBeenCalledTimes(runs);
+
+    unmount();
   });
 });

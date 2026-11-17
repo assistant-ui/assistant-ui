@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onCleanup, type Accessor } from "solid-js";
+import { createMemo, type Accessor } from "solid-js";
 import {
   getProxiedAssistantState,
   type AssistantState,
@@ -18,8 +18,8 @@ import { useAuiContext } from "./context";
  * Scopes that may be unavailable can be read via `s.optional.<scope>`, which
  * resolves to `undefined` instead of throwing.
  *
- * Call it under a reactive owner, such as a component body; the store
- * subscription is released when that owner is disposed.
+ * Call it under a reactive owner, such as a component body; the accessor
+ * stops recomputing when that owner is disposed.
  *
  * @example
  * ```tsx
@@ -30,10 +30,7 @@ import { useAuiContext } from "./context";
 export const useAuiState = <T>(
   selector: (state: AssistantState) => T,
 ): Accessor<T> => {
-  const { source } = useAuiContext();
-
-  const [track, trigger] = createSignal(undefined, { equals: false });
-  onCleanup(source.subscribe(() => trigger()));
+  const { source, track } = useAuiContext();
 
   return createMemo(
     () => {
