@@ -202,6 +202,7 @@ type BaseComposerState = {
   readonly runConfig: RunConfig;
   readonly attachmentAccept: string;
   readonly dictation: DictationState | undefined;
+  readonly lastDictationEnd?: DictationEnd | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
   readonly submission?: ComposerSubmission | undefined;
@@ -381,6 +382,7 @@ declare namespace DictationAdapter {
   } | {
     type: "ended";
     reason: "cancelled" | "error" | "stopped";
+    error?: unknown;
   };
   type Result = {
     transcript: string;
@@ -399,6 +401,11 @@ declare namespace DictationAdapter {
 type DictationAdapter = {
   listen: () => DictationAdapter.Session;
   disableInputDuringDictation?: boolean;
+};
+
+type DictationEnd = {
+  readonly reason: "cancelled" | "error" | "stopped";
+  readonly error?: unknown;
 };
 
 type DictationState = {
