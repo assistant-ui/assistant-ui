@@ -48,10 +48,8 @@ export const MessagePrimitiveRoot = (
       ) => {
         callEventHandler(local.onMouseEnter, event);
         if (!active) return;
-        {
-          hovering = true;
-          aui.message.setIsHovering(true);
-        }
+        hovering = true;
+        aui.message.setIsHovering(true);
       },
       onMouseLeave: (
         event: MouseEvent & { currentTarget: HTMLDivElement; target: Element },
