@@ -28,10 +28,10 @@ function DocumentScopes() {
         prompt: "Tighten the introduction without losing any facts.",
       },
       {
-        title: "Add a section",
-        label: "on success metrics",
+        title: "Add a summary",
+        label: "under the title",
         prompt:
-          "Add a short section on success metrics between Pricing and Risks.",
+          "Add a two-sentence summary of this page right under the title.",
       },
       {
         title: "Review it",

@@ -7,6 +7,10 @@ import {
   type ListNode,
 } from "@lexical/list";
 import {
+  $createHorizontalRuleNode,
+  $isHorizontalRuleNode,
+} from "@lexical/react/LexicalHorizontalRuleNode";
+import {
   $createHeadingNode,
   $createQuoteNode,
   $isHeadingNode,
@@ -30,13 +34,33 @@ export type InlineRun = {
   text: string;
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  highlight?: boolean;
   code?: boolean;
   href?: string;
 };
 
-type Marks = Pick<InlineRun, "bold" | "italic" | "href">;
+type Marks = Omit<InlineRun, "text" | "code">;
 
-const ESCAPABLE = new Set(["\\", "*", "`", "["]);
+const FLAGS = [
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "highlight",
+  "code",
+] as const;
+
+// Marks that wrap their text in an opening and a closing tag. Underline and
+// highlight have no markdown syntax, so they use the HTML a model already knows.
+const WRAPPERS = [
+  { open: "~~", close: "~~", mark: "strike" },
+  { open: "<u>", close: "</u>", mark: "underline" },
+  { open: "<mark>", close: "</mark>", mark: "highlight" },
+] as const;
+
+const ESCAPABLE = new Set(["\\", "*", "`", "[", "~", "<"]);
 const LINK = /^\[((?:\\.|[^\]\\])+)\]\(([^()\s]+)\)/;
 
 const isSpace = (char: string | undefined) =>
@@ -100,10 +124,8 @@ const pushRun = (runs: InlineRun[], run: InlineRun) => {
   const last = runs[runs.length - 1];
   if (
     last &&
-    !!last.bold === !!run.bold &&
-    !!last.italic === !!run.italic &&
-    !!last.code === !!run.code &&
-    last.href === run.href
+    last.href === run.href &&
+    FLAGS.every((flag) => !!last[flag] === !!run[flag])
   ) {
     last.text += run.text;
     return;
@@ -154,6 +176,24 @@ const parseInto = (source: string, marks: Marks, runs: InlineRun[]) => {
       }
     }
 
+    const wrapper = WRAPPERS.find(
+      ({ open, mark }) => !marks[mark] && source.startsWith(open, i),
+    );
+    if (wrapper) {
+      const start = i + wrapper.open.length;
+      const end = source.indexOf(wrapper.close, start);
+      if (end > start) {
+        flush();
+        parseInto(
+          source.slice(start, end),
+          { ...marks, [wrapper.mark]: true },
+          runs,
+        );
+        i = end + wrapper.close.length;
+        continue;
+      }
+    }
+
     if (char === "*") {
       let matched = false;
       for (const marker of ["***", "**", "*"]) {
@@ -191,7 +231,8 @@ export function parseInline(source: string): InlineRun[] {
   return runs;
 }
 
-const escapeText = (text: string) => text.replace(/[\\*`[]/g, "\\$&");
+const escapeText = (text: string) =>
+  text.replace(/[\\*`[]|~(?=~)|<(?=\/?(?:u|mark)>)/g, "\\$&");
 
 const serializeRun = (run: InlineRun) => {
   const [, lead = "", core = "", trail = ""] =
@@ -202,6 +243,9 @@ const serializeRun = (run: InlineRun) => {
   if (run.bold && run.italic) body = `***${body}***`;
   else if (run.bold) body = `**${body}**`;
   else if (run.italic) body = `*${body}*`;
+  for (const { open, close, mark } of WRAPPERS) {
+    if (run[mark]) body = `${open}${body}${close}`;
+  }
   return lead + body + trail;
 };
 
@@ -222,6 +266,25 @@ export function serializeInline(runs: readonly InlineRun[]): string {
   return out;
 }
 
+/** The runs between two offsets, counted in characters of plain text. */
+export function sliceRuns(
+  runs: readonly InlineRun[],
+  from: number,
+  to = Number.POSITIVE_INFINITY,
+): InlineRun[] {
+  const sliced: InlineRun[] = [];
+  let offset = 0;
+  for (const run of runs) {
+    const start = Math.max(from - offset, 0);
+    const end = Math.min(to - offset, run.text.length);
+    if (start < end)
+      pushRun(sliced, { ...run, text: run.text.slice(start, end) });
+    offset += run.text.length;
+    if (offset >= to) break;
+  }
+  return sliced;
+}
+
 export const plainText = (source: string) =>
   parseInline(source)
     .map((run) => run.text)
@@ -235,15 +298,22 @@ const PREFIX: Record<BlockType, string> = {
   bullet: "- ",
   numbered: "1. ",
   quote: "> ",
+  divider: "---",
 };
 
 const isListType = (type: BlockType) =>
   type === "bullet" || type === "numbered";
 
+// A list item and a divider cannot turn into another kind of block in place.
+const keepsItsNode = (type: BlockType) =>
+  isListType(type) || type === "divider";
+
 export const blockToMarkdown = (block: Partial<Block>) =>
   `${PREFIX[block.type ?? "paragraph"]}${block.text ?? ""}`;
 
-type BlockNode = { node: ElementNode; type: BlockType };
+type BlockNode =
+  | { node: ElementNode; type: Exclude<BlockType, "divider"> }
+  | { node: LexicalNode; type: "divider" };
 
 function $collectBlockNodes(): BlockNode[] {
   const found: BlockNode[] = [];
@@ -263,6 +333,8 @@ function $collectBlockNodes(): BlockNode[] {
   for (const child of $getRoot().getChildren()) {
     if ($isListNode(child)) {
       visitList(child);
+    } else if ($isHorizontalRuleNode(child)) {
+      found.push({ node: child, type: "divider" });
     } else if ($isHeadingNode(child)) {
       const tag = child.getTag();
       found.push({
@@ -289,6 +361,9 @@ function $readRuns(
         text: child.getTextContent(),
         ...(child.hasFormat("bold") && { bold: true }),
         ...(child.hasFormat("italic") && { italic: true }),
+        ...(child.hasFormat("underline") && { underline: true }),
+        ...(child.hasFormat("strikethrough") && { strike: true }),
+        ...(child.hasFormat("highlight") && { highlight: true }),
         ...(child.hasFormat("code") && { code: true }),
         ...(href && { href }),
       });
@@ -310,6 +385,9 @@ function $textNodes(run: InlineRun): LexicalNode[] {
     const text = $createTextNode(line);
     if (run.bold) text.toggleFormat("bold");
     if (run.italic) text.toggleFormat("italic");
+    if (run.underline) text.toggleFormat("underline");
+    if (run.strike) text.toggleFormat("strikethrough");
+    if (run.highlight) text.toggleFormat("highlight");
     if (run.code) text.toggleFormat("code");
     nodes.push(text);
   });
@@ -334,6 +412,13 @@ function $writeRuns(node: ElementNode, runs: readonly InlineRun[]) {
   }
 }
 
+const $blockText = (node: BlockNode["node"]) => {
+  if (!$isElementNode(node)) return "";
+  const runs: InlineRun[] = [];
+  $readRuns(node, undefined, runs);
+  return serializeInline(runs);
+};
+
 const $createBlockElement = (type: BlockType): ElementNode => {
   if (type === "h1" || type === "h2" || type === "h3") {
     return $createHeadingNode(type);
@@ -348,9 +433,12 @@ const $createBlockElement = (type: BlockType): ElementNode => {
  */
 export type BlockIds = Map<NodeKey, string>;
 
-const STREAMING_ID = "streaming-";
+export const STREAMING_ID = "streaming-";
 
-const normalize = (block: Partial<Block>, index: number): Block => ({
+export const normalizeBlock = (
+  block: Partial<Block>,
+  index: number,
+): Block => ({
   id: block.id ?? `${STREAMING_ID}${index}`,
   type: isBlockType(block.type) ? block.type : "paragraph",
   text: block.text ?? "",
@@ -366,9 +454,7 @@ export function $readBlocks(ids: BlockIds, mintId: () => string): Block[] {
       ids.set(key, id);
     }
     seen.add(id);
-    const runs: InlineRun[] = [];
-    $readRuns(node, undefined, runs);
-    return { id, type, text: serializeInline(runs) };
+    return { id, type, text: $blockText(node) };
   });
 }
 
@@ -382,7 +468,7 @@ export function $writeBlocks(
   incoming: readonly Partial<Block>[],
   ids: BlockIds,
 ) {
-  const blocks = incoming.map(normalize);
+  const blocks = incoming.map(normalizeBlock);
   const current = $collectBlockNodes();
 
   const patchable =
@@ -393,7 +479,7 @@ export function $writeBlocks(
       const sameId = id === block.id || !!id?.startsWith(STREAMING_ID);
       return (
         sameId &&
-        (isListType(block.type) || isListType(existing.type)
+        (keepsItsNode(block.type) || keepsItsNode(existing.type)
           ? existing.type === block.type
           : true)
       );
@@ -401,17 +487,20 @@ export function $writeBlocks(
 
   if (patchable) {
     blocks.forEach((block, index) => {
-      let { node } = current[index]!;
-      if (current[index]!.type !== block.type) {
-        const replacement = $createBlockElement(block.type);
-        node.replace(replacement, true);
-        node = replacement;
+      const existing = current[index]!;
+      if (existing.type === "divider") {
+        ids.set(existing.node.getKey(), block.id);
+        return;
       }
-      ids.set(node.getKey(), block.id);
-      const runs: InlineRun[] = [];
-      $readRuns(node, undefined, runs);
-      if (serializeInline(runs) !== block.text) {
-        $writeRuns(node, parseInline(block.text));
+      let element = existing.node;
+      if (existing.type !== block.type) {
+        const replacement = $createBlockElement(block.type);
+        element.replace(replacement, true);
+        element = replacement;
+      }
+      ids.set(element.getKey(), block.id);
+      if ($blockText(element) !== block.text) {
+        $writeRuns(element, parseInline(block.text));
       }
     });
     return;
@@ -435,12 +524,27 @@ export function $writeBlocks(
       continue;
     }
     list = undefined;
+    if (block.type === "divider") {
+      const rule = $createHorizontalRuleNode();
+      root.append(rule);
+      ids.set(rule.getKey(), block.id);
+      continue;
+    }
     const element = $createBlockElement(block.type);
     $writeRuns(element, parseInline(block.text));
     root.append(element);
     ids.set(element.getKey(), block.id);
   }
   if (blocks.length === 0) root.append($createParagraphNode());
+}
+
+export function $blockKeys(ids: BlockIds): Map<string, NodeKey> {
+  const keys = new Map<string, NodeKey>();
+  for (const { node } of $collectBlockNodes()) {
+    const id = ids.get(node.getKey());
+    if (id) keys.set(id, node.getKey());
+  }
+  return keys;
 }
 
 export function $findBlockKey(ids: BlockIds, id: string): NodeKey | undefined {

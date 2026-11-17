@@ -7,16 +7,29 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $getNearestNodeFromDOMNode, FORMAT_TEXT_COMMAND } from "lexical";
+import {
+  $getNearestNodeFromDOMNode,
+  FORMAT_TEXT_COMMAND,
+  type TextFormatType,
+} from "lexical";
 import {
   ArrowUpIcon,
   BoldIcon,
+  ChevronDownIcon,
+  CodeIcon,
+  HighlighterIcon,
   ItalicIcon,
+  LinkIcon,
+  ListIcon,
   MessageSquarePlusIcon,
+  StrikethroughIcon,
+  UnderlineIcon,
+  type LucideIcon,
 } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
@@ -25,12 +38,32 @@ import {
 import { createPortal } from "react-dom";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCommentsState, useWorkspace } from "@/components/workspace-context";
 import { $blockKeyOf, type BlockIds } from "@/lib/blocks";
 import { initialComments } from "@/lib/document-state";
+import { cn } from "@/lib/utils";
+import {
+  LIST_STYLES,
+  setLink,
+  setTextStyle,
+  TEXT_STYLES,
+  toggleList,
+  useSelectionFormat,
+  type ListStyle,
+  type TextStyle,
+} from "./editor-commands";
 
 const HIGHLIGHT = "doc-selection";
 const MAX_QUOTE_LENGTH = 2000;
+const EDGE = 8;
 
 type Captured = {
   blockId: string;
@@ -41,9 +74,9 @@ type Captured = {
   range: Range;
 };
 
-type Mode = "actions" | "ask" | "comment";
+type Mode = "actions" | "ask" | "comment" | "link";
 
-type Position = { top: number; left: number; below: boolean };
+type Position = { top: number; center: number; below: boolean };
 
 const place = (range: Range): Position | null => {
   const rect = range.getBoundingClientRect();
@@ -51,24 +84,73 @@ const place = (range: Range): Position | null => {
   const below = rect.top < 72;
   return {
     top: below ? rect.bottom + 8 : rect.top - 8,
-    left: Math.min(
-      Math.max(rect.left + rect.width / 2, 176),
-      window.innerWidth - 176,
-    ),
+    center: rect.left + rect.width / 2,
     below,
   };
 };
 
-const QUICK_ACTIONS = [
+const REWRITES = [
   {
-    label: "Improve",
+    label: "Improve writing",
     prompt: "Improve the writing of this passage. Keep its meaning and length.",
   },
   {
-    label: "Shorten",
+    label: "Fix spelling and grammar",
+    prompt:
+      "Fix the spelling and grammar of this passage. Change nothing else.",
+  },
+  {
+    label: "Make shorter",
     prompt: "Shorten this passage. Keep its meaning.",
   },
+  {
+    label: "Make longer",
+    prompt: "Expand this passage with a little more detail. Keep its tone.",
+  },
+  {
+    label: "Simplify",
+    prompt: "Rewrite this passage in simpler words. Keep its meaning.",
+  },
 ];
+
+const TEXT_FORMATS: readonly {
+  format: TextFormatType;
+  flag: "bold" | "italic" | "underline" | "strike" | "code" | "highlight";
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { format: "bold", flag: "bold", label: "Bold", icon: BoldIcon },
+  { format: "italic", flag: "italic", label: "Italic", icon: ItalicIcon },
+  {
+    format: "underline",
+    flag: "underline",
+    label: "Underline",
+    icon: UnderlineIcon,
+  },
+  {
+    format: "strikethrough",
+    flag: "strike",
+    label: "Strikethrough",
+    icon: StrikethroughIcon,
+  },
+  { format: "code", flag: "code", label: "Code", icon: CodeIcon },
+  {
+    format: "highlight",
+    flag: "highlight",
+    label: "Highlight",
+    icon: HighlighterIcon,
+  },
+];
+
+const Separator = () => (
+  <span aria-hidden className="bg-foreground/10 mx-1 h-4 w-px shrink-0" />
+);
+
+const iconButton = "size-7 shrink-0 [&_svg]:size-4";
+const menuTrigger =
+  "text-muted-foreground hover:text-foreground h-7 shrink-0 gap-0.5 px-1.5 [&_svg]:size-4";
+const fieldInput =
+  "placeholder:text-muted-foreground/70 h-7 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none";
 
 export function SelectionToolbar({ ids }: { ids: BlockIds }) {
   const [editor] = useLexicalComposerContext();
@@ -76,11 +158,12 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
   const { setChatOpen, showComment } = useWorkspace();
   const [, { setState: setComments }] = useCommentsState();
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const format = useSelectionFormat();
 
   const [captured, setCaptured] = useState<Captured | null>(null);
   const [mode, setMode] = useState<Mode>("actions");
   const [position, setPosition] = useState<Position | null>(null);
-  const [comment, setComment] = useState("");
+  const [draft, setDraft] = useState("");
   const toolbar = useRef<HTMLDivElement>(null);
   const modeRef = useRef(mode);
   useEffect(() => {
@@ -91,7 +174,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
     setCaptured(null);
     setPosition(null);
     setMode("actions");
-    setComment("");
+    setDraft("");
   }, []);
 
   const readSelection = useCallback((): Captured | null => {
@@ -140,7 +223,10 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       });
     };
     const onMouseDown = (event: MouseEvent) => {
-      if (toolbar.current?.contains(event.target as Node)) return;
+      const target = event.target as Element | null;
+      if (toolbar.current?.contains(target)) return;
+      // The toolbar's menus open in a portal, outside the toolbar element.
+      if (target?.closest('[data-slot^="dropdown-menu"]')) return;
       dragging = true;
       if (modeRef.current !== "actions") close();
     };
@@ -173,6 +259,19 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       window.removeEventListener("resize", follow);
     };
   }, [captured]);
+
+  // The toolbar is centered on the selection but must stay on screen, and its
+  // width is only known once it has rendered in its current mode.
+  useLayoutEffect(() => {
+    const element = toolbar.current;
+    if (!element || !position) return;
+    const half = element.offsetWidth / 2;
+    const left = Math.min(
+      Math.max(position.center, half + EDGE),
+      window.innerWidth - half - EDGE,
+    );
+    element.style.left = `${left}px`;
+  }, [position, mode, isRunning]);
 
   // Focus leaves the document while an input in the toolbar is open, and the
   // browser stops drawing the selection, so the passage is painted instead.
@@ -213,7 +312,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
 
   const saveComment = (event: FormEvent) => {
     event.preventDefault();
-    const text = comment.trim();
+    const text = draft.trim();
     if (!text) return;
     const id = `c-${Math.random().toString(36).slice(2, 8)}`;
     setComments((previous) => ({
@@ -235,6 +334,26 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
     showComment(id);
   };
 
+  const applyLink = (event: FormEvent) => {
+    event.preventDefault();
+    setLink(editor, draft);
+    close();
+    editor.focus();
+  };
+
+  const removeLink = () => {
+    setLink(editor, null);
+    close();
+    editor.focus();
+  };
+
+  // A menu hands focus back to its trigger when it closes, so the document
+  // takes it once that has happened.
+  const afterMenu = (run: () => void) => {
+    run();
+    setTimeout(() => editor.focus(), 0);
+  };
+
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape" || mode === "actions") return;
     event.preventDefault();
@@ -244,6 +363,10 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
     editor.focus();
   };
 
+  const inList = format.block === "bullet" || format.block === "number";
+  const textStyle = TEXT_STYLES.find(({ style }) => style === format.block);
+  const TextStyleIcon = textStyle?.icon ?? TEXT_STYLES[0]!.icon;
+
   return createPortal(
     <div
       ref={toolbar}
@@ -252,12 +375,12 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       style={{
         position: "fixed",
         top: position.top,
-        left: position.left,
+        left: position.center,
         transform: position.below
           ? "translate(-50%, 0)"
           : "translate(-50%, -100%)",
       }}
-      className="bg-popover text-popover-foreground ring-foreground/10 animate-in fade-in zoom-in-95 z-50 flex items-center gap-0.5 rounded-[10px] p-1 text-sm shadow-lg ring-1 duration-100 motion-reduce:animate-none"
+      className="bg-popover text-popover-foreground ring-foreground/10 animate-in fade-in z-40 flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-[10px] p-1 text-sm shadow-lg ring-1 duration-100 motion-reduce:animate-none"
       onMouseDown={(event) => {
         const target = event.target as HTMLElement;
         if (!target.closest("input, textarea")) event.preventDefault();
@@ -266,50 +389,149 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
     >
       {mode === "actions" && (
         <>
-          {!isRunning && (
-            <>
-              <TooltipIconButton
-                tooltip="Bold"
-                side="top"
-                className="size-7 [&_svg]:size-4"
-                onClick={() =>
-                  editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")
-                }
-              >
-                <BoldIcon />
-              </TooltipIconButton>
-              <TooltipIconButton
-                tooltip="Italic"
-                side="top"
-                className="size-7 [&_svg]:size-4"
-                onClick={() =>
-                  editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")
-                }
-              >
-                <ItalicIcon />
-              </TooltipIconButton>
-              <span aria-hidden className="bg-foreground/10 mx-1 h-4 w-px" />
-            </>
-          )}
-          <Button size="sm" disabled={isRunning} onClick={startAsking}>
+          <Button
+            size="sm"
+            disabled={isRunning}
+            onClick={startAsking}
+            className="shrink-0"
+          >
             Ask AI
           </Button>
-          {QUICK_ACTIONS.map((action) => (
-            <Button
-              key={action.label}
-              variant="ghost"
-              size="sm"
-              disabled={isRunning}
-              onClick={() => sendPrompt(action.prompt)}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isRunning}
+                  className="shrink-0 gap-0.5"
+                />
+              }
             >
-              {action.label}
-            </Button>
-          ))}
-          <span aria-hidden className="bg-foreground/10 mx-1 h-4 w-px" />
-          <Button variant="ghost" size="sm" onClick={() => setMode("comment")}>
-            <MessageSquarePlusIcon data-icon="inline-start" />
-            Comment
-          </Button>
+              Rewrite
+              <ChevronDownIcon className="text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-52">
+              {REWRITES.map((rewrite) => (
+                <DropdownMenuItem
+                  key={rewrite.label}
+                  onClick={() => sendPrompt(rewrite.prompt)}
+                >
+                  {rewrite.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Separator />
+          <TooltipIconButton
+            tooltip="Comment"
+            side="top"
+            className={iconButton}
+            onClick={() => setMode("comment")}
+          >
+            <MessageSquarePlusIcon />
+          </TooltipIconButton>
+          {!isRunning && (
+            <>
+              <Separator />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Text style: ${textStyle?.label ?? "List"}`}
+                      className={menuTrigger}
+                    />
+                  }
+                >
+                  <TextStyleIcon />
+                  <ChevronDownIcon className="size-3!" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-44">
+                  <DropdownMenuRadioGroup
+                    value={textStyle?.style ?? ""}
+                    onValueChange={(style) =>
+                      afterMenu(() => setTextStyle(editor, style as TextStyle))
+                    }
+                  >
+                    {TEXT_STYLES.map(({ style, label, icon: Icon }) => (
+                      <DropdownMenuRadioItem key={style} value={style}>
+                        <Icon className="text-muted-foreground" />
+                        {label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {TEXT_FORMATS.map(({ format: type, flag, label, icon: Icon }) => (
+                <TooltipIconButton
+                  key={type}
+                  tooltip={label}
+                  side="top"
+                  aria-pressed={format[flag]}
+                  className={cn(
+                    iconButton,
+                    format[flag] && "bg-muted text-foreground",
+                  )}
+                  onClick={() =>
+                    editor.dispatchCommand(FORMAT_TEXT_COMMAND, type)
+                  }
+                >
+                  <Icon />
+                </TooltipIconButton>
+              ))}
+              <Separator />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="List"
+                      className={cn(
+                        menuTrigger,
+                        inList && "bg-muted text-foreground",
+                      )}
+                    />
+                  }
+                >
+                  <ListIcon />
+                  <ChevronDownIcon className="size-3!" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-44">
+                  <DropdownMenuRadioGroup
+                    value={inList ? format.block : ""}
+                    onValueChange={(style) =>
+                      afterMenu(() => toggleList(editor, style as ListStyle))
+                    }
+                  >
+                    {LIST_STYLES.map(({ style, label, icon: Icon }) => (
+                      <DropdownMenuRadioItem key={style} value={style}>
+                        <Icon className="text-muted-foreground" />
+                        {label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <TooltipIconButton
+                tooltip="Link"
+                side="top"
+                aria-pressed={format.link !== null}
+                className={cn(
+                  iconButton,
+                  format.link !== null && "bg-muted text-foreground",
+                )}
+                onClick={() => {
+                  setDraft(format.link ?? "");
+                  setMode("link");
+                }}
+              >
+                <LinkIcon />
+              </TooltipIconButton>
+            </>
+          )}
         </>
       )}
 
@@ -342,14 +564,40 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
         <form onSubmit={saveComment} className="flex w-80 items-center gap-1">
           <input
             autoFocus
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
             placeholder="Add a comment"
             aria-label="Comment"
-            className="placeholder:text-muted-foreground/70 h-7 flex-1 bg-transparent px-2 text-sm outline-none"
+            className={fieldInput}
           />
-          <Button type="submit" size="sm" disabled={!comment.trim()}>
+          <Button type="submit" size="sm" disabled={!draft.trim()}>
             Comment
+          </Button>
+        </form>
+      )}
+
+      {mode === "link" && (
+        <form onSubmit={applyLink} className="flex w-96 items-center gap-1">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="https://example.com"
+            aria-label="Link address"
+            className={fieldInput}
+          />
+          {format.link !== null && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={removeLink}
+            >
+              Remove
+            </Button>
+          )}
+          <Button type="submit" size="sm" disabled={!draft.trim()}>
+            Apply
           </Button>
         </form>
       )}

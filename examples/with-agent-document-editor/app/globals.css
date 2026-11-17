@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "tw-shimmer";
 
 @source "../../../packages/ui/src";
 
@@ -119,7 +120,7 @@
   body {
     @apply bg-background text-foreground;
   }
-    html {
+  html {
     @apply overscroll-y-none scroll-smooth;
   }
 }
@@ -134,4 +135,39 @@
 
 ::highlight(doc-selection) {
   background-color: oklch(0.623 0.214 259.815 / 25%);
+}
+
+/* Text the assistant is typing into the document: the newest words in the
+   live color, the words before them on their way back to ink, and the old
+   text it has not overwritten yet. */
+::highlight(doc-live) {
+  color: oklch(0.623 0.214 259.815);
+}
+
+::highlight(doc-live-soft) {
+  color: oklch(0.42 0.13 262);
+}
+
+::highlight(doc-ghost) {
+  color: oklch(0.141 0.005 285.823 / 35%);
+}
+
+.dark ::highlight(doc-live) {
+  color: oklch(0.707 0.165 254.624);
+}
+
+.dark ::highlight(doc-live-soft) {
+  color: oklch(0.85 0.08 255);
+}
+
+.dark ::highlight(doc-ghost) {
+  color: oklch(0.985 0 0 / 35%);
+}
+
+/* A block the assistant is working on that still shows its old text. */
+[data-doc-stream="working"] {
+  @apply shimmer text-foreground/60;
+}
+* {
+  scrollbar-color: var(--border) transparent;
 }

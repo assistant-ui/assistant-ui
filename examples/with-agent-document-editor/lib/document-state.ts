@@ -8,6 +8,7 @@ export const BLOCK_TYPES = [
   "bullet",
   "numbered",
   "quote",
+  "divider",
 ] as const;
 
 export type BlockType = (typeof BLOCK_TYPES)[number];
@@ -20,12 +21,12 @@ export const blockSchema = z.object({
   type: z
     .enum(BLOCK_TYPES)
     .describe(
-      "h1, h2 and h3 are headings. bullet and numbered are one list item each; neighbouring items of the same type form one list.",
+      "h1, h2 and h3 are headings. bullet and numbered are one list item each; neighbouring items of the same type form one list. divider is a horizontal rule and its text is empty.",
     ),
   text: z
     .string()
     .describe(
-      "The block's text. Inline markdown only: **bold**, *italic*, `code`, [label](url). Never block syntax such as #, - or >.",
+      "The block's text. Inline formatting only: **bold**, *italic*, ~~strikethrough~~, `code`, [label](url), <u>underline</u> and <mark>highlight</mark>. Never block syntax such as #, - or >.",
     ),
 });
 
@@ -106,41 +107,110 @@ export const commentsDescription = [
 export const initialComments: CommentsState = { comments: [] };
 
 export const initialDocument: DocumentState = {
-  title: "Launch plan",
+  title: "Agent document editor",
   blocks: [
-    { id: "b1", type: "h1", text: "Launch plan" },
+    { id: "b1", type: "h1", text: "Agent document editor" },
     {
       id: "b2",
       type: "paragraph",
-      text: "We ship the beta to design partners on the 3rd and open the waitlist a week later. This page is the single place where the plan lives, so edit it freely.",
+      text: "This page is a document that you and an assistant edit together, and it is also its own guide. Everything here can be changed, so try each feature on the text that describes it.",
     },
-    { id: "b3", type: "h2", text: "Timeline" },
+    { id: "b3", type: "h2", text: "Write" },
     {
       id: "b4",
-      type: "bullet",
-      text: "**Week 1:** private beta with twelve design partners",
+      type: "paragraph",
+      text: "Type anywhere. The toolbar at the top sets **bold**, *italic*, <u>underline</u>, ~~strikethrough~~, `code`, <mark>highlight</mark> and [links](https://www.assistant-ui.com), and turns a line into a heading, a list or a quote.",
     },
     {
       id: "b5",
       type: "bullet",
-      text: "**Week 2:** waitlist opens and the docs go public",
+      text: "Type `/` on a line to insert a heading, a list, a quote or a divider.",
     },
     {
       id: "b6",
       type: "bullet",
-      text: "**Week 4:** general availability, announced on the blog",
+      text: "Highlight some text to get the same formatting in a toolbar beside it.",
     },
-    { id: "b7", type: "h2", text: "Pricing" },
+    { id: "b7", type: "h2", text: "Ask the assistant" },
     {
       id: "b8",
       type: "paragraph",
-      text: "Pricing stays flat for the first quarter. After that we move every team to usage based billing with a generous free tier, and anyone on an annual plan keeps their rate until renewal.",
+      text: "The chat is docked at the bottom of the page. Ask for a change in plain words and the assistant edits the document itself. A block shimmers while the assistant is rewriting it, then the new text is typed in over the old, with the newest words in blue.",
     },
-    { id: "b9", type: "h2", text: "Risks" },
+    {
+      id: "b9",
+      type: "bullet",
+      text: "Highlight a passage and choose **Ask AI** to give an instruction about that passage only.",
+    },
     {
       id: "b10",
+      type: "bullet",
+      text: "Open **Rewrite** beside it for a one-click change: improve, fix spelling and grammar, shorten, lengthen or simplify.",
+    },
+    {
+      id: "b11",
+      type: "bullet",
+      text: "Type `/` in the chat for ready-made requests.",
+    },
+    {
+      id: "b26",
+      type: "bullet",
+      text: "Each edit leaves a line in the chat with **View changes** and **Undo**.",
+    },
+    {
+      id: "b27",
+      type: "bullet",
+      text: "The **Chats** button starts a new chat and keeps the earlier ones.",
+    },
+    {
+      id: "b12",
+      type: "bullet",
+      text: "**Hide chat** tucks the chat away when you want the whole page, and **Show chat** brings it back.",
+    },
+    { id: "b13", type: "h2", text: "Comment" },
+    {
+      id: "b14",
       type: "paragraph",
-      text: "The main risk is support load during the first week, so two engineers stay on call. We also have not load tested the import flow past *ten thousand* rows.",
+      text: "Highlight a passage and choose the comment button to leave a note on it. Commented text is marked in the page, and the **Comments** panel holds each thread, where you can reply, resolve or delete. The assistant comments too: ask it to review the document.",
+    },
+    { id: "b15", type: "h2", text: "Go back" },
+    {
+      id: "b16",
+      type: "paragraph",
+      text: "Every message you send and every edit the assistant makes is recorded as a version. Open **History** to see what each version changed and to restore one.",
+    },
+    {
+      id: "b17",
+      type: "quote",
+      text: "History covers the current chat. The document and its comments are saved in this browser, and the chat starts fresh when you reload.",
+    },
+    { id: "b18", type: "h2", text: "Keys and models" },
+    {
+      id: "b19",
+      type: "paragraph",
+      text: "The assistant needs a model key. The round key button at the top right takes one for OpenAI, Anthropic or Google. Keys stay in this browser and go only to this app's own server. The model picker in the chat lists the models you have a key for.",
+    },
+    { id: "b20", type: "divider", text: "" },
+    { id: "b21", type: "h2", text: "Try it" },
+    {
+      id: "b22",
+      type: "numbered",
+      text: "Highlight this sentence, open **Rewrite** and choose **Make shorter**.",
+    },
+    {
+      id: "b23",
+      type: "numbered",
+      text: "Ask in the chat: *Add a two-sentence summary under the title.*",
+    },
+    {
+      id: "b24",
+      type: "numbered",
+      text: "Ask: *Review this page and leave two comments.*",
+    },
+    {
+      id: "b25",
+      type: "numbered",
+      text: "Open **History** and restore the first version.",
     },
   ],
 };

@@ -1,208 +1,165 @@
 "use client";
 
-import { $isLinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
-import {
-  $isListNode,
-  INSERT_ORDERED_LIST_COMMAND,
-  INSERT_UNORDERED_LIST_COMMAND,
-  REMOVE_LIST_COMMAND,
-} from "@lexical/list";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
-  $createHeadingNode,
-  $createQuoteNode,
-  $isHeadingNode,
-  $isQuoteNode,
-} from "@lexical/rich-text";
-import { $setBlocksType } from "@lexical/selection";
-import {
-  $createParagraphNode,
-  $getSelection,
-  $isRangeSelection,
   CAN_REDO_COMMAND,
   CAN_UNDO_COMMAND,
   COMMAND_PRIORITY_LOW,
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
   UNDO_COMMAND,
-  type LexicalNode,
 } from "lexical";
 import {
   BoldIcon,
   CodeIcon,
-  Heading1Icon,
-  Heading2Icon,
-  Heading3Icon,
+  HighlighterIcon,
   ItalicIcon,
   LinkIcon,
-  ListIcon,
-  ListOrderedIcon,
-  PilcrowIcon,
+  MinusIcon,
   RedoIcon,
+  StrikethroughIcon,
   TextQuoteIcon,
+  UnderlineIcon,
   UndoIcon,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentProps,
+  type FormEvent,
+} from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-type BlockKind =
-  | "paragraph"
-  | "h1"
-  | "h2"
-  | "h3"
-  | "quote"
-  | "bullet"
-  | "number";
-
-type ToolbarState = {
-  block: BlockKind;
-  bold: boolean;
-  italic: boolean;
-  code: boolean;
-  link: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-};
-
-const INITIAL: ToolbarState = {
-  block: "paragraph",
-  bold: false,
-  italic: false,
-  code: false,
-  link: false,
-  canUndo: false,
-  canRedo: false,
-};
-
-function $selectedBlockKind(node: LexicalNode): BlockKind {
-  for (let current: LexicalNode | null = node; current;) {
-    if ($isListNode(current)) {
-      return current.getListType() === "number" ? "number" : "bullet";
-    }
-    if ($isHeadingNode(current)) {
-      const tag = current.getTag();
-      return tag === "h1" ? "h1" : tag === "h2" ? "h2" : "h3";
-    }
-    if ($isQuoteNode(current)) return "quote";
-    current = current.getParent();
-  }
-  return "paragraph";
-}
+import {
+  insertDivider,
+  LIST_STYLES,
+  setLink,
+  setTextStyle,
+  TEXT_STYLES,
+  toggleList,
+  useSelectionFormat,
+} from "./editor-commands";
 
 function ToolbarButton({
-  label,
   active,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+  className,
+  ...props
+}: ComponentProps<typeof TooltipIconButton> & { active?: boolean }) {
   return (
     <TooltipIconButton
-      tooltip={label}
       aria-pressed={active}
-      disabled={disabled}
       onMouseDown={(event) => event.preventDefault()}
-      onClick={onClick}
+      {...props}
       className={cn(
-        "text-muted-foreground hover:text-foreground size-7 [&_svg]:size-4",
+        "text-muted-foreground hover:text-foreground size-7 shrink-0 [&_svg]:size-4",
         active && "bg-muted text-foreground",
+        className,
       )}
-    >
-      {children}
-    </TooltipIconButton>
+    />
   );
 }
 
 const Divider = () => (
-  <span aria-hidden className="bg-foreground/10 mx-1 h-4 w-px" />
+  <span aria-hidden className="bg-foreground/10 mx-1 h-4 w-px shrink-0" />
 );
+
+function LinkButton({ address }: { address: string | null }) {
+  const [editor] = useLexicalComposerContext();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  // The popover hands focus back to its button when it closes, so the
+  // document takes it once that has happened.
+  const finish = (address: string | null) => {
+    setLink(editor, address);
+    setOpen(false);
+    setTimeout(() => editor.focus(), 0);
+  };
+
+  const apply = (event: FormEvent) => {
+    event.preventDefault();
+    finish(draft);
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setDraft(address ?? "");
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <ToolbarButton tooltip="Link" active={address !== null || open} />
+        }
+      >
+        <LinkIcon />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-2">
+        <form onSubmit={apply} className="flex items-center gap-1.5">
+          <Input
+            autoFocus
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="https://example.com"
+            aria-label="Link address"
+            className="h-8"
+          />
+          {address !== null && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => finish(null)}
+            >
+              Remove
+            </Button>
+          )}
+          <Button type="submit" size="sm" disabled={!draft.trim()}>
+            Apply
+          </Button>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function FormatToolbar() {
   const [editor] = useLexicalComposerContext();
-  const [state, setState] = useState(INITIAL);
+  const format = useSelectionFormat();
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   useEffect(() => {
-    const unregisterUpdate = editor.registerUpdateListener(
-      ({ editorState }) => {
-        editorState.read(() => {
-          const selection = $getSelection();
-          if (!$isRangeSelection(selection)) return;
-          const node = selection.anchor.getNode();
-          const selected = {
-            block: $selectedBlockKind(node),
-            bold: selection.hasFormat("bold"),
-            italic: selection.hasFormat("italic"),
-            code: selection.hasFormat("code"),
-            link: $isLinkNode(node) || $isLinkNode(node.getParent()),
-          };
-          setState((previous) => ({ ...previous, ...selected }));
-        });
-      },
-    );
     const unregisterUndo = editor.registerCommand(
       CAN_UNDO_COMMAND,
-      (canUndo) => {
-        setState((previous) => ({ ...previous, canUndo }));
+      (payload) => {
+        setCanUndo(payload);
         return false;
       },
       COMMAND_PRIORITY_LOW,
     );
     const unregisterRedo = editor.registerCommand(
       CAN_REDO_COMMAND,
-      (canRedo) => {
-        setState((previous) => ({ ...previous, canRedo }));
+      (payload) => {
+        setCanRedo(payload);
         return false;
       },
       COMMAND_PRIORITY_LOW,
     );
     return () => {
-      unregisterUpdate();
       unregisterUndo();
       unregisterRedo();
     };
   }, [editor]);
-
-  const setBlock = (kind: "paragraph" | "h1" | "h2" | "h3" | "quote") => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if (!$isRangeSelection(selection)) return;
-      const next = state.block === kind ? "paragraph" : kind;
-      $setBlocksType(selection, () => {
-        if (next === "paragraph") return $createParagraphNode();
-        if (next === "quote") return $createQuoteNode();
-        return $createHeadingNode(next);
-      });
-    });
-  };
-
-  const toggleList = (kind: "bullet" | "number") => {
-    if (state.block === kind) {
-      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-      return;
-    }
-    editor.dispatchCommand(
-      kind === "bullet"
-        ? INSERT_UNORDERED_LIST_COMMAND
-        : INSERT_ORDERED_LIST_COMMAND,
-      undefined,
-    );
-  };
-
-  const toggleLink = () => {
-    if (state.link) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-      return;
-    }
-    const url = window.prompt("Link address");
-    if (url) editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
-  };
 
   return (
     <div
@@ -211,94 +168,100 @@ export function FormatToolbar() {
       className="border-foreground/10 bg-background flex h-11 shrink-0 items-center gap-0.5 overflow-x-auto border-b px-3"
     >
       <ToolbarButton
-        label="Undo"
-        disabled={!state.canUndo}
+        tooltip="Undo"
+        disabled={!canUndo}
         onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
       >
         <UndoIcon />
       </ToolbarButton>
       <ToolbarButton
-        label="Redo"
-        disabled={!state.canRedo}
+        tooltip="Redo"
+        disabled={!canRedo}
         onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
       >
         <RedoIcon />
       </ToolbarButton>
       <Divider />
-      <ToolbarButton
-        label="Text"
-        active={state.block === "paragraph"}
-        onClick={() => setBlock("paragraph")}
-      >
-        <PilcrowIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        label="Heading 1"
-        active={state.block === "h1"}
-        onClick={() => setBlock("h1")}
-      >
-        <Heading1Icon />
-      </ToolbarButton>
-      <ToolbarButton
-        label="Heading 2"
-        active={state.block === "h2"}
-        onClick={() => setBlock("h2")}
-      >
-        <Heading2Icon />
-      </ToolbarButton>
-      <ToolbarButton
-        label="Heading 3"
-        active={state.block === "h3"}
-        onClick={() => setBlock("h3")}
-      >
-        <Heading3Icon />
-      </ToolbarButton>
+      {TEXT_STYLES.filter(({ style }) => style !== "quote").map(
+        ({ style, label, icon: Icon }) => (
+          <ToolbarButton
+            key={style}
+            tooltip={label}
+            active={format.block === style}
+            onClick={() => setTextStyle(editor, style)}
+          >
+            <Icon />
+          </ToolbarButton>
+        ),
+      )}
       <Divider />
       <ToolbarButton
-        label="Bold"
-        active={state.bold}
+        tooltip="Bold"
+        active={format.bold}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
       >
         <BoldIcon />
       </ToolbarButton>
       <ToolbarButton
-        label="Italic"
-        active={state.italic}
+        tooltip="Italic"
+        active={format.italic}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
       >
         <ItalicIcon />
       </ToolbarButton>
       <ToolbarButton
-        label="Code"
-        active={state.code}
+        tooltip="Underline"
+        active={format.underline}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
+      >
+        <UnderlineIcon />
+      </ToolbarButton>
+      <ToolbarButton
+        tooltip="Strikethrough"
+        active={format.strike}
+        onClick={() =>
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")
+        }
+      >
+        <StrikethroughIcon />
+      </ToolbarButton>
+      <ToolbarButton
+        tooltip="Code"
+        active={format.code}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}
       >
         <CodeIcon />
       </ToolbarButton>
-      <ToolbarButton label="Link" active={state.link} onClick={toggleLink}>
-        <LinkIcon />
+      <ToolbarButton
+        tooltip="Highlight"
+        active={format.highlight}
+        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "highlight")}
+      >
+        <HighlighterIcon />
       </ToolbarButton>
+      <LinkButton address={format.link} />
       <Divider />
+      {LIST_STYLES.map(({ style, label, icon: Icon }) => (
+        <ToolbarButton
+          key={style}
+          tooltip={label}
+          active={format.block === style}
+          onClick={() => toggleList(editor, style)}
+        >
+          <Icon />
+        </ToolbarButton>
+      ))}
       <ToolbarButton
-        label="Bulleted list"
-        active={state.block === "bullet"}
-        onClick={() => toggleList("bullet")}
-      >
-        <ListIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        label="Numbered list"
-        active={state.block === "number"}
-        onClick={() => toggleList("number")}
-      >
-        <ListOrderedIcon />
-      </ToolbarButton>
-      <ToolbarButton
-        label="Quote"
-        active={state.block === "quote"}
-        onClick={() => setBlock("quote")}
+        tooltip="Quote"
+        active={format.block === "quote"}
+        onClick={() =>
+          setTextStyle(editor, format.block === "quote" ? "paragraph" : "quote")
+        }
       >
         <TextQuoteIcon />
+      </ToolbarButton>
+      <ToolbarButton tooltip="Divider" onClick={() => insertDivider(editor)}>
+        <MinusIcon />
       </ToolbarButton>
     </div>
   );

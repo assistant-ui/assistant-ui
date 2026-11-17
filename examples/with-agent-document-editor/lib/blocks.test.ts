@@ -1,5 +1,6 @@
 import { LinkNode } from "@lexical/link";
 import { ListItemNode, ListNode } from "@lexical/list";
+import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { $createParagraphNode, $getRoot, createEditor } from "lexical";
 import { describe, expect, it } from "vitest";
@@ -47,6 +48,19 @@ describe("parseInline", () => {
     ]);
   });
 
+  it("reads strikethrough, underline and highlight", () => {
+    expect(
+      parseInline("~~old~~ <u>new</u> <mark>**key** point</mark>"),
+    ).toEqual([
+      { text: "old", strike: true },
+      { text: " " },
+      { text: "new", underline: true },
+      { text: " " },
+      { text: "key", highlight: true, bold: true },
+      { text: " point", highlight: true },
+    ]);
+  });
+
   it("leaves unclosed and spaced markers as text", () => {
     expect(parseInline("a **b")).toEqual([{ text: "a **b" }]);
     expect(parseInline("2 * 3 * 4")).toEqual([{ text: "2 * 3 * 4" }]);
@@ -83,6 +97,11 @@ describe("serializeInline", () => {
       ],
       [{ text: "plain " }, { text: "code", code: true, bold: true }],
       [
+        { text: "a", strike: true },
+        { text: "b", underline: true, highlight: true },
+        { text: "c", bold: true, italic: true, strike: true },
+      ],
+      [
         { text: "see " },
         { text: "the ", href: "https://x.dev" },
         { text: "docs", href: "https://x.dev", bold: true },
@@ -96,7 +115,7 @@ describe("serializeInline", () => {
 
   it("keeps spaces outside the markers and escapes literal markers", () => {
     expect(serializeInline([{ text: " hi ", bold: true }])).toBe(" **hi** ");
-    const literal = [{ text: "2 * 3 [x] `y` \\z" }];
+    const literal = [{ text: "2 * 3 [x] `y` \\z ~~ <u> a < b ~ c" }];
     expect(parseInline(serializeInline(literal))).toEqual(literal);
   });
 });
@@ -123,7 +142,14 @@ describe("blockToMarkdown", () => {
 
 const makeEditor = () =>
   createEditor({
-    nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode],
+    nodes: [
+      HeadingNode,
+      QuoteNode,
+      ListNode,
+      ListItemNode,
+      LinkNode,
+      HorizontalRuleNode,
+    ],
     onError: (error) => {
       throw error;
     },
@@ -140,6 +166,8 @@ const BLOCKS: Block[] = [
   { id: "b4", type: "bullet", text: "two" },
   { id: "b5", type: "numbered", text: "first" },
   { id: "b6", type: "quote", text: "*quoted*" },
+  { id: "b7", type: "divider", text: "" },
+  { id: "b8", type: "paragraph", text: "~~cut~~ and <u>kept</u>" },
 ];
 
 describe("blocks in the editor", () => {
@@ -189,6 +217,19 @@ describe("blocks in the editor", () => {
     expect(read(editor, ids)).toEqual(edited);
   });
 
+  it("turns a paragraph into a divider", () => {
+    const editor = makeEditor();
+    const ids: BlockIds = new Map();
+    write(editor, BLOCKS, ids);
+    const edited = BLOCKS.map((block) =>
+      block.id === "b2"
+        ? { ...block, type: "divider" as const, text: "" }
+        : block,
+    );
+    write(editor, edited, ids);
+    expect(read(editor, ids)).toEqual(edited);
+  });
+
   it("rebuilds when blocks are inserted, removed or reordered", () => {
     const editor = makeEditor();
     const ids: BlockIds = new Map();
@@ -210,7 +251,7 @@ describe("blocks in the editor", () => {
     write(editor, [...BLOCKS, { text: "Half a sen" }], ids);
     const done = [
       ...BLOCKS,
-      { id: "b7", type: "paragraph" as const, text: "Half a sentence." },
+      { id: "b9", type: "paragraph" as const, text: "Half a sentence." },
     ];
     write(editor, done, ids);
     expect(read(editor, ids)).toEqual(done);

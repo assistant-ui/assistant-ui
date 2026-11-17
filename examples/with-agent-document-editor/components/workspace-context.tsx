@@ -6,8 +6,10 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import {
   COMMENTS_ID,
@@ -30,6 +32,12 @@ type WorkspaceValue = {
   showVersion: (toolCallId: string | null) => void;
   chatOpen: boolean;
   setChatOpen: (open: boolean) => void;
+  /** Shows the chat and puts the caret in its composer. */
+  openChat: () => void;
+  /** Changes each time the composer should take focus. */
+  chatFocusRequest: number;
+  /** The last focus request the composer acted on. */
+  chatFocusHandled: RefObject<number>;
 };
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
@@ -38,7 +46,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [panel, setPanel] = useState<PanelId | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [focusedVersion, setFocusedVersion] = useState<string | null>(null);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+  const [chatFocusRequest, setChatFocusRequest] = useState(0);
+  const chatFocusHandled = useRef(0);
 
   const showComment = useCallback((id: string | null) => {
     setActiveCommentId(id);
@@ -48,6 +58,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const showVersion = useCallback((toolCallId: string | null) => {
     setFocusedVersion(toolCallId);
     if (toolCallId) setPanel("history");
+  }, []);
+
+  const openChat = useCallback(() => {
+    setChatOpen(true);
+    setChatFocusRequest((request) => request + 1);
   }, []);
 
   const value = useMemo<WorkspaceValue>(
@@ -60,6 +75,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       showVersion,
       chatOpen,
       setChatOpen,
+      openChat,
+      chatFocusRequest,
+      chatFocusHandled,
     }),
     [
       panel,
@@ -68,6 +86,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       focusedVersion,
       showVersion,
       chatOpen,
+      openChat,
+      chatFocusRequest,
     ],
   );
 

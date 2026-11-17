@@ -8,37 +8,59 @@ import {
   SKIP_DOM_SELECTION_TAG,
   SKIP_SCROLL_INTO_VIEW_TAG,
 } from "lexical";
-import { useEffect, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { useDocumentState } from "@/components/workspace-context";
 import { $readBlocks, $writeBlocks, type BlockIds } from "@/lib/blocks";
+import { DOCUMENT_NAME, initialDocument } from "@/lib/document-state";
 import {
-  DOCUMENT_NAME,
-  initialDocument,
-  isBlockType,
-  type Block,
-} from "@/lib/document-state";
+  advance,
+  displayBlocks,
+  receive,
+  remaining,
+  settled,
+  streamMarks,
+} from "@/lib/streaming";
+import { createStreamPainter } from "./stream-paint";
 
 const SYNC_TAG = "document-sync";
 const UPDATE_TOOL = `update_${DOCUMENT_NAME}`;
 
+/** Characters a second the assistant's text is typed at. */
+const TYPING_SPEED = 150;
+/** Seconds any amount of waiting text may take; longer edits type faster. */
+const LONGEST_TYPING = 2;
+
 const mintBlockId = () => `b-${Math.random().toString(36).slice(2, 8)}`;
+
+const prefersReducedMotion = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * Keeps the editor and the `document` interactable in step. What the user
- * types is written to the interactable, and what the assistant writes there,
- * or a restored version, is written into the editor.
+ * types is written to the interactable. What the assistant writes there is
+ * typed into the editor a block at a time (see `lib/streaming.ts`), and a
+ * restored version is written as it is.
  */
 export function DocumentSync({
   ids,
+  caret,
   onReady,
 }: {
   ids: BlockIds;
+  caret: RefObject<HTMLElement | null>;
   onReady: () => void;
 }) {
   const [editor] = useLexicalComposerContext();
   const [document, { setState }] = useDocumentState();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const isWriting = useAuiState((s) => {
+  const inFlight = useAuiState((s) => {
+    if (!s.thread.isRunning) return false;
     const last = s.thread.messages.at(-1);
     return (
       last?.role === "assistant" &&
@@ -50,70 +72,77 @@ export function DocumentSync({
       )
     );
   });
-  const inEditor = useRef<string | null>(null);
-  const shown = useRef<readonly Partial<Block>[]>([]);
-  const writingContinues = useRef(true);
-  const wasRunning = useRef(isRunning);
+  const [typing, setTyping] = useState(false);
 
-  useEffect(() => {
-    if (wasRunning.current !== isRunning) {
-      wasRunning.current = isRunning;
-      writingContinues.current = false;
-    }
-    let blocks: readonly Partial<Block>[] = document.blocks;
-    if (isWriting) {
-      // While a call streams in, a block keeps what the page shows until the
-      // new text differs from it, and blocks the call has not reached yet stay
-      // on the page. Without this a replaced list would empty the document
-      // and type all of it again. The exact state lands when the call ends.
-      const known = new Map(
-        shown.current.flatMap((block) =>
-          block.id ? [[block.id, block] as const] : [],
-        ),
-      );
-      // Strings stream in a character at a time, so the id "b1" may be the
-      // start of "b10" and the type "h" the start of "h2". A block counts once
-      // its type is whole, which also means its id is.
-      const started = blocks.filter(
-        (block) =>
-          block?.text !== undefined ||
-          (block?.id && known.has(block.id) && isBlockType(block.type)),
-      );
-      const sent = new Set(started.map((block) => block.id));
-      blocks = [
-        ...started.map((block) => {
-          const prior = block.id ? known.get(block.id) : undefined;
-          if (!prior) return block;
-          const unchangedSoFar =
-            block.text === undefined || !!prior.text?.startsWith(block.text);
-          const type = isBlockType(block.type) ? block.type : prior.type;
-          const text = unchangedSoFar ? prior.text : block.text;
-          return {
-            ...block,
-            ...(type !== undefined && { type }),
-            ...(text !== undefined && { text }),
-          };
-        }),
-        ...shown.current.filter((block) => block.id && !sent.has(block.id)),
-      ];
-    }
-    onReady();
+  const stream = useRef(settled([]));
+  const inEditor = useRef<string | null>(null);
+  const sameUndoStep = useRef(true);
+  const wasRunning = useRef(isRunning);
+  const frame = useRef(0);
+  const [painter] = useState(() =>
+    createStreamPainter(editor, ids, () => caret.current),
+  );
+
+  const show = useCallback(() => {
+    const blocks = displayBlocks(stream.current);
+    const paint = () => painter.paint(streamMarks(stream.current));
     const serialized = JSON.stringify(blocks);
-    if (serialized === inEditor.current) return;
+    if (serialized === inEditor.current) {
+      paint();
+      return;
+    }
     inEditor.current = serialized;
-    shown.current = blocks;
     editor.update(() => $writeBlocks(blocks, ids), {
-      // A streamed edit is one undo step, not one per token, and the starting
-      // document is not a step at all.
+      // A whole edit by the assistant is one undo step, not one per frame,
+      // and the starting document is not a step at all.
       tag: [
         SYNC_TAG,
-        writingContinues.current ? HISTORY_MERGE_TAG : HISTORY_PUSH_TAG,
+        sameUndoStep.current ? HISTORY_MERGE_TAG : HISTORY_PUSH_TAG,
         SKIP_DOM_SELECTION_TAG,
         SKIP_SCROLL_INTO_VIEW_TAG,
       ],
+      onUpdate: paint,
     });
-    writingContinues.current = true;
-  }, [editor, document.blocks, ids, isRunning, isWriting, onReady]);
+    sameUndoStep.current = true;
+  }, [editor, ids, painter]);
+
+  const type = useCallback(() => {
+    if (frame.current) return;
+    let last = performance.now();
+    const step = (now: number) => {
+      const seconds = Math.min(now - last, 100) / 1000;
+      last = now;
+      setTyping(true);
+      const waiting = remaining(stream.current);
+      if (waiting > 0) {
+        const characters = prefersReducedMotion()
+          ? waiting
+          : Math.round(
+              Math.max(TYPING_SPEED, waiting / LONGEST_TYPING) * seconds,
+            );
+        stream.current = advance(stream.current, Math.max(1, characters));
+        show();
+      }
+      if (remaining(stream.current) > 0) {
+        frame.current = requestAnimationFrame(step);
+        return;
+      }
+      frame.current = 0;
+      setTyping(false);
+    };
+    frame.current = requestAnimationFrame(step);
+  }, [show]);
+
+  useEffect(() => {
+    if (!wasRunning.current && isRunning && !stream.current.active) {
+      sameUndoStep.current = false;
+    }
+    wasRunning.current = isRunning;
+    onReady();
+    stream.current = receive(stream.current, document.blocks, inFlight);
+    show();
+    if (remaining(stream.current) > 0) type();
+  }, [document.blocks, inFlight, isRunning, onReady, show, type]);
 
   useEffect(() => {
     return editor.registerUpdateListener(
@@ -124,8 +153,8 @@ export function DocumentSync({
         const serialized = JSON.stringify(blocks);
         if (serialized === inEditor.current) return;
         inEditor.current = serialized;
-        shown.current = blocks;
-        writingContinues.current = false;
+        stream.current = settled(blocks);
+        sameUndoStep.current = false;
         setState((previous) => ({
           ...(previous ?? initialDocument),
           blocks,
@@ -135,8 +164,16 @@ export function DocumentSync({
   }, [editor, ids, setState]);
 
   useEffect(() => {
-    editor.setEditable(!isRunning);
-  }, [editor, isRunning]);
+    editor.setEditable(!isRunning && !typing);
+  }, [editor, isRunning, typing]);
+
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(frame.current);
+      frame.current = 0;
+      painter.clear();
+    };
+  }, [painter]);
 
   return null;
 }
