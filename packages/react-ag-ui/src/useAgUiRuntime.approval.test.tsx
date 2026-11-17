@@ -9,7 +9,11 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import type { AssistantRuntime, ToolCallMessagePart } from "@assistant-ui/core";
+import type {
+  AssistantRuntime,
+  ChatModelRunResult,
+  ToolCallMessagePart,
+} from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
   MessagePrimitiveParts,
@@ -495,6 +499,72 @@ describe("useAgUiRuntime tool approvals", () => {
 });
 
 describe("useAgUiRuntime tool approvals under an unsettled run", () => {
+  it("records no decision when a resume stream rejects an approval and accepts a later click", async () => {
+    const { agent, runAgent } = gatingAgent();
+    const onError = vi.fn();
+    const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <></>
+      </AssistantRuntimeProvider>,
+    );
+    let release!: () => void;
+    const closed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    act(() => {
+      result.current.thread.resumeRun({
+        parentId: null,
+        stream: async function* (): AsyncGenerator<ChatModelRunResult> {
+          yield {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc-1",
+                toolName: "delete_file",
+                args: {},
+                argsText: "{}",
+              },
+            ],
+            status: { type: "requires-action", reason: "interrupt" },
+            metadata: { custom: { agui: { interrupts: [GATE] } } },
+          };
+          await closed;
+        },
+      });
+    });
+    await waitFor(() =>
+      expect(allToolCalls(result.current)[0]?.approval).toEqual(gateApproval()),
+    );
+    expect(result.current.thread.getState().isRunning).toBe(true);
+    await act(async () => {
+      await expect(
+        gatedPart(result.current).respondToToolApproval({ approved: true }),
+      ).rejects.toThrow("a run is already in progress");
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]?.[0].message).toContain(
+      "a run is already in progress",
+    );
+    expect(allToolCalls(result.current)[0]?.approval).toEqual(gateApproval());
+    expect(runAgent).not.toHaveBeenCalled();
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() =>
+      expect(result.current.thread.getState().isRunning).toBe(false),
+    );
+    await act(async () => {
+      await gatedPart(result.current).respondToToolApproval({ approved: true });
+    });
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(resumeOf(runAgent)).toEqual([
+      { interruptId: "int-1", status: "resolved", payload: { approved: true } },
+    ]);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
   // Exposes the gate through RUN_FINISHED while runAgent is still pending, so
   // a click lands while the finished run's response is still open.
   const heldGatingAgent = () => {

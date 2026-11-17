@@ -2466,6 +2466,225 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 
+  it.each(["tool result", "A2UI action"])(
+    "stays running through the drain when the %s arrives before RUN_FINISHED",
+    async (continuation) => {
+      let finishFirst!: () => void;
+      let releaseFirst!: () => void;
+      let finishContinuation!: () => void;
+      let releaseContinuation!: () => void;
+      const firstClosed = new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+      const continuationClosed = new Promise<void>((resolve) => {
+        releaseContinuation = resolve;
+      });
+      const runAgent = vi.fn(async (input: any, subscriber: any) => {
+        if (runAgent.mock.calls.length === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "lookup",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          finishFirst = () => notifyRunFinished(subscriber, input.runId);
+          await firstClosed;
+        } else {
+          finishContinuation = () => notifyRunFinished(subscriber, input.runId);
+          await continuationClosed;
+        }
+      });
+      const core = createCore({ runAgent } as unknown as HttpAgent);
+      const first = core.append(createAppendMessage());
+      const running: boolean[] = [];
+      const unsubscribe = core.subscribe(() => running.push(core.isRunning()));
+
+      if (continuation === "tool result") {
+        core.addToolResult({
+          messageId: core.getMessages().at(-1)!.id,
+          toolCallId: "call-1",
+          toolName: "lookup",
+          result: "found",
+          isError: false,
+        });
+      } else {
+        core.sendA2uiAction({ name: "continue" });
+      }
+      finishFirst();
+      expect(core.isRunning()).toBe(true);
+      await flushPromises();
+      expect(runAgent).toHaveBeenCalledOnce();
+
+      releaseFirst();
+      await first;
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(true);
+      expect(running).not.toContain(false);
+      if (continuation === "tool result") {
+        expect(runAgent.mock.calls[1]?.[0].messages).toContainEqual(
+          expect.objectContaining({
+            role: "tool",
+            toolCallId: "call-1",
+            content: "found",
+          }),
+        );
+      } else {
+        expect(runAgent.mock.calls[1]?.[0].forwardedProps).toMatchObject({
+          a2uiAction: { userAction: { name: "continue" } },
+        });
+      }
+
+      finishContinuation();
+      expect(core.isRunning()).toBe(false);
+      releaseContinuation();
+      await flushPromises();
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+      unsubscribe();
+    },
+  );
+
+  it("waits without aborting when a finish notification submits a send", async () => {
+    let finishFirst!: () => void;
+    let releaseFirst!: () => void;
+    const firstClosed = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+        finishFirst = () => notifyRunFinished(subscriber, input.runId);
+        await firstClosed;
+      } else {
+        notifyRunFinished(subscriber, input.runId);
+      }
+    });
+    const abortRun = vi.fn();
+    const onCancel = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent, {
+      onCancel,
+    });
+    const first = core.append(createAppendMessage());
+    let waiting: Promise<void> | undefined;
+    let submitted = false;
+    const unsubscribe = core.subscribe(() => {
+      const assistant = core.getMessages().at(-1)!;
+      if (submitted || assistant.status?.type !== "complete") return;
+      submitted = true;
+      waiting = core.append(createAppendMessage({ parentId: assistant.id }));
+    });
+
+    finishFirst();
+    expect(submitted).toBe(true);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(abortRun).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(core.isRunning()).toBe(true);
+
+    releaseFirst();
+    await first;
+    await waiting;
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(core.isRunning()).toBe(false);
+    expect(onCancel).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("starts only the latest send waiting on one drain with both user messages", async () => {
+    let releaseFirst!: () => void;
+    let releaseNext!: () => void;
+    const firstClosed = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const nextClosed = new Promise<void>((resolve) => {
+      releaseNext = resolve;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length === 1) {
+        notifyRunFinished(subscriber, input.runId);
+        await firstClosed;
+      } else {
+        await nextClosed;
+        notifyRunFinished(subscriber, input.runId);
+      }
+    });
+    const abortRun = vi.fn();
+    const onCancel = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent, {
+      onCancel,
+    });
+    const first = core.append(createAppendMessage());
+    const second = core.append({
+      ...createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      content: [{ type: "text", text: "second" }],
+    });
+    const third = core.append({
+      ...createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      content: [{ type: "text", text: "third" }],
+    });
+    expect(core.isRunning()).toBe(true);
+    expect(runAgent).toHaveBeenCalledOnce();
+
+    releaseFirst();
+    await first;
+    await flushPromises();
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(abortRun).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(
+      runAgent.mock.calls[1]?.[0].messages
+        .filter((message: { role: string }) => message.role === "user")
+        .map((message: { content: string }) => message.content),
+    ).toEqual(["hi", "second", "third"]);
+    expect(core.isRunning()).toBe(true);
+
+    releaseNext();
+    await Promise.all([second, third]);
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it.each(["leave", "resetThreadState"] as const)(
+    "%s drops a send waiting on the drain and releases the thread",
+    async (mutation) => {
+      let releaseFirst!: () => void;
+      const firstClosed = new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+      const runAgent = vi.fn(async (input: any, subscriber: any) => {
+        notifyRunFinished(subscriber, input.runId);
+        if (runAgent.mock.calls.length === 1) await firstClosed;
+      });
+      const abortRun = vi.fn();
+      const core = createCore({ runAgent, abortRun } as unknown as HttpAgent);
+      const first = core.append(createAppendMessage());
+      const waiting = core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+      expect(core.isRunning()).toBe(true);
+
+      core[mutation]();
+      await waiting;
+      expect(core.isRunning()).toBe(false);
+      expect(runAgent).toHaveBeenCalledOnce();
+      expect(abortRun).toHaveBeenCalledOnce();
+
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      releaseFirst();
+      await first;
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+    },
+  );
+
   it("drops the waiting run when Stop lands while the finished response drains", async () => {
     let releaseFirst!: () => void;
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
