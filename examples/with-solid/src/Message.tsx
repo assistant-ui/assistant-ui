@@ -17,10 +17,10 @@ export default function Message() {
       }}
     >
       <MessagePrimitiveRoot
-        class={`min-w-0 px-2 wrap-break-word ${
+        class={`min-w-0 wrap-break-word ${
           role() === "user"
             ? "bg-muted text-foreground max-w-[80%] rounded-xl px-4 py-2"
-            : "text-foreground max-w-full leading-relaxed"
+            : "text-foreground max-w-full px-2 leading-relaxed"
         }`}
       >
         <MessagePrimitiveParts />

@@ -49,6 +49,7 @@ export const createEchoRuntime = () => {
     const replyTo = currentId;
     isRunning = true;
     sync();
+    clearTimeout(replyTimer);
     replyTimer = setTimeout(() => {
       if (currentId !== replyTo) return;
       updateCurrent((thread) => ({
@@ -93,11 +94,14 @@ export const createEchoRuntime = () => {
     },
     onEdit: async (message) => {
       const text = messageText(message);
-      const parentIndex = message.parentId
-        ? current().messages.findIndex(
-            (entry) => entry.id === message.parentId,
-          ) + 1
-        : 0;
+      let parentIndex = 0;
+      if (message.parentId) {
+        const index = current().messages.findIndex(
+          (entry) => entry.id === message.parentId,
+        );
+        if (index === -1) return;
+        parentIndex = index + 1;
+      }
       updateCurrent((thread) => ({
         ...thread,
         messages: thread.messages.slice(0, parentIndex),
