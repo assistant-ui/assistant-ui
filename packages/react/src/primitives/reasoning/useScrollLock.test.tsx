@@ -7,6 +7,8 @@ import { useScrollLock } from "./useScrollLock";
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(document.documentElement, "scrollTo");
+  document.documentElement.scrollTop = 0;
   document.documentElement.removeAttribute("style");
   document.body.removeAttribute("style");
   document.body.replaceChildren();
@@ -26,6 +28,17 @@ function stubWidths(
     configurable: true,
     value: clientWidth,
   });
+}
+
+function stubScrollTo(element: HTMLElement) {
+  const scrollTo = vi.fn(({ top }: ScrollToOptions) => {
+    element.scrollTop = top ?? 0;
+  });
+  Object.defineProperty(element, "scrollTo", {
+    configurable: true,
+    value: scrollTo,
+  });
+  return scrollTo;
 }
 
 function lockWithin(container: HTMLElement) {
@@ -138,6 +151,7 @@ describe("useScrollLock", () => {
   it("keeps overlapping animations locked until the last one finishes", () => {
     vi.useFakeTimers();
     const { scroller, first, second } = createSharedScroller();
+    stubScrollTo(scroller);
     scroller.scrollTop = 120;
 
     first.lock();
@@ -241,5 +255,39 @@ describe("useScrollLock", () => {
     unmount();
 
     expect(scroller.style.scrollbarWidth).toBe("thin");
+  });
+
+  it("resets smooth scrolling instantly", () => {
+    const scroller = document.createElement("div");
+    scroller.style.overflowY = "auto";
+    scroller.style.scrollBehavior = "smooth";
+    document.body.appendChild(scroller);
+    const scrollTo = stubScrollTo(scroller);
+    scroller.scrollTop = 120;
+
+    lockWithin(scroller)();
+    scroller.scrollTop = 90;
+    scroller.dispatchEvent(new Event("scroll"));
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 120, behavior: "instant" });
+    expect(scroller.scrollTop).toBe(120);
+  });
+
+  it("holds root scroll events from document and releases them afterward", () => {
+    vi.useFakeTimers();
+    const root = document.documentElement;
+    root.style.overflowY = "auto";
+    stubScrollTo(root);
+    root.scrollTop = 120;
+
+    lockWithin(document.body)();
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(root.scrollTop).toBe(120);
+
+    vi.advanceTimersByTime(200);
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(root.scrollTop).toBe(90);
   });
 });

@@ -56,13 +56,20 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
     scrollContainer.style.scrollbarWidth = scrollbarWidth;
     scrollContainer.style[paddingSide] = previousPadding;
   };
-  const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
-  scrollContainer.addEventListener("scroll", resetPosition);
+  const resetPosition = () =>
+    scrollContainer.scrollTo({ top: scrollPosition, behavior: "instant" });
+  // Viewport scroll events target the document, not the root element.
+  const scrollEventTarget =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.scrollingElement
+      ? ownerDocument
+      : scrollContainer;
+  scrollEventTarget.addEventListener("scroll", resetPosition);
 
   const lock = {
     count: 1,
     restore: () => {
-      scrollContainer.removeEventListener("scroll", resetPosition);
+      scrollEventTarget.removeEventListener("scroll", resetPosition);
       restoreStyles();
     },
   };
