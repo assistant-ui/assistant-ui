@@ -133,6 +133,23 @@ describe("useScrollLock", () => {
     expect(body.style.paddingRight).toBe("6px");
   });
 
+  it("ignores the viewport gutter for a body that owns its scroll box", () => {
+    const root = document.documentElement;
+    root.style.overflowX = "hidden";
+    root.style.overflowY = "hidden";
+    stubWidths(root, { offsetWidth: 1594, clientWidth: 1594 });
+    vi.stubGlobal("innerWidth", 1600);
+    const body = document.body;
+    body.style.overflowY = "auto";
+    body.style.borderWidth = "0px";
+    stubWidths(body, { offsetWidth: 1594, clientWidth: 1594 });
+
+    lockWithin(body)();
+
+    expect(body.style.scrollbarWidth).toBe("none");
+    expect(body.style.paddingRight).toBe("");
+  });
+
   it("restores the padding it added once the animation is over", () => {
     vi.useFakeTimers();
     const scroller = document.createElement("div");
