@@ -1864,15 +1864,14 @@ export class AgUiThreadController {
     replayExistingMessages = false,
   ): Promise<void> {
     if (this.isThreadSwitching?.()) return;
-    const drain = this.drainingRun;
-    if (drain) {
+    const waitGeneration = this.state.historyMutationGeneration;
+    for (let drain = this.drainingRun; drain; drain = this.drainingRun) {
       drain.superseded = true;
       this.clearDeferredContinuations(drain.owner);
-      const generation = this.state.historyMutationGeneration;
       this.setRunning(true);
       await drain.closed;
       if (
-        generation !== this.state.historyMutationGeneration ||
+        waitGeneration !== this.state.historyMutationGeneration ||
         this.isThreadSwitching?.()
       ) {
         if (this.abortController === null) this.setRunning(false);
@@ -2883,6 +2882,13 @@ export class AgUiThreadController {
             if (abortSignal.aborted) return;
             pendingError = error;
             invokeRuntimeCallback("onError", this.onError, error);
+          },
+          // A sequential run in the same response streams again.
+          onRunStarted: () => {
+            const drain = this.drainingRun;
+            if (drain?.owner !== abortController || drain.superseded) return;
+            this.drainingRun = null;
+            this.setRunning(true);
           },
         });
         try {

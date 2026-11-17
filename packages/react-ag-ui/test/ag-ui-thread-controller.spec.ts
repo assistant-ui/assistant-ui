@@ -498,10 +498,10 @@ const createCore = (
     ...(hooks.history ? { history: hooks.history } : {}),
   });
 
-// On teardown @ag-ui/client rethrows an errored body's reader.cancel()
-// rejection as an unhandled rejection; the wrapped cancel absorbs it.
 const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+// On teardown @ag-ui/client rethrows an errored body's reader.cancel()
+// rejection as an unhandled rejection; the wrapped cancel absorbs it.
 const createStreamingHttpAgent = () => {
   let controller!: ReadableStreamDefaultController<Uint8Array>;
   const stream = new ReadableStream<Uint8Array>({
@@ -2369,6 +2369,22 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getMessages().at(-1)?.status).toMatchObject({
       type: "complete",
     });
+
+    http.close();
+    await expect(run).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("runs again when a second run starts in the same response", async () => {
+    const http = createStreamingHttpAgent();
+    const core = createCore(http.agent);
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-1" });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(true));
 
     http.close();
     await expect(run).resolves.toBeUndefined();

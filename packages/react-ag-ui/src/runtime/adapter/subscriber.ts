@@ -7,6 +7,7 @@ import type { Logger } from "../logger";
 type Dispatch = (event: AgUiEvent) => void;
 
 type Subscriber = {
+  onRunStartedEvent?: () => void;
   onTextMessageStartEvent?: (payload: { event: unknown }) => void;
   onTextMessageContentEvent?: (payload: { event: unknown }) => void;
   onTextMessageEndEvent?: (payload: { event: unknown }) => void;
@@ -62,12 +63,13 @@ type SubscriberOptions = {
   dispatch: Dispatch;
   logger?: Logger;
   onRunFailed?: (error: Error) => void;
+  onRunStarted?: () => void;
 };
 
 export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
-  const { dispatch, logger, onRunFailed } = options;
+  const { dispatch, logger, onRunFailed, onRunStarted } = options;
   let runFinishedDispatched = false;
   const dispatchIfValid = (raw: unknown, type: AgUiEvent["type"]) => {
     const event = ensureEvent(raw, type, logger);
@@ -75,6 +77,7 @@ export const createAgUiSubscriber = (
     dispatch(event);
   };
   return {
+    onRunStartedEvent: () => onRunStarted?.(),
     onTextMessageStartEvent: ({ event }) =>
       dispatchIfValid(event, "TEXT_MESSAGE_START"),
     onTextMessageContentEvent: ({ event }) =>
