@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { DictationAdapter } from "../../adapters/speech";
 import { DictationSessionController } from "./dictation-session";
 
@@ -121,5 +121,87 @@ describe("DictationSessionController", () => {
     expect(recording.session.cancel).toHaveBeenCalledTimes(1);
     expect(controller.dictation).toBeUndefined();
     expect(text).toBe("draft");
+  });
+
+  it("keeps how the last session ended until the next one starts", () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const failing = makeSession();
+    const next = makeSession();
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(failing.session)
+      .mockReturnValueOnce(next.session);
+    const notify = vi.fn();
+    const controller = new DictationSessionController({
+      getAdapter: () => ({ listen }),
+      getText: () => "",
+      setText: () => {},
+      notify,
+    });
+
+    controller.startDictation();
+    expect(controller.lastDictationEnd).toBeUndefined();
+    const error = { code: "not-allowed", message: "Permission denied" };
+    failing.session.status = { type: "ended", reason: "error", error };
+    notify.mockClear();
+    vi.advanceTimersByTime(100);
+
+    expect(controller.dictation).toBeUndefined();
+    expect(controller.lastDictationEnd).toEqual({ reason: "error", error });
+    expect(notify).toHaveBeenCalledOnce();
+
+    controller.startDictation();
+    expect(controller.lastDictationEnd).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "stopped",
+      (controller: DictationSessionController) => controller.stopDictation(),
+    ],
+    [
+      "cancelled",
+      (controller: DictationSessionController) => controller.cancel(),
+    ],
+  ] as const)(
+    "records %s when the adapter status has not ended",
+    async (reason, end) => {
+      const recording = makeSession();
+      const controller = new DictationSessionController({
+        getAdapter: () => ({ listen: () => recording.session }),
+        getText: () => "",
+        setText: () => {},
+        notify: () => {},
+      });
+
+      controller.startDictation();
+      end(controller);
+      await Promise.resolve();
+
+      expect(controller.lastDictationEnd).toEqual({ reason });
+    },
+  );
+
+  it("keeps no end for a session replaced by a new start", () => {
+    const first = makeSession();
+    const second = makeSession();
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(first.session)
+      .mockReturnValueOnce(second.session);
+    const controller = new DictationSessionController({
+      getAdapter: () => ({ listen }),
+      getText: () => "",
+      setText: () => {},
+      notify: () => {},
+    });
+
+    controller.startDictation();
+    controller.startDictation();
+
+    expect(controller.lastDictationEnd).toBeUndefined();
   });
 });

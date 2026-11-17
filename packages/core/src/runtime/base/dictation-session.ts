@@ -1,5 +1,8 @@
 import type { DictationAdapter } from "../../adapters/speech";
-import type { DictationState } from "../interfaces/composer-runtime-core";
+import type {
+  DictationEnd,
+  DictationState,
+} from "../interfaces/composer-runtime-core";
 import type { Unsubscribe } from "../../types/unsubscribe";
 
 type DictationSessionHost = {
@@ -35,7 +38,7 @@ export class DictationSessionController {
     } catch (error) {
       console.error("[assistant-ui] Dictation session cancel threw", error);
     } finally {
-      this._cleanupDictation({ sessionId });
+      this._cleanupDictation({ sessionId, reason: "cancelled" });
     }
   }
 
@@ -48,9 +51,14 @@ export class DictationSessionController {
   private _dictationSessionIdCounter = 0;
   private _activeDictationSessionId: number | undefined;
   private _isCleaningDictation = false;
+  private _lastDictationEnd: DictationEnd | undefined;
 
   public get dictation(): DictationState | undefined {
     return this._dictation;
+  }
+
+  public get lastDictationEnd(): DictationEnd | undefined {
+    return this._lastDictationEnd;
   }
 
   private _isActiveSession(
@@ -98,6 +106,7 @@ export class DictationSessionController {
       throw error;
     }
     this._dictationSession = session;
+    this._lastDictationEnd = undefined;
     const sessionId = ++this._dictationSessionIdCounter;
     this._activeDictationSessionId = sessionId;
     this._dictation = { status: session.status, inputDisabled };
@@ -185,7 +194,7 @@ export class DictationSessionController {
       if (!keepUnsubscribe(unsubStart)) return;
 
       const unsubEnd = session.onSpeechEnd(() => {
-        this._cleanupDictation({ sessionId });
+        this._cleanupDictation({ sessionId, reason: "stopped" });
       });
       if (!keepUnsubscribe(unsubEnd)) return;
 
@@ -224,7 +233,8 @@ export class DictationSessionController {
     if (this._stoppingDictationSession === session) return;
     this._stoppingDictationSession = session;
     const sessionId = this._activeDictationSessionId;
-    const cleanup = () => this._cleanupDictation({ sessionId });
+    const cleanup = () =>
+      this._cleanupDictation({ sessionId, reason: "stopped" });
     this._stopDictationSession(session, cleanup);
   }
 
@@ -250,6 +260,7 @@ export class DictationSessionController {
   private _cleanupDictation(options?: {
     sessionId?: number | undefined;
     notify?: boolean | undefined;
+    reason?: DictationEnd["reason"] | undefined;
   }): void {
     const isStaleSession =
       options?.sessionId !== undefined &&
@@ -266,6 +277,16 @@ export class DictationSessionController {
     };
 
     try {
+      const status = this._dictationSession?.status;
+      if (status?.type === "ended") {
+        this._lastDictationEnd =
+          status.error === undefined
+            ? { reason: status.reason }
+            : { reason: status.reason, error: status.error };
+      } else if (options?.reason !== undefined) {
+        this._lastDictationEnd = { reason: options.reason };
+      }
+
       const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;

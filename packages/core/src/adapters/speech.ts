@@ -33,6 +33,7 @@ export namespace DictationAdapter {
     | {
         type: "ended";
         reason: "stopped" | "cancelled" | "error";
+        error?: unknown;
       };
 
   export type Result = {
@@ -340,7 +341,11 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
       if (errorEvent.error === "aborted") {
         updateStatus({ type: "ended", reason: "cancelled" });
       } else {
-        updateStatus({ type: "ended", reason: "error" });
+        updateStatus({
+          type: "ended",
+          reason: "error",
+          error: { code: errorEvent.error, message: errorEvent.message },
+        });
         console.error("Dictation error:", errorEvent.error, errorEvent.message);
       }
     });

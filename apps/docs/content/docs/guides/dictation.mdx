@@ -60,6 +60,7 @@ namespace DictationAdapter {
     | {
         type: "ended";
         reason: "stopped" | "cancelled" | "error";
+        error?: unknown;
       };
 
   type Result = {
@@ -139,6 +140,15 @@ const ComposerWithDictation = () => (
 ```
 
 `ComposerPrimitive.Dictate` is disabled when no dictation adapter is configured. For a separate interim transcript display, `ComposerPrimitive.DictationTranscript` and `composer.dictation?.transcript` are available.
+
+`composer.dictation` is `undefined` once a session ends. `composer.lastDictationEnd` keeps how it ended, `{ reason, error? }`, until the next session starts. `WebSpeechDictationAdapter` sets `error` to `{ code, message }` from the browser, so a UI can tell a blocked microphone (`not-allowed`) from silence (`no-speech`):
+
+```tsx
+const end = useAuiState((s) => s.composer.lastDictationEnd);
+const micBlocked =
+  end?.reason === "error" &&
+  (end.error as { code?: string } | undefined)?.code === "not-allowed";
+```
 
 ## Server-side transcription
 
@@ -254,13 +264,13 @@ export class ServerDictationAdapter implements DictationAdapter {
             for (const cb of speech) cb(result);
             for (const cb of speechEnd) cb(result);
             session.status = { type: "ended", reason: "stopped" };
-          } catch {
-            session.status = { type: "ended", reason: "error" };
+          } catch (error) {
+            session.status = { type: "ended", reason: "error", error };
           }
         };
         mediaRecorder.start();
-      } catch {
-        session.status = { type: "ended", reason: "error" };
+      } catch (error) {
+        session.status = { type: "ended", reason: "error", error };
       }
     })();
 

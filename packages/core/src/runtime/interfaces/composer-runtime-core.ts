@@ -78,6 +78,11 @@ export type DictationState = {
   readonly inputDisabled?: boolean;
 };
 
+export type DictationEnd = {
+  readonly reason: "stopped" | "cancelled" | "error";
+  readonly error?: unknown;
+};
+
 /**
  * A message the user sent that the thread does not show as one of its own
  * yet, because its attachments are still being prepared or the runtime has
@@ -139,6 +144,8 @@ export type ComposerRuntimeCore = Readonly<{
   removeQueueItem: (queueItemId: string) => void;
 
   dictation: DictationState | undefined;
+  /** How the last dictation session ended; cleared when the next one starts. */
+  lastDictationEnd?: DictationEnd | undefined;
   startDictation: () => void;
   stopDictation: () => void;
 
