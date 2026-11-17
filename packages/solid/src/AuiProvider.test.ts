@@ -1,11 +1,20 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { createComponent, createSignal, onCleanup } from "solid-js";
+import {
+  createComponent,
+  createSignal,
+  onCleanup,
+  onMount,
+  type Accessor,
+} from "solid-js";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
 import { AuiProvider } from "./AuiProvider";
 import { useAui } from "./useAui";
+import { useAuiEvent } from "./useAuiEvent";
+import { useAuiState } from "./useAuiState";
 import {
   MessageClient,
+  MountEffectItems,
   ThreadClient,
   captureAui,
   messageDerived,
@@ -17,6 +26,54 @@ import {
 } from "./testUtils";
 
 describe("AuiProvider", () => {
+  it.each([
+    { nested: false, events: false },
+    { nested: true, events: false },
+    { nested: false, events: true },
+    { nested: true, events: true },
+  ])(
+    "reads pre-effect state during render and mounted state afterward (nested: $nested, events: $events)",
+    ({ nested, events }) => {
+      let aui!: AnyClient;
+      let items!: Accessor<string[]>;
+      let firstRead!: string[];
+      let mountedRead!: string[];
+      const Child = () => {
+        aui = useAui() as AnyClient;
+        items = useAuiState((s) => (s as AnyClient).thread.items);
+        firstRead = items();
+        onMount(() => {
+          mountedRead = items();
+        });
+        return null;
+      };
+      const EventChild = () => {
+        useAuiEvent("thread.pinged" as never, vi.fn());
+        return createComponent(Child, {});
+      };
+      const Consumer = events ? EventChild : Child;
+      const Nested = () =>
+        providerWith(
+          AuiConfig({ message: MessageClient({ id: "nested" }) } as never),
+          () => createComponent(Consumer, {}),
+          { extends: useAui() },
+        );
+      const { unmount } = mount(() =>
+        providerWith(AuiConfig({ thread: MountEffectItems() } as never), () =>
+          createComponent(nested ? Nested : Consumer, {}),
+        ),
+      );
+      onTestFinished(unmount);
+
+      expect(firstRead).toEqual([]);
+      expect(mountedRead).toEqual(["loaded"]);
+      expect(items()).toEqual(["loaded"]);
+
+      flushTapSync(() => aui.thread.setItems(["updated"]));
+      expect(items()).toEqual(["updated"]);
+    },
+  );
+
   it("provides a client built from the config", () => {
     const { Probe, getAui } = captureAui();
     const { unmount } = mount(() =>
