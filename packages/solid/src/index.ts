@@ -3,6 +3,11 @@ export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
 
+export { ThreadPrimitiveViewport } from "./primitives/ThreadPrimitiveViewport";
+export { ThreadPrimitiveViewportFooter } from "./primitives/ThreadPrimitiveViewportFooter";
+export { ThreadPrimitiveScrollToBottom } from "./primitives/ThreadPrimitiveScrollToBottom";
+export { useScrollLock } from "./useScrollLock";
+
 export {
   AuiConfig,
   Derived,
