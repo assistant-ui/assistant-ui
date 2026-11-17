@@ -110,6 +110,33 @@ describe("ThreadPrimitiveRoot", () => {
     expect(stopSpeaking).not.toHaveBeenCalled();
   });
 
+  it("runs a child's delegated keydown before the caller's root onKeyDown", () => {
+    const stopSpeaking = vi.fn();
+    const order: string[] = [];
+    const rootHandler = vi.fn((event: KeyboardEvent) => {
+      order.push(event.defaultPrevented ? "root:prevented" : "root");
+    });
+    const { el } = mount(speechConfig(stopSpeaking), {
+      onKeyDown: rootHandler,
+    });
+    disposers.push(
+      render(
+        () =>
+          createComponent(Dynamic, {
+            component: "input",
+            onKeyDown: (event: KeyboardEvent) => {
+              order.push("child");
+              event.preventDefault();
+            },
+          }),
+        el.firstElementChild!,
+      ),
+    );
+    keydown(el.querySelector("input")!, "Escape");
+    expect(order).toEqual(["child", "root:prevented"]);
+    expect(stopSpeaking).not.toHaveBeenCalled();
+  });
+
   it.each(["sibling", "nested", "shadow", "closed shadow"] as const)(
     "stops only the nearest thread's speech on Escape (%s)",
     (placement) => {

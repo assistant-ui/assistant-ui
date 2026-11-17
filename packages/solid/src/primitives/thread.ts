@@ -9,7 +9,6 @@ import {
 import { Dynamic } from "solid-js/web";
 import { isCompositionKey } from "@assistant-ui/core/internal";
 import { useAui } from "../useAui";
-import { callEventHandler } from "./callEventHandler";
 
 // Native root handlers preserve the innermost root hidden by closed shadow trees.
 const escapeEventThreadRoots = new WeakMap<Event, Element>();
@@ -18,7 +17,7 @@ const escapeEventThreadRoots = new WeakMap<Event, Element>();
 export const ThreadPrimitiveRoot = (
   props: JSX.HTMLAttributes<HTMLDivElement>,
 ): JSX.Element => {
-  const [local, rest] = splitProps(props, ["ref", "onKeyDown"]);
+  const [local, rest] = splitProps(props, ["ref"]);
   const aui = useAui();
   let div!: HTMLDivElement;
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -57,13 +56,7 @@ export const ThreadPrimitiveRoot = (
     mergeProps(rest, {
       component: "div",
       "data-aui-thread-root": "",
-      "on:keydown": (
-        event: KeyboardEvent & {
-          currentTarget: HTMLDivElement;
-          target: Element;
-        },
-      ) => {
-        callEventHandler(local.onKeyDown, event);
+      "on:keydown": (event: KeyboardEvent) => {
         if (event.key === "Escape" && !escapeEventThreadRoots.has(event))
           escapeEventThreadRoots.set(event, div);
       },
