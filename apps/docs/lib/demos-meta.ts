@@ -13,6 +13,15 @@ const GITHUB_EXAMPLES_BASE =
 
 export const DEMO_META: DemoMeta[] = [
   {
+    slug: "agentbase",
+    name: "Agent Base",
+    tagline:
+      "Agent Base chat with thread management, a model picker, and a collapsible sidebar.",
+    description:
+      "Agent Base chat with thread management, a model picker, and a collapsible sidebar.",
+    githubLink: `${GITHUB_EXAMPLES_BASE}/agentbase.tsx`,
+  },
+  {
     slug: "base",
     name: "Base",
     tagline: "The full assistant-ui experience, unthemed.",

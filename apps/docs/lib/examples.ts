@@ -9,6 +9,15 @@ export type ExampleItem = {
 
 const INTERNAL_EXAMPLES: ExampleItem[] = [
   {
+    title: "Agent Base",
+    image: "/screenshot/examples/agentbase.png",
+    description:
+      "Agent Base chat with thread management, a model picker, and a collapsible sidebar.",
+    link: "/examples/agentbase",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/agentbase.tsx",
+  },
+  {
     title: "Modal",
     image: "/screenshot/examples/modal.png",
     description: "Floating button that opens an AI assistant chat box.",

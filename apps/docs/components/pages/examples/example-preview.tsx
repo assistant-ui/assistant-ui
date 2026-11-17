@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AgentBase } from "@/components/pages/examples/agentbase";
 import { Artifacts } from "@/components/pages/examples/artifacts";
 import { Base } from "@/components/pages/examples/base";
 import { ChatGPT } from "@/components/pages/examples/chatgpt";
@@ -25,6 +26,7 @@ export function hasExamplePreview(slug: string): boolean {
     case "grok":
     case "perplexity":
     case "ai-sdk":
+    case "agentbase":
     case "mem0":
     case "stockbroker":
     case "artifacts":
@@ -84,6 +86,12 @@ export function ExamplePreview({ slug }: { slug: string }): ReactNode {
       return (
         <ThreadPreview>
           <Base />
+        </ThreadPreview>
+      );
+    case "agentbase":
+      return (
+        <ThreadPreview>
+          <AgentBase />
         </ThreadPreview>
       );
     case "mem0":

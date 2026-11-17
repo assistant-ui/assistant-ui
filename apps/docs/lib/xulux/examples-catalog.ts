@@ -33,6 +33,7 @@ const CATEGORIES: XuluxTemplateCategory[] = [
 // that the docs source does not currently expose, such as category, preview type,
 // and template-friendly tech labels.
 const PREVIEW_COMPONENT_SLUGS = new Set([
+  "agentbase",
   "ai-sdk",
   "artifacts",
   "chatgpt",
@@ -44,6 +45,11 @@ const PREVIEW_COMPONENT_SLUGS = new Set([
 ]);
 
 const TECH_BY_SLUG: Record<string, XuluxTemplate["tech"]> = {
+  agentbase: {
+    framework: "Next.js",
+    runtime: "AI SDK",
+    frontendPattern: "Thread + Composer",
+  },
   "ai-sdk": {
     framework: "Next.js",
     runtime: "AI SDK",

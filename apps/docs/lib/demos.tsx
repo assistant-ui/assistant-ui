@@ -5,6 +5,7 @@ import { Claude } from "@/components/pages/examples/claude";
 import { Gemini } from "@/components/pages/examples/gemini";
 import { Grok } from "@/components/pages/examples/grok";
 import { Perplexity } from "@/components/pages/examples/perplexity";
+import { AgentBase } from "@/components/pages/examples/agentbase";
 import { DEMO_META, type DemoMeta } from "./demos-meta";
 
 export type DemoEntry = DemoMeta & { component: FC };
@@ -16,6 +17,7 @@ const DEMO_COMPONENTS: Record<string, FC> = {
   gemini: Gemini,
   grok: Grok,
   perplexity: Perplexity,
+  agentbase: AgentBase,
 };
 
 export const DEMOS: DemoEntry[] = DEMO_META.map((meta) => {

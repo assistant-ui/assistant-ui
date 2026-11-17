@@ -7,6 +7,7 @@ import { Gemini } from "@/components/pages/examples/gemini";
 import { Grok } from "@/components/pages/examples/grok";
 import { ModalChat } from "@/components/pages/examples/modal";
 import { Perplexity } from "@/components/pages/examples/perplexity";
+import { AgentBase } from "@/components/pages/examples/agentbase";
 import { Base } from "@/components/pages/examples/base";
 import { ArtifactsRuntimeProvider } from "@/runtimes/artifacts";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
@@ -32,6 +33,12 @@ export function ExamplePreview({ preview }: { preview: PreviewData }) {
 
 function renderPreview(preview: PreviewData) {
   switch (preview.slug) {
+    case "agentbase":
+      return (
+        <DocsRuntimeProvider>
+          <AgentBase />
+        </DocsRuntimeProvider>
+      );
     case "ai-sdk":
       return (
         <DocsRuntimeProvider>
