@@ -39,6 +39,10 @@ export {
 export { ThreadPrimitiveRoot } from "./primitives/thread";
 export { MessagePrimitiveRoot } from "./primitives/message";
 
+export { ErrorPrimitiveRoot, ErrorPrimitiveMessage } from "./primitives/error";
+export { ChainOfThoughtPrimitiveAccordionTrigger } from "./primitives/ChainOfThoughtPrimitiveAccordionTrigger";
+export { ChainOfThoughtPrimitiveParts } from "./primitives/ChainOfThoughtPrimitiveParts";
+
 export {
   AuiConfig,
   Derived,
