@@ -135,7 +135,7 @@ export const initialDocument: DocumentState = {
     {
       id: "b8",
       type: "paragraph",
-      text: "The chat is docked at the bottom of the page. Ask for a change in plain words and the assistant edits the document itself. A block shimmers while the assistant is rewriting it, then the new text is typed in over the old, with the newest words in blue.",
+      text: "The chat is in the panel on the right. Ask for a change in plain words and the assistant edits the document itself. A block shimmers while the assistant is rewriting it, then the new text is typed in over the old, with the newest words in blue.",
     },
     {
       id: "b9",
@@ -145,12 +145,17 @@ export const initialDocument: DocumentState = {
     {
       id: "b10",
       type: "bullet",
-      text: "Open **Rewrite** beside it for a one-click change: improve, fix spelling and grammar, shorten, lengthen or simplify.",
+      text: "Under the instruction are one-click changes: improve, fix spelling and grammar, shorten, lengthen or simplify.",
     },
     {
       id: "b11",
       type: "bullet",
       text: "Type `/` in the chat for ready-made requests.",
+    },
+    {
+      id: "b28",
+      type: "bullet",
+      text: "The microphone button in the chat takes dictation, in browsers that recognize speech.",
     },
     {
       id: "b26",
@@ -165,7 +170,7 @@ export const initialDocument: DocumentState = {
     {
       id: "b12",
       type: "bullet",
-      text: "**Hide chat** tucks the chat away when you want the whole page, and **Show chat** brings it back.",
+      text: "**Chat**, **Comments** and **History** at the top share that panel. Drag its edge to resize it, and close it when you want the whole page.",
     },
     { id: "b13", type: "h2", text: "Comment" },
     {
@@ -184,6 +189,12 @@ export const initialDocument: DocumentState = {
       type: "quote",
       text: "History covers the current chat. The document and its comments are saved in this browser, and the chat starts fresh when you reload.",
     },
+    { id: "b29", type: "h2", text: "Share" },
+    {
+      id: "b30",
+      type: "paragraph",
+      text: "**Share** copies a link that holds the whole document, so whoever opens it gets their own copy and nothing is uploaded. It also copies or downloads the text as Markdown.",
+    },
     { id: "b18", type: "h2", text: "Keys and models" },
     {
       id: "b19",
@@ -195,7 +206,7 @@ export const initialDocument: DocumentState = {
     {
       id: "b22",
       type: "numbered",
-      text: "Highlight this sentence, open **Rewrite** and choose **Make shorter**.",
+      text: "Highlight this sentence, choose **Ask AI** and pick **Make shorter**.",
     },
     {
       id: "b23",
@@ -211,6 +222,37 @@ export const initialDocument: DocumentState = {
       id: "b25",
       type: "numbered",
       text: "Open **History** and restore the first version.",
+    },
+    { id: "b31", type: "h2", text: "Coming next" },
+    {
+      id: "b32",
+      type: "paragraph",
+      text: "These are planned and not built yet.",
+    },
+    {
+      id: "b33",
+      type: "bullet",
+      text: "Emoji reactions on a highlighted passage.",
+    },
+    {
+      id: "b34",
+      type: "bullet",
+      text: "A color palette for text and highlight, in place of the single highlight.",
+    },
+    {
+      id: "b35",
+      type: "bullet",
+      text: "A microphone button in the small **Ask AI** bar, so an instruction about a passage can be dictated too.",
+    },
+    {
+      id: "b36",
+      type: "bullet",
+      text: "The chat as a floating window that opens from a corner button, next to the chat panel.",
+    },
+    {
+      id: "b37",
+      type: "bullet",
+      text: "Suggestions shown above the composer in the chat panel, as well as behind `/`.",
     },
   ],
 };

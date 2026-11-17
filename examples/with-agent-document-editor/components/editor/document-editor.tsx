@@ -81,10 +81,10 @@ export function DocumentEditor() {
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <FormatToolbar />
-      <div className="min-h-0 flex-1 scroll-pt-6 scroll-pb-56 [scrollbar-gutter:stable_both-edges] overflow-y-auto">
+      <div className="min-h-0 flex-1 scroll-py-6 [scrollbar-gutter:stable_both-edges] overflow-y-auto">
         <div
           className={cn(
-            "relative mx-auto w-full max-w-2xl px-6 pt-10 pb-72 text-[15px] transition-opacity duration-150 motion-reduce:transition-none",
+            "relative mx-auto w-full max-w-2xl px-6 pt-10 pb-40 text-[15px] transition-opacity duration-150 motion-reduce:transition-none",
             !ready && "opacity-0",
           )}
         >

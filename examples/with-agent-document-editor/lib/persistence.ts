@@ -1,6 +1,6 @@
 import type { Unstable_InteractablePersistenceAdapter } from "@assistant-ui/react";
 
-const STORAGE_KEY = "with-agent-document-editor:document:v3";
+const STORAGE_KEY = "with-agent-document-editor:document:v5";
 
 export const documentPersistence: Unstable_InteractablePersistenceAdapter = {
   load: () => {

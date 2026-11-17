@@ -8,9 +8,10 @@ import {
   Suggestions,
   unstable_Interactables,
   useAui,
+  WebSpeechDictationAdapter,
 } from "@assistant-ui/react";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Workspace } from "@/components/workspace";
 import { apiKeyHeaders } from "@/lib/api-keys";
 import { documentPersistence } from "@/lib/persistence";
@@ -49,14 +50,32 @@ function DocumentScopes() {
   );
 }
 
+const subscribeToNothing = () => () => {};
+
+// Speech recognition is not in every browser and never on the server, so the
+// server render and the first client render both go without it.
+function useDictationAdapter() {
+  const supported = useSyncExternalStore(
+    subscribeToNothing,
+    WebSpeechDictationAdapter.isSupported,
+    () => false,
+  );
+  return useMemo(
+    () => (supported ? new WebSpeechDictationAdapter() : undefined),
+    [supported],
+  );
+}
+
 export default function Home() {
   const [transport] = useState(
     () =>
       new AssistantChatTransport({ api: "/api/chat", headers: apiKeyHeaders }),
   );
+  const dictation = useDictationAdapter();
   const runtime = useChatRuntime({
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    adapters: { dictation },
   });
 
   return (

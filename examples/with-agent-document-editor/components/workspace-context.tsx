@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -20,7 +21,23 @@ import {
   type DocumentState,
 } from "@/lib/document-state";
 
-export type PanelId = "comments" | "history";
+export type PanelId = "chat" | "comments" | "history";
+
+const NARROW = "(max-width: 639px)";
+
+const subscribeToWidth = (onChange: () => void) => {
+  const query = window.matchMedia(NARROW);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
+
+/** Whether the screen is too narrow to hold a panel beside the document. */
+export const useIsNarrow = () =>
+  useSyncExternalStore(
+    subscribeToWidth,
+    () => window.matchMedia(NARROW).matches,
+    () => false,
+  );
 
 type WorkspaceValue = {
   panel: PanelId | null;
@@ -30,9 +47,7 @@ type WorkspaceValue = {
   /** Tool call whose version the history panel should open on. */
   focusedVersion: string | null;
   showVersion: (toolCallId: string | null) => void;
-  chatOpen: boolean;
-  setChatOpen: (open: boolean) => void;
-  /** Shows the chat and puts the caret in its composer. */
+  /** Shows the chat panel and puts the caret in its composer. */
   openChat: () => void;
   /** Changes each time the composer should take focus. */
   chatFocusRequest: number;
@@ -43,10 +58,14 @@ type WorkspaceValue = {
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [panel, setPanel] = useState<PanelId | null>(null);
+  const isNarrow = useIsNarrow();
+  // Until a panel is opened or closed by hand, the chat is open wherever
+  // there is room for it beside the document.
+  const [chosenPanel, setPanel] = useState<PanelId | null>();
+  const panel =
+    chosenPanel === undefined ? (isNarrow ? null : "chat") : chosenPanel;
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [focusedVersion, setFocusedVersion] = useState<string | null>(null);
-  const [chatOpen, setChatOpen] = useState(true);
   const [chatFocusRequest, setChatFocusRequest] = useState(0);
   const chatFocusHandled = useRef(0);
 
@@ -61,7 +80,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openChat = useCallback(() => {
-    setChatOpen(true);
+    setPanel("chat");
     setChatFocusRequest((request) => request + 1);
   }, []);
 
@@ -73,8 +92,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       showComment,
       focusedVersion,
       showVersion,
-      chatOpen,
-      setChatOpen,
       openChat,
       chatFocusRequest,
       chatFocusHandled,
@@ -85,7 +102,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       showComment,
       focusedVersion,
       showVersion,
-      chatOpen,
       openChat,
       chatFocusRequest,
     ],

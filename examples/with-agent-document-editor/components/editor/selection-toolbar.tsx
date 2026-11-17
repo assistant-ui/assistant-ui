@@ -17,11 +17,16 @@ import {
   BoldIcon,
   ChevronDownIcon,
   CodeIcon,
+  FeatherIcon,
   HighlighterIcon,
   ItalicIcon,
   LinkIcon,
   ListIcon,
+  ListMinusIcon,
+  ListPlusIcon,
   MessageSquarePlusIcon,
+  PenLineIcon,
+  SpellCheckIcon,
   StrikethroughIcon,
   UnderlineIcon,
   type LucideIcon,
@@ -41,7 +46,6 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -64,6 +68,7 @@ import {
 const HIGHLIGHT = "doc-selection";
 const MAX_QUOTE_LENGTH = 2000;
 const EDGE = 8;
+const GAP = 8;
 
 type Captured = {
   blockId: string;
@@ -76,42 +81,49 @@ type Captured = {
 
 type Mode = "actions" | "ask" | "comment" | "link";
 
-type Position = { top: number; center: number; below: boolean };
+/** Where the selection is on screen. */
+type Position = { top: number; bottom: number; center: number };
 
 const place = (range: Range): Position | null => {
   const rect = range.getBoundingClientRect();
   if (rect.width === 0 && rect.height === 0) return null;
-  const below = rect.top < 72;
   return {
-    top: below ? rect.bottom + 8 : rect.top - 8,
+    top: rect.top,
+    bottom: rect.bottom,
     center: rect.left + rect.width / 2,
-    below,
   };
 };
 
-const REWRITES = [
-  {
-    label: "Improve writing",
-    prompt: "Improve the writing of this passage. Keep its meaning and length.",
-  },
-  {
-    label: "Fix spelling and grammar",
-    prompt:
-      "Fix the spelling and grammar of this passage. Change nothing else.",
-  },
-  {
-    label: "Make shorter",
-    prompt: "Shorten this passage. Keep its meaning.",
-  },
-  {
-    label: "Make longer",
-    prompt: "Expand this passage with a little more detail. Keep its tone.",
-  },
-  {
-    label: "Simplify",
-    prompt: "Rewrite this passage in simpler words. Keep its meaning.",
-  },
-];
+const REWRITES: readonly { label: string; prompt: string; icon: LucideIcon }[] =
+  [
+    {
+      label: "Improve writing",
+      prompt:
+        "Improve the writing of this passage. Keep its meaning and length.",
+      icon: PenLineIcon,
+    },
+    {
+      label: "Fix spelling and grammar",
+      prompt:
+        "Fix the spelling and grammar of this passage. Change nothing else.",
+      icon: SpellCheckIcon,
+    },
+    {
+      label: "Make shorter",
+      prompt: "Shorten this passage. Keep its meaning.",
+      icon: ListMinusIcon,
+    },
+    {
+      label: "Make longer",
+      prompt: "Expand this passage with a little more detail. Keep its tone.",
+      icon: ListPlusIcon,
+    },
+    {
+      label: "Simplify",
+      prompt: "Rewrite this passage in simpler words. Keep its meaning.",
+      icon: FeatherIcon,
+    },
+  ];
 
 const TEXT_FORMATS: readonly {
   format: TextFormatType;
@@ -155,9 +167,10 @@ const fieldInput =
 export function SelectionToolbar({ ids }: { ids: BlockIds }) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
-  const { setChatOpen, showComment } = useWorkspace();
+  const { setPanel, showComment } = useWorkspace();
   const [, { setState: setComments }] = useCommentsState();
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const instruction = useAuiState((s) => s.composer.text);
   const format = useSelectionFormat();
 
   const [captured, setCaptured] = useState<Captured | null>(null);
@@ -261,7 +274,9 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
   }, [captured]);
 
   // The toolbar is centered on the selection but must stay on screen, and its
-  // width is only known once it has rendered in its current mode.
+  // size is only known once it has rendered in its current mode. The actions
+  // sit above the selection. The instruction field opens below it, so that
+  // the field stays where it is while the options under it come and go.
   useLayoutEffect(() => {
     const element = toolbar.current;
     if (!element || !position) return;
@@ -270,7 +285,20 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       Math.max(position.center, half + EDGE),
       window.innerWidth - half - EDGE,
     );
+    const above = position.top - GAP - element.offsetHeight;
+    const below = position.bottom + GAP;
+    const fitsAbove = above >= EDGE;
+    const fitsBelow = below + element.offsetHeight <= window.innerHeight - EDGE;
+    const top =
+      mode === "ask"
+        ? fitsBelow || !fitsAbove
+          ? below
+          : above
+        : fitsAbove
+          ? above
+          : below;
     element.style.left = `${left}px`;
+    element.style.top = `${top}px`;
   }, [position, mode, isRunning]);
 
   // Focus leaves the document while an input in the toolbar is open, and the
@@ -287,7 +315,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
   useAuiEvent("composer.send", () => {
     if (modeRef.current !== "ask") return;
     close();
-    setChatOpen(true);
+    setPanel("chat");
   });
 
   if (!captured || !position) return null;
@@ -300,6 +328,9 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
   };
 
   const sendPrompt = (prompt: string) => {
+    const composer = aui.thread.composer();
+    composer.setQuote(undefined);
+    composer.setText("");
     aui.thread.append({
       role: "user",
       content: [{ type: "text", text: prompt }],
@@ -307,7 +338,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
     });
     window.getSelection()?.removeAllRanges();
     close();
-    setChatOpen(true);
+    setPanel("chat");
   };
 
   const saveComment = (event: FormEvent) => {
@@ -363,6 +394,37 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
     editor.focus();
   };
 
+  // The arrow keys step between the instruction field and the options under
+  // it. The field keeps the keys for itself while its caret can still move.
+  const onAskKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const stops = [
+      ...event.currentTarget.querySelectorAll<HTMLElement>(
+        "textarea, [data-ask-option]",
+      ),
+    ];
+    const current = document.activeElement;
+    if (
+      current instanceof HTMLTextAreaElement &&
+      current.selectionEnd < current.value.length
+    ) {
+      return;
+    }
+    const next =
+      stops[
+        stops.indexOf(current as HTMLElement) +
+          (event.key === "ArrowDown" ? 1 : -1)
+      ];
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+  };
+
+  const query = instruction.trim().toLowerCase();
+  const askOptions = REWRITES.filter(({ label }) =>
+    label.toLowerCase().includes(query),
+  );
+
   const inList = format.block === "bullet" || format.block === "number";
   const textStyle = TEXT_STYLES.find(({ style }) => style === format.block);
   const TextStyleIcon = textStyle?.icon ?? TEXT_STYLES[0]!.icon;
@@ -372,15 +434,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       ref={toolbar}
       role="toolbar"
       aria-label="Selected text"
-      style={{
-        position: "fixed",
-        top: position.top,
-        left: position.center,
-        transform: position.below
-          ? "translate(-50%, 0)"
-          : "translate(-50%, -100%)",
-      }}
-      className="bg-popover text-popover-foreground ring-foreground/10 animate-in fade-in z-40 flex max-w-[calc(100vw-1rem)] items-center gap-0.5 overflow-x-auto rounded-[10px] p-1 text-sm shadow-lg ring-1 duration-100 motion-reduce:animate-none"
+      className="bg-popover text-popover-foreground ring-foreground/10 animate-in fade-in fixed z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto rounded-[10px] p-1 text-sm shadow-lg ring-1 duration-100 motion-reduce:animate-none"
       onMouseDown={(event) => {
         const target = event.target as HTMLElement;
         if (!target.closest("input, textarea")) event.preventDefault();
@@ -397,31 +451,6 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
           >
             Ask AI
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={isRunning}
-                  className="shrink-0 gap-0.5"
-                />
-              }
-            >
-              Rewrite
-              <ChevronDownIcon className="text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-52">
-              {REWRITES.map((rewrite) => (
-                <DropdownMenuItem
-                  key={rewrite.label}
-                  onClick={() => sendPrompt(rewrite.prompt)}
-                >
-                  {rewrite.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
           <Separator />
           <TooltipIconButton
             tooltip="Comment"
@@ -536,28 +565,50 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
       )}
 
       {mode === "ask" && (
-        <ComposerPrimitive.Root className="flex w-80 items-end gap-1">
-          <ComposerPrimitive.Input
-            autoFocus
-            rows={1}
-            placeholder="Tell the assistant what to change"
-            aria-label="Instruction for the assistant"
-            unstable_focusOnRunStart={false}
-            unstable_focusOnScrollToBottom={false}
-            unstable_focusOnThreadSwitched={false}
-            className="placeholder:text-muted-foreground/70 max-h-32 min-h-7 flex-1 resize-none bg-transparent px-2 py-1 text-sm leading-5 outline-none"
-          />
-          <ComposerPrimitive.Send asChild>
-            <TooltipIconButton
-              tooltip="Send"
-              side="top"
-              variant="default"
-              className="size-7 rounded-full [&_svg]:size-4"
+        <div className="flex w-80 flex-col" onKeyDown={onAskKeyDown}>
+          <ComposerPrimitive.Root className="flex items-end gap-1">
+            <ComposerPrimitive.Input
+              autoFocus
+              rows={1}
+              placeholder="Tell the assistant what to change"
+              aria-label="Instruction for the assistant"
+              unstable_focusOnRunStart={false}
+              unstable_focusOnScrollToBottom={false}
+              unstable_focusOnThreadSwitched={false}
+              className="placeholder:text-muted-foreground/70 max-h-32 min-h-7 flex-1 resize-none bg-transparent px-2 py-1 text-sm leading-5 outline-none"
+            />
+            <ComposerPrimitive.Send asChild>
+              <TooltipIconButton
+                tooltip="Send"
+                side="top"
+                variant="default"
+                className="size-7 rounded-full [&_svg]:size-4"
+              >
+                <ArrowUpIcon />
+              </TooltipIconButton>
+            </ComposerPrimitive.Send>
+          </ComposerPrimitive.Root>
+          {askOptions.length > 0 && (
+            <div
+              role="group"
+              aria-label="Suggested instructions"
+              className="border-foreground/10 mt-1 flex flex-col border-t pt-1"
             >
-              <ArrowUpIcon />
-            </TooltipIconButton>
-          </ComposerPrimitive.Send>
-        </ComposerPrimitive.Root>
+              {askOptions.map(({ label, prompt, icon: Icon }) => (
+                <button
+                  key={label}
+                  type="button"
+                  data-ask-option
+                  onClick={() => sendPrompt(prompt)}
+                  className="hover:bg-accent focus-visible:bg-accent flex items-center gap-2 rounded-md px-2 py-1.5 text-start outline-none"
+                >
+                  <Icon className="text-muted-foreground size-4 shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {mode === "comment" && (
