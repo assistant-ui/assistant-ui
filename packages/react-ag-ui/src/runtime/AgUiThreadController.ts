@@ -2636,6 +2636,7 @@ export class AgUiThreadController {
     let runFinished = false;
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
+      if (event.type === "RUN_STARTED") runFinished = false;
       if (event.type === "SUBAGENT_STARTED")
         runSubagentIds.add(event.subagentRunId);
       if (event.type === "RUN_FINISHED") {

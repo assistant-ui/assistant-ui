@@ -9,6 +9,34 @@ const createSubscriber = () => {
 };
 
 describe("createAgUiSubscriber", () => {
+  it("accepts a new run after a terminal event", () => {
+    const { subscriber, dispatch } = createSubscriber();
+
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "first" },
+    });
+    subscriber.onRunStartedEvent?.({
+      event: { type: "RUN_STARTED", runId: "second" },
+    });
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "second" },
+    });
+
+    expect(dispatch).toHaveBeenCalledTimes(3);
+    expect(dispatch).toHaveBeenNthCalledWith(1, {
+      type: "RUN_FINISHED",
+      runId: "first",
+    });
+    expect(dispatch).toHaveBeenNthCalledWith(2, {
+      type: "RUN_STARTED",
+      runId: "second",
+    });
+    expect(dispatch).toHaveBeenNthCalledWith(3, {
+      type: "RUN_FINISHED",
+      runId: "second",
+    });
+  });
+
   it("dispatches ACTIVITY_DELTA as a typed event", () => {
     const { subscriber, dispatch } = createSubscriber();
     subscriber.onActivityDeltaEvent?.({

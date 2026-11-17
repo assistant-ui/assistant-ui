@@ -30,6 +30,7 @@ type Subscriber = {
   onSubagentStartedEvent?: (payload: { event: unknown }) => void;
   onSubagentFinishedEvent?: (payload: { event: unknown }) => void;
   onSubagentErrorEvent?: (payload: { event: unknown }) => void;
+  onRunStartedEvent?: (payload: { event: unknown }) => void;
   onRunFinishedEvent?: (payload: { event: unknown }) => void;
   onRunErrorEvent?: (payload: { event: unknown }) => void;
   onStepStartedEvent?: (payload: { event: unknown }) => void;
@@ -116,6 +117,12 @@ export const createAgUiSubscriber = (
       dispatchIfValid(event, "SUBAGENT_FINISHED"),
     onSubagentErrorEvent: ({ event }) =>
       dispatchIfValid(event, "SUBAGENT_ERROR"),
+    onRunStartedEvent: ({ event }) => {
+      const parsed = ensureEvent(event, "RUN_STARTED", logger);
+      if (!parsed || parsed.type !== "RUN_STARTED") return;
+      runFinishedDispatched = false;
+      dispatch(parsed);
+    },
     onRunFinishedEvent: ({ event }) => {
       if (runFinishedDispatched) return;
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
