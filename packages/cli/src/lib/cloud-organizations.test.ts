@@ -1,5 +1,5 @@
 import { AccountsRequestError } from "aui-auth";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { fetchOrganizations } from "./cloud-organizations";
 
 describe("fetchOrganizations", () => {
@@ -57,6 +57,7 @@ describe("fetchOrganizations", () => {
 
   it("passes the timeout to the request and lets a network failure through", async () => {
     const timeout = vi.spyOn(AbortSignal, "timeout");
+    onTestFinished(() => timeout.mockRestore());
     const fetchMock = vi.fn(async () => {
       throw new TypeError("fetch failed");
     });
@@ -71,6 +72,5 @@ describe("fetchOrganizations", () => {
       ),
     ).rejects.toThrow("fetch failed");
     expect(timeout).toHaveBeenCalledWith(1234);
-    timeout.mockRestore();
   });
 });
