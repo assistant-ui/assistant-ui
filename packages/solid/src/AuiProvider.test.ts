@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { createComponent, createSignal } from "solid-js";
-import { flushTapSync } from "@assistant-ui/tap";
+import { useInsertionEffect } from "react";
+import { createComponent, createSignal, onCleanup } from "solid-js";
+import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
 import { AuiProvider } from "./AuiProvider";
 import { useAui } from "./useAui";
@@ -14,6 +15,17 @@ import {
   trackers,
   type AnyClient,
 } from "./testUtils";
+
+const useThrowingCleanup = () => {
+  useInsertionEffect(
+    () => () => {
+      throw new Error("cleanup failed");
+    },
+    [],
+  );
+  return { getState: () => ({}) };
+};
+const ThrowingCleanup = resource(useThrowingCleanup);
 
 describe("AuiProvider", () => {
   it("provides a client built from the config", () => {
@@ -165,6 +177,31 @@ describe("AuiProvider", () => {
     const afterMount = trackers.threadCleanups;
     unmount();
     expect(trackers.threadCleanups).toBe(afterMount + 1);
+  });
+
+  it("reports a throwing cleanup and still disposes its subtree", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const childDisposed = vi.fn();
+    const Child = () => {
+      onCleanup(childDisposed);
+      return null;
+    };
+    const { unmount } = mount(() =>
+      providerWith(AuiConfig({ thread: ThrowingCleanup() } as never), () =>
+        createComponent(Child, {}),
+      ),
+    );
+
+    try {
+      expect(() => unmount()).not.toThrow();
+      expect(childDisposed).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[assistant-ui] AuiProvider cleanup threw an error",
+        expect.anything(),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("returns the throwing default client outside a provider", () => {

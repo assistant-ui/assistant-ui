@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { useInsertionEffect } from "react";
 import { flushSync, mount, unmount } from "svelte";
-import { flushTapSync } from "@assistant-ui/tap";
+import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
 import { provideAui } from "../provideAui";
 import { useAui } from "../useAui";
@@ -15,6 +16,17 @@ import {
 } from "./clients";
 
 const target = () => document.createElement("div");
+
+const useThrowingCleanup = () => {
+  useInsertionEffect(
+    () => () => {
+      throw new Error("cleanup failed");
+    },
+    [],
+  );
+  return { getState: () => ({}) };
+};
+const ThrowingCleanup = resource(useThrowingCleanup);
 
 describe("provideAui", () => {
   it("provides a client and returns the stable facade", () => {
@@ -55,6 +67,28 @@ describe("provideAui", () => {
 
     flushSync(() => void unmount(app));
     expect(counters.cleanups).toBe(mounted + 1);
+  });
+
+  it("reports a throwing cleanup without breaking unmount", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const app = mount(Host, {
+      target: target(),
+      props: {
+        setup: () => {
+          provideAui(AuiConfig({ thread: ThrowingCleanup() } as never));
+        },
+      },
+    });
+
+    try {
+      expect(() => flushSync(() => void unmount(app))).not.toThrow();
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[assistant-ui] provideAui cleanup threw an error",
+        expect.anything(),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("throws on a nested provider without extends", () => {

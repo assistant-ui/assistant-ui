@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
+import { useInsertionEffect } from "react";
 import {
   createApp,
   defineComponent,
   h,
+  onScopeDispose,
   nextTick,
   shallowRef,
   type Component,
 } from "vue";
-import { flushTapSync } from "@assistant-ui/tap";
+import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
@@ -36,6 +38,17 @@ const captureAui = () => {
   });
   return { Probe, getAui: () => aui };
 };
+
+const useThrowingCleanup = () => {
+  useInsertionEffect(
+    () => () => {
+      throw new Error("cleanup failed");
+    },
+    [],
+  );
+  return { getState: () => ({}) };
+};
+const ThrowingCleanup = resource(useThrowingCleanup);
 
 describe("AuiProvider", () => {
   it("provides a client built from the config", () => {
@@ -242,6 +255,38 @@ describe("AuiProvider", () => {
     unmount();
     expect(trackers.threadCleanups).toBe(afterMount + 1);
     expect(afterMount).toBeGreaterThanOrEqual(before);
+  });
+
+  it("reports a throwing cleanup and still unmounts its subtree", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const childDisposed = vi.fn();
+    const Child = defineComponent({
+      setup() {
+        onScopeDispose(childDisposed);
+        return () => null;
+      },
+    });
+    const { unmount } = mountApp(
+      defineComponent({
+        setup: () => () =>
+          h(
+            AuiProvider,
+            { config: AuiConfig({ thread: ThrowingCleanup() } as never) },
+            { default: () => h(Child) },
+          ),
+      }),
+    );
+
+    try {
+      expect(() => unmount()).not.toThrow();
+      expect(childDisposed).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[assistant-ui] AuiProvider cleanup threw an error",
+        expect.anything(),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("returns the throwing default client outside a provider", () => {

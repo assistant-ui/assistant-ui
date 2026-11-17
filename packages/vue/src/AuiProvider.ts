@@ -76,7 +76,16 @@ export const AuiProvider = defineComponent({
     const release = handle.subscribe(() => {});
     onScopeDispose(() => {
       release();
-      handle.destroy();
+      // Vue stops the component scope before unmounting its subtree, so a
+      // throwing scope cleanup would leave descendants mounted
+      try {
+        handle.destroy();
+      } catch (error) {
+        console.error(
+          "[assistant-ui] AuiProvider cleanup threw an error",
+          error,
+        );
+      }
     });
 
     const source = handle;

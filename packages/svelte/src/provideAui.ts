@@ -79,7 +79,12 @@ export const provideAui = (
   const release = handle.subscribe(() => {});
   onDestroy(() => {
     release();
-    handle.destroy();
+    // A throwing teardown would stop the framework's own unmount
+    try {
+      handle.destroy();
+    } catch (error) {
+      console.error("[assistant-ui] provideAui cleanup threw an error", error);
+    }
   });
 
   const source = handle;
