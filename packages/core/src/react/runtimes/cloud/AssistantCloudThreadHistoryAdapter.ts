@@ -308,15 +308,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       `id:${state.id}`,
       ...(state.remoteId ? [`remote:${state.remoteId}`] : []),
     ];
-    const keys = new Set([getClientId(threadListItem)]);
-    const live = this.aui.threadListItem;
-    if (
-      [state.id, state.remoteId].some(
-        (id) => typeof id === "string" && this.ownsThread(id),
-      )
-    ) {
-      keys.add(getClientId(live));
-    }
     const cachedThreads = threadPersistenceByList.get(threadListClientId);
     let entry: ScopedPersistence | undefined;
     for (const threadKey of threadKeys) {
@@ -326,13 +317,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       if (candidate && Object.is(candidate.scope, snapshot.scope)) {
         entry = candidate;
         break;
-      }
-    }
-    for (const key of keys) {
-      if (entry) break;
-      const candidate = globalPersistence.get(key);
-      if (candidate && Object.is(candidate.scope, snapshot.scope)) {
-        entry = candidate;
       }
     }
     if (!entry) {
@@ -350,7 +334,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
       // later adapter must reconnect the retained mapping to its live client ref.
       entry.cloudRef.current = this.cloudRef;
     }
-    for (const key of keys) globalPersistence.set(key, entry);
+    globalPersistence.set(getClientId(threadListItem), entry);
     let threadCache = cachedThreads;
     if (!threadCache) {
       threadCache = new Map();
@@ -625,9 +609,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        // Loads re-pin and resolve through the pinned item, so the id mapping
-        // they populate lives on the same persistence instance later writes
-        // resolve, whichever of the list item or the live graft won the pin.
         const pinned = pinCurrent();
         const live = adapter.aui.threadListItem;
         if (!live.source || !live.getState().remoteId) return { messages: [] };
