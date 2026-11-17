@@ -176,6 +176,8 @@ export const loginToCloud = async (
   const login = createDeviceLogin({
     issuer: config.issuer,
     clientId: config.clientId,
+    // Names this login on the accounts Sessions page, as aui-auth/cli does.
+    deviceName: os.hostname().trim().slice(0, 64) || undefined,
     fetch: (input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input));
       return fetch(

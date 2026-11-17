@@ -323,6 +323,12 @@ describe("cloud login through the setup wizard", () => {
       print,
     });
     expect(setup.publish).toHaveBeenCalledWith(authorization, config.issuer);
+    expect(createDeviceLogin.mock.lastCall![0]).toMatchObject({
+      issuer: config.issuer,
+      clientId: config.clientId,
+      deviceName: os.hostname().trim().slice(0, 64),
+    });
+    expect(createDeviceLogin.mock.lastCall![0]).not.toHaveProperty("audience");
     expect(login.wait).toHaveBeenLastCalledWith(authorization, {
       signal: expect.any(AbortSignal),
     });
