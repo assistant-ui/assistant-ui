@@ -183,6 +183,50 @@ describe("MessagePrimitiveParts", () => {
     expect(el.querySelector("p")?.textContent).toBe("streaming");
   });
 
+  it.each(["tool-call", "text", "default"] as const)(
+    "preserves %s component state when an unrelated component changes",
+    (slot) => {
+      const { runtime, setContent } = createTestRuntime();
+      flushTapSync(() =>
+        setContent([
+          slot === "text" ? { type: "text", text: "hello" } : tool("call-1"),
+          { type: "reasoning", text: "thinking" },
+        ]),
+      );
+      let mounts = 0;
+      const Stateful = () => {
+        mounts++;
+        const [count, setCount] = createSignal(0);
+        return createComponent(Dynamic, {
+          component: "button",
+          onClick: () => setCount((value) => value + 1),
+          get children() {
+            return count();
+          },
+        });
+      };
+      const [components, setComponents] = createSignal<
+        Parameters<typeof MessagePrimitiveParts>[0]["components"]
+      >({ [slot]: Stateful, reasoning: () => "before" });
+      const { el } = mount(runtime, components);
+      document.body.append(el);
+      disposers.push(() => el.remove());
+      const button = el.querySelector("button")!;
+      button.click();
+      expect(el.textContent).toBe("1before");
+      expect(mounts).toBe(1);
+      setComponents((previous) => ({
+        ...previous,
+        reasoning: () => "after",
+      }));
+      expect(mounts).toBe(1);
+      expect(el.querySelector("button")).toBe(button);
+      expect(el.textContent).toBe("1after");
+      button.click();
+      expect(button.textContent).toBe("2");
+    },
+  );
+
   it("keeps part instances and their scopes through reorders and removal", async () => {
     const { runtime, setContent } = createTestRuntime();
     let mounts = 0;

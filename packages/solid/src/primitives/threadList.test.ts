@@ -13,7 +13,6 @@ import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "./ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "./ThreadPrimitiveViewport";
-import { MessagePrimitiveRoot } from "./message";
 import { MessagePrimitiveParts } from "./MessagePrimitiveParts";
 import { ThreadListPrimitiveNew } from "./ThreadListPrimitiveNew";
 import { ThreadListItemPrimitiveTrigger } from "./ThreadListItemPrimitiveTrigger";
@@ -154,19 +153,28 @@ const items = (el: HTMLElement) => [
 describe("thread list primitives", () => {
   it("scrolls the viewport to the bottom on thread switch", async () => {
     const { runtime } = createMultiThreadRuntime();
+    const Message = () => {
+      const id = useAuiState((s) => s.message.id);
+      return createComponent(Dynamic, {
+        component: "div",
+        get "data-message-id"() {
+          return id();
+        },
+        get children() {
+          return createComponent(MessagePrimitiveParts, {});
+        },
+      });
+    };
     const el = mountView(runtime, () => [
       createComponent(SidebarView, {}),
       createComponent(ThreadPrimitiveViewport, {
         class: "viewport",
+        autoScroll: false,
         scrollToBottomOnInitialize: false,
         get children() {
           return createComponent(ThreadPrimitiveMessages, {
             get children() {
-              return createComponent(MessagePrimitiveRoot, {
-                get children() {
-                  return createComponent(MessagePrimitiveParts, {});
-                },
-              });
+              return createComponent(Message, {});
             },
           });
         },

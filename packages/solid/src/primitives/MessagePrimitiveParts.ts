@@ -72,6 +72,10 @@ export const MessagePrimitiveParts = (props: {
     const dataPart = useAuiState((s) =>
       s.part.type === "data" ? s.part : null,
     );
+    const component = createMemo(
+      () => props.components?.[type()] ?? props.components?.default,
+    );
+    const textComponent = createMemo(() => props.components?.text);
     return createMemo(() => {
       if (type() === "tool-call") {
         const registration = toolUI();
@@ -119,7 +123,7 @@ export const MessagePrimitiveParts = (props: {
         }
       }
       if (type() === "text") {
-        const Text = props.components?.text;
+        const Text = textComponent();
         return Text
           ? createComponent(Text, {})
           : createComponent(Dynamic, {
@@ -130,7 +134,7 @@ export const MessagePrimitiveParts = (props: {
               },
             });
       }
-      const Render = props.components?.[type()] ?? props.components?.default;
+      const Render = component();
       if (Render) return createComponent(Render, {});
       if (isDevelopment && !warnedTypes.has(type())) {
         warnedTypes.add(type());
