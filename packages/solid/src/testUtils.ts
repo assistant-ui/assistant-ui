@@ -97,6 +97,16 @@ const useThrowingCleanup = () => {
 };
 export const ThrowingCleanup = resource(useThrowingCleanup);
 
+const useMountEffectItems = () => {
+  const [items, setItems] = useState<string[]>([]);
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- Mount updates must be synchronous to detect hydration mismatches.
+    setItems(["loaded"]);
+  }, []);
+  return { getState: () => ({ items }), setItems };
+};
+export const MountEffectItems = resource(useMountEffectItems);
+
 export const TrackedSuggestions = resource(
   function useTrackedSuggestions(lifecycle: {
     effects: number;

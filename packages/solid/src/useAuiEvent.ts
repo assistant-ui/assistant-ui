@@ -1,4 +1,4 @@
-import { onCleanup } from "solid-js";
+import { onCleanup, onMount } from "solid-js";
 import { isServer } from "solid-js/web";
 import { isDevelopment } from "@assistant-ui/core/store/internal";
 import {
@@ -56,10 +56,13 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
     off = next;
   };
 
-  bind();
-  const unsubscribe = source.subscribe(bind);
+  let unsubscribe: Unsubscribe | undefined;
+  onMount(() => {
+    bind();
+    unsubscribe = source.subscribe(bind);
+  });
   onCleanup(() => {
-    unsubscribe();
+    unsubscribe?.();
     off?.();
   });
 };
