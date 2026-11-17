@@ -55,6 +55,20 @@ export {
   BranchPickerPrimitiveCount,
 } from "./primitives/branchPicker";
 
+export { AttachmentByIndexProvider } from "./primitives/AttachmentByIndexProvider";
+export {
+  AttachmentPrimitiveRoot,
+  AttachmentPrimitiveName,
+  AttachmentPrimitiveThumb,
+  AttachmentPrimitiveRemove,
+} from "./primitives/attachment";
+export {
+  ComposerPrimitiveAttachments,
+  ComposerPrimitiveAddAttachment,
+  ComposerPrimitiveAttachmentDropzone,
+} from "./primitives/composerAttachments";
+export { MessagePrimitiveAttachments } from "./primitives/messageAttachments";
+
 export {
   AuiConfig,
   Derived,
