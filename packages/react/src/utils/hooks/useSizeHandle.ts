@@ -6,7 +6,8 @@ import type { SizeHandle } from "../../context/stores/ThreadViewport";
 
 /**
  * Hook that creates a ref for tracking element size via a SizeHandle.
- * Automatically sets up ResizeObserver and reports height changes.
+ * Reports the height on resize, on `class` or `style` changes, and on window
+ * resize.
  *
  * @param register - Function that returns a SizeHandle (e.g., registerContentInset)
  * @param getHeight - Optional function to compute height (defaults to el.offsetHeight)
@@ -29,10 +30,16 @@ export const useSizeHandle = (
 
       const ro = new ResizeObserver(updateHeight);
       ro.observe(el);
+      // A margin-only change resizes neither box, so ResizeObserver misses it
+      const mo = new MutationObserver(updateHeight);
+      mo.observe(el, { attributes: true, attributeFilter: ["class", "style"] });
+      window.addEventListener("resize", updateHeight);
       updateHeight();
 
       return () => {
         ro.disconnect();
+        mo.disconnect();
+        window.removeEventListener("resize", updateHeight);
         sizeHandle.unregister();
       };
     },

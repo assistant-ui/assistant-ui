@@ -197,6 +197,7 @@ afterEach(() => {
   messageHeights.clear();
   resizeObservers.clear();
   cleanup();
+  vi.restoreAllMocks();
 });
 
 afterAll(() => {
@@ -369,6 +370,49 @@ const FooterThread = ({
 );
 
 describe("viewport footer insets", () => {
+  it("updates the inset when only the footer margin changes", async () => {
+    const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+      element.getAttribute("data-testid") === "footer"
+        ? ({
+            marginTop: element.classList.contains("wide") ? "20px" : "0px",
+          } as CSSStyleDeclaration)
+        : nativeGetComputedStyle(element),
+    );
+    const observeMutation = vi.spyOn(MutationObserver.prototype, "observe");
+    const disconnectMutation = vi.spyOn(
+      MutationObserver.prototype,
+      "disconnect",
+    );
+    const addResize = vi.spyOn(window, "addEventListener");
+    const removeResize = vi.spyOn(window, "removeEventListener");
+    const view = render(<FooterThread footerHeight={40} />);
+    const footer = screen.getByTestId("footer");
+    expect(screen.getByTestId("footer-inset").textContent).toBe("40");
+    act(() => footer.classList.add("wide"));
+    await waitFor(() =>
+      expect(screen.getByTestId("footer-inset").textContent).toBe("60"),
+    );
+    const mutationIndex = observeMutation.mock.calls.findIndex(
+      ([target, options]) =>
+        target === footer &&
+        options?.attributeFilter?.join(",") === "class,style",
+    );
+    expect(mutationIndex).toBeGreaterThanOrEqual(0);
+    const mutationObserver = observeMutation.mock.contexts[mutationIndex];
+    const resizeListener = addResize.mock.calls.findLast(
+      ([type]) => type === "resize",
+    )?.[1];
+    expect(resizeListener).toBeDefined();
+    act(() => footer.classList.remove("wide"));
+    act(() => window.dispatchEvent(new Event("resize")));
+    expect(screen.getByTestId("footer-inset").textContent).toBe("40");
+
+    view.unmount();
+    expect(disconnectMutation.mock.contexts).toContain(mutationObserver);
+    expect(removeResize).toHaveBeenCalledWith("resize", resizeListener);
+  });
+
   it("counts a footer registered before viewport attachment toward at-bottom", () => {
     render(<FooterThread footerHeight={40} />);
 

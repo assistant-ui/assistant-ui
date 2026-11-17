@@ -44,8 +44,20 @@ export const ThreadPrimitiveViewportFooter = defineComponent({
         resizeObserver.observe(div);
       }
 
+      let mutationObserver: MutationObserver | undefined;
+      if (typeof MutationObserver !== "undefined") {
+        mutationObserver = new MutationObserver(updateHeight);
+        mutationObserver.observe(div, {
+          attributes: true,
+          attributeFilter: ["class", "style"],
+        });
+      }
+      window.addEventListener("resize", updateHeight);
+
       dispose = () => {
         resizeObserver?.disconnect();
+        mutationObserver?.disconnect();
+        window.removeEventListener("resize", updateHeight);
         contentInset.unregister();
       };
     });

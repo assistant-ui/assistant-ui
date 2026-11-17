@@ -11,6 +11,7 @@ import { AuiProvider } from "../AuiProvider";
 import { ThreadPrimitiveScrollToBottom } from "./ThreadPrimitiveScrollToBottom";
 import { ThreadPrimitiveViewport } from "./ThreadPrimitiveViewport";
 import { ThreadPrimitiveViewportFooter } from "./ThreadPrimitiveViewportFooter";
+import { ViewportContext } from "./viewportContext";
 
 const geometryElements = new Set<HTMLElement>();
 
@@ -232,6 +233,70 @@ describe("ThreadPrimitiveViewport initial pinning", () => {
 });
 
 describe("ThreadPrimitiveViewportFooter", () => {
+  it("updates the inset when only the footer margin changes", async () => {
+    installResizeObserver();
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(
+      function (this: HTMLElement) {
+        return this.classList.contains("footer") ? 40 : 0;
+      },
+    );
+    const nativeGetComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+      element.classList.contains("footer")
+        ? ({
+            marginTop: element.classList.contains("wide") ? "20px" : "0px",
+          } as CSSStyleDeclaration)
+        : nativeGetComputedStyle(element),
+    );
+    const observeMutation = vi.spyOn(MutationObserver.prototype, "observe");
+    const disconnectMutation = vi.spyOn(
+      MutationObserver.prototype,
+      "disconnect",
+    );
+    const addResize = vi.spyOn(window, "addEventListener");
+    const removeResize = vi.spyOn(window, "removeEventListener");
+    const setHeight = vi.fn();
+    const unregister = vi.fn();
+    const View = () =>
+      createComponent(ViewportContext.Provider, {
+        value: {
+          isAtBottom: () => false,
+          scrollToBottom: vi.fn(),
+          registerContentInset: () => ({ setHeight, unregister }),
+        },
+        get children() {
+          return createComponent(ThreadPrimitiveViewportFooter, {
+            class: "footer",
+          });
+        },
+      });
+    const { el, unmount } = mountChat(createTestRuntime(), View);
+    const footer = el.querySelector<HTMLElement>("div.footer")!;
+    expect(setHeight).toHaveBeenLastCalledWith(40);
+    footer.classList.add("wide");
+    await Promise.resolve();
+    expect(setHeight).toHaveBeenLastCalledWith(60);
+    const mutationIndex = observeMutation.mock.calls.findIndex(
+      ([target, options]) =>
+        target === footer &&
+        options?.attributeFilter?.join(",") === "class,style",
+    );
+    expect(mutationIndex).toBeGreaterThanOrEqual(0);
+    const mutationObserver = observeMutation.mock.contexts[mutationIndex];
+    const resizeListener = addResize.mock.calls.findLast(
+      ([type]) => type === "resize",
+    )?.[1];
+    expect(resizeListener).toBeDefined();
+    footer.classList.remove("wide");
+    window.dispatchEvent(new Event("resize"));
+    expect(setHeight).toHaveBeenLastCalledWith(40);
+
+    unmount();
+    expect(disconnectMutation.mock.contexts).toContain(mutationObserver);
+    expect(removeResize).toHaveBeenCalledWith("resize", resizeListener);
+    expect(unregister).toHaveBeenCalledOnce();
+  });
+
   it("registers its height and unregisters it when removed", () => {
     const observers = installResizeObserver();
     const [showFooter, setShowFooter] = createSignal(true);
