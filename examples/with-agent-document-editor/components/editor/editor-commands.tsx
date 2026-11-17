@@ -38,7 +38,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { BlockIds } from "@/lib/blocks";
+import { $blockKeyOf, type BlockIds } from "../../lib/blocks";
 
 export type TextStyle = "paragraph" | "h1" | "h2" | "h3" | "quote";
 export type ListStyle = "bullet" | "number";
@@ -165,41 +165,30 @@ const $selectedBlockKeys = () => {
     ...new Set(
       selection
         .getNodes()
-        .map((node) => node.getTopLevelElement()?.getKey())
+        .map((node) => $blockKeyOf(node))
         .filter((key) => key !== undefined),
     ),
   ];
 };
 
-const currentBlockStyle = (editor: LexicalEditor) =>
-  editor.read(() => {
-    const selection = $getSelection();
-    return $isRangeSelection(selection)
-      ? $blockStyle(selection.anchor.getNode())
-      : "paragraph";
-  });
+const $currentBlockStyle = (): BlockStyle => {
+  const selection = $getSelection();
+  return $isRangeSelection(selection)
+    ? $blockStyle(selection.anchor.getNode())
+    : "paragraph";
+};
 
 const isList = (style: BlockStyle) => style === "bullet" || style === "number";
 
-export function setTextStyle(
-  editor: LexicalEditor,
-  style: TextStyle,
-  ids: BlockIds,
-) {
-  if (isList(currentBlockStyle(editor))) {
-    editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-  }
+/**
+ * Runs a change that turns the selected blocks into another kind of block.
+ * Each restyled block is a new node, and it keeps the id of the one it
+ * replaces, which comments and history know it by.
+ */
+function restyle(editor: LexicalEditor, ids: BlockIds, change: () => void) {
   editor.update(() => {
-    const selection = $getSelection();
-    if (!$isRangeSelection(selection)) return;
     const before = $selectedBlockKeys();
-    $setBlocksType(selection, () => {
-      if (style === "paragraph") return $createParagraphNode();
-      if (style === "quote") return $createQuoteNode();
-      return $createHeadingNode(style);
-    });
-    // The restyled block is a new node. It keeps the id of the one it
-    // replaces, which comments and history know it by.
+    change();
     const after = $selectedBlockKeys();
     if (before.length !== after.length) return;
     before.forEach((key, index) => {
@@ -209,21 +198,51 @@ export function setTextStyle(
   });
 }
 
-export const insertList = (editor: LexicalEditor, style: ListStyle) =>
-  editor.dispatchCommand(
-    style === "bullet"
-      ? INSERT_UNORDERED_LIST_COMMAND
-      : INSERT_ORDERED_LIST_COMMAND,
-    undefined,
-  );
-
-export function toggleList(editor: LexicalEditor, style: ListStyle) {
-  if (currentBlockStyle(editor) === style) {
-    editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-    return;
-  }
-  insertList(editor, style);
+export function setTextStyle(
+  editor: LexicalEditor,
+  style: TextStyle,
+  ids: BlockIds,
+) {
+  restyle(editor, ids, () => {
+    if (isList($currentBlockStyle())) {
+      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+    }
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection)) return;
+    $setBlocksType(selection, () => {
+      if (style === "paragraph") return $createParagraphNode();
+      if (style === "quote") return $createQuoteNode();
+      return $createHeadingNode(style);
+    });
+  });
 }
+
+const listCommand = (style: ListStyle) =>
+  style === "bullet"
+    ? INSERT_UNORDERED_LIST_COMMAND
+    : INSERT_ORDERED_LIST_COMMAND;
+
+export const insertList = (
+  editor: LexicalEditor,
+  style: ListStyle,
+  ids: BlockIds,
+) =>
+  restyle(editor, ids, () => {
+    editor.dispatchCommand(listCommand(style), undefined);
+  });
+
+export const toggleList = (
+  editor: LexicalEditor,
+  style: ListStyle,
+  ids: BlockIds,
+) =>
+  restyle(editor, ids, () => {
+    if ($currentBlockStyle() === style) {
+      editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+    } else {
+      editor.dispatchCommand(listCommand(style), undefined);
+    }
+  });
 
 export function insertDivider(editor: LexicalEditor) {
   editor.update(() => {

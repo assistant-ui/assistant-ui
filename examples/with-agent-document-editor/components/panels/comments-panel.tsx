@@ -10,6 +10,7 @@ import {
   useWorkspace,
 } from "@/components/workspace-context";
 import { plainText } from "@/lib/blocks";
+import { threadIds } from "@/lib/comment-threads";
 import {
   initialComments,
   type DocumentComment,
@@ -80,19 +81,9 @@ export function CommentsPanel() {
     );
     return index === -1 ? Number.MAX_SAFE_INTEGER : index;
   };
-  const byId = new Map(saved.map((comment) => [comment.id, comment]));
-  // A reply can answer another reply. It is shown under the thread at the top.
-  const threadOf = (comment: DocumentComment) => {
-    let top = comment;
-    for (let hops = 0; top.replyTo && hops < saved.length; hops++) {
-      const parent = byId.get(top.replyTo);
-      if (!parent) break;
-      top = parent;
-    }
-    return top.id;
-  };
+  const threadOf = threadIds(saved);
   const threads = saved
-    .filter((comment) => !comment.replyTo)
+    .filter((comment) => threadOf.get(comment.id) === comment.id)
     .sort(
       (a, b) =>
         Number(a.resolved) - Number(b.resolved) || position(a) - position(b),
@@ -125,7 +116,10 @@ export function CommentsPanel() {
     );
 
   const remove = (id: string) => {
-    update((all) => all.filter((comment) => threadOf(comment) !== id));
+    update((all) => {
+      const threads = threadIds(all);
+      return all.filter((comment) => threads.get(comment.id) !== id);
+    });
     if (activeCommentId === id) showComment(null);
   };
 
@@ -143,7 +137,8 @@ export function CommentsPanel() {
       {threads.map((thread) => {
         const active = thread.id === activeCommentId;
         const replies = saved.filter(
-          (comment) => comment.replyTo && threadOf(comment) === thread.id,
+          (comment) =>
+            comment.id !== thread.id && threadOf.get(comment.id) === thread.id,
         );
         return (
           <li

@@ -34,8 +34,9 @@ function ApiKeysForm({ onDone }: { onDone: () => void }) {
   };
 
   const removeAll = () => {
-    setFailed(!setApiKeys({}));
-    setDraft({});
+    const removed = setApiKeys({});
+    setFailed(!removed);
+    if (removed) setDraft({});
   };
 
   return (
@@ -75,7 +76,7 @@ function ApiKeysForm({ onDone }: { onDone: () => void }) {
       })}
       {failed && (
         <p role="alert" className="text-destructive text-xs">
-          This browser did not let the keys be saved.
+          This browser did not let the keys be changed.
         </p>
       )}
       <div className="flex items-center justify-between pt-1">

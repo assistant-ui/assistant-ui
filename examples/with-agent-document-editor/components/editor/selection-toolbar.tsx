@@ -551,7 +551,9 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
                   <DropdownMenuRadioGroup
                     value={inList ? format.block : ""}
                     onValueChange={(style) =>
-                      afterMenu(() => toggleList(editor, style as ListStyle))
+                      afterMenu(() =>
+                        toggleList(editor, style as ListStyle, ids),
+                      )
                     }
                   >
                     {LIST_STYLES.map(({ style, label, icon: Icon }) => (

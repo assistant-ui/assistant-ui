@@ -69,7 +69,7 @@ export function SlashMenu({ ids }: { ids: BlockIds }) {
         icon,
         keywords: KEYWORDS[style] ?? "",
         run: (target: LexicalEditor) => {
-          insertList(target, style);
+          insertList(target, style, ids);
         },
       })),
       {

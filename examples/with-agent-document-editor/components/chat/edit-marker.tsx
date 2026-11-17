@@ -109,9 +109,6 @@ export const DocumentEditMarker: ToolCallMessagePartComponent = ({
   if (failed(result)) {
     return <Marker icon={<PencilLineIcon />} label="The edit did not apply" />;
   }
-  if (status.type === "incomplete") {
-    return <Marker icon={<PencilLineIcon />} label="The edit was cut short" />;
-  }
 
   const isLatest = index !== -1 && index === versions.length - 1;
   const undone =
@@ -123,9 +120,11 @@ export const DocumentEditMarker: ToolCallMessagePartComponent = ({
       label={
         running
           ? "Editing the document"
-          : version && previous
-            ? describeDocumentEdit(previous.state, version.state)
-            : "Edited the document"
+          : status.type === "incomplete"
+            ? "The edit was cut short"
+            : version && previous
+              ? describeDocumentEdit(previous.state, version.state)
+              : "Edited the document"
       }
       running={running}
     >

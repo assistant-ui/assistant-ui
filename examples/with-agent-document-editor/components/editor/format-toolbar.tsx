@@ -260,7 +260,7 @@ export function FormatToolbar({ ids }: { ids: BlockIds }) {
             key={style}
             tooltip={label}
             active={format.block === style}
-            onClick={() => toggleList(editor, style)}
+            onClick={() => toggleList(editor, style, ids)}
           >
             <Icon />
           </ToolbarButton>
