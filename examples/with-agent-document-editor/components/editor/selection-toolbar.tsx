@@ -51,13 +51,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCommentsState, useWorkspace } from "@/components/workspace-context";
-import { $blockKeyOf, type BlockIds } from "@/lib/blocks";
+import { $blockKeyOf, $blockKeys, type BlockIds } from "@/lib/blocks";
 import { initialComments } from "@/lib/document-state";
 import { cn } from "@/lib/utils";
 import {
   LIST_STYLES,
   setLink,
   setTextStyle,
+  useIsEditable,
   TEXT_STYLES,
   toggleList,
   useSelectionFormat,
@@ -72,6 +73,8 @@ const GAP = 8;
 
 type Captured = {
   blockId: string;
+  /** Ids of every block the selection touches, in document order. */
+  blockIds: string[];
   /** Everything that is highlighted. */
   text: string;
   /** The part of it inside the first block, which is where a comment hangs. */
@@ -172,6 +175,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const instruction = useAuiState((s) => s.composer.text);
   const format = useSelectionFormat();
+  const editable = useIsEditable();
 
   const [captured, setCaptured] = useState<Captured | null>(null);
   const [mode, setMode] = useState<Mode>("actions");
@@ -214,8 +218,16 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
     if (element && !element.contains(range.endContainer)) {
       inBlock.setEnd(element, element.childNodes.length);
     }
+    // Every block the selection touches, for a request about the passage.
+    const blockIds = editor.read(() =>
+      [...$blockKeys(ids)].flatMap(([id, key]) => {
+        const node = editor.getElementByKey(key);
+        return node && range.intersectsNode(node) ? [id] : [];
+      }),
+    );
     return {
       blockId: block.id,
+      blockIds: blockIds.length ? blockIds : [block.id],
       text: text.slice(0, MAX_QUOTE_LENGTH),
       quote: inBlock.toString().trim() || text,
       range: range.cloneRange(),
@@ -325,7 +337,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
 
   if (!captured || !position) return null;
 
-  const quote = { text: captured.text, messageId: captured.blockId };
+  const quote = { text: captured.text, messageId: captured.blockIds.join(",") };
 
   const startAsking = () => {
     aui.thread.composer().setQuote(quote);
@@ -465,7 +477,7 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
           >
             <MessageSquarePlusIcon />
           </TooltipIconButton>
-          {!isRunning && (
+          {editable && (
             <>
               <Separator />
               <DropdownMenu>
@@ -486,7 +498,9 @@ export function SelectionToolbar({ ids }: { ids: BlockIds }) {
                   <DropdownMenuRadioGroup
                     value={textStyle?.style ?? ""}
                     onValueChange={(style) =>
-                      afterMenu(() => setTextStyle(editor, style as TextStyle))
+                      afterMenu(() =>
+                        setTextStyle(editor, style as TextStyle, ids),
+                      )
                     }
                   >
                     {TEXT_STYLES.map(({ style, label, icon: Icon }) => (

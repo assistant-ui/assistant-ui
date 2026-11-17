@@ -1,4 +1,4 @@
-import { blockToMarkdown } from "./blocks";
+import { blockToMarkdown, isListType, plainText } from "./blocks";
 import { documentSchema, type DocumentState } from "./document-state";
 
 const PREFIX = "#doc=";
@@ -45,15 +45,16 @@ export function readShareLink(hash: string): DocumentState | undefined {
   }
 }
 
-const isListItem = (type: string) => type === "bullet" || type === "numbered";
-
-/** The document as Markdown, under its title unless it opens with a heading. */
+/** The document as Markdown, under its title unless it opens with that title. */
 export function documentToMarkdown(document: DocumentState) {
   const title = document.title.trim();
-  let markdown = title && document.blocks[0]?.type !== "h1" ? `# ${title}` : "";
+  const first = document.blocks[0];
+  const opensWithTitle =
+    first?.type === "h1" && plainText(first.text).trim() === title;
+  let markdown = title && !opensWithTitle ? `# ${title}` : "";
   document.blocks.forEach((block, index) => {
     const previous = document.blocks[index - 1];
-    const sameList = isListItem(block.type) && previous?.type === block.type;
+    const sameList = isListType(block.type) && previous?.type === block.type;
     if (markdown) markdown += sameList ? "\n" : "\n\n";
     markdown += blockToMarkdown(block);
   });
@@ -64,7 +65,7 @@ export const markdownFileName = (document: DocumentState) => {
   const name = document.title
     .trim()
     .toLowerCase()
-    .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
+    .replace(/[^\p{Letter}\p{Mark}\p{Number}]+/gu, "-")
     .replace(/^-|-$/g, "");
   return `${name || "document"}.md`;
 };

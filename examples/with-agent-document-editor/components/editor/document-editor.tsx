@@ -80,7 +80,7 @@ export function DocumentEditor() {
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <FormatToolbar />
+      <FormatToolbar ids={ids} />
       <div className="min-h-0 flex-1 scroll-py-6 [scrollbar-gutter:stable_both-edges] overflow-y-auto">
         <div
           className={cn(
@@ -115,7 +115,7 @@ export function DocumentEditor() {
       <ListPlugin />
       <LinkPlugin />
       <HorizontalRulePlugin />
-      <SlashMenu />
+      <SlashMenu ids={ids} />
       <DocumentSync ids={ids} caret={caret} onReady={onReady} />
       <CommentHighlights ids={ids} />
       <SelectionToolbar ids={ids} />

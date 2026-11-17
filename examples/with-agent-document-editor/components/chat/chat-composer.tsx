@@ -235,6 +235,8 @@ function SuggestionCommands() {
 }
 
 export function ChatComposer() {
+  const dictating = useAuiState((s) => s.composer.dictation != null);
+
   return (
     <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerPrimitive.Root className="bg-background ring-foreground/10 focus-within:ring-foreground/25 dark:bg-input/30 relative flex flex-col rounded-2xl shadow-xs ring-1 transition-shadow">
@@ -243,9 +245,10 @@ export function ChatComposer() {
           <ComposerField />
         </div>
         <div className="flex min-h-11 items-center gap-0.5 p-1.5">
-          <AuiIf condition={(s) => s.composer.dictation == null}>
+          {/* Hidden, not unmounted, so the chosen model outlasts dictation. */}
+          <div className={cn("min-w-0", dictating && "hidden")}>
             <ModelPicker />
-          </AuiIf>
+          </div>
           <AuiIf condition={(s) => s.composer.dictation != null}>
             <DictationWave />
           </AuiIf>

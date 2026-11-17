@@ -3,7 +3,7 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useCallback, useEffect, useRef } from "react";
 import { useCommentsState, useWorkspace } from "@/components/workspace-context";
-import { $findBlockKey, plainText, type BlockIds } from "@/lib/blocks";
+import { $blockKeys, plainText, type BlockIds } from "@/lib/blocks";
 import { textOf, textRange } from "./stream-paint";
 
 const HIGHLIGHT = "doc-comment";
@@ -45,15 +45,11 @@ export function CommentHighlights({ ids }: { ids: BlockIds }) {
         !comment.replyTo &&
         !comment.resolved,
     );
-    const keys = editor
-      .getEditorState()
-      .read(() =>
-        anchored.map((comment) => $findBlockKey(ids, comment.blockId)),
-      );
+    const keys = editor.getEditorState().read(() => $blockKeys(ids));
 
     const next = new Map<string, Range>();
-    anchored.forEach((comment, index) => {
-      const key = keys[index];
+    anchored.forEach((comment) => {
+      const key = keys.get(comment.blockId);
       const element = key ? editor.getElementByKey(key) : null;
       const range = element ? findTextRange(element, comment.quote) : null;
       if (range) next.set(comment.id, range);

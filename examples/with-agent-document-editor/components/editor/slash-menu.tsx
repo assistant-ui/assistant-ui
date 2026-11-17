@@ -11,6 +11,7 @@ import { MessageSquareIcon, MinusIcon, type LucideIcon } from "lucide-react";
 import { Fragment, useCallback, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWorkspace } from "@/components/workspace-context";
+import type { BlockIds } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 import {
   insertDivider,
@@ -47,7 +48,7 @@ const KEYWORDS: Record<string, string> = {
   number: "ordered ol steps",
 };
 
-export function SlashMenu() {
+export function SlashMenu({ ids }: { ids: BlockIds }) {
   const [editor] = useLexicalComposerContext();
   const { openChat } = useWorkspace();
   const [query, setQuery] = useState<string | null>(null);
@@ -60,7 +61,7 @@ export function SlashMenu() {
         group: "Blocks",
         icon,
         keywords: KEYWORDS[style] ?? "",
-        run: (target: LexicalEditor) => setTextStyle(target, style),
+        run: (target: LexicalEditor) => setTextStyle(target, style, ids),
       })),
       ...LIST_STYLES.map(({ style, label, icon }) => ({
         label,
@@ -97,7 +98,7 @@ export function SlashMenu() {
           insert.keywords.includes(search),
       )
       .map((insert) => new SlashOption(insert));
-  }, [query, openChat]);
+  }, [query, openChat, ids]);
 
   const onSelectOption = useCallback(
     (option: SlashOption, typed: TextNode | null, closeMenu: () => void) => {

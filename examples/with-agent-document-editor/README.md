@@ -20,7 +20,7 @@ The example needs a key for at least one provider. There are two ways to give it
 - Click the round key button at the top right and paste a key for OpenAI, Anthropic or Google. The key is kept in your browser's local storage and sent only to this app's own `/api/chat` route, which uses it for that request and does not store it.
 - Or copy `examples/with-agent-document-editor/.env.example` to `.env.local` in the same folder and set a key there. A key from the key button wins over one from the environment. The route has no sign-in, so anyone who can reach a deployment can spend a key set this way: add your own authentication and rate limiting before you deploy it with one.
 
-The model picker in the composer lists only the models whose provider has a key.
+The model picker in the composer shows a model as unavailable until its provider has a key, in the browser or on the server.
 
 ## What the example demonstrates
 
@@ -53,7 +53,7 @@ The model picker in the composer lists only the models whose provider has a key.
 
 The document is state the user and the model both write to. `unstable_useInteractable("document", ...)` registers it with a schema of a title and an ordered list of blocks, each with an `id`, a `type` and inline `text`. The text is markdown for bold, italic, strikethrough, code and links, plus `<u>` and `<mark>` for underline and highlight, which markdown has no syntax for. assistant-ui generates an `update_document` tool from that schema, so there is no hand-written edit tool. The model sends only what changes (`blocks.update`, `blocks.add`, `blocks.remove`, or `blocks.set` to insert or reorder), and the arguments are applied to the state as they stream.
 
-`DocumentSync` connects that state to the Lexical editor in both directions. What you type is serialized to blocks and written to the interactable; what the model writes there is patched into the editor block by block, so the rest of the page stays still. The editor and its toolbars are read-only while a run is in progress.
+`DocumentSync` connects that state to the Lexical editor in both directions. What you type is serialized to blocks and written to the interactable; what the model writes there is patched into the editor block by block, so the rest of the page stays still. The document and its formatting controls are read-only while the assistant is writing. Comments can still be added.
 
 ### Showing an edit as it happens
 

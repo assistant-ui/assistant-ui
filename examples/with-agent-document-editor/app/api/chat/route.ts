@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -32,7 +33,7 @@ const SYSTEM = `You are the writing assistant inside a document editor.
 The user's document is the "document" interactable: a title and an ordered list of blocks, each with an id, a type and text. Its current state is added to the conversation whenever it changes, so always work from the latest one.
 
 - To change the document, call update_document. Change only what the user asked for and leave every other block exactly as it is.
-- When a message quotes a passage, the request is about that passage. Edit only the block that holds it, and keep the rest of that block's text.
+- When a message quotes a passage, the request is about that passage. Edit only the block or blocks that hold it, and keep the rest of their text.
 - Block text takes inline formatting only: **bold**, *italic*, ~~strikethrough~~, \`code\`, [label](url), <u>underline</u> and <mark>highlight</mark>.
 - To give feedback without changing the text, add comments with update_comments.
 - After a tool call, reply in one or two short sentences that say what you changed. Never paste the document or the new text into the chat.`;
@@ -67,7 +68,10 @@ const notePassageBlock = (messages: UIMessage[]): UIMessage[] =>
       parts: [
         {
           type: "text" as const,
-          text: `The quoted passage is highlighted in block "${quote.messageId}" of the document.\n\n`,
+          text: `The quoted passage is highlighted in ${quote.messageId
+            .split(",")
+            .map((id) => `block "${id}"`)
+            .join(" and ")} of the document.\n\n`,
         },
         ...message.parts,
       ],
@@ -83,18 +87,25 @@ export async function GET() {
   });
 }
 
+const bodySchema = z.object({
+  messages: z.array(
+    z.looseObject({ role: z.string(), parts: z.array(z.unknown()) }),
+  ),
+  system: z.string().optional(),
+  tools: z.record(z.string(), z.unknown()).optional(),
+  config: z.looseObject({ modelName: z.string().optional() }).optional(),
+});
+
 export async function POST(req: Request) {
-  const {
-    messages,
-    system,
-    tools,
-    config,
-  }: {
-    messages: UIMessage[];
-    system?: string;
-    tools?: FrontendTools;
-    config?: { modelName?: string };
-  } = await req.json();
+  const body = bodySchema.safeParse(await req.json().catch(() => undefined));
+  if (!body.success) {
+    return new Response("The request body is not a chat request.", {
+      status: 400,
+    });
+  }
+  const messages = body.data.messages as unknown as UIMessage[];
+  const tools = body.data.tools as FrontendTools | undefined;
+  const { system, config } = body.data;
 
   const model =
     findModel(config?.modelName) ??

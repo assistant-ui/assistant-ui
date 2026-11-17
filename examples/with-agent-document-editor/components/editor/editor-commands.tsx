@@ -37,7 +37,8 @@ import {
   TextQuoteIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import type { BlockIds } from "@/lib/blocks";
 
 export type TextStyle = "paragraph" | "h1" | "h2" | "h3" | "quote";
 export type ListStyle = "bullet" | "number";
@@ -147,6 +148,29 @@ export function useSelectionFormat() {
   return format;
 }
 
+/** Whether the document can be changed, which it cannot while the assistant writes. */
+export function useIsEditable() {
+  const [editor] = useLexicalComposerContext();
+  return useSyncExternalStore(
+    (onChange) => editor.registerEditableListener(onChange),
+    () => editor.isEditable(),
+    () => true,
+  );
+}
+
+const $selectedBlockKeys = () => {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return [];
+  return [
+    ...new Set(
+      selection
+        .getNodes()
+        .map((node) => node.getTopLevelElement()?.getKey())
+        .filter((key) => key !== undefined),
+    ),
+  ];
+};
+
 const currentBlockStyle = (editor: LexicalEditor) =>
   editor.read(() => {
     const selection = $getSelection();
@@ -157,17 +181,30 @@ const currentBlockStyle = (editor: LexicalEditor) =>
 
 const isList = (style: BlockStyle) => style === "bullet" || style === "number";
 
-export function setTextStyle(editor: LexicalEditor, style: TextStyle) {
+export function setTextStyle(
+  editor: LexicalEditor,
+  style: TextStyle,
+  ids: BlockIds,
+) {
   if (isList(currentBlockStyle(editor))) {
     editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
   }
   editor.update(() => {
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return;
+    const before = $selectedBlockKeys();
     $setBlocksType(selection, () => {
       if (style === "paragraph") return $createParagraphNode();
       if (style === "quote") return $createQuoteNode();
       return $createHeadingNode(style);
+    });
+    // The restyled block is a new node. It keeps the id of the one it
+    // replaces, which comments and history know it by.
+    const after = $selectedBlockKeys();
+    if (before.length !== after.length) return;
+    before.forEach((key, index) => {
+      const id = ids.get(key);
+      if (id) ids.set(after[index]!, id);
     });
   });
 }

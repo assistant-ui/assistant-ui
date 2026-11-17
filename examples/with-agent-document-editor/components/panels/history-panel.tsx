@@ -1,6 +1,9 @@
 "use client";
 
-import { unstable_useInteractableVersions } from "@assistant-ui/react";
+import {
+  unstable_useInteractableVersions,
+  useAuiState,
+} from "@assistant-ui/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DiffViewer } from "@/components/ui/diff-viewer";
@@ -60,6 +63,7 @@ export function HistoryPanel() {
     DOCUMENT_NAME,
   );
   const [selected, setSelected] = useState<number | null>(null);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   const focused = focusedVersion
     ? versions.findIndex((version) => version.toolCallId === focusedVersion)
@@ -139,6 +143,12 @@ export function HistoryPanel() {
               </button>
               {isOpen && (
                 <div className="flex flex-col gap-2 px-3 pb-3">
+                  {before &&
+                    changedBlocks(before, version.state).length === 0 && (
+                      <p className="text-muted-foreground text-sm">
+                        The same blocks, in a different order.
+                      </p>
+                    )}
                   {before && (
                     <div className="flex max-h-96 flex-col gap-1.5 overflow-y-auto">
                       {changedBlocks(before, version.state).map((change) => (
@@ -160,6 +170,8 @@ export function HistoryPanel() {
                       variant="outline"
                       size="sm"
                       className="self-start"
+                      // An edit still streaming would merge into the restored text.
+                      disabled={isRunning}
                       onClick={() => version.restore()}
                     >
                       Restore this version

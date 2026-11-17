@@ -25,7 +25,6 @@ import {
 import {
   useEffect,
   useState,
-  useSyncExternalStore,
   type ComponentProps,
   type FormEvent,
 } from "react";
@@ -37,12 +36,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import type { BlockIds } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 import {
   insertDivider,
   LIST_STYLES,
   setLink,
   setTextStyle,
+  useIsEditable,
   TEXT_STYLES,
   toggleList,
   useSelectionFormat,
@@ -133,7 +134,7 @@ function LinkButton({ address }: { address: string | null }) {
   );
 }
 
-export function FormatToolbar() {
+export function FormatToolbar({ ids }: { ids: BlockIds }) {
   const [editor] = useLexicalComposerContext();
   const format = useSelectionFormat();
   const [canUndo, setCanUndo] = useState(false);
@@ -162,11 +163,7 @@ export function FormatToolbar() {
     };
   }, [editor]);
 
-  const editable = useSyncExternalStore(
-    (onChange) => editor.registerEditableListener(onChange),
-    () => editor.isEditable(),
-    () => true,
-  );
+  const editable = useIsEditable();
 
   return (
     <div
@@ -201,7 +198,7 @@ export function FormatToolbar() {
               key={style}
               tooltip={label}
               active={format.block === style}
-              onClick={() => setTextStyle(editor, style)}
+              onClick={() => setTextStyle(editor, style, ids)}
             >
               <Icon />
             </ToolbarButton>
@@ -275,6 +272,7 @@ export function FormatToolbar() {
             setTextStyle(
               editor,
               format.block === "quote" ? "paragraph" : "quote",
+              ids,
             )
           }
         >

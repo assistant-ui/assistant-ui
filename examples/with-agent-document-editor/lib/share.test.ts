@@ -88,8 +88,20 @@ describe("markdown export", () => {
     expect(documentToMarkdown(titled)).toBe("# Café plan\n");
   });
 
+  it("keeps a title that the opening heading no longer matches", () => {
+    const renamed: DocumentState = {
+      title: "Autumn menu",
+      blocks: [{ id: "b1", type: "h1", text: "Café plan" }],
+    };
+
+    expect(documentToMarkdown(renamed)).toBe("# Autumn menu\n\n# Café plan\n");
+  });
+
   it("names the file after the title", () => {
     expect(markdownFileName(document)).toBe("café-plan.md");
     expect(markdownFileName({ title: "  ", blocks: [] })).toBe("document.md");
+    expect(markdownFileName({ title: "हिन्दी योजना", blocks: [] })).toBe(
+      "हिन्दी-योजना.md",
+    );
   });
 });

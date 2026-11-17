@@ -163,8 +163,11 @@ export function DocumentSync({
     );
   }, [editor, ids, setState]);
 
+  // Text can be waiting to be typed before the first frame marks it as typing.
   useEffect(() => {
-    editor.setEditable(!isRunning && !typing);
+    editor.setEditable(
+      !isRunning && !typing && remaining(stream.current) === 0,
+    );
   }, [editor, isRunning, typing]);
 
   useEffect(() => {

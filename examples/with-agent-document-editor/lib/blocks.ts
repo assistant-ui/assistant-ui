@@ -312,7 +312,7 @@ const PREFIX: Record<BlockType, string> = {
   divider: "---",
 };
 
-const isListType = (type: BlockType) =>
+export const isListType = (type: BlockType) =>
   type === "bullet" || type === "numbered";
 
 // A list item and a divider cannot turn into another kind of block in place.
