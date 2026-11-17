@@ -655,7 +655,7 @@ const useStreamThreadRuntime = (
           threadId,
           s.messages as readonly LangChainBaseMessage[],
           fork.forkParentId,
-          config.sourceId,
+          fork.transcripts.length > 0 ? undefined : config.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
         );
@@ -716,7 +716,7 @@ const useStreamThreadRuntime = (
           threadId,
           s.messages as readonly LangChainBaseMessage[],
           fork.forkParentId,
-          message.sourceId,
+          fork.transcripts.length > 0 ? undefined : message.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
         );

@@ -46,26 +46,70 @@ describe("resolveForkCheckpoint", () => {
     expect(client.threads.getHistory).not.toHaveBeenCalled();
   });
 
-  it("falls back to history search when sourceId is not the head message", async () => {
+  it("finds the checkpoint before a source message that is not the head", async () => {
     const client = makeClient([
       {
-        values: { messages: [msg("h1")] },
-        checkpoint: { checkpoint_id: "cp-h1" },
+        values: { messages: [msg("h1"), msg("a1")] },
+        checkpoint: { checkpoint_id: "cp-before-h2" },
       },
     ]);
 
     const result = await resolveForkCheckpoint(
       client,
       "thread-1",
-      [msg("h1"), msg("a1"), msg("h2")],
-      "h1",
-      "h1",
-      metadata({ h2: "cp-head" }),
+      [msg("h1"), msg("a1"), msg("h2"), msg("a2")],
+      "a1",
+      "h2",
+      metadata({ a2: "cp-head" }),
       "messages",
     );
 
-    expect(result).toBe("cp-h1");
+    expect(result).toBe("cp-before-h2");
     expect(client.threads.getHistory).toHaveBeenCalled();
+  });
+
+  it("uses the edited source boundary after a joined multi-tool assistant turn", async () => {
+    const ids = [
+      "h-hi",
+      "a-hi",
+      "h-copy",
+      "ai-a",
+      "tool-a",
+      "ai-b",
+      "tool-b",
+      "ai-c",
+      "tool-c",
+      "ai-summary",
+      "h-followup",
+      "a-followup",
+    ];
+    const messages = ids.map(msg);
+    const client = makeClient([
+      {
+        values: { messages },
+        checkpoint: { checkpoint_id: "cp-after-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 10) },
+        checkpoint: { checkpoint_id: "cp-before-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 4) },
+        checkpoint: { checkpoint_id: "cp-after-first-ai" },
+      },
+    ]);
+
+    const result = await resolveForkCheckpoint(
+      client,
+      "thread-1",
+      messages,
+      "ai-a",
+      "h-followup",
+      undefined,
+      "messages",
+    );
+
+    expect(result).toBe("cp-before-followup");
   });
 
   it("falls back to history search when the head metadata has no checkpoint", async () => {

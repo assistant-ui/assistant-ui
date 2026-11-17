@@ -1053,6 +1053,79 @@ describe("useStreamRuntime fork ownership", () => {
     runtime.unmount();
   });
 
+  it("edits after a joined tool turn from the checkpoint before the edited message", async () => {
+    const aiToolCall = (
+      id: string,
+      name: string,
+    ): LangChainBaseMessage & { id: string } => ({
+      ...message(id, "ai", ""),
+      tool_calls: [{ id: `call-${name}`, name, args: {} }],
+    });
+    const toolResult = (
+      id: string,
+      name: string,
+    ): LangChainBaseMessage & { id: string } => ({
+      id,
+      _getType: () => "tool",
+      content: `${name} done`,
+      name,
+      tool_call_id: `call-${name}`,
+    });
+    const messages = [
+      message("h-hi", "human", "hi"),
+      message("a-hi", "ai", "echo: hi"),
+      message("h-copy", "human", "copy everything"),
+      aiToolCall("ai-a", "a"),
+      toolResult("tool-a", "a"),
+      aiToolCall("ai-b", "b"),
+      toolResult("tool-b", "b"),
+      aiToolCall("ai-c", "c"),
+      toolResult("tool-c", "c"),
+      message("ai-summary", "ai", "summary"),
+      message("h-followup", "human", "follow up"),
+      message("a-followup", "ai", "answer"),
+    ];
+    const stream = createMockStream(messages);
+    stream.client = {
+      threads: {
+        getHistory: vi.fn(async () => [
+          {
+            values: { messages },
+            checkpoint: { checkpoint_id: "cp-after-followup" },
+          },
+          {
+            values: { messages: messages.slice(0, 10) },
+            checkpoint: { checkpoint_id: "cp-before-followup" },
+          },
+          {
+            values: { messages: messages.slice(0, 4) },
+            checkpoint: { checkpoint_id: "cp-after-first-ai" },
+          },
+        ]),
+      },
+    };
+    const { runtime, view } = await renderFork(stream);
+
+    await act(async () => {
+      runtime.result.current.thread.append({
+        role: "user",
+        parentId: "ai-a",
+        sourceId: "h-followup",
+        content: [{ type: "text", text: "follow up edited" }],
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(stream.submit).toHaveBeenCalledExactlyOnceWith(
+        { messages: [{ type: "human", content: "follow up edited" }] },
+        { forkFrom: "cp-before-followup" },
+      );
+    });
+    view.unmount();
+    runtime.unmount();
+  });
+
   it("drops the first edit when a second edit supersedes its checkpoint lookup", async () => {
     const firstLookup = deferred<ForkHistory>();
     const secondLookup = deferred<ForkHistory>();
