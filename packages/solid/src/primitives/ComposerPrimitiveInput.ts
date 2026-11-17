@@ -11,7 +11,7 @@ import { useAuiState } from "../useAuiState";
 import { callEventHandler } from "./callEventHandler";
 
 /**
- * A textarea bound to the composer text, disabled while the thread is disabled. Enter submits unless Shift is held, IME composition is active, or `submitOnEnter` is false; an Enter that cannot send falls through to a newline. Caller input and keydown handlers run first and can veto with `preventDefault`. While the composer is not editing, the value stays controlled to empty text.
+ * A textarea bound to the composer text, disabled while the thread is disabled. Enter submits unless Shift is held, IME composition is active, or `submitOnEnter` is false; an Enter that cannot send falls through to a newline. A caller `onInput` runs before the composer reads the value; a caller `onKeyDown` runs first and can stop the send with `preventDefault`. While the composer is not editing, the value stays controlled to empty text.
  */
 export const ComposerPrimitiveInput = (
   props: JSX.TextareaHTMLAttributes<HTMLTextAreaElement> & {
@@ -50,7 +50,6 @@ export const ComposerPrimitiveInput = (
           local.onInput,
           event,
         );
-        if (event.defaultPrevented) return;
         const target = event.currentTarget;
         if (!aui.composer.getState().isEditing) {
           target.value = text();

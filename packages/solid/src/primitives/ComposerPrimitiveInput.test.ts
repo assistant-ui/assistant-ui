@@ -96,9 +96,7 @@ const mountInput = (
 
 const input = (textarea: HTMLTextAreaElement, text: string) => {
   textarea.value = text;
-  return textarea.dispatchEvent(
-    new InputEvent("input", { bubbles: true, cancelable: true }),
-  );
+  return textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
 };
 
 const keydown = (
@@ -305,14 +303,12 @@ describe("ComposerPrimitiveInput", () => {
   });
 
   it.each([false, true])(
-    "runs the caller's input handler first and honors its veto (bound=%s)",
+    "runs the caller's input handler before writing the composer text (bound=%s)",
     (bound) => {
       const { runtime } = createTestRuntime();
-      const [veto, setVeto] = createSignal(true);
       const handler: JSX.InputEventHandler<HTMLTextAreaElement, InputEvent> =
-        vi.fn((event) => {
+        vi.fn(() => {
           expect(runtime.thread.composer.getState().text).toBe("");
-          if (veto()) event.preventDefault();
         });
       const boundHandler = vi.fn(
         (data: string, event: Parameters<typeof handler>[0]) => {
@@ -323,12 +319,9 @@ describe("ComposerPrimitiveInput", () => {
       const textarea = mountInput(runtime, {
         onInput: bound ? [boundHandler, "caller"] : handler,
       });
-      expect(input(textarea, "vetoed")).toBe(false);
+      input(textarea, "typed");
       expect(handler).toHaveBeenCalledOnce();
-      expect(runtime.thread.composer.getState().text).toBe("");
-      setVeto(false);
-      input(textarea, "accepted");
-      expect(runtime.thread.composer.getState().text).toBe("accepted");
+      expect(runtime.thread.composer.getState().text).toBe("typed");
     },
   );
 
