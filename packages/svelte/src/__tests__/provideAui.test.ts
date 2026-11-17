@@ -39,7 +39,7 @@ describe("provideAui", () => {
     flushSync(() => void unmount(app));
   });
 
-  it("soft unmounts the client after the component is destroyed", async () => {
+  it("destroys the client on unmount, releasing its scopes at once", () => {
     const { TrackedThread, counters } = createTrackedThread();
     const app = mount(Host, {
       target: target(),
@@ -54,7 +54,7 @@ describe("provideAui", () => {
     const mounted = counters.cleanups;
 
     flushSync(() => void unmount(app));
-    await vi.waitFor(() => expect(counters.cleanups).toBeGreaterThan(mounted));
+    expect(counters.cleanups).toBe(mounted + 1);
   });
 
   it("throws on a nested provider without extends", () => {

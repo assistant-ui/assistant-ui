@@ -74,7 +74,10 @@ export const AuiProvider = defineComponent({
     // The provider holds the lifetime subscription that keeps the client
     // mounted while descendants come and go
     const release = handle.subscribe(() => {});
-    onScopeDispose(release);
+    onScopeDispose(() => {
+      release();
+      handle.destroy();
+    });
 
     const source = handle;
     provide(auiInjectionKey, {

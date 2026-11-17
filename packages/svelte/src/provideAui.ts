@@ -43,9 +43,8 @@ const thunkToSource = (getConfig: () => AuiConfig): AssistantConfigSource => {
  * and removed scopes. A plain config object is captured once. `extends` is
  * captured when the provider mounts.
  *
- * The provider holds the client's lifetime subscription: the client mounts
- * immediately and soft-unmounts after the component is destroyed and every
- * descendant subscription has released.
+ * The provider holds the client while mounted and destroys it when the
+ * component is destroyed, synchronously releasing every scope.
  */
 export const provideAui = (
   config: AuiConfig | (() => AuiConfig),
@@ -78,7 +77,10 @@ export const provideAui = (
   // The provider holds the lifetime subscription that keeps the client
   // mounted while descendants come and go
   const release = handle.subscribe(() => {});
-  onDestroy(release);
+  onDestroy(() => {
+    release();
+    handle.destroy();
+  });
 
   const source = handle;
   const aui = createClientFacade(source);
