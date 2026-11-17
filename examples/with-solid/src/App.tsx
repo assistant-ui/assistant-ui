@@ -70,19 +70,19 @@ export default function App() {
                 <Message />
               </ThreadPrimitiveMessages>
               <Show when={isRunning()}>
-                <li class="text-foreground px-2 leading-relaxed">
-                  <span role="status">
-                    <span class="sr-only">Generating response</span>
-                    <span
-                      class="animate-pulse motion-reduce:animate-none"
-                      aria-hidden="true"
-                    >
-                      …
-                    </span>
+                <li
+                  class="text-foreground px-2 leading-relaxed"
+                  aria-hidden="true"
+                >
+                  <span class="animate-pulse motion-reduce:animate-none">
+                    …
                   </span>
                 </li>
               </Show>
             </ol>
+            <p role="status" class="sr-only">
+              {isRunning() ? "Generating response" : ""}
+            </p>
           </div>
           <ThreadPrimitiveViewportFooter class="bg-background sticky bottom-0 mx-auto flex w-full max-w-2xl shrink-0 flex-col gap-2 px-4 pt-2 pb-4">
             <ThreadPrimitiveScrollToBottom
