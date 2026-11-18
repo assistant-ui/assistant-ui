@@ -72,6 +72,10 @@ means a demoted entry (F.4) carries the changed text, so a pipeline
 restart no longer promotes it and re-fires `streamCall` for a change the
 host's original args view already excluded.
 
+A pending `human()` request on the call is rejected with an error. The
+execution still holds the original args, so an answer given while the UI
+shows the new ones would authorize args the user did not see.
+
 ### A.5. First resolution (a final `result` becomes defined)
 The tracker calls `setResponse` on the active controller and closes it.
 The backend result is emitted before the args stream closes, so a stale
