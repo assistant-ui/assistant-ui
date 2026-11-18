@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
-import { ChildProcess } from "node:child_process";
+import { ChildProcess, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -138,6 +138,50 @@ it("fails as soon as Chrome exits before it starts", async () => {
   await vi.advanceTimersByTimeAsync(200);
   await expect(result).resolves.toMatchObject({
     message: expect.stringMatching(/^Chrome exited with 1 before it started/),
+  });
+});
+
+it("rejects with the spawn error and removes its profile when Chrome cannot be launched", () => {
+  const dir = mkdtempSync(join(tmpdir(), "aui-trace-spawn-"));
+  dirs.push(dir);
+  const chrome = join(dir, "chrome");
+  writeFileSync(chrome, "#!/bin/sh\nexit 0\n", { mode: 0o644 });
+
+  // The capture runs in its own Node process because an unhandled child process error ends the process that spawned it.
+  const run = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `
+        import { readdirSync } from "node:fs";
+        import { tmpdir } from "node:os";
+        const { captureTrace } = await import(process.argv[1]);
+        const error = await captureTrace("unused.html", 0).then(
+          () => undefined,
+          (error) => error,
+        );
+        console.log(JSON.stringify({
+          code: error?.code,
+          syscall: error?.syscall,
+          profiles: readdirSync(tmpdir()).filter((name) =>
+            name.startsWith("aui-perf-chrome-"),
+          ),
+        }));
+      `,
+      new URL("./trace.mjs", import.meta.url).href,
+    ],
+    {
+      encoding: "utf8",
+      env: { ...process.env, AUI_PERF_CHROME: chrome, TMPDIR: dir },
+    },
+  );
+
+  expect(run.status, run.stderr).toBe(0);
+  expect(JSON.parse(run.stdout)).toEqual({
+    code: "EACCES",
+    syscall: `spawn ${chrome}`,
+    profiles: [],
   });
 });
 
