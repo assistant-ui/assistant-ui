@@ -16,8 +16,18 @@ describe("withAui", () => {
   it("adds a directive-conditioned rule for each default glob", () => {
     const rules = rulesFor({});
 
-    expect(Object.keys(rules)).toEqual(["*.ts", "*.tsx"]);
-    for (const glob of ["*.ts", "*.tsx"]) {
+    const globs = [
+      "*.ts",
+      "*.tsx",
+      "*.mts",
+      "*.cts",
+      "*.js",
+      "*.jsx",
+      "*.mjs",
+      "*.cjs",
+    ];
+    expect(Object.keys(rules)).toEqual(globs);
+    for (const glob of globs) {
       const rule = ourRule(rules[glob]);
       expect(rule.loaders).toHaveLength(1);
       expect(rule.loaders[0]!.loader).toBe("@assistant-ui/next/loader");
@@ -105,5 +115,13 @@ describe("withAui", () => {
 
     expect(userWebpack).toHaveBeenCalledWith(config, {});
     expect(config.module.rules).toHaveLength(1);
+  });
+
+  it("runs the webpack loader on every JS/TS extension", () => {
+    const config = { module: { rules: [] as { test: RegExp }[] } };
+    withAui<AuiNextConfig>({}).webpack!(config, {});
+    const { test } = config.module.rules[0]!;
+    for (const ext of ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"])
+      expect(test.test(`/app/tool.${ext}`)).toBe(true);
   });
 });
