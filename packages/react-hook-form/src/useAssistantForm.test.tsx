@@ -57,6 +57,12 @@ const executeFormTool = (
 
 const executeSubmitForm = () => executeFormTool("submit_form");
 
+const executeSetField = (args: { name: string; value: unknown }) => {
+  const formTool = provider.getModelContext().tools?.["set_form_field"];
+  if (!formTool?.execute) throw new Error("set_form_field is not registered");
+  return formTool.execute(args as never, { human: async () => true } as never);
+};
+
 const expectSubmitBlocked = async () => {
   await expect(executeSubmitForm()).resolves.toEqual({
     success: false,
@@ -413,15 +419,9 @@ describe("useAssistantForm", () => {
       });
     });
 
-    const setField = (args: { name: string; value: unknown }) => {
-      const tool = provider.getModelContext().tools?.["set_form_field"];
-      if (!tool?.execute) throw new Error("set_form_field is not registered");
-      return tool.execute(args as never, { human: async () => true } as never);
-    };
-
-    await setField({ name: "name", value: "Ada" });
-    await setField({ name: "age", value: 42 });
-    await setField({ name: "newsletter", value: true });
+    await executeSetField({ name: "name", value: "Ada" });
+    await executeSetField({ name: "age", value: 42 });
+    await executeSetField({ name: "newsletter", value: true });
 
     expect(form.getValues()).toEqual({
       name: "Ada",
@@ -430,8 +430,19 @@ describe("useAssistantForm", () => {
     });
     await waitFor(async () => expect(await form.trigger()).toBe(true));
 
-    await setField({ name: "age", value: "42" });
+    await executeSetField({ name: "age", value: "42" });
     expect(form.getValues("age")).toBe("42");
+  });
+
+  it("writes a number into a string field as a string", async () => {
+    let form!: ReturnType<typeof useAssistantForm<{ zip: string }>>;
+    renderHook(() => {
+      form = useAssistantForm<{ zip: string }>({ defaultValues: { zip: "" } });
+    });
+
+    await executeSetField({ name: "zip", value: 12345 });
+
+    expect(form.getValues("zip")).toBe("12345");
   });
 
   it("submits forms registered with standard inputs", async () => {

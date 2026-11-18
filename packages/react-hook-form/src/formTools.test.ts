@@ -16,5 +16,8 @@ describe("set_form_field parameters", () => {
     expect(
       parameters.safeParse({ name: "field", value: { nested: 1 } }).success,
     ).toBe(false);
+    expect(parameters.safeParse({ name: "field", value: [1, 2] }).success).toBe(
+      false,
+    );
   });
 });

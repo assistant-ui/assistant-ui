@@ -234,9 +234,14 @@ export const useAssistantForm = <
           ...formTools.set_form_field,
           parameters: formTools.set_form_field.parameters,
           execute: async (args) => {
+            const path = args.name as Path<TFieldValues>;
+            const value =
+              typeof getValues(path) === "string"
+                ? String(args.value)
+                : args.value;
             setValue(
-              args.name as Path<TFieldValues>,
-              args.value as PathValue<TFieldValues, Path<TFieldValues>>,
+              path,
+              value as PathValue<TFieldValues, Path<TFieldValues>>,
             );
 
             return { success: true };
