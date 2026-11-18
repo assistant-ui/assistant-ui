@@ -88,6 +88,16 @@ const type = (field: HTMLTextAreaElement, value: string) => {
 const trigger = (root: ParentNode, slot: string) =>
   root.querySelector<HTMLButtonElement>(`[data-slot="${slot}"]`)!;
 
+const stubScrollTo = (viewport: HTMLElement, scrollHeight = 460) => {
+  Object.defineProperty(viewport, "clientHeight", { value: 300 });
+  Object.defineProperty(viewport, "scrollHeight", { value: scrollHeight });
+  Object.defineProperty(viewport, "scrollTo", {
+    value: vi.fn(({ top }: ScrollToOptions) => {
+      viewport.scrollTop = Math.max(0, Math.min(top ?? 0, scrollHeight - 300));
+    }),
+  });
+};
+
 const pendingApproval = (
   approval: Omit<NonNullable<ToolCallMessagePart["approval"]>, "id"> = {},
 ): ThreadMessageLike => ({
@@ -281,6 +291,7 @@ describe("vue thread", () => {
       },
     ]);
     const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    stubScrollTo(viewport);
     viewport.style.overflowY = "auto";
     viewport.scrollTop = 120;
 
@@ -584,6 +595,7 @@ describe("vue thread", () => {
       },
     ]);
     const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    stubScrollTo(viewport);
     viewport.style.overflowY = "auto";
     viewport.scrollTop = 120;
 
@@ -647,6 +659,7 @@ describe("vue thread", () => {
       { isRunning: true },
     );
     const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    stubScrollTo(viewport, 420);
     viewport.style.overflowY = "auto";
     viewport.scrollTop = 120;
 

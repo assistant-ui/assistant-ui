@@ -4,13 +4,22 @@ export type BudgetDenyCode =
   | "CHAT_TURN_LIMIT"
   | "CHAT_BUDGET_EXCEEDED"
   | "DAILY_BUDGET_EXCEEDED"
+  | "NETWORK_DAILY_BUDGET_EXCEEDED"
   | "DAILY_CHAT_LIMIT";
 
 export type BudgetLimits = {
   chatBudgetMicroUsd: number;
   dailyBudgetMicroUsd: number;
+  /** Daily spend across every anonymous session from one client IP. */
+  networkDailyBudgetMicroUsd: number;
   maxTurnsPerChat: number;
   maxChatsPerDay: number;
+  /**
+   * Spend held when a turn starts and replaced by its real cost when it ends.
+   * A turn that never reports usage, such as one whose model call fails,
+   * keeps this charge.
+   */
+  turnReserveMicroUsd: number;
 };
 
 export type BudgetSnapshot = {
@@ -19,6 +28,8 @@ export type BudgetSnapshot = {
   dailySpentMicroUsd: number;
   dailyChatCount: number;
   isNewSession: boolean;
+  /** Today's spend from the client's IP; absent when the IP is unknown. */
+  networkDailySpentMicroUsd?: number;
 };
 
 export type TokenUsage = {
@@ -40,8 +51,10 @@ export function usdToMicroUsd(usd: number): number {
 export const DEFAULT_BUDGET_LIMITS: BudgetLimits = {
   chatBudgetMicroUsd: usdToMicroUsd(1),
   dailyBudgetMicroUsd: usdToMicroUsd(2),
+  networkDailyBudgetMicroUsd: usdToMicroUsd(20),
   maxTurnsPerChat: 8,
   maxChatsPerDay: 10,
+  turnReserveMicroUsd: usdToMicroUsd(0.05),
 };
 
 export function parseUsdEnv(name: string, fallbackUsd: number): number {
@@ -71,6 +84,10 @@ export function getBudgetLimits(): BudgetLimits {
       "XULUX_DAILY_BUDGET_USD",
       DEFAULT_BUDGET_LIMITS.dailyBudgetMicroUsd / 1_000_000,
     ),
+    networkDailyBudgetMicroUsd: parseUsdEnv(
+      "XULUX_DAILY_BUDGET_PER_IP_USD",
+      DEFAULT_BUDGET_LIMITS.networkDailyBudgetMicroUsd / 1_000_000,
+    ),
     maxTurnsPerChat: parseIntEnv(
       "XULUX_MAX_TURNS_PER_CHAT",
       DEFAULT_BUDGET_LIMITS.maxTurnsPerChat,
@@ -78,6 +95,10 @@ export function getBudgetLimits(): BudgetLimits {
     maxChatsPerDay: parseIntEnv(
       "XULUX_MAX_CHATS_PER_DAY",
       DEFAULT_BUDGET_LIMITS.maxChatsPerDay,
+    ),
+    turnReserveMicroUsd: parseUsdEnv(
+      "XULUX_TURN_RESERVE_USD",
+      DEFAULT_BUDGET_LIMITS.turnReserveMicroUsd / 1_000_000,
     ),
   };
 }
@@ -97,6 +118,11 @@ export function evaluateBudget(
 ): BudgetDenyCode | null {
   if (snap.dailySpentMicroUsd >= limits.dailyBudgetMicroUsd) {
     return "DAILY_BUDGET_EXCEEDED";
+  }
+  if (
+    (snap.networkDailySpentMicroUsd ?? 0) >= limits.networkDailyBudgetMicroUsd
+  ) {
+    return "NETWORK_DAILY_BUDGET_EXCEEDED";
   }
   if (snap.sessionTurns >= limits.maxTurnsPerChat) {
     return "CHAT_TURN_LIMIT";
@@ -121,13 +147,19 @@ export function budgetDenyMessage(
       return `This chat reached the ~$${limits.chatBudgetMicroUsd / 1_000_000} usage limit. Start a new chat to continue.`;
     case "DAILY_BUDGET_EXCEEDED":
       return `Daily usage limit reached (~$${limits.dailyBudgetMicroUsd / 1_000_000}). Try again tomorrow.`;
+    case "NETWORK_DAILY_BUDGET_EXCEEDED":
+      return "The daily usage limit for your network has been reached. Try again tomorrow.";
     case "DAILY_CHAT_LIMIT":
       return `You reached the ${limits.maxChatsPerDay}-chat limit for today. Try again tomorrow.`;
   }
 }
 
 export function isDailyLimitCode(code: BudgetDenyCode): boolean {
-  return code === "DAILY_BUDGET_EXCEEDED" || code === "DAILY_CHAT_LIMIT";
+  return (
+    code === "DAILY_BUDGET_EXCEEDED" ||
+    code === "NETWORK_DAILY_BUDGET_EXCEEDED" ||
+    code === "DAILY_CHAT_LIMIT"
+  );
 }
 
 export function utcDateKey(date = new Date()): string {

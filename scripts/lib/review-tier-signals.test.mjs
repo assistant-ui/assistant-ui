@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy } from "./review-policy.mjs";
-import { computeTier, protectedPaths } from "./review-tier-signals.mjs";
+import { computeTier, pathsAboveT0 } from "./review-tier-signals.mjs";
 
 const policy = loadReviewPolicy(path.resolve(import.meta.dirname, "../.."));
 
@@ -181,12 +181,35 @@ test("an added package manifest gives T3", () => {
   );
 });
 
+test("a package manifest renamed from another directory introduces a package", () => {
+  const result = computeTier(
+    input({
+      files: [
+        file("packages/gadget/package.json", {
+          status: "renamed",
+          previousPath: "packages/widget/package.json",
+        }),
+      ],
+    }),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.ok(
+    result.reasons.some(
+      (reason) =>
+        reason.code === "new-package" &&
+        reason.detail === "packages/gadget/package.json",
+    ),
+  );
+});
+
 for (const [path, status] of [
   ["packages/widget/package.json", "modified"],
   ["packages/widget/package.json", "removed"],
   ["packages/widget/package.json", "renamed"],
   ["packages/widget/fixture/package.json", "added"],
   ["apps/widget/package.json", "added"],
+  ["packages/.cache/package.json", "added"],
 ]) {
   test(`${status} ${path} does not introduce a package`, () => {
     const result = computeTier(
@@ -1231,14 +1254,15 @@ test("a package owner never takes over a contract area other than Public API", (
   assert.deepEqual(result.ownedPackages, []);
 });
 
-test("protected paths skip docs, tests and package source with a patch", () => {
+test("paths above T0 skip docs, low risk paths and new test files", () => {
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("README.md", { patch: "+docs" }),
         file("apps/docs/content/docs/guides/x.mdx", { patch: "+docs" }),
-        file("packages/react/src/index.ts", { patch: "+const a = 1;" }),
-        file("packages/react/src/index.test.ts"),
+        file(".changeset/brave-owls.md", { patch: "+x" }),
+        file("apps/web/app/page.tsx", { patch: null }),
+        file("packages/react/src/index.test.ts", { deletions: 0 }),
       ],
       policy,
     ),
@@ -1246,9 +1270,73 @@ test("protected paths skip docs, tests and package source with a patch", () => {
   );
 });
 
-test("protected paths cover owner areas, contract docs and decision paths", () => {
+test("paths above T0 cover every package.json, including app and example manifests", () => {
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
+      [
+        file("package.json", { patch: '+    "postinstall": "node x.js",' }),
+        file("apps/docs/package.json", { patch: '+    "postinstall": "x"' }),
+        file("examples/with-ai-sdk-v7/package.json", { patch: "+x" }),
+        file("templates/next/package.json", {
+          status: "renamed",
+          previousPath: "templates/old/package.json",
+          patch: "",
+        }),
+        file("apps/docs/src/package.ts", { patch: "+x" }),
+      ],
+      policy,
+    ),
+    [
+      "apps/docs/package.json",
+      "examples/with-ai-sdk-v7/package.json",
+      "package.json",
+      "templates/next/package.json",
+      "templates/old/package.json",
+    ],
+  );
+});
+
+test("paths above T0 is empty for an empty file list", () => {
+  assert.deepEqual(pathsAboveT0([], policy), []);
+});
+
+test("paths above T0 cover source, manifests, the lockfile and root config", () => {
+  const paths = [
+    "packages/react/src/index.ts",
+    "packages/core/src/index.ts",
+    "packages/cli/src/index.ts",
+    "packages/react/package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "package.json",
+    "turbo.json",
+  ];
+  assert.deepEqual(
+    pathsAboveT0(
+      paths.map((path) => file(path, { patch: "+x" })),
+      policy,
+    ),
+    paths.toSorted(),
+  );
+  assert.deepEqual(
+    pathsAboveT0([file("packages/react/src/b.ts", { patch: null })], policy),
+    ["packages/react/src/b.ts"],
+  );
+});
+
+test("paths above T0 cover a changed test file", () => {
+  assert.deepEqual(
+    pathsAboveT0(
+      [file("packages/react/src/index.test.ts", { deletions: 2 })],
+      policy,
+    ),
+    ["packages/react/src/index.test.ts"],
+  );
+});
+
+test("paths above T0 cover owner areas, contract docs and decision paths", () => {
+  assert.deepEqual(
+    pathsAboveT0(
       [
         file("packages/tap/src/core/scheduler.ts", { patch: "+x" }),
         file("apps/docs/content/docs/store/index.mdx", { patch: "+x" }),
@@ -1266,33 +1354,29 @@ test("protected paths cover owner areas, contract docs and decision paths", () =
   );
 });
 
-test("protected paths cover the public API surface", () => {
+test("paths above T0 cover the public API surface", () => {
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("api-surface/assistant-ui__react.ts", { patch: "+x" }),
-        file("packages/react/package.json", { patch: "+x" }),
         file("packages/new-pkg/package.json", { status: "added" }),
         file("packages/react/src/a.ts", {
           patch: "@@ -1 +1 @@\n+/** @deprecated use b */",
         }),
-        file("packages/react/src/b.ts", { patch: null }),
       ],
       policy,
     ),
     [
       "api-surface/assistant-ui__react.ts",
       "packages/new-pkg/package.json",
-      "packages/react/package.json",
       "packages/react/src/a.ts",
-      "packages/react/src/b.ts",
     ],
   );
 });
 
-test("a rename out of a protected path is protected", () => {
+test("a rename out of a path above T0 is reported", () => {
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("packages/react/src/tap.ts", {
           status: "renamed",
@@ -1302,11 +1386,11 @@ test("a rename out of a protected path is protected", () => {
       ],
       policy,
     ),
-    ["packages/tap/src/tap.ts"],
+    ["packages/react/src/tap.ts", "packages/tap/src/tap.ts"],
   );
 });
 
-test("protected paths cover packages with their own owners", () => {
+test("paths above T0 cover packages with their own owners", () => {
   const custom = {
     ...policy,
     packageOwners: [
@@ -1318,7 +1402,7 @@ test("protected paths cover packages with their own owners", () => {
     ],
   };
   assert.deepEqual(
-    protectedPaths(
+    pathsAboveT0(
       [
         file("packages/docs-theme/src/index.ts", { patch: "+const a = 1;" }),
         file("packages/react/src/theme.ts", {
@@ -1326,10 +1410,297 @@ test("protected paths cover packages with their own owners", () => {
           previousPath: "packages/docs-theme/src/theme.ts",
           patch: "",
         }),
-        file("packages/react/src/index.ts", { patch: "+const a = 1;" }),
+        file("apps/web/app/page.tsx", { patch: "+const a = 1;" }),
       ],
       custom,
     ),
-    ["packages/docs-theme/src/index.ts", "packages/docs-theme/src/theme.ts"],
+    [
+      "packages/docs-theme/src/index.ts",
+      "packages/docs-theme/src/theme.ts",
+      "packages/react/src/theme.ts",
+    ],
   );
+});
+
+for (const patch of [
+  "+          SECRETS: ${{ toJSON(secrets) }}",
+  "+          VALUE: ${{ format('{0}', secrets) }}",
+]) {
+  test(`workflow lines that pass all secrets give T3: ${patch}`, () => {
+    const path = ".github/workflows/code-quality.yaml";
+    const result = computeTier(
+      input({ files: [file(path, { patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, 3);
+    assert.ok(
+      result.reasons.some(
+        (reason) => reason.code === "ci-permissions" && reason.detail === path,
+      ),
+    );
+  });
+}
+
+test("a dot-prefixed workflow file lands in the CI and policy area", () => {
+  const path = ".github/workflows/.hidden.yml";
+  const result = computeTier(
+    input({ files: [file(path, { patch: "+permissions: write-all" })] }),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.deepEqual(result.areas, ["ci-policy"]);
+});
+
+test("a dot-prefixed file in a contract package is a contract-area change", () => {
+  const result = computeTier(
+    input({ files: [file("packages/tap/.npmrc")] }),
+    policy,
+  );
+  assert.equal(result.tier, 2);
+  assert.deepEqual(result.areas, ["reactivity"]);
+});
+
+for (const [files, changedFiles, detail] of [
+  [[file("README.md")], 3001, "1 of 3001"],
+  [[file("README.md")], null, "1 of an unknown number of"],
+  [[file("README.md")], "1", "1 of an unknown number of"],
+  [[file("README.md")], -1, "1 of an unknown number of"],
+]) {
+  test(`a changed-file list GitHub cut short fails: ${changedFiles}`, () => {
+    const result = computeTier(input({ files, changedFiles }), policy);
+    assert.deepEqual(
+      result.failures.filter(({ code }) => code === "files-incomplete"),
+      [{ code: "files-incomplete", detail, override: null }],
+    );
+  });
+}
+
+test("a complete changed-file list passes", () => {
+  const result = computeTier(
+    input({ files: [file("README.md")], changedFiles: 1 }),
+    policy,
+  );
+  assert.deepEqual(result.failures, []);
+  assert.equal(result.tier, 0);
+});
+
+for (const name of [
+  "postinstall",
+  "preinstall",
+  "install",
+  "prepare",
+  "prepack",
+  "postpack",
+  "preprepare",
+  "postprepare",
+  "prepublish",
+  "prepublishOnly",
+  "publish",
+  "postpublish",
+  "pnpm:devPreinstall",
+]) {
+  for (const path of [
+    "packages/react/package.json",
+    "package.json",
+    "apps/docs/package.json",
+  ]) {
+    test(`an added ${name} script in ${path} gives T3`, () => {
+      const result = computeTier(
+        manifestInput(
+          { scripts: { build: "tsc" } },
+          {
+            scripts: { build: "tsc", [name]: "node x.js" },
+          },
+          path,
+        ),
+        policy,
+      );
+      assert.equal(result.tier, 3);
+      assert.ok(
+        result.reasons.some(
+          (reason) =>
+            reason.code === "lifecycle-script" &&
+            reason.detail === `${path}: scripts.${name}`,
+        ),
+      );
+    });
+  }
+}
+
+test("a lifecycle script in a new manifest gives T3", () => {
+  const path = "examples/new/package.json";
+  const result = computeTier(
+    manifestInput(null, { scripts: { postinstall: "node x.js" } }, path),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+});
+
+test("a changed lifecycle script gives T3", () => {
+  const result = computeTier(
+    manifestInput(
+      { scripts: { prepare: "husky" } },
+      { scripts: { prepare: "node x.js" } },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.ok(
+    result.reasons.some(
+      (reason) =>
+        reason.code === "lifecycle-script" &&
+        reason.detail === "package.json: scripts.prepare",
+    ),
+  );
+});
+
+test("an unchanged lifecycle script or a changed build script is not flagged", () => {
+  const result = computeTier(
+    manifestInput(
+      { scripts: { prepare: "husky", build: "tsc" } },
+      { scripts: { prepare: "husky", build: "tsc -b" } },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.ok(!result.reasons.some(({ code }) => code === "lifecycle-script"));
+});
+
+for (const [field, base, head, key] of [
+  [
+    "dependencies",
+    { zod: "^3.0.0" },
+    { zod: "npm:zod-fork@3.0.0" },
+    "dependencies.zod",
+  ],
+  [
+    "devDependencies",
+    { vitest: "^4.0.0" },
+    { vitest: "npm:other@4.0.0" },
+    "devDependencies.vitest",
+  ],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "github:someone/a" },
+    "devDependencies.a",
+  ],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "https://example.com/a.tgz" },
+    "devDependencies.a",
+  ],
+  ["overrides", {}, { b: { c: "npm:d@1.0.0" } }, "overrides.b.c"],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "ssh://git@github.com/someone/a.git" },
+    "devDependencies.a",
+  ],
+  [
+    "devDependencies",
+    { a: "^1.0.0" },
+    { a: "git@github.com:someone/a.git" },
+    "devDependencies.a",
+  ],
+  ["dependencies", { a: "^1.0.0" }, { a: "someone/a#main" }, "dependencies.a"],
+  [
+    "devDependencies",
+    { a: "npm:b@^1.0.0" },
+    { a: "npm:c@^1.0.0" },
+    "devDependencies.a",
+  ],
+  [
+    "peerDependencies",
+    { a: "^1.0.0" },
+    { a: "npm:b@^1.0.0" },
+    "peerDependencies.a",
+  ],
+  [
+    "optionalDependencies",
+    { a: "^1.0.0" },
+    { a: "git+https://gitlab.com/someone/a.git" },
+    "optionalDependencies.a",
+  ],
+  ["resolutions", {}, { a: "http://example.com/a.tgz" }, "resolutions.a"],
+  [
+    "dependencies",
+    { a: "^1.0.0" },
+    { a: "bitbucket:someone/a" },
+    "dependencies.a",
+  ],
+]) {
+  test(`${field} entry ${key} set to ${JSON.stringify(head)} gives T3`, () => {
+    for (const path of ["packages/react/package.json", "package.json"]) {
+      const result = computeTier(
+        manifestInput({ [field]: base }, { [field]: head }, path),
+        policy,
+      );
+      assert.equal(result.tier, 3);
+      assert.ok(
+        result.reasons.some(
+          (reason) =>
+            reason.code === "dependency-source" &&
+            reason.detail === `${path}: ${key}`,
+        ),
+      );
+    }
+  });
+}
+
+test("an override moved between a dotted name and a nested parent gives T3", () => {
+  const result = computeTier(
+    manifestInput(
+      { overrides: { "a.b": "npm:fork@1.0.0" } },
+      { overrides: { a: { b: "npm:fork@1.0.0" } } },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.ok(
+    result.reasons.some(
+      (reason) =>
+        reason.code === "dependency-source" &&
+        reason.detail === "package.json: overrides.a.b",
+    ),
+  );
+});
+
+test("a range bump on an existing npm alias is not flagged", () => {
+  const result = computeTier(
+    manifestInput(
+      {
+        devDependencies: {
+          "ai-v6": "npm:ai@^6.0.315",
+          "@types/react-v18": "npm:@types/react@^18.3.31",
+        },
+      },
+      {
+        devDependencies: {
+          "ai-v6": "npm:ai@^6.0.320",
+          "@types/react-v18": "npm:@types/react@^18.3.32",
+        },
+      },
+      "packages/cloud/package.json",
+    ),
+    policy,
+  );
+  assert.ok(!result.reasons.some(({ code }) => code === "dependency-source"));
+});
+
+test("an alias kept from the base and workspace or catalog specs are not flagged", () => {
+  const result = computeTier(
+    manifestInput(
+      { devDependencies: { a: "npm:b@1.0.0", c: "^1.0.0" } },
+      {
+        devDependencies: { a: "npm:b@1.0.0", c: "workspace:*", d: "catalog:" },
+      },
+      "package.json",
+    ),
+    policy,
+  );
+  assert.ok(!result.reasons.some(({ code }) => code === "dependency-source"));
 });

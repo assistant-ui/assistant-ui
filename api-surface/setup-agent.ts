@@ -230,7 +230,7 @@ declare namespace Checkout {
       preview?: string;
     }) => void;
   };
-  type RejectionReason = "already-created" | "closed" | "empty-message" | "empty-plan" | "feedback-required" | "finish-not-proposed" | "input-closed" | "invalid-answer" | "invalid-input" | "invalid-preview" | "no-plan" | "not-created" | "plan-decided" | "plan-required" | "planning-not-started" | "stale-plan" | "unknown-input" | "unknown-message" | "unknown-product" | "unknown-step";
+  type RejectionReason = "already-created" | "closed" | "empty-message" | "empty-plan" | "feedback-required" | "finish-not-proposed" | "input-closed" | "invalid-answer" | "invalid-input" | "invalid-preview" | "no-plan" | "not-created" | "plan-decided" | "plan-required" | "planning-not-started" | "setup-full" | "stale-plan" | "unknown-input" | "unknown-message" | "unknown-product" | "unknown-step";
 }
 
 type CheckoutClient = StatewireClient<Checkout.State | undefined, Checkout.Commands>;

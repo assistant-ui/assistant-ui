@@ -11,9 +11,13 @@ import {
 } from "@assistant-ui/core/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { useAui, useAuiState, type AssistantClient } from "@assistant-ui/store";
+import { createSettleOutsideAct } from "@assistant-ui/x-react18/testing";
 import { AssistantCloud } from "assistant-cloud";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
+
+// A thread switch settles once React renders the new main thread.
+const settleOutsideAct = createSettleOutsideAct(act, waitFor);
 
 // The real AssistantCloud client runs against this in-memory server.
 type Row = {
@@ -337,9 +341,9 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
   it("shows a reloaded empty run quiet for longer than staleAfter as stale; Resume deletes it and runs the agent again from the user message with no sibling", async () => {
     useServer([userRow, assistantRow(45_000, "running", [])]);
     const { agent, getAui, getRuntime, getResume } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
+    await settleOutsideAct(() =>
+      getRuntime().threads.switchToThread("remote-1"),
+    );
     await waitFor(() =>
       expect(getAui().thread.message({ index: 1 }).getState().runState).toBe(
         "stale",
@@ -380,9 +384,9 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
   it("shows a reloaded run quiet for longer than staleAfter as interrupted; Regenerate posts a sibling with its own lease and runs the agent again", async () => {
     useServer([userRow, assistantRow(45_000)]);
     const { agent, getAui, getRuntime } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
+    await settleOutsideAct(() =>
+      getRuntime().threads.switchToThread("remote-1"),
+    );
     await waitFor(() =>
       expect(getAui().thread.getState().messages).toHaveLength(2),
     );
@@ -424,9 +428,9 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
   it("shows a reloaded run with a recent beat as in progress, and staleAfter moves the line", async () => {
     useServer([userRow, assistantRow(5_000)]);
     const { getAui, getRuntime } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
+    await settleOutsideAct(() =>
+      getRuntime().threads.switchToThread("remote-1"),
+    );
     await waitFor(() =>
       expect(getAui().thread.message({ index: 1 }).getState().runState).toBe(
         "in-progress",
@@ -436,9 +440,9 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
 
     useServer([userRow, assistantRow(5_000)]);
     const short = await renderApp(2_000);
-    await act(async () => {
-      await short.getRuntime().threads.switchToThread("remote-1");
-    });
+    await settleOutsideAct(() =>
+      short.getRuntime().threads.switchToThread("remote-1"),
+    );
     await waitFor(() =>
       expect(
         short.getAui().thread.message({ index: 1 }).getState().status,
@@ -449,9 +453,9 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
   it("loads an ended run as a plain message", async () => {
     useServer([userRow, assistantRow(90_000, "ended")]);
     const { getAui, getRuntime } = await renderApp();
-    await act(async () => {
-      await getRuntime().threads.switchToThread("remote-1");
-    });
+    await settleOutsideAct(() =>
+      getRuntime().threads.switchToThread("remote-1"),
+    );
     await waitFor(() =>
       expect(getAui().thread.getState().messages).toHaveLength(2),
     );

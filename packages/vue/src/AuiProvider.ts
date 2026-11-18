@@ -74,7 +74,19 @@ export const AuiProvider = defineComponent({
     // The provider holds the lifetime subscription that keeps the client
     // mounted while descendants come and go
     const release = handle.subscribe(() => {});
-    onScopeDispose(release);
+    onScopeDispose(() => {
+      release();
+      // Vue stops the component scope before unmounting its subtree, so a
+      // throwing scope cleanup would leave descendants mounted
+      try {
+        handle.destroy();
+      } catch (error) {
+        console.error(
+          "[assistant-ui] AuiProvider cleanup threw an error",
+          error,
+        );
+      }
+    });
 
     const source = handle;
     provide(auiInjectionKey, {

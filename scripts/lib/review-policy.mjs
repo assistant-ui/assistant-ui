@@ -163,8 +163,19 @@ export function loadReviewPolicy(root) {
   );
 }
 
-export function matchesAny(file, patterns) {
-  return patterns.some((pattern) => path.posix.matchesGlob(file, pattern));
+// path.matchesGlob never lets `*` or `**` match a segment that starts with a
+// dot, so `.github/**` would miss `.github/workflows/.x.yml`. Prefixing each
+// leading dot with a character no glob or git path uses, on both sides, makes
+// wildcards match dot-prefixed segments. The dot itself stays, so a literal
+// `.npmrc` still matches and `*.npmrc` matches `.npmrc`.
+const leadingDot = /(^|\/)\./g;
+const undot = (value) => value.replace(leadingDot, "$1\u0000.");
+
+export function matchesAny(file, patterns, { dot = true } = {}) {
+  const target = dot ? undot(file) : file;
+  return patterns.some((pattern) =>
+    path.posix.matchesGlob(target, dot ? undot(pattern) : pattern),
+  );
 }
 
 export function areasOf(policy, file) {
@@ -180,10 +191,11 @@ export const packageOwnerOf = (policy, file) =>
 export const isDecisionPath = (policy, file) =>
   matchesAny(file, policy.decisionPaths);
 export const isLowRiskPath = (policy, file) =>
-  matchesAny(file, policy.lowRiskPaths);
-export const isTestPath = (policy, file) => matchesAny(file, policy.testPaths);
+  matchesAny(file, policy.lowRiskPaths, { dot: false });
+export const isTestPath = (policy, file) =>
+  matchesAny(file, policy.testPaths, { dot: false });
 export const isGeneratedPath = (policy, file) =>
-  matchesAny(file, policy.generatedPaths);
+  matchesAny(file, policy.generatedPaths, { dot: false });
 
 export function parseTitleType(policy, title) {
   if (/^Revert "/.test(title)) return "revert";

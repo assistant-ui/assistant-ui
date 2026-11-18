@@ -1,6 +1,5 @@
-// @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { getAttachmentKeys } from "./stableKeys";
+import { getAttachmentKeys } from "./getAttachmentKeys";
 
 describe("getAttachmentKeys", () => {
   it("keys unique attachments by id and repeated ids by position", () => {

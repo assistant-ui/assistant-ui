@@ -73,8 +73,11 @@ export default withAui({
 });
 ```
 
-`withAui` applies the loader to your TS/TSX. To limit how many files it
-scans, narrow the globs: `withAui(config, { rules: ["*.generative.tsx"] })`.
+`withAui` applies the loader to every JS/TS file (`.ts`, `.tsx`, `.mts`,
+`.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`). To limit how many files it scans,
+narrow the globs: `withAui(config, { rules: ["*.generative.tsx"] })`.
+The directive must be the file's first statement; a file that has it anywhere
+else fails the build.
 
 Import the module **bare** from both sides — the loader rewrites it into a facade
 that resolves to the right build per layer (no query, no per-file config):

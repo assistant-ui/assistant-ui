@@ -108,6 +108,23 @@ describe("Markdown on React Native", () => {
     }
   });
 
+  test.each(["tel:5551234", "sms:5551234", "myapp://settings", "/relative"])(
+    "renders a %s link as plain text",
+    (url) => {
+      const openURL = vi.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+      try {
+        const { queryByRole, getByText } = render(
+          <Markdown text={`Visit [go](${url}) now`} final />,
+        );
+        expect(queryByRole("link")).toBeNull();
+        fireEvent.click(getByText("go", { exact: false }));
+        expect(openURL).not.toHaveBeenCalled();
+      } finally {
+        openURL.mockRestore();
+      }
+    },
+  );
+
   test("renders an inline image with its URI and alt text", () => {
     const { container, getByRole } = render(
       <Markdown

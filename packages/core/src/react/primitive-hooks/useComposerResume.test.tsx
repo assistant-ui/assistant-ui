@@ -9,6 +9,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { flushTapSync } from "@assistant-ui/tap";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import { ExternalThread } from "../../store/clients/external-thread";
 import { useComposerResume } from "./useComposerResume";
@@ -410,7 +411,9 @@ describe("checkpoint resume", () => {
   it("preserves a composer draft instead of resuming over it", async () => {
     const onResume = vi.fn();
     render(<App options={{ messages: [], canResume: true, onResume }} />);
-    await act(async () => aui.composer.setText("new request"));
+    await act(async () =>
+      flushTapSync(() => aui.composer.setText("new request")),
+    );
     expect(action.disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Resume" }));
     expect(onResume).not.toHaveBeenCalled();
@@ -437,7 +440,7 @@ describe("checkpoint resume", () => {
             ];
       render(<App options={{ messages, canResume: true, onResume }} />);
       await act(async () => {
-        aui.composer.setText("new request");
+        flushTapSync(() => aui.composer.setText("new request"));
       });
       expect(action.disabled).toBe(true);
       act(() => {

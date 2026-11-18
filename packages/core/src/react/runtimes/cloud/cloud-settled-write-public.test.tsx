@@ -5,12 +5,14 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
+import { createSettleOutsideAct } from "@assistant-ui/x-react18/testing";
 import { AssistantCloud } from "assistant-cloud";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useCloudThreadListRuntime } from "./useCloudThreadListRuntime";
 
+const settleOutsideAct = createSettleOutsideAct(act, waitFor);
 const flush = async () => {
   for (let i = 0; i < 10; i++)
     await act(async () => {
@@ -182,9 +184,8 @@ describe("cloud history after a failed early store of a running reply", () => {
       mounted.unmount();
       const fresh = render(<Harness />);
       await flush();
-      await act(async () => {
-        await runtime.threads.switchToThread("remote-1");
-      });
+      // The switch settles once React renders the new main thread.
+      await settleOutsideAct(() => runtime.threads.switchToThread("remote-1"));
       await flush();
       const loadedReply = runtime.thread
         .getState()

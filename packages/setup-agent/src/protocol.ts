@@ -284,7 +284,8 @@ export namespace Checkout {
     | "invalid-answer"
     | "invalid-preview"
     | "empty-message"
-    | "unknown-message";
+    | "unknown-message"
+    | "setup-full";
 }
 
 export const AGENT_PRESENCE_MS = 15_000;

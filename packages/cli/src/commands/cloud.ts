@@ -1,6 +1,6 @@
 import { Command, Option } from "commander";
 import * as p from "@clack/prompts";
-import { fetchOrganizations, fetchProjects } from "aui-auth/accounts";
+import { fetchProjects } from "aui-auth/accounts";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,7 @@ import {
   savedCloudAccessToken,
   validateCloudUrl,
 } from "../lib/cloud-auth";
+import { fetchOrganizations } from "../lib/cloud-organizations";
 import { runCloudCommand, sendCloudCommand } from "../lib/cloud-remote";
 import {
   findCloudProjectDefaults,
