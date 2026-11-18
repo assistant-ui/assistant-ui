@@ -41,13 +41,15 @@
     "@ag-ui/client": "^1.0.3",
     "@assistant-ui/core": "^0.3.37",
     "@assistant-ui/generative-ui": "^0.0.12",
-    "@assistant-ui/store": "^0.3.24",
     "assistant-stream": "^0.3.58",
     "fast-json-patch": "^3.1.1"
   },
   "peerDependencies": {
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
-    "react": "^18 || ^19"
+    "react": "^18 || ^19",
+    "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -56,6 +58,7 @@
   },
   "devDependencies": {
     "@ag-ui/core": "^1.0.3",
+    "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/dom": "^10.4.2",

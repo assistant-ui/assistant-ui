@@ -41,11 +41,12 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.37",
-    "@assistant-ui/store": "^0.3.24",
     "markdansi": "^0.3.7"
   },
   "peerDependencies": {
     "@assistant-ui/react-ink": "^0.0.55",
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "ink": ">=6",
     "react": "^19",
