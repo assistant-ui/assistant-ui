@@ -223,6 +223,7 @@ export type {
   ComposerSetTextOptions,
   ComposerSubmission,
   ComposerTextOrigin,
+  DictationEnd,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,
