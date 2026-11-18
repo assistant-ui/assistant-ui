@@ -190,9 +190,7 @@ const setup = (options: {
   const threads = () => handle.getClient().threads;
   const item = (id: string) => threads().item({ id });
   const actions = () => threads().__internal_getRawActions!();
-  // A copy of the config re-renders the client root without changing any
-  // scope, and inside flushTapSync that render applies every store change
-  // still waiting for tap's scheduled flush.
+  // Re-rendering the client root inside flushTapSync applies pending store changes.
   const committed = () =>
     flushTapSync(() => {
       config = AuiConfig({ ...config });
