@@ -8,6 +8,7 @@ import {
   blockDependencies,
   readBlockSource,
 } from "@/components/pages/blocks/block-source";
+import { Dependencies } from "@/components/pages/blocks/dependencies";
 import { BlockViewer } from "@/components/pages/blocks/block-viewer";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -146,27 +147,7 @@ export default async function BlockPage(props: {
           </dl>
         </Section>
 
-        <Section id="dependencies" label="Dependencies">
-          <ul className="grid gap-x-10 gap-y-2.5 sm:grid-cols-2">
-            {dependencies.map((dependency) => (
-              <li
-                key={dependency.name}
-                className="flex items-baseline justify-between gap-4 font-mono [font-variant-ligatures:none]"
-              >
-                <span className="min-w-0 truncate text-[13px]">
-                  {dependency.name}
-                </span>
-                <span className="text-muted-foreground shrink-0 text-xs">
-                  {dependency.range}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-muted-foreground mt-6 text-sm leading-relaxed">
-            Read from the block&apos;s package.json. A package at workspace:* is
-            built from this repository.
-          </p>
-        </Section>
+        <Dependencies dependencies={dependencies} />
 
         <Section id="requirements" label="Requirements">
           <ul className={sectionList}>

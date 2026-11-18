@@ -21,3 +21,4 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 - File tree header with the block's name, and taller tree rows.
 - Local preview starts by itself when the docs run locally.
 - Theme picker for the preview: mode, color, radius, font, text size, reset.
+- Dependencies section: its own component, a rounded list with each package's logo.
