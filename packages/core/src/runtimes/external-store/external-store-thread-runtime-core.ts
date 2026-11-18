@@ -295,10 +295,23 @@ export class ExternalStoreThreadRuntimeCore
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
   // Synthesized error messages (`__error__` ids) added from the host's
-  // messages array. Each conversion of an error makes a fresh id, so one the
-  // host no longer sends is gone for good and would otherwise stay behind as
-  // a sibling branch.
-  private readonly _errorMessageIds = new Set<string>();
+  // messages array, per repository so a thread switched away from and back
+  // keeps its record. Each conversion of an error makes a fresh id, so once
+  // the host no longer sends one it is gone for good and would otherwise stay
+  // behind as a sibling branch.
+  private readonly _errorMessageIdsByRepository = new WeakMap<
+    MessageRepository,
+    Set<string>
+  >();
+
+  private get _errorMessageIds() {
+    let ids = this._errorMessageIdsByRepository.get(this.repository);
+    if (!ids) {
+      ids = new Set();
+      this._errorMessageIdsByRepository.set(this.repository, ids);
+    }
+    return ids;
+  }
 
   // The last host branch with locally submitted feedback applied, or the array
   // last handed to setMessages, whichever was written last. Excludes the
@@ -551,7 +564,6 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
       this._movedLeaf = undefined;
-      this._errorMessageIds.clear();
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -785,13 +797,16 @@ export class ExternalStoreThreadRuntimeCore
       for (const [id, message] of hostDeletedMessages) {
         this._evictDeletedMessage(id, message, false);
       }
-      for (const id of this._errorMessageIds) {
+      const errorMessageIds = this._errorMessageIds;
+      for (const id of errorMessageIds) {
         if (incomingIds.has(id)) continue;
-        this._errorMessageIds.delete(id);
+        // A host that kept the error and built turns on it owns that branch.
+        if (this.repository.hasChildren(id)) continue;
+        errorMessageIds.delete(id);
         this._evictDeletedMessage(id, undefined, false);
       }
       for (const message of messages) {
-        if (isErrorMessageId(message.id)) this._errorMessageIds.add(message.id);
+        if (isErrorMessageId(message.id)) errorMessageIds.add(message.id);
       }
 
       // A pass over the host's previous array, such as a client tool's
@@ -872,6 +887,9 @@ export class ExternalStoreThreadRuntimeCore
       } else {
         this._notifyEventSubscribers("runEnd", {});
       }
+      // A listener may have published a newer snapshot, which already
+      // selected its own head; this one may point at a message it evicted.
+      if (this._store !== store) return;
     }
 
     // Append an optimistic placeholder while running but before a trailing

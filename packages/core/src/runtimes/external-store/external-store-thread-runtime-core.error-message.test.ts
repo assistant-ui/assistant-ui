@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import { completeExternalMessageConversion } from "../../runtime/utils/external-message-conversion";
-import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../../runtime/utils/message-repository";
 import type { ThreadMessage } from "../../types/message";
 import { isErrorMessageId } from "../../utils/id";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
@@ -25,11 +28,16 @@ const [u1, a1, u2, a2] = ExportedMessageRepository.fromArray([
 
 const adapter = (
   messages: readonly ThreadMessage[],
-  options: { error?: string; isRunning?: boolean } = {},
+  options: {
+    error?: string;
+    isRunning?: boolean;
+    repository?: MessageRepository;
+  } = {},
 ) =>
   ({
     messages: completeExternalMessageConversion([...messages], options.error),
     isRunning: options.isRunning ?? false,
+    unstable_messageRepositoryInstance: options.repository,
     onNew: async () => {},
     onReload: async () => {},
   }) as ExternalStoreAdapter;
@@ -126,5 +134,60 @@ describe("external-store synthesized error messages", () => {
 
     expect(runtime.messages.at(-1)!.id).toBe(errorId);
     expect(errorIds(runtime)).toEqual([errorId]);
+  });
+
+  it("drops an error left in a thread's repository after switching back to it", () => {
+    const repositoryA = new MessageRepository();
+    const repositoryB = new MessageRepository();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      adapter([u1], { error: "502", repository: repositoryA }),
+    );
+
+    runtime.__internal_setAdapter(
+      adapter([u2, a2], { repository: repositoryB }),
+    );
+    runtime.__internal_setAdapter(
+      adapter([u1, a1], { repository: repositoryA }),
+    );
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+    expect(errorIds(runtime)).toEqual([]);
+  });
+
+  it("keeps an error message that the host built further turns on", () => {
+    const [, error] = adapter([u1], { error: "502" }).messages!;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      adapter([u1, error!, u2, a2]),
+    );
+
+    runtime.__internal_setAdapter(adapter([u1, a1]));
+
+    const parentOf = (id: string) =>
+      runtime.export().messages.find(({ message }) => message.id === id)
+        ?.parentId;
+    expect(parentOf("u2")).toBe(error!.id);
+    expect(runtime.getBranches("a1")).toEqual([error!.id, "a1"]);
+  });
+
+  it("lets a newer snapshot published from runStart win over the running one", () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      adapter([u1], { error: "502" }),
+    );
+    const unsubscribe = runtime.unstable_on("runStart", () => {
+      unsubscribe();
+      runtime.__internal_setAdapter(adapter([u1, a1], { isRunning: true }));
+    });
+
+    expect(() =>
+      runtime.__internal_setAdapter(
+        adapter([u1], { error: "502", isRunning: true }),
+      ),
+    ).not.toThrow();
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(errorIds(runtime)).toEqual([]);
   });
 });
