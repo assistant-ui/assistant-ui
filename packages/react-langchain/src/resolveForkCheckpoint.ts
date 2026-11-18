@@ -47,6 +47,13 @@ export const resolveForkCheckpoint = async (
           : messages.slice(0, sourceIndex),
         messagesKey,
       );
+      if (!checkpointId && parentIndex !== -1 && sourceIndex > parentIndex + 1)
+        checkpointId = await findForkCheckpointInHistory(
+          client,
+          threadId,
+          messages.slice(0, parentIndex + 1),
+          messagesKey,
+        );
     } catch {
       return null;
     }

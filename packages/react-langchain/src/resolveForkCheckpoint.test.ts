@@ -112,6 +112,50 @@ describe("resolveForkCheckpoint", () => {
     expect(result).toBe("cp-before-followup");
   });
 
+  it("falls back to the parent checkpoint when a cancellation stub shares the edited message's step", async () => {
+    const messages: LangChainBaseMessage[] = [
+      msg("h1"),
+      {
+        ...msg("ai1"),
+        _getType: () => "ai",
+        tool_calls: [{ id: "call-1", name: "lookup", args: {} }],
+      },
+      {
+        ...msg("cancel-stub"),
+        _getType: () => "tool",
+        tool_call_id: "call-1",
+      },
+      msg("h2"),
+      { ...msg("a2"), _getType: () => "ai" },
+    ];
+    const client = makeClient([
+      {
+        values: { messages },
+        checkpoint: { checkpoint_id: "cp-a2" },
+      },
+      {
+        values: { messages: messages.slice(0, 4) },
+        checkpoint: { checkpoint_id: "cp-h2" },
+      },
+      {
+        values: { messages: messages.slice(0, 2) },
+        checkpoint: { checkpoint_id: "cp-ai1" },
+      },
+    ]);
+
+    const result = await resolveForkCheckpoint(
+      client,
+      "thread-1",
+      messages,
+      "ai1",
+      "h2",
+      undefined,
+      "messages",
+    );
+
+    expect(result).toBe("cp-ai1");
+  });
+
   it("falls back to history search when the head metadata has no checkpoint", async () => {
     const client = makeClient([
       {
