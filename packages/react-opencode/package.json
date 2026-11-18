@@ -51,12 +51,13 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.36",
-    "@assistant-ui/store": "^0.3.23",
     "@opencode-ai/sdk": "^1.19.4",
     "assistant-cloud": "*"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -67,6 +68,8 @@
   },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@types/node": "^26.6.5",

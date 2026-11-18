@@ -64,6 +64,8 @@
     "@assistant-ui/core": "^0.3.36"
   },
   "peerDependencies": {
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

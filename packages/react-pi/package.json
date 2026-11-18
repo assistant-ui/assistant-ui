@@ -57,13 +57,14 @@
   },
   "dependencies": {
     "@assistant-ui/core": "workspace:^",
-    "@assistant-ui/store": "^0.3.23",
     "@standard-schema/spec": "^1.1.0",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.57"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.22",
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@earendil-works/pi-coding-agent": ">=0.80.8",
     "@types/react": "*",
     "react": "^18 || ^19"
@@ -78,6 +79,8 @@
   },
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@earendil-works/pi-coding-agent": "^1.4.0",

@@ -40,11 +40,12 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.36",
     "@assistant-ui/react-langchain": "^0.0.40",
-    "@assistant-ui/store": "^0.3.23",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.57"
   },
   "peerDependencies": {
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@langchain/langgraph-sdk": "^1.9.20",
     "@types/react": "*",
     "react": "^18 || ^19"
@@ -58,6 +59,8 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@langchain/langgraph-sdk": "^1.12.7",

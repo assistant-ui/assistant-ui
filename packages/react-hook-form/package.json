@@ -39,10 +39,11 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.36",
-    "@assistant-ui/store": "^0.3.22",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19",
     "react-hook-form": "^7"
@@ -53,6 +54,8 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/react": "^16.3.3",
