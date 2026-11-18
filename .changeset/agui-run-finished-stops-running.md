@@ -6,4 +6,4 @@ Set `isRunning` to false at `RUN_FINISHED` while the response stays open for ser
 
 Reject displaced interrupt responses, tool approvals, and `steerAway` calls with the busy error before changing the thread, and carry a deferred A2UI action exactly once in the following user request. Name the submitted method in a displaced tool approval's busy error.
 
-Handle sequential runs in one response independently, stopping `isRunning` at each `RUN_FINISHED` and settling the current run's subagent calls when the response ends without a finish event. Clear `isRunning` when a deferred replay continuation cannot resume because its stored approval is invalid.
+Handle sequential runs in one response independently, stopping `isRunning` at each `RUN_FINISHED` unless a continuation is already owed, and settling the current run's subagent calls when the response ends without a finish event. Ignore a sequential run in full if its `RUN_STARTED` arrives after an action begins waiting for cleanup, while allowing an already accepted run to finish streaming. Clear `isRunning` when a deferred replay continuation cannot resume because its stored approval is invalid.

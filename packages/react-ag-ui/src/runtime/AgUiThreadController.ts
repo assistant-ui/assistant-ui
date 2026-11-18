@@ -447,6 +447,7 @@ export class AgUiThreadController {
     owner: AbortController;
     closed: Promise<void>;
     waiter: object | null;
+    ignoreEvents: boolean;
   } | null = null;
   // Counts runs started, so a finished run can tell a newer one began.
   private runCount = 0;
@@ -2697,15 +2698,20 @@ export class AgUiThreadController {
       closeDrain = resolve;
     });
     const dispatch = (event: AgUiEvent) => {
-      if (this.abortController !== abortController) return;
+      if (
+        this.abortController !== abortController ||
+        this.drainingRun?.ignoreEvents
+      )
+        return;
       if (event.type === "SUBAGENT_STARTED")
         runSubagentIds.add(event.subagentRunId);
       if (event.type === "RUN_FINISHED") {
         runFinished = true;
-        this.drainingRun = {
+        this.drainingRun ??= {
           owner: abortController,
           closed: drainClosed,
           waiter: null,
+          ignoreEvents: false,
         };
         if (event.outcome?.type === "interrupt")
           replayInterruptMessageId = assistantMessageId ?? replayTail;
@@ -2913,17 +2919,19 @@ export class AgUiThreadController {
           dispatch,
           logger: this.logger,
           onRunFailed: (error) => {
-            if (abortSignal.aborted) return;
+            if (abortSignal.aborted || this.drainingRun?.ignoreEvents) return;
             pendingError = error;
             invokeRuntimeCallback("onError", this.onError, error);
           },
           onRunStarted: () => {
             const drain = this.drainingRun;
-            if (this.abortController !== abortController || drain?.waiter)
+            if (this.abortController !== abortController) return false;
+            if (drain?.waiter) {
+              drain.ignoreEvents = true;
               return false;
+            }
             runFinished = false;
             if (drain?.owner === abortController) {
-              this.drainingRun = null;
               this.setRunning(true);
             }
             return true;
