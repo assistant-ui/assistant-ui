@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { renderHook, waitFor } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
+import { isConsentRequired } from "@/lib/consent";
 import type { SessionState } from "@/lib/session";
 import { useDocsChatRuntime, useDocsCloud } from "./chat-runtime";
 
@@ -80,6 +81,17 @@ const cloudStrategy = (cloud: ReturnType<typeof useDocsCloud>["cloud"]) =>
 
 const options = () =>
   useChatRuntime.mock.calls.at(-1)![0] as Record<string, unknown>;
+
+// The consent region is fetched once per page and cached, so it is loaded here
+// rather than through the fetch mock of whichever test renders first.
+beforeAll(async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ required: true })),
+  );
+  await isConsentRequired();
+  vi.unstubAllGlobals();
+});
 
 afterEach(() => {
   visitor += 1;
@@ -378,10 +390,6 @@ it("asks for the conversation budget only when the surface opts in", async () =>
 it("supplies an anonymous cloud with engagement events off until consent", () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
   installLocalStorage(false);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(() => new Promise<Response>(() => {})),
-  );
 
   renderHook(() => useDocsChatRuntime());
 
