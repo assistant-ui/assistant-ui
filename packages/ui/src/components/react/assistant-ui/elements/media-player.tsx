@@ -8,8 +8,10 @@ import {
   type RefObject,
 } from "react";
 import { PauseIcon, PlayIcon } from "lucide-react";
+import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
+import { canPreload } from "../utils/href";
 
 export interface AudioPlayerProps extends Omit<
   ComponentProps<"div">,
@@ -19,6 +21,13 @@ export interface AudioPlayerProps extends Omit<
   title?: string | undefined;
   artwork?: string | undefined;
   durationMs?: number | undefined;
+  /**
+   * Origins this player may fetch from before the user presses play. A
+   * remote `src` from another origin loads only on play, and its artwork or
+   * poster is not shown. Same-page paths, `blob:` URLs and `data:` image,
+   * audio or video URLs always load.
+   */
+  mediaOrigins?: readonly string[] | undefined;
 }
 
 export interface VideoPlayerProps extends Omit<
@@ -30,6 +39,13 @@ export interface VideoPlayerProps extends Omit<
   title?: string | undefined;
   ratio?: "16:9" | "4:3" | "1:1" | "9:16" | "auto" | undefined;
   durationMs?: number | undefined;
+  /**
+   * Origins this player may fetch from before the user presses play. A
+   * remote `src` from another origin loads only on play, and its artwork or
+   * poster is not shown. Same-page paths, `blob:` URLs and `data:` image,
+   * audio or video URLs always load.
+   */
+  mediaOrigins?: readonly string[] | undefined;
 }
 
 function formatDuration(seconds: number): string {
@@ -37,6 +53,40 @@ function formatDuration(seconds: number): string {
   const minutes = Math.floor(wholeSeconds / 60);
   const remainingSeconds = wholeSeconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+function useDeferredSource(
+  mediaRef: RefObject<HTMLMediaElement | null>,
+  src: string,
+  mediaOrigins: readonly string[] | undefined,
+) {
+  const preload = canPreload(src, mediaOrigins);
+  const [armedSrc, setArmedSrc] = useState<string | undefined>(undefined);
+  if (armedSrc !== undefined && armedSrc !== src) setArmedSrc(undefined);
+  const armed = preload || armedSrc === src;
+  const wasArmed = useRef(armed);
+
+  // `arm` sets the attribute outside React, and removing `src` leaves the
+  // element playing what it loaded, so reset it when the source is held.
+  useEffect(() => {
+    const media = mediaRef.current;
+    if (media && !armed && (wasArmed.current || media.hasAttribute("src"))) {
+      media.removeAttribute("src");
+      media.load();
+    }
+    wasArmed.current = armed;
+  }, [mediaRef, src, armed]);
+
+  return {
+    preload,
+    armed,
+    arm: () => {
+      const media = mediaRef.current;
+      if (!media || armed) return;
+      media.src = src;
+      setArmedSrc(src);
+    },
+  };
 }
 
 function useMediaDuration(
@@ -79,10 +129,12 @@ export function AudioPlayer({
   title,
   artwork,
   durationMs,
+  mediaOrigins,
   className,
   ...props
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const source = useDeferredSource(audioRef, src, mediaOrigins);
   const [playback, setPlayback] = useState({
     src,
     currentTime: 0,
@@ -127,6 +179,7 @@ export function AudioPlayer({
       return;
     }
 
+    source.arm();
     void audio.play().then(
       () => update({ playing: true }),
       () =>
@@ -146,7 +199,7 @@ export function AudioPlayer({
       )}
       {...props}
     >
-      {artwork ? (
+      {canPreload(artwork, mediaOrigins) ? (
         <img
           src={artwork}
           alt=""
@@ -197,8 +250,8 @@ export function AudioPlayer({
       </span>
       <audio
         ref={audioRef}
-        src={src}
-        preload="metadata"
+        src={source.preload ? src : undefined}
+        preload={source.preload ? "metadata" : "none"}
         className="hidden"
         onLoadedMetadata={(event) => {
           setDurationFromMetadata(event.currentTarget.duration);
@@ -225,10 +278,12 @@ export function VideoPlayer({
   title,
   ratio = "16:9",
   durationMs,
+  mediaOrigins,
   className,
   ...props
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const source = useDeferredSource(videoRef, src, mediaOrigins);
   const { duration, setDurationFromMetadata } = useMediaDuration(
     videoRef,
     src,
@@ -251,14 +306,20 @@ export function VideoPlayer({
       className={cn("flex w-full max-w-xl flex-col gap-2", className)}
       {...props}
     >
-      <div className={cn(field, "overflow-hidden rounded-xl", ratioClassName)}>
+      <div
+        className={cn(
+          field,
+          "relative overflow-hidden rounded-xl",
+          ratioClassName,
+        )}
+      >
         <video
           ref={videoRef}
-          src={src}
-          poster={poster}
-          controls
+          src={source.preload ? src : undefined}
+          poster={canPreload(poster, mediaOrigins) ? poster : undefined}
+          controls={source.armed}
           playsInline
-          preload="metadata"
+          preload={source.preload ? "metadata" : "none"}
           aria-label={title ?? "Video"}
           className={cn(
             "block max-w-full",
@@ -268,6 +329,27 @@ export function VideoPlayer({
             setDurationFromMetadata(event.currentTarget.duration);
           }}
         />
+        {source.armed ? null : (
+          <button
+            type="button"
+            aria-label={`Play ${title ?? "video"}`}
+            onClick={() => {
+              flushSync(() => source.arm());
+              videoRef.current?.focus();
+              void videoRef.current?.play().catch(() => {});
+            }}
+            className="absolute inset-0 flex items-center justify-center"
+          >
+            <span
+              className={cn(
+                inkButton,
+                "flex size-11 items-center justify-center rounded-full",
+              )}
+            >
+              <PlayIcon aria-hidden className="ml-0.5 size-5" />
+            </span>
+          </button>
+        )}
       </div>
       {(title || duration !== undefined) && (
         <div className="flex min-w-0 items-center gap-2 px-1">
