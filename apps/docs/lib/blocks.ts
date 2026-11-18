@@ -26,8 +26,10 @@ export type Block = {
   description: string;
   image: { light: string; dark: string };
   githubLink: string;
-  /** Address of a running copy to frame; the page shows the screenshot without one. */
+  /** Address of a deployed copy to frame; the live site shows the screenshot without one. */
   previewUrl: string | null;
+  /** Port the docs dev server starts the block on when it has no deployment. */
+  devPort: number;
   source: BlockSource;
   problem: string;
   useCases: readonly string[];
@@ -38,8 +40,6 @@ export type Block = {
     variables: readonly BlockEnvVar[];
   };
 };
-
-const isDevelopment = process.env.NODE_ENV === "development";
 
 export const BLOCKS: readonly Block[] = [
   {
@@ -53,9 +53,8 @@ export const BLOCKS: readonly Block[] = [
     },
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-agent-document-editor",
-    // The block has no deployment, so only development has a copy to frame:
-    // `pnpm --filter with-agent-document-editor dev --port 3210`.
-    previewUrl: isDevelopment ? "http://localhost:3210" : null,
+    previewUrl: null,
+    devPort: 3210,
     source: {
       directory: "examples/with-agent-document-editor",
       include: [

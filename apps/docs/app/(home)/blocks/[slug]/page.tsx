@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
+import { startBlockPreview } from "@/components/pages/blocks/block-preview";
 import {
   blockDependencies,
   readBlockSource,
@@ -73,6 +74,12 @@ export default async function BlockPage(props: {
   const block = getBlock(slug);
   if (!block) notFound();
 
+  let previewUrl = block.previewUrl;
+  if (!previewUrl && process.env.NODE_ENV === "development") {
+    startBlockPreview(block.source.directory, block.devPort);
+    previewUrl = `http://localhost:${block.devPort}`;
+  }
+
   const files = await readBlockSource(block.source);
   const dependencies = blockDependencies(files);
 
@@ -106,7 +113,7 @@ export default async function BlockPage(props: {
         <BlockViewer
           slug={block.slug}
           title={block.title}
-          previewUrl={block.previewUrl}
+          previewUrl={previewUrl}
           image={block.image}
           files={files}
           entry={block.source.entry}

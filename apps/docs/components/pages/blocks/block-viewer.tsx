@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import {
@@ -18,6 +18,7 @@ import { DemoIframe } from "@/components/pages/docs/demo-iframe";
 import { DeferredHighlight } from "@/components/shared/deferred-highlight";
 import { LiveDot } from "@/components/shared/live-dot";
 import { CodeBlock } from "@/components/ui/code-block";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Block } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
@@ -172,6 +173,32 @@ function TreeItems({
   );
 }
 
+function usePreviewReady(url: string | null) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!url) return;
+    let cancelled = false;
+    const probe = async () => {
+      while (!cancelled) {
+        try {
+          await fetch(url, { mode: "no-cors" });
+          if (!cancelled) setReady(true);
+          return;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    };
+    void probe();
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  return ready;
+}
+
 function BlockCode({
   name,
   files,
@@ -252,6 +279,7 @@ export function BlockViewer({
   const [refreshing, setRefreshing] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
+  const ready = usePreviewReady(previewUrl);
   const width = VIEWPORTS.find((item) => item.id === viewport)?.width;
 
   return (
@@ -338,17 +366,21 @@ export function BlockViewer({
                 className="bg-background h-full w-full transition-[max-width] duration-200 motion-reduce:transition-none"
                 style={{ maxWidth: width }}
               >
-                <DemoIframe
-                  key={reloads}
-                  title={`${title} preview`}
-                  src={previewUrl}
-                  allow="microphone; clipboard-write"
-                  onLoad={() => setRefreshing(false)}
-                  className={cn(
-                    "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
-                    refreshing && "opacity-0",
-                  )}
-                />
+                {ready ? (
+                  <DemoIframe
+                    key={reloads}
+                    title={`${title} preview`}
+                    src={previewUrl}
+                    allow="microphone; clipboard-write"
+                    onLoad={() => setRefreshing(false)}
+                    className={cn(
+                      "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
+                      refreshing && "opacity-0",
+                    )}
+                  />
+                ) : (
+                  <Skeleton className="h-full w-full rounded-none" />
+                )}
               </div>
             </div>
           ) : (
