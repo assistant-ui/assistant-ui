@@ -3,6 +3,7 @@
 import {
   ExportedMessageRepository,
   isMessageNotSentError,
+  MessageNotSentError,
   useAui,
   useAuiState,
   useCloudThreadListAdapter,
@@ -38,7 +39,7 @@ import {
   type PiInterruptAnswer,
 } from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
-import type { PiClient, PiThreadMetadata } from "../types";
+import type { PiClient, PiThinkingLevel, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
 import { PI_SDK } from "../sdkIdentity";
@@ -428,11 +429,49 @@ const useNewPiThreadStore = (
   const [optimisticMessages, setOptimisticMessages] = useState<
     readonly ThreadMessageLike[]
   >([]);
+  const [draftSelection, setDraftSelection] = useState<{
+    model?: { provider: string; modelId: string };
+    thinkingLevel?: PiThinkingLevel;
+  }>({});
+  const draftSelectionRef = useLatestRef(draftSelection);
+  const applySelectionPromiseRef = useRef<Promise<void> | undefined>(undefined);
   const optimisticMessageIndexRef = useRef(0);
   const optimisticRepository = useMemo(
     () => ExportedMessageRepository.fromArray(optimisticMessages),
     [optimisticMessages],
   );
+
+  const extras = useMemo(() => {
+    const state: PiThreadState =
+      draftSelection.model || draftSelection.thinkingLevel
+        ? {
+            ...EMPTY_THREAD_STATE,
+            metadata: {
+              ...EMPTY_THREAD_STATE.metadata,
+              config: {
+                ...draftSelection.model,
+                ...(draftSelection.thinkingLevel
+                  ? { thinkingLevel: draftSelection.thinkingLevel }
+                  : {}),
+              },
+            },
+          }
+        : EMPTY_THREAD_STATE;
+    const draftController: PiThreadControllerLike = {
+      ...NOOP_CONTROLLER,
+      getState: () => state,
+      setModel: async (input) => {
+        setDraftSelection((selection) => ({ ...selection, model: input }));
+      },
+      setThinkingLevel: async (level) => {
+        setDraftSelection((selection) => ({
+          ...selection,
+          thinkingLevel: level,
+        }));
+      },
+    };
+    return buildExtras(draftController, state);
+  }, [draftSelection]);
 
   const store = useMemo<ExternalStoreAdapter<ThreadMessage>>(
     () => ({
@@ -443,7 +482,7 @@ const useNewPiThreadStore = (
       isLoading: false,
       isRunning: false,
       messageRepository: optimisticRepository,
-      extras: EMPTY_RUNTIME_EXTRAS,
+      extras,
       ...(adapters ? { adapters } : {}),
       onNew: async (message) => {
         const optimistic = toOptimisticThreadMessage(
@@ -457,9 +496,7 @@ const useNewPiThreadStore = (
           );
         };
         try {
-          // The core starts thread initialization before dispatching onNew,
-          // so adapter.initialize has already created the thread empty;
-          // deliver the message to the live thread.
+          // Core starts initialization before onNew, so adapter.initialize creates an empty thread and the live controller delivers the message.
           const { remoteId, externalId } =
             await aui.threadListItem.initialize();
           if (registry.disposed) {
@@ -470,7 +507,23 @@ const useNewPiThreadStore = (
           if (!piThreadId) {
             throw new Error("This thread has no Pi thread to send to.");
           }
-          await getController(registry, piThreadId).sendMessage(message);
+          const controller = getController(registry, piThreadId);
+          await controller.sendMessageAfter(
+            message,
+            undefined,
+            () =>
+              (applySelectionPromiseRef.current ??= controller
+                .applyDraftSelection(
+                  draftSelectionRef.current,
+                  () => registry.disposed,
+                )
+                .catch((error: unknown) => {
+                  invokePiErrorCallback(onError, error);
+                  throw new MessageNotSentError(
+                    error instanceof Error ? error.message : String(error),
+                  );
+                })),
+          );
           removeOptimisticMessage();
         } catch (error) {
           removeOptimisticMessage();
@@ -484,6 +537,8 @@ const useNewPiThreadStore = (
     [
       aui,
       optimisticRepository,
+      extras,
+      draftSelectionRef,
       registry,
       adapters,
       cloud,
