@@ -567,7 +567,7 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
 
   // Exposes the gate through RUN_FINISHED while runAgent is still pending, so
   // a click lands while the finished run's response is still open.
-  const heldGatingAgent = () => {
+  const heldGatingAgent = (interrupts: readonly AgUiInterrupt[] = [GATE]) => {
     let release!: () => void;
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -577,21 +577,23 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
         subscriber.onRunFinalized?.(undefined);
         return;
       }
-      subscriber.onToolCallStartEvent?.({
-        event: {
-          type: "TOOL_CALL_START",
-          toolCallId: "tc-1",
-          toolCallName: "delete_file",
-        },
-      });
-      subscriber.onToolCallEndEvent?.({
-        event: { type: "TOOL_CALL_END", toolCallId: "tc-1" },
-      });
+      for (const { toolCallId } of interrupts) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId,
+            toolCallName: "delete_file",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId },
+        });
+      }
       subscriber.onRunFinishedEvent?.({
         event: {
           type: "RUN_FINISHED",
           runId: "run-1",
-          outcome: { type: "interrupt", interrupts: [GATE] },
+          outcome: { type: "interrupt", interrupts },
         },
       });
       await held;
@@ -648,6 +650,135 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
       expect(result.current.thread.getState().isRunning).toBe(false),
     );
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("rejects a displaced parallel approval without recording it and accepts a later click", async () => {
+    const { agent, runAgent, release } = heldGatingAgent([
+      GATE,
+      { id: "int-2", reason: "tool_call", toolCallId: "tc-2" },
+    ]);
+    const onError = vi.fn();
+    const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <></>
+      </AssistantRuntimeProvider>,
+    );
+    result.current.thread.append("delete both");
+    await waitFor(() => expect(allToolCalls(result.current)).toHaveLength(2));
+
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = gatedPart(result.current).respondToToolApproval({
+        approved: true,
+      });
+      second = gatedPart(result.current, "tc-2").respondToToolApproval({
+        approved: false,
+      });
+    });
+    const settled = Promise.allSettled([first, second]);
+    const waitingApprovals = allToolCalls(result.current).map(
+      (part) => part.approval,
+    );
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(agent.abortRun).not.toHaveBeenCalled();
+
+    await act(async () => {
+      release();
+      await expect(settled).resolves.toEqual([
+        {
+          status: "rejected",
+          reason: new Error(
+            "[agui] respondToToolApproval: a run is already in progress",
+          ),
+        },
+        { status: "fulfilled", value: undefined },
+      ]);
+    });
+    expect(waitingApprovals).toEqual([gateApproval(), { id: "int-2" }]);
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]?.[0].message).toBe(
+      "[agui] respondToToolApproval: a run is already in progress",
+    );
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      gateApproval(),
+      { id: "int-2", approved: false },
+    ]);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(result.current.thread.getState().isRunning).toBe(false);
+
+    await act(async () => {
+      await gatedPart(result.current).respondToToolApproval({ approved: true });
+    });
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(resumeOf(runAgent)).toEqual([
+      { interruptId: "int-1", status: "resolved", payload: { approved: true } },
+      {
+        interruptId: "int-2",
+        status: "resolved",
+        payload: { approved: false },
+      },
+    ]);
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it("reports an approval displaced by a user steering away during the drain", async () => {
+    const { agent, runAgent, release } = heldGatingAgent();
+    const onError = vi.fn();
+    const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <SteerAway />
+      </AssistantRuntimeProvider>,
+    );
+    result.current.thread.append("delete it");
+    await waitFor(() =>
+      expect(allToolCalls(result.current)[0]?.approval).toEqual(gateApproval()),
+    );
+
+    let approval!: Promise<void>;
+    let send!: Promise<void>;
+    act(() => {
+      approval = gatedPart(result.current).respondToToolApproval({
+        approved: true,
+      });
+      send = steerAwayRef.current!("never mind");
+    });
+    const settled = Promise.allSettled([approval, send]);
+    const waitingApproval = allToolCalls(result.current)[0]?.approval;
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(agent.abortRun).not.toHaveBeenCalled();
+
+    await act(async () => {
+      release();
+      await expect(settled).resolves.toEqual([
+        {
+          status: "rejected",
+          reason: new Error(
+            "[agui] respondToToolApproval: a run is already in progress",
+          ),
+        },
+        { status: "fulfilled", value: undefined },
+      ]);
+    });
+    expect(waitingApproval).toEqual(gateApproval());
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]?.[0].message).toBe(
+      "[agui] respondToToolApproval: a run is already in progress",
+    );
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(resumeOf(runAgent)).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+    ]);
+    expect(allToolCalls(result.current)[0]?.approval).toEqual(
+      gateApproval({ resolution: "cancelled" }),
+    );
+    expect(
+      (runAgent.mock.calls[1]![0] as { messages: unknown[] }).messages,
+    ).toContainEqual(
+      expect.objectContaining({ role: "user", content: "never mind" }),
+    );
   });
 });
 

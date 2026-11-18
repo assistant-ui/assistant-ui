@@ -1075,7 +1075,11 @@ export class AgUiThreadController {
     messageId: string,
     resume: AgUiResumeEntry[],
   ): Promise<void> {
-    if (this.drainingRun && !(await this.waitForDrain())) return;
+    if (
+      this.drainingRun &&
+      !(await this.waitForDrain("submitInterruptResponses"))
+    )
+      return;
     const parentId = this.session.headId ?? messageId;
     this.clearPendingInterrupts(messageId, resume);
     await this.startRun(parentId, this.state.lastRunConfig, {
@@ -1126,9 +1130,13 @@ export class AgUiThreadController {
         );
       }
     }
-    if (this.state.isRunning) {
-      throw new Error(`[agui] ${method}: a run is already in progress`);
+    if (this.state.isRunning && !this.drainingRun) {
+      throw this.runInProgressError(method);
     }
+  }
+
+  private runInProgressError(method: string): Error {
+    return new Error(`[agui] ${method}: a run is already in progress`);
   }
 
   async respondToToolApproval(
@@ -1173,7 +1181,8 @@ export class AgUiThreadController {
       "respondToToolApproval",
       pending.interrupts,
     );
-    if (this.drainingRun && !(await this.waitForDrain())) return;
+    if (this.drainingRun && !(await this.waitForDrain("respondToToolApproval")))
+      return;
 
     let recorded = false;
     for (const message of interruptOwners) {
@@ -1202,7 +1211,10 @@ export class AgUiThreadController {
       }),
       pending.interrupts,
     );
-    if (!resume) return;
+    if (!resume) {
+      if (this.abortController === null) this.setRunning(false);
+      return;
+    }
 
     await this.resumeWithResponses(pending.messageId, resume);
   }
@@ -1222,9 +1234,10 @@ export class AgUiThreadController {
             "[agui] steerAway: responses are only valid for pending interrupts",
           );
         }
-        if (this.state.isRunning) {
-          throw new Error("[agui] steerAway: a run is already in progress");
+        if (this.state.isRunning && !this.drainingRun) {
+          throw this.runInProgressError("steerAway");
         }
+        if (this.drainingRun && !(await this.waitForDrain("steerAway"))) return;
         for (const assistant of this.getPendingToolCallMessages()) {
           this.cancelUnresolvedToolCalls(assistant.id);
           this.maybeCompleteAfterToolResults(assistant.id);
@@ -1239,15 +1252,17 @@ export class AgUiThreadController {
           "[agui] steerAway: no pending interrupts on this thread",
         );
       }
+      if (this.drainingRun && !(await this.waitForDrain("steerAway"))) return;
       await this.append(this.toAppendMessage(message));
       return;
     }
 
     const resume = this.resolveSteerAwayResume(pending.interrupts, responses);
 
-    if (this.state.isRunning) {
-      throw new Error("[agui] steerAway: a run is already in progress");
+    if (this.state.isRunning && !this.drainingRun) {
+      throw this.runInProgressError("steerAway");
     }
+    if (this.drainingRun && !(await this.waitForDrain("steerAway"))) return;
 
     const normalized = this.toAppendMessage(message);
     this.clearPendingInterrupts(pending.messageId, resume);
@@ -1857,15 +1872,19 @@ export class AgUiThreadController {
     }
   }
 
-  private async waitForDrain(): Promise<boolean> {
+  private async waitForDrain(
+    method?: "submitInterruptResponses" | "respondToToolApproval" | "steerAway",
+  ): Promise<boolean> {
     const waiter = {};
     const waitGeneration = this.state.historyMutationGeneration;
     for (let drain = this.drainingRun; drain; drain = this.drainingRun) {
       drain.waiter = waiter;
-      this.clearDeferredContinuations(drain.owner);
       this.setRunning(true);
       await drain.closed;
-      if (drain.waiter !== waiter) return false;
+      if (drain.waiter !== waiter) {
+        if (method) throw this.runInProgressError(method);
+        return false;
+      }
       if (
         waitGeneration !== this.state.historyMutationGeneration ||
         this.isThreadSwitching?.()
@@ -2842,6 +2861,8 @@ export class AgUiThreadController {
     abortSignal.addEventListener(
       "abort",
       () => {
+        if (generation !== this.state.historyMutationGeneration)
+          this.clearDeferredContinuations(abortController);
         if (this.drainingRun?.owner === abortController) {
           this.drainingRun = null;
           closeDrain();
@@ -2991,7 +3012,11 @@ export class AgUiThreadController {
       throw err;
     }
     if (superseded) {
-      this.clearDeferredContinuations(abortController);
+      this.clearDeferredContinuations(
+        abortController,
+        generation === this.state.historyMutationGeneration &&
+          !this.isThreadSwitching?.(),
+      );
       return;
     }
 
@@ -3232,13 +3257,18 @@ export class AgUiThreadController {
     return messages.slice(anchor + 1);
   }
 
-  private clearDeferredContinuations(owner: AbortController): void {
+  private clearDeferredContinuations(
+    owner: AbortController,
+    preserveA2uiAction = false,
+  ): void {
     if (this.state.pendingResume?.owner === owner) {
       this.dispatch({ type: "resumeCleared" });
     }
     if (this.state.pendingA2uiResumeOwner === owner) {
       this.dispatch({
-        type: "a2uiContinuationsCleared",
+        type: preserveA2uiAction
+          ? "a2uiResumeCleared"
+          : "a2uiContinuationsCleared",
       });
     }
   }

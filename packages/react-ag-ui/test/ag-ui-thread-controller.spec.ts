@@ -2775,6 +2775,129 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.isRunning()).toBe(false);
   });
 
+  it.each(["before", "after"])(
+    "carries an A2UI action submitted %s a user send during the drain in that request exactly once",
+    async (order) => {
+      const inputs: {
+        forwardedProps?: { a2uiAction?: unknown };
+        messages: { role: string; content: string }[];
+      }[] = [];
+      let writer!: ReadableStreamDefaultController<Uint8Array>;
+      let signal!: AbortSignal;
+      const encoder = new TextEncoder();
+      const agent = new HttpAgent({
+        url: "https://example.invalid",
+        fetch: async (_url, init) => {
+          const input = JSON.parse(init!.body as string);
+          inputs.push(input);
+          if (inputs.length > 1) {
+            return new Response(
+              `data: ${JSON.stringify({ type: "RUN_STARTED", threadId: input.threadId, runId: input.runId })}\n\ndata: ${JSON.stringify({ type: "RUN_FINISHED", threadId: input.threadId, runId: input.runId })}\n\n`,
+              { headers: { "Content-Type": "text/event-stream" } },
+            );
+          }
+          signal = init!.signal!;
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start: (controller) => {
+                writer = controller;
+              },
+            }),
+            { headers: { "Content-Type": "text/event-stream" } },
+          );
+        },
+      });
+      const core = createCore(agent);
+      const first = core.append(createAppendMessage());
+      await vi.waitFor(() => expect(inputs).toHaveLength(1));
+      for (const event of [
+        { type: "RUN_STARTED", threadId: "thread", runId: "run-1" },
+        { type: "RUN_FINISHED", threadId: "thread", runId: "run-1" },
+      ])
+        writer.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+      const action = {
+        type: "a2ui:action",
+        name: "submit",
+        surfaceId: "surface-1",
+        context: { answer: 42 },
+      };
+      if (order === "before") core.sendA2uiAction(action);
+      const send = core.append({
+        ...createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+        content: [{ type: "text", text: "next" }],
+      });
+      if (order === "after") core.sendA2uiAction(action);
+      expect(core.isRunning()).toBe(true);
+      expect(inputs).toHaveLength(1);
+      expect(signal.aborted).toBe(false);
+
+      writer.close();
+      await Promise.all([first, send]);
+      await flushPromises();
+      expect(signal.aborted).toBe(false);
+      expect(inputs).toHaveLength(2);
+      expect(
+        inputs[1]?.messages
+          .filter((message) => message.role === "user")
+          .map((message) => message.content),
+      ).toEqual(["hi", "next"]);
+      expect(inputs[1]?.forwardedProps?.a2uiAction).toEqual({
+        userAction: {
+          name: "submit",
+          surfaceId: "surface-1",
+          context: { answer: 42 },
+          timestamp: expect.any(String),
+        },
+      });
+
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+      expect(inputs).toHaveLength(3);
+      expect(
+        inputs
+          .map((input) => input.forwardedProps?.a2uiAction)
+          .filter((action) => action !== undefined),
+      ).toHaveLength(1);
+      expect(core.isRunning()).toBe(false);
+    },
+  );
+
+  it("does not carry an A2UI action from a stopped drain into a later send before the old response settles", async () => {
+    let release!: () => void;
+    const closed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      notifyRunFinished(subscriber, input.runId);
+      if (runAgent.mock.calls.length === 1) await closed;
+    });
+    const abortRun = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent);
+    const first = core.append(createAppendMessage());
+    core.sendA2uiAction({ name: "discard" });
+    const waiting = core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    await core.cancel();
+    await waiting;
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+    release();
+    await first;
+
+    expect(abortRun).toHaveBeenCalledOnce();
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(
+      runAgent.mock.calls[1]?.[0].forwardedProps.a2uiAction,
+    ).toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+  });
+
   it("renders a backend that still streams legacy THINKING_* and chunk events", async () => {
     const http = createStreamingHttpAgent();
     const core = createCore(http.agent);

@@ -89,6 +89,136 @@ function createOpenRun(finishWithInterrupt: boolean) {
 }
 
 describe("AgUiThreadController Stop after an interrupt", () => {
+  it.each([
+    "interrupt response",
+    "steerAway interrupt",
+    "steerAway tool",
+    "steerAway send",
+  ] as const)(
+    "rejects a displaced %s before changing the thread during the drain",
+    async (action) => {
+      let release!: () => void;
+      const closed = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const interrupt =
+        action === "interrupt response" || action === "steerAway interrupt";
+      const runAgent = vi.fn(
+        async (input: { runId: string }, subscriber: EventSubscriber) => {
+          if (runAgent.mock.calls.length === 1) {
+            if (action !== "steerAway send") {
+              subscriber.onToolCallStartEvent?.({
+                event: {
+                  type: "TOOL_CALL_START",
+                  toolCallId: "call-1",
+                  toolCallName: "confirm",
+                },
+              });
+              subscriber.onToolCallEndEvent?.({
+                event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+              });
+            }
+            subscriber.onRunFinishedEvent?.({
+              event: {
+                type: "RUN_FINISHED",
+                runId: input.runId,
+                ...(interrupt
+                  ? {
+                      outcome: {
+                        type: "interrupt",
+                        interrupts: [
+                          {
+                            id: "int-1",
+                            reason: "tool_call",
+                            toolCallId: "call-1",
+                            message: "Continue?",
+                          },
+                        ],
+                      },
+                    }
+                  : {}),
+              },
+            });
+            await closed;
+          } else {
+            subscriber.onRunFinishedEvent?.({
+              event: { type: "RUN_FINISHED", runId: input.runId },
+            });
+          }
+        },
+      );
+      const abortRun = vi.fn();
+      const core = new AgUiThreadController({
+        agent: { runAgent, abortRun } as unknown as AbstractAgent,
+        logger: makeLogger(),
+        showThinking: false,
+      });
+      const run = core.append(userMessage("start"));
+      const messages = core.getMessages();
+      const displaced =
+        action === "interrupt response"
+          ? core.submitInterruptResponses([
+              {
+                interruptId: "int-1",
+                status: "resolved",
+                payload: { approved: true },
+              },
+            ])
+          : core.steerAway(
+              "discarded",
+              interrupt
+                ? [
+                    {
+                      interruptId: "int-1",
+                      status: "resolved",
+                      payload: { approved: true },
+                    },
+                  ]
+                : undefined,
+            );
+      const latest = core.steerAway("latest");
+      const method =
+        action === "interrupt response"
+          ? "submitInterruptResponses"
+          : "steerAway";
+      const settled = Promise.allSettled([displaced, latest]);
+      const waitingMessages = core.getMessages();
+      expect(runAgent).toHaveBeenCalledOnce();
+      expect(abortRun).not.toHaveBeenCalled();
+
+      release();
+      await run;
+      expect(await settled).toEqual([
+        {
+          status: "rejected",
+          reason: new Error(`[agui] ${method}: a run is already in progress`),
+        },
+        { status: "fulfilled", value: undefined },
+      ]);
+      expect(waitingMessages).toEqual(messages);
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(runAgent.mock.calls[1]?.[0]).toMatchObject({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: "user", content: "latest" }),
+        ]),
+        ...(interrupt
+          ? { resume: [{ interruptId: "int-1", status: "cancelled" }] }
+          : {}),
+      });
+      expect(
+        core
+          .getMessages()
+          .filter((message) => message.role === "user")
+          .map((message) => message.content),
+      ).toEqual([
+        [{ type: "text", text: "start" }],
+        [{ type: "text", text: "latest" }],
+      ]);
+      expect(core.isRunning()).toBe(false);
+      expect(abortRun).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(["interrupt response", "tool approval"])(
     "keeps an interrupt answerable when Stop cancels a waiting %s",
     async (answer) => {
