@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 const { mockUseAuiState, mockUseAui } = vi.hoisted(() => ({
   mockUseAuiState: vi.fn(),
@@ -44,6 +44,8 @@ const userMessage: AppendMessage = {
   sourceId: null,
   runConfig: {},
 };
+
+afterEach(cleanup);
 
 const againstState = (extras: unknown) =>
   mockUseAuiState.mockImplementationOnce((selector: (s: unknown) => unknown) =>
