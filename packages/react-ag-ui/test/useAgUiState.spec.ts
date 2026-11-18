@@ -1,3 +1,6 @@
+// @vitest-environment jsdom
+
+import { renderHook } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
 const { mockUseAuiState, mockUseAui } = vi.hoisted(() => ({
@@ -35,13 +38,15 @@ describe("useAgUiState", () => {
       }),
     );
 
-    expect(useAgUiState<{ count: number }>()).toEqual({ count: 1 });
+    expect(
+      renderHook(() => useAgUiState<{ count: number }>()).result.current,
+    ).toEqual({ count: 1 });
   });
 
   it("returns undefined state when extras are absent", () => {
     againstState(undefined);
 
-    expect(useAgUiState()).toBeUndefined();
+    expect(renderHook(() => useAgUiState()).result.current).toBeUndefined();
   });
 });
 
