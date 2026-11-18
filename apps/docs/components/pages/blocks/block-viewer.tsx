@@ -1,8 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronRight } from "lucide-react";
+import { useTheme } from "next-themes";
+import {
+  ChevronRight,
+  ExternalLink,
+  Maximize,
+  Monitor,
+  RotateCw,
+  Smartphone,
+  Tablet,
+} from "lucide-react";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import type { BlockFile } from "@/components/pages/blocks/block-source";
 import { DemoIframe } from "@/components/pages/docs/demo-iframe";
 import { DeferredHighlight } from "@/components/shared/deferred-highlight";
@@ -33,6 +43,16 @@ const LANGUAGES: Record<string, string> = {
   md: "markdown",
   mdx: "mdx",
 };
+
+const VIEWPORTS = [
+  { id: "desktop", label: "Desktop", icon: Monitor, width: "100%" },
+  { id: "tablet", label: "Tablet", icon: Tablet, width: "768px" },
+  { id: "mobile", label: "Mobile", icon: Smartphone, width: "375px" },
+] as const;
+
+type Viewport = (typeof VIEWPORTS)[number]["id"];
+
+const control = "size-7";
 
 const IMAGE_SIZES = "(min-width: 1280px) 1248px, 100vw";
 
@@ -219,6 +239,12 @@ export function BlockViewer({
   entry: string;
 }) {
   const [tab, setTab] = useState<Tab>("preview");
+  const [viewport, setViewport] = useState<Viewport>("desktop");
+  const [reloads, setReloads] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+  const width = VIEWPORTS.find((item) => item.id === viewport)?.width;
 
   return (
     <Tabs
@@ -226,21 +252,96 @@ export function BlockViewer({
       onValueChange={(value) => setTab(value as Tab)}
       className="gap-3"
     >
-      <TabsList variant="line">
-        <TabsTrigger value="preview">Preview</TabsTrigger>
-        <TabsTrigger value="code">Code</TabsTrigger>
-      </TabsList>
+      <div className="flex items-center justify-between gap-3">
+        <TabsList variant="default">
+          <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsTrigger value="code">Code</TabsTrigger>
+        </TabsList>
+        {previewUrl && tab === "preview" && (
+          <div className="flex items-center gap-1">
+            <div
+              role="group"
+              aria-label="Preview width"
+              className="hidden items-center gap-1 md:flex"
+            >
+              {VIEWPORTS.map((item) => (
+                <TooltipIconButton
+                  key={item.id}
+                  tooltip={item.label}
+                  aria-pressed={viewport === item.id}
+                  onClick={() => setViewport(item.id)}
+                  className={cn(
+                    control,
+                    viewport === item.id &&
+                      "bg-foreground/[0.06] text-foreground",
+                  )}
+                >
+                  <item.icon />
+                </TooltipIconButton>
+              ))}
+            </div>
+            <TooltipIconButton
+              tooltip="Refresh preview"
+              disabled={refreshing}
+              onClick={() => {
+                setRefreshing(true);
+                setTimeout(() => setReloads((count) => count + 1), 150);
+              }}
+              className={control}
+            >
+              <RotateCw
+                className={cn(
+                  refreshing && "animate-spin motion-reduce:animate-none",
+                )}
+              />
+            </TooltipIconButton>
+            <TooltipIconButton
+              tooltip="Open preview in a new tab"
+              onClick={() =>
+                window.open(
+                  `${previewUrl}?theme=${resolvedTheme ?? "light"}`,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+              className={control}
+            >
+              <ExternalLink />
+            </TooltipIconButton>
+            <TooltipIconButton
+              tooltip="Full screen"
+              onClick={() => void frameRef.current?.requestFullscreen()}
+              className={control}
+            >
+              <Maximize />
+            </TooltipIconButton>
+          </div>
+        )}
+      </div>
 
       <figure>
         <TabsContent value="preview" keepMounted>
           {previewUrl ? (
-            <div className="border-foreground/10 rounded-document h-[min(78vh,720px)] overflow-hidden border">
-              <DemoIframe
-                title={`${title} preview`}
-                src={previewUrl}
-                allow="microphone; clipboard-write"
-                className="h-full w-full border-none"
-              />
+            <div
+              ref={frameRef}
+              className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document [&:fullscreen]:bg-background flex h-[min(78vh,720px)] justify-center overflow-hidden border [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-0"
+            >
+              <div
+                className="bg-background h-full w-full transition-[max-width] duration-200 motion-reduce:transition-none"
+                style={{ maxWidth: width }}
+              >
+                <DemoIframe
+                  key={reloads}
+                  title={`${title} preview`}
+                  src={previewUrl}
+                  allow="microphone; clipboard-write"
+                  onLoad={() => setRefreshing(false)}
+                  className={cn(
+                    "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
+                    refreshing && "opacity-0",
+                  )}
+                />
+              </div>
             </div>
           ) : (
             <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document relative aspect-[16/10] overflow-hidden border">
