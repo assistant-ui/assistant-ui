@@ -107,17 +107,21 @@ const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const REGISTRY_POLL_MS = 10_000;
 const REGISTRY_WAIT_MS = 15 * 60_000;
 
-// Returns the packages still missing from npm metadata when the wait ends.
-const waitForRegistry = async (packages, { getNpmMetadata, sleep, log }) => {
+const waitForRegistry = async (
+  packages,
+  { getNpmMetadata, sleep, now, log },
+) => {
+  const deadline = now() + REGISTRY_WAIT_MS;
   let missing = packages;
-  for (let waitedMs = 0; ; waitedMs += REGISTRY_POLL_MS) {
+  for (;;) {
     const stillMissing = [];
-    for (const pkg of missing) {
+    for (const [index, pkg] of missing.entries()) {
+      if (now() >= deadline) return [...stillMissing, ...missing.slice(index)];
       const metadata = await getNpmMetadata(pkg.name);
       if (!metadata?.versions?.[pkg.version]) stillMissing.push(pkg);
     }
     missing = stillMissing;
-    if (missing.length === 0 || waitedMs >= REGISTRY_WAIT_MS) return missing;
+    if (missing.length === 0 || now() >= deadline) return missing;
     log(
       `${missing.map((pkg) => `${pkg.name}@${pkg.version}`).join(", ")} published by this run but not visible on npm yet; waiting`,
     );
@@ -136,6 +140,7 @@ export const createReleaseTags = async ({
   github,
   getNpmMetadata = fetchNpmMetadata,
   sleep = defaultSleep,
+  now = Date.now,
   log = console.log,
 }) => {
   const problems = [];
@@ -165,6 +170,7 @@ export const createReleaseTags = async ({
     await waitForRegistry(packages.filter(isPublished), {
       getNpmMetadata,
       sleep,
+      now,
       log,
     }),
   );

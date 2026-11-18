@@ -105,21 +105,21 @@ const npmMetadata =
       : null;
   };
 
-// Registry whose versions appear at fixed times on a clock that only sleeping
-// advances, so a test replays a release's timeline exactly.
-function makeRegistry(visibleAtMs) {
+function makeRegistry(visibleAtMs, readDelayMs = 0) {
   const reads = [];
   const sleeps = [];
   let nowMs = 0;
   return {
     reads,
     sleeps,
+    now: () => nowMs,
     sleep: async (ms) => {
       sleeps.push(ms);
       nowMs += ms;
     },
     getNpmMetadata: async (name) => {
       reads.push(name);
+      nowMs += readDelayMs;
       return nowMs >= (visibleAtMs[name] ?? Infinity)
         ? { versions: { "0.0.126": {}, "2.0.0": {} } }
         : null;
@@ -266,7 +266,7 @@ test("versions npm still hides share one fifteen-minute wait, then fail", async 
     ["widget", { name: "widget", version: "2.0.0" }],
   ]);
   const github = makeGithub();
-  const registry = makeRegistry({}); // neither version ever becomes visible
+  const registry = makeRegistry({}, 5_000);
   const result = await createReleaseTags({
     packages: readPublishablePackages(packagesDir),
     releaseSha: RELEASE_SHA,
@@ -278,15 +278,41 @@ test("versions npm still hides share one fifteen-minute wait, then fail", async 
     github,
     getNpmMetadata: registry.getNpmMetadata,
     sleep: registry.sleep,
+    now: registry.now,
     log: () => {},
   });
   assert.deepEqual(mutating(github), []);
   assert.equal(result.problems.length, 2);
   for (const problem of result.problems) assert.match(problem, /registry/);
-  assert.equal(
-    registry.sleeps.reduce((total, ms) => total + ms, 0),
-    15 * 60_000,
-  );
+  assert.deepEqual(registry.sleeps, Array(45).fill(10_000));
+  assert.equal(registry.now(), 15 * 60_000);
+});
+
+test("a registry read that reaches the deadline stops the serial pass", async () => {
+  const packagesDir = makeWorkspace([
+    ["cli", { name: "assistant-ui", version: "0.0.126" }],
+    ["widget", { name: "widget", version: "2.0.0" }],
+  ]);
+  const github = makeGithub();
+  const registry = makeRegistry({}, 15 * 60_000);
+  const result = await createReleaseTags({
+    packages: readPublishablePackages(packagesDir),
+    releaseSha: RELEASE_SHA,
+    publishedPackages: [
+      { name: "assistant-ui", version: "0.0.126" },
+      { name: "widget", version: "2.0.0" },
+    ],
+    publishCheckoutSha: RELEASE_SHA,
+    github,
+    getNpmMetadata: registry.getNpmMetadata,
+    sleep: registry.sleep,
+    now: registry.now,
+    log: () => {},
+  });
+  assert.deepEqual(registry.reads, ["assistant-ui"]);
+  assert.deepEqual(registry.sleeps, []);
+  assert.equal(result.problems.length, 2);
+  assert.deepEqual(mutating(github), []);
 });
 
 test("a reported version that appears on retry is tagged and released", async () => {
