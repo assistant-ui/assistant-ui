@@ -13,7 +13,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --test build-cache.test.mjs",
+    "test": "node --test build-cache.test.mjs route.test.mjs",
     "test:coverage": "pnpm run test"
   },
   "dependencies": {

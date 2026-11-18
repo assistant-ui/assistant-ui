@@ -29,6 +29,13 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
+from origin_guard import AgentOriginGuard
+
+cors_origins = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
 
 DEMO_ANSWER = (
     "This answer streams slowly on purpose. Close the tab or reload the page "
@@ -94,12 +101,12 @@ app = Starlette(
     lifespan=lifespan,
     middleware=[
         Middleware(
+            AgentOriginGuard,
+            allowed_origins=cors_origins,
+        ),
+        Middleware(
             CORSMiddleware,
-            allow_origins=[
-                origin.strip()
-                for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
-                if origin.strip()
-            ],
+            allow_origins=cors_origins,
             allow_methods=["*"],
             allow_headers=["*"],
         )
