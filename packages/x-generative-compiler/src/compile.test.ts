@@ -1835,6 +1835,74 @@ export default defineToolkit({
     },
   );
 
+  it.each([
+    [
+      "an object pattern with an unused name",
+      'const { query, close } = createDb("SECRET");',
+      "query()",
+    ],
+    [
+      "an array pattern with holes and an unused name",
+      'const [, query, close] = createDb("SECRET");',
+      "query()",
+    ],
+    [
+      "nested patterns with defaults and rest",
+      'const { pool: { query = fallback("SECRET"), ...poolRest }, list: [first = 1, ...others] = [], ...rest } = createDb("SECRET");',
+      "query()",
+    ],
+    [
+      "a pattern in a multi-declarator statement",
+      'const { query, close } = createDb("SECRET"), other = connect("SECRET");',
+      "query() + other.ping()",
+    ],
+  ])(
+    "prunes a destructured server binding with %s from the client",
+    (_label, declaration, use) => {
+      const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { createDb, connect, fallback } from "@/server/db";
+${declaration}
+export default defineToolkit({
+  weather: {
+    execute: async () => ${use},
+    render: () => null,
+  },
+});`;
+      const client = compileGenerative(src, { target: "client" }).code;
+      expect(client).not.toContain("SECRET");
+      expect(client).not.toContain("@/server/db");
+      const server = compileGenerative(src, { target: "server" }).code;
+      expect(server).toContain("SECRET");
+      expect(server).toContain("@/server/db");
+    },
+  );
+
+  it("keeps a destructured binding when one of its names is used on the client", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { createStore } from "@/store";
+const { query, label, close } = createStore("KEY");
+export default defineToolkit({
+  weather: {
+    execute: async () => query(),
+    render: () => label,
+  },
+});`;
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain('createStore("KEY")');
+    expect(client).toContain("@/store");
+  });
+
+  it("keeps an unused destructured call the source never referenced", () => {
+    const src = minimalSource.replace(
+      "export default",
+      'const { a, b } = register("x");\nexport default',
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain('register("x")');
+  });
+
   it("keeps a call-initialised binding the render still uses", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";

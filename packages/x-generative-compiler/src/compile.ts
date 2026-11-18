@@ -2008,14 +2008,17 @@ function pruneUnused(
             stmt.declarations = stmt.declarations.filter((decl) => {
               // Handles destructuring too: drop the declarator only when *every*
               // bound name is unused (else a `const { a } = server` survives and
-              // keeps a server import in the client graph). Restricted to plain
-              // patterns so a default/computed-key side effect isn't dropped.
+              // keeps a server import in the client graph). A side-effect-free
+              // declarator goes as soon as nothing uses it. Any other goes once
+              // one of its names served removed code and none is still used: a
+              // `const { query, close } = createDb(...)` whose `close` was never
+              // referenced existed for `query`, not for its initializer's effect.
               const names = Object.keys(t.getBindingIdentifiers(decl.id));
               if (
                 names.length > 0 &&
-                (isPlainPattern(decl.id) && isRemovableInit(decl.init)
-                  ? names.every(isUnused)
-                  : names.every(servedRemovedCode))
+                names.every(isUnused) &&
+                ((isPlainPattern(decl.id) && isRemovableInit(decl.init)) ||
+                  names.some(servedRemovedCode))
               ) {
                 removedSomething = true;
                 return false;
