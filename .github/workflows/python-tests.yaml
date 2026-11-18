@@ -38,6 +38,22 @@ jobs:
     defaults:
       run:
         working-directory: python/${{ matrix.package }}
+    services:
+      postgres:
+        image: postgres:17-alpine # ratchet:exclude
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: assistant_stream
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-start-period 5s
+          --health-start-interval 1s
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -94,4 +110,7 @@ jobs:
 
       - name: Run tests
         if: steps.selection.outputs.run == 'true'
+        env:
+          # The Postgres thread store cases skip without a database.
+          DATABASE_URL: ${{ matrix.package == 'assistant-stream' && 'postgresql://postgres:postgres@127.0.0.1:5432/assistant_stream' || '' }}
         run: uv run pytest
