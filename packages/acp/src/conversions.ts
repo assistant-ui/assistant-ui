@@ -544,20 +544,55 @@ export function applyToolCallUpdate(
   return merged === existing ? undefined : replaceAt(content, index, merged);
 }
 
+/**
+ * What an approval prompt shows about a call: its name, arguments, title, kind
+ * and locations. A decision covers this exact subject; the call's status and
+ * output may move on without changing what was asked.
+ */
+export function toolCallApprovalSubject(part: ToolCallMessagePart): string {
+  const metadata = metadataOf(part);
+  return safeStringify([
+    part.toolName,
+    part.argsText,
+    metadata?.kind ?? null,
+    metadata?.title ?? null,
+    metadata?.locations ?? null,
+  ]);
+}
+
+/**
+ * Attaches a permission request to its call. The request carries its own copy
+ * of the call, which is what the agent asks about, so it is merged onto the
+ * part before the approval is shown.
+ */
 export function attachToolCallApproval(
   content: readonly AssistantPart[],
   update: AcpToolCallUpdate,
   approval: NonNullable<ToolCallMessagePart["approval"]>,
-): readonly AssistantPart[] {
+): { content: readonly AssistantPart[]; subject: string } {
   const index = findToolCallIndex(content, update.toolCallId);
   if (index === -1) {
-    return [
-      ...content,
-      { ...buildToolCallPart(update), approval } satisfies ToolCallMessagePart,
-    ];
+    const part = { ...buildToolCallPart(update), approval };
+    return {
+      content: [...content, part satisfies ToolCallMessagePart],
+      subject: toolCallApprovalSubject(part),
+    };
   }
   const existing = content[index] as ToolCallMessagePart;
-  return replaceAt(content, index, { ...existing, approval });
+  const part = { ...mergeToolCallPart(existing, update), approval };
+  return {
+    content: replaceAt(content, index, part),
+    subject: toolCallApprovalSubject(part),
+  };
+}
+
+/** The call a permission request is attached to, if the content holds it. */
+export function findToolCallPart(
+  content: readonly AssistantPart[],
+  toolCallId: string,
+): ToolCallMessagePart | undefined {
+  const index = findToolCallIndex(content, toolCallId);
+  return index === -1 ? undefined : (content[index] as ToolCallMessagePart);
 }
 
 export function resolveToolCallApproval(
