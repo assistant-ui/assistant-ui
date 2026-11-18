@@ -388,6 +388,52 @@ describe("useAssistantForm", () => {
     );
   });
 
+  it("writes set_form_field values with their own types", async () => {
+    type FormValues = { name: string; age: number; newsletter: boolean };
+    const typedResolver: Resolver<FormValues> = (values) => {
+      const errors: Record<string, { type: string; message: string }> = {};
+      if (typeof values.name !== "string")
+        errors.name = { type: "type", message: "" };
+      if (typeof values.age !== "number")
+        errors.age = { type: "type", message: "" };
+      if (typeof values.newsletter !== "boolean")
+        errors.newsletter = { type: "type", message: "" };
+      if (Object.keys(errors).length > 0)
+        return {
+          values: {} as FormValues,
+          errors,
+        } as ResolverResult<FormValues>;
+      return { values, errors: {} } as ResolverResult<FormValues>;
+    };
+    let form!: ReturnType<typeof useAssistantForm<FormValues>>;
+    renderHook(() => {
+      form = useAssistantForm<FormValues>({
+        defaultValues: { name: "", age: 0, newsletter: false },
+        resolver: typedResolver,
+      });
+    });
+
+    const setField = (args: { name: string; value: unknown }) => {
+      const tool = provider.getModelContext().tools?.["set_form_field"];
+      if (!tool?.execute) throw new Error("set_form_field is not registered");
+      return tool.execute(args as never, { human: async () => true } as never);
+    };
+
+    await setField({ name: "name", value: "Ada" });
+    await setField({ name: "age", value: 42 });
+    await setField({ name: "newsletter", value: true });
+
+    expect(form.getValues()).toEqual({
+      name: "Ada",
+      age: 42,
+      newsletter: true,
+    });
+    await waitFor(async () => expect(await form.trigger()).toBe(true));
+
+    await setField({ name: "age", value: "42" });
+    expect(form.getValues("age")).toBe("42");
+  });
+
   it("submits forms registered with standard inputs", async () => {
     await expectRegisteredFieldsToSubmit(() => {
       const form = useAssistantForm<{ name: string }>();
