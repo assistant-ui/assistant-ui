@@ -99,6 +99,7 @@ describe("against the real workspace", () => {
       "@assistant-ui/core",
       "@assistant-ui/react",
       "@assistant-ui/store",
+      "@assistant-ui/tap",
       "assistant-stream",
     ]);
     expect([...(graph.get("@assistant-ui/ai-sdk") ?? [])].sort()).toEqual([
