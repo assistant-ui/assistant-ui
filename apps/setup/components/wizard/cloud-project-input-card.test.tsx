@@ -46,6 +46,8 @@ import {
 
 afterEach(() => {
   cleanup();
+  mocks.session = { status: "loading" };
+  mocks.projects = { status: "unavailable" };
   mocks.enabled = [];
 });
 

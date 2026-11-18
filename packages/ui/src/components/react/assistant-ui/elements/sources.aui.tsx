@@ -165,10 +165,13 @@ function Source({
 }
 
 const SourcesImpl: SourceMessagePartComponent = (part) => {
-  if (part.sourceType === "url" && part.url) {
+  // History from storage can carry fields of the wrong type; only strings
+  // are rendered.
+  const title = typeof part.title === "string" ? part.title : undefined;
+  if (part.sourceType === "url" && typeof part.url === "string" && part.url) {
     const href = safeHref(part.url);
     const domain = hostOf(part.url);
-    const displayTitle = part.title || domain || part.url;
+    const displayTitle = title || domain || part.url;
     const content = (
       <>
         <SourceIcon url={part.url} />
@@ -196,7 +199,7 @@ const SourcesImpl: SourceMessagePartComponent = (part) => {
       >
         <span data-slot="source" className="inline-flex items-center gap-1.5">
           <DocumentSourceIcon />
-          <SourceTitle>{part.title}</SourceTitle>
+          <SourceTitle>{title}</SourceTitle>
         </span>
       </Badge>
     );

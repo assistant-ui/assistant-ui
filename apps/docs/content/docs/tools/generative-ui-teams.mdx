@@ -94,6 +94,8 @@ type TeamsConversionWarning = {
 
 ## Component mapping
 
+Teams reads every text block as markdown. A markdown link the model writes in a plain-text prop (a header, text, a caption, a badge, a fact, a table cell, a title) stays literal text; only links the converter builds and the `Markdown` component render as links.
+
 | Component | Adaptive Card output | Fidelity |
 |---|---|---|
 | `Header` | `TextBlock` with heading style | `size` is ignored; the heading always emits `large` |

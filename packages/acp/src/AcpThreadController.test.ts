@@ -485,6 +485,33 @@ describe("AcpThreadController", () => {
     await done;
   });
 
+  it("answers a prompt as cancelled when its call changes before the decision", async () => {
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    client.promptGate = () => {};
+    const done = c.append(userAppend("x"));
+    await flush();
+    const asked = client.ask(permissionRequest());
+    await flush();
+    const approvalId = toolStatus(c)!.approval!.id;
+
+    client.emit({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "t1",
+      rawInput: { path: "/other" },
+    });
+    await expect(asked).resolves.toEqual({ outcome: "cancelled" });
+    expect(toolStatus(c)!.approval).toMatchObject({ resolution: "cancelled" });
+
+    await c.respondToApproval({ approvalId, approved: true });
+    expect(toolStatus(c)!.approval?.approved).toBeUndefined();
+
+    client.unblock();
+    await done;
+  });
+
   it("ignores a response for an unknown approval", async () => {
     const c = controller(client);
     await c.attach();

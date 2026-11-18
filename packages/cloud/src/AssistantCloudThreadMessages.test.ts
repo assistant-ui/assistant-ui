@@ -174,6 +174,32 @@ describe("AssistantCloudThreadMessages responses", () => {
   });
 });
 
+describe("AssistantCloudThreadMessages paging", () => {
+  it("decodes has_more and next_cursor when the server sends them", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    makeRequest.mockResolvedValueOnce({
+      messages: [],
+      has_more: true,
+      next_cursor: "message-9",
+    });
+    await expect(messages.list("thread-1")).resolves.toEqual({
+      messages: [],
+      has_more: true,
+      next_cursor: "message-9",
+    });
+
+    makeRequest.mockResolvedValueOnce({ messages: [] });
+    await expect(messages.list("thread-1")).resolves.toEqual({
+      messages: [],
+    });
+
+    makeRequest.mockResolvedValueOnce({ messages: [], has_more: "yes" });
+    await expect(messages.list("thread-1")).rejects.toBeInstanceOf(
+      CloudResponseError,
+    );
+  });
+});
+
 describe("AssistantCloudThreadMessages run leases", () => {
   it("opens a run on create and decodes the lease", async () => {
     const { messages, makeRequest } = createCloudThreadMessages();

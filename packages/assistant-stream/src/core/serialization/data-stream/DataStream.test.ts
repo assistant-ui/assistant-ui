@@ -887,6 +887,70 @@ describe("file parts on the data stream", () => {
   });
 });
 
+describe("backend-owned tool calls on the data stream", () => {
+  const providerExecutedChunks: AssistantStreamChunk[] = [
+    {
+      type: "part-start",
+      path: [],
+      part: {
+        type: "tool-call",
+        toolCallId: "t1",
+        toolName: "web_search",
+        providerExecuted: true,
+      },
+    },
+  ];
+
+  it("puts a round-tripped providerExecuted mark on its tool call", async () => {
+    const part = await roundTripFirstPart(providerExecutedChunks);
+
+    expect(part).toMatchObject({
+      type: "tool-call",
+      toolCallId: "t1",
+      providerExecuted: true,
+    });
+  });
+
+  it.each([
+    { providerExecuted: true, calls: 0 },
+    { providerExecuted: false, calls: 1 },
+  ])(
+    "runs the frontend execute $calls times for a call with providerExecuted $providerExecuted and no result",
+    async ({ providerExecuted, calls }) => {
+      const execute = vi.fn(async () => "frontend result");
+      const [input, assistantController] = createAssistantStreamController();
+      const toolCallController = assistantController.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "web_search",
+        ...(providerExecuted && { providerExecuted }),
+      });
+      const completion = input
+        .pipeThrough(new DataStreamEncoder())
+        .pipeThrough(new DataStreamDecoder())
+        .pipeThrough(
+          toolResultStream(
+            {
+              web_search: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+            new AbortController().signal,
+            async () => undefined,
+          ),
+        )
+        .pipeTo(new WritableStream());
+
+      toolCallController.argsText.append("{}");
+      toolCallController.close();
+      assistantController.close();
+      await completion;
+
+      expect(execute).toHaveBeenCalledTimes(calls);
+    },
+  );
+});
+
 describe("tool-call approvals on the data stream", () => {
   const approvalChunks: AssistantStreamChunk[] = [
     {

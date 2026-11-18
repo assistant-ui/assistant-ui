@@ -163,6 +163,47 @@ describe("File", () => {
     },
   );
 
+  it("shows no size or open button when data is not a string", async () => {
+    await act(async () => {
+      root.render(
+        <File
+          {...({
+            type: "file",
+            status: { type: "complete" },
+            filename: "hello.txt",
+            mimeType: "text/plain",
+            data: { nested: true },
+          } as any)}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("hello.txt");
+    expect(container.textContent).not.toMatch(/\d B/);
+    expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("infers the data kind when the source type is not url or id", async () => {
+    await act(async () => {
+      root.render(
+        <File
+          {...({
+            type: "file",
+            status: { type: "complete" },
+            filename: "report.pdf",
+            mimeType: "application/pdf",
+            data: "https://example.com/report.pdf",
+            sourceType: 42,
+          } as any)}
+        />,
+      );
+    });
+
+    expect(
+      container.querySelector('button[aria-label="Open report.pdf"]'),
+    ).not.toBeNull();
+  });
+
   it("opens only http(s) URLs", async () => {
     await act(async () => {
       root.render(

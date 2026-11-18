@@ -110,6 +110,34 @@ describe("fromThreadMessageLike", () => {
     ).toEqual(message);
   });
 
+  it("drops malformed image parts from attachment content", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "user",
+        content: "hello",
+        attachments: [
+          {
+            id: "attachment",
+            type: "file",
+            name: "photo.jpg",
+            status: { type: "complete" },
+            content: [
+              { type: "image", image: 42 },
+              { type: "image", image: "https://example.com/photo.jpg" },
+            ],
+          },
+        ],
+      } as never,
+      "user-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    if (message.role !== "user") throw new Error("expected user");
+    expect(message.attachments[0]?.content).toEqual([
+      { type: "image", image: "https://example.com/photo.jpg" },
+    ]);
+  });
+
   it("preserves modality on user and assistant messages", () => {
     const user = fromThreadMessageLike(
       {
@@ -279,4 +307,195 @@ describe("fromThreadMessageLike", () => {
       ).toThrow(`Unsupported ${role} message part type: undefined`);
     },
   );
+});
+
+describe("fromThreadMessageLike with part fields of the wrong type", () => {
+  const status = { type: "complete", reason: "stop" } as const;
+  const convert = (role: "assistant" | "user", content: unknown[]) =>
+    fromThreadMessageLike({ role, content: content as never }, "id", status)
+      .content;
+
+  it.each(["assistant", "user"] as const)(
+    "drops a file part missing a field it needs to render on %s messages",
+    (role) => {
+      const good = {
+        type: "file",
+        data: "abc",
+        mimeType: "image/png",
+        filename: "a.png",
+      };
+      expect(
+        convert(role, [
+          { type: "file", data: "abc" },
+          { type: "file", data: { x: 1 }, mimeType: "text/plain" },
+          { type: "file", data: "abc", mimeType: { x: 1 } },
+          good,
+        ]),
+      ).toEqual([good]);
+    },
+  );
+
+  it.each(["assistant", "user"] as const)(
+    "keeps a file part whose optional fields have the wrong type on %s messages, without them",
+    (role) => {
+      const file = { type: "file", data: "abc", mimeType: "text/plain" };
+      expect(
+        convert(role, [
+          { ...file, filename: 3 },
+          { ...file, sourceType: 42 },
+          { ...file, filename: "a.txt", sourceType: "blob" },
+        ]),
+      ).toEqual([file, file, { ...file, filename: "a.txt" }]);
+    },
+  );
+
+  it.each(["assistant", "user"] as const)(
+    "keeps an image part whose filename is not a string on %s messages, without it",
+    (role) => {
+      const image = { type: "image", image: "https://a.test/a.png" };
+      expect(convert(role, [{ ...image, filename: {} }])).toEqual([image]);
+    },
+  );
+
+  it.each(["assistant", "user"] as const)(
+    "keeps an image part whose filename is null on %s messages, without the null",
+    (role) => {
+      const image = {
+        type: "image",
+        image: "https://a.test/a.png",
+        filename: null,
+      };
+      expect(convert(role, [image])).toEqual([
+        { type: "image", image: "https://a.test/a.png" },
+      ]);
+    },
+  );
+
+  it("removes a null file filename and sourceType and a null url source title", () => {
+    expect(
+      convert("assistant", [
+        {
+          type: "file",
+          data: "abc",
+          mimeType: "text/plain",
+          filename: null,
+          sourceType: null,
+        },
+        {
+          type: "source",
+          sourceType: "url",
+          id: "u",
+          url: "https://a.test",
+          title: null,
+        },
+      ]),
+    ).toEqual([
+      { type: "file", data: "abc", mimeType: "text/plain" },
+      { type: "source", sourceType: "url", id: "u", url: "https://a.test" },
+    ]);
+  });
+
+  it("drops a file part missing a required field inside a user attachment and strips a malformed filename", () => {
+    const good = { type: "file", data: "abc", mimeType: "text/plain" };
+    const message = fromThreadMessageLike(
+      {
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "att",
+            type: "file",
+            name: "a.txt",
+            status: { type: "complete" },
+            content: [
+              { type: "file", data: "abc", mimeType: 7 },
+              { ...good, filename: 3 },
+              good,
+            ],
+          },
+        ] as never,
+      },
+      "id",
+      status,
+    );
+    expect(message.role === "user" && message.attachments[0]!.content).toEqual([
+      good,
+      good,
+    ]);
+  });
+
+  it("drops a source missing a field it needs to render", () => {
+    const url = {
+      type: "source",
+      sourceType: "url",
+      id: "c",
+      url: "https://c.test",
+      title: "C",
+    };
+    const document = {
+      type: "source",
+      sourceType: "document",
+      id: "e",
+      title: "E",
+      mediaType: "application/pdf",
+    };
+    expect(
+      convert("assistant", [
+        { type: "source", sourceType: "url", id: "b", url: { href: "x" } },
+        { ...url, id: 1 },
+        { ...document, id: "d", title: [1] },
+        { ...document, id: "f", mediaType: 2 },
+        url,
+        document,
+      ]),
+    ).toEqual([url, document]);
+  });
+
+  it("keeps a source whose optional fields have the wrong type, without them", () => {
+    const url = {
+      type: "source",
+      sourceType: "url",
+      id: "a",
+      url: "https://a.test",
+    };
+    const document = {
+      type: "source",
+      sourceType: "document",
+      id: "g",
+      title: "G",
+      mediaType: "application/pdf",
+    };
+    expect(
+      convert("assistant", [
+        { ...url, title: { t: 1 } },
+        { ...document, filename: {} },
+      ]),
+    ).toEqual([url, document]);
+  });
+
+  it("gives a system message whose text is not a string an empty text", () => {
+    expect(
+      fromThreadMessageLike(
+        { role: "system", content: [{ type: "text", text: 5 }] as never },
+        "id",
+        status,
+      ).content,
+    ).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("drops text parts whose text is not a string", () => {
+    expect(convert("assistant", [{ type: "text", text: { a: 1 } }])).toEqual(
+      [],
+    );
+    expect(convert("user", [{ type: "text", text: { a: 1 } }])).toEqual([]);
+  });
+
+  it("keeps reasoning with a string summary when text is not a string", () => {
+    expect(
+      convert("assistant", [
+        { type: "reasoning", text: { a: 1 }, unstable_summary: "S" },
+        { type: "reasoning", text: 5, unstable_summary: { b: 1 } },
+      ]),
+    ).toEqual([{ type: "reasoning", text: "", unstable_summary: "S" }]);
+  });
 });

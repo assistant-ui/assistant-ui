@@ -129,7 +129,7 @@ The cloud limits the stored content and the page and deletion batches below. The
 | Delete request | 1 to 200 message ids |
 | Attachment read URL | Signed for 15 minutes |
 
-`CloudMessagePersistence` loads 200 messages at a time with an `after` message id cursor. It stops after a short page or after a page that contains only rows it already saw, which prevents a bad cursor from replaying history forever. It puts loaded remote ids into its local id map, while a pending append keeps its promise in that map until the remote id resolves.
+`CloudMessagePersistence` loads 200 messages at a time with an `after` message id cursor. When the server sends `has_more` and `next_cursor`, it pages on while `has_more` is true and passes `next_cursor` as the next `after`, so a page that holds fewer than 200 messages, or none, does not end the load early. A server that omits them ends the load at a page shorter than 200 messages. Either way, a page that contains only rows it already saw also ends the load, which prevents a bad cursor from replaying history forever. It puts loaded remote ids into its local id map, while a pending append keeps its promise in that map until the remote id resolves.
 
 ## Troubleshooting
 

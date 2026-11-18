@@ -16,19 +16,35 @@ Dictation is opt-in, the same way attachments are: without a `DictationAdapter` 
 
 ### Configure a dictation adapter
 
-assistant-ui ships a `WebSpeechDictationAdapter` over the browser's `SpeechRecognition` API; check `.isSupported()` before relying on it, since it is not available in every browser:
+assistant-ui ships a `WebSpeechDictationAdapter` over the browser's `SpeechRecognition` API. It is not available in every browser and never on the server, so read `.isSupported()` through `useSyncExternalStore` with a `false` server snapshot. The first client render then matches the server, and the adapter arrives right after hydration:
 
 ```tsx title="app/chat-provider.tsx"
+import { useMemo, useSyncExternalStore } from "react";
 import { useLocalRuntime, WebSpeechDictationAdapter } from "@assistant-ui/react";
 
-const runtime = useLocalRuntime(chatModel, {
-  adapters: {
-    dictation: WebSpeechDictationAdapter.isSupported()
-      ? new WebSpeechDictationAdapter({ interimResults: true })
-      : undefined,
-  },
-});
+const subscribe = () => () => {};
+
+function useDictationAdapter() {
+  const supported = useSyncExternalStore(
+    subscribe,
+    WebSpeechDictationAdapter.isSupported,
+    () => false,
+  );
+  return useMemo(
+    () =>
+      supported
+        ? new WebSpeechDictationAdapter({ interimResults: true })
+        : undefined,
+    [supported],
+  );
+}
+
+// Inside your provider component:
+const dictation = useDictationAdapter();
+const runtime = useLocalRuntime(chatModel, { adapters: { dictation } });
 ```
+
+Calling `.isSupported()` directly while rendering gives the server and the browser different answers, and a server-rendered mic button can then stay disabled after hydration.
 
   </Step>
   <Step>
@@ -154,10 +170,10 @@ The two states are "recording" and "settling". `ComposerVoice` has no idle state
 <RuntimeMode>
 
 ```tsx
-const dictationAvailable = WebSpeechDictationAdapter.isSupported();
+const dictation = useDictationAdapter();
 ```
 
-Configuring the adapter only when this is `true` (as in Getting started) is enough; `s.thread.capabilities.dictation` then reflects it, so the mic button never needs its own support check.
+Passing the adapter only when the browser supports it (the `useDictationAdapter` hook from Getting started) is enough; `s.thread.capabilities.dictation` then reflects it, so the mic button never needs its own support check.
 
 </RuntimeMode>
 

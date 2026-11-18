@@ -41,6 +41,10 @@ function dailySessionsKey(distinctId: string, date: string): string {
   return `xulux:day:${distinctId}:${date}:sessions`;
 }
 
+function networkSpentKey(networkId: string, date: string): string {
+  return `xulux:net:${networkId}:${date}:spent`;
+}
+
 function sessionRegisteredKey(sessionId: string, date: string): string {
   return `xulux:sess:${sessionId}:reg:${date}`;
 }
@@ -56,30 +60,47 @@ type UsageBudgetStore = {
     distinctId: string,
     date: string,
   ) => Promise<import("./usage-budget-codes").BudgetSnapshot>;
+  /**
+   * Registers the session as one of the day's chats. `claimed` is false when
+   * another request registered it first.
+   */
   registerChat: (
     sessionId: string,
     distinctId: string,
     date: string,
-  ) => Promise<number>;
-  incrementTurn: (sessionId: string) => Promise<number>;
+  ) => Promise<{ chatCount: number; claimed: boolean }>;
+  /** Undoes a registration this request claimed. */
+  unregisterChat: (
+    sessionId: string,
+    distinctId: string,
+    date: string,
+  ) => Promise<void>;
+  /** Adds `delta` (default 1) to the session's turn count; returns the count. */
+  incrementTurn: (sessionId: string, delta?: number) => Promise<number>;
+  /** Adds to the session and daily totals and returns the new totals. */
   addSpend: (
     sessionId: string,
     distinctId: string,
     date: string,
     microUsd: number,
-  ) => Promise<void>;
+  ) => Promise<{ sessionSpentMicroUsd: number; dailySpentMicroUsd: number }>;
+  loadNetworkSpent: (networkId: string, date: string) => Promise<number>;
+  /** Adds to the IP's daily total and returns the new total. */
+  addNetworkSpend: (
+    networkId: string,
+    date: string,
+    microUsd: number,
+  ) => Promise<number>;
 };
 
 function pruneStaleMemoryDailyKeys(
-  dailySpent: Map<string, number>,
-  dailySessions: Map<string, Set<string>>,
   currentDate: string,
+  ...maps: Map<string, unknown>[]
 ) {
-  for (const key of dailySpent.keys()) {
-    if (!key.endsWith(`:${currentDate}`)) dailySpent.delete(key);
-  }
-  for (const key of dailySessions.keys()) {
-    if (!key.endsWith(`:${currentDate}`)) dailySessions.delete(key);
+  for (const map of maps) {
+    for (const key of map.keys()) {
+      if (!key.endsWith(`:${currentDate}`)) map.delete(key);
+    }
   }
 }
 
@@ -89,10 +110,11 @@ function createMemoryStore(): UsageBudgetStore {
   const dailySpent = new Map<string, number>();
   const dailySessions = new Map<string, Set<string>>();
   const registered = new Set<string>();
+  const networkSpent = new Map<string, number>();
 
   return {
     async loadSnapshot(sessionId, distinctId, date) {
-      pruneStaleMemoryDailyKeys(dailySpent, dailySessions, date);
+      pruneStaleMemoryDailyKeys(date, dailySpent, dailySessions, networkSpent);
       const sessionTurns = turns.get(sessionId) ?? 0;
       return {
         sessionTurns,
@@ -106,27 +128,42 @@ function createMemoryStore(): UsageBudgetStore {
     async registerChat(sessionId, distinctId, date) {
       const regKey = `${sessionId}:${date}`;
       if (registered.has(regKey)) {
-        return dailySessions.get(`${distinctId}:${date}`)?.size ?? 0;
+        const chatCount = dailySessions.get(`${distinctId}:${date}`)?.size ?? 0;
+        return { chatCount, claimed: false };
       }
       registered.add(regKey);
       const dayKey = `${distinctId}:${date}`;
       const set = dailySessions.get(dayKey) ?? new Set<string>();
       set.add(sessionId);
       dailySessions.set(dayKey, set);
-      return set.size;
+      return { chatCount: set.size, claimed: true };
     },
-    async incrementTurn(sessionId) {
-      const next = (turns.get(sessionId) ?? 0) + 1;
+    async unregisterChat(sessionId, distinctId, date) {
+      registered.delete(`${sessionId}:${date}`);
+      dailySessions.get(`${distinctId}:${date}`)?.delete(sessionId);
+    },
+    async incrementTurn(sessionId, delta = 1) {
+      const next = (turns.get(sessionId) ?? 0) + delta;
       turns.set(sessionId, next);
       return next;
     },
     async addSpend(sessionId, distinctId, date, microUsd) {
-      sessionSpent.set(
-        sessionId,
-        (sessionSpent.get(sessionId) ?? 0) + microUsd,
-      );
+      const sessionSpentMicroUsd =
+        (sessionSpent.get(sessionId) ?? 0) + microUsd;
+      sessionSpent.set(sessionId, sessionSpentMicroUsd);
       const dayKey = `${distinctId}:${date}`;
-      dailySpent.set(dayKey, (dailySpent.get(dayKey) ?? 0) + microUsd);
+      const dailySpentMicroUsd = (dailySpent.get(dayKey) ?? 0) + microUsd;
+      dailySpent.set(dayKey, dailySpentMicroUsd);
+      return { sessionSpentMicroUsd, dailySpentMicroUsd };
+    },
+    async loadNetworkSpent(networkId, date) {
+      return networkSpent.get(`${networkId}:${date}`) ?? 0;
+    },
+    async addNetworkSpend(networkId, date, microUsd) {
+      const key = `${networkId}:${date}`;
+      const total = (networkSpent.get(key) ?? 0) + microUsd;
+      networkSpent.set(key, total);
+      return total;
     },
   };
 }
@@ -164,19 +201,27 @@ function createRedisStore(redis: Redis): UsageBudgetStore {
         ex: DAY_TTL_SEC,
       });
       if (!wasSet) {
-        return redis.scard(dailySessionsKey(distinctId, date));
+        const chatCount = await redis.scard(dailySessionsKey(distinctId, date));
+        return { chatCount, claimed: false };
       }
       await redis.sadd(dailySessionsKey(distinctId, date), sessionId);
       await redis.expire(dailySessionsKey(distinctId, date), DAY_TTL_SEC);
-      return redis.scard(dailySessionsKey(distinctId, date));
+      const chatCount = await redis.scard(dailySessionsKey(distinctId, date));
+      return { chatCount, claimed: true };
     },
-    async incrementTurn(sessionId) {
-      const turns = await redis.incr(sessionTurnsKey(sessionId));
+    async unregisterChat(sessionId, distinctId, date) {
+      // The marker goes first: a retry that lands before the SREM is a new
+      // chat again and still counts this session, so it is refused.
+      await redis.del(sessionRegisteredKey(sessionId, date));
+      await redis.srem(dailySessionsKey(distinctId, date), sessionId);
+    },
+    async incrementTurn(sessionId, delta = 1) {
+      const turns = await redis.incrby(sessionTurnsKey(sessionId), delta);
       await redis.expire(sessionTurnsKey(sessionId), SESSION_TTL_SEC);
       return turns;
     },
     async addSpend(sessionId, distinctId, date, microUsd) {
-      await Promise.all([
+      const [sessionSpentMicroUsd, dailySpentMicroUsd] = await Promise.all([
         redis.incrby(sessionSpentKey(sessionId), microUsd),
         redis.incrby(dailySpentKey(distinctId, date), microUsd),
       ]);
@@ -184,6 +229,18 @@ function createRedisStore(redis: Redis): UsageBudgetStore {
         redis.expire(sessionSpentKey(sessionId), SESSION_TTL_SEC),
         redis.expire(dailySpentKey(distinctId, date), DAY_TTL_SEC),
       ]);
+      return { sessionSpentMicroUsd, dailySpentMicroUsd };
+    },
+    async loadNetworkSpent(networkId, date) {
+      return (await redis.get<number>(networkSpentKey(networkId, date))) ?? 0;
+    },
+    async addNetworkSpend(networkId, date, microUsd) {
+      const total = await redis.incrby(
+        networkSpentKey(networkId, date),
+        microUsd,
+      );
+      await redis.expire(networkSpentKey(networkId, date), DAY_TTL_SEC);
+      return total;
     },
   };
 }
@@ -222,6 +279,8 @@ async function getStore(): Promise<UsageBudgetStore | null> {
 export type BeginTurnResult = {
   denied: Response | null;
   budgetDate: string;
+  /** Spend held for this turn; pass it to `finishTurn`. */
+  reservedMicroUsd: number;
 };
 
 function denyResponse(code: BudgetDenyCode): Response {
@@ -232,32 +291,99 @@ function denyResponse(code: BudgetDenyCode): Response {
   );
 }
 
+/**
+ * Starts a turn unless a limit is reached. `networkId` is the trusted client
+ * IP: anonymous sessions are cheap to mint, so the daily spend is also capped
+ * across every session from one IP.
+ *
+ * After the snapshot check, a spend reservation is added and the spend
+ * limits are checked against the totals the store returns. Concurrent turns
+ * each see a different total, so they cannot all pass on the same snapshot.
+ * The chat and turn counters change only once the reservation is accepted. The
+ * reservation stays charged if the turn never reports usage (for example
+ * when the model call fails); `finishTurn` replaces it with the real cost.
+ */
 export async function beginTurn(
   sessionId: string,
   distinctId: string,
+  networkId?: string | null,
 ): Promise<BeginTurnResult> {
   const budgetDate = utcDateKey();
   const store = await getStore();
-  if (!store) return { denied: null, budgetDate };
+  if (!store) return { denied: null, budgetDate, reservedMicroUsd: 0 };
 
   const limits = getBudgetLimits();
+  const deniedWith = (code: BudgetDenyCode): BeginTurnResult => ({
+    denied: denyResponse(code),
+    budgetDate,
+    reservedMicroUsd: 0,
+  });
   const snap = await store.loadSnapshot(sessionId, distinctId, budgetDate);
+  if (networkId) {
+    snap.networkDailySpentMicroUsd = await store.loadNetworkSpent(
+      networkId,
+      budgetDate,
+    );
+  }
   const deny = evaluateBudget(snap, limits);
-  if (deny) return { denied: denyResponse(deny), budgetDate };
+  if (deny) return deniedWith(deny);
+
+  // Reserve spend first so a refused reservation leaves the turn and chat
+  // counters untouched. Each later refusal hands the reservation back.
+  const reserve = limits.turnReserveMicroUsd;
+  const totals = await store.addSpend(
+    sessionId,
+    distinctId,
+    budgetDate,
+    reserve,
+  );
+  const networkTotal = networkId
+    ? await store.addNetworkSpend(networkId, budgetDate, reserve)
+    : null;
+  const release = async (code: BudgetDenyCode) => {
+    await store.addSpend(sessionId, distinctId, budgetDate, -reserve);
+    if (networkId) {
+      await store.addNetworkSpend(networkId, budgetDate, -reserve);
+    }
+    return deniedWith(code);
+  };
+  // Compare the totals from before this reservation, as evaluateBudget does:
+  // a turn may start while spend is under the cap. Concurrent turns each see
+  // a different total, so together they pass the cap by at most one
+  // reservation.
+  if (totals.dailySpentMicroUsd - reserve >= limits.dailyBudgetMicroUsd) {
+    return release("DAILY_BUDGET_EXCEEDED");
+  }
+  if (
+    networkTotal !== null &&
+    networkTotal - reserve >= limits.networkDailyBudgetMicroUsd
+  ) {
+    return release("NETWORK_DAILY_BUDGET_EXCEEDED");
+  }
+  if (totals.sessionSpentMicroUsd - reserve >= limits.chatBudgetMicroUsd) {
+    return release("CHAT_BUDGET_EXCEEDED");
+  }
 
   if (snap.isNewSession) {
-    const chatCount = await store.registerChat(
+    const { chatCount, claimed } = await store.registerChat(
       sessionId,
       distinctId,
       budgetDate,
     );
     if (chatCount > limits.maxChatsPerDay) {
-      return { denied: denyResponse("DAILY_CHAT_LIMIT"), budgetDate };
+      if (claimed)
+        await store.unregisterChat(sessionId, distinctId, budgetDate);
+      return release("DAILY_CHAT_LIMIT");
     }
   }
 
-  await store.incrementTurn(sessionId);
-  return { denied: null, budgetDate };
+  const turns = await store.incrementTurn(sessionId);
+  if (turns > limits.maxTurnsPerChat) {
+    await store.incrementTurn(sessionId, -1);
+    return release("CHAT_TURN_LIMIT");
+  }
+
+  return { denied: null, budgetDate, reservedMicroUsd: reserve };
 }
 
 export async function finishTurn(
@@ -265,10 +391,21 @@ export async function finishTurn(
   distinctId: string,
   usage: TokenUsage,
   budgetDate = utcDateKey(),
+  networkId?: string | null,
+  reservedMicroUsd = 0,
 ): Promise<void> {
   const store = await getStore();
   if (!store) return;
 
-  const microUsd = estimateMicroUsd(usage);
+  // A turn with no reported tokens (an abort before any step finished)
+  // keeps its reservation as the charge.
+  if (!(usage.inputTokens ?? 0) && !(usage.outputTokens ?? 0)) return;
+
+  // Settle the reservation: charge the real cost in its place.
+  const microUsd = estimateMicroUsd(usage) - reservedMicroUsd;
+  if (microUsd === 0) return;
   await store.addSpend(sessionId, distinctId, budgetDate, microUsd);
+  if (networkId) {
+    await store.addNetworkSpend(networkId, budgetDate, microUsd);
+  }
 }

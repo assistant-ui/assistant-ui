@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import { type ComponentType, type ReactNode, useState } from "react";
@@ -279,7 +279,7 @@ describe("StreamdownTextPrimitive", () => {
       ).not.toBeNull();
     });
 
-    it("passes user rehypePlugins through when security is not set", async () => {
+    it("runs user rehypePlugins after the default pipeline when security is not set", async () => {
       const { container } = render(
         <TextMessagePartProvider text={markdown} isRunning={false}>
           <StreamdownTextPrimitive
@@ -294,6 +294,292 @@ describe("StreamdownTextPrimitive", () => {
       );
       expect(evilAnchor).not.toBeNull();
       expect(evilAnchor!.getAttribute("data-user-plugin")).toBe("true");
+    });
+
+    it("keeps sanitizing when user rehypePlugins are set without security", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={
+            '[run](javascript:alert(1)) and [data](data:text/html,hi)\n\n<img src="https://example.com/a.png" onerror="alert(1)">'
+          }
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            rehypePlugins={userRehypePlugins}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(container.querySelector('a[href^="javascript:"]')).toBeNull();
+      expect(container.querySelector('a[href^="data:"]')).toBeNull();
+      const img = container.querySelector("img");
+      expect(img).not.toBeNull();
+      expect(img!.hasAttribute("onerror")).toBe(false);
+    });
+  });
+
+  it("does not re-parse when inline props are recreated", () => {
+    let parses = 0;
+    const countParses = () => () => {
+      parses += 1;
+    };
+    Object.defineProperty(countParses, "name", { value: "countParses inline" });
+    const view = () => (
+      <TextMessagePartProvider text="plain **text**" isRunning={false}>
+        <StreamdownTextPrimitive
+          mode="static"
+          security={{ allowedProtocols: ["https"] }}
+          allowedTags={{ mark: [] }}
+          rehypePlugins={
+            [countParses] as unknown as NonNullable<
+              StreamdownProps["rehypePlugins"]
+            >
+          }
+        />
+      </TextMessagePartProvider>
+    );
+
+    const { rerender } = render(view());
+    const afterMount = parses;
+    rerender(view());
+    rerender(view());
+
+    expect(afterMount).toBeGreaterThan(0);
+    expect(parses).toBe(afterMount);
+  });
+
+  describe("clobber prefix", () => {
+    const createElement = document.createElement;
+    afterEach(() => {
+      expect(document.createElement).toBe(createElement);
+    });
+
+    it.each([
+      ["defaults", {}],
+      ["security", { security: {} }],
+      ["allowedTags", { allowedTags: { mark: ["id"] } }],
+      ["user rehypePlugins", { rehypePlugins: [] }],
+    ])("prefixes ids and names from model output with %s", (_name, props) => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={
+            '<img name="createElement" id="getElementById" src="https://example.com/a.png">'
+          }
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive mode="static" {...props} />
+        </TextMessagePartProvider>,
+      );
+
+      expect(typeof document.createElement).toBe("function");
+      const img = container.querySelector("img");
+      expect(img?.getAttribute("name")).toBe("user-content-createElement");
+      expect(img?.getAttribute("id")).toBe("user-content-getElementById");
+    });
+
+    it("keeps model ids that already carry the prefix distinct", () => {
+      const { container } = render(
+        <TextMessagePartProvider
+          text={'<span id="foo">a</span> <span id="user-content-foo">b</span>'}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            allowedTags={{ span: ["id"] }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const ids = [...container.querySelectorAll("span[id]")].map(
+        (span) => span.id,
+      );
+      expect(ids).toEqual([
+        "user-content-foo",
+        "user-content-user-content-foo",
+      ]);
+    });
+
+    describe("in-page links", () => {
+      beforeEach(() => {
+        window.location.hash = "";
+        (document.activeElement as HTMLElement | null)?.blur?.();
+      });
+      const targeted = () => document.activeElement;
+
+      const clickLink = (container: HTMLElement, text: string) => {
+        const anchor = [...container.querySelectorAll("a")].find(
+          (element) => element.textContent === text,
+        );
+        expect(anchor).toBeTruthy();
+        const event = new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+        });
+        anchor!.dispatchEvent(event);
+        return event;
+      };
+
+      it("moves to the prefixed target across streamed blocks", () => {
+        const { container } = render(
+          <TextMessagePartProvider
+            text={
+              '[to A](#foo) [to B](#user-content-foo)\n\n## Heading\n\n<span id="foo">A</span> <span id="user-content-foo">B</span>'
+            }
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              allowedTags={{ span: ["id"] }}
+              linkSafety={{ enabled: false }}
+            />
+          </TextMessagePartProvider>,
+        );
+
+        expect(clickLink(container, "to A").defaultPrevented).toBe(true);
+        expect(targeted()?.textContent).toBe("A");
+        expect(clickLink(container, "to B").defaultPrevented).toBe(true);
+        expect(targeted()?.textContent).toBe("B");
+        expect(window.location.hash).toBe("");
+      });
+
+      it("moves footnote links to their footnote, not a model id", () => {
+        const { container } = render(
+          <TextMessagePartProvider
+            text={'Claim[^1]\n\n<span id="fn-1">decoy</span>\n\n[^1]: Source'}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              allowedTags={{ span: ["id"] }}
+              linkSafety={{ enabled: false }}
+            />
+          </TextMessagePartProvider>,
+        );
+
+        const ref = container.querySelector("a[data-footnote-ref]");
+        ref?.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        expect(targeted()?.textContent).toContain("Source");
+        const backref = container.querySelector("a[data-footnote-backref]");
+        backref?.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+        expect(targeted()).toBe(ref);
+        expect(ref?.getAttribute("tabindex")).toBe(null);
+      });
+
+      it("leaves links to ids from user plugins to the browser", () => {
+        type Node = {
+          type: string;
+          tagName?: string;
+          properties?: Record<string, unknown>;
+          children?: Node[];
+          value?: string;
+        };
+        const slug = () => (tree: Node) => {
+          const walk = (node: Node) => {
+            if (node.tagName === "h2") {
+              const text = (node.children ?? [])
+                .map((child) => child.value ?? "")
+                .join("");
+              node.properties = { ...node.properties, id: text.toLowerCase() };
+            }
+            node.children?.forEach(walk);
+          };
+          walk(tree);
+        };
+        Object.defineProperty(slug, "name", { value: "slugHeadings" });
+
+        const { container } = render(
+          <TextMessagePartProvider
+            text={"[Setup](#setup)\n\n## Setup"}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              linkSafety={{ enabled: false }}
+              rehypePlugins={
+                [slug] as unknown as NonNullable<
+                  StreamdownProps["rehypePlugins"]
+                >
+              }
+            />
+          </TextMessagePartProvider>,
+        );
+
+        expect(container.querySelector("h2")?.id).toBe("setup");
+        expect(container.querySelector("a")?.getAttribute("href")).toBe(
+          "#setup",
+        );
+        expect(clickLink(container, "Setup").defaultPrevented).toBe(false);
+        expect(window.location.hash).toBe("");
+      });
+
+      it("moves to a prefixed target that is not an HTML element", () => {
+        const { container } = render(
+          <TextMessagePartProvider
+            text={
+              '[chart](#chart)\n\n<svg id="chart"><circle r="1"></circle></svg>'
+            }
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              allowedTags={{ svg: ["id"], circle: ["r"] }}
+              linkSafety={{ enabled: false }}
+            />
+          </TextMessagePartProvider>,
+        );
+
+        expect(container.querySelector("svg")?.id).toBe("user-content-chart");
+        expect(clickLink(container, "chart").defaultPrevented).toBe(true);
+      });
+
+      it("handles fragments that are not valid in a selector", () => {
+        const { container } = render(
+          <TextMessagePartProvider
+            text={"[nl](#a%0Ab) [bad](#%E0%A4%A)"}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              linkSafety={{ enabled: false }}
+            />
+          </TextMessagePartProvider>,
+        );
+
+        expect(clickLink(container, "nl").defaultPrevented).toBe(false);
+        expect(clickLink(container, "bad").defaultPrevented).toBe(false);
+      });
+
+      it("leaves modified clicks and missing targets alone", () => {
+        const { container } = render(
+          <TextMessagePartProvider
+            text={'[go](#foo) [none](#missing)\n\n<span id="foo">A</span>'}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              allowedTags={{ span: ["id"] }}
+              linkSafety={{ enabled: false }}
+            />
+          </TextMessagePartProvider>,
+        );
+
+        const anchor = [...container.querySelectorAll("a")].find(
+          (element) => element.textContent === "go",
+        )!;
+        const modified = new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          metaKey: true,
+        });
+        anchor.dispatchEvent(modified);
+        expect(modified.defaultPrevented).toBe(false);
+        expect(clickLink(container, "none").defaultPrevented).toBe(false);
+        expect(window.location.hash).toBe("");
+      });
     });
   });
 

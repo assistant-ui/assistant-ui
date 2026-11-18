@@ -10,7 +10,7 @@ import {
   RemoteHostProvider,
   type RemoteComponentHandle,
 } from "@assistant-ui/remote-components-host-react";
-import { netPage, widgetPage } from "./fixtures.js";
+import { netPage, overlaySchemesPage, widgetPage } from "./fixtures.js";
 
 export type ComponentName =
   | "text"
@@ -1071,6 +1071,27 @@ export const cases: Case[] = [
             name: (st.name as string | undefined) ?? "Ada",
             onPick: (c: string) =>
               window.__events.push({ type: "pick", id: "main", message: c }),
+          },
+        })}
+      </div>
+    ),
+  },
+  {
+    // Only http(s) URLs load: a javascript: or data: URL from an inline
+    // (opaque-origin) remote is refused, as overlay content or as `src`.
+    name: "url-schemes",
+    mode: "remote",
+    render: (S) => (
+      <div style={{ width: 360 }}>
+        {S({ c: "text", id: "inline", host: { html: overlaySchemesPage } })}
+        {S({
+          c: "text",
+          id: "js-src",
+          src: "javascript:parent.document.title = 'scripted'",
+          host: {
+            errorFallback: (e: Error & { code: string }) => (
+              <div id="js-src-error">{e.code}</div>
+            ),
           },
         })}
       </div>

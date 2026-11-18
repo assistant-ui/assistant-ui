@@ -29,8 +29,8 @@ export const useEveEvents = (): EveRuntimeExtras["events"] =>
 /**
  * Returns a function that starts a new Eve session: it stops reading the
  * current session and clears its events and messages, without cancelling a
- * turn still running on the server. Pending staged messages and tool execution
- * state are discarded. Safe to render
+ * turn still running on the server. Pending staged messages are discarded.
+ * Safe to render
  * outside an Eve runtime; invoking the returned function there throws.
  *
  * With `cloud`, it starts a new thread instead, leaving the current thread and its session in the list.
