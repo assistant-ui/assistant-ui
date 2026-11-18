@@ -29,6 +29,8 @@ import { createControllerStreamPair } from "../utils/stream/createControllerStre
 type ToolCallPartInit = {
   toolCallId?: string;
   toolName: string;
+  /** The call is answered outside the frontend, such as by a provider-executed tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
+  providerExecuted?: boolean;
   argsText?: string;
   args?: ReadonlyJSONObject;
   response?: ToolResponseLike<ReadonlyJSONValue>;
@@ -368,6 +370,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         type: "tool-call",
         toolName,
         toolCallId,
+        ...(opt.providerExecuted && { providerExecuted: true }),
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,

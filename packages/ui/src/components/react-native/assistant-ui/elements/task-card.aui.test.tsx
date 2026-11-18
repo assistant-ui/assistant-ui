@@ -405,6 +405,12 @@ describe("TaskGroup", () => {
       ),
     ];
     expect(allows).toHaveLength(2);
+    expect(container.textContent).toContain(
+      JSON.stringify({
+        description: "Tag the release",
+        subagent_type: "researcher",
+      }),
+    );
     for (const allow of allows) {
       await act(async () => {
         click(allow);

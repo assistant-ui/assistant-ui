@@ -13,6 +13,14 @@ import {
   ComposerSend,
 } from "@/components/assistant-ui/elements/composer";
 import type { CheckoutContextValue } from "@/components/checkout-provider";
+import { StatewireSendError } from "statewire";
+
+/** The host refused the message because the setup's state is at its size cap. */
+const isSetupFull = (cause: unknown) =>
+  cause instanceof StatewireSendError &&
+  cause.failure.fate === "rejected" &&
+  (cause.failure.payload as { reason?: unknown } | undefined)?.reason ===
+    "setup-full";
 
 export function SetupComposer({
   checkout,
@@ -40,8 +48,12 @@ export function SetupComposer({
     try {
       await checkout.commands["checkout/message"]({ text });
       setDraft("");
-    } catch {
-      setError("Your message could not be sent. Try again.");
+    } catch (cause) {
+      setError(
+        isSetupFull(cause)
+          ? "This setup is full. Start a new one to keep going."
+          : "Your message could not be sent. Try again.",
+      );
     } finally {
       setSending(false);
       textarea.current?.focus();

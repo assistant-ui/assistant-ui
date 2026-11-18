@@ -340,7 +340,7 @@ export default defineConfig({ plugins: [variants()] });
 export { GET, POST, DELETE } from "@assistant-ui/variants/next";
 ```
 
-`next dev` listens on all network interfaces by default. On an untrusted network, start it with `next dev -H 127.0.0.1`.
+`next dev` listens on all network interfaces by default. The handlers still refuse clients outside loopback: they read each request's socket address from Node's `http.server.request.start` diagnostics channel. The very first request after the route loads arrives before that hook exists, so it gets a 503 and the sidebar asks again. For a dev server reached through a container or VM port mapping, use `createVariantsRoutes({ allowRemoteClients: true })`.
 
 How the endpoints behave:
 
@@ -351,7 +351,7 @@ How the endpoints behave:
 - **Guards:**
   - development only (the Vite plugin is `apply: "serve"`; the Next handlers return 404 unless `NODE_ENV` is `development`)
   - loopback hosts only: the `Host` must be `localhost`, `*.localhost`, `127.0.0.1` or `[::1]` (any port), so a DNS-rebound page on another domain is refused even when its `Origin` matches. Allow another dev host with `variants({ allowedHosts })` (merged with Vite's `server.allowedHosts`) or `createVariantsRoutes({ allowedHosts })` for Next
-  - Vite admits clients outside loopback with `allowRemoteClients: true` for a dev server reached through a container or VM port mapping; the Host check still applies
+  - loopback clients only: a request from another address, or one whose address the adapter can't tell, is refused. Admit clients outside loopback with `allowRemoteClients: true` (`variants({ allowRemoteClients })` or `createVariantsRoutes({ allowRemoteClients })`) for a dev server reached through a container or VM port mapping; the Host check still applies
   - a required `x-variants: 1` header
   - same-origin only: `Origin` must match `Host`, and `Sec-Fetch-Site: cross-site` is refused
   - `application/json` bodies of at most 64KB (malformed JSON is a 400, a larger body a 413)

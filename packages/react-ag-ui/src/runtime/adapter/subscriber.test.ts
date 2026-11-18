@@ -9,6 +9,41 @@ const createSubscriber = () => {
 };
 
 describe("createAgUiSubscriber", () => {
+  it("dispatches each sequential run's finish only once", () => {
+    const { subscriber, dispatch } = createSubscriber();
+    for (const runId of ["first", "second"]) {
+      subscriber.onRunStartedEvent?.();
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId },
+      });
+    }
+    expect(dispatch.mock.calls).toEqual([
+      [{ type: "RUN_FINISHED", runId: "first" }],
+      [{ type: "RUN_FINISHED", runId: "second" }],
+    ]);
+  });
+
+  it("keeps a finish terminal when the next run start is rejected", () => {
+    const dispatch = vi.fn();
+    const subscriber = createAgUiSubscriber({
+      dispatch,
+      onRunStarted: () => false,
+    });
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "first" },
+    });
+    subscriber.onRunStartedEvent?.();
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "second" },
+    });
+    expect(dispatch.mock.calls).toEqual([
+      [{ type: "RUN_FINISHED", runId: "first" }],
+    ]);
+  });
+
   it("dispatches ACTIVITY_DELTA as a typed event", () => {
     const { subscriber, dispatch } = createSubscriber();
     subscriber.onActivityDeltaEvent?.({

@@ -1,6 +1,11 @@
 import { deepEqual } from "../json-schema";
 import { evaluateFormula } from "./calc";
-import { getAtPointer, joinPointer, parsePointer } from "./pointer";
+import {
+  FORBIDDEN_KEYS,
+  getAtPointer,
+  joinPointer,
+  parsePointer,
+} from "./pointer";
 import type { Condition } from "./types";
 
 /** What expressions can read while an element renders or an action runs. */
@@ -145,6 +150,7 @@ export function resolveValue(value: unknown, ctx: ExpressionContext): unknown {
   if (SOURCE_KEYS.some((key) => key in value)) return readSource(value, ctx);
   const result: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value)) {
+    if (FORBIDDEN_KEYS.has(key)) continue;
     result[key] = resolveValue(child, ctx);
   }
   return result;
@@ -280,6 +286,7 @@ export function resolveProps(
   const resolved: Record<string, unknown> = {};
   const bindings: Record<string, string> = {};
   for (const [key, value] of Object.entries(props ?? {})) {
+    if (FORBIDDEN_KEYS.has(key)) continue;
     if (isRecord(value) && typeof value["$bindState"] === "string") {
       bindings[key] = normalizePath(value["$bindState"]);
     } else if (

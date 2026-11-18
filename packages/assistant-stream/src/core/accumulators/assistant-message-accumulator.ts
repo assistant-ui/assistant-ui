@@ -120,6 +120,7 @@ const handlePartStart = (
       argsText: "",
       args: {},
       timing: { startedAt: Date.now() },
+      ...(partInit.providerExecuted && { providerExecuted: true }),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return appendPart(message, newToolCallPart);

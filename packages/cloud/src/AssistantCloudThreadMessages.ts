@@ -2,6 +2,7 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import {
   readCloudArray,
+  readCloudBoolean,
   readCloudEnum,
   readCloudInteger,
   readCloudJSONObject,
@@ -46,7 +47,32 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
+  /**
+   * Whether the thread holds messages past this page. A page can end early,
+   * before its `limit`, so page on while this is true. Absent from servers
+   * that predate it.
+   */
+  has_more?: boolean;
+  /** The `after` cursor for the next page while `has_more`. */
+  next_cursor?: string | null;
 };
+
+/** The paging fields of a message list response, when the server sends them. */
+export const decodeCloudMessagePaging = (
+  response: Record<string, unknown>,
+): { has_more?: boolean; next_cursor?: string | null } => ({
+  ...(response.has_more !== undefined
+    ? { has_more: readCloudBoolean(response.has_more, "has_more") }
+    : undefined),
+  ...(response.next_cursor !== undefined
+    ? {
+        next_cursor: readCloudNullableString(
+          response.next_cursor,
+          "next_cursor",
+        ),
+      }
+    : undefined),
+});
 
 type AssistantCloudThreadMessageCreateBody = {
   parent_id: string | null;
@@ -160,6 +186,7 @@ export class AssistantCloudThreadMessages {
       messages: messages.map((message, index) =>
         decodeCloudMessage(message, `messages[${index}]`),
       ),
+      ...decodeCloudMessagePaging(response),
     };
   }
 

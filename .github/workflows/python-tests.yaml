@@ -31,6 +31,8 @@ jobs:
       matrix:
         package:
           - assistant-stream
+          - assistant-transport-backend
+          - assistant-transport-backend-langgraph
           - assistant-ui-sync-server-api
         python-version: ["3.10", "3.12", "3.14"]
     defaults:
@@ -56,16 +58,25 @@ jobs:
           BASE_REF: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
         run: |
           set -euo pipefail
-          case "$PACKAGE" in
-            assistant-stream) other=assistant-ui-sync-server-api ;;
-            assistant-ui-sync-server-api) other=assistant-stream ;;
-            *) exit 1 ;;
-          esac
+          packages=(
+            assistant-stream
+            assistant-transport-backend
+            assistant-transport-backend-langgraph
+            assistant-ui-sync-server-api
+          )
+          paths=(python .github/workflows/python-tests.yaml scripts/python-test-selection.test.mjs)
+          known=false
+          for candidate in "${packages[@]}"; do
+            if [ "$candidate" = "$PACKAGE" ]; then
+              known=true
+            else
+              paths+=(":(exclude)python/$candidate")
+            fi
+          done
+          "$known" || exit 1
           run=true
           if git rev-parse --verify --quiet "${BASE_REF}^{commit}" > /dev/null &&
-            git diff --quiet --no-renames "$BASE_REF" HEAD -- \
-              python .github/workflows/python-tests.yaml \
-              scripts/python-test-selection.test.mjs ":(exclude)python/$other"; then
+            git diff --quiet --no-renames "$BASE_REF" HEAD -- "${paths[@]}"; then
             run=false
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"

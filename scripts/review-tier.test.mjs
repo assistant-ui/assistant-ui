@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
+import { computeTier } from "./lib/review-tier-signals.mjs";
 import {
   dailySweepCron,
   evaluatePullRequest,
@@ -183,6 +184,8 @@ function fakeClient({
         const pullRequest = structuredClone(
           prByNumber[variables.number] ?? prSnapshots?.[gatherRead++] ?? pr,
         );
+        if (!Object.hasOwn(pullRequest, "changedFiles"))
+          pullRequest.changedFiles = files.length;
         const events = pullRequest.timelineItems.nodes;
         pullRequest.labeledEvents ??= {
           nodes: events
@@ -2763,7 +2766,7 @@ test("a compare that fails, diverges or is cut short leaves its approvals stale"
   );
 });
 
-test("the comment says which approvals carried over and which protected paths made others stale", async () => {
+test("the comment says which approvals carried over and which later paths made others stale", async () => {
   const recording = fakeClient({
     pr: tapPullRequest({
       reviews: {
@@ -2791,10 +2794,197 @@ test("the comment says which approvals carried over and which protected paths ma
   const comment = renderComment(await evaluationFor(recording), policy);
   for (const expected of [
     "Kinfe123 counted",
-    "Kinfe123 carried over (approved `abcdef1`, later commits touch no protected paths)",
-    "okisdev ignored (approved an older head; later commits touch `api-surface/assistant-ui__tap.ts`, `packages/store/src/c.ts`, `packages/tap/src/a.ts` and 1 more protected path)",
+    "Kinfe123 carried over (approved `abcdef1`, later commits stay within T0)",
+    "okisdev ignored (approved an older head; later commits change `api-surface/assistant-ui__tap.ts`, `packages/store/src/c.ts`, `packages/tap/src/a.ts` and 1 more path, which need a fresh approval)",
     "Yonom ignored (approved an older head, could not compare it with the head)",
   ]) {
     assert.ok(comment.includes(expected), `${expected}\n${comment}`);
   }
+});
+
+test("root and app manifests are read for install scripts without an exports diff", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ changedFiles: 2 }),
+    files: [file("package.json"), file("apps/docs/package.json")],
+    contents: {
+      [`${repo}/contents/package.json?ref=merge-base`]: '{"exports":"./a.js"}',
+      [`${repo}/contents/package.json?ref=head`]:
+        '{"exports":"./b.js","scripts":{"postinstall":"node x.js"}}',
+      [`${repo}/contents/apps/docs/package.json?ref=merge-base`]: "{}",
+      [`${repo}/contents/apps/docs/package.json?ref=head`]: "{}",
+    },
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.equal(signalsInput.changedFiles, 2);
+  assert.deepEqual(
+    signalsInput.manifests.map(({ path }) => path),
+    ["package.json", "apps/docs/package.json"],
+  );
+  assert.deepEqual(signalsInput.exportsDiffs, []);
+  const result = computeTier(signalsInput, policy);
+  assert.equal(result.tier, 3);
+  assert.deepEqual(
+    result.reasons
+      .filter(({ code }) => code === "lifecycle-script")
+      .map(({ detail }) => detail),
+    ["package.json: scripts.postinstall"],
+  );
+});
+
+for (const [name, headScripts, flagged] of [
+  ["unchanged", { postinstall: "node x.js" }, []],
+  [
+    "with an added install script",
+    { postinstall: "node x.js", preinstall: "node y.js" },
+    ["examples/b/package.json: scripts.preinstall"],
+  ],
+]) {
+  test(`a renamed app manifest is compared with its previous path: ${name}`, async () => {
+    const base = {
+      scripts: { postinstall: "node x.js" },
+      dependencies: { a: "github:someone/a" },
+    };
+    const recording = fakeClient({
+      pr: docsPullRequest(),
+      files: [
+        file("examples/b/package.json", {
+          status: "renamed",
+          previous_filename: "examples/a/package.json",
+        }),
+      ],
+      contents: {
+        [`${repo}/contents/examples/a/package.json?ref=merge-base`]:
+          JSON.stringify(base),
+        [`${repo}/contents/examples/a/package.json?ref=head`]: null,
+        [`${repo}/contents/examples/b/package.json?ref=merge-base`]: null,
+        [`${repo}/contents/examples/b/package.json?ref=head`]: JSON.stringify({
+          ...base,
+          scripts: headScripts,
+        }),
+      },
+    });
+    const { signalsInput } = await gatherPullRequest(
+      recording.client,
+      policy,
+      12,
+      { now },
+    );
+    assert.deepEqual(
+      signalsInput.manifests.map(({ path, base }) => [path, base !== null]),
+      [["examples/b/package.json", true]],
+    );
+    const result = computeTier(signalsInput, policy);
+    assert.deepEqual(
+      result.reasons
+        .filter(
+          ({ code }) =>
+            code === "lifecycle-script" || code === "dependency-source",
+        )
+        .map(({ detail }) => detail),
+      flagged,
+    );
+  });
+}
+
+test("a manifest added where another was renamed from is still read", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest(),
+    files: [
+      file("examples/b/package.json", {
+        status: "renamed",
+        previous_filename: "examples/a/package.json",
+      }),
+      file("examples/a/package.json", { status: "added" }),
+    ],
+    contents: {
+      [`${repo}/contents/examples/a/package.json?ref=merge-base`]: "{}",
+      [`${repo}/contents/examples/a/package.json?ref=head`]:
+        '{"scripts":{"postinstall":"node x.js"}}',
+      [`${repo}/contents/examples/b/package.json?ref=head`]: "{}",
+    },
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(
+    computeTier(signalsInput, policy)
+      .reasons.filter(({ code }) => code === "lifecycle-script")
+      .map(({ detail }) => detail),
+    ["examples/a/package.json: scripts.postinstall"],
+  );
+});
+
+test("a renamed package manifest is still read as a new package", async () => {
+  const manifest = JSON.stringify({
+    name: "@assistant-ui/a",
+    exports: "./a.js",
+  });
+  const recording = fakeClient({
+    pr: docsPullRequest(),
+    files: [
+      file("packages/b/package.json", {
+        status: "renamed",
+        previous_filename: "packages/a/package.json",
+      }),
+    ],
+    contents: {
+      [`${repo}/contents/packages/a/package.json?ref=merge-base`]: manifest,
+      [`${repo}/contents/packages/a/package.json?ref=head`]: null,
+      [`${repo}/contents/packages/b/package.json?ref=merge-base`]: null,
+      [`${repo}/contents/packages/b/package.json?ref=head`]: manifest,
+    },
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.deepEqual(
+    signalsInput.manifests.map(({ path, base }) => [path, base !== null]),
+    [
+      ["packages/b/package.json", false],
+      ["packages/a/package.json", true],
+    ],
+  );
+});
+
+test("a missing changed-file count from GitHub fails the tier", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ changedFiles: null }),
+    files: [file("README.md")],
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.equal(signalsInput.changedFiles, null);
+  assert.deepEqual(
+    computeTier(signalsInput, policy).failures.map(({ code }) => code),
+    ["files-incomplete"],
+  );
+});
+
+test("the changed-file count from GitHub reaches the signals", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ changedFiles: 3001 }),
+    files: [file("README.md")],
+  });
+  const { signalsInput } = await gatherPullRequest(
+    recording.client,
+    policy,
+    12,
+    { now },
+  );
+  assert.equal(signalsInput.changedFiles, 3001);
 });

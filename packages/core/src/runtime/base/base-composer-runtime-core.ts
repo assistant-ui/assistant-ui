@@ -24,6 +24,7 @@ import type {
   ComposerRuntimeEventType,
   ComposerSetTextOptions,
   ComposerTextOrigin,
+  DictationEnd,
   DictationState,
   SendOptions,
 } from "../interfaces/composer-runtime-core";
@@ -1056,6 +1057,10 @@ export abstract class BaseComposerRuntimeCore
 
   public get dictation(): DictationState | undefined {
     return this._dictationSessionController.dictation;
+  }
+
+  public get lastDictationEnd(): DictationEnd | undefined {
+    return this._dictationSessionController.lastDictationEnd;
   }
 
   public startDictation(): void {

@@ -40,3 +40,48 @@ describe("ExternalStoreThreadRuntimeCore import", () => {
     expect(runtime.messages.map(({ id }) => id)).toEqual(["x1"]);
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore import that cannot be placed", () => {
+  type Source = { id: string; role: "user" | "assistant"; text: string };
+  const sources: Source[] = [
+    { id: "u1", role: "user", text: "hi" },
+    { id: "a1", role: "assistant", text: "hello" },
+  ];
+  const createStore = (messages: readonly Source[]) =>
+    ({
+      messages,
+      convertMessage: (message: Source) => ({
+        id: message.id,
+        role: message.role,
+        content: [{ type: "text", text: message.text }],
+      }),
+      onNew: async () => {},
+      onImport: () => {},
+      adapters: { feedback: { submit: () => {} } },
+    }) as unknown as ExternalStoreAdapter<any>;
+
+  it("keeps submitted feedback applied when the host supplies a new array", () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      createStore(sources),
+    );
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+
+    expect(() =>
+      runtime.import({
+        headId: "missing",
+        messages: [
+          {
+            parentId: null,
+            message: runtime.getMessageById("u1")!.message,
+          },
+        ],
+      }),
+    ).toThrow();
+    runtime.__internal_setAdapter(createStore([...sources]));
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+});

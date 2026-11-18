@@ -15,6 +15,10 @@ import {
   OptionalThemeColorPicker,
 } from "@/components/shared/color-picker";
 import {
+  LOADING_TEXT_MAX_LENGTH,
+  toLoadingText,
+} from "@/lib/playground-config-schema";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -458,8 +462,11 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                   <input
                     type="text"
                     value={components.loadingText}
+                    maxLength={LOADING_TEXT_MAX_LENGTH}
                     onChange={(e) =>
-                      updateComponents({ loadingText: e.target.value })
+                      updateComponents({
+                        loadingText: toLoadingText(e.target.value),
+                      })
                     }
                     className="bg-background h-7 w-32 rounded-md border px-2 text-sm"
                     placeholder="Thinking..."

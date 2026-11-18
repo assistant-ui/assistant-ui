@@ -17,6 +17,7 @@ import { MarkdownText, TaskListTokenizer } from "./markdown-text";
 const onReact18 = version.startsWith("18.");
 
 const h = vi.hoisted(() => ({
+  openURL: vi.fn((_url: string) => Promise.resolve()),
   setClipboardString: vi.fn(),
   cssVariables: {
     "--color-border": "#e4e4e7",
@@ -49,6 +50,16 @@ vi.mock("react-native-marked", async () => {
     code(_text: string, _language?: string): unknown {
       return null;
     }
+    image(uri: string): unknown {
+      return React.createElement(Text, { key: this.getKey() }, `image ${uri}`);
+    }
+    linkImage(href: string, imageUrl: string): unknown {
+      return React.createElement(
+        Text,
+        { key: this.getKey() },
+        `linked image ${imageUrl} -> ${href}`,
+      );
+    }
   }
   const { createRequire } = await import("node:module");
   const markedRequire = createRequire(
@@ -69,6 +80,24 @@ vi.mock("react-native-marked", async () => {
     options: { renderer: Renderer } & NonNullable<typeof h.lastOptions>,
   ) => {
     h.lastOptions = options;
+    const imageLink = /^\[!\[\]\(([^)]*)\)\]\(([^)]*)\)$/.exec(raw.trim());
+    if (imageLink)
+      return [
+        (
+          options.renderer as unknown as {
+            linkImage(href: string, imageUrl: string): unknown;
+          }
+        ).linkImage(imageLink[2] ?? "", imageLink[1] ?? ""),
+      ];
+    const link = /^\[([^\]]*)\]\(([^)]*)\)$/.exec(raw.trim());
+    if (link)
+      return [
+        (
+          options.renderer as unknown as {
+            link(children: string, href: string): unknown;
+          }
+        ).link(link[1] ?? "", link[2] ?? ""),
+      ];
     const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
     if (fences.length > 0)
       return [
@@ -89,6 +118,11 @@ vi.mock("react-native-marked", async () => {
   };
   return { MarkedLexer, MarkedTokenizer: Tokenizer, Renderer, useMarkdown };
 });
+
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  Linking: { openURL: h.openURL },
+}));
 
 vi.mock("uniwind", () => ({
   withUniwind: (Component: unknown) => Component,
@@ -125,6 +159,7 @@ describe("MarkdownText", () => {
   beforeEach(() => {
     h.lastOptions = undefined;
     h.setClipboardString.mockReset();
+    h.openURL.mockClear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -198,6 +233,48 @@ describe("MarkdownText", () => {
     visit(lex(markdown));
     return texts;
   };
+
+  it.each([
+    "https://example.com/a",
+    "http://example.com/b",
+    "mailto:someone@example.com",
+  ])("opens a %s link", async (href) => {
+    await render(`[go](${href})`);
+    const link = container.querySelector('[role="link"]');
+    expect(link?.textContent).toBe("go");
+    await act(async () => click(link!));
+    expect(h.openURL).toHaveBeenCalledWith(href);
+  });
+
+  it.each([
+    "tel:5551234",
+    "sms:5551234",
+    "intent://scan#Intent;end",
+    "myapp://settings",
+    "data:text/html,hi",
+    "/relative/path",
+  ])("renders a %s link as plain text", async (href) => {
+    await render(`[go](${href})`);
+    expect(container.querySelector('[role="link"]')).toBeNull();
+    const text = [...container.querySelectorAll("*")].find(
+      (element) => element.textContent === "go",
+    );
+    expect(text).toBeTruthy();
+    await act(async () => click(text!));
+    expect(h.openURL).not.toHaveBeenCalled();
+  });
+
+  it("drops the link around an image whose target is not openable", async () => {
+    await render("[![](https://example.com/i.png)](tel:5551234)");
+    expect(container.textContent).toBe("image https://example.com/i.png");
+  });
+
+  it("keeps the link around an image with an openable target", async () => {
+    await render("[![](https://example.com/i.png)](https://example.com)");
+    expect(container.textContent).toBe(
+      "linked image https://example.com/i.png -> https://example.com",
+    );
+  });
 
   it("folds an unchecked box into the item text", () => {
     expect(itemTexts("- [ ] buy milk")).toEqual(["☐ buy milk"]);

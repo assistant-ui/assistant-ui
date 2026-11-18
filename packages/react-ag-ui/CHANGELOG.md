@@ -1,5 +1,22 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.11
+
+### Patch Changes
+
+- [#10595](https://github.com/assistant-ui/assistant-ui/pull/10595) [`4e3eecb`](https://github.com/assistant-ui/assistant-ui/commit/4e3eecb04602a735f629b58c1bc6d639ab5a3676) - fix: never run a frontend tool's `execute` for a tool call that an interrupt names, including when the approval UI cannot show that interrupt, and project nothing when two gates share one interrupt id so one decision answers one call ([@Yonom](https://github.com/Yonom))
+
+- [#10680](https://github.com/assistant-ui/assistant-ui/pull/10680) [`a318fd4`](https://github.com/assistant-ui/assistant-ui/commit/a318fd4c729ad36b0af41c42a867260d825c552b) - Set `isRunning` to false at `RUN_FINISHED` while the response stays open for server cleanup, unless a continuation is already owed. A send, tool result continuation, interrupt response, or `steerAway` submitted during cleanup waits for the finished response to close on its own before starting another request, with `isRunning` true while waiting. Only the latest waiting send starts a request, carrying all queued user messages. Stop still aborts the response. Unmount and a thread switch abort it too, except for an agent that implements `connect()`, which is detached while its run continues on the server. Stop leaves an interrupt whose answer was waiting on cleanup answerable. ([@gentil93](https://github.com/gentil93))
+  
+  Record tool approvals that leave other gates undecided immediately during cleanup, and wait for the response to close only when an approval completes the batch. Reject displaced interrupt responses, completing tool approvals, and `steerAway` calls with the busy error before changing the thread. Name the submitted method in a displaced tool approval's busy error. Carry a deferred A2UI action exactly once in a user request already waiting for cleanup. If no action is waiting and the finished run leaves an interrupt pending, drop the deferred A2UI action.
+  
+  Handle sequential runs in one response independently, stopping `isRunning` at each `RUN_FINISHED` unless a continuation is already owed, and settling the current run's subagent calls when the response ends without a finish event. Ignore a sequential run in full if its `RUN_STARTED` arrives after an action begins waiting for cleanup, while allowing an already accepted run to finish streaming. Clear `isRunning` when a deferred replay continuation cannot resume because its stored approval is invalid.
+- Updated dependencies [[`528bfe9`](https://github.com/assistant-ui/assistant-ui/commit/528bfe964f1306f7070fd4efe034873b5f1cfe45), [`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804), [`8f30cfc`](https://github.com/assistant-ui/assistant-ui/commit/8f30cfc76b6e1483cc390a293eafc4d8fffb2bcd), [`11afc02`](https://github.com/assistant-ui/assistant-ui/commit/11afc0276e87cc0834342d6fdeeaaf0595fccdbe), [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e), [`d9a7f68`](https://github.com/assistant-ui/assistant-ui/commit/d9a7f68b5a38fcc3f68b5acf127f71dd5b8a6837), [`cba4061`](https://github.com/assistant-ui/assistant-ui/commit/cba406112b09de49e99764b51a9d90a8ca952cc7), [`51b4613`](https://github.com/assistant-ui/assistant-ui/commit/51b46137424e8b1041bf7f5b27ab6a9e6fe87d26), [`8c67589`](https://github.com/assistant-ui/assistant-ui/commit/8c67589ca1b3ffac888c19e9a2759ee7c052ce4b), [`48b920e`](https://github.com/assistant-ui/assistant-ui/commit/48b920eebdfbbe169bd408782fd7f364e84e9621), [`b43be24`](https://github.com/assistant-ui/assistant-ui/commit/b43be2420a395ec193a01a8e85bf818c76a7cc90), [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524), [`72080a9`](https://github.com/assistant-ui/assistant-ui/commit/72080a9af34364a2a13d61ddda3623b9893c5b13), [`334bf5c`](https://github.com/assistant-ui/assistant-ui/commit/334bf5cfc2e86756bf1d6cb2001d11926c73dba4), [`0f49172`](https://github.com/assistant-ui/assistant-ui/commit/0f49172e1d7d7152e0665ddedb10f3b7f73e2425)]:
+  - @assistant-ui/core@0.3.37
+  - assistant-stream@0.3.58
+  - @assistant-ui/store@0.3.24
+  - @assistant-ui/generative-ui@0.0.12
+
 ## 0.1.10
 
 ### Patch Changes

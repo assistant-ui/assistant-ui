@@ -1,5 +1,15 @@
 # assistant-stream
 
+## 0.3.58
+
+### Patch Changes
+
+- [#10597](https://github.com/assistant-ui/assistant-ui/pull/10597) [`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804) - never run a frontend tool's `execute` for a tool call the backend owns. Tool-call parts gain `providerExecuted`: the tool invocation tracker, `ToolExecutionStream` and `unstable_runPendingTools` skip a call that carries it, even when the run ends before the backend's result arrives. UI message streams set it for provider-executed calls, the data stream format carries it from `addToolCallPart({ providerExecuted: true })` to the client, and `@assistant-ui/ai-sdk` sets it from the AI SDK part's `providerExecuted`. A dynamic tool call is marked only when its part carries `providerExecuted: true`, so otherwise it stays client-runnable as it is in the AI SDK. `@assistant-ui/react-langchain` holds a call while the graph is paused on an interrupt, and `@assistant-ui/eve` never hands a call to a frontend tool. ([@Yonom](https://github.com/Yonom))
+
+- [#10574](https://github.com/assistant-ui/assistant-ui/pull/10574) [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e) - assistant-stream: `UIMessageStreamDecoder` forwards a data part's wire `id` to `onData` when the chunk carries one, so an in-place update of a data part is distinguishable from a second part with the same payload. A chunk without an `id` keeps the previous callback shape. ([@egg119](https://github.com/egg119))
+  
+  react-data-stream: `useDataStreamRuntime({ onData })` receives that optional `id`.
+
 ## 0.3.57
 
 ### Patch Changes

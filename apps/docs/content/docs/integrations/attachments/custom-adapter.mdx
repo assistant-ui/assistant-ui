@@ -455,20 +455,34 @@ Vercel Blob uses client uploads with a server-issued token, not raw presigned PU
 
 ```ts title="app/api/upload/route.ts"
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { auth } from "@/auth";
 
 export async function POST(req: Request) {
   const body = (await req.json()) as HandleUploadBody;
-  const json = await handleUpload({
-    body,
-    request: req,
-    onBeforeGenerateToken: async () => ({
-      allowedContentTypes: ["image/*", "application/pdf"],
-    }),
-    onUploadCompleted: async () => {},
-  });
-  return Response.json(json);
+  try {
+    const json = await handleUpload({
+      body,
+      request: req,
+      onBeforeGenerateToken: async () => {
+        // Only signed-in users get an upload token.
+        const session = await auth();
+        if (!session?.user?.id) throw new Error("Not signed in");
+        return {
+          allowedContentTypes: ["image/*", "application/pdf"],
+          maximumSizeInBytes: 16 * 1024 * 1024,
+          tokenPayload: JSON.stringify({ userId: session.user.id }),
+        };
+      },
+      onUploadCompleted: async () => {},
+    });
+    return Response.json(json);
+  } catch {
+    return Response.json({ error: "Upload not allowed" }, { status: 400 });
+  }
 }
 ```
+
+Check the session in `onBeforeGenerateToken`, as the S3 route does. The check goes there, not at the top of `POST`: Vercel also calls this route to report a finished upload, and that call has no user session. Without it, anyone who can reach `/api/upload` can upload files to your store.
 
 In the adapter's `add`, call `upload(name, file, { access: "public", handleUploadUrl: "/api/upload" })` from `@vercel/blob/client` and use the returned `url` for `publicUrl`.
 
