@@ -2,6 +2,7 @@
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import { createSettleOutsideAct } from "@assistant-ui/x-react18/testing";
 import type { AssistantCloud, CloudMessage } from "assistant-cloud";
 import type { ChatTransport, UIMessage } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +11,8 @@ import {
   createStreamHarness,
 } from "./__tests__/controlled-transport";
 import { useChatRuntime } from "./useChatRuntime";
+
+const settleOutsideAct = createSettleOutsideAct(act, waitFor);
 
 const lease = {
   lease_id: "lease_1",
@@ -128,9 +131,10 @@ const openThread = async (
   await act(async () => {
     await harness.client().threads.getLoadThreadsPromise();
   });
-  await act(async () => {
-    await runtimeRef.current!.threads.switchToThread("remote-1");
-  });
+  // The switch settles once React renders the new main thread.
+  await settleOutsideAct(() =>
+    runtimeRef.current!.threads.switchToThread("remote-1"),
+  );
   await waitFor(() =>
     expect(harness.client().thread.getState().messages).toHaveLength(2),
   );

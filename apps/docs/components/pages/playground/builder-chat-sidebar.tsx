@@ -27,10 +27,11 @@ import {
 } from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
 import { createPlaygroundChatToolkit } from "@/lib/playground-chat-toolkit";
+import { useAnonymousDocsCloud } from "@/runtimes/chat-runtime";
 import type { PartialBuilderConfig } from "@/lib/playground-config-schema";
 import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
-import { applyDiff } from "@/lib/playground-config-codec";
+import { applyDiff, configIssue } from "@/lib/playground-config-codec";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 const PLAYGROUND_SUGGESTIONS = [
@@ -102,7 +103,11 @@ export function PlaygroundChatProvider({
           ? [configRef.current.customCSS, customCSS].filter(Boolean).join("\n")
           : "";
       }
+      // Keep the config shareable: an update the link format cannot hold is refused.
+      const issue = configIssue(merged);
+      if (issue) return issue;
       setConfig(merged);
+      return undefined;
     },
     [setConfig],
   );
@@ -154,7 +159,9 @@ function PlaygroundChatProviderInner({
   children,
 }: PlaygroundChatProviderInnerProps) {
   const aui = useAui();
+  const cloud = useAnonymousDocsCloud();
   const runtime = useChatRuntime({
+    ...(cloud ? { cloud } : {}),
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });

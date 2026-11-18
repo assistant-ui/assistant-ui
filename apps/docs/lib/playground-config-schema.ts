@@ -1,20 +1,59 @@
 import { z } from "zod";
 
+// Colors, lengths and font lists end up in generated TSX and CSS, so each
+// string is limited to the characters those values need.
+const colorString = z
+  .string()
+  .max(64)
+  .regex(/^[#\w(),.% /+-]*$/, "Invalid color");
+
+const lengthString = z
+  .string()
+  .max(40)
+  .regex(/^[\w.%()+*/ ,-]*$/, "Invalid length");
+
+const fontFamilyString = z
+  .string()
+  .max(200)
+  .regex(/^[\w ,'".-]*$/, "Invalid font family");
+
+export const LOADING_TEXT_MAX_LENGTH = 80;
+export const CUSTOM_CSS_MAX_LENGTH = 20_000;
+
+// Lone surrogates encode to 6 bytes in JSON, so no string field accepts them.
+const LONE_SURROGATE =
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+
+// oxlint-disable-next-line no-control-regex -- matches control characters
+const LOADING_TEXT_DISALLOWED = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
+
+/** Drops what `loadingText` does not accept, for inputs that edit it. */
+export const toLoadingText = (value: string) =>
+  value
+    .replace(LOADING_TEXT_DISALLOWED, "")
+    .slice(0, LOADING_TEXT_MAX_LENGTH)
+    .replace(LONE_SURROGATE, "");
+
+const labelString = z
+  .string()
+  .max(LOADING_TEXT_MAX_LENGTH)
+  .refine((value) => toLoadingText(value) === value, "Invalid text");
+
 const themeColorSchema = z
-  .object({
-    light: z.string().optional(),
-    dark: z.string().optional(),
+  .strictObject({
+    light: colorString.optional(),
+    dark: colorString.optional(),
   })
   .optional();
 
-export const updateConfigSchema = z.object({
+export const updateConfigSchema = z.strictObject({
   components: z
-    .object({
+    .strictObject({
       attachments: z.boolean().optional(),
       branchPicker: z.boolean().optional(),
       editMessage: z.boolean().optional(),
       actionBar: z
-        .object({
+        .strictObject({
           copy: z.boolean().optional(),
           reload: z.boolean().optional(),
           speak: z.boolean().optional(),
@@ -41,14 +80,14 @@ export const updateConfigSchema = z.object({
       avatar: z.boolean().optional(),
       typingIndicator: z.enum(["none", "dot"]).optional(),
       loadingIndicator: z.enum(["none", "spinner", "text"]).optional(),
-      loadingText: z.string().optional(),
+      loadingText: labelString.optional(),
     })
     .optional(),
   styles: z
-    .object({
+    .strictObject({
       theme: z.enum(["light", "dark", "system"]).optional(),
       colors: z
-        .object({
+        .strictObject({
           accent: themeColorSchema,
           background: themeColorSchema,
           foreground: themeColorSchema,
@@ -65,47 +104,28 @@ export const updateConfigSchema = z.object({
         })
         .optional(),
       borderRadius: z.enum(["none", "sm", "md", "lg", "full"]).optional(),
-      maxWidth: z.string().optional(),
-      fontFamily: z.string().optional(),
+      maxWidth: lengthString.optional(),
+      fontFamily: fontFamilyString.optional(),
       fontSize: z.enum(["13px", "14px", "15px", "16px"]).optional(),
       messageSpacing: z.enum(["compact", "comfortable", "spacious"]).optional(),
       userMessagePosition: z.enum(["right", "left"]).optional(),
       animations: z.boolean().optional(),
     })
     .optional(),
-  customCSS: z.string().optional(),
+  customCSS: z
+    .string()
+    .max(CUSTOM_CSS_MAX_LENGTH)
+    // Of the control characters only tab and line breaks, and no lone
+    // surrogates, so each UTF-16 code unit `max` counts encodes to at most
+    // 3 bytes and the config stays under the link limit.
+    .refine(
+      (value) =>
+        // oxlint-disable-next-line no-control-regex -- rejects control characters
+        !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(value) &&
+        !new RegExp(LONE_SURROGATE.source).test(value),
+      "Invalid CSS",
+    )
+    .optional(),
 });
-
-export const registryConfigSchema = updateConfigSchema.superRefine(
-  (config, ctx) => {
-    if (config.components?.loadingText?.match(/[<{}]/)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["components", "loadingText"],
-        message: "Invalid loading text",
-      });
-    }
-    for (const [name, color] of Object.entries(config.styles?.colors ?? {})) {
-      for (const mode of ["light", "dark"] as const) {
-        if (color?.[mode]?.match(/[;{}<>\\\r\n]|\/\*/)) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["styles", "colors", name, mode],
-            message: `Invalid ${name} color`,
-          });
-        }
-      }
-    }
-    for (const key of ["fontFamily", "maxWidth"] as const) {
-      if (config.styles?.[key]?.match(/["\\\r\n]/)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["styles", key],
-          message: `Invalid ${key}`,
-        });
-      }
-    }
-  },
-);
 
 export type PartialBuilderConfig = z.infer<typeof updateConfigSchema>;

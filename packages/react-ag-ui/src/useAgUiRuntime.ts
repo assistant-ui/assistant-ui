@@ -336,6 +336,10 @@ export function useAgUiRuntime(
           setState: (next) => core.setState(next),
         }),
         unstable_enableToolInvocations: true,
+        unstable_isClientToolCall: (toolCall) =>
+          core.isToolCallNamedByInterrupt(toolCall.toolCallId)
+            ? false
+            : undefined,
         unstable_persistsHistory: true,
         setToolStatuses,
         onNew: (message: AppendMessage) =>

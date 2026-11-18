@@ -1,6 +1,7 @@
 import { defineComponent, h, mergeProps, type SlotsType } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { composerInputDisabled } from "@assistant-ui/core/store/internal";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
@@ -45,12 +46,7 @@ export const ComposerPrimitiveInput = defineComponent({
     };
     const onKeydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !props.submitOnEnter) return;
-      if (
-        event.key !== "Enter" ||
-        event.shiftKey ||
-        event.isComposing ||
-        event.keyCode === 229
-      )
+      if (event.key !== "Enter" || event.shiftKey || isCompositionKey(event))
         return;
       if (disabled.value || threadDisabled.value || isAttrDisabled(attrs))
         return;

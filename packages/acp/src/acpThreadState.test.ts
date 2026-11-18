@@ -490,6 +490,7 @@ describe("reduceAcpThreadState", () => {
         { id: "allow", kind: "allow-once", label: "Allow" },
         { id: "reject", kind: "reject-once", label: "Reject" },
       ],
+      subject: expect.any(String),
     });
     const part = message.content[0] as { approval?: { id: string } };
     expect(part.approval?.id).toBe("p1");
@@ -513,6 +514,74 @@ describe("reduceAcpThreadState", () => {
       type: "tool-call",
       approval: { id: "p1", approved: true, optionId: "allow" },
     });
+  });
+
+  it("shows the permission request's own copy of an existing call", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "Run ls",
+        rawInput: { command: "ls" },
+      }),
+    );
+    state = reduceAcpThreadState(state, {
+      type: "permission-request",
+      approvalId: "p1",
+      request: {
+        sessionId: "s1",
+        toolCall: {
+          toolCallId: "t1",
+          title: "Run rm",
+          rawInput: { command: "rm -rf build" },
+        },
+        options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+      } satisfies AcpPermissionRequest,
+    });
+
+    expect(toolPartOf(state)).toMatchObject({
+      args: { command: "rm -rf build" },
+      approval: { id: "p1" },
+    });
+  });
+
+  it("withdraws a pending permission when the call's arguments change", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(state, permissionRequest("p1"));
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        rawInput: { path: "/etc/passwd" },
+      }),
+    );
+
+    expect(state.permissions).toEqual({});
+    expect(toolPartOf(state)).toMatchObject({
+      args: { path: "/etc/passwd" },
+      approval: { id: "p1", resolution: "cancelled" },
+    });
+    expect(toolPartOf(state)?.approval?.approved).toBeUndefined();
+    const message = state.messagesById["a1"] as AcpAssistantMessage;
+    expect(message.status).toEqual({ type: "running" });
+  });
+
+  it("keeps a pending permission when only the call's status changes", () => {
+    let state = running(createAcpThreadState());
+    state = reduceAcpThreadState(state, permissionRequest("p1"));
+    state = reduceAcpThreadState(
+      state,
+      update({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        status: "in_progress",
+      }),
+    );
+
+    expect(Object.keys(state.permissions)).toEqual(["p1"]);
   });
 
   it("cancels outstanding permissions on permissions-cancelled", () => {

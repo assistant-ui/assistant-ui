@@ -41,6 +41,7 @@ const call = (
   const request: NotesRequest = {
     method,
     path,
+    remoteAddress: "127.0.0.1",
     header: (name) => all[name.toLowerCase()] ?? null,
     json: async () => body,
   };

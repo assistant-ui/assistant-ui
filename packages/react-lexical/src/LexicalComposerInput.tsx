@@ -29,8 +29,10 @@ import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import {
   INTERNAL,
+  type Unstable_TriggerPopoverAriaProps,
   unstable_useComposerRunStartFocusGuard,
   unstable_useTriggerPopoverAriaProps,
 } from "@assistant-ui/react";
@@ -104,7 +106,7 @@ function KeyboardPlugin({
         KEY_ENTER_COMMAND,
         (event) => {
           if (!event) return false;
-          if (event.isComposing || event.keyCode === 229) return false;
+          if (isCompositionKey(event)) return false;
           if (event.shiftKey) return false;
 
           // Let registered plugins (mention, slash command, etc.) handle Enter first
@@ -284,8 +286,11 @@ export const LexicalComposerInput = forwardRef<
     );
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
-    const { "aria-expanded": _, ...popoverAria } =
-      unstable_useTriggerPopoverAriaProps();
+    // Older @assistant-ui/react peers may still emit aria-expanded.
+    const { "aria-expanded": _, ...ariaProps } =
+      unstable_useTriggerPopoverAriaProps() as Unstable_TriggerPopoverAriaProps & {
+        "aria-expanded"?: boolean;
+      };
 
     // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
@@ -321,7 +326,7 @@ export const LexicalComposerInput = forwardRef<
                     "aria-placeholder": placeholder,
                   }
                 : {})}
-              {...popoverAria}
+              {...ariaProps}
             />
             <SyncPlugin formatter={resolvedFormatter} />
             <DirectivePlugin {...directivePluginProps} />

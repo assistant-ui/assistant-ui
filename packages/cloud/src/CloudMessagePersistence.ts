@@ -10,6 +10,26 @@ import type { CloudRunEndReason } from "./AssistantCloudThreadRuns";
 
 const CLOUD_MESSAGE_PAGE_SIZE = 200;
 
+/**
+ * The `after` cursor for the page after `page`, or undefined at the end. A
+ * server that sends `has_more` is followed by it, since a page can end before
+ * its `limit` when its messages are large; an older one ends at a short page.
+ */
+const nextMessagePageCursor = (
+  page: {
+    messages: readonly { id: string }[];
+    has_more?: boolean;
+    next_cursor?: string | null;
+  },
+  limit: number,
+): string | undefined => {
+  const last = page.messages.at(-1)?.id;
+  if (page.has_more !== undefined) {
+    return page.has_more ? (page.next_cursor ?? last) : undefined;
+  }
+  return page.messages.length >= limit ? last : undefined;
+};
+
 /** How a write relates to the message's run: `running` opens or renews its lease, a reason ends it. */
 export type CloudMessageRunPhase = "running" | CloudRunEndReason;
 
@@ -518,7 +538,9 @@ export class CloudMessagePersistence {
    * Load messages from the cloud and populate the ID mapping.
    *
    * The list endpoint caps a response at 200 rows, so pages are followed by
-   * message ID cursor until a short page and concatenated in server order.
+   * message ID cursor and concatenated in server order. A server that sends
+   * `has_more` is followed while it is true, using `next_cursor` as the next
+   * cursor; an older one ends at a short page.
    *
    * The ID mapping is populated so that `isPersisted()` returns true for
    * loaded messages, preventing re-persistence of already-stored messages.
@@ -542,18 +564,16 @@ export class CloudMessagePersistence {
         limit: CLOUD_MESSAGE_PAGE_SIZE,
         ...(after ? { after } : undefined),
       });
-      const last = page.messages.at(-1);
-      if (!last) break;
-
       // A cursor the server cannot resolve drops the keyset filter and replays
       // an earlier page, so already-seen rows end the walk instead of repeating.
       const fresh = page.messages.filter((m) => !seen.has(m.id));
-      if (fresh.length === 0) break;
+      if (page.messages.length > 0 && fresh.length === 0) break;
       for (const m of fresh) seen.add(m.id);
-
       messages.push(...fresh);
-      if (page.messages.length < CLOUD_MESSAGE_PAGE_SIZE) break;
-      after = last.id;
+
+      const next = nextMessagePageCursor(page, CLOUD_MESSAGE_PAGE_SIZE);
+      if (next === undefined || next === after) break;
+      after = next;
     }
 
     if (this.idMapping === idMapping) {

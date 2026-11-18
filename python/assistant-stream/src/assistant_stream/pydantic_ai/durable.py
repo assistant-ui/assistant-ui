@@ -14,6 +14,7 @@ middleware or wrap responses, call the building blocks `start_run`,
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import inspect
 import logging
 import math
@@ -52,6 +53,7 @@ from assistant_stream.resumable import (
     ResumableStreamRole,
     create_in_memory_resumable_stream_store,
     create_resumable_stream_context,
+    validate_stream_id,
 )
 from assistant_stream.serialization.heartbeat import add_keepalive
 
@@ -215,7 +217,13 @@ class DurableAGUI(Generic[AgentDepsT]):
         if previous is not None and previous.owner != owner:
             return _not_found()
 
-        stream_id = _stream_id(thread_id, run_id)
+        # The ids follow the stream store's rules with or without an owner,
+        # though an owned stream id is a digest of them.
+        try:
+            validate_stream_id(_stream_id(thread_id, run_id))
+        except ResumableStreamError:
+            return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
+        stream_id = _stream_id(thread_id, run_id, owner)
         status = await self._safe_status(stream_id)
         if status is None:
             return JSONResponse({"error": "invalid thread or run id"}, status_code=400)
@@ -247,8 +255,9 @@ class DurableAGUI(Generic[AgentDepsT]):
 
         def track_producer(task: asyncio.Task[None]) -> None:
             nonlocal producer_task
-            producer_task = task
-            task.add_done_callback(lambda _: producer_started.set())
+            if producer_task is None:
+                producer_task = task
+                task.add_done_callback(lambda _: producer_started.set())
             if wait_until is not None:
                 wait_until(task)
 
@@ -346,24 +355,43 @@ class DurableAGUI(Generic[AgentDepsT]):
                     running=True,
                     owner=owner,
                 )
+                await producer_started.wait()
+                previous = await self.threads.get(thread_id)
+                claimed = False
                 while not (
                     settled or (producer_task is not None and producer_task.done())
                 ):
+                    if previous is not None and previous.owner != owner:
+                        token.cancel()
+                        ready.set_result(None)
+                        return _not_found()
                     if await self.threads.put_if_stream(
                         thread_id,
                         record,
                         expected=previous.stream_id if previous is not None else None,
                     ):
+                        claimed = True
                         break
                     previous = await self.threads.get(thread_id)
-                    if previous is not None and previous.owner != owner:
-                        token.cancel()
-                        ready.set_result(None)
-                        return _not_found()
-                await producer_started.wait()
                 if settled or (producer_task is not None and producer_task.done()):
                     self._tokens.pop(stream_id, None)
                     await settle([])
+                    if not claimed:
+                        if previous is None or (
+                            previous.owner == owner
+                            and not await self._is_running(previous)
+                        ):
+                            await self.threads.put_if_stream(
+                                thread_id,
+                                replace(record, running=False),
+                                expected=previous.stream_id
+                                if previous is not None
+                                else None,
+                            )
+                    elif previous is not None and await self._is_running(previous):
+                        await self.threads.put_if_stream(
+                            thread_id, previous, expected=stream_id
+                        )
                 elif previous is not None and previous.running and previous.stream_id:
                     self._cancel_local(previous.stream_id)
                 if not ready.done():
@@ -594,9 +622,17 @@ async def _stop(task: asyncio.Task[None]) -> None:
     await asyncio.wait({task})
 
 
-def _stream_id(thread_id: str, run_id: str) -> str:
+def _stream_id(thread_id: str, run_id: str, owner: str | None = None) -> str:
     # The length prefix keeps the id unambiguous when either part contains ".".
-    return f"{len(thread_id)}-{thread_id}.{run_id}"
+    stream_id = f"{len(thread_id)}-{thread_id}.{run_id}"
+    if owner is None:
+        return stream_id
+    # Two owners starting the same new thread and run at once each get their
+    # own stream, so neither can read the other's run; the store then keeps
+    # one of them and the other is refused. A digest keeps the id within the
+    # stream store's length limit.
+    digest = hashlib.sha256(f"{len(owner)}:{owner}:{stream_id}".encode())
+    return f"o-{digest.hexdigest()}"
 
 
 def _not_found() -> Response:

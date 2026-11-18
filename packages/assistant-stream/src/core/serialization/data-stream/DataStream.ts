@@ -97,6 +97,7 @@ const VALUE_RULES: Record<DataStreamStreamChunkType, ValueRule> = {
   [DataStreamStreamChunkType.StartToolCall]: objectWith({
     toolCallId: isString,
     toolName: isString,
+    providerExecuted: optional(isBoolean),
     parentId: optional(isString),
   }),
   [DataStreamStreamChunkType.ToolCallArgsTextDelta]: objectWith({
@@ -561,7 +562,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
 
             case DataStreamStreamChunkType.StartToolCall: {
-              const { toolCallId, toolName, parentId } = value;
+              const { toolCallId, toolName, providerExecuted, parentId } =
+                value;
               const ctrl = parentId
                 ? controller.withParentId(parentId)
                 : controller;
@@ -582,6 +584,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ctrl.addToolCallPart({
                   toolCallId,
                   toolName,
+                  ...(providerExecuted && { providerExecuted: true }),
                 }),
               );
               break;

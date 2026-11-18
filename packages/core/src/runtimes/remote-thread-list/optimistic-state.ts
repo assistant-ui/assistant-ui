@@ -1,5 +1,7 @@
 import { BaseSubscribable } from "../../subscribable/subscribable";
 
+type OrderSlot = { current: number };
+
 type Transform<TState, TResult> = {
   execute: () => Promise<TResult>;
 
@@ -14,12 +16,12 @@ type Transform<TState, TResult> = {
 };
 
 type PendingTransform<TState, TResult> = Transform<TState, TResult> & {
-  order: number;
+  order: OrderSlot;
   task: Promise<TResult>;
 };
 
 type CompletedOptimistic<TState> = {
-  order: number;
+  order: OrderSlot;
   optimistic: (state: TState) => TState;
 };
 
@@ -45,9 +47,10 @@ export class OptimisticState<TState> extends BaseSubscribable {
    * them. `update()` must
    * be given a state that already contains the completed effects, such as one
    * derived from `baseValue`. While transforms are pending, callbacks apply
-   * in invocation order. A transform that settles with `then` has every
-   * completed callback replayed over its result, so an earlier-invoked update
-   * can win over it.
+   * in registration order, unless `reorder` moved a group of orders to follow
+   * a merged mutation queue. A transform that settles with `then` has every
+   * completed callback replayed over its result, so an earlier update can win
+   * over it.
    *
    * Correctness requirement: `optimistic` callbacks must be idempotent.
    */
@@ -80,7 +83,7 @@ export class OptimisticState<TState> extends BaseSubscribable {
         order,
         apply: optimistic,
       })),
-    ].sort((a, b) => a.order - b.order);
+    ].sort((a, b) => a.order.current - b.order.current);
 
     this._cachedValue = activeTransforms.reduce(
       (state, transform) => transform.apply(state),
@@ -113,11 +116,23 @@ export class OptimisticState<TState> extends BaseSubscribable {
     this._notifySubscribers();
   }
 
+  /**
+   * Moves the given registered orders after every transform registered so
+   * far, in the given order. It recomputes nothing, so call it from a
+   * transform's `then`; the new order applies when that transform settles.
+   */
+  public reorder(orders: readonly OrderSlot[]): void {
+    for (const order of orders) {
+      if (order.current >= 0) order.current = this._nextTransformOrder++;
+    }
+  }
+
   public async optimisticUpdate<TResult>(
     transform: Transform<TState, TResult>,
+    order: OrderSlot = { current: -1 },
   ): Promise<TResult> {
     const epoch = this._epoch;
-    const order = this._nextTransformOrder++;
+    order.current = this._nextTransformOrder++;
     const task = transform.execute();
     const pendingTransform = {
       ...transform,
@@ -137,8 +152,15 @@ export class OptimisticState<TState> extends BaseSubscribable {
 
       // `then` can replace state with a stale snapshot, so replay every
       // completed effect; otherwise replay only newer overlapping effects.
+      // `reorder` can move orders after their effects completed.
+      this._completedOptimistics.sort(
+        (a, b) => a.order.current - b.order.current,
+      );
       for (const completed of this._completedOptimistics) {
-        if (transform.then || completed.order > pendingTransform.order) {
+        if (
+          transform.then ||
+          completed.order.current > pendingTransform.order.current
+        ) {
           this._baseValue = completed.optimistic(this._baseValue);
         }
       }
@@ -148,7 +170,9 @@ export class OptimisticState<TState> extends BaseSubscribable {
           order: pendingTransform.order,
           optimistic: transform.optimistic,
         });
-        this._completedOptimistics.sort((a, b) => a.order - b.order);
+        this._completedOptimistics.sort(
+          (a, b) => a.order.current - b.order.current,
+        );
       }
 
       return result;

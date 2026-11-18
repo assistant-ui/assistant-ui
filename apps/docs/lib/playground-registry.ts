@@ -129,7 +129,10 @@ ${internalImports}`;
   const messageGapClass = MESSAGE_GAP_CLASS[styles.messageSpacing] ?? "gap-y-6";
   const theme = generateThemeClasses(styles);
   const styleVars = Object.entries(generateThreadStyleVars(styles))
-    .map(([name, value]) => `\n        ["${name}" as string]: "${value}",`)
+    .map(
+      ([name, value]) =>
+        `\n        [${JSON.stringify(name)} as string]: ${JSON.stringify(value)},`,
+    )
     .join("");
 
   const threadComponent = `
@@ -139,7 +142,7 @@ export function Thread() {
   return (
     <ThreadPrimitive.Root
       className="flex h-full flex-col bg-background text-foreground ${fontSizeClass}"
-      style={{${styleVars}${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
+      style={{${styleVars}${styles.fontFamily !== "system-ui" ? `\n        fontFamily: ${JSON.stringify(styles.fontFamily)},` : ""}
       }}
     >
       <ThreadPrimitive.Viewport
@@ -588,7 +591,7 @@ function generateAssistantMessageComponent(
             <LoaderIcon className="size-4 animate-spin" />${
               components.loadingIndicator === "text"
                 ? `
-            <span className="text-sm">${components.loadingText}</span>`
+            <span className="text-sm">{${JSON.stringify(components.loadingText)}}</span>`
                 : ""
             }
           </div>

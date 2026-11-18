@@ -83,9 +83,13 @@ const RESOLVED_PROMISE = Promise.resolve();
 
 const EMPTY_LIST = createEmptyRemoteThreadState();
 
+const adapterStoreIdentity = (
+  adapter: RemoteThreadListAdapter,
+): string | RemoteThreadListAdapter => adapter.storeKey ?? adapter;
+
 export type RemoteThreadListProps = {
   /**
-   * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. A recreated object for the same store is a no-op. `reload()` after a different adapter instance resets selection and cached records before loading.
+   * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. Adapters with the same `storeKey` share optimistic state and in-flight mutations; without `storeKey`, a new object is a different store. `reload()` after a different store identity resets selection and cached records before loading.
    */
   adapter: RemoteThreadListAdapter;
   /**
@@ -105,9 +109,12 @@ export type RemoteThreadListProps = {
    * Keeps every thread the session switched to mounted, so a run continues
    * after the user switches away, per-item `isRunning` reflects background
    * runs, and a freshly initialized thread generates its title automatically.
-   * A body unmounts on delete, detach, or an adapter replacement (`reload()`
-   * after swapping the adapter); visited threads otherwise stay mounted for
-   * the client's lifetime. Each body reads its own thread through the ambient
+   * A body unmounts on delete, detach, or a store change (`reload()` after
+   * the adapter moves to a different `storeKey`, or to a different object when
+   * no `storeKey` is set). A store change releases every body, except on the
+   * hosted `__internal_ensureThread` path, where it releases only threads the
+   * replacement list no longer contains. Visited threads otherwise stay mounted
+   * for the client's lifetime. Each body reads its own thread through the ambient
    * `threadListItem` scope, and `unstable_useAdapters` runs once per mounted
    * body. Off (the default), only the visible thread is mounted and a switch
    * unmounts it. The mode is fixed at mount.
@@ -610,6 +617,7 @@ const useRemoteThreadList = (
       session: {
         adapter,
         adapterAtLoad: adapter,
+        storeIdentityAtLoad: adapterStoreIdentity(adapter),
         adapterGeneration: 0,
         titleStates: new Map<string, ThreadTitleState>(),
         mutations: new ThreadMutationQueue(),
@@ -727,6 +735,7 @@ const useRemoteThreadList = (
     const replaceList = session.replaceListPending;
     const generation = session.loadGeneration;
     const adapter = session.adapter;
+    const storeIdentity = adapterStoreIdentity(adapter);
     const statusAtRequest = statusSnapshot(store.baseValue);
     const applyPage = (
       state: RemoteThreadState,
@@ -793,6 +802,7 @@ const useRemoteThreadList = (
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           session.adapterAtLoad = adapter;
+          session.storeIdentityAtLoad = storeIdentity;
           session.replaceListPending = false;
           return applyPage(state, page);
         },
@@ -815,7 +825,11 @@ const useRemoteThreadList = (
   }, [assignMainThreadId, lifetimes, notifyRemoteId, session, store]);
 
   const reload = useCallback(() => {
-    const adapterChanged = adapter !== session.adapterAtLoad;
+    const storeIdentity = adapterStoreIdentity(adapter);
+    const adapterChanged = !Object.is(
+      storeIdentity,
+      session.storeIdentityAtLoad,
+    );
     session.loadGeneration++;
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;
@@ -848,6 +862,7 @@ const useRemoteThreadList = (
       session.pendingSwitchGeneration = undefined;
       session.pendingEnsures.clear();
       session.adapterAtLoad = adapter;
+      session.storeIdentityAtLoad = storeIdentity;
       if (ensureThread) {
         store.reset({
           ...store.baseValue,
@@ -1134,20 +1149,23 @@ const useRemoteThreadList = (
             const mutation = session.mutations.reserve(targetId);
             const currentAdapter = session.adapter;
             const adapterGeneration = session.adapterGeneration;
-            await store.optimisticUpdate({
-              execute: () =>
-                mutation.run(async () => {
-                  requireAdapterGeneration(adapterGeneration);
-                  if (!currentAdapter.unarchive) {
-                    throw new Error(
-                      "Remote thread list adapter does not support unarchiving",
-                    );
-                  }
-                  return currentAdapter.unarchive(remoteId);
-                }),
-              optimistic: (state) =>
-                updateStatusReducer(state, targetId, "regular"),
-            });
+            await store.optimisticUpdate(
+              {
+                execute: () =>
+                  mutation.run(async () => {
+                    requireAdapterGeneration(adapterGeneration);
+                    if (!currentAdapter.unarchive) {
+                      throw new Error(
+                        "Remote thread list adapter does not support unarchiving",
+                      );
+                    }
+                    return currentAdapter.unarchive(remoteId);
+                  }),
+                optimistic: (state) =>
+                  updateStatusReducer(state, targetId, "regular"),
+              },
+              mutation.optimisticOrder,
+            );
             if (generation !== session.switchGeneration) return;
             current = getThreadData(store.value, targetId);
             if (current?.id !== targetId) return;
@@ -1489,10 +1507,11 @@ const useRemoteThreadList = (
           );
           removedMappingId = reconciliation.removedMappingId;
           if (removedMappingId !== undefined) {
-            session.mutations.merge(
+            const orders = session.mutations.merge(
               reconciliation.survivorMappingId,
               removedMappingId,
             );
+            if (orders) store.reorder(orders);
           }
           if (removedMappingId === session.mainThreadId) {
             replacementMainThreadId = reconciliation.survivorMappingId;
@@ -1563,28 +1582,31 @@ const useRemoteThreadList = (
       );
       const mutation = session.mutations.reserve(data.id, data);
       return store
-        .optimisticUpdate({
-          execute: () =>
-            mutation.run(async () => {
-              const { remoteId } = await data.initializeTask;
-              requireAdapterGeneration(adapterGeneration);
-              return currentAdapter.rename(remoteId, newTitle);
-            }),
-          optimistic: (state) => {
-            const current = getThreadData(state, threadIdOrRemoteId);
-            if (!current) return state;
-            return {
-              ...state,
-              threadData: {
-                ...state.threadData,
-                [current.id]: {
-                  ...current,
-                  title: newTitle,
+        .optimisticUpdate(
+          {
+            execute: () =>
+              mutation.run(async () => {
+                const { remoteId } = await data.initializeTask;
+                requireAdapterGeneration(adapterGeneration);
+                return currentAdapter.rename(remoteId, newTitle);
+              }),
+            optimistic: (state) => {
+              const current = getThreadData(state, threadIdOrRemoteId);
+              if (!current) return state;
+              return {
+                ...state,
+                threadData: {
+                  ...state.threadData,
+                  [current.id]: {
+                    ...current,
+                    title: newTitle,
+                  },
                 },
-              },
-            };
+              };
+            },
           },
-        })
+          mutation.optimisticOrder,
+        )
         .then(
           (result) => {
             finishThreadTitleRename(session.titleStates, data.id, claim, true);
@@ -1638,20 +1660,23 @@ const useRemoteThreadList = (
         );
       }
       const mutation = session.mutations.reserve(data.id, data);
-      return store.optimisticUpdate({
-        execute: () =>
-          mutation.run(async () => {
-            const { remoteId } = await data.initializeTask;
-            requireAdapterGeneration(adapterGeneration);
-            if (!currentAdapter.updateCustom) {
-              throw new Error(
-                "Remote thread list adapter does not support updating custom metadata",
-              );
-            }
-            return currentAdapter.updateCustom(remoteId, custom);
-          }),
-        optimistic: applyCustom,
-      });
+      return store.optimisticUpdate(
+        {
+          execute: () =>
+            mutation.run(async () => {
+              const { remoteId } = await data.initializeTask;
+              requireAdapterGeneration(adapterGeneration);
+              if (!currentAdapter.updateCustom) {
+                throw new Error(
+                  "Remote thread list adapter does not support updating custom metadata",
+                );
+              }
+              return currentAdapter.updateCustom(remoteId, custom);
+            }),
+          optimistic: applyCustom,
+        },
+        mutation.optimisticOrder,
+      );
     },
     [requireAdapterGeneration, session, store],
   );
@@ -1680,20 +1705,23 @@ const useRemoteThreadList = (
         store.update(store.baseValue);
       })();
       try {
-        await store.optimisticUpdate({
-          execute: async () => {
-            await ensureThreadIsNotMain;
-            return mutation.run(async () => {
-              const { remoteId } = await data.initializeTask;
-              requireAdapterGeneration(adapterGeneration);
-              return currentAdapter.archive(remoteId);
-            });
+        await store.optimisticUpdate(
+          {
+            execute: async () => {
+              await ensureThreadIsNotMain;
+              return mutation.run(async () => {
+                const { remoteId } = await data.initializeTask;
+                requireAdapterGeneration(adapterGeneration);
+                return currentAdapter.archive(remoteId);
+              });
+            },
+            optimistic: (state) =>
+              canApplyOptimisticUpdate
+                ? updateStatusReducer(state, data.id, "archived")
+                : state,
           },
-          optimistic: (state) =>
-            canApplyOptimisticUpdate
-              ? updateStatusReducer(state, data.id, "archived")
-              : state,
-        });
+          mutation.optimisticOrder,
+        );
       } finally {
         mutation.cancel();
       }
@@ -1732,27 +1760,30 @@ const useRemoteThreadList = (
         );
       }
       const mutation = session.mutations.reserve(data.id, data);
-      return store.optimisticUpdate({
-        execute: () =>
-          mutation.run(async () => {
-            try {
-              const { remoteId } = await data.initializeTask;
-              requireAdapterGeneration(adapterGeneration);
-              if (!currentAdapter.unarchive) {
-                throw new Error(
-                  "Remote thread list adapter does not support unarchiving",
-                );
+      return store.optimisticUpdate(
+        {
+          execute: () =>
+            mutation.run(async () => {
+              try {
+                const { remoteId } = await data.initializeTask;
+                requireAdapterGeneration(adapterGeneration);
+                if (!currentAdapter.unarchive) {
+                  throw new Error(
+                    "Remote thread list adapter does not support unarchiving",
+                  );
+                }
+                return await currentAdapter.unarchive(remoteId);
+              } catch (error) {
+                if (adapterGeneration === session.adapterGeneration) {
+                  await ensureNotMain(data.id);
+                }
+                throw error;
               }
-              return await currentAdapter.unarchive(remoteId);
-            } catch (error) {
-              if (adapterGeneration === session.adapterGeneration) {
-                await ensureNotMain(data.id);
-              }
-              throw error;
-            }
-          }),
-        optimistic: (state) => updateStatusReducer(state, data.id, "regular"),
-      });
+            }),
+          optimistic: (state) => updateStatusReducer(state, data.id, "regular"),
+        },
+        mutation.optimisticOrder,
+      );
     },
     [ensureNotMain, requireAdapterGeneration, session, store],
   );
@@ -1783,20 +1814,23 @@ const useRemoteThreadList = (
         store.update(store.baseValue);
       })();
       try {
-        result = await store.optimisticUpdate({
-          execute: async () => {
-            await ensureThreadIsNotMain;
-            return mutation.run(async () => {
-              ({ remoteId } = await data.initializeTask);
-              requireAdapterGeneration(adapterGeneration);
-              return currentAdapter.delete(remoteId);
-            });
+        result = await store.optimisticUpdate(
+          {
+            execute: async () => {
+              await ensureThreadIsNotMain;
+              return mutation.run(async () => {
+                ({ remoteId } = await data.initializeTask);
+                requireAdapterGeneration(adapterGeneration);
+                return currentAdapter.delete(remoteId);
+              });
+            },
+            optimistic: (state) =>
+              canApplyOptimisticUpdate
+                ? deleteThreadReducer(state, data.id, remoteId)
+                : state,
           },
-          optimistic: (state) =>
-            canApplyOptimisticUpdate
-              ? deleteThreadReducer(state, data.id, remoteId)
-              : state,
-        });
+          mutation.optimisticOrder,
+        );
       } finally {
         mutation.cancel();
       }

@@ -1,12 +1,15 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 import { react18Specifier } from "./resolve.mjs";
 
 const requireReact18 = createRequire(
   new URL("../package.json", import.meta.url),
 );
+
+// node --import takes a URL or a bare specifier, so hand it the hooks module as a file URL: a
+// platform path from fileURLToPath only parses on POSIX, and Windows reads "D:\..." as the "d:" scheme.
+const hooksImportSpecifier = new URL("./hooks.mjs", import.meta.url).href;
 
 export function react18({ root = process.cwd() } = {}) {
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -40,10 +43,7 @@ export function react18({ root = process.cwd() } = {}) {
       },
     ],
     test: {
-      execArgv: [
-        "--import",
-        fileURLToPath(new URL("./hooks.mjs", import.meta.url)),
-      ],
+      execArgv: ["--import", hooksImportSpecifier],
     },
   };
 }

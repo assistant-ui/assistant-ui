@@ -121,6 +121,9 @@ const Inline: FC<{ node: InlineNode; components: MarkdownComponents }> = ({
       case "mathInline":
         return <Text style={styles.monospace}>{node.value}</Text>;
       case "link":
+        // `Linking.openURL` also opens `tel:`, `sms:` and app deep links, so
+        // a link with any other scheme renders as plain text.
+        if (!/^(https?|mailto):/i.test(node.url)) return children;
         return (
           <Text
             accessibilityRole="link"

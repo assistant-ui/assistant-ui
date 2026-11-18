@@ -63,4 +63,37 @@ describe("generativeLoader", () => {
       expect(result).toContain(`/app/tool.ts?generative-env=${target}`);
     },
   );
+
+  it.each([
+    ['"use client";\n"use generative";\nexport default {};', ""],
+    ['import x from "x";\n"use generative";\nexport default x;', ""],
+    [
+      '"use client";\n"use generative";\nexport default {};',
+      "?generative-env=client",
+    ],
+  ])(
+    "fails the build when the directive is not the first statement",
+    async (source, query) => {
+      await expect(
+        new Promise<string>((resolve, reject) => {
+          generativeLoader.call(
+            {
+              resourcePath: "/app/tool.ts",
+              resourceQuery: query,
+              getOptions: () => undefined,
+              async: () => (error, code) =>
+                error ? reject(error) : resolve(code ?? ""),
+            },
+            source,
+          );
+        }),
+      ).rejects.toThrow(/must be the first statement/);
+    },
+  );
+
+  it("passes through a module that only mentions the directive", async () => {
+    const source =
+      'const DIRECTIVE = "use generative";\n// "use generative"\nexport default DIRECTIVE;';
+    expect(await runLoader("/app/tool.ts", source)).toBe(source);
+  });
 });

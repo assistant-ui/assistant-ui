@@ -27,6 +27,7 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
       title body isDraft state headRefOid baseRefOid createdAt updatedAt
+      changedFiles
       author { login __typename }
       labels(first: 100) { nodes { name } }
       labeledEvents: timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
@@ -134,6 +135,8 @@ const changedFile = (file) => ({
   previousPath: file.previous_filename ?? null,
   patch: file.patch ?? null,
 });
+
+const packageManifest = /^packages\/[^/]+\/package\.json$/;
 
 // GitHub's compare response lists at most 300 files and 250 commits.
 const compareFileLimit = 300;
@@ -280,36 +283,43 @@ export async function gatherPullRequest(
         : [file.path],
     ),
   );
+  // A renamed coverage config or a renamed manifest outside `packages/*` is
+  // compared with its previous path. A renamed package manifest stays a new
+  // package.
+  const renameKind = (file) =>
+    isCoverageConfig(file)
+      ? "coverage"
+      : /(^|\/)package\.json$/.test(file) && !packageManifest.test(file)
+        ? "manifest"
+        : undefined;
   for (const file of paths) {
     const isSurface = /^api-surface\/[^/]+\.ts$/.test(file);
     const isCoverage = isCoverageConfig(file);
+    const kind = renameKind(file);
     if (
-      isCoverage &&
+      kind &&
+      !files.some((changed) => changed.path === file) &&
       files.some(
         (changed) =>
           changed.status === "renamed" &&
           changed.previousPath === file &&
-          isCoverageConfig(changed.path),
+          renameKind(changed.path) === kind,
       )
     )
       continue;
-    const renamedConfig =
-      isCoverage &&
+    const renamed =
+      kind &&
       files.find(
         (changed) =>
           changed.status === "renamed" &&
           changed.path === file &&
-          isCoverageConfig(changed.previousPath),
+          renameKind(changed.previousPath) === kind,
       );
-    if (
-      !isSurface &&
-      !isCoverage &&
-      !/^packages\/[^/]+\/package\.json$/.test(file)
-    )
+    if (!isSurface && !isCoverage && !/(^|\/)package\.json$/.test(file))
       continue;
     const contents = `${repo}/contents/${file.split("/").map(encodeURIComponent).join("/")}`;
-    const baseContents = renamedConfig
-      ? `${repo}/contents/${renamedConfig.previousPath.split("/").map(encodeURIComponent).join("/")}`
+    const baseContents = renamed
+      ? `${repo}/contents/${renamed.previousPath.split("/").map(encodeURIComponent).join("/")}`
       : contents;
     const baseText = await client.raw(
       `${baseContents}?ref=${encodeURIComponent(mergeBase)}`,
@@ -335,6 +345,7 @@ export async function gatherPullRequest(
         continue;
       }
       manifests.push({ path: file, base, head });
+      if (!packageManifest.test(file)) continue;
       const diff = diffExportsMap(base?.exports, head?.exports);
       if (diff.added.length || diff.removed.length || diff.changed.length) {
         exportsDiffs.push({ path: file, diff });
@@ -405,6 +416,7 @@ export async function gatherPullRequest(
       title: node.title,
       labels: labels.map(({ name: label }) => label),
       files,
+      changedFiles: node.changedFiles ?? null,
       apiSurface,
       manifests,
       invalidManifests,
@@ -512,6 +524,8 @@ const signalLabels = {
   "new-runtime-dependency": "new runtime dependency",
   "upstream-major": "upstream major",
   "manifest-contract-field": "manifest contract field",
+  "lifecycle-script": "install or publish script",
+  "dependency-source": "dependency from outside the registry",
   "cross-package-refactor": "refactor across packages",
   "no-files": "no changed files",
 };
@@ -525,6 +539,7 @@ const requirementLabels = {
   "refactor-changes-exports": "Refactor claim",
   "refactor-changes-assertions": "Refactor claim",
   "manifest-invalid": "Manifest",
+  "files-incomplete": "Changed files",
   "open-pr-cap": "Open pull requests",
 };
 const ignoredLabels = {
@@ -541,7 +556,8 @@ function ignoredReason({ reason, detail, paths }) {
   const label = ignoredLabels[reason] ?? reason;
   if (paths?.length) {
     const more = paths.length - shownPaths;
-    return `${label}; later commits touch ${paths.slice(0, shownPaths).map(code).join(", ")}${more > 0 ? ` and ${plural(more, "more protected path")}` : ""}`;
+    const shown = paths.slice(0, shownPaths).map(code).join(", ");
+    return `${label}; later commits change ${shown}${more > 0 ? ` and ${plural(more, "more path")}` : ""}, which ${paths.length === 1 ? "needs" : "need"} a fresh approval`;
   }
   return detail ? `${label}, ${detail}` : label;
 }
@@ -590,6 +606,8 @@ const failureDetails = {
   "refactor-changes-assertions": (detail) =>
     `a \`refactor\` must not change test assertions in ${code(detail)}`,
   "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
+  "files-incomplete": (detail) =>
+    `GitHub listed ${detail} changed files, so the tier cannot be computed; split the pull request`,
 };
 
 function windowEnd(tier, context, policy) {
@@ -666,7 +684,7 @@ export function renderComment(evaluation, policy) {
       : `_Shadow mode: advice only, this check never blocks a merge. Rules in ${rules}._`,
     "",
     `- **T${tier}, ${tierNames[tier]} tier:** ${top ? `${signalLabel(top.code)} ${code(top.detail)}${reasons.length > 1 ? `, and ${plural(reasons.length - 1, "more signal")}` : ""}` : "no risk signals"}`,
-    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${(approvals.carried ?? []).map(({ login, sha }) => ` · ${login} carried over (approved ${code(shortSha(sha))}, later commits touch no protected paths)`).join("")}${approvals.ignored.length ? ` · ${approvals.ignored.map((item) => `${item.login} ignored (${ignoredReason(item)})`).join(", ")}` : ""}`,
+    `- **Approvals:** ${approvals.counted.length ? `${approvals.counted.join(", ")} counted` : unmet.some((item) => item.code === "approvals" || item.code.startsWith("owner:")) ? "none counted yet" : "none needed"}${(approvals.carried ?? []).map(({ login, sha }) => ` · ${login} carried over (approved ${code(shortSha(sha))}, later commits stay within T0)`).join("")}${approvals.ignored.length ? ` · ${approvals.ignored.map((item) => `${item.login} ignored (${ignoredReason(item)})`).join(", ")}` : ""}`,
     ...waived.map(
       ({ code, signal, by }) =>
         `- **Waived:** ${requirementLabel(code, policy)}, by ${by} with \`${policy.labels.overridePrefix}${signal}\``,

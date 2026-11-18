@@ -3614,6 +3614,74 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       expect(appended.map((item) => item.message)).toEqual(thread.messages);
     });
 
+    it("still writes the seed on the first send after an import that cannot be placed", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+      const seed = thread.messages;
+
+      expect(() =>
+        thread.import({
+          headId: "missing",
+          messages: [
+            {
+              parentId: null,
+              message: { ...seed[0]!, id: "other" },
+            },
+          ],
+        }),
+      ).toThrow();
+      expect(thread.messages).toEqual(seed);
+
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended.slice(0, 2)).toMatchObject([
+        { parentId: null, message: seed[0] },
+        { parentId: "seed-user", message: seed[1] },
+      ]);
+    });
+
+    it("still writes the seed on the first send after a history load that cannot be placed", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, {
+        history: {
+          ...history,
+          load: async () =>
+            ExportedMessageRepository.fromBranchableArray([
+              {
+                parentId: null,
+                message: { id: "x", role: "user", content: "x" },
+              },
+              {
+                parentId: "x",
+                message: { id: "y", role: "user", content: "y" },
+              },
+              {
+                parentId: "y",
+                message: { id: "x", role: "user", content: "x" },
+              },
+            ]),
+        },
+        initialMessages,
+      });
+      const seed = thread.messages;
+
+      await expect(thread.__internal_load()).rejects.toThrow();
+      expect(thread.messages).toEqual(seed);
+
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended.slice(0, 2)).toMatchObject([
+        { parentId: null, message: seed[0] },
+        { parentId: "seed-user", message: seed[1] },
+      ]);
+    });
+
     it("defers seed feedback and flushes its current value on the first send", async () => {
       const { history, appended, updated } = createHistory();
       const thread = createThread(chatModel, { history, initialMessages });
