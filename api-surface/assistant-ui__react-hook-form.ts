@@ -499,7 +499,11 @@ declare const formTools: {
     description: string;
     parameters: z.ZodObject<{
       name: z.ZodString;
-      value: z.ZodString;
+      value: z.ZodUnion<readonly [
+        z.ZodString,
+        z.ZodNumber,
+        z.ZodBoolean
+      ]>;
     }, z.core.$strip>;
   };
   submit_form: {
