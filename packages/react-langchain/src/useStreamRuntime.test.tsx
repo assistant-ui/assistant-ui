@@ -1126,6 +1126,65 @@ describe("useStreamRuntime fork ownership", () => {
     runtime.unmount();
   });
 
+  it("edits the head after a cancelled tool call and voice transcript using head metadata", async () => {
+    const ai = {
+      ...message("ai1", "ai", ""),
+      tool_calls: [{ id: "call-1", name: "lookup", args: {} }],
+    };
+    const stream = createMockStream([
+      ai,
+      {
+        id: "cancel-c",
+        _getType: () => "tool",
+        content: "cancelled",
+        tool_call_id: "call-1",
+      },
+      {
+        ...message("t1", "human", "Spoken question"),
+        additional_kwargs: { modality: "voice" },
+      },
+      message("h2", "human", "Original question"),
+    ]);
+    const getHistory = vi.fn(async () => [
+      {
+        values: { messages: [ai] },
+        checkpoint: { checkpoint_id: "cp-before-input" },
+      },
+    ]);
+    stream.client = { threads: { getHistory } };
+    stream[streamController]!.messageMetadataStore.getSnapshot.mockReturnValue(
+      new Map([["h2", { parentCheckpointId: "cp-before-input" }]]),
+    );
+    const { runtime, view } = await renderFork(stream);
+
+    await act(async () => {
+      await runtime.result.current.thread.append({
+        role: "user",
+        parentId: "t1",
+        sourceId: "h2",
+        content: [{ type: "text", text: "Edited question" }],
+      });
+    });
+
+    expect(stream.submit).toHaveBeenCalledExactlyOnceWith(
+      {
+        messages: [
+          {
+            id: "t1",
+            type: "human",
+            content: "Spoken question",
+            additional_kwargs: { modality: "voice" },
+          },
+          { type: "human", content: "Edited question" },
+        ],
+      },
+      { forkFrom: "cp-before-input" },
+    );
+    expect(getHistory).not.toHaveBeenCalled();
+    view.unmount();
+    runtime.unmount();
+  });
+
   it("drops the first edit when a second edit supersedes its checkpoint lookup", async () => {
     const firstLookup = deferred<ForkHistory>();
     const secondLookup = deferred<ForkHistory>();

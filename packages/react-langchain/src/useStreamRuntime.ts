@@ -655,9 +655,10 @@ const useStreamThreadRuntime = (
           threadId,
           s.messages as readonly LangChainBaseMessage[],
           fork.forkParentId,
-          fork.transcripts.length > 0 ? undefined : config.sourceId,
+          config.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
+          fork.transcripts.length === 0,
         );
         if (threadController.getState().forkGeneration !== forkGeneration)
           return;
@@ -716,9 +717,10 @@ const useStreamThreadRuntime = (
           threadId,
           s.messages as readonly LangChainBaseMessage[],
           fork.forkParentId,
-          fork.transcripts.length > 0 ? undefined : message.sourceId,
+          message.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
+          fork.transcripts.length === 0,
         );
         if (threadController.getState().forkGeneration !== forkGeneration)
           return;

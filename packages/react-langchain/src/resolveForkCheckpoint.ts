@@ -22,10 +22,11 @@ export const resolveForkCheckpoint = async (
   sourceId: string | null | undefined,
   metadata: MessageMetadataSnapshot,
   messagesKey: string,
+  useSourceBoundary = true,
 ): Promise<string | null> => {
   const lastMessage = messages[messages.length - 1];
   const sourceIndex =
-    sourceId == null
+    !useSourceBoundary || sourceId == null
       ? -1
       : messages.findIndex((message) => message.id === sourceId);
   let checkpointId: string | null =
