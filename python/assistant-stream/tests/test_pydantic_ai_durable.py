@@ -856,6 +856,63 @@ def test_producer_cancelled_at_registration_preserves_another_owners_finished_th
 
 
 @pytest.mark.parametrize("kind", THREAD_BACKENDS)
+def test_producer_cancelled_at_registration_saves_input_when_previous_stream_is_missing(
+    kind: str, tmp_path: Path
+) -> None:
+    async def scenario() -> None:
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        model = Model()
+
+        def cancel_producer(task: asyncio.Task[None]) -> None:
+            producers.append(task)
+            if len(producers) == 1:
+                task.cancel()
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(), wait_until=cancel_producer
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=model.stream)),
+            threads=threads,
+            streams=streams,
+            owner=_user_header,
+        )
+        previous = ThreadRecord(
+            messages=[_user("Existing")],
+            stream_id="6-thread.existing",
+            run_id="existing",
+            running=True,
+            owner="alice",
+        )
+        question = _user("New")
+        try:
+            await threads.put("thread", previous)
+            assert await streams.status(previous.stream_id) == "missing"
+
+            assert (
+                await _start_run_as(
+                    durable, _run_input("thread", [question], "run"), "alice"
+                )
+            ).status_code == 200
+            await asyncio.gather(*producers, return_exceptions=True)
+
+            assert producers[0].cancelled()
+            record = await threads.get("thread")
+            assert record is not None
+            assert record.messages == [question]
+            assert record.running is False
+            assert record.run_id == "run"
+            assert record.owner == "alice"
+            assert model.calls == 0
+        finally:
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
 @pytest.mark.parametrize("superseded", [False, True], ids=["finished", "third-run"])
 def test_producer_cancelled_at_registration_updates_only_the_finished_run(
     kind: str, superseded: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1311,8 +1368,11 @@ def test_producer_dead_before_first_claim_leaves_existing_record_untouched(
             running=True,
         )
         await threads.put("thread", existing)
+        stream_store = create_in_memory_resumable_stream_store()
+        await stream_store.acquire(existing.stream_id)
+        assert await stream_store.status(existing.stream_id) == "streaming"
         streams = create_resumable_stream_context(
-            store=create_in_memory_resumable_stream_store(), wait_until=cancel_producer
+            store=stream_store, wait_until=cancel_producer
         )
         run = type(streams).run
 

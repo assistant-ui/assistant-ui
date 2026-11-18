@@ -378,7 +378,8 @@ class DurableAGUI(Generic[AgentDepsT]):
                     await settle([])
                     if not claimed:
                         if previous is None or (
-                            previous.owner == owner and not previous.running
+                            previous.owner == owner
+                            and not await self._is_running(previous)
                         ):
                             await self.threads.put_if_stream(
                                 thread_id,
