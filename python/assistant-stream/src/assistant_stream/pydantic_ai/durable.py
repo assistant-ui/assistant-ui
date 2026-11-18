@@ -377,7 +377,9 @@ class DurableAGUI(Generic[AgentDepsT]):
                     self._tokens.pop(stream_id, None)
                     await settle([])
                     if not claimed:
-                        if previous is None or not previous.running:
+                        if previous is None or (
+                            previous.owner == owner and not previous.running
+                        ):
                             await self.threads.put_if_stream(
                                 thread_id,
                                 replace(record, running=False),

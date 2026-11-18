@@ -780,6 +780,82 @@ def test_producer_cancelled_at_registration_never_claims_a_live_thread(
 
 
 @pytest.mark.parametrize("kind", THREAD_BACKENDS)
+def test_producer_cancelled_at_registration_preserves_another_owners_finished_thread(
+    kind: str, tmp_path: Path
+) -> None:
+    async def scenario() -> None:
+        alice_waiting = asyncio.Event()
+        release_alice = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        model = Model()
+        model.gate.set()
+
+        def cancel_second_producer(task: asyncio.Task[None]) -> None:
+            producers.append(task)
+            if len(producers) == 2:
+                task.cancel()
+
+        async def options(request: Request, run_input):
+            if request.headers.get("x-user") == "alice":
+                alice_waiting.set()
+                await release_alice.wait()
+            return {}
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(),
+            wait_until=cancel_second_producer,
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=model.stream)),
+            threads=threads,
+            streams=streams,
+            owner=_user_header,
+            run_options=options,
+        )
+        alice = asyncio.create_task(
+            _start_run_as(durable, _run_input("thread", [_user("Alice")], "run"), "alice")
+        )
+        try:
+            await alice_waiting.wait()
+            assert await threads.get("thread") is None
+            question = _user("Bob")
+            assert (
+                await _start_run_as(
+                    durable, _run_input("thread", [question], "run"), "bob"
+                )
+            ).status_code == 200
+            await asyncio.gather(*producers)
+            previous = await threads.get("thread")
+            assert previous is not None
+            assert previous.owner == "bob"
+            assert previous.running is False
+            assert previous.messages[0] == question
+            assert _assistant_texts({"messages": previous.messages}) == ["".join(WORDS)]
+
+            release_alice.set()
+            assert (await alice).status_code == 200
+
+            assert producers[1].cancelled()
+            assert await threads.get("thread") == previous
+            await asyncio.gather(*producers, return_exceptions=True)
+            assert await threads.get("thread") == previous
+            assert await durable.get_thread("thread", owner="alice") is None
+            thread = await durable.get_thread("thread", owner="bob")
+            assert thread is not None
+            assert thread["running"] is False
+            assert thread["messages"] == previous.messages
+            assert model.calls == 1
+        finally:
+            release_alice.set()
+            await asyncio.gather(alice, return_exceptions=True)
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
 @pytest.mark.parametrize("superseded", [False, True], ids=["finished", "third-run"])
 def test_producer_cancelled_at_registration_updates_only_the_finished_run(
     kind: str, superseded: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
