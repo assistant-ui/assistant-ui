@@ -495,6 +495,7 @@ const useNewPiThreadStore = (
           );
         };
         try {
+          // Core starts initialization before onNew, so adapter.initialize creates an empty thread and the live controller delivers the message.
           const { remoteId, externalId } =
             await aui.threadListItem.initialize();
           if (registry.disposed) {
@@ -506,23 +507,22 @@ const useNewPiThreadStore = (
             throw new Error("This thread has no Pi thread to send to.");
           }
           const controller = getController(registry, piThreadId);
-          applySelectionPromiseRef.current ??= (async () => {
-            const selection = draftSelectionRef.current;
-            if (selection.model) {
-              await controller.setModel(selection.model);
-              if (registry.disposed) return;
-            }
-            if (selection.thinkingLevel) {
-              await controller.setThinkingLevel(selection.thinkingLevel);
-              if (registry.disposed) return;
-            }
-          })();
-          await applySelectionPromiseRef.current;
-          if (registry.disposed) {
-            removeOptimisticMessage();
-            return;
-          }
-          await controller.sendMessage(message);
+          await controller.sendMessageAfter(
+            message,
+            undefined,
+            () =>
+              (applySelectionPromiseRef.current ??= (async () => {
+                const selection = draftSelectionRef.current;
+                if (selection.model) {
+                  await controller.setModel(selection.model);
+                  if (registry.disposed) return;
+                }
+                if (selection.thinkingLevel) {
+                  await controller.setThinkingLevel(selection.thinkingLevel);
+                  if (registry.disposed) return;
+                }
+              })()),
+          );
           removeOptimisticMessage();
         } catch (error) {
           removeOptimisticMessage();

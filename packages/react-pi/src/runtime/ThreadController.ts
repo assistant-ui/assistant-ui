@@ -627,7 +627,16 @@ export class PiThreadController implements PiThreadControllerLike {
     });
   }
 
-  public async sendMessage(message: AppendMessage, options?: PiSendOptions) {
+  public sendMessage(message: AppendMessage, options?: PiSendOptions) {
+    return this.sendMessageAfter(message, options);
+  }
+
+  /** @internal */
+  public async sendMessageAfter(
+    message: AppendMessage,
+    options?: PiSendOptions,
+    beforeDispatch?: () => Promise<void>,
+  ) {
     if (message.role !== "user") {
       throw new Error("Pi only supports sending user messages");
     }
@@ -643,6 +652,7 @@ export class PiThreadController implements PiThreadControllerLike {
       buildOptimisticPiSendInput(message, behavior),
       isQueuedSend,
       behavior,
+      beforeDispatch,
     );
   }
 
@@ -703,6 +713,7 @@ export class PiThreadController implements PiThreadControllerLike {
     optimisticInput: PiSendMessageInput,
     isQueuedSend: boolean,
     behavior: "followUp" | "steer" | undefined,
+    beforeDispatch?: () => Promise<void>,
   ) {
     this.ensureEventSubscription({
       includeSnapshot: this.state.loadState !== "loaded",
@@ -713,6 +724,7 @@ export class PiThreadController implements PiThreadControllerLike {
         message,
         optimisticInput.content,
         behavior ?? "followUp",
+        beforeDispatch,
       );
     }
 
@@ -720,7 +732,7 @@ export class PiThreadController implements PiThreadControllerLike {
     const optimisticSend = this.beginOptimisticSend(optimisticInput);
 
     try {
-      await this.dispatchMessage(message, behavior, pending);
+      await this.dispatchMessage(message, behavior, pending, beforeDispatch);
     } catch (error) {
       this.rollbackOptimisticSend(optimisticSend, error);
       if (error === sendAbandonedError) return;
@@ -736,6 +748,7 @@ export class PiThreadController implements PiThreadControllerLike {
     message: AppendMessage,
     content: string,
     behavior: "followUp" | "steer",
+    beforeDispatch?: () => Promise<void>,
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
     let promoted: OptimisticSend | undefined;
@@ -747,8 +760,12 @@ export class PiThreadController implements PiThreadControllerLike {
     this.setState({ ...this.state, queue: optimisticQueue });
 
     try {
-      await this.dispatchMessage(message, behavior, pending, {
-        onRunStateResolved: (runIsActive) => {
+      await this.dispatchMessage(
+        message,
+        behavior,
+        pending,
+        beforeDispatch,
+        (runIsActive) => {
           if (runIsActive) return;
 
           const entries = this.state.queue[mode];
@@ -766,7 +783,7 @@ export class PiThreadController implements PiThreadControllerLike {
             buildOptimisticPiSendInput(message, undefined),
           );
         },
-      });
+      );
     } catch (error) {
       const promotedSend = promoted;
       if (promotedSend) {
@@ -821,9 +838,8 @@ export class PiThreadController implements PiThreadControllerLike {
     message: AppendMessage,
     behavior: "followUp" | "steer" | undefined,
     pending: PendingSend,
-    options?: {
-      onRunStateResolved: (runIsActive: boolean) => void;
-    },
+    beforeDispatch?: () => Promise<void>,
+    onRunStateResolved?: (runIsActive: boolean) => void,
   ) {
     const abortController = pending.controller;
     const previousRequest = this.sendDispatchTail;
@@ -831,6 +847,10 @@ export class PiThreadController implements PiThreadControllerLike {
       try {
         await previousRequest.catch(() => {});
         abortController.signal.throwIfAborted();
+        if (beforeDispatch) {
+          await beforeDispatch();
+          abortController.signal.throwIfAborted();
+        }
         const input = await buildPiSendInput(
           message,
           behavior,
@@ -840,7 +860,7 @@ export class PiThreadController implements PiThreadControllerLike {
         // pi-coding-agent >=0.80.8 reads streamingBehavior only while the
         // session is streaming. Keeping it covers a server still streaming
         // after the local mirror has settled; an idle session ignores it.
-        options?.onRunStateResolved(this.state.runStatus === "running");
+        onRunStateResolved?.(this.state.runStatus === "running");
         abortController.signal.throwIfAborted();
         pending.accepted = true;
         await this.client.sendMessage(this.threadId, input);
