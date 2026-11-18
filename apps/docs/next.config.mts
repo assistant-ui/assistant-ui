@@ -192,6 +192,11 @@ const config: NextConfig = {
       "./components/demo/elements/*.tsx",
       "../../packages/ui/src/components/react/assistant-ui/elements/*.tsx",
     ],
+    "/blocks/*": [
+      "../../examples/with-agent-document-editor/{app,components,lib}/**/*",
+      "../../examples/with-agent-document-editor/*.{json,ts,mjs}",
+      "../../examples/with-agent-document-editor/.env.example",
+    ],
     "/api/doc/chat": REPO_SOURCE_TRACE,
     "/api/xulux/chat": REPO_SOURCE_TRACE,
     "/api/xulux/demo-download": REPO_SOURCE_TRACE,
