@@ -2668,9 +2668,14 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(core.getPendingInterrupts()).toBeNull();
   });
 
-  it.each(["expired", "malformed"] as const)(
-    "does not resubmit a stored decision for a %s replayed gate",
-    async (expiry) => {
+  it.each([
+    ["expired", false],
+    ["malformed", false],
+    ["expired", true],
+    ["malformed", true],
+  ] as const)(
+    "does not resubmit a stored decision for a %s replayed gate with a deferred A2UI action %s",
+    async (expiry, deferAction) => {
       const expiresAt =
         expiry === "expired"
           ? new Date(Date.now() - 60_000).toISOString()
@@ -2697,6 +2702,7 @@ describe("AgUiThreadController selected-turn replay", () => {
         async (input, subscriber) => {
           attempts++;
           text(subscriber, "a", "replayed answer");
+          if (deferAction) core.sendA2uiAction({ name: "continue" });
           emit(subscriber, {
             type: "RUN_FINISHED",
             runId: input.runId,
@@ -2724,6 +2730,7 @@ describe("AgUiThreadController selected-turn replay", () => {
       expect(attempts).toBe(1);
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
+      expect(core.isRunning()).toBe(false);
     },
   );
 
