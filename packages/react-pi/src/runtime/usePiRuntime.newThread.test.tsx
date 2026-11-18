@@ -3,17 +3,17 @@
 import { act, createElement, StrictMode, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  AssistantRuntimeProvider,
-  ExportedMessageRepository,
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import type {
+  AppendMessage,
+  AssistantRuntime,
+  ExternalStoreAdapter,
 } from "@assistant-ui/react";
-import type { AssistantRuntime } from "@assistant-ui/react";
 import type { PiClient, PiThreadSnapshot } from "../types";
 
 const mocks = vi.hoisted(() => ({
-  adapters: [] as unknown[],
-  controllers: [] as unknown[],
-  sendMessage: vi.fn().mockResolvedValue(undefined),
+  adapters: [] as ExternalStoreAdapter<unknown>[],
+  sendMessage: vi.fn<PiClient["sendMessage"]>().mockResolvedValue(undefined),
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => {
@@ -29,42 +29,8 @@ vi.mock("@assistant-ui/react", async (importOriginal) => {
   };
 });
 
-vi.mock("./ThreadController", async (importOriginal) => {
-  const original = await importOriginal<typeof import("./ThreadController")>();
-
-  class PiThreadController {
-    state = createPiThreadState("t-new");
-    repository = ExportedMessageRepository.fromArray([]);
-    getState = () => this.state;
-    getProjectedMessages = () => [];
-    getMessageRepository = () => this.repository;
-    getVersion = () => 0;
-    subscribe = () => () => {};
-    subscribeMetadata = () => () => {};
-    subscribeMessages = () => () => {};
-    connect = () => () => {};
-    load = vi.fn().mockResolvedValue(undefined);
-    refresh = vi.fn().mockResolvedValue(undefined);
-    sendMessage = mocks.sendMessage;
-    cancel = vi.fn().mockResolvedValue(undefined);
-    clearQueue = vi.fn().mockResolvedValue({ steering: [], followUp: [] });
-    setModel = vi.fn().mockResolvedValue(undefined);
-    setThinkingLevel = vi.fn().mockResolvedValue(undefined);
-    respondToToolApproval = vi.fn().mockResolvedValue(undefined);
-    resumeToolCall = vi.fn().mockResolvedValue(undefined);
-    respondToHostUiRequest = vi.fn().mockResolvedValue(undefined);
-    dispose = vi.fn();
-
-    constructor() {
-      mocks.controllers.push(this);
-    }
-  }
-
-  return { ...original, PiThreadController };
-});
-
-import { createPiThreadState } from "./threadState";
 import { usePiRuntime } from "./usePiRuntime";
+import { usePiHostUiRequests, usePiRuntimeExtras, usePiSession } from "./hooks";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -73,12 +39,10 @@ import { usePiRuntime } from "./usePiRuntime";
 const snapshot: PiThreadSnapshot = {
   metadata: { id: "srv-1", status: "idle" },
   messages: [],
-} as unknown as PiThreadSnapshot;
+};
 
 const createClient = (
-  createThreadImpl: (options?: {
-    initialMessage?: unknown;
-  }) => Promise<PiThreadSnapshot> = () => Promise.resolve(snapshot),
+  createThreadImpl: PiClient["createThread"] = () => Promise.resolve(snapshot),
 ) => {
   const createThread = vi.fn(createThreadImpl);
   const client = {
@@ -86,17 +50,74 @@ const createClient = (
     createThread,
     getThread: vi.fn().mockResolvedValue(snapshot),
     subscribe: vi.fn().mockReturnValue(() => {}),
-    sendMessage: vi.fn().mockResolvedValue(undefined),
-  } as unknown as PiClient;
+    sendMessage: mocks.sendMessage,
+    setModel: vi.fn<PiClient["setModel"]>().mockResolvedValue(undefined),
+    setThinkingLevel: vi
+      .fn<PiClient["setThinkingLevel"]>()
+      .mockResolvedValue(undefined),
+    respondToHostUiRequest: vi.fn().mockResolvedValue(undefined),
+    cancelRun: vi.fn().mockResolvedValue(undefined),
+    clearQueue: vi.fn().mockResolvedValue({ steering: [], followUp: [] }),
+    getAvailableModels: vi.fn().mockResolvedValue([]),
+    renameThread: vi.fn().mockResolvedValue(undefined),
+    archiveThread: vi.fn().mockResolvedValue(undefined),
+    unarchiveThread: vi.fn().mockResolvedValue(undefined),
+    deleteThread: vi.fn().mockResolvedValue(undefined),
+  } satisfies PiClient;
   return { client, createThread };
 };
 
 const sentTexts = () =>
-  mocks.sendMessage.mock.calls.map((call) => {
-    const content = (call[0] as { content: readonly { text?: string }[] })
-      .content;
-    return content.map((part) => part.text).join("");
-  });
+  mocks.sendMessage.mock.calls.map((call) => call[1].content);
+
+const selectedModel = { provider: "anthropic", modelId: "claude-opus-5" };
+
+const mountRuntime = async (client: PiClient) => {
+  let runtime!: AssistantRuntime;
+  let extras!: ReturnType<typeof usePiRuntimeExtras>;
+  let session!: ReturnType<typeof usePiSession>;
+  let hostUi!: ReturnType<typeof usePiHostUiRequests>;
+  const onError = vi.fn();
+  const Probe = () => {
+    extras = usePiRuntimeExtras();
+    session = usePiSession();
+    hostUi = usePiHostUiRequests();
+    return null;
+  };
+  const Harness = () => {
+    runtime = usePiRuntime({ client, onError });
+    return createElement(
+      AssistantRuntimeProvider,
+      { runtime },
+      createElement(Probe),
+    );
+  };
+  root = createRoot(document.createElement("div"));
+  await act(async () => root!.render(createElement(Harness)));
+  return {
+    runtime,
+    onError,
+    get extras() {
+      return extras;
+    },
+    get session() {
+      return session;
+    },
+    get hostUi() {
+      return hostUi;
+    },
+  };
+};
+
+const appendMessage = (text: string): AppendMessage => ({
+  role: "user",
+  content: [{ type: "text", text }],
+  createdAt: new Date(0),
+  parentId: null,
+  sourceId: null,
+  runConfig: undefined,
+  metadata: { custom: {} },
+});
 
 let root: Root | undefined;
 
@@ -104,7 +125,6 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   mocks.adapters.length = 0;
-  mocks.controllers.length = 0;
 });
 
 describe("usePiRuntime new-thread first message", () => {
@@ -130,8 +150,6 @@ describe("usePiRuntime new-thread first message", () => {
     await act(async () => {});
 
     expect(createThread).toHaveBeenCalledTimes(1);
-    // The core initializes before onNew runs, so the atomic path cannot see
-    // the message; delivery must happen exactly once via the live thread.
     expect(createThread.mock.calls[0]?.[0]?.initialMessage).toBeUndefined();
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
     expect(sentTexts()).toEqual(["hello pi"]);
@@ -216,16 +234,9 @@ describe("usePiRuntime new-thread first message", () => {
       useEffect(() => {
         if (sentRef.current) return;
         sentRef.current = true;
-        const adapter = mocks.adapters.at(-1) as {
-          onNew: (message: {
-            role: "user";
-            content: [{ type: "text"; text: string }];
-          }) => Promise<void>;
-        };
-        sendPromise = adapter.onNew({
-          role: "user",
-          content: [{ type: "text", text: "strict mode message" }],
-        });
+        sendPromise = mocks.adapters
+          .at(-1)!
+          .onNew(appendMessage("strict mode message"));
       }, []);
       return createElement(AssistantRuntimeProvider, { runtime }, null);
     };
@@ -245,63 +256,225 @@ describe("usePiRuntime new-thread first message", () => {
     expect(sentTexts()).toEqual(["strict mode message"]);
   });
 
-  it("applies a model and thinking level picked before the first send", async () => {
-    const { client } = createClient();
-    let runtime!: AssistantRuntime;
-
-    const Harness = () => {
-      runtime = usePiRuntime({ client });
-      return createElement(AssistantRuntimeProvider, { runtime }, null);
-    };
-
-    root = createRoot(document.createElement("div"));
+  it("publishes the draft model and thinking level before any send", async () => {
+    const { client, createThread } = createClient();
+    const view = await mountRuntime(client);
     await act(async () => {
-      root!.render(createElement(Harness));
+      await view.extras.setModel(selectedModel);
+      await view.extras.setThinkingLevel("high");
     });
-    await act(async () => {});
 
-    // A thread with no session renders the new-thread store, so this is the
-    // extras a composer sees while it has no Pi thread to talk to yet.
-    const extras = (
-      mocks.adapters.at(-1) as {
-        extras: {
-          setModel: (input: {
-            provider: string;
-            modelId: string;
-          }) => Promise<void>;
-          setThinkingLevel: (level: "high") => Promise<void>;
-        };
-      }
-    ).extras;
+    const config = { ...selectedModel, thinkingLevel: "high" };
+    expect(view.extras.metadata.config).toEqual(config);
+    expect(view.extras.state.metadata.config).toEqual(config);
+    expect(createThread).not.toHaveBeenCalled();
+    expect(client.setModel).not.toHaveBeenCalled();
+    expect(client.setThinkingLevel).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("applies both draft setters before sending after pending initialization", async () => {
+    const sessionCreate = Promise.withResolvers<PiThreadSnapshot>();
+    const modelSet = Promise.withResolvers<void>();
+    const thinkingSet = Promise.withResolvers<void>();
+    const { client, createThread } = createClient(() => sessionCreate.promise);
+    client.setModel.mockReturnValueOnce(modelSet.promise);
+    client.setThinkingLevel.mockReturnValueOnce(thinkingSet.promise);
+    const view = await mountRuntime(client);
+
+    await act(async () => view.runtime.thread.append("hello pi"));
+    expect(createThread).toHaveBeenCalledOnce();
     await act(async () => {
-      await extras.setModel({
-        provider: "anthropic",
-        modelId: "claude-opus-5",
-      });
-      await extras.setThinkingLevel("high");
+      await view.extras.setModel(selectedModel);
+      await view.extras.setThinkingLevel("high");
     });
+    expect(client.setModel).not.toHaveBeenCalled();
+    expect(client.setThinkingLevel).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
 
-    await act(async () => {
-      await runtime.thread.append("hello pi");
-    });
-    await act(async () => {});
-    await act(async () => {});
+    await act(async () => sessionCreate.resolve(snapshot));
+    expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      selectedModel,
+    );
+    expect(client.setThinkingLevel).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
 
-    const controller = mocks.controllers.at(-1) as {
-      setModel: ReturnType<typeof vi.fn>;
-      setThinkingLevel: ReturnType<typeof vi.fn>;
-    };
-    expect(controller.setModel).toHaveBeenCalledWith({
-      provider: "anthropic",
-      modelId: "claude-opus-5",
-    });
-    expect(controller.setThinkingLevel).toHaveBeenCalledWith("high");
-    // The pick has to reach the session before the message it applies to.
-    expect(controller.setModel.mock.invocationCallOrder[0]).toBeLessThan(
+    await act(async () => modelSet.resolve());
+    expect(client.setThinkingLevel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      "high",
+    );
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => thinkingSet.resolve());
+    expect(sentTexts()).toEqual(["hello pi"]);
+    expect(client.setModel.mock.invocationCallOrder[0]).toBeLessThan(
+      client.setThinkingLevel.mock.invocationCallOrder[0]!,
+    );
+    expect(client.setThinkingLevel.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.sendMessage.mock.invocationCallOrder[0]!,
     );
-    expect(
-      controller.setThinkingLevel.mock.invocationCallOrder[0],
-    ).toBeLessThan(mocks.sendMessage.mock.invocationCallOrder[0]!);
   });
+
+  it("sends concurrent messages in order after applying the draft once", async () => {
+    const sessionCreate = Promise.withResolvers<PiThreadSnapshot>();
+    const modelSet = Promise.withResolvers<void>();
+    const thinkingSet = Promise.withResolvers<void>();
+    const { client, createThread } = createClient(() => sessionCreate.promise);
+    client.setModel.mockReturnValueOnce(modelSet.promise);
+    client.setThinkingLevel.mockReturnValueOnce(thinkingSet.promise);
+    const view = await mountRuntime(client);
+    await act(async () => {
+      await view.extras.setModel(selectedModel);
+      await view.extras.setThinkingLevel("high");
+    });
+
+    await act(async () => {
+      view.runtime.thread.append("message A");
+      view.runtime.thread.append("message B");
+    });
+    await act(async () => sessionCreate.resolve(snapshot));
+    expect(sentTexts()).toEqual([]);
+    expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      selectedModel,
+    );
+
+    await act(async () => modelSet.resolve());
+    expect(sentTexts()).toEqual([]);
+    expect(client.setThinkingLevel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      "high",
+    );
+
+    await act(async () => thinkingSet.resolve());
+    expect(createThread).toHaveBeenCalledOnce();
+    expect(sentTexts()).toEqual(["message A", "message B"]);
+    expect(client.setThinkingLevel.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.sendMessage.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("retains the draft after initialization fails and applies it on retry", async () => {
+    const failure = new Error("create failed");
+    const { client, createThread } = createClient();
+    createThread.mockRejectedValueOnce(failure);
+    const view = await mountRuntime(client);
+    await act(async () => {
+      await view.extras.setModel(selectedModel);
+      await view.extras.setThinkingLevel("high");
+    });
+
+    await act(async () => {
+      await expect(
+        mocks.adapters.at(-1)!.onNew(appendMessage("first attempt")),
+      ).rejects.toBe(failure);
+    });
+    expect(view.onError).toHaveBeenCalledWith(failure);
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+    expect(view.extras.metadata.config).toEqual({
+      ...selectedModel,
+      thinkingLevel: "high",
+    });
+
+    await act(async () => {
+      await mocks.adapters.at(-1)!.onNew(appendMessage("retry"));
+    });
+    expect(createThread).toHaveBeenCalledTimes(2);
+    expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      selectedModel,
+    );
+    expect(client.setThinkingLevel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      "high",
+    );
+    expect(sentTexts()).toEqual(["retry"]);
+    expect(client.setThinkingLevel.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.sendMessage.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("rejects the send when the client rejects the selected model", async () => {
+    const failure = new Error("model unavailable");
+    const { client } = createClient();
+    client.setModel.mockRejectedValueOnce(failure);
+    const view = await mountRuntime(client);
+    await act(async () => view.extras.setModel(selectedModel));
+
+    await act(async () => {
+      await expect(
+        mocks.adapters.at(-1)!.onNew(appendMessage("hello pi")),
+      ).rejects.toBe(failure);
+    });
+    expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      selectedModel,
+    );
+    expect(view.onError).toHaveBeenCalledWith(failure);
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("exposes the pending session through usePiSession on a new thread", async () => {
+    const { client, createThread } = createClient();
+    const view = await mountRuntime(client);
+
+    expect(view.session).toEqual({ id: "__pending__", status: "idle" });
+    expect(view.session).toBe(view.extras.metadata);
+    expect(createThread).not.toHaveBeenCalled();
+  });
+
+  it("accepts a host UI response on a new thread without a client request", async () => {
+    const { client } = createClient();
+    const view = await mountRuntime(client);
+
+    expect(view.hostUi.requests).toEqual([]);
+    await expect(
+      view.hostUi.respond({ requestId: "pending", confirmed: true }),
+    ).resolves.toBeUndefined();
+    expect(client.respondToHostUiRequest).not.toHaveBeenCalled();
+  });
+
+  it.each(["model", "thinking level"])(
+    "drops the send after teardown while applying the draft %s",
+    async (pendingSetter) => {
+      const setter = Promise.withResolvers<void>();
+      const { client } = createClient();
+      if (pendingSetter === "model") {
+        client.setModel.mockReturnValueOnce(setter.promise);
+      } else {
+        client.setThinkingLevel.mockReturnValueOnce(setter.promise);
+      }
+      const view = await mountRuntime(client);
+      await act(async () => {
+        await view.extras.setModel(selectedModel);
+        await view.extras.setThinkingLevel("high");
+      });
+
+      let send!: Promise<void>;
+      await act(async () => {
+        send = mocks.adapters.at(-1)!.onNew(appendMessage("late message"));
+      });
+      expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
+        "srv-1",
+        selectedModel,
+      );
+      if (pendingSetter === "thinking level") {
+        expect(client.setThinkingLevel).toHaveBeenCalledExactlyOnceWith(
+          "srv-1",
+          "high",
+        );
+      }
+      act(() => root!.unmount());
+      root = undefined;
+      setter.resolve();
+      await send;
+
+      expect(mocks.sendMessage).not.toHaveBeenCalled();
+      if (pendingSetter === "model") {
+        expect(client.setThinkingLevel).not.toHaveBeenCalled();
+      }
+    },
+  );
 });

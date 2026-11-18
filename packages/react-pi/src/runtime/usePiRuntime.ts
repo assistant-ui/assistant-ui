@@ -428,31 +428,49 @@ const useNewPiThreadStore = (
   const [optimisticMessages, setOptimisticMessages] = useState<
     readonly ThreadMessageLike[]
   >([]);
+  const [draftSelection, setDraftSelection] = useState<{
+    model?: { provider: string; modelId: string };
+    thinkingLevel?: PiThinkingLevel;
+  }>({});
+  const draftSelectionRef = useLatestRef(draftSelection);
+  const applySelectionPromiseRef = useRef<Promise<void> | undefined>(undefined);
   const optimisticMessageIndexRef = useRef(0);
   const optimisticRepository = useMemo(
     () => ExportedMessageRepository.fromArray(optimisticMessages),
     [optimisticMessages],
   );
 
-  // A thread with no Pi session yet has no controller to set a model on, so
-  // the choice is held here and applied to the session the first send creates.
-  // Without it the selector looks live and silently drops the pick.
-  const pendingSelectionRef = useRef<{
-    model?: { provider: string; modelId: string };
-    thinkingLevel?: PiThinkingLevel;
-  }>({});
-  const extras = useMemo<PiRuntimeExtrasInternal>(
-    () => ({
-      ...EMPTY_RUNTIME_EXTRAS,
+  const extras = useMemo(() => {
+    const state: PiThreadState =
+      draftSelection.model || draftSelection.thinkingLevel
+        ? {
+            ...EMPTY_THREAD_STATE,
+            metadata: {
+              ...EMPTY_THREAD_STATE.metadata,
+              config: {
+                ...draftSelection.model,
+                ...(draftSelection.thinkingLevel
+                  ? { thinkingLevel: draftSelection.thinkingLevel }
+                  : {}),
+              },
+            },
+          }
+        : EMPTY_THREAD_STATE;
+    const draftController: PiThreadControllerLike = {
+      ...NOOP_CONTROLLER,
+      getState: () => state,
       setModel: async (input) => {
-        pendingSelectionRef.current.model = input;
+        setDraftSelection((selection) => ({ ...selection, model: input }));
       },
       setThinkingLevel: async (level) => {
-        pendingSelectionRef.current.thinkingLevel = level;
+        setDraftSelection((selection) => ({
+          ...selection,
+          thinkingLevel: level,
+        }));
       },
-    }),
-    [],
-  );
+    };
+    return buildExtras(draftController, state);
+  }, [draftSelection]);
 
   const store = useMemo<ExternalStoreAdapter<ThreadMessage>>(
     () => ({
@@ -477,9 +495,6 @@ const useNewPiThreadStore = (
           );
         };
         try {
-          // The core starts thread initialization before dispatching onNew,
-          // so adapter.initialize has already created the thread empty;
-          // deliver the message to the live thread.
           const { remoteId, externalId } =
             await aui.threadListItem.initialize();
           if (registry.disposed) {
@@ -491,20 +506,25 @@ const useNewPiThreadStore = (
             throw new Error("This thread has no Pi thread to send to.");
           }
           const controller = getController(registry, piThreadId);
-          // The session exists from here on, so the selection the person made
-          // while it did not can land before the message it should apply to.
-          const pendingSelection = pendingSelectionRef.current;
-          pendingSelectionRef.current = {};
-          if (pendingSelection.model) {
-            await controller.setModel(pendingSelection.model);
-          }
-          if (pendingSelection.thinkingLevel) {
-            await controller.setThinkingLevel(pendingSelection.thinkingLevel);
+          applySelectionPromiseRef.current ??= (async () => {
+            const selection = draftSelectionRef.current;
+            if (selection.model) {
+              await controller.setModel(selection.model);
+              if (registry.disposed) return;
+            }
+            if (selection.thinkingLevel) {
+              await controller.setThinkingLevel(selection.thinkingLevel);
+              if (registry.disposed) return;
+            }
+          })();
+          await applySelectionPromiseRef.current;
+          if (registry.disposed) {
+            removeOptimisticMessage();
+            return;
           }
           await controller.sendMessage(message);
           removeOptimisticMessage();
         } catch (error) {
-          pendingSelectionRef.current = {};
           removeOptimisticMessage();
           if (!isMessageNotSentError(error)) {
             invokePiErrorCallback(onError, error);
@@ -516,6 +536,8 @@ const useNewPiThreadStore = (
     [
       aui,
       optimisticRepository,
+      extras,
+      draftSelectionRef,
       registry,
       adapters,
       cloud,
