@@ -1,34 +1,13 @@
 "use client";
 
-import {
-  Component,
-  Suspense,
-  lazy,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { XIcon } from "lucide-react";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { AskAiWindowFrame } from "./window-frame";
 import { analytics } from "@/lib/analytics";
+import { FallbackBoundary } from "@/lib/fallback-boundary";
 
 const AssistantSession = lazy(() => import("./session"));
-
-class SessionBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { failed: boolean }
-> {
-  override state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  override render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
 
 function SessionPlaceholder({ failed = false }: { failed?: boolean }) {
   const { open, setOpen } = useAssistantPanel();
@@ -112,11 +91,11 @@ export function AskAiWindow() {
 
   return (
     <AskAiWindowFrame open={open}>
-      <SessionBoundary fallback={<SessionPlaceholder failed />}>
+      <FallbackBoundary fallback={<SessionPlaceholder failed />}>
         <Suspense fallback={<SessionPlaceholder />}>
           <AssistantSession open={open} />
         </Suspense>
-      </SessionBoundary>
+      </FallbackBoundary>
     </AskAiWindowFrame>
   );
 }

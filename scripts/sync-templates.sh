@@ -61,6 +61,9 @@ TEMPLATE_MIRRORS=(
     "templates/cloud/app/api/chat/route.ts:templates/cloud-clerk/app/api/chat/route.ts"
     "templates/minimal/app/globals.css:templates/cloud-harness/app/globals.css"
     "templates/default/app/layout.tsx:templates/mcp/app/layout.tsx"
+    "templates/default/app/api/request-context.ts:templates/cloud/app/api/request-context.ts"
+    "templates/default/app/api/request-context.ts:templates/cloud-clerk/app/api/request-context.ts"
+    "templates/default/app/api/request-context.ts:templates/cloud-harness/app/api/request-context.ts"
 )
 MIRRORS=("${REGISTRY_MIRRORS[@]}" "${TEMPLATE_MIRRORS[@]}")
 

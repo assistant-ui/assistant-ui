@@ -55,6 +55,7 @@ If the getter throws, the error is reported and the run continues without host e
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
 
+
 ## Activity snapshots
 
 An `a2ui-surface` activity becomes a `present` tool-call part. Its `artifact.a2ui` field contains replayable v0.9 operations, so a stored surface can be rebuilt with `applyA2uiOperations` and rendered again.
@@ -95,6 +96,8 @@ flight. The runtime replays it through the adapter's `resume()` method, or, when
 the adapter has none and the agent implements AG-UI's `connect()`, rejoins it
 with `agent.connectAgent()`. With neither, it starts a new run, so the agent runs
 again. See [durable threads](/docs/runtimes/ag-ui/durable-threads).
+
+`thread.resumeRun({ parentId })` follows the run in flight the same way. Without a `stream`, it uses the history adapter's `resume()`, or else the agent's `connect()`. It starts the agent again only when the agent has no `connect()` and the adapter has no `resume()`. A `stream` passed to `resumeRun` is used as given.
 
 Messages sent during the session are always forwarded to the agent through the
 run input, independent of `append`. A no-op `append` is therefore only safe when
@@ -219,7 +222,7 @@ The interrupt API is experimental and may change without notice.
 
 When the agent emits `RUN_FINISHED` with `outcome = { type: "interrupt", interrupts: [...] }`, the active assistant message is marked `requires-action` with `reason: "interrupt"` and the `Interrupt[]` payload is written to `metadata.custom.agui.interrupts`. Render an approval / input UI from there.
 
-Because the protocol carries the outcome only on `RUN_FINISHED`, a registered frontend tool does not run while the run is still open: its `execute` fires once the run's outcome is known, so a gate can never land on a call the client has already executed.
+Because the protocol carries the outcome only on `RUN_FINISHED`, a registered frontend tool does not run while the run is still open: its `execute` fires once the run's outcome is known, so a gate can never land on a call the client has already executed. A call that an interrupt names through `toolCallId` never runs its `execute`, whatever the interrupt's `reason`, and it stays held after the interrupt is answered, the same as a call carrying an approval.
 
 `useAgUiRuntime` returns an `AgUiAssistantRuntime` with two extra methods:
 
@@ -296,7 +299,7 @@ A subagent that names no reachable spawning call has nowhere to nest, so its out
 
 A repeated `SUBAGENT_STARTED` for an id the run has already seen is treated as a continuation, since a suspended subagent is re-announced on resume. It refreshes the descriptive fields and reopens the status, but never re-parents an established run, which would move already-rendered output to a different tool call.
 
-A subagent's frontend-executed tool calls behave the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record. Approval gates cover nested calls too, so a gate naming a subagent-scoped call projects onto the nested part, the frontend tool stays unexecuted while the gate is open, and an undecided gate's result is never exported to the backend.
+A subagent's frontend-executed tool calls behave the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record. Approval gates cover nested calls too, so a gate naming a subagent-scoped call projects onto the nested part, the frontend tool never runs its `execute`, and an undecided gate's result is never exported to the backend.
 
 Two limitations apply:
 

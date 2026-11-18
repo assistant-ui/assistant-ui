@@ -2,6 +2,7 @@ import type { MessageRole } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
 import type { Attachment, CreateAttachment } from "../../types/attachment";
 import type { Unsubscribe } from "../../types/unsubscribe";
+import type { AssistantError } from "../../types/error";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { QueueItemState } from "../queue/queue-item";
@@ -78,6 +79,14 @@ export type DictationState = {
   readonly inputDisabled?: boolean;
 };
 
+export type DictationEnd = {
+  readonly reason: Extract<
+    DictationAdapter.Status,
+    { type: "ended" }
+  >["reason"];
+  readonly error?: AssistantError;
+};
+
 /**
  * A message the user sent that the thread does not show as one of its own
  * yet, because its attachments are still being prepared or the runtime has
@@ -139,6 +148,8 @@ export type ComposerRuntimeCore = Readonly<{
   removeQueueItem: (queueItemId: string) => void;
 
   dictation: DictationState | undefined;
+  /** How the last dictation session ended; cleared when the next one starts. */
+  lastDictationEnd?: DictationEnd | undefined;
   startDictation: () => void;
   stopDictation: () => void;
 

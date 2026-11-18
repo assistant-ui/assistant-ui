@@ -1,11 +1,28 @@
 import { expect, it } from "vitest";
 import {
   type BorderRadius,
+  type BuilderConfig,
   DEFAULT_CONFIG,
   type FontSize,
 } from "../components/pages/playground/types";
 import { generateRegistryJson } from "./playground-registry";
-import { decodeConfig } from "./playground-config-codec";
+import {
+  configIssue,
+  decodeConfig,
+  encodeConfig,
+  MAX_ENCODED_CONFIG_LENGTH,
+} from "./playground-config-codec";
+import {
+  CUSTOM_CSS_MAX_LENGTH,
+  LOADING_TEXT_MAX_LENGTH,
+  toLoadingText,
+} from "./playground-config-schema";
+import { PRESETS } from "../components/pages/playground/presets";
+
+const withStyles = (styles: Record<string, unknown>) => ({
+  ...DEFAULT_CONFIG,
+  styles: { ...DEFAULT_CONFIG.styles, ...styles },
+});
 
 it.each<{ fontSize: FontSize; className: string }>([
   { fontSize: "13px", className: "text-[13px]" },
@@ -28,13 +45,15 @@ it("preserves the default font size in the installed thread", () => {
   expect(registry.files[0]?.content).toContain('text-foreground text-sm"');
 });
 
-it("uses the fallback for an unknown font size in decoded configuration", () => {
-  const encoded = Buffer.from(
-    JSON.stringify({ styles: { fontSize: "18px" } }),
-  ).toString("base64url");
-  const registry = generateRegistryJson(decodeConfig(encoded));
+const encodeDiff = (diff: unknown) =>
+  Buffer.from(JSON.stringify(diff)).toString("base64url");
 
-  expect(registry.files[0]?.content).toContain('text-foreground text-base"');
+it.each([
+  ["font size", { fontSize: "18px" }],
+  ["radius", { borderRadius: "xl" }],
+  ["message spacing", { messageSpacing: "legacy" }],
+])("rejects an unknown %s in a decoded configuration", (_, styles) => {
+  expect(() => decodeConfig(encodeDiff({ styles }))).toThrow();
 });
 
 it.each<[BorderRadius, string]>([
@@ -57,19 +76,6 @@ it.each<[BorderRadius, string]>([
     );
   },
 );
-
-it("preserves the fallback radius for unknown decoded values", () => {
-  const config = decodeConfig(
-    Buffer.from(JSON.stringify({ styles: { borderRadius: "xl" } })).toString(
-      "base64url",
-    ),
-  );
-  const registry = generateRegistryJson(config);
-
-  expect(registry.files[0]?.content).toContain(
-    '["--composer-radius" as string]: "0.5rem"',
-  );
-});
 
 const THEMED_COLORS = {
   accent: { light: "#111111", dark: "#eeeeee" },
@@ -349,20 +355,6 @@ it.each([
   );
 });
 
-it("falls back to comfortable spacing for an unknown decoded value", () => {
-  const config = decodeConfig(
-    Buffer.from(
-      JSON.stringify({ styles: { messageSpacing: "legacy" } }),
-    ).toString("base64url"),
-  );
-  const content = generateRegistryJson(config).files[0]?.content ?? "";
-
-  expect(content).toContain(
-    'className="mb-14 flex flex-col gap-y-6 empty:hidden"',
-  );
-  expect(content).not.toContain("undefined");
-});
-
 it("renders reasoning parts only when reasoning is enabled", () => {
   const config = {
     ...DEFAULT_CONFIG,
@@ -524,3 +516,144 @@ it.each(["dot", "none"] as const)(
     );
   },
 );
+
+it("rejects decoded keys outside the schema", () => {
+  expect(() => decodeConfig(encodeDiff({ extra: true }))).toThrow();
+});
+
+it("round-trips a loading text the builder can produce", () => {
+  const config = {
+    ...DEFAULT_CONFIG,
+    components: { ...DEFAULT_CONFIG.components, loadingText: "<thinking>" },
+  };
+  expect(configIssue(config)).toBeUndefined();
+  expect(decodeConfig(encodeConfig(config))).toEqual(config);
+});
+
+it("trims builder input to what the schema accepts", () => {
+  const typed = toLoadingText(`a\u2028b\n${"c".repeat(100)}`);
+  expect(typed).toBe(`ab${"c".repeat(78)}`);
+  expect(typed).toHaveLength(LOADING_TEXT_MAX_LENGTH);
+});
+
+it("explains why a config cannot be shared", () => {
+  const config = {
+    ...DEFAULT_CONFIG,
+    components: { ...DEFAULT_CONFIG.components, loadingText: "a".repeat(81) },
+  };
+  expect(configIssue(config)).toMatch(/^components\.loadingText: /);
+});
+
+it.each([
+  ["3-byte characters", (length: number) => "界".repeat(length)],
+  ["emoji", (length: number) => "🎨".repeat(length / 2)],
+])("encodes the longest config of %s within the decoder limit", (_, wide) => {
+  const color = { light: "#".padEnd(64, "a"), dark: "#".padEnd(64, "b") };
+  const config: BuilderConfig = {
+    ...DEFAULT_CONFIG,
+    components: {
+      ...DEFAULT_CONFIG.components,
+      loadingText: wide(LOADING_TEXT_MAX_LENGTH),
+    },
+    styles: {
+      ...DEFAULT_CONFIG.styles,
+      maxWidth: "a".repeat(40),
+      fontFamily: "a".repeat(200),
+      colors: Object.fromEntries(
+        [
+          "accent",
+          "background",
+          "foreground",
+          "muted",
+          "mutedForeground",
+          "border",
+          "userMessage",
+          "assistantMessage",
+          "composer",
+          "userAvatar",
+          "assistantAvatar",
+          "suggestion",
+          "suggestionBorder",
+        ].map((name) => [name, color]),
+      ) as BuilderConfig["styles"]["colors"],
+    },
+    customCSS: `/*${wide(CUSTOM_CSS_MAX_LENGTH - 4)}*/`,
+  };
+  expect(configIssue(config)).toBeUndefined();
+  expect(encodeConfig(config).length).toBeLessThan(MAX_ENCODED_CONFIG_LENGTH);
+  expect(decodeConfig(encodeConfig(config))).toEqual(config);
+});
+
+it("round-trips an encoded configuration", () => {
+  const config = withStyles({ maxWidth: "56rem" }) as BuilderConfig;
+  expect(decodeConfig(encodeConfig(config))).toEqual(config);
+});
+
+it("writes configured strings as string literals", () => {
+  const hostile = '"}} />; bad(); <div x={"';
+  const content =
+    generateRegistryJson({
+      ...withStyles({ fontFamily: hostile, maxWidth: hostile }),
+      components: { ...DEFAULT_CONFIG.components, loadingText: hostile },
+    } as BuilderConfig).files[0]?.content ?? "";
+
+  expect(content).not.toContain(hostile);
+  expect(content).toContain(`fontFamily: ${JSON.stringify(hostile)},`);
+  expect(content).toContain(
+    `["--thread-max-width" as string]: ${JSON.stringify(hostile)},`,
+  );
+  expect(content).toContain(`{${JSON.stringify(hostile)}}</span>`);
+});
+
+it.each(PRESETS.map((preset) => [preset.id, preset.config] as const))(
+  "accepts the %s preset as a shared configuration",
+  (_, config) => {
+    expect(decodeConfig(encodeConfig(config))).toEqual(config);
+  },
+);
+
+it.each([
+  ["a NUL character", "\u0000"],
+  ["a lone surrogate", "\ud800"],
+  ["a C1 control character", "\u0085"],
+])("rejects custom CSS with %s", (_, char) => {
+  expect(configIssue({ ...DEFAULT_CONFIG, customCSS: `a${char}b` })).toMatch(
+    /^customCSS: /,
+  );
+});
+
+it("accepts custom CSS with line breaks, tabs and emoji", () => {
+  expect(
+    configIssue({
+      ...DEFAULT_CONFIG,
+      customCSS: ".a {\n\tcolor: red; /* 🎨 */\r\n}",
+    }),
+  ).toBeUndefined();
+});
+
+it.each([
+  ["a C1 control character", "\u0085"],
+  ["a lone surrogate", "\ud800"],
+])(
+  "drops %s from builder loading text and rejects it in the schema",
+  (_, char) => {
+    expect(toLoadingText(`a${char}b`)).toBe("ab");
+    expect(
+      configIssue({
+        ...DEFAULT_CONFIG,
+        components: { ...DEFAULT_CONFIG.components, loadingText: `a${char}b` },
+      }),
+    ).toMatch(/^components\.loadingText: /);
+  },
+);
+
+it("keeps a surrogate pair whole when trimming builder loading text", () => {
+  const text = toLoadingText(`${"a".repeat(79)}🎨`);
+  expect(text).toBe("a".repeat(79));
+  expect(
+    configIssue({
+      ...DEFAULT_CONFIG,
+      components: { ...DEFAULT_CONFIG.components, loadingText: "🎨" },
+    }),
+  ).toBeUndefined();
+});

@@ -63,7 +63,6 @@
     "packages/remote-components-vite/src/index.ts": [
       "remoteComponents | default"
     ],
-    "packages/setup-agent/src/cli.ts": ["agentInstructions | INSTRUCTIONS"],
     "packages/tap/src/standalone-shim/jsx-runtime.ts": [
       "throwRender | jsx | jsxs"
     ]
@@ -307,9 +306,6 @@
     ],
     "packages/generative-frame/src/runtime/index.ts": ["RuntimeConfig"],
     "packages/markdown/src/tokenizer/types.ts": ["TokenizeResult"],
-    "packages/react-ag-ui/src/runtime/adapter/subscriber.ts": [
-      "AgUiSubscriber"
-    ],
     "packages/react-devtools/src/data/types.ts": ["SerializedModelContext"],
     "packages/react-devtools/src/views/activity/index.ts": ["ActivityNode"],
     "packages/react-devtools/src/views/attachments/index.ts": [
@@ -402,6 +398,9 @@
     "packages/react-markdown/src/primitives/MarkdownText.overrides.test.tsx": [
       "jsdom"
     ],
+    "packages/solid/src/primitives/ThreadListPrimitiveNew.test.ts": ["react"],
+    "packages/solid/src/primitives/threadListStructural.test.ts": ["react"],
+    "packages/solid/src/testUtils.ts": ["react"],
     "packages/svelte/src/__tests__/clients.ts": ["react"],
     "packages/ui/src/components/react-native/assistant-ui/elements/markdown-text.compiler.test.ts": [
       "@babel/core"

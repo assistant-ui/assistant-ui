@@ -41,9 +41,9 @@
     "benchmark": "tsx benchmarks/run.ts"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.32",
+    "@assistant-ui/core": "^0.3.36",
     "@assistant-ui/store": "^0.3.22",
-    "@assistant-ui/tap": "^0.9.24",
+    "@assistant-ui/tap": "^0.9.26",
     "assistant-cloud": "workspace:^",
     "assistant-stream": "^0.3.55",
     "diff": "^9.0.0",

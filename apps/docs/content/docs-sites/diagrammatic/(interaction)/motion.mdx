@@ -6,7 +6,7 @@ description: Animate flow direction and live points with one attribute and the s
 import { Example } from "@/components/diagrammatic/example";
 import DotWorld from "@/components/diagrammatic/examples/dot-world-map/motion";
 import SankeyMotion from "@/components/diagrammatic/examples/sankey/motion";
-import LiveLine from "@/components/diagrammatic/examples/line/live";
+import { LineLive as LiveLine } from "@/components/diagrammatic/examples.lazy";
 
 Charts that draw a direction or a live reading stamp motion layers into their SVG. The layers are invisible and inert until two things are true: `diagrammatic/styles.css` is loaded, and the chart or any ancestor carries `data-dg-motion`. Motion is CSS only, so the chart stays a server component and no JavaScript runs to animate it.
 

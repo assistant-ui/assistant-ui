@@ -131,6 +131,45 @@ const makeIsStoredMessagePart = (
 
 export const isStoredMessagePart = makeIsStoredMessagePart({}, () => true);
 
+const isString = (value: unknown) => typeof value === "string";
+
+/** Optional fields of known part types, with the values each one accepts. */
+const optionalFieldGuards: Record<
+  string,
+  Readonly<Record<string, (value: unknown) => boolean>>
+> = {
+  file: {
+    filename: isString,
+    sourceType: (value) => value === "url" || value === "id",
+  },
+  image: { filename: isString },
+  source: { title: isString, filename: isString },
+};
+
+/**
+ * The guards require only the fields a file, image or source part needs to
+ * render, so an optional field of the wrong type, including `null` from a
+ * nullable JSON column, is removed here and the part is kept. Other parts,
+ * including unknown extension types, pass through unchanged.
+ */
+export const withoutInvalidOptionals = <T>(part: T): T => {
+  const record = part as Record<string, unknown>;
+  const fields =
+    typeof record.type === "string" &&
+    Object.hasOwn(optionalFieldGuards, record.type)
+      ? optionalFieldGuards[record.type]!
+      : {};
+  const invalid = Object.entries(fields)
+    .filter(
+      ([key, isValid]) => record[key] !== undefined && !isValid(record[key]),
+    )
+    .map(([key]) => key);
+  if (invalid.length === 0) return part;
+  const copy = { ...record };
+  for (const key of invalid) delete copy[key];
+  return copy as T;
+};
+
 /**
  * The aui/v0 decoder dereferences each present field rather than reading only
  * the one it needs, so this boundary checks every field it will touch, while
@@ -211,6 +250,6 @@ export const parseStoredAttachment = (
 
   return {
     ...value,
-    content: value.content.filter(isPart),
+    content: value.content.filter(isPart).map(withoutInvalidOptionals),
   } as CompleteAttachment;
 };

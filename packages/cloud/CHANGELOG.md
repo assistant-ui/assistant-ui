@@ -1,5 +1,11 @@
 # assistant-cloud
 
+## 0.2.12
+
+### Patch Changes
+
+- [#10525](https://github.com/assistant-ui/assistant-ui/pull/10525) [`11f1d88`](https://github.com/assistant-ui/assistant-ui/commit/11f1d88dad34eefcd60d20a28238e9e3bb0f9814) - Keep the settled answer in Assistant Cloud history when the early store of a running reply fails while the run settles. The settled write now creates the row with its own content when that store failed, and writes over the row when it succeeded without a run lease. ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.11
 
 ### Patch Changes

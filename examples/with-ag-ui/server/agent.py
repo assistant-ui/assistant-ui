@@ -25,10 +25,15 @@ load_dotenv(".env")
 
 app = FastAPI(title="AG-UI Example Agent")
 
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials="*" not in cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -165,4 +170,4 @@ if __name__ == "__main__":
     print("  POST /agent  - AG-UI agent endpoint")
     print("  GET  /health - Health check")
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=8000)

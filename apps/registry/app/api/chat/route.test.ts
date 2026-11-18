@@ -187,6 +187,52 @@ describe.each(routes)("$name chat route", ({ path, hasTools, resumable }) => {
   );
 });
 
+describe.each(
+  routes.filter(({ name }) =>
+    [
+      "registry",
+      "default",
+      "minimal",
+      "cloud",
+      "cloud-clerk",
+      "cloud-harness",
+      "mcp",
+      "resumable registry",
+    ].includes(name),
+  ),
+)("$name chat route request context", ({ path }) => {
+  const request = (headers: Record<string, string>) =>
+    new Request("http://localhost/api/chat", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ messages, tools }),
+    });
+
+  it.each([
+    ["a cross-site fetch", { "sec-fetch-site": "cross-site" }],
+    ["a same-site fetch", { "sec-fetch-site": "same-site" }],
+    ["a foreign Origin", { origin: "https://example.net" }],
+  ])("rejects %s before calling the model", async (_label, headers) => {
+    const POST = await loadRoute(path);
+    const response = await POST(request(headers));
+
+    expect(response.status).toBe(403);
+    expect(mocks.streamText).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a same-origin fetch", { "sec-fetch-site": "same-origin" }],
+    ["its own Origin", { origin: "http://localhost" }],
+    ["a request without browser headers", {}],
+  ])("serves %s", async (_label, headers) => {
+    const POST = await loadRoute(path);
+    const response = await POST(request(headers));
+
+    expect(response.status).toBe(200);
+    expect(mocks.streamText).toHaveBeenCalledTimes(1);
+  });
+});
+
 it("preserves MCP tools and lets frontend tools override matching names in both calls", async () => {
   const serverTool = {
     description: "Server tool",

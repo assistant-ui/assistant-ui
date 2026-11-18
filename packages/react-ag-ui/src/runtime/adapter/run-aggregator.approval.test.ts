@@ -54,6 +54,70 @@ const approvalOf = (result: ChatModelRunResult) => {
 };
 
 describe("RunAggregator tool approval projection", () => {
+  it("projects a split approval batch onto retained owners before emitting the interrupt anchor", () => {
+    const emitted: { messageId: string; update: ChatModelRunResult }[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: false,
+      logger: noopLogger,
+      emit: (update) => emitted.push({ messageId: "anchor", update }),
+      onRetainedMessage: (update, { messageId }) =>
+        emitted.push({ messageId, update }),
+    });
+    aggregator.handle({ type: "RUN_STARTED", runId: "run-1" });
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc-1",
+      toolCallName: "delete_file",
+    });
+    aggregator.handle({ type: "TOOL_CALL_END", toolCallId: "tc-1" });
+    aggregator.rebaseMessage("second", "first");
+    aggregator.announceRetained();
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc-2",
+      toolCallName: "delete_file",
+    });
+    aggregator.handle({ type: "TOOL_CALL_END", toolCallId: "tc-2" });
+    aggregator.rebaseMessage("anchor", "second");
+    aggregator.announceRetained();
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc-3",
+      toolCallName: "delete_file",
+    });
+    aggregator.handle({ type: "TOOL_CALL_END", toolCallId: "tc-3" });
+    const beforeInterrupt = emitted.length;
+
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          GATE,
+          { ...GATE, id: "int-2", toolCallId: "tc-2" },
+          { ...GATE, id: "int-3", toolCallId: "tc-3" },
+        ],
+      },
+    });
+
+    const updates = emitted.slice(beforeInterrupt);
+    expect(updates.map(({ messageId }) => messageId)).toEqual([
+      "first",
+      "second",
+      "anchor",
+    ]);
+    expect(updates.map(({ update }) => approvalOf(update))).toEqual([
+      { id: "int-1", prompt: "Delete /tmp/a?" },
+      { id: "int-2", prompt: "Delete /tmp/a?" },
+      { id: "int-3", prompt: "Delete /tmp/a?" },
+    ]);
+    expect(updates.at(-1)?.update.status).toEqual({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
   it("projects the gate while the run awaits the interrupt", () => {
     const { last } = gatedAggregator();
 

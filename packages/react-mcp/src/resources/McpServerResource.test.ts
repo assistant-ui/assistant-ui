@@ -763,6 +763,9 @@ describe("McpServerResource connectionTimeout", () => {
     try {
       void root.getValue().connect();
       await waitFor(() => mocks.clients[0]?.connect.mock.calls.length === 1);
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "connecting",
+      );
       await vi.advanceTimersByTimeAsync(10_000);
       await tick();
 

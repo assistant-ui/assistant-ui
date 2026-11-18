@@ -34,10 +34,10 @@ const {
 
 vi.mock("aui-auth/accounts", async (importOriginal) => ({
   ...(await importOriginal<typeof import("aui-auth/accounts")>()),
-  fetchOrganizations,
   fetchProjects,
   createProject,
 }));
+vi.mock("../lib/cloud-organizations", () => ({ fetchOrganizations }));
 vi.mock("../lib/cloud-auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/cloud-auth")>()),
   cloudAccessToken,

@@ -2,6 +2,18 @@ import {
   type BuilderConfig,
   DEFAULT_CONFIG,
 } from "@/components/pages/playground/types";
+import { updateConfigSchema } from "./playground-config-schema";
+
+/**
+ * Longest encoded config accepted from a URL. String lengths in the schema
+ * count UTF-16 code units, and the schema only accepts values where each unit
+ * encodes to at most 3 bytes: an astral character such as an emoji is 2 units
+ * and 4 bytes, and the long fields reject the control characters and lone
+ * surrogates that JSON would escape to 6. So every config it accepts encodes shorter
+ * than this and `encodeConfig` never writes a value `decodeConfig` refuses
+ * for its length. `configIssue` checks both on the encoder side.
+ */
+export const MAX_ENCODED_CONFIG_LENGTH = 100_000;
 
 function computeDiff(
   config: BuilderConfig,
@@ -48,6 +60,8 @@ export function applyDiff(
 
     const result = { ...(target as Record<string, unknown>) };
     for (const key of Object.keys(source as Record<string, unknown>)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype")
+        continue;
       const sourceObj = source as Record<string, unknown>;
       result[key] = deepMerge(result[key], sourceObj[key]);
     }
@@ -90,8 +104,35 @@ export function encodeConfig(config: BuilderConfig): string {
   return base64UrlEncode(json);
 }
 
+/**
+ * Why a config cannot be shared as a link, or undefined when it can. Uses the
+ * same schema and length limit `decodeConfig` applies.
+ */
+export function configIssue(config: BuilderConfig): string | undefined {
+  const result = updateConfigSchema.safeParse(
+    computeDiff(config, DEFAULT_CONFIG),
+  );
+  if (!result.success) {
+    const issue = result.error.issues[0];
+    return issue
+      ? `${issue.path.join(".") || "config"}: ${issue.message}`
+      : "Invalid configuration";
+  }
+  if (encodeConfig(config).length > MAX_ENCODED_CONFIG_LENGTH) {
+    return "Configuration is too long";
+  }
+  return undefined;
+}
+
+/**
+ * Decodes a config from a URL. Throws unless the diff matches the config
+ * schema exactly; unknown keys and out-of-range values are rejected.
+ */
 export function decodeConfig(encoded: string): BuilderConfig {
+  if (encoded.length > MAX_ENCODED_CONFIG_LENGTH) {
+    throw new Error("Configuration is too long");
+  }
   const json = base64UrlDecode(encoded);
-  const diff = JSON.parse(json) as Record<string, unknown>;
+  const diff = updateConfigSchema.parse(JSON.parse(json));
   return applyDiff(diff, DEFAULT_CONFIG);
 }

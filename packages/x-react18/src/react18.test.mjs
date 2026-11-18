@@ -5,6 +5,7 @@ import test from "node:test";
 import { onlyInReact18, splitDiagnostics } from "./declaration-errors.mjs";
 import { readsDist } from "./project.mjs";
 import { react18Specifier } from "./resolve.mjs";
+import { react18 } from "./vitest.mjs";
 
 test("maps react and react-dom, with subpaths, to the React 18 copies", () => {
   assert.equal(react18Specifier("react"), "react-v18");
@@ -29,7 +30,7 @@ test("the hook makes require and import of react and react-dom load React 18", (
     process.execPath,
     [
       "--import",
-      fileURLToPath(new URL("./hooks.mjs", import.meta.url)),
+      new URL("./hooks.mjs", import.meta.url).href,
       "--input-type=module",
       "-e",
       `import { createRequire } from "node:module";
@@ -42,6 +43,19 @@ test("the hook makes require and import of react and react-dom load React 18", (
   );
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout.trim(), /^18\.\d+\.\d+ 18\.\d+\.\d+ function$/);
+});
+
+test("preloads the hook through a specifier node accepts on every platform", () => {
+  // node --import parses a bare Windows path as a "d:" scheme and exits with
+  // ERR_UNSUPPORTED_ESM_URL_SCHEME, so the config has to pass a URL.
+  const execArgv = react18({
+    root: fileURLToPath(new URL("..", import.meta.url)),
+  }).test.execArgv;
+
+  assert.equal(execArgv?.[0], "--import");
+  const specifier = execArgv?.[1];
+  assert.match(specifier, /^file:/u);
+  assert.equal(fileURLToPath(specifier).endsWith("hooks.mjs"), true);
 });
 
 test("fails on the package's own declaration errors and only reports upstream ones", () => {

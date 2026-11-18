@@ -1,7 +1,8 @@
 import { defineComponent, h, type SlotsType, type VNodeChild } from "vue";
 import { useAuiState } from "../useAuiState";
 import { AttachmentByIndexProvider } from "./AttachmentByIndexProvider";
-import { getAttachmentKeys, useStableKeys } from "./stableKeys";
+import { getAttachmentKeys } from "@assistant-ui/core/internal";
+import { useStableKeys } from "./stableKeys";
 
 /**
  * Renders the current message's attachments in order, each scoped through

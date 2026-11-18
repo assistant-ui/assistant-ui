@@ -1,10 +1,11 @@
 "use generative";
 
 import { cn } from "@/lib/utils";
-import {
-  WeatherWidget,
-  type TemperatureUnit,
-  type WeatherWidgetPayload,
+import { lazy, Suspense } from "react";
+import { FallbackBoundary } from "@/lib/fallback-boundary";
+import type {
+  TemperatureUnit,
+  WeatherWidgetPayload,
 } from "@/components/tool-ui/weather-widget/runtime";
 import {
   fetchWeatherWidgetFromOpenMeteo,
@@ -143,6 +144,21 @@ const GetWeatherToolUI: ToolCallMessagePartComponent<
 
 // The user-facing component library the model renders through the `present` tool, with a rich weather card backed by a `get_weather` result.
 const markdownBase = defaultGenerativeUILibrary.Markdown!;
+
+// The weather card's effect compositor is ~30 kB gzipped and only renders after
+// a `get_weather` call, so it loads on demand. The placeholder keeps the card's
+// 4:3 box so the message doesn't jump when it arrives.
+const WeatherWidget = lazy(() =>
+  import("@/components/tool-ui/weather-widget/runtime").then((mod) => ({
+    default: mod.WeatherWidget,
+  })),
+);
+
+const WeatherWidgetPlaceholder = () => (
+  <div className="w-full max-w-md">
+    <div className="bg-muted aspect-[4/3] animate-pulse rounded-2xl" />
+  </div>
+);
 
 const generative = new JSONGenerativeUI({
   library: {
@@ -320,7 +336,11 @@ const WeatherCard = ({
 
   return (
     <div className="mt-2 mb-2 flex max-w-sm flex-col">
-      <WeatherWidget {...widget} />
+      <FallbackBoundary fallback={null}>
+        <Suspense fallback={<WeatherWidgetPlaceholder />}>
+          <WeatherWidget {...widget} />
+        </Suspense>
+      </FallbackBoundary>
       <p className="text-muted-foreground/70 mt-1.5 text-center font-mono text-xs">
         present({generativeUIToJSX(generativeNode)})
       </p>

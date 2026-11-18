@@ -9806,13 +9806,13 @@ describe("AGUIThreadRuntimeCore", () => {
       );
       expect(
         (messageOf("assistant-1").metadata.custom.agui as any).opaqueReasoning,
-      ).toEqual([{ id: "r-1", encryptedValue: "sig-1" }]);
+      ).toEqual([{ id: "r-1", encryptedValue: "sig-1", index: 0 }]);
       expect(messageOf("assistant-2").content.map((part) => part.type)).toEqual(
         ["text"],
       );
       expect(
         (messageOf("assistant-2").metadata.custom.agui as any).opaqueReasoning,
-      ).toEqual([{ id: "r-2", encryptedValue: "sig-2" }]);
+      ).toEqual([{ id: "r-2", encryptedValue: "sig-2", index: 0 }]);
     });
 
     it("splits on content that carries a new message id without a start event", async () => {

@@ -45,7 +45,7 @@ export function AskAiBall() {
   if (!armed || open) return null;
 
   return (
-    <div className="group fixed right-5 bottom-5 z-50">
+    <div data-ask-ai-ball className="group fixed right-5 bottom-5 z-50">
       <button
         type="button"
         onClick={toggle}

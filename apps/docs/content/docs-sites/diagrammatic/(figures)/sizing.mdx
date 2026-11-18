@@ -4,7 +4,7 @@ description: How a figure takes its width, height, and type size, and how to fit
 ---
 
 import { SizingChart } from "@/components/diagrammatic/samples";
-import { FitSample } from "@/components/diagrammatic/samples-client";
+import { FitSample } from "@/components/diagrammatic/samples-client.lazy";
 
 Every figure is drawn in CSS pixels. The root `svg` carries `width`, `height`, and a `viewBox` of the same size, so one unit inside the figure is one pixel on the page. Margins, hairlines, hit areas, and type are pixel measures, and the chart's 11px tick labels are the same 11px as your captions.
 

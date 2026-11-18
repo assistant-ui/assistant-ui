@@ -1,5 +1,15 @@
 # @assistant-ui/core
 
+## 0.3.36
+
+### Patch Changes
+
+- [#10544](https://github.com/assistant-ui/assistant-ui/pull/10544) [`7854908`](https://github.com/assistant-ui/assistant-ui/commit/7854908de003619397e9e30c578eb926246d2068) - Declare `MessagePrimitiveGroupedParts` and `MarkdownTextPrimitive` as functions so their doc comments reach the emitted declarations. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10513](https://github.com/assistant-ui/assistant-ui/pull/10513) [`a62f296`](https://github.com/assistant-ui/assistant-ui/commit/a62f2969ce2d24efd405548e80c486f8409f407d) - Release replaced external-store messages while their runtime remains mounted by narrowing the capture scopes of stable lifecycle callbacks, subscriptions, and client methods. ([@LeoLB-Wang](https://github.com/LeoLB-Wang))
+- Updated dependencies [[`11f1d88`](https://github.com/assistant-ui/assistant-ui/commit/11f1d88dad34eefcd60d20a28238e9e3bb0f9814)]:
+  - assistant-cloud@0.2.12
+
 ## 0.3.35
 
 ### Patch Changes

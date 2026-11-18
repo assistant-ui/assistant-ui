@@ -6,6 +6,7 @@ import {
   type Theme,
 } from "markdansi";
 import { memo, useCallback, useSyncExternalStore } from "react";
+import { filterHyperlinks, hasRefusedHyperlink } from "./filterHyperlinks";
 import { sanitizeTerminalText } from "./sanitizeTerminalText";
 
 export type MarkdownTextProps = {
@@ -30,7 +31,12 @@ export type MarkdownTextProps = {
   codeGutter?: boolean;
   /** Wrap long lines in code blocks (default: true). */
   codeWrap?: boolean;
-  /** Enable OSC 8 hyperlinks (default: auto-detect). */
+  /**
+   * Enable OSC 8 hyperlinks (default: auto-detect). Only http and https
+   * links become hyperlinks. If a message has a link with any other scheme,
+   * the whole message renders as with hyperlinks off: every link shows as
+   * "label (url)".
+   */
   hyperlinks?: boolean;
   /** Enable ANSI colors (default: auto-detect). */
   color?: boolean;
@@ -107,13 +113,40 @@ const MarkdownTextImpl = ({ text, ...options }: MarkdownTextProps) => {
       ? { ...options, width: terminalWidth }
       : options;
 
-  const rendered = render(
-    sanitizeTerminalText(text),
-    Object.values(resolvedOptions).some((v) => v !== undefined)
-      ? (resolvedOptions as RenderOptions)
+  const source = sanitizeTerminalText(text);
+  // markdansi has no per-link hook. If any link has a scheme we don't
+  // hyperlink, render again without hyperlinks so markdansi lays out every
+  // link as "label (url)" itself, tables and wrapping included. Code blocks
+  // render the same both times, so the second pass reuses the highlighting.
+  const { highlighter } = resolvedOptions;
+  const highlighted = new Map<string, string>();
+  const renderOptions = {
+    ...resolvedOptions,
+    ...(highlighter && {
+      highlighter: (code: string, lang?: string) => {
+        const key = `${lang ?? ""}\u0000${code}`;
+        let result = highlighted.get(key);
+        if (result === undefined) {
+          result = highlighter(code, lang);
+          highlighted.set(key, result);
+        }
+        return result;
+      },
+    }),
+  };
+  let rendered = render(
+    source,
+    Object.values(renderOptions).some((v) => v !== undefined)
+      ? (renderOptions as RenderOptions)
       : undefined,
   );
-  return <Text>{rendered}</Text>;
+  if (hasRefusedHyperlink(rendered)) {
+    rendered = render(source, {
+      ...renderOptions,
+      hyperlinks: false,
+    } as RenderOptions);
+  }
+  return <Text>{filterHyperlinks(rendered)}</Text>;
 };
 
 MarkdownTextImpl.displayName = "MarkdownText";

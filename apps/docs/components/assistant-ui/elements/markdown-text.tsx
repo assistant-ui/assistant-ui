@@ -8,21 +8,28 @@ import {
   memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
-import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { type ComponentProps, memo, useRef } from "react";
+import { useAuiState } from "@assistant-ui/react";
+import {
+  type ComponentProps,
+  lazy,
+  memo,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type { PluggableList } from "unified";
 import dynamic from "next/dynamic";
 
-import {
-  type HighlighterProps,
-  SyntaxHighlighter as ShikiSyntaxHighlighter,
-} from "@/components/assistant-ui/elements/shiki-highlighter.aui";
+import type { HighlighterProps } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { CodeBlock } from "@/components/ui/code-block";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { preprocessMath } from "@/lib/markdown-math";
 import { cn } from "@/lib/utils";
+import { FallbackBoundary } from "@/lib/fallback-boundary";
 
 // The diagram engine only loads once a mermaid fence arrives, so every other
 // route that renders markdown keeps it out of its initial chunk.
@@ -40,6 +47,18 @@ const LazyMermaidDiagram = dynamic(
       />
     ),
   },
+);
+
+// Shiki and its grammars load with the first code fence. Until then the fence
+// shows the same plain code the highlighter renders while a part streams, in
+// the same container, so highlighting arrives as a color change only.
+const SHIKI_CONTAINER =
+  "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
+
+const ShikiSyntaxHighlighter = lazy(() =>
+  import("@/components/assistant-ui/elements/shiki-highlighter.aui").then(
+    (mod) => ({ default: mod.SyntaxHighlighter }),
+  ),
 );
 
 // A table is printed matter like a code sheet, so it gets the same figure: a
@@ -126,13 +145,25 @@ function MarkdownTable({
 const codeSheetReset =
   "[&_pre]:rounded-none [&_pre]:border-0 [&_pre]:bg-transparent! [&_pre]:px-3.5 [&_pre]:py-0 [&_pre]:text-[12.5px] [&_pre]:overflow-visible";
 
+const PlainCodeSheet = ({ code }: { code: string }) => (
+  <div className={cn(SHIKI_CONTAINER, codeSheetReset)}>
+    <pre>
+      <code>{code.trim()}</code>
+    </pre>
+  </div>
+);
+
 const SyntaxHighlighter = (props: HighlighterProps) => (
   <CodeBlock
     title={props.language || undefined}
     copyText={props.code}
     className="my-3"
   >
-    <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
+    <FallbackBoundary fallback={<PlainCodeSheet code={props.code} />}>
+      <Suspense fallback={<PlainCodeSheet code={props.code} />}>
+        <ShikiSyntaxHighlighter {...props} className={codeSheetReset} />
+      </Suspense>
+    </FallbackBoundary>
   </CodeBlock>
 );
 
@@ -148,12 +179,70 @@ const MermaidDiagram = (props: ComponentProps<typeof LazyMermaidDiagram>) => (
 const NoCodeHeader = () => null;
 
 const remarkPlugins = [remarkGfm, remarkMath];
-const rehypePlugins = [rehypeKatex];
+
+// KaTeX is about 80 kB gzipped and most replies have no math, so rehype-katex
+// loads the first time a message looks like it contains some. Until then the
+// math renders as remark-math's plain code fallback.
+const NO_REHYPE_PLUGINS: PluggableList = [];
+let katexPlugins: PluggableList | null = null;
+let katexLoad: Promise<PluggableList> | null = null;
+export const loadKatexPlugins = () => {
+  katexLoad ??= import("rehype-katex").then(
+    (mod) => {
+      katexPlugins = [mod.default];
+      return katexPlugins;
+    },
+    (error: unknown) => {
+      katexLoad = null;
+      throw error;
+    },
+  );
+  return katexLoad;
+};
+
+// Cheap pre-check for every math syntax preprocessMath understands; only text
+// that passes it is normalized and checked for a real, unescaped `$` outside
+// code, so currency like `$5` (escaped by preprocessMath) and dollars in code
+// spans or fences don't load KaTeX.
+const MATH_SYNTAX = /\$|\\\(|\\\[|\[\/math\]|\[\/inline\]/;
+const CODE = /(`{3,}|~{3,})[\s\S]*?(?:\1|$)|(`+)[^\n]*?(?<!`)\2(?!`)/g;
+const UNESCAPED_DOLLAR = /(?:^|[^\\])\$/;
+export const hasMath = (text: string) =>
+  MATH_SYNTAX.test(text) &&
+  UNESCAPED_DOLLAR.test(preprocessMath(text).replace(CODE, ""));
+
+const useRehypePlugins = () => {
+  const needsKatex = useAuiState((s) => {
+    if (katexPlugins) return true;
+    if (s.part.type !== "text" && s.part.type !== "reasoning") return false;
+    return hasMath(s.part.text);
+  });
+  const [plugins, setPlugins] = useState(katexPlugins);
+
+  useEffect(() => {
+    if (!needsKatex || plugins) return;
+    let live = true;
+    // On failure the math keeps its plain fallback; the next message part
+    // that mounts tries again.
+    loadKatexPlugins().then(
+      (loaded) => {
+        if (live) setPlugins(loaded);
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [needsKatex, plugins]);
+
+  return plugins ?? NO_REHYPE_PLUGINS;
+};
 const componentsByLanguage = {
   mermaid: { SyntaxHighlighter: MermaidDiagram },
 };
 
 const MarkdownTextImpl = () => {
+  const rehypePlugins = useRehypePlugins();
   return (
     <MarkdownTextPrimitive
       remarkPlugins={remarkPlugins}

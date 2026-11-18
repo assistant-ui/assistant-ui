@@ -1,0 +1,9 @@
+{
+  "app": "assistant-ui-demo",
+  "origin": "https://www.assistant-ui.com",
+  "client": {
+    "name": "assistant-ui",
+    "orgApi": "read",
+    "listed": true
+  }
+}

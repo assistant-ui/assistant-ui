@@ -1,5 +1,11 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.22
+
+### Patch Changes
+
+- [#10414](https://github.com/assistant-ui/assistant-ui/pull/10414) [`f201150`](https://github.com/assistant-ui/assistant-ui/commit/f2011505050cd13ecfa7341782c9536de67983e6) - accept `@streamdown/code` 2 as the optional code-highlighting peer, alongside 1 ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.21
 
 ### Patch Changes

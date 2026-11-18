@@ -7,9 +7,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/accounts-auth", () => ({
-  get accountsOptions() {
-    return mocks.accountsOptions;
-  },
+  accountsIssuer: () => mocks.accountsOptions?.issuer ?? null,
   getAccessToken: mocks.getAccessToken,
 }));
 

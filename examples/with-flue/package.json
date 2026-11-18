@@ -17,8 +17,8 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@flue/runtime": "^2.3.0",
-    "@hono/node-server": "^2.1.5",
-    "hono": "^4.13.14",
+    "@hono/node-server": "^2.1.6",
+    "hono": "^4.13.16",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "valibot": "^1.5.0"

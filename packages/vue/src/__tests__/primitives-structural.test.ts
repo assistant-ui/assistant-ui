@@ -7,7 +7,7 @@ import {
   ref,
   type Component,
 } from "vue";
-import { flushTapSync } from "@assistant-ui/tap";
+import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type {
@@ -35,7 +35,10 @@ import {
   ThreadListPrimitiveItems,
 } from "../primitives/threadList";
 
+const speechRootUnmounts: (() => void)[] = [];
+
 afterEach(() => {
+  speechRootUnmounts.splice(0).forEach((unmount) => unmount());
   vi.restoreAllMocks();
 });
 
@@ -185,6 +188,58 @@ const mountChat = (runtime: AssistantRuntimeImpl, view: Component) => {
   return { el, unmount: () => app.unmount() };
 };
 
+const mountSpeechRoot = (
+  stopSpeaking: () => void,
+  container: HTMLElement | ShadowRoot = document.body,
+  attrs: Record<string, unknown> = {},
+) => {
+  const Thread = resource(function useThread() {
+    return { getState: () => ({ speech: {} }), stopSpeaking };
+  });
+  const host = document.createElement("div");
+  container.append(host);
+  const app = createApp(
+    defineComponent({
+      setup: () => () =>
+        h(
+          AuiProvider,
+          { config: AuiConfig({ thread: Thread() } as never) },
+          {
+            default: () =>
+              h(ThreadPrimitiveRoot, attrs, {
+                default: () => h("input"),
+              }),
+          },
+        ),
+    }),
+  );
+  app.mount(host);
+  const unmount = () => {
+    app.unmount();
+    host.remove();
+  };
+  speechRootUnmounts.push(unmount);
+  return {
+    root: host.firstElementChild as HTMLDivElement,
+    input: host.querySelector("input")!,
+  };
+};
+
+const dispatchEscape = (
+  target: EventTarget,
+  options: KeyboardEventInit = {},
+) => {
+  const event = new KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    ...options,
+  });
+  target.dispatchEvent(event);
+  return event;
+};
+
 const findThreadItem = (el: HTMLElement, selector: string, title: string) => {
   const item = [...el.querySelectorAll<HTMLElement>(selector)].find(
     (node) => node.querySelector(".title")?.textContent === title,
@@ -236,6 +291,77 @@ describe("structural primitives", () => {
     ).not.toThrow();
     bare.unmount();
   });
+
+  it.each(["nested", "open shadow", "closed shadow"] as const)(
+    "stops only the nearest thread's speech on Escape in a %s root",
+    (placement) => {
+      const stopSpeaking = vi.fn();
+      const stopOtherSpeaking = vi.fn();
+      const first = mountSpeechRoot(stopSpeaking);
+      let container: HTMLElement | ShadowRoot = document.body;
+      if (placement === "nested") container = first.root;
+      if (placement === "open shadow" || placement === "closed shadow") {
+        container = first.root.attachShadow({
+          mode: placement === "open shadow" ? "open" : "closed",
+        });
+      }
+      const second = mountSpeechRoot(stopOtherSpeaking, container);
+
+      expect(dispatchEscape(second.input).defaultPrevented).toBe(true);
+      expect(stopSpeaking).not.toHaveBeenCalled();
+      expect(stopOtherSpeaking).toHaveBeenCalledOnce();
+
+      expect(first.root.hasAttribute("data-aui-thread-root")).toBe(true);
+      expect(second.root.hasAttribute("data-aui-thread-root")).toBe(true);
+
+      expect(dispatchEscape(first.root).defaultPrevented).toBe(true);
+      expect(stopSpeaking).toHaveBeenCalledOnce();
+      expect(stopOtherSpeaking).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("routes Escape across sibling roots and outside them while honoring the caller's veto", () => {
+    const stopSpeaking = vi.fn();
+    const stopOtherSpeaking = vi.fn();
+    const first = mountSpeechRoot(stopSpeaking);
+    let veto = true;
+    const onKeydown = vi.fn((event: KeyboardEvent) => {
+      if (veto) event.preventDefault();
+    });
+    const second = mountSpeechRoot(stopOtherSpeaking, document.body, {
+      onKeydown,
+    });
+
+    expect(dispatchEscape(second.input).defaultPrevented).toBe(true);
+    expect(onKeydown).toHaveBeenCalledOnce();
+    expect(stopSpeaking).not.toHaveBeenCalled();
+    expect(stopOtherSpeaking).not.toHaveBeenCalled();
+
+    expect(dispatchEscape(document.body).defaultPrevented).toBe(true);
+    expect(stopSpeaking).toHaveBeenCalledOnce();
+    expect(stopOtherSpeaking).not.toHaveBeenCalled();
+
+    veto = false;
+    expect(dispatchEscape(second.input).defaultPrevented).toBe(true);
+    expect(onKeydown).toHaveBeenCalledTimes(2);
+    expect(stopSpeaking).toHaveBeenCalledOnce();
+    expect(stopOtherSpeaking).toHaveBeenCalledOnce();
+    expect(first.root.hasAttribute("data-aui-thread-root")).toBe(true);
+    expect(second.root.hasAttribute("data-aui-thread-root")).toBe(true);
+  });
+
+  it.each([{ isComposing: true }, { keyCode: 229, isComposing: false }])(
+    "keeps speech playing when Escape ends an IME composition (%j)",
+    (options) => {
+      const stopSpeaking = vi.fn();
+      const { input } = mountSpeechRoot(stopSpeaking);
+
+      expect(dispatchEscape(input, options).defaultPrevented).toBe(false);
+      expect(stopSpeaking).not.toHaveBeenCalled();
+      expect(dispatchEscape(input).defaultPrevented).toBe(true);
+      expect(stopSpeaking).toHaveBeenCalledOnce();
+    },
+  );
 
   it("adds the current message id and tracks message hover state", async () => {
     const { runtime, append } = createTestRuntime();

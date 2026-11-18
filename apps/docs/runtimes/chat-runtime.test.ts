@@ -316,19 +316,20 @@ it("does not claim without signed-in cloud history", () => {
 });
 
 it("omits sendAutomaticallyWhen unless the surface opts in", async () => {
-  useDocsChatRuntime();
+  renderHook(() => useDocsChatRuntime());
 
   expect("sendAutomaticallyWhen" in options()).toBe(false);
 });
 
 it("sets sendAutomaticallyWhen for a surface that opts in", async () => {
-  useDocsChatRuntime({ sendAutomatically: true });
+  renderHook(() => useDocsChatRuntime({ sendAutomatically: true }));
 
   expect(typeof options().sendAutomaticallyWhen).toBe("function");
 });
 
 it("omits api and cloud when the surface supplies neither", async () => {
-  useDocsChatRuntime();
+  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", "");
+  renderHook(() => useDocsChatRuntime());
 
   expect("cloud" in options()).toBe(false);
   expect(
@@ -340,7 +341,9 @@ it("passes through the api, cloud and adapters a surface supplies", async () => 
   const cloud = {} as never;
   const adapters = { feedback: {} } as never;
 
-  useDocsChatRuntime({ api: "/api/doc/chat", cloud, adapters });
+  renderHook(() =>
+    useDocsChatRuntime({ api: "/api/doc/chat", cloud, adapters }),
+  );
 
   expect(
     (options().transport as { options: { api?: string } }).options.api,
@@ -350,17 +353,19 @@ it("passes through the api, cloud and adapters a surface supplies", async () => 
 });
 
 it("asks for the conversation budget only when the surface opts in", async () => {
-  useDocsChatRuntime();
+  renderHook(() => useDocsChatRuntime());
   const plain = options().transport as { options: { body?: unknown } };
   expect(plain.options.body).toBeUndefined();
 
-  useDocsChatRuntime({ countConversations: true });
+  renderHook(() => useDocsChatRuntime({ countConversations: true }));
   const counted = options().transport as {
     options: { body?: Record<string, unknown> };
   };
   expect(counted.options.body).toEqual({ countConversations: true });
 
-  useDocsChatRuntime({ searchDocs: true, countConversations: true });
+  renderHook(() =>
+    useDocsChatRuntime({ searchDocs: true, countConversations: true }),
+  );
   const both = options().transport as {
     options: { body?: Record<string, unknown> };
   };
@@ -368,4 +373,20 @@ it("asks for the conversation budget only when the surface opts in", async () =>
     searchDocs: true,
     countConversations: true,
   });
+});
+
+it("supplies an anonymous cloud with engagement events off until consent", () => {
+  vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
+  installLocalStorage(false);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => new Promise<Response>(() => {})),
+  );
+
+  renderHook(() => useDocsChatRuntime());
+
+  const cloud = options().cloud as ReturnType<typeof useDocsCloud>["cloud"];
+  expect(cloudStrategy(cloud)).toBe("anon");
+  expect(cloud.telemetry.enabled).toBe(true);
+  expect(cloud.telemetry.events).toBe(false);
 });

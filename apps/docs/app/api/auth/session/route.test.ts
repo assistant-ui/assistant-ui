@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
-  accounts: null as { resolveSession: ReturnType<typeof vi.fn> } | null,
+  auth: null as { core: { resolve: ReturnType<typeof vi.fn> } } | null,
   connection: vi.fn(() => Promise.resolve()),
 }));
 
@@ -11,12 +11,10 @@ vi.mock("next/server", async (importOriginal) => ({
   connection: mocks.connection,
 }));
 
-// accounts-auth reaches Upstash and the accounts client behind a server-only
+// accounts-auth reads aui.json and the request scope behind a server-only
 // guard, so this mock replaces the module rather than spreading it.
 vi.mock("@/lib/accounts-auth", () => ({
-  get accounts() {
-    return mocks.accounts;
-  },
+  docsAuth: () => mocks.auth,
 }));
 
 import { GET } from "./route";
@@ -32,12 +30,17 @@ const request = (headers: HeadersInit = {}) =>
   new NextRequest("https://www.assistant-ui.com/api/auth/session", { headers });
 
 const configured = (resolution: { session: unknown; cookies: string[] }) => {
-  mocks.accounts = { resolveSession: vi.fn().mockResolvedValue(resolution) };
-  return mocks.accounts;
+  const resolve = vi.fn().mockResolvedValue({
+    session: resolution.session,
+    setCookies: resolution.cookies,
+    refused: false,
+  });
+  mocks.auth = { core: { resolve } };
+  return { resolveSession: resolve };
 };
 
 beforeEach(() => {
-  mocks.accounts = null;
+  mocks.auth = null;
   delete process.env.ASSISTANT_API_KEY;
 });
 
@@ -86,7 +89,7 @@ describe("GET /api/auth/session", () => {
     });
   });
 
-  it("reports the signed-in visitor and hands back the cookies the resolver issued", async () => {
+  it("reports the signed-in visitor and hands back the cookies the refresh issued", async () => {
     process.env.ASSISTANT_API_KEY = "key";
     const accounts = configured({
       session: { user },
@@ -149,8 +152,10 @@ describe("GET /api/auth/session", () => {
   });
 
   it("answers as a signed-out visitor when the session cannot be resolved", async () => {
-    mocks.accounts = {
-      resolveSession: vi.fn().mockRejectedValue(new Error("store is down")),
+    mocks.auth = {
+      core: {
+        resolve: vi.fn().mockRejectedValue(new Error("accounts is down")),
+      },
     };
 
     const response = await GET(request());

@@ -269,6 +269,10 @@ async function renderAnswer(
   if (format === "frame") {
     await renderFrame(artifact, errors, answerElement);
   } else {
+    // Checked once the answer settles: some components, such as the Diagram,
+    // load their renderer lazily and show a placeholder for a moment.
+    await domSettled();
+    await imagesSettled();
     if (
       !answerElement.textContent?.trim() &&
       !answerElement.querySelector(
@@ -277,8 +281,6 @@ async function renderAnswer(
     ) {
       errors.push("The answer rendered blank.");
     }
-    await domSettled();
-    await imagesSettled();
   }
   await document.fonts.ready;
   await nextFrame();
