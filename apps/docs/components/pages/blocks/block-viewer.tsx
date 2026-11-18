@@ -220,7 +220,7 @@ function BlockCode({
     });
 
   return (
-    <div className="border-foreground/10 rounded-document grid overflow-hidden border [--code-height:min(70vh,600px)] md:grid-cols-[15rem_minmax(0,1fr)]">
+    <div className="border-foreground/10 grid overflow-hidden rounded-2xl border [--code-height:min(70vh,600px)] md:grid-cols-[15rem_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col">
         <div className="border-foreground/10 text-muted-foreground flex h-9 shrink-0 items-center border-b px-3.5 font-mono text-[11px] font-medium tracking-wide [font-variant-ligatures:none]">
           <span className="truncate">{name}</span>
@@ -294,7 +294,7 @@ export function BlockViewer({
           <TabsTrigger value="code">Code</TabsTrigger>
         </TabsList>
         {previewUrl && tab === "preview" && (
-          <div className="flex items-center gap-1">
+          <div className="border-foreground/10 flex h-9 items-center gap-0.5 rounded-lg border px-1">
             <div
               role="group"
               aria-label="Preview width"
@@ -360,7 +360,7 @@ export function BlockViewer({
           {previewUrl ? (
             <div
               ref={frameRef}
-              className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document [&:fullscreen]:bg-background flex h-[min(78vh,720px)] justify-center overflow-hidden border [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-0"
+              className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] [&:fullscreen]:bg-background flex h-[min(78vh,720px)] justify-center overflow-hidden rounded-2xl border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-0"
             >
               <div
                 className="bg-background h-full w-full transition-[max-width] duration-200 motion-reduce:transition-none"
@@ -384,7 +384,7 @@ export function BlockViewer({
               </div>
             </div>
           ) : (
-            <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document relative aspect-[16/10] overflow-hidden border">
+            <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden rounded-2xl border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px]">
               <Image
                 src={image.light}
                 alt={title}

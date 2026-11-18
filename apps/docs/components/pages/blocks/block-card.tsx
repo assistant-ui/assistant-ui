@@ -16,7 +16,7 @@ export function BlockCard({
 }) {
   return (
     <Link href={`/blocks/${slug}`} className="group flex flex-col">
-      <div className="border-foreground/10 group-hover:border-foreground/25 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden border transition-colors">
+      <div className="border-foreground/10 group-hover:border-foreground/25 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden rounded-lg border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px] transition-colors">
         <Image
           src={image.light}
           alt={title}
