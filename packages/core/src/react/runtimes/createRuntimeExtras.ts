@@ -35,7 +35,8 @@ export const unstable_createRuntimeExtrasFromBrand = <T extends object>(
     select?: (extras: T) => S,
     ...rest: [fallback: S] | []
   ): S | T {
-    // An explicit undefined fallback is distinguished by arity.
+    // Detect a provided fallback by arity, not value: callers pass an explicit
+    // `undefined` fallback, which must return `undefined` rather than throw.
     const hasFallback = rest.length > 0;
     const fallback = rest[0] as S;
     return useAuiState((s) => {
