@@ -19,8 +19,14 @@
  *   "public" (default): any https/wss endpoint, credential-less (the
  *     remote's own origin has no host cookies; opaque frames have none).
  *     CSP cannot exclude private or loopback addresses; see SPEC §12.
- *   "none": no network at all (`connect-src 'none'`).
- *   a list: exactly these origins (`https://api.example.com`, `https://*.example.com`).
+ *   "none": no fetch, XHR, WebSocket or EventSource (`connect-src 'none'`),
+ *     and images and media only from the page itself, data: and blob:.
+ *   a list: exactly these origins for connections; images and media also
+ *     allow the page itself, data:, blob: and the listed http(s) origins
+ *     (`https://api.example.com`, `https://*.example.com`).
+ *
+ * Neither "none" nor a list is a data boundary: scripts, styles, fonts,
+ * frames, forms, WebRTC and navigation stay open (SPEC §12, `networkCsp`).
  *
  * A page narrows its own policy with a native CSP of its own,
  * `<meta http-equiv="Content-Security-Policy" content="connect-src …">`:
@@ -56,6 +62,25 @@ export function connectSrc(policy: NetworkPolicy = "public"): string {
   const list =
     policy === "public" ? [PUBLIC] : policy.filter((p) => ORIGIN.test(p));
   return list.length === 0 ? "'none'" : list.join(" ");
+}
+
+/**
+ * The CSP directives for a policy. `"public"` limits only `connect-src`.
+ * `"none"` and a list also hold images and media to the page's own origin,
+ * inline `data:`/`blob:` URLs and the listed origins, since an `<img>` or
+ * `<video>` URL carries data out as well as a `fetch()` does.
+ */
+export function networkCsp(policy: NetworkPolicy = "public"): string {
+  const connect = connectSrc(policy);
+  const directives = [`connect-src ${connect}`];
+  if (policy !== "public") {
+    const sources = ["'self'", "data:", "blob:"];
+    if (connect !== "'none'")
+      sources.push(...connect.split(" ").filter((s) => /^https?:/i.test(s)));
+    const value = sources.join(" ");
+    directives.push(`img-src ${value}`, `media-src ${value}`);
+  }
+  return directives.join("; ");
 }
 
 /** The `frame-ancestors` directive for a list of host origins (`[]`: no page may embed it). */
@@ -153,7 +178,7 @@ export function normalizeHtml(
   options: NormalizeOptions = {},
 ): Normalized {
   let html = hasDoctype(input) ? input : `<!doctype html>\n${input}`;
-  const csp = `connect-src ${connectSrc(options.network)}`;
+  const csp = networkCsp(options.network);
   let head = "";
   if (options.cspMeta)
     head += `<meta http-equiv="Content-Security-Policy" content="${attr(csp)}">`;

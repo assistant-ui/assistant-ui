@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   connectSrc,
+  networkCsp,
   hasDoctype,
   hasRuntime,
   injectHead,
@@ -50,7 +51,7 @@ describe("normalizeHtml", () => {
       network: "none",
     });
     expect(html).toContain(
-      `<meta http-equiv="Content-Security-Policy" content="connect-src 'none'">`,
+      `<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:">`,
     );
   });
 
@@ -95,6 +96,22 @@ describe("network policy", () => {
       "https://a.example https://b.example",
     );
     expect(connectSrc(["javascript:alert(1)"])).toBe("'none'");
+  });
+
+  it("holds images and media to the page under none or a host list", () => {
+    expect(networkCsp()).toBe("connect-src https: wss:");
+    expect(networkCsp("none")).toBe(
+      "connect-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:",
+    );
+    expect(networkCsp(["https://cdn.example", "wss://events.example"])).toBe(
+      "connect-src https://cdn.example wss://events.example; img-src 'self' data: blob: https://cdn.example; media-src 'self' data: blob: https://cdn.example",
+    );
+    expect(
+      normalizeHtml("<p>x</p>", { network: "none" }).headers,
+    ).toMatchObject({
+      "content-security-policy":
+        "connect-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:",
+    });
   });
 
   it("leaves a page's own CSP meta alone (the browser enforces both)", () => {
