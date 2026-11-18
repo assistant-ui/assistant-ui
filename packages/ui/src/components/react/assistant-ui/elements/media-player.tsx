@@ -8,6 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { PauseIcon, PlayIcon } from "lucide-react";
+import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
 import { canPreload } from "../utils/href";
@@ -333,7 +334,7 @@ export function VideoPlayer({
             type="button"
             aria-label={`Play ${title ?? "video"}`}
             onClick={() => {
-              source.arm();
+              flushSync(() => source.arm());
               videoRef.current?.focus();
               void videoRef.current?.play().catch(() => {});
             }}
