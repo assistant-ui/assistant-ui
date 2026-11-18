@@ -1,5 +1,13 @@
 # generative-frame
 
+## 0.0.11
+
+### Patch Changes
+
+- [#10708](https://github.com/assistant-ui/assistant-ui/pull/10708) [`709309d`](https://github.com/assistant-ui/assistant-ui/commit/709309dac48b7fe059bda7fbc8533de0ac4b0f03) - fix(generative-frame): check props and action params after expressions resolve, and leave `__proto__`, `constructor` and `prototype` keys out of resolved props ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`cba4061`](https://github.com/assistant-ui/assistant-ui/commit/cba406112b09de49e99764b51a9d90a8ca952cc7), [`d694a8b`](https://github.com/assistant-ui/assistant-ui/commit/d694a8b638fe1ba59466a25b19aebcbfcaf5325f), [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524), [`415db3a`](https://github.com/assistant-ui/assistant-ui/commit/415db3acc68cb9413205d8b26f9232ea472aef07), [`f88a093`](https://github.com/assistant-ui/assistant-ui/commit/f88a093ec9b79a2137092e6d22ec51d7feb02f64)]:
+  - @assistant-ui/vue@0.0.8
+
 ## 0.0.10
 
 ### Patch Changes
