@@ -14,6 +14,11 @@ const extrasUse = /\bcreateRuntimeExtras\b/;
 
 const bans = [
   {
+    name: "RuntimeExtras.use (use useExtras)",
+    pattern: /\b(?:[\w$]*Extras|extras)\.use\(/g,
+    allPackages: true,
+  },
+  {
     name: "ThreadRuntimeCore declaration",
     pattern:
       /\b(?:class|const|let|var|function)\s+(?:[A-Za-z_$][\w$]*)?ThreadRuntimeCore\b/g,
@@ -61,23 +66,21 @@ export function runCheck(root = repoRoot) {
 
   for (const { manifest } of manifests) {
     const packageDir = posixPath(path.dirname(manifest));
-    if (
-      !packageDir.startsWith("packages/") ||
-      packageDir === "packages/core" ||
-      seen.has(packageDir)
-    )
-      continue;
+    if (!packageDir.startsWith("packages/") || seen.has(packageDir)) continue;
     seen.add(packageDir);
     const files = sourceFiles(path.join(root, packageDir));
     const sources = files.map((file) => ({
       file: `${packageDir}/${file}`,
       source: readFileSync(path.join(root, packageDir, file), "utf8"),
     }));
-    if (!sources.some(({ source }) => extrasUse.test(source))) continue;
-    packageCount++;
+    const isAdapter =
+      packageDir !== "packages/core" &&
+      sources.some(({ source }) => extrasUse.test(source));
+    if (isAdapter) packageCount++;
 
     for (const { file, source } of sources) {
-      for (const { name, pattern } of bans) {
+      for (const { name, pattern, allPackages } of bans) {
+        if (!isAdapter && !allPackages) continue;
         for (const match of source.matchAll(pattern)) {
           violations.push({
             file,

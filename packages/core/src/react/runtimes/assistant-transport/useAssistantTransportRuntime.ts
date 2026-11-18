@@ -130,7 +130,7 @@ export function useAssistantTransportState<T>(
 export function useAssistantTransportState<T>(
   selector: (state: UserExternalState) => T = (t) => t as T,
 ): T | UserExternalState {
-  return assistantTransportExtras.use((extras) => selector(extras.state));
+  return assistantTransportExtras.useExtras((extras) => selector(extras.state));
 }
 
 const useAssistantTransportThreadRuntime = <T>(

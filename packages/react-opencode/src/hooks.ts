@@ -7,11 +7,11 @@ import type { OpenCodeRuntimeExtras, OpenCodeThreadState } from "./types";
 
 /** Read the full OpenCode runtime extras. Throws outside an OpenCode runtime. */
 export const useOpenCodeRuntimeExtras = (): OpenCodeRuntimeExtras =>
-  openCodeExtras.use();
+  openCodeExtras.useExtras();
 
 /** Read the active OpenCode session, or `null` when none is attached. */
 export const useOpenCodeSession = () =>
-  openCodeExtras.use((e) => e.session, null);
+  openCodeExtras.useExtras((e) => e.session, null);
 
 /** Read the OpenCode thread state, optionally projected through a selector. */
 export function useOpenCodeThreadState(): OpenCodeThreadState;
@@ -21,7 +21,7 @@ export function useOpenCodeThreadState<T>(
 export function useOpenCodeThreadState<T>(
   selector?: (state: OpenCodeThreadState) => T,
 ) {
-  return openCodeExtras.use(
+  return openCodeExtras.useExtras(
     (e) => (selector ? selector(e.state) : e.state),
     selector
       ? selector(EMPTY_OPENCODE_THREAD_STATE)
@@ -31,7 +31,7 @@ export function useOpenCodeThreadState<T>(
 
 /** Pending permission requests plus a reply action. */
 export const useOpenCodePermissions = () => {
-  const extras = openCodeExtras.use((e) => e, undefined);
+  const extras = openCodeExtras.useExtras((e) => e, undefined);
 
   return useMemo(
     () => ({
@@ -52,7 +52,7 @@ export const useOpenCodePermissions = () => {
 
 /** Pending question requests. */
 export const useOpenCodeQuestions = () => {
-  const extras = openCodeExtras.use((e) => e, undefined);
+  const extras = openCodeExtras.useExtras((e) => e, undefined);
 
   return useMemo(
     () =>

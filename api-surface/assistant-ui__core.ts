@@ -4510,11 +4510,12 @@ type RuntimeExtras<T extends object> = {
   is: (extras: unknown) => extras is T;
   tryGet: (extras: unknown) => T | undefined;
   get: (client: AssistantClient) => T;
-  use: {
+  useExtras: {
     (): T;
     <S>(select: (extras: T) => S): S;
     <S>(select: (extras: T) => S, fallback: S): S;
   };
+  use: RuntimeExtras<T>["useExtras"];
 };
 
 type RuntimeExtrasBrand<T extends object> = {

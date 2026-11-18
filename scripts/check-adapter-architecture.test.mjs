@@ -197,3 +197,43 @@ test("a clean adapter exits 0 without output", () => {
     },
   );
 });
+
+test("extras.use calls are reported across packages including core", () => {
+  withWorkspace(
+    {
+      "packages/adapter/src/extras.ts": extrasImport,
+      "packages/adapter/src/hooks.ts": [
+        "adapterExtras.use((e) => e.value);",
+        "adapterExtras.useExtras((e) => e.value);",
+      ].join("\n"),
+      "packages/core/src/hooks.ts": "transportExtras.use((e) => e.state);",
+      "packages/plain/src/hooks.ts": "extras.use((e) => e.value);",
+      "packages/plain/src/hooks.test.ts": "extras.use((e) => e.value);",
+    },
+    (root) => {
+      assert.deepEqual(runCheck(root), {
+        packageCount: 1,
+        violations: [
+          {
+            file: "packages/adapter/src/hooks.ts",
+            line: 1,
+            name: "RuntimeExtras.use (use useExtras)",
+            text: "adapterExtras.use(",
+          },
+          {
+            file: "packages/core/src/hooks.ts",
+            line: 1,
+            name: "RuntimeExtras.use (use useExtras)",
+            text: "transportExtras.use(",
+          },
+          {
+            file: "packages/plain/src/hooks.ts",
+            line: 1,
+            name: "RuntimeExtras.use (use useExtras)",
+            text: "extras.use(",
+          },
+        ],
+      });
+    },
+  );
+});

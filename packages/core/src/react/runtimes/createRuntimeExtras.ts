@@ -13,11 +13,13 @@ export type RuntimeExtras<T extends object> = {
   is: (extras: unknown) => extras is T;
   tryGet: (extras: unknown) => T | undefined;
   get: (client: AssistantClient) => T;
-  use: {
+  useExtras: {
     (): T;
     <S>(select: (extras: T) => S): S;
     <S>(select: (extras: T) => S, fallback: S): S;
   };
+  /** @deprecated Use useExtras; the React Compiler does not treat a member named use as a hook. */
+  use: RuntimeExtras<T>["useExtras"];
 };
 
 /** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
@@ -29,12 +31,11 @@ export const unstable_createRuntimeExtrasFromBrand = <T extends object>(
   const get = (client: AssistantClient): T =>
     assert(client.thread.getState().extras);
 
-  function use<S>(
+  function useExtras<S>(
     select?: (extras: T) => S,
     ...rest: [fallback: S] | []
   ): S | T {
-    // Detect a provided fallback by arity, not value: callers pass an explicit
-    // `undefined` fallback, which must return `undefined` rather than throw.
+    // An explicit undefined fallback is distinguished by arity.
     const hasFallback = rest.length > 0;
     const fallback = rest[0] as S;
     return useAuiState((s) => {
@@ -45,7 +46,14 @@ export const unstable_createRuntimeExtrasFromBrand = <T extends object>(
     });
   }
 
-  return { provide, is, tryGet, get, use: use as RuntimeExtras<T>["use"] };
+  return {
+    provide,
+    is,
+    tryGet,
+    get,
+    useExtras: useExtras as RuntimeExtras<T>["useExtras"],
+    use: useExtras as RuntimeExtras<T>["useExtras"],
+  };
 };
 
 /** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
