@@ -306,7 +306,7 @@ type FrontendTool<
   description?: string | undefined;
   /** Schema for the arguments the model must provide when calling the tool. */
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
-  /** Prevents the tool from being exposed to the model while true. */
+  /** Hides the tool from the model while true. A call that names it anyway gets an error result and does not run. */
   disabled?: boolean;
   /** Executes the tool after the model provides valid arguments. */
   execute?: ToolExecuteFunction<TArgs, TResult>;

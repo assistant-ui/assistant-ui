@@ -583,7 +583,7 @@ function GuestModeTools() {
 }
 ```
 
-The override registers above the toolkit default, so the tool drops out of the set sent to the model. Mount the override only while the tool should be hidden (for example, for signed-out users); unmounting it restores the toolkit default.
+The override registers above the toolkit default, so the tool drops out of the set sent to the model. If a response still names a disabled frontend tool, the call gets an error result and `execute` does not run. Mount the override only while the tool should be hidden (for example, for signed-out users); unmounting it restores the toolkit default.
 
 ## Migrating from the component APIs
 

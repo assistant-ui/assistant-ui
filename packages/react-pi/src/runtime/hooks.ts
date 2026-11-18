@@ -13,11 +13,11 @@ import type { PiThreadMetadata } from "../types";
 
 /** The full Pi runtime extras for the active thread. */
 export const usePiRuntimeExtras = (): PiRuntimeExtras =>
-  piExtras.use((e) => e, EMPTY_RUNTIME_EXTRAS);
+  piExtras.useExtras((e) => e, EMPTY_RUNTIME_EXTRAS);
 
 /** The active Pi thread's metadata, or `null` when none is attached. */
 export const usePiSession = (): PiThreadMetadata | null =>
-  piExtras.use((e) => e.metadata, null);
+  piExtras.useExtras((e) => e.metadata, null);
 
 /**
  * The live Pi thread state, optionally projected through a selector.
@@ -30,7 +30,7 @@ export const usePiSession = (): PiThreadMetadata | null =>
 export function usePiThreadState(): PiThreadState;
 export function usePiThreadState<T>(selector: (state: PiThreadState) => T): T;
 export function usePiThreadState<T>(selector?: (state: PiThreadState) => T) {
-  const controller = piExtras.use((e) => e.controller, NOOP_CONTROLLER);
+  const controller = piExtras.useExtras((e) => e.controller, NOOP_CONTROLLER);
   return usePiControllerStateSelector(
     controller,
     selector ?? ((state) => state as T),
@@ -39,7 +39,7 @@ export function usePiThreadState<T>(selector?: (state: PiThreadState) => T) {
 
 /** Pending free-standing host-UI requests plus a responder. */
 export const usePiHostUiRequests = () => {
-  const extras = piExtras.use((e) => e, undefined);
+  const extras = piExtras.useExtras((e) => e, undefined);
 
   return useMemo(
     () => ({

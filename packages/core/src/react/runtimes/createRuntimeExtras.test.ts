@@ -22,6 +22,12 @@ describe("createRuntimeExtras", () => {
     expect(channel.tryGet(branded)).toBe(branded);
   });
 
+  it("keeps use as the same hook reference as useExtras", () => {
+    const channel = createRuntimeExtras<Extras>("useTestRuntime");
+
+    expect(channel.use).toBe(channel.useExtras);
+  });
+
   it("returns the same object reference from provide (stable identity)", () => {
     const channel = createRuntimeExtras<Extras>("useTestRuntime");
     const value = { value: 1, greet: () => "hi" };
@@ -67,5 +73,6 @@ describe("createRuntimeExtras", () => {
 
     expect(channel.is(branded)).toBe(true);
     expect(channel.get(clientWith(branded)).value).toBe(7);
+    expect(channel.use).toBe(channel.useExtras);
   });
 });
