@@ -2,6 +2,23 @@ import { createAdkApiRoute } from "@assistant-ui/react-google-adk/server";
 import { InMemoryRunner, LlmAgent, FunctionTool } from "@google/adk";
 import { z } from "zod";
 
+// Refuses cross-origin browser requests so another origin cannot spend this app's model key or drive its tools. This is not authentication: add your own before you deploy the app publicly.
+function isAllowedRequestContext(req: Request) {
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === new URL(req.url).origin;
+  } catch {
+    return false;
+  }
+}
+
 const weatherTool = new FunctionTool({
   name: "get_weather",
   description: "Get the current weather for a city.",
@@ -29,7 +46,7 @@ const agent = new LlmAgent({
 
 const runner = new InMemoryRunner({ agent, appName: "adk-example" });
 
-export const POST = createAdkApiRoute({
+const handler = createAdkApiRoute({
   runner,
   userId: "user_1",
   sessionId: (_req, clientSessionId) => {
@@ -37,3 +54,14 @@ export const POST = createAdkApiRoute({
     return clientSessionId;
   },
 });
+
+export async function POST(req: Request) {
+  if (!isAllowedRequestContext(req)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
+  return handler(req);
+}
