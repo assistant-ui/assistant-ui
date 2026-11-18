@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { render, renderHook, waitFor } from "@testing-library/react";
 import type { ModelContext } from "@assistant-ui/core";
-import type { Resolver } from "react-hook-form";
+import type { FieldErrors, Resolver } from "react-hook-form";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -43,7 +43,7 @@ const executeSetFormField = (args: { name: string; value: unknown }) => {
 type FormValues = { name: string; age: number; newsletter: boolean };
 
 const typedResolver: Resolver<FormValues> = (values) => {
-  const errors: Record<string, { type: string; message: string }> = {};
+  const errors: FieldErrors<FormValues> = {};
   if (typeof values.name !== "string") {
     errors.name = { type: "type", message: "name must be a string" };
   }
@@ -56,11 +56,9 @@ const typedResolver: Resolver<FormValues> = (values) => {
       message: "newsletter must be a boolean",
     };
   }
-  return Promise.resolve(
-    Object.keys(errors).length > 0
-      ? { values: {} as FormValues, errors }
-      : { values, errors: {} },
-  );
+  if (Object.keys(errors).length > 0)
+    return Promise.resolve({ values: {} as FormValues, errors });
+  return Promise.resolve({ values, errors: {} });
 };
 
 describe("set_form_field values", () => {
