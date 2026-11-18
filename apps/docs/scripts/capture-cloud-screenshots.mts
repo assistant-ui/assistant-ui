@@ -209,6 +209,10 @@ const launchChrome = async () => {
     ],
     { stdio: "ignore" },
   );
+  let spawnError: Error | undefined;
+  proc.once("error", (error) => {
+    spawnError = error;
+  });
   const dispose = async () => {
     proc.kill();
     await sleep(200);
@@ -216,7 +220,9 @@ const launchChrome = async () => {
   };
   try {
     const portFile = join(profile, "DevToolsActivePort");
-    for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
+    for (let i = 0; i < 100 && !spawnError && !existsSync(portFile); i++)
+      await sleep(100);
+    if (spawnError) throw spawnError;
     if (!existsSync(portFile))
       throw new Error("Chrome failed to start within 10s");
     const port = readFileSync(portFile, "utf8").split("\n")[0];
