@@ -48,7 +48,8 @@
     "@assistant-ui/store": "workspace:^",
     "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
-    "react": "^18 || ^19"
+    "react": "^18 || ^19",
+    "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
