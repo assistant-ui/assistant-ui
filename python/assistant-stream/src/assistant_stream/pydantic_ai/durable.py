@@ -357,6 +357,7 @@ class DurableAGUI(Generic[AgentDepsT]):
                 )
                 await producer_started.wait()
                 previous = await self.threads.get(thread_id)
+                claimed = False
                 while not (
                     settled or (producer_task is not None and producer_task.done())
                 ):
@@ -369,16 +370,22 @@ class DurableAGUI(Generic[AgentDepsT]):
                         record,
                         expected=previous.stream_id if previous is not None else None,
                     ):
+                        claimed = True
                         break
                     previous = await self.threads.get(thread_id)
                 if settled or (producer_task is not None and producer_task.done()):
                     self._tokens.pop(stream_id, None)
                     await settle([])
-                    if previous is None:
-                        await self.threads.put_if_stream(
-                            thread_id, replace(record, running=False), expected=None
-                        )
-                    elif await self._is_running(previous):
+                    if not claimed:
+                        if previous is None or not previous.running:
+                            await self.threads.put_if_stream(
+                                thread_id,
+                                replace(record, running=False),
+                                expected=previous.stream_id
+                                if previous is not None
+                                else None,
+                            )
+                    elif previous is not None and await self._is_running(previous):
                         await self.threads.put_if_stream(
                             thread_id, previous, expected=stream_id
                         )

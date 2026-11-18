@@ -780,6 +780,106 @@ def test_producer_cancelled_at_registration_never_claims_a_live_thread(
 
 
 @pytest.mark.parametrize("kind", THREAD_BACKENDS)
+@pytest.mark.parametrize("superseded", [False, True], ids=["finished", "third-run"])
+def test_producer_cancelled_at_registration_updates_only_the_finished_run(
+    kind: str, superseded: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        release_model = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        writes: list[tuple[str | None, bool]] = []
+        third: ThreadRecord | None = None
+
+        def cancel_second_producer(task: asyncio.Task[None]) -> None:
+            producers.append(task)
+            if len(producers) == 2:
+                task.cancel()
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            if messages[-1].parts[-1].content == "Third":
+                await release_model.wait()
+            yield "Answer"
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(),
+            wait_until=cancel_second_producer,
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)), threads=threads, streams=streams
+        )
+        first_question = _user("First")
+        second_question = _user("Second")
+        third_question = _user("Third")
+        try:
+            assert (
+                await _start_run(durable, _run_input("thread", [first_question], "first"))
+            ).status_code == 200
+            await asyncio.gather(*producers)
+            previous = await threads.get("thread")
+            assert previous is not None and previous.running is False
+            assert previous.run_id == "first"
+            assert previous.messages[0] == first_question
+            assert _assistant_texts({"messages": previous.messages}) == ["Answer"]
+            input_messages = [*previous.messages, second_question]
+            put_if_stream = threads.put_if_stream
+
+            async def interleave_third_run(thread_id, record, *, expected):
+                nonlocal third
+                if record.run_id == "second" and superseded:
+                    assert (
+                        await _start_run(
+                            durable,
+                            _run_input("thread", [*input_messages, third_question], "third"),
+                        )
+                    ).status_code == 200
+                    third = await threads.get("thread")
+                    assert third is not None and third.running is True
+                written = await put_if_stream(thread_id, record, expected=expected)
+                if record.run_id == "second":
+                    writes.append((expected, written))
+                return written
+
+            monkeypatch.setattr(threads, "put_if_stream", interleave_third_run)
+            assert (
+                await _start_run(durable, _run_input("thread", input_messages, "second"))
+            ).status_code == 200
+            record = await threads.get("thread")
+            assert record is not None
+            if superseded:
+                assert record == third
+                assert record.run_id == "third"
+                assert record.messages == [*input_messages, third_question]
+                assert record.running is True
+            else:
+                assert record.run_id == "second"
+                assert record.stream_id == "6-thread.second"
+                assert record.messages == input_messages
+                assert record.running is False
+            assert writes == [(previous.stream_id, not superseded)]
+            assert "6-thread.second" not in durable._tokens
+            release_model.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+            thread = await durable.get_thread("thread")
+            assert thread is not None
+            assert thread["runId"] == ("third" if superseded else "second")
+            assert thread["running"] is False
+            if superseded:
+                assert thread["messages"][:-1] == [*input_messages, third_question]
+                assert _assistant_texts(thread) == ["Answer", "Answer"]
+            else:
+                assert thread["messages"] == input_messages
+            assert producers[1].cancelled()
+            assert await durable.cancel("thread", "second") is False
+        finally:
+            release_model.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
 def test_dead_claim_rollback_does_not_overwrite_a_third_run(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
