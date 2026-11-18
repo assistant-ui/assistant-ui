@@ -652,7 +652,7 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("rejects a displaced parallel approval without recording it and accepts a later click", async () => {
+  it("records a partial approval during the drain and sends both decisions once the response closes", async () => {
     const { agent, runAgent, release } = heldGatingAgent([
       GATE,
       { id: "int-2", reason: "tool_call", toolCallId: "tc-2" },
@@ -668,19 +668,97 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
     await waitFor(() => expect(allToolCalls(result.current)).toHaveLength(2));
 
     let first!: Promise<void>;
-    let second!: Promise<void>;
     act(() => {
       first = gatedPart(result.current).respondToToolApproval({
         approved: true,
       });
+    });
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      gateApproval({ approved: true }),
+      { id: "int-2" },
+    ]);
+    expect(result.current.thread.getState().isRunning).toBe(false);
+    await act(async () => {
+      await first;
+    });
+
+    let second!: Promise<void>;
+    act(() => {
       second = gatedPart(result.current, "tc-2").respondToToolApproval({
         approved: false,
       });
     });
-    const settled = Promise.allSettled([first, second]);
-    const waitingApprovals = allToolCalls(result.current).map(
-      (part) => part.approval,
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      gateApproval({ approved: true }),
+      { id: "int-2" },
+    ]);
+    expect(result.current.thread.getState().isRunning).toBe(true);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(agent.abortRun).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+
+    await act(async () => {
+      release();
+      await second;
+    });
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      gateApproval({ approved: true }),
+      { id: "int-2", approved: false },
+    ]);
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(resumeOf(runAgent)).toEqual([
+      { interruptId: "int-1", status: "resolved", payload: { approved: true } },
+      {
+        interruptId: "int-2",
+        status: "resolved",
+        payload: { approved: false },
+      },
+    ]);
+    expect(result.current.thread.getState().isRunning).toBe(false);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("rejects a completing approval displaced by a plain steerAway send during the drain", async () => {
+    const { agent, runAgent, release } = heldGatingAgent([
+      GATE,
+      { id: "int-2", reason: "tool_call", toolCallId: "tc-2" },
+    ]);
+    const onError = vi.fn();
+    const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <SteerAway />
+      </AssistantRuntimeProvider>,
     );
+    result.current.thread.append("delete both");
+    await waitFor(() => expect(allToolCalls(result.current)).toHaveLength(2));
+
+    let first!: Promise<void>;
+    act(() => {
+      first = gatedPart(result.current).respondToToolApproval({
+        approved: true,
+      });
+    });
+    expect(allToolCalls(result.current)[0]?.approval).toEqual(
+      gateApproval({ approved: true }),
+    );
+    await act(async () => {
+      await first;
+    });
+
+    let completing!: Promise<void>;
+    let send!: Promise<void>;
+    act(() => {
+      completing = gatedPart(result.current, "tc-2").respondToToolApproval({
+        approved: false,
+      });
+      send = steerAwayRef.current!("never mind");
+    });
+    const settled = Promise.allSettled([completing, send]);
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      gateApproval({ approved: true }),
+      { id: "int-2" },
+    ]);
     expect(runAgent).toHaveBeenCalledOnce();
     expect(agent.abortRun).not.toHaveBeenCalled();
 
@@ -696,31 +774,92 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
         { status: "fulfilled", value: undefined },
       ]);
     });
-    expect(waitingApprovals).toEqual([gateApproval(), { id: "int-2" }]);
-    expect(onError).toHaveBeenCalledOnce();
-    expect(onError.mock.calls[0]?.[0].message).toBe(
-      "[agui] respondToToolApproval: a run is already in progress",
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      new Error("[agui] respondToToolApproval: a run is already in progress"),
     );
-    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
-      gateApproval(),
-      { id: "int-2", approved: false },
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(resumeOf(runAgent)).toEqual([
+      { interruptId: "int-1", status: "cancelled" },
+      { interruptId: "int-2", status: "cancelled" },
     ]);
-    expect(runAgent).toHaveBeenCalledOnce();
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      gateApproval({ resolution: "cancelled" }),
+      { id: "int-2", resolution: "cancelled" },
+    ]);
+    expect(
+      (runAgent.mock.calls[1]![0] as { messages: unknown[] }).messages,
+    ).toContainEqual(
+      expect.objectContaining({ role: "user", content: "never mind" }),
+    );
     expect(result.current.thread.getState().isRunning).toBe(false);
+  });
+
+  it("keeps a partial approval and the completing gate answerable when Stop cancels its drain wait", async () => {
+    const { agent, runAgent, release } = heldGatingAgent([
+      GATE,
+      { id: "int-2", reason: "tool_call", toolCallId: "tc-2" },
+    ]);
+    vi.mocked(agent.abortRun).mockImplementation(() => release());
+    const onError = vi.fn();
+    const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <SteerAway />
+      </AssistantRuntimeProvider>,
+    );
+    result.current.thread.append("delete both");
+    await waitFor(() => expect(allToolCalls(result.current)).toHaveLength(2));
+
+    let first!: Promise<void>;
+    act(() => {
+      first = gatedPart(result.current).respondToToolApproval({
+        approved: true,
+      });
+    });
+    expect(allToolCalls(result.current)[0]?.approval).toEqual(
+      gateApproval({ approved: true }),
+    );
+    await act(async () => {
+      await first;
+    });
+
+    let completing!: Promise<void>;
+    act(() => {
+      completing = gatedPart(result.current, "tc-2").respondToToolApproval({
+        approved: false,
+      });
+    });
+    expect(result.current.thread.getState().isRunning).toBe(true);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(agent.abortRun).not.toHaveBeenCalled();
 
     await act(async () => {
-      await gatedPart(result.current).respondToToolApproval({ approved: true });
+      result.current.thread.cancelRun();
+      await completing;
+    });
+    expect(result.current.thread.getState().isRunning).toBe(false);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(agent.abortRun).toHaveBeenCalledOnce();
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      gateApproval({ approved: true }),
+      { id: "int-2" },
+    ]);
+    expect(interruptsRef.current.map((interrupt) => interrupt.id)).toEqual([
+      "int-1",
+      "int-2",
+    ]);
+
+    await act(async () => {
+      await gatedPart(result.current, "tc-2").respondToToolApproval({
+        approved: true,
+      });
     });
     expect(runAgent).toHaveBeenCalledTimes(2);
     expect(resumeOf(runAgent)).toEqual([
       { interruptId: "int-1", status: "resolved", payload: { approved: true } },
-      {
-        interruptId: "int-2",
-        status: "resolved",
-        payload: { approved: false },
-      },
+      { interruptId: "int-2", status: "resolved", payload: { approved: true } },
     ]);
-    expect(onError).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("reports an approval displaced by a user steering away during the drain", async () => {

@@ -250,6 +250,19 @@ describe("AgUiThreadController deferred tool results", () => {
       }
       expect(runAgent).toHaveBeenCalledOnce();
       expect(core.isRunning()).toBe(false);
+      if (branch === "interrupt") {
+        expect(core.getPendingInterrupts()?.interrupts).toMatchObject([
+          { id: "gate" },
+        ]);
+        await core.steerAway("never mind");
+        expect(runAgent).toHaveBeenCalledTimes(2);
+        expect(runAgent.mock.calls[1]?.[0]).toMatchObject({
+          resume: [{ interruptId: "gate", status: "cancelled" }],
+        });
+        expect(runAgent.mock.calls[1]?.[0]).not.toHaveProperty(
+          "forwardedProps.a2uiAction",
+        );
+      }
     },
   );
 

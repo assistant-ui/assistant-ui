@@ -1180,7 +1180,16 @@ export class AgUiThreadController {
       "respondToToolApproval",
       pending.interrupts,
     );
-    if (this.drainingRun && !(await this.waitForDrain("respondToToolApproval")))
+    const completesBatch =
+      buildToolApprovalResume(
+        withToolApprovalDecision(ownerContent, options),
+        pending.interrupts,
+      ) !== null;
+    if (
+      completesBatch &&
+      this.drainingRun &&
+      !(await this.waitForDrain("respondToToolApproval"))
+    )
       return;
 
     let recorded = false;
