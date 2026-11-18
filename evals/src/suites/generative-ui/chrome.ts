@@ -110,13 +110,12 @@ export async function openChromePage(
     spawnError = error;
   });
   let socket: WebSocket | undefined;
-  const exited = new Promise((resolve) => child.once("exit", resolve));
   const closed = new Promise((resolve) => child.once("close", resolve));
   const close = async () => {
     socket?.close();
     child.kill();
-    // Chrome writes to its profile while it shuts down, so the directory goes once the process is gone.
-    await withTimeout(exited, 10_000, "Chrome to exit").catch(() => {});
+    // Failed spawns emit close without exit; launched processes must close before their profile is removed.
+    await withTimeout(closed, 10_000, "Chrome to close").catch(() => {});
     rmSync(profile, { recursive: true, force: true, maxRetries: 3 });
   };
 
