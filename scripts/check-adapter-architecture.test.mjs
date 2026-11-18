@@ -207,7 +207,10 @@ test("extras.use calls are reported across packages including core", () => {
         "adapterExtras.useExtras((e) => e.value);",
       ].join("\n"),
       "packages/core/src/hooks.ts": "transportExtras.use((e) => e.state);",
-      "packages/plain/src/hooks.ts": "extras.use((e) => e.value);",
+      "packages/plain/src/hooks.ts": [
+        "extras.use((e) => e.value);",
+        "extras.use<number>((e) => e.value);",
+      ].join("\n"),
       "packages/plain/src/hooks.test.ts": "extras.use((e) => e.value);",
     },
     (root) => {
@@ -231,6 +234,12 @@ test("extras.use calls are reported across packages including core", () => {
             line: 1,
             name: "RuntimeExtras.use (use useExtras)",
             text: "extras.use(",
+          },
+          {
+            file: "packages/plain/src/hooks.ts",
+            line: 2,
+            name: "RuntimeExtras.use (use useExtras)",
+            text: "extras.use<number>(",
           },
         ],
       });

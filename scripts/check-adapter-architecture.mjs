@@ -15,7 +15,7 @@ const extrasUse = /\bcreateRuntimeExtras\b/;
 const bans = [
   {
     name: "RuntimeExtras.use (use useExtras)",
-    pattern: /\b(?:[\w$]*Extras|extras)\.use\(/g,
+    pattern: /\b(?:[\w$]*Extras|extras)\.use\s*(?:<[^>()]*>\s*)?\(/g,
     allPackages: true,
   },
   {
