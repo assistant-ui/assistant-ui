@@ -682,6 +682,9 @@ describe("McpServerResource connectionTimeout", () => {
 
       await vi.advanceTimersByTimeAsync(10_000);
       await connectPromise;
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
+      );
 
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "error",
@@ -707,6 +710,9 @@ describe("McpServerResource connectionTimeout", () => {
 
       await vi.advanceTimersByTimeAsync(10_000);
       await connectPromise;
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
+      );
 
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "error",
@@ -736,11 +742,14 @@ describe("McpServerResource connectionTimeout", () => {
       await vi.advanceTimersByTimeAsync(9_000);
       await waitFor(() => mocks.clients[0]?.listTools.mock.calls.length === 1);
       await vi.advanceTimersByTimeAsync(999);
-      await tick();
+      await flushMacrotask();
       expect(root.getValue().getState().connectionState).toBe("connecting");
 
       await vi.advanceTimersByTimeAsync(1);
       await connectPromise;
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
+      );
 
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "error",
