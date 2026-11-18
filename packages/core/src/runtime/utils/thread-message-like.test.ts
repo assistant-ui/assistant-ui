@@ -335,6 +335,28 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
     },
   );
 
+  it("drops malformed top-level audio and data parts while retaining valid parts", () => {
+    const audio = {
+      type: "audio",
+      audio: { data: "data:audio/wav;base64,YQ==", format: "wav" },
+    };
+    const data = { type: "data", name: "workflow", data: { step: 1 } };
+
+    expect(
+      convert("user", [
+        { type: "audio", audio: { data: 42, format: "wav" } },
+        {
+          type: "audio",
+          audio: { data: "data:audio/wav;base64,YQ==", format: 42 },
+        },
+        { type: "data", data: { step: 2 } },
+        { type: "data", name: 42, data: { step: 2 } },
+        audio,
+        data,
+      ]),
+    ).toEqual([audio, data]);
+  });
+
   it.each(["assistant", "user"] as const)(
     "keeps a file part whose optional fields have the wrong type on %s messages, without them",
     (role) => {
