@@ -1,5 +1,0 @@
----
-"@assistant-ui/core": patch
----
-
-`fromThreadMessageLike` (used for `convertMessage` and `initialMessages`) now checks file, image and source parts with the same rules as the local storage and cloud history readers, so a malformed part is handled the same way on every runtime. A part is dropped when a field it needs to render has the wrong type: a file's `data` or `mimeType`, an image's `image`, a url source's `id` or `url`, a document source's `id`, `title` or `mediaType`. An optional field that is `null` or of the wrong type is removed and the part is kept: a file's `filename`, a file's `sourceType` when it is not `"url"` or `"id"`, an image's `filename`, a url source's `title`, a document source's `filename`. This applies in `fromThreadMessageLike` and when local storage history and stored attachments are read, so history saved with such a field still loads in full. Text parts whose `text` is not a string are dropped, and a system message whose text is not a string gets an empty text. A reasoning part whose `text` is not a string gets an empty `text`, and a `unstable_summary` that is not a string is removed.

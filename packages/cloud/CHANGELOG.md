@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.2.13
+
+### Patch Changes
+
+- [#10601](https://github.com/assistant-ui/assistant-ui/pull/10601) [`11afc02`](https://github.com/assistant-ui/assistant-ui/commit/11afc0276e87cc0834342d6fdeeaaf0595fccdbe) - fix(cloud): loading a thread follows `has_more` from the message list, so a page that ends before its limit no longer ends the thread early ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804), [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e)]:
+  - assistant-stream@0.3.58
+
 ## 0.2.12
 
 ### Patch Changes
