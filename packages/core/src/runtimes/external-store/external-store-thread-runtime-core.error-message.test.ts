@@ -190,4 +190,25 @@ describe("external-store synthesized error messages", () => {
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
     expect(errorIds(runtime)).toEqual([]);
   });
+
+  it("finishes the running snapshot when runStart republishes the same messages", () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      adapter([u1, a1]),
+    );
+    const running = adapter([u1, a1, u2], { isRunning: true });
+    const unsubscribe = runtime.unstable_on("runStart", () => {
+      unsubscribe();
+      runtime.__internal_setAdapter({ ...running });
+    });
+
+    runtime.__internal_setAdapter(running);
+
+    expect(runtime.messages.map((m) => m.id).slice(0, 3)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+    ]);
+    expect(runtime.messages.at(-1)!.metadata.isOptimistic).toBe(true);
+  });
 });

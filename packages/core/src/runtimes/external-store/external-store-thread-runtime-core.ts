@@ -304,6 +304,10 @@ export class ExternalStoreThreadRuntimeCore
     Set<string>
   >();
 
+  // Full host snapshot passes completed, so a pass resumed after a run event
+  // can tell whether a listener already applied a newer one.
+  private _completedHostSnapshots = 0;
+
   private get _errorMessageIds() {
     let ids = this._errorMessageIdsByRepository.get(this.repository);
     if (!ids) {
@@ -868,6 +872,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this._effectiveIsRunning = isRunning;
+    const completedHostSnapshots = this._completedHostSnapshots;
     if (previousIsRunning !== isRunning) {
       if (isRunning) {
         const scope = this._cancelledToolTurn;
@@ -887,9 +892,10 @@ export class ExternalStoreThreadRuntimeCore
       } else {
         this._notifyEventSubscribers("runEnd", {});
       }
-      // A listener may have published a newer snapshot, which already
-      // selected its own head; this one may point at a message it evicted.
-      if (this._store !== store) return;
+      // A listener may have published a newer host snapshot that already
+      // selected its head and drove tools; this one may point at a message it
+      // evicted.
+      if (this._completedHostSnapshots !== completedHostSnapshots) return;
     }
 
     // Append an optimistic placeholder while running but before a trailing
@@ -948,6 +954,7 @@ export class ExternalStoreThreadRuntimeCore
         this._runTrackerUpdate(() => this._toolInvocations?.reset());
       }
       this._runTrackerUpdate(() => this._driveToolInvocations());
+      this._completedHostSnapshots++;
     }
 
     this._notifySubscribers();
