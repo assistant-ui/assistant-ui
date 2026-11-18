@@ -5256,6 +5256,9 @@ importers:
       '@assistant-ui/store':
         specifier: ^0.3.23
         version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       assistant-stream:
         specifier: ^0.3.57
         version: link:../assistant-stream
