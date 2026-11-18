@@ -52,7 +52,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
-import { generateId } from "../../utils/id";
+import { generateId, isErrorMessageId } from "../../utils/id";
 import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
   NO_TOOL_EXECUTIONS,
@@ -293,6 +293,12 @@ export class ExternalStoreThreadRuntimeCore
   // passes while the same tail message awaits its response so the placeholder
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
+
+  // Synthesized error messages (`__error__` ids) added from the host's
+  // messages array. Each conversion of an error makes a fresh id, so one the
+  // host no longer sends is gone for good and would otherwise stay behind as
+  // a sibling branch.
+  private readonly _errorMessageIds = new Set<string>();
 
   // The last host branch with locally submitted feedback applied, or the array
   // last handed to setMessages, whichever was written last. Excludes the
@@ -545,6 +551,7 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
       this._movedLeaf = undefined;
+      this._errorMessageIds.clear();
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -777,6 +784,14 @@ export class ExternalStoreThreadRuntimeCore
       }
       for (const [id, message] of hostDeletedMessages) {
         this._evictDeletedMessage(id, message, false);
+      }
+      for (const id of this._errorMessageIds) {
+        if (incomingIds.has(id)) continue;
+        this._errorMessageIds.delete(id);
+        this._evictDeletedMessage(id, undefined, false);
+      }
+      for (const message of messages) {
+        if (isErrorMessageId(message.id)) this._errorMessageIds.add(message.id);
       }
 
       // A pass over the host's previous array, such as a client tool's
