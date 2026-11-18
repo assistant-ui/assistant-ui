@@ -81,11 +81,9 @@ const updatePartForPath = (
   const partIndex = chunk.path[0]!;
   const updatedPart = updater(part);
   if (updatedPart === part) return message;
-  return withParts(message, [
-    ...message.parts.slice(0, partIndex),
-    updatedPart,
-    ...message.parts.slice(partIndex + 1),
-  ]);
+  const parts = message.parts.slice();
+  parts[partIndex] = updatedPart;
+  return withParts(message, parts);
 };
 
 const handlePartStart = (
