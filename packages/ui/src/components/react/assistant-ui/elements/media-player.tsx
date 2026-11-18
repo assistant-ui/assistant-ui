@@ -54,10 +54,6 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-/**
- * Holds back a `src` that `canPreload` refuses: the element gets it only
- * when `arm` runs, from the click that plays it.
- */
 function useDeferredSource(
   mediaRef: RefObject<HTMLMediaElement | null>,
   src: string,
@@ -338,6 +334,7 @@ export function VideoPlayer({
             aria-label={`Play ${title ?? "video"}`}
             onClick={() => {
               source.arm();
+              videoRef.current?.focus();
               void videoRef.current?.play().catch(() => {});
             }}
             className="absolute inset-0 flex items-center justify-center"
