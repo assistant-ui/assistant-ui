@@ -13,6 +13,12 @@ vi.mock("../../../../../examples/with-chain-of-thought/app/toolkit", () => ({
 vi.mock("../../../../../examples/with-generative-ui/app/toolkit", () => ({
   default: {},
 }));
+vi.mock(
+  "../../../../../examples/with-generative-ui/app/present-toolkit",
+  () => ({
+    default: {},
+  }),
+);
 vi.mock("../../../../../examples/with-webmcp/app/toolkit", () => ({
   default: {},
 }));
@@ -29,6 +35,7 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   vi.stubEnv("OPENAI_API_KEY", "test-key");
   vi.stubEnv("GOOGLE_GENAI_API_KEY", "test-key");
+  vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
   fetchMock.mockImplementation(async () =>
     Response.json({ error: { message: "test model" } }, { status: 400 }),
   );
@@ -129,6 +136,11 @@ const loadReactRouterRoute = async () => {
 
 const routes = [
   ...examples,
+  ...["generative-ui", "present"].map((name) => ({
+    name: `with-generative-ui ${name}`,
+    body: chatBody,
+    load: loadPOST(`examples/with-generative-ui/app/api/${name}/route.ts`),
+  })),
   {
     name: "with-expo",
     body: chatBody,
@@ -154,7 +166,7 @@ const routes = [
 
 describe.each(routes)(
   "$name chat route request context",
-  ({ body, load }) => {
+  ({ name, body, load }) => {
     const request = (headers: Record<string, string>) =>
       new Request("http://localhost/api/chat", {
         method: "POST",
@@ -164,8 +176,8 @@ describe.each(routes)(
     const unparsableRequest = (headers: Record<string, string>) =>
       new Request("http://localhost/api/chat", {
         method: "POST",
-        headers: { "content-type": "text/plain", ...headers },
-        body: "not json",
+        headers: { "content-type": "multipart/form-data", ...headers },
+        body: "{invalid json",
       });
 
     it.each([
@@ -174,12 +186,35 @@ describe.each(routes)(
       ["a foreign Origin", { origin: "https://example.net" }],
     ])("rejects %s before reading the body", async (_label, headers) => {
       const POST = await load();
+      const read = name.includes("nuxt")
+        ? vi.spyOn(globalThis, "readBody" as keyof typeof globalThis)
+        : undefined;
       const response = await POST(unparsableRequest(headers));
       await response.text();
 
       expect(response.status).toBe(403);
       expect(fetchMock).not.toHaveBeenCalled();
+      if (read) {
+        expect(read).not.toHaveBeenCalled();
+        read.mockRestore();
+      }
     });
+
+    if (name.includes("nuxt")) {
+      it.each(["multipart/form-data", ""])(
+        "rejects a cross-site JSON payload with content type '%s'",
+        async (contentType) => {
+          const POST = await load();
+          const req = request({ "sec-fetch-site": "cross-site" });
+          if (contentType) req.headers.set("content-type", contentType);
+          else req.headers.delete("content-type");
+          const response = await POST(req);
+
+          expect(response.status).toBe(403);
+          expect(fetchMock).not.toHaveBeenCalled();
+        },
+      );
+    }
 
     it.each([
       ["a same-origin fetch", { "sec-fetch-site": "same-origin" }],
@@ -196,3 +231,56 @@ describe.each(routes)(
   },
   30_000,
 );
+
+describe("with-image-generation image route request context", () => {
+  const load = loadPOST(
+    "examples/with-image-generation/app/api/image/route.ts",
+  );
+  const request = (
+    headers: Record<string, string>,
+    body = JSON.stringify({ prompt: "A lighthouse at dusk" }),
+    contentType = "application/json",
+  ) =>
+    new Request("http://localhost/api/image", {
+      method: "POST",
+      headers: { "content-type": contentType, ...headers },
+      body,
+    });
+
+  it.each([
+    ["a cross-site fetch", { "sec-fetch-site": "cross-site" }],
+    ["a same-site fetch", { "sec-fetch-site": "same-site" }],
+    ["a foreign Origin", { origin: "https://example.net" }],
+  ])("rejects %s before reading the body", async (_label, headers) => {
+    const POST = await load();
+    const response = await POST(
+      request(headers, "{invalid json", "multipart/form-data"),
+    );
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a same-origin fetch", { "sec-fetch-site": "same-origin" }],
+    ["its own Origin", { origin: "http://localhost" }],
+    ["a request without browser headers", {}],
+  ])("serves %s", async (_label, headers) => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        created: 0,
+        data: [
+          {
+            b64_json:
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+          },
+        ],
+      }),
+    );
+    const POST = await load();
+    const response = await POST(request(headers));
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalled();
+  });
+});

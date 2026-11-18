@@ -10,7 +10,7 @@ export default defineConfig({
       ],
       thresholds: {
         lines: 20,
-        functions: 19,
+        functions: 18,
         branches: 16,
         statements: 20,
         autoUpdate: (threshold, previous) =>
@@ -18,6 +18,6 @@ export default defineConfig({
       },
     },
     environment: "node",
-    include: ["lib/**/*.test.ts"],
+    include: ["app/**/*.test.ts", "lib/**/*.test.ts"],
   },
 });

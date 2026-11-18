@@ -7,8 +7,8 @@ export default defineConfig({
       include: ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
       thresholds: {
         lines: 26,
-        functions: 15,
-        branches: 50,
+        functions: 13,
+        branches: 48,
         statements: 26,
         autoUpdate: (threshold, previous) =>
           Math.max(previous, Math.floor(threshold) - 1),

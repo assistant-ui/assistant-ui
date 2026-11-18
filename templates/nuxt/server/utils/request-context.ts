@@ -1,8 +1,6 @@
 import type { H3Event } from "h3";
 
-// Refuses chat requests that a browser sends from another site, so a page the
-// developer visits cannot spend this app's model key. This is not
-// authentication: add your own before you deploy the app publicly.
+// Refuses cross-origin browser requests so another origin cannot spend this app's model key or drive its tools. This is not authentication: add your own before you deploy the app publicly.
 export function isAllowedRequestContext(event: H3Event) {
   const fetchSite = getRequestHeader(event, "sec-fetch-site");
   if (fetchSite !== undefined) {

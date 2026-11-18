@@ -15,9 +15,7 @@ import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 import { z } from "zod";
 import { getResumableStreamContext } from "@/lib/resumable-context";
 
-// Refuses chat requests that a browser sends from another site, so a page the
-// visitor opens cannot spend this app's model key. This is not authentication:
-// add your own before you deploy the route publicly.
+// Refuses cross-origin browser requests so another origin cannot spend this app's model key or drive its tools. This is not authentication: add your own before you deploy the app publicly.
 function isAllowedRequestContext(req: Request) {
   const fetchSite = req.headers.get("sec-fetch-site");
   if (fetchSite !== null) {

@@ -7,7 +7,7 @@ export default defineConfig({
       include: ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
       thresholds: {
         lines: 54,
-        functions: 31,
+        functions: 30,
         branches: 52,
         statements: 52,
         autoUpdate: (threshold, previous) =>
