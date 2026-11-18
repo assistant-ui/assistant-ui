@@ -390,10 +390,6 @@ it("asks for the conversation budget only when the surface opts in", async () =>
 it("supplies an anonymous cloud with engagement events off until consent", () => {
   vi.stubEnv("NEXT_PUBLIC_ASSISTANT_BASE_URL", baseUrl);
   installLocalStorage(false);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(() => new Promise<Response>(() => {})),
-  );
 
   renderHook(() => useDocsChatRuntime());
 
