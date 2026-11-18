@@ -113,6 +113,18 @@ BACKENDS = [
 ]
 
 
+THREAD_BACKENDS = [
+    "memory",
+    "sqlite",
+    pytest.param(
+        "postgres",
+        marks=pytest.mark.skipif(
+            not os.environ.get("DATABASE_URL"), reason="needs DATABASE_URL"
+        ),
+    ),
+]
+
+
 class Server:
     def __init__(self, base_url: str, model: Model, app: Starlette) -> None:
         self.base_url = base_url
@@ -688,6 +700,264 @@ def test_dead_producer_does_not_reclaim_a_concurrent_run(
         assert thread["runId"] == "second"
         assert thread["messages"][0] == question
         assert _assistant_texts(thread) == ["Partial answer completed"]
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
+def test_producer_cancelled_at_registration_never_claims_a_live_thread(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        writes: list[ThreadRecord] = []
+
+        def cancel_second_producer(task: asyncio.Task[None]) -> None:
+            producers.append(task)
+            if len(producers) == 2:
+                task.cancel()
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Partial answer"
+            started.set()
+            await release_model.wait()
+            yield " completed"
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(),
+            wait_until=cancel_second_producer,
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)), threads=threads, streams=streams
+        )
+        question = _user("First")
+        try:
+            assert (
+                await _start_run(durable, _run_input("thread", [question], "first"))
+            ).status_code == 200
+            await started.wait()
+            live = await threads.get("thread")
+            assert live is not None and live.running is True
+            put_if_stream = threads.put_if_stream
+
+            async def track_claim(thread_id, record, *, expected):
+                claimed = await put_if_stream(thread_id, record, expected=expected)
+                if claimed:
+                    writes.append(record)
+                return claimed
+
+            monkeypatch.setattr(threads, "put_if_stream", track_claim)
+            assert (
+                await _start_run(
+                    durable, _run_input("thread", [_user("Second")], "second")
+                )
+            ).status_code == 200
+
+            assert writes == []
+            assert await threads.get("thread") == live
+            resumed = await durable.resume_stream("thread")
+            assert resumed is not None
+            release_model.set()
+            frames = _frames([chunk async for chunk in resumed])
+            await asyncio.gather(*producers, return_exceptions=True)
+            assert frames[0]["runId"] == "first"
+            assert _text(frames) == "Partial answer completed"
+            thread = await durable.get_thread("thread")
+            assert thread is not None
+            assert thread["runId"] == "first"
+            assert thread["running"] is False
+            assert thread["messages"][0] == question
+            assert _assistant_texts(thread) == ["Partial answer completed"]
+        finally:
+            release_model.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
+def test_dead_claim_rollback_does_not_overwrite_a_third_run(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        rollbacks: list[bool] = []
+        third: ThreadRecord | None = None
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield f"Partial {messages[-1].parts[-1].content}"
+            started.set()
+            await release_model.wait()
+            yield " completed"
+
+        streams = create_resumable_stream_context(
+            store=create_in_memory_resumable_stream_store(), wait_until=producers.append
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)), threads=threads, streams=streams
+        )
+        try:
+            await _start_run(durable, _run_input("thread", [_user("First")], "first"))
+            await started.wait()
+            second_producer = len(producers)
+            put_if_stream = threads.put_if_stream
+
+            async def interleave_third_run(thread_id, record, *, expected):
+                nonlocal third
+                claimed = await put_if_stream(thread_id, record, expected=expected)
+                if record.run_id == "second":
+                    assert claimed
+                    producers[second_producer].cancel()
+                    await asyncio.gather(
+                        producers[second_producer], return_exceptions=True
+                    )
+                    started.clear()
+                    assert (
+                        await _start_run(
+                            durable, _run_input("thread", [_user("Third")], "third")
+                        )
+                    ).status_code == 200
+                    await started.wait()
+                    third = await threads.get("thread")
+                    assert third is not None and third.running is True
+                elif record.run_id == "first":
+                    rollbacks.append(claimed)
+                return claimed
+
+            monkeypatch.setattr(threads, "put_if_stream", interleave_third_run)
+            assert (
+                await _start_run(
+                    durable, _run_input("thread", [_user("Second")], "second")
+                )
+            ).status_code == 200
+
+            assert await threads.get("thread") == third
+            assert rollbacks == [False]
+            release_model.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+            thread = await durable.get_thread("thread")
+            assert thread is not None
+            assert thread["runId"] == "third"
+            assert thread["running"] is False
+            assert _assistant_texts(thread) == ["Partial Third completed"]
+        finally:
+            release_model.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
+@pytest.mark.parametrize("state", ["settled", "cancel_requested"])
+def test_dead_claim_rollback_uses_the_previous_runs_current_state(
+    kind: str, state: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        waiting = asyncio.Event()
+        release_options = asyncio.Event()
+        finalizing = asyncio.Event()
+        release_finalize = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        store = create_in_memory_resumable_stream_store()
+        finalize = store.finalize
+
+        async def pause_finalization(stream_id, *args, **kwargs):
+            if stream_id == "6-thread.first":
+                finalizing.set()
+                await release_finalize.wait()
+            return await finalize(stream_id, *args, **kwargs)
+
+        monkeypatch.setattr(store, "finalize", pause_finalization)
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Partial answer"
+            started.set()
+            await release_model.wait()
+            yield " completed"
+
+        async def options(request: Request, run_input):
+            if run_input.run_id == "second":
+                waiting.set()
+                await release_options.wait()
+            return {}
+
+        streams = create_resumable_stream_context(
+            store=store, wait_until=producers.append
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)),
+            threads=threads,
+            streams=streams,
+            run_options=options,
+            cancel_poll_interval=None,
+        )
+        second = None
+        try:
+            await _start_run(durable, _run_input("thread", [_user("First")], "first"))
+            await started.wait()
+            second = asyncio.create_task(
+                _start_run(durable, _run_input("thread", [_user("Second")], "second"))
+            )
+            await waiting.wait()
+            if state == "settled":
+                release_model.set()
+                await finalizing.wait()
+            else:
+                assert await threads.request_cancel("thread", "6-thread.first")
+            current = await threads.get("thread")
+            assert current is not None
+            assert current.running is (state != "settled")
+            assert current.cancel_requested is (state == "cancel_requested")
+            assert await streams.status("6-thread.first") == "streaming"
+
+            second_producer = len(producers)
+            put_if_stream = threads.put_if_stream
+            restored: list[ThreadRecord] = []
+
+            async def die_after_claim(thread_id, record, *, expected):
+                claimed = await put_if_stream(thread_id, record, expected=expected)
+                if record.run_id == "second":
+                    assert claimed
+                    producers[second_producer].cancel()
+                    await asyncio.gather(
+                        producers[second_producer], return_exceptions=True
+                    )
+                elif claimed:
+                    restored.append(record)
+                return claimed
+
+            monkeypatch.setattr(threads, "put_if_stream", die_after_claim)
+            release_options.set()
+            assert (await second).status_code == 200
+            record = await threads.get("thread")
+            assert record is not None
+            if state == "settled":
+                assert record.running is False
+                assert record.run_id == "second"
+                assert restored == []
+            else:
+                assert record == current
+                assert record.cancel_requested is True
+                assert restored == [current]
+        finally:
+            release_options.set()
+            release_model.set()
+            release_finalize.set()
+            if second is not None:
+                await second
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
 
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
