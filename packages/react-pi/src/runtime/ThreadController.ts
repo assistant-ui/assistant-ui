@@ -963,6 +963,34 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
+  /** @internal */
+  public async applyDraftSelection(
+    selection: {
+      model?: { provider: string; modelId: string };
+      thinkingLevel?: PiThinkingLevel;
+    },
+    isDisposed: () => boolean,
+  ) {
+    if (!selection.model && !selection.thinkingLevel) return;
+    try {
+      if (selection.model) {
+        await this.client.setModel(this.threadId, selection.model);
+        if (isDisposed()) return;
+      }
+      if (selection.thinkingLevel) {
+        await this.client.setThinkingLevel(
+          this.threadId,
+          selection.thinkingLevel,
+        );
+        if (isDisposed()) return;
+      }
+    } catch (error) {
+      this.setState({ ...this.state, lastError: errorText(error) });
+      throw error;
+    }
+    await this.refresh().catch(() => {});
+  }
+
   public async setModel(input: { provider: string; modelId: string }) {
     try {
       await this.client.setModel(this.threadId, input);

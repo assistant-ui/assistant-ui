@@ -299,9 +299,8 @@ describe("usePiRuntime new-thread first message", () => {
   it("keeps the first message rendered while applying both draft setters", async () => {
     const sessionCreate = Promise.withResolvers<PiThreadSnapshot>();
     const modelSet = Promise.withResolvers<void>();
-    const modelRefresh = Promise.withResolvers<PiThreadSnapshot>();
     const thinkingSet = Promise.withResolvers<void>();
-    const thinkingRefresh = Promise.withResolvers<PiThreadSnapshot>();
+    const selectionRefresh = Promise.withResolvers<PiThreadSnapshot>();
     const { client, createThread } = createClient(() => sessionCreate.promise);
     client.setModel.mockReturnValueOnce(modelSet.promise);
     client.setThinkingLevel.mockReturnValueOnce(thinkingSet.promise);
@@ -329,28 +328,71 @@ describe("usePiRuntime new-thread first message", () => {
     expect(client.setThinkingLevel).not.toHaveBeenCalled();
     expect(client.sendMessage).not.toHaveBeenCalled();
 
-    client.getThread.mockReturnValueOnce(modelRefresh.promise);
+    const initialReadCount = client.getThread.mock.calls.length;
     await act(async () => modelSet.resolve());
     expect(view.messages).toEqual(["hello pi"]);
-    expect(client.setThinkingLevel).not.toHaveBeenCalled();
+    expect(client.setThinkingLevel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      "high",
+    );
+    expect(client.getThread).toHaveBeenCalledTimes(initialReadCount);
     expect(client.sendMessage).not.toHaveBeenCalled();
 
-    await act(async () => modelRefresh.resolve(snapshot));
+    client.getThread.mockReturnValueOnce(selectionRefresh.promise);
+    await act(async () => thinkingSet.resolve());
     expect(view.messages).toEqual(["hello pi"]);
+    expect(client.getThread).toHaveBeenCalledTimes(initialReadCount + 1);
+    expect(client.sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => selectionRefresh.resolve(snapshot));
+    expect(view.messages).toEqual(["hello pi"]);
+    expect(sentTexts(client)).toEqual(["hello pi"]);
+    expect(client.setModel.mock.invocationCallOrder[0]).toBeLessThan(
+      client.setThinkingLevel.mock.invocationCallOrder[0]!,
+    );
+    expect(client.setThinkingLevel.mock.invocationCallOrder[0]).toBeLessThan(
+      client.sendMessage.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("sends the first message when the draft selection refresh fails", async () => {
+    const thinkingSet = Promise.withResolvers<void>();
+    const selectionRefresh = Promise.withResolvers<PiThreadSnapshot>();
+    const messageSend = Promise.withResolvers<void>();
+    const { client } = createClient();
+    client.setThinkingLevel.mockReturnValueOnce(thinkingSet.promise);
+    client.sendMessage.mockReturnValueOnce(messageSend.promise);
+    const view = await mountRuntime(client);
+    await act(async () => {
+      await view.extras.setModel(selectedModel);
+      await view.extras.setThinkingLevel("high");
+    });
+
+    await act(async () => view.runtime.thread.append("hello pi"));
+    expect(view.messages).toEqual(["hello pi"]);
+    expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
+      "srv-1",
+      selectedModel,
+    );
     expect(client.setThinkingLevel).toHaveBeenCalledExactlyOnceWith(
       "srv-1",
       "high",
     );
     expect(client.sendMessage).not.toHaveBeenCalled();
 
-    client.getThread.mockReturnValueOnce(thinkingRefresh.promise);
+    client.getThread.mockReturnValueOnce(selectionRefresh.promise);
     await act(async () => thinkingSet.resolve());
     expect(view.messages).toEqual(["hello pi"]);
     expect(client.sendMessage).not.toHaveBeenCalled();
 
-    await act(async () => thinkingRefresh.resolve(snapshot));
-    expect(view.messages).toEqual(["hello pi"]);
+    await act(async () => selectionRefresh.reject(new Error("refresh failed")));
     expect(sentTexts(client)).toEqual(["hello pi"]);
+    expect(view.messages).toEqual(["hello pi"]);
+
+    await act(async () => messageSend.resolve());
+    expect(sentTexts(client)).toEqual(["hello pi"]);
+    expect(view.messages).toEqual(["hello pi"]);
+    expect(view.onError).not.toHaveBeenCalled();
     expect(client.setModel.mock.invocationCallOrder[0]).toBeLessThan(
       client.setThinkingLevel.mock.invocationCallOrder[0]!,
     );
@@ -441,25 +483,52 @@ describe("usePiRuntime new-thread first message", () => {
     );
   });
 
-  it("rejects the send when the client rejects the selected model", async () => {
-    const failure = new Error("model unavailable");
-    const { client } = createClient();
-    client.setModel.mockRejectedValueOnce(failure);
-    const view = await mountRuntime(client);
-    await act(async () => view.extras.setModel(selectedModel));
+  it.each(["model", "thinking level"])(
+    "rejects the send when the client rejects the selected %s",
+    async (selection) => {
+      const failure = new Error(`${selection} unavailable`);
+      const setter = Promise.withResolvers<void>();
+      const { client } = createClient();
+      if (selection === "model") {
+        client.setModel.mockReturnValueOnce(setter.promise);
+      } else {
+        client.setThinkingLevel.mockReturnValueOnce(setter.promise);
+      }
+      const view = await mountRuntime(client);
+      await act(async () => {
+        if (selection === "model") {
+          await view.extras.setModel(selectedModel);
+        } else {
+          await view.extras.setThinkingLevel("high");
+        }
+      });
 
-    await act(async () => {
-      await expect(
-        mocks.adapters.at(-1)!.onNew(appendMessage("hello pi")),
-      ).rejects.toBe(failure);
-    });
-    expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
-      "srv-1",
-      selectedModel,
-    );
-    expect(view.onError).toHaveBeenCalledWith(failure);
-    expect(client.sendMessage).not.toHaveBeenCalled();
-  });
+      let send!: Promise<void>;
+      await act(async () => {
+        send = mocks.adapters.at(-1)!.onNew(appendMessage("hello pi"));
+      });
+      await act(async () => {
+        setter.reject(failure);
+        await expect(send).rejects.toBe(failure);
+      });
+      if (selection === "model") {
+        expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
+          "srv-1",
+          selectedModel,
+        );
+        expect(client.setThinkingLevel).not.toHaveBeenCalled();
+      } else {
+        expect(client.setThinkingLevel).toHaveBeenCalledExactlyOnceWith(
+          "srv-1",
+          "high",
+        );
+        expect(client.setModel).not.toHaveBeenCalled();
+      }
+      expect(view.extras.state.lastError).toBe(failure.message);
+      expect(view.onError).toHaveBeenCalledWith(failure);
+      expect(client.sendMessage).not.toHaveBeenCalled();
+    },
+  );
 
   it("exposes the pending session through usePiSession on a new thread", async () => {
     const { client, createThread } = createClient();

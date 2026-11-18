@@ -511,17 +511,11 @@ const useNewPiThreadStore = (
             message,
             undefined,
             () =>
-              (applySelectionPromiseRef.current ??= (async () => {
-                const selection = draftSelectionRef.current;
-                if (selection.model) {
-                  await controller.setModel(selection.model);
-                  if (registry.disposed) return;
-                }
-                if (selection.thinkingLevel) {
-                  await controller.setThinkingLevel(selection.thinkingLevel);
-                  if (registry.disposed) return;
-                }
-              })()),
+              (applySelectionPromiseRef.current ??=
+                controller.applyDraftSelection(
+                  draftSelectionRef.current,
+                  () => registry.disposed,
+                )),
           );
           removeOptimisticMessage();
         } catch (error) {
