@@ -17,7 +17,11 @@ class AgentOriginGuard:
                 ),
                 None,
             )
-            if origin is not None and origin not in self.allowed_origins:
+            if (
+                origin is not None
+                and "*" not in self.allowed_origins
+                and origin not in self.allowed_origins
+            ):
                 body = b'{"detail":"Cross-origin requests are not allowed."}'
                 await send(
                     {

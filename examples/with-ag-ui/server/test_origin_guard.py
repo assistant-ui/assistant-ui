@@ -29,6 +29,15 @@ class AgentOriginGuardTests(unittest.IsolatedAsyncioTestCase):
         app.assert_awaited_once()
         send.assert_not_awaited()
 
+    async def test_wildcard_allows_any_origin(self):
+        app, receive, send = AsyncMock(), AsyncMock(), AsyncMock()
+        guard = AgentOriginGuard(app, ["https://frontend.example", "*"])
+
+        await guard(request_scope("https://another.example"), receive, send)
+
+        app.assert_awaited_once()
+        send.assert_not_awaited()
+
     async def test_missing_origin_remains_supported(self):
         app, receive, send = AsyncMock(), AsyncMock(), AsyncMock()
         guard = AgentOriginGuard(app, ["https://frontend.example"])
