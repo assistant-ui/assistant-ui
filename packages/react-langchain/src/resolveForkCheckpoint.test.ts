@@ -112,6 +112,58 @@ describe("resolveForkCheckpoint", () => {
     expect(result).toBe("cp-before-followup");
   });
 
+  it("uses the longest checkpoint prefix when a cancellation and followup share a step", async () => {
+    const ids = [
+      "h-hi",
+      "a-hi",
+      "h-copy",
+      "ai-a",
+      "tool-a",
+      "ai-b",
+      "tool-b",
+      "ai-c",
+      "cancel-c",
+      "h-followup",
+      "a-followup",
+    ];
+    const messages = ids.map(msg);
+    const client = makeClient([
+      {
+        values: { messages },
+        checkpoint: { checkpoint_id: "cp-after-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 10) },
+        checkpoint: { checkpoint_id: "cp-with-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 7) },
+        checkpoint: { checkpoint_id: "cp-tool-b" },
+      },
+      {
+        values: { messages: messages.slice(0, 4) },
+        checkpoint: { checkpoint_id: "cp-ai-a" },
+      },
+      {
+        values: { messages: messages.slice(0, 8) },
+        checkpoint: { checkpoint_id: "cp-ai-c" },
+      },
+    ]);
+
+    const result = await resolveForkCheckpoint(
+      client,
+      "thread-1",
+      messages,
+      "ai-a",
+      "h-followup",
+      undefined,
+      "messages",
+    );
+
+    expect(result).toBe("cp-ai-c");
+    expect(client.threads.getHistory).toHaveBeenCalledTimes(1);
+  });
+
   it("falls back to the parent checkpoint when a cancellation stub shares the edited message's step", async () => {
     const messages: LangChainBaseMessage[] = [
       msg("h1"),
