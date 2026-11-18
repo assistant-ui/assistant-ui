@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AbstractAgent } from "@ag-ui/client";
+import { HttpAgent, type AbstractAgent } from "@ag-ui/client";
 import type {
   AppendMessage,
   ChatModelRunResult,
@@ -89,6 +89,114 @@ function createOpenRun(finishWithInterrupt: boolean) {
 }
 
 describe("AgUiThreadController Stop after an interrupt", () => {
+  it("names respondToToolApproval when its resume is displaced by steering during a reconnected drain", async () => {
+    class ReconnectingAgent extends HttpAgent {
+      protected override connect(): never {
+        throw new Error("Unexpected reconnect transport");
+      }
+    }
+    const agent = new ReconnectingAgent({ url: "https://agent.test" });
+    let release!: () => void;
+    const closed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const runAgent = vi
+      .spyOn(agent, "runAgent")
+      .mockImplementation(async (input, next) => {
+        const subscriber = next as unknown as EventSubscriber;
+        if (runAgent.mock.calls.length === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "confirm",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+        }
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input?.runId,
+            ...(runAgent.mock.calls.length === 1
+              ? {
+                  outcome: {
+                    type: "interrupt",
+                    interrupts: [
+                      {
+                        id: "int-1",
+                        reason: "tool_call",
+                        toolCallId: "call-1",
+                      },
+                    ],
+                  },
+                }
+              : {}),
+          },
+        });
+        return { newMessages: [], result: undefined };
+      });
+    const connectAgent = vi
+      .spyOn(agent, "connectAgent")
+      .mockImplementation(async (input, next) => {
+        const subscriber = next as unknown as EventSubscriber;
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input?.runId },
+        });
+        await closed;
+        return { newMessages: [], result: undefined };
+      });
+    const abortRun = vi.spyOn(agent, "abortRun");
+    const core = new AgUiThreadController({
+      agent,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    await core.append(userMessage("start"));
+    let following: Promise<void> | undefined;
+    let reconnected = false;
+    const unsubscribe = core.subscribe(() => {
+      const decided = core
+        .getMessages()
+        .some(
+          (message) =>
+            message.role === "assistant" &&
+            message.content.some(
+              (part) =>
+                part.type === "tool-call" && part.approval?.approved === true,
+            ),
+        );
+      if (reconnected || !decided) return;
+      reconnected = true;
+      following = core.resumeInFlightRun(core.getMessages());
+    });
+    const approval = core.respondToToolApproval({
+      approvalId: "int-1",
+      approved: true,
+    });
+    expect(connectAgent).toHaveBeenCalledOnce();
+    const send = core.steerAway("never mind");
+    const settled = Promise.allSettled([approval, send]);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(abortRun).not.toHaveBeenCalled();
+    release();
+    await following;
+    expect(await settled).toEqual([
+      {
+        status: "rejected",
+        reason: new Error(
+          "[agui] respondToToolApproval: a run is already in progress",
+        ),
+      },
+      { status: "fulfilled", value: undefined },
+    ]);
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(core.isRunning()).toBe(false);
+    unsubscribe();
+  });
+
   it.each([
     "interrupt response",
     "steerAway interrupt",

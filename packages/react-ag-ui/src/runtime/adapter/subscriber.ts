@@ -63,7 +63,7 @@ type SubscriberOptions = {
   dispatch: Dispatch;
   logger?: Logger;
   onRunFailed?: (error: Error) => void;
-  onRunStarted?: () => void;
+  onRunStarted?: () => boolean | void;
 };
 
 export const createAgUiSubscriber = (
@@ -77,7 +77,10 @@ export const createAgUiSubscriber = (
     dispatch(event);
   };
   return {
-    onRunStartedEvent: () => onRunStarted?.(),
+    onRunStartedEvent: () => {
+      if (onRunStarted?.() === false) return;
+      runFinishedDispatched = false;
+    },
     onTextMessageStartEvent: ({ event }) =>
       dispatchIfValid(event, "TEXT_MESSAGE_START"),
     onTextMessageContentEvent: ({ event }) =>

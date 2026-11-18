@@ -1060,6 +1060,7 @@ export class AgUiThreadController {
     );
 
     await this.resumeWithResponses(
+      "submitInterruptResponses",
       pending.messageId,
       openIds.map((id) => responsesById.get(id)!),
     );
@@ -1072,14 +1073,11 @@ export class AgUiThreadController {
    * unretryable.
    */
   private async resumeWithResponses(
+    method: "submitInterruptResponses" | "respondToToolApproval",
     messageId: string,
     resume: AgUiResumeEntry[],
   ): Promise<void> {
-    if (
-      this.drainingRun &&
-      !(await this.waitForDrain("submitInterruptResponses"))
-    )
-      return;
+    if (this.drainingRun && !(await this.waitForDrain(method))) return;
     const parentId = this.session.headId ?? messageId;
     this.clearPendingInterrupts(messageId, resume);
     await this.startRun(parentId, this.state.lastRunConfig, {
@@ -1216,7 +1214,11 @@ export class AgUiThreadController {
       return;
     }
 
-    await this.resumeWithResponses(pending.messageId, resume);
+    await this.resumeWithResponses(
+      "respondToToolApproval",
+      pending.messageId,
+      resume,
+    );
   }
 
   async steerAway(
@@ -2917,9 +2919,14 @@ export class AgUiThreadController {
           },
           onRunStarted: () => {
             const drain = this.drainingRun;
-            if (drain?.owner !== abortController || drain.waiter) return;
-            this.drainingRun = null;
-            this.setRunning(true);
+            if (this.abortController !== abortController || drain?.waiter)
+              return false;
+            runFinished = false;
+            if (drain?.owner === abortController) {
+              this.drainingRun = null;
+              this.setRunning(true);
+            }
+            return true;
           },
         });
         try {
@@ -3053,6 +3060,8 @@ export class AgUiThreadController {
             this.reportedErrors.add(err);
           }
           throw err;
+        } finally {
+          if (this.abortController === null) this.setRunning(false);
         }
         return;
       }

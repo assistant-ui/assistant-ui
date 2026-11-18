@@ -746,9 +746,9 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
       send = steerAwayRef.current!("never mind");
     });
     const settled = Promise.allSettled([approval, send]);
-    const waitingApproval = allToolCalls(result.current)[0]?.approval;
     expect(runAgent).toHaveBeenCalledOnce();
     expect(agent.abortRun).not.toHaveBeenCalled();
+    expect(allToolCalls(result.current)[0]?.approval).toEqual(gateApproval());
 
     await act(async () => {
       release();
@@ -762,7 +762,6 @@ describe("useAgUiRuntime tool approvals under an unsettled run", () => {
         { status: "fulfilled", value: undefined },
       ]);
     });
-    expect(waitingApproval).toEqual(gateApproval());
     expect(onError).toHaveBeenCalledOnce();
     expect(onError.mock.calls[0]?.[0].message).toBe(
       "[agui] respondToToolApproval: a run is already in progress",

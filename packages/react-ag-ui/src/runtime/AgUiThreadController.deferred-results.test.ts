@@ -24,11 +24,19 @@ const userMessage = {
   content: [{ type: "text", text: "look up both" }],
 } as unknown as AppendMessage;
 
-function openToolTurn() {
+function openToolTurn(
+  options: {
+    finishImmediately?: boolean;
+    isThreadSwitching?: () => boolean;
+  } = {},
+) {
   let release!: () => void;
+  let fail!: (error: Error) => void;
+  let finish!: (outcome?: unknown) => void;
   let onMessagesSnapshotEvent: Subscriber["onMessagesSnapshotEvent"];
-  const transportClosed = new Promise<void>((resolve) => {
+  const transportClosed = new Promise<void>((resolve, reject) => {
     release = resolve;
+    fail = reject;
   });
   const runAgent = vi.fn(
     async (
@@ -63,9 +71,15 @@ function openToolTurn() {
           event: { type: "TOOL_CALL_END", toolCallId },
         });
       }
-      subscriber.onRunFinishedEvent?.({
-        event: { type: "RUN_FINISHED", runId: input.runId },
-      });
+      finish = (outcome) =>
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            ...(outcome !== undefined && { outcome }),
+          },
+        });
+      if (options.finishImmediately !== false) finish();
       await transportClosed;
     },
   );
@@ -73,6 +87,9 @@ function openToolTurn() {
     agent: { runAgent, abortRun: vi.fn() } as unknown as AbstractAgent,
     logger: makeLogger(),
     showThinking: false,
+    ...(options.isThreadSwitching && {
+      isThreadSwitching: options.isThreadSwitching,
+    }),
   });
   const sendMessagesSnapshot = (messages: unknown[]) => {
     if (!onMessagesSnapshotEvent) {
@@ -82,7 +99,14 @@ function openToolTurn() {
       event: { type: "MESSAGES_SNAPSHOT", messages },
     });
   };
-  return { core, runAgent, release, sendMessagesSnapshot };
+  return {
+    core,
+    runAgent,
+    release,
+    fail,
+    finish: (outcome?: unknown) => finish(outcome),
+    sendMessagesSnapshot,
+  };
 }
 
 function addResult(
@@ -133,6 +157,102 @@ function toolCallResults(core: AgUiThreadController) {
 }
 
 describe("AgUiThreadController deferred tool results", () => {
+  it("stops running after a deferred frontend result leaves another tool awaiting human input", async () => {
+    const { core, runAgent, release, finish } = openToolTurn({
+      finishImmediately: false,
+    });
+    const firstRun = core.append(userMessage);
+    addResult(core, "assistant-a", "tool-a");
+    finish();
+    expect(core.isRunning()).toBe(true);
+    expect(runAgent).toHaveBeenCalledOnce();
+
+    release();
+    await firstRun;
+
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["tool-b"]);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(core.isRunning()).toBe(false);
+
+    addResult(core, "assistant-b", "tool-b");
+    await vi.waitFor(() => {
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+    });
+  });
+
+  it.each(["switching", "leave", "reset", "error"] as const)(
+    "stops running when %s drops a deferred tool continuation",
+    async (branch) => {
+      let switching = false;
+      const { core, runAgent, release, fail } = openToolTurn({
+        isThreadSwitching: () => switching,
+      });
+      const firstRun = core.append(userMessage);
+      addResult(core, "assistant-a", "tool-a");
+      addResult(core, "assistant-b", "tool-b");
+      expect(core.isRunning()).toBe(true);
+      if (branch === "switching") switching = true;
+      if (branch === "leave") core.leave();
+      if (branch === "reset") core.resetThreadState();
+      if (branch === "error") {
+        const rejected = expect(firstRun).rejects.toThrow("cleanup failed");
+        fail(new Error("cleanup failed"));
+        await rejected;
+      } else {
+        release();
+        await firstRun;
+      }
+      expect(runAgent).toHaveBeenCalledOnce();
+      expect(core.isRunning()).toBe(false);
+    },
+  );
+
+  it.each([
+    "interrupt",
+    "switching",
+    "leave",
+    "reset",
+    "error",
+    "no head",
+  ] as const)(
+    "stops running when %s drops a deferred A2UI continuation",
+    async (branch) => {
+      let switching = false;
+      const { core, runAgent, release, fail, finish } = openToolTurn({
+        finishImmediately: false,
+        isThreadSwitching: () => switching,
+      });
+      const firstRun = core.append(userMessage);
+      core.sendA2uiAction({ name: "continue" });
+      finish(
+        branch === "interrupt"
+          ? {
+              type: "interrupt",
+              interrupts: [
+                { id: "gate", reason: "tool_call", toolCallId: "tool-b" },
+              ],
+            }
+          : undefined,
+      );
+      expect(core.isRunning()).toBe(true);
+      if (branch === "switching") switching = true;
+      if (branch === "leave") core.leave();
+      if (branch === "reset") core.resetThreadState();
+      if (branch === "no head") core.applyExternalMessages([]);
+      if (branch === "error") {
+        const rejected = expect(firstRun).rejects.toThrow("cleanup failed");
+        fail(new Error("cleanup failed"));
+        await rejected;
+      } else {
+        release();
+        await firstRun;
+      }
+      expect(runAgent).toHaveBeenCalledOnce();
+      expect(core.isRunning()).toBe(false);
+    },
+  );
+
   it.each([
     {
       snapshot: "stale",
@@ -308,6 +428,7 @@ describe("AgUiThreadController deferred tool results", () => {
       ),
     ).toEqual([]);
     expect(runAgent).toHaveBeenCalledOnce();
+    expect(core.isRunning()).toBe(false);
   });
 
   it("continues from an earlier resolved owner when the active call leaves the snapshot", async () => {
@@ -511,6 +632,7 @@ describe("AgUiThreadController deferred tool results", () => {
 
     expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["tool-b"]);
     expect(runAgent).toHaveBeenCalledOnce();
+    expect(core.isRunning()).toBe(false);
   });
 
   it("does not continue a deferred result past a later interrupt", async () => {
@@ -544,5 +666,6 @@ describe("AgUiThreadController deferred tool results", () => {
       expect.objectContaining({ id: "gate" }),
     );
     expect(runAgent).toHaveBeenCalledOnce();
+    expect(core.isRunning()).toBe(false);
   });
 });

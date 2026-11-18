@@ -2380,14 +2380,114 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore(http.agent);
     const run = core.append(createAppendMessage());
     http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-1" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    http.write({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "one" });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m1" });
     http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
     await vi.waitFor(() => expect(core.isRunning()).toBe(false));
 
     http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
     await vi.waitFor(() => expect(core.isRunning()).toBe(true));
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m2",
+      role: "assistant",
+    });
+    http.write({ type: "TEXT_MESSAGE_CONTENT", messageId: "m2", delta: "two" });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m2" });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run-2" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "complete",
+    });
+    expect(assistantText(core.getMessages().at(-1))).toBe("two");
+    await flushPromises();
+    expect(core.isRunning()).toBe(false);
 
     http.close();
     await expect(run).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("settles subagent calls when a second run ends at end of stream", async () => {
+    const http = createStreamingHttpAgent();
+    const core = createCore(http.agent);
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-1" });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m2",
+      role: "assistant",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m2",
+      delta: "researching",
+    });
+    http.write({
+      type: "TOOL_CALL_START",
+      toolCallId: "spawn",
+      toolCallName: "research",
+    });
+    http.write({ type: "TOOL_CALL_END", toolCallId: "spawn" });
+    http.write({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub",
+      parentToolCallId: "spawn",
+      name: "researcher",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "nested",
+      role: "assistant",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "nested",
+      delta: "working",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TOOL_CALL_START",
+      toolCallId: "nested-tool",
+      toolCallName: "lookup",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TOOL_CALL_END",
+      toolCallId: "nested-tool",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_END",
+      messageId: "nested",
+      subagentRunId: "sub",
+    });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m2" });
+    http.close();
+    await run;
+
+    const spawn = core
+      .getMessages()
+      .flatMap((message) =>
+        message.role === "assistant" ? message.content : [],
+      )
+      .find((part) => part.type === "tool-call" && part.toolCallId === "spawn");
+    expect(spawn).toMatchObject({
+      type: "tool-call",
+      toolCallId: "spawn",
+      messages: [
+        { id: "sub", status: { type: "incomplete", reason: "error" } },
+      ],
+    });
     expect(core.isRunning()).toBe(false);
   });
 
