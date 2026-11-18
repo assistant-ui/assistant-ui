@@ -110,6 +110,34 @@ describe("fromThreadMessageLike", () => {
     ).toEqual(message);
   });
 
+  it("drops malformed image parts from attachment content", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "user",
+        content: "hello",
+        attachments: [
+          {
+            id: "attachment",
+            type: "file",
+            name: "photo.jpg",
+            status: { type: "complete" },
+            content: [
+              { type: "image", image: 42 },
+              { type: "image", image: "https://example.com/photo.jpg" },
+            ],
+          },
+        ],
+      } as never,
+      "user-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    if (message.role !== "user") throw new Error("expected user");
+    expect(message.attachments[0]?.content).toEqual([
+      { type: "image", image: "https://example.com/photo.jpg" },
+    ]);
+  });
+
   it("preserves modality on user and assistant messages", () => {
     const user = fromThreadMessageLike(
       {
