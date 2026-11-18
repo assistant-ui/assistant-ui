@@ -3,6 +3,7 @@
 import {
   ExportedMessageRepository,
   isMessageNotSentError,
+  MessageNotSentError,
   useAui,
   useAuiState,
   useCloudThreadListAdapter,
@@ -511,11 +512,17 @@ const useNewPiThreadStore = (
             message,
             undefined,
             () =>
-              (applySelectionPromiseRef.current ??=
-                controller.applyDraftSelection(
+              (applySelectionPromiseRef.current ??= controller
+                .applyDraftSelection(
                   draftSelectionRef.current,
                   () => registry.disposed,
-                )),
+                )
+                .catch((error: unknown) => {
+                  invokePiErrorCallback(onError, error);
+                  throw new MessageNotSentError(
+                    error instanceof Error ? error.message : String(error),
+                  );
+                })),
           );
           removeOptimisticMessage();
         } catch (error) {

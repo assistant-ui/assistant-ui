@@ -3,7 +3,11 @@
 import { act, createElement, StrictMode, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  isMessageNotSentError,
+  useAuiState,
+} from "@assistant-ui/react";
 import type {
   AppendMessage,
   AssistantRuntime,
@@ -509,7 +513,7 @@ describe("usePiRuntime new-thread first message", () => {
       });
       await act(async () => {
         setter.reject(failure);
-        await expect(send).rejects.toBe(failure);
+        await expect(send).rejects.toSatisfy(isMessageNotSentError);
       });
       if (selection === "model") {
         expect(client.setModel).toHaveBeenCalledExactlyOnceWith(
@@ -525,7 +529,7 @@ describe("usePiRuntime new-thread first message", () => {
         expect(client.setModel).not.toHaveBeenCalled();
       }
       expect(view.extras.state.lastError).toBe(failure.message);
-      expect(view.onError).toHaveBeenCalledWith(failure);
+      expect(view.onError).toHaveBeenCalledExactlyOnceWith(failure);
       expect(client.sendMessage).not.toHaveBeenCalled();
     },
   );
