@@ -104,6 +104,7 @@ export default async function BlockPage(props: {
 
       <div className="mt-10">
         <BlockViewer
+          slug={block.slug}
           title={block.title}
           previewUrl={block.previewUrl}
           image={block.image}

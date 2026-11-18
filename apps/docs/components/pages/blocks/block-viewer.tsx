@@ -57,7 +57,7 @@ const control = "size-7";
 const IMAGE_SIZES = "(min-width: 1280px) 1248px, 100vw";
 
 const treeRow =
-  "hover:bg-foreground/[0.04] focus-visible:outline-ring flex w-full items-center gap-1.5 rounded-sm py-1 pe-2 text-left font-mono text-xs [font-variant-ligatures:none] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none [@media(pointer:coarse)]:py-2";
+  "hover:bg-foreground/[0.04] focus-visible:outline-ring flex w-full items-center gap-1.5 rounded-sm py-1.5 pe-2 text-left font-mono text-xs [font-variant-ligatures:none] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none [@media(pointer:coarse)]:py-2";
 
 function languageOf(filePath: string) {
   return (
@@ -173,9 +173,11 @@ function TreeItems({
 }
 
 function BlockCode({
+  name,
   files,
   entry,
 }: {
+  name: string;
   files: readonly BlockFile[];
   entry: string;
 }) {
@@ -192,19 +194,24 @@ function BlockCode({
 
   return (
     <div className="border-foreground/10 rounded-document grid overflow-hidden border [--code-height:min(70vh,600px)] md:grid-cols-[15rem_minmax(0,1fr)]">
-      <nav
-        aria-label="Files"
-        className="max-h-56 overflow-y-auto p-2 md:max-h-[calc(var(--code-height)+2.25rem)]"
-      >
-        <TreeItems
-          nodes={buildTree(files.map((item) => item.path))}
-          depth={0}
-          selected={file?.path ?? selected}
-          closed={closed}
-          onSelect={setSelected}
-          onToggle={toggle}
-        />
-      </nav>
+      <div className="flex min-w-0 flex-col">
+        <div className="border-foreground/10 text-muted-foreground flex h-9 shrink-0 items-center border-b px-3.5 font-mono text-[11px] font-medium tracking-wide [font-variant-ligatures:none]">
+          <span className="truncate">{name}</span>
+        </div>
+        <nav
+          aria-label="Files"
+          className="max-h-56 overflow-y-auto p-2 md:max-h-(--code-height)"
+        >
+          <TreeItems
+            nodes={buildTree(files.map((item) => item.path))}
+            depth={0}
+            selected={file?.path ?? selected}
+            closed={closed}
+            onSelect={setSelected}
+            onToggle={toggle}
+          />
+        </nav>
+      </div>
       {file && (
         <CodeBlock
           key={file.path}
@@ -229,12 +236,13 @@ function BlockCode({
 }
 
 export function BlockViewer({
+  slug,
   title,
   previewUrl,
   image,
   files,
   entry,
-}: Pick<Block, "title" | "previewUrl" | "image"> & {
+}: Pick<Block, "slug" | "title" | "previewUrl" | "image"> & {
   files: readonly BlockFile[];
   entry: string;
 }) {
@@ -363,7 +371,7 @@ export function BlockViewer({
           )}
         </TabsContent>
         <TabsContent value="code">
-          <BlockCode files={files} entry={entry} />
+          <BlockCode name={slug} files={files} entry={entry} />
         </TabsContent>
         <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
           <span>fig. 01</span>
