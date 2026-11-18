@@ -108,7 +108,7 @@ export type ThreadViewportState = {
   readonly registerViewport: () => SizeHandle;
 
   /** Register a content inset (footer, anchor message, etc.) and get a handle to update its height */
-  readonly registerContentInset: () => SizeHandle;
+  readonly registerContentInset: (measure?: () => number) => SizeHandle;
 
   /** Register the scroll viewport element */
   readonly registerViewportElement: (

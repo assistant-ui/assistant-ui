@@ -94,7 +94,7 @@ export type ThreadViewportAutoScroll = {
   scrollToBottom(behavior?: ScrollBehavior): void;
   messagesPrepended(previousFirstMessageId: string): void;
   setContentInset(inset: number): void;
-  registerContentInset(): {
+  registerContentInset(measure?: () => number): {
     setHeight(height: number): void;
     unregister(): void;
   };
@@ -121,7 +121,10 @@ export const createThreadViewportAutoScroll = (input: {
   let lastTouchY: number | null = null;
   let contentInset = 0;
   let directContentInset = 0;
-  const contentInsetEntries = new Map<symbol, number>();
+  const contentInsetEntries = new Map<
+    symbol,
+    { height: number; measure: (() => number) | undefined }
+  >();
   let hasMessages = false;
   let initialized = false;
   let lastScrollTop = 0;
@@ -285,18 +288,26 @@ export const createThreadViewportAutoScroll = (input: {
 
   const onContentResize = () => {
     if (!element) return;
+    for (const entry of contentInsetEntries.values()) {
+      if (entry.measure) entry.height = entry.measure();
+    }
+    const insetGrew = recalculateContentInset();
     const { scrollHeight, clientHeight } = element;
     if (
       scrollHeight === lastObservedScrollHeight &&
       clientHeight === lastObservedClientHeight
     ) {
+      if (insetGrew !== null) {
+        if (insetGrew) followGrowth();
+        handleScroll({ insetShrank: !insetGrew });
+      }
       return;
     }
     lastObservedScrollHeight = scrollHeight;
     lastObservedClientHeight = clientHeight;
 
     followGrowth();
-    handleScroll();
+    handleScroll({ insetShrank: insetGrew === false });
   };
 
   const cancelPendingScrollToBottom = () => {
@@ -388,13 +399,19 @@ export const createThreadViewportAutoScroll = (input: {
     scheduleScrollToBottom("instant");
   };
 
-  const updateContentInset = () => {
+  const recalculateContentInset = () => {
     let inset = directContentInset;
-    for (const height of contentInsetEntries.values()) inset += height;
-    if (contentInset === inset) return;
+    for (const entry of contentInsetEntries.values()) inset += entry.height;
+    if (contentInset === inset) return null;
     const grew = inset > contentInset;
     contentInset = inset;
     input.onContentInsetChange?.(inset);
+    return grew;
+  };
+
+  const updateContentInset = () => {
+    const grew = recalculateContentInset();
+    if (grew === null) return;
     // A growing inset obscures pinned content and follows like a resize; a shrinking inset reveals content without moving the viewport.
     if (grew) followGrowth();
     handleScroll({ insetShrank: !grew });
@@ -498,17 +515,14 @@ export const createThreadViewportAutoScroll = (input: {
       directContentInset = inset;
       updateContentInset();
     },
-    registerContentInset: () => {
+    registerContentInset: (measure) => {
       const id = Symbol();
-      contentInsetEntries.set(id, 0);
+      const entry = { height: 0, measure };
+      contentInsetEntries.set(id, entry);
       return {
         setHeight: (height) => {
-          if (
-            !contentInsetEntries.has(id) ||
-            contentInsetEntries.get(id) === height
-          )
-            return;
-          contentInsetEntries.set(id, height);
+          if (!contentInsetEntries.has(id) || entry.height === height) return;
+          entry.height = height;
           updateContentInset();
         },
         unregister: () => {

@@ -21,10 +21,12 @@ type Target = "client" | "server";
 
 type ToolType = "backend" | "frontend" | "human" | "provider";
 
+declare function assertGenerativeDirectivePlacement(code: string, filename?: string): void;
+
 declare function compileGenerative(code: string, options: CompileOptions): CompileResult;
 
 declare namespace entry_root_exports {
-  export { CompileOptions, CompileResult, DIRECTIVE, GenerativeCompileError, Target, ToolType, compileGenerative, isGenerativeModule, isGenerativeSource };
+  export { CompileOptions, CompileResult, DIRECTIVE, GenerativeCompileError, Target, ToolType, assertGenerativeDirectivePlacement, compileGenerative, isGenerativeModule, isGenerativeSource };
 }
 
 declare function isGenerativeModule(code: string): boolean;

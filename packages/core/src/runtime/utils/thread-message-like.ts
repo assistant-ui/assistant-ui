@@ -351,9 +351,7 @@ export const fromThreadMessageLike = (
                 "id" in part ? part.id : undefined,
               );
               if (converted) return converted;
-              return part.type === "file"
-                ? keepWellFormed(part)
-                : (part as ThreadUserMessagePart);
+              return keepWellFormed(part as ThreadUserMessagePart);
             })
             .filter((part) => part !== null),
         })),

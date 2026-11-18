@@ -1,5 +1,11 @@
 # @assistant-ui/variants
 
+## 0.0.5
+
+### Patch Changes
+
+- [#10604](https://github.com/assistant-ui/assistant-ui/pull/10604) [`9c7de04`](https://github.com/assistant-ui/assistant-ui/commit/9c7de0413212819811d38af4a30944e9611859d1) - fix: the Next.js route handlers now check the client address like the Vite plugin, and refuse requests whose address is unknown unless `allowRemoteClients` is set. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.4
 
 ### Patch Changes

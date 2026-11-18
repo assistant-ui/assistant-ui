@@ -29,6 +29,7 @@ import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import {
   INTERNAL,
   type Unstable_TriggerPopoverAriaProps,
@@ -105,7 +106,7 @@ function KeyboardPlugin({
         KEY_ENTER_COMMAND,
         (event) => {
           if (!event) return false;
-          if (event.isComposing || event.keyCode === 229) return false;
+          if (isCompositionKey(event)) return false;
           if (event.shiftKey) return false;
 
           // Let registered plugins (mention, slash command, etc.) handle Enter first

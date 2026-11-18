@@ -62,9 +62,9 @@ type CloudScopeContext = CloudScopeSnapshot & {
   persistence: CloudMessagePersistence;
 };
 
-const globalPersistence = new WeakMap<
+const threadPersistenceByList = new WeakMap<
   getClientId.ClientId,
-  ScopedPersistence
+  Map<string, ScopedPersistence>
 >();
 
 export const DEFAULT_CLOUD_SCOPE = Symbol("assistant-ui:cloud-default-scope");
@@ -297,9 +297,19 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
     snapshot = this.captureScopeSnapshot(),
   ): CloudMessagePersistence {
-    const key = getClientId(threadListItem);
-    let entry = globalPersistence.get(key);
-    if (!entry || !Object.is(entry.scope, snapshot.scope)) {
+    const threadListClientId = getClientId(this.aui.threads);
+    const state = threadListItem.getState();
+    const threadKeys = [
+      `id:${state.id}`,
+      ...(state.remoteId ? [`remote:${state.remoteId}`] : []),
+    ];
+    const cachedThreads = threadPersistenceByList.get(threadListClientId);
+    let entry = threadKeys
+      .map((threadKey) => cachedThreads?.get(threadKey))
+      .find(
+        (candidate) => candidate && Object.is(candidate.scope, snapshot.scope),
+      );
+    if (!entry) {
       const cloudRef = { current: this.cloudRef };
       entry = {
         cloudRef,
@@ -309,11 +319,18 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
           { staleAfter: this.getStaleAfter() },
         ),
       };
-      globalPersistence.set(key, entry);
     } else {
       // Thread items can outlive the hook that created their persistence, so a
       // later adapter must reconnect the retained mapping to its live client ref.
       entry.cloudRef.current = this.cloudRef;
+    }
+    let threadCache = cachedThreads;
+    if (!threadCache) {
+      threadCache = new Map();
+      threadPersistenceByList.set(threadListClientId, threadCache);
+    }
+    for (const threadKey of threadKeys) {
+      threadCache.set(threadKey, entry);
     }
     return entry.persistence;
   }
@@ -580,9 +597,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        // Loads re-pin and resolve through the pinned item, so the id mapping
-        // they populate lives on the same persistence instance later writes
-        // resolve, whichever of the list item or the live graft won the pin.
         const pinned = pinCurrent();
         const live = adapter.aui.threadListItem;
         if (!live.source || !live.getState().remoteId) return { messages: [] };

@@ -229,9 +229,10 @@ describe("ExternalThread earlier messages", () => {
       await Promise.resolve();
       finish();
       await first;
-      await new Promise((resolve) => setTimeout(resolve, 0));
       expect(onLoadEarlier).toHaveBeenCalledTimes(1);
-      expect(root.getValue().getState().isLoadingEarlier).toBe(false);
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isLoadingEarlier).toBe(false),
+      );
     } finally {
       root.unmount();
     }

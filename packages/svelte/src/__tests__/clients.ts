@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useInsertionEffect } from "react";
 import { vi } from "vitest";
 import {
   AssistantRuntimeImpl,
@@ -169,3 +169,14 @@ export const createEchoRuntime = () => {
     },
   };
 };
+
+const useThrowingCleanup = () => {
+  useInsertionEffect(
+    () => () => {
+      throw new Error("cleanup failed");
+    },
+    [],
+  );
+  return { getState: () => ({}) };
+};
+export const ThrowingCleanup = resource(useThrowingCleanup);

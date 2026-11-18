@@ -869,6 +869,22 @@ describe("SpecRenderer", () => {
     expect(view.container.querySelector("img")).toBeNull();
   });
 
+  it("shows invalid props when a bound value breaks the prop schema", async () => {
+    const view = mount({
+      catalog,
+      components,
+      spec: spec(
+        { main: { type: "Picture", props: { src: { $state: "/src" } } } },
+        { src: 5 },
+      ),
+    });
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="invalid-props"]')
+        ?.textContent,
+    ).toBe("Picture: src expected string, got integer");
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
   it("does not carry accepted props over to an element's new type", async () => {
     const tools = Object.assign(Object.create(null), {
       photos: ["https://example.com/bridge.jpg"],
