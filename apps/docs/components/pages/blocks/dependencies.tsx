@@ -1,5 +1,6 @@
-import { PackageIcon } from "@/components/pages/blocks/package-icon";
 import type { BlockDependency } from "@/components/pages/blocks/block-source";
+import { PackageIcon } from "@/components/pages/blocks/package-icon";
+import { BlockSection } from "@/components/pages/blocks/sections";
 
 export function Dependencies({
   dependencies,
@@ -7,19 +8,12 @@ export function Dependencies({
   dependencies: readonly BlockDependency[];
 }) {
   return (
-    <section
-      id="dependencies"
-      aria-labelledby="dependencies-label"
-      className="border-foreground/10 scroll-mt-24 border-t py-10 md:py-12"
-    >
-      <h2 id="dependencies-label" className="text-sm font-medium">
-        Dependencies
-      </h2>
-      <ul className="border-foreground/10 mt-6 gap-x-10 rounded-2xl border px-5 py-3 sm:columns-2 lg:columns-3">
+    <BlockSection id="dependencies" label="Dependencies">
+      <ul className="border-foreground/10 gap-x-10 border-t font-mono text-[13px] [font-variant-ligatures:none] sm:columns-2 lg:columns-3">
         {dependencies.map((dependency) => (
           <li
             key={dependency.name}
-            className="hover:bg-foreground/[0.025] -mx-2 flex break-inside-avoid items-baseline gap-2.5 px-2 py-2 font-mono text-[13px] transition-colors [font-variant-ligatures:none] motion-reduce:transition-none"
+            className="border-foreground/10 flex break-inside-avoid items-baseline gap-2.5 border-b py-3"
           >
             <PackageIcon
               name={dependency.name}
@@ -32,6 +26,6 @@ export function Dependencies({
           </li>
         ))}
       </ul>
-    </section>
+    </BlockSection>
   );
 }

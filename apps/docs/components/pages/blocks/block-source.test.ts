@@ -2,7 +2,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { blockDependencies, readBlockFiles } from "./block-source";
+import {
+  blockAssistantUi,
+  blockDependencies,
+  readBlockFiles,
+} from "./block-source";
 
 describe("readBlockFiles", () => {
   let root: string;
@@ -102,6 +106,90 @@ describe("blockDependencies", () => {
   it("lists nothing for a block without a manifest", () => {
     expect(
       blockDependencies([{ path: "app/page.tsx", code: "export {};" }]),
+    ).toEqual([]);
+  });
+});
+
+describe("blockAssistantUi", () => {
+  it("lists what the files import from assistant-ui, with kinds, parts and files", () => {
+    const imports = blockAssistantUi([
+      {
+        path: "components/chat.tsx",
+        code: [
+          'import { useState } from "react";',
+          "import {",
+          "  ThreadPrimitive,",
+          "  useAuiState,",
+          "  AuiIf,",
+          "  type ToolCallMessagePartComponent,",
+          '} from "@assistant-ui/react";',
+          'import { QuoteBlock } from "@/components/assistant-ui/elements/quote.aui";',
+          'import { Button } from "@/components/ui/button";',
+          "export const Chat = () => (",
+          "  <ThreadPrimitive.Root><ThreadPrimitive.Viewport /></ThreadPrimitive.Root>",
+          ");",
+        ].join("\n"),
+      },
+      {
+        path: "app/page.tsx",
+        code: [
+          'import { useAuiState } from "@assistant-ui/react";',
+          'import type { FrontendTools } from "@assistant-ui/ai-sdk";',
+        ].join("\n"),
+      },
+    ]);
+
+    expect(imports).toEqual([
+      {
+        name: "QuoteBlock",
+        source: "@/components/assistant-ui/elements/quote.aui",
+        kind: "component",
+        parts: [],
+        files: ["components/chat.tsx"],
+      },
+      {
+        name: "FrontendTools",
+        source: "@assistant-ui/ai-sdk",
+        kind: "type",
+        parts: [],
+        files: ["app/page.tsx"],
+      },
+      {
+        name: "AuiIf",
+        source: "@assistant-ui/react",
+        kind: "runtime",
+        parts: [],
+        files: ["components/chat.tsx"],
+      },
+      {
+        name: "ThreadPrimitive",
+        source: "@assistant-ui/react",
+        kind: "primitive",
+        parts: ["Root", "Viewport"],
+        files: ["components/chat.tsx"],
+      },
+      {
+        name: "ToolCallMessagePartComponent",
+        source: "@assistant-ui/react",
+        kind: "type",
+        parts: [],
+        files: ["components/chat.tsx"],
+      },
+      {
+        name: "useAuiState",
+        source: "@assistant-ui/react",
+        kind: "hook",
+        parts: [],
+        files: ["components/chat.tsx", "app/page.tsx"],
+      },
+    ]);
+  });
+
+  it("finds nothing in files that import nothing from assistant-ui", () => {
+    expect(
+      blockAssistantUi([
+        { path: "lib/utils.ts", code: 'import { clsx } from "clsx";' },
+      ]),
     ).toEqual([]);
   });
 });

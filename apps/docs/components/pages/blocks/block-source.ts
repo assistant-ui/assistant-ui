@@ -13,6 +13,25 @@ export type BlockDependency = {
   range: string;
 };
 
+export type BlockImportKind =
+  | "hook"
+  | "primitive"
+  | "component"
+  | "runtime"
+  | "type";
+
+export type BlockImport = {
+  name: string;
+  source: string;
+  kind: BlockImportKind;
+  /** Members read off the import, as in `ThreadPrimitive.Root`. */
+  parts: string[];
+  files: string[];
+};
+
+const ASSISTANT_UI_IMPORT =
+  /import\s+(type\s+)?\{([^}]*)\}\s*from\s*"(@assistant-ui\/[^"]+|@\/components\/assistant-ui\/[^"]+)"/g;
+
 const SOURCE_FILE = /\.(?:[cm]?[jt]sx?|json|css|mdx?)$/;
 const ENV_FILE = /^\.env(?:\.|$)/;
 const ENV_TEMPLATE = ".env.example";
@@ -90,4 +109,51 @@ export function blockDependencies(
     dependencies?: Record<string, string>;
   };
   return Object.entries(dependencies).map(([name, range]) => ({ name, range }));
+}
+
+function importKind(name: string, source: string): BlockImportKind {
+  if (source.startsWith("@/")) return "component";
+  if (/^(?:unstable_)?use[A-Z]/.test(name)) return "hook";
+  if (name.endsWith("Primitive")) return "primitive";
+  return "runtime";
+}
+
+export function blockAssistantUi(files: readonly BlockFile[]): BlockImport[] {
+  const found = new Map<string, BlockImport>();
+
+  for (const file of files) {
+    for (const [, typeImport, names = "", source = ""] of file.code.matchAll(
+      ASSISTANT_UI_IMPORT,
+    )) {
+      for (const specifier of names.split(",")) {
+        const typeOnly = Boolean(typeImport) || /^\s*type\s/.test(specifier);
+        const [name = "", local = name] = specifier
+          .trim()
+          .replace(/^type\s+/, "")
+          .split(/\s+as\s+/);
+        if (!name) continue;
+
+        const key = `${source} ${name}`;
+        const entry: BlockImport = found.get(key) ?? {
+          name,
+          source,
+          kind: "type",
+          parts: [],
+          files: [],
+        };
+        if (!typeOnly) entry.kind = importKind(name, source);
+        if (!entry.files.includes(file.path)) entry.files.push(file.path);
+        for (const [, part = ""] of file.code.matchAll(
+          new RegExp(`<${local}\\.([A-Z]\\w*)`, "g"),
+        )) {
+          if (!entry.parts.includes(part)) entry.parts.push(part);
+        }
+        found.set(key, entry);
+      }
+    }
+  }
+
+  return [...found.values()].sort(
+    (a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name),
+  );
 }

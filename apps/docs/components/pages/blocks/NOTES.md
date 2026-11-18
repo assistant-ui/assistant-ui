@@ -21,4 +21,6 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 - File tree header with the block's name, and taller tree rows.
 - Local preview starts by itself when the docs run locally.
 - Theme picker for the preview: mode, color, radius, font, text size, reset.
-- Dependencies section: its own component, a rounded list with each package's logo.
+- Section designs picked from options: Use cases as numbered rows, Capabilities and Requirements as boxed cells, Dependencies as lined columns with each package's logo, Environment variables as the `.env.example` file.
+- "From assistant-ui" section: the hooks, primitives, components, runtime pieces and types the block imports, read from its code.
+- Problem solved section removed.

@@ -31,7 +31,6 @@ export type Block = {
   /** Port the docs dev server starts the block on when it has no deployment. */
   devPort: number;
   source: BlockSource;
-  problem: string;
   useCases: readonly string[];
   capabilities: readonly BlockCapability[];
   requirements: readonly string[];
@@ -71,8 +70,6 @@ export const BLOCKS: readonly Block[] = [
       ],
       entry: "app/page.tsx",
     },
-    problem:
-      "A chat assistant answers in the chat, so an edit to a document comes back as a copy to paste over the original. Here the document is state that you and the model both write to. The model sends only the blocks it changes, the edit is typed into the page as it streams, and every change can be undone or restored from history.",
     useCases: [
       "A writing tool where an assistant drafts, tightens or restructures a document in place.",
       "Notes, specs and articles reviewed through comments left by people and by the assistant.",

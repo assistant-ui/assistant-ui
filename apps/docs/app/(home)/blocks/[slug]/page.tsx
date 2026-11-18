@@ -1,25 +1,24 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { startBlockPreview } from "@/components/pages/blocks/block-preview";
 import {
+  blockAssistantUi,
   blockDependencies,
   readBlockSource,
 } from "@/components/pages/blocks/block-source";
 import { Dependencies } from "@/components/pages/blocks/dependencies";
+import {
+  AssistantUi,
+  Capabilities,
+  EnvironmentVariables,
+  Requirements,
+  UseCases,
+} from "@/components/pages/blocks/sections";
 import { BlockViewer } from "@/components/pages/blocks/block-viewer";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
-import {
-  Definition,
-  DefinitionAnnotation,
-  DefinitionDetails,
-  DefinitionList,
-  DefinitionName,
-  DefinitionTerm,
-} from "@/components/ui/definition-list";
 import { BLOCKS, getBlock } from "@/lib/blocks";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
@@ -42,32 +41,6 @@ export async function generateMetadata(props: {
   };
 }
 
-function Section({
-  id,
-  label,
-  children,
-}: {
-  id: string;
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-label`}
-      className="border-foreground/10 grid scroll-mt-24 gap-x-12 gap-y-5 border-t py-10 md:grid-cols-[14rem_minmax(0,1fr)] md:py-12"
-    >
-      <h2 id={`${id}-label`} className="text-sm font-medium">
-        {label}
-      </h2>
-      <div className="max-w-2xl min-w-0">{children}</div>
-    </section>
-  );
-}
-
-const sectionList =
-  "text-muted-foreground flex flex-col gap-3 text-[15px] leading-relaxed";
-
 export default async function BlockPage(props: {
   params: Promise<{ slug: string }>;
 }) {
@@ -83,6 +56,10 @@ export default async function BlockPage(props: {
 
   const files = await readBlockSource(block.source);
   const dependencies = blockDependencies(files);
+  const imports = blockAssistantUi(files);
+  const envExample =
+    files.find((file) => file.path === ".env.example")?.code ??
+    block.env.variables.map((variable) => `${variable.name}=`).join("\n");
 
   return (
     <PageFrame pad="sub">
@@ -122,59 +99,12 @@ export default async function BlockPage(props: {
       </div>
 
       <div className="mt-16 flex flex-col md:mt-20">
-        <Section id="problem-solved" label="Problem solved">
-          <p className="text-[15px] leading-relaxed">{block.problem}</p>
-        </Section>
-
-        <Section id="use-cases" label="Use cases">
-          <ul className={sectionList}>
-            {block.useCases.map((useCase) => (
-              <li key={useCase}>{useCase}</li>
-            ))}
-          </ul>
-        </Section>
-
-        <Section id="capabilities" label="Capabilities">
-          <dl className="grid gap-x-10 gap-y-7 sm:grid-cols-2">
-            {block.capabilities.map((capability) => (
-              <div key={capability.title}>
-                <dt className="text-sm font-medium">{capability.title}</dt>
-                <dd className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-                  {capability.description}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Section>
-
+        <UseCases useCases={block.useCases} />
+        <Capabilities capabilities={block.capabilities} />
+        <AssistantUi imports={imports} />
         <Dependencies dependencies={dependencies} />
-
-        <Section id="requirements" label="Requirements">
-          <ul className={sectionList}>
-            {block.requirements.map((requirement) => (
-              <li key={requirement}>{requirement}</li>
-            ))}
-          </ul>
-        </Section>
-
-        <Section id="environment-variables" label="Environment variables">
-          <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
-            {block.env.note}
-          </p>
-          <DefinitionList>
-            {block.env.variables.map((variable) => (
-              <Definition key={variable.name}>
-                <DefinitionTerm>
-                  <DefinitionName>{variable.name}</DefinitionName>
-                  <DefinitionAnnotation>
-                    {variable.required ? "required" : "optional"}
-                  </DefinitionAnnotation>
-                </DefinitionTerm>
-                <DefinitionDetails>{variable.description}</DefinitionDetails>
-              </Definition>
-            ))}
-          </DefinitionList>
-        </Section>
+        <Requirements requirements={block.requirements} />
+        <EnvironmentVariables env={block.env} example={envExample} />
       </div>
     </PageFrame>
   );
