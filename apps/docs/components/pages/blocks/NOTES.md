@@ -8,6 +8,8 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 
 - **A preview that works on the live site.** Today the docs dev server starts the block on a local port (`block-preview.ts`), and the live site shows the screenshot. This is a stopgap. Fix it by deploying the block and setting `previewUrl` in `lib/blocks.ts`, or by building the block into the docs site.
 - **Blocks in the registry.** Make a block installable with one CLI command, the way Elements are.
+- **Icons in the theme picker.** The picker changes mode, color, radius, font and text size. Swapping the icon set means rewriting the block's icon imports and adding icon packages.
+- **The picked theme in the Code tab.** The picker restyles the preview only; the code shown is the block's own.
 - **A link to Blocks in the site header, and a sitemap entry.** The pages are reached only by typing `/blocks` for now.
 
 ## Done
@@ -18,3 +20,4 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 - Viewer controls: desktop, tablet, mobile, refresh, open in a new tab, full screen.
 - File tree header with the block's name, and taller tree rows.
 - Local preview starts by itself when the docs run locally.
+- Theme picker for the preview: mode, color, radius, font, text size, reset.

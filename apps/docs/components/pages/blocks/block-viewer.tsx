@@ -14,7 +14,13 @@ import {
 } from "lucide-react";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import type { BlockFile } from "@/components/pages/blocks/block-source";
-import { DemoIframe } from "@/components/pages/docs/demo-iframe";
+import {
+  type BlockTheme,
+  type BlockThemeChoice,
+  blockThemeStyle,
+  DEFAULT_THEME_CHOICE,
+  ThemePicker,
+} from "@/components/pages/blocks/theme-picker";
 import { DeferredHighlight } from "@/components/shared/deferred-highlight";
 import { LiveDot } from "@/components/shared/live-dot";
 import { CodeBlock } from "@/components/ui/code-block";
@@ -280,6 +286,20 @@ export function BlockViewer({
   const frameRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const ready = usePreviewReady(previewUrl);
+  const [chosenMode, setChosenMode] = useState<BlockTheme["mode"] | null>(null);
+  const [choice, setChoice] = useState<BlockThemeChoice>(DEFAULT_THEME_CHOICE);
+  const mode = chosenMode ?? (resolvedTheme === "dark" ? "dark" : "light");
+  const themedUrl = `${previewUrl}?theme=${mode}`;
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const postTheme = () => {
+    if (!previewUrl) return;
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: "aui-block-theme", mode, style: blockThemeStyle(choice) },
+      new URL(previewUrl).origin,
+    );
+  };
+  useEffect(postTheme);
   const width = VIEWPORTS.find((item) => item.id === viewport)?.width;
 
   return (
@@ -316,6 +336,18 @@ export function BlockViewer({
                 </TooltipIconButton>
               ))}
             </div>
+            <ThemePicker
+              theme={{ mode, ...choice }}
+              onChange={({ mode: nextMode, ...rest }) => {
+                if (nextMode) setChosenMode(nextMode);
+                setChoice((current) => ({ ...current, ...rest }));
+              }}
+              onReset={() => {
+                setChosenMode(null);
+                setChoice(DEFAULT_THEME_CHOICE);
+              }}
+              className={control}
+            />
             <TooltipIconButton
               tooltip="Refresh preview"
               disabled={refreshing}
@@ -334,11 +366,7 @@ export function BlockViewer({
             <TooltipIconButton
               tooltip="Open preview in a new tab"
               onClick={() =>
-                window.open(
-                  `${previewUrl}?theme=${resolvedTheme ?? "light"}`,
-                  "_blank",
-                  "noopener,noreferrer",
-                )
+                window.open(themedUrl, "_blank", "noopener,noreferrer")
               }
               className={control}
             >
@@ -367,12 +395,21 @@ export function BlockViewer({
                 style={{ maxWidth: width }}
               >
                 {ready ? (
-                  <DemoIframe
+                  <iframe
                     key={reloads}
+                    // The address carries only the mode the frame loads with;
+                    // later theme changes are posted, so they never reload it.
+                    ref={(node) => {
+                      iframeRef.current = node;
+                      if (node && !node.getAttribute("src"))
+                        node.src = themedUrl;
+                    }}
                     title={`${title} preview`}
-                    src={previewUrl}
                     allow="microphone; clipboard-write"
-                    onLoad={() => setRefreshing(false)}
+                    onLoad={() => {
+                      postTheme();
+                      setRefreshing(false);
+                    }}
                     className={cn(
                       "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
                       refreshing && "opacity-0",
