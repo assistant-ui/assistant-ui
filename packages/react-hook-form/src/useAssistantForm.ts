@@ -378,9 +378,13 @@ export const useAssistantForm = <
                   ? field._f.refs[0]
                   : field._f.ref;
 
-                if (fieldReference instanceof HTMLElement) {
+                if (
+                  typeof HTMLElement !== "undefined" &&
+                  fieldReference instanceof HTMLElement
+                ) {
                   if ("form" in fieldReference) {
                     formElement =
+                      typeof HTMLFormElement !== "undefined" &&
                       fieldReference.form instanceof HTMLFormElement
                         ? fieldReference.form
                         : null;
