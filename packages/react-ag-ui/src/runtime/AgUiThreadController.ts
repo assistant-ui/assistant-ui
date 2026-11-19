@@ -3456,16 +3456,19 @@ export class AgUiThreadController {
     } else if (
       followsRun &&
       item.message.content.length === 0 &&
-      !this.session.hasMessage(wireId)
+      !this.session.hasMessage(wireId) &&
+      !this.persistedHistoryIds.has(localId) &&
+      this.historyWrites.pending(localId) === undefined
     ) {
       // Other clients may follow a run joined in flight, and only the agent's
-      // id is shared, so a row with nothing mounted yet takes it.
+      // id is shared, so a row with nothing mounted or stored yet takes it.
+      const wasHead = this.session.headId === localId;
       this.session.addOrUpdateMessage(item.parentId, {
         ...item.message,
         id: wireId,
         metadata,
       } as ThreadMessage);
-      this.session.switchToBranch(wireId);
+      if (wasHead) this.session.switchToBranch(wireId);
       this.session.tryDeleteMessage(localId);
       const pendingParent = this.assistantHistoryParents.get(localId);
       this.assistantHistoryParents.delete(localId);
