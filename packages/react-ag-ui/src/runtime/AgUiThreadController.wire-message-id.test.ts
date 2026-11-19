@@ -468,6 +468,77 @@ describe("AgUiThreadController wire message identity", () => {
     },
   );
 
+  it.each(["wire", "local"] as const)(
+    "deletes the persisted %s id after reloading and recreating an assistant",
+    async (identity) => {
+      const stored: ExportedMessageRepository = { messages: [] };
+      const store = (item: Parameters<ThreadHistoryAdapter["append"]>[0]) => {
+        const index = stored.messages.findIndex(
+          ({ message }) => message.id === item.message.id,
+        );
+        if (index === -1) stored.messages.push(structuredClone(item));
+        else stored.messages[index] = structuredClone(item);
+      };
+      const history: ThreadHistoryAdapter = {
+        load: async () => structuredClone(stored),
+        append: async (item) => {
+          store(item);
+          stored.headId = item.message.id;
+        },
+        update: vi.fn(async (item) => store(item)),
+        delete: vi.fn(async (items) => {
+          for (const item of items) {
+            stored.messages = stored.messages.filter(
+              ({ message }) => message.id !== item.message.id,
+            );
+            if (stored.headId === item.message.id)
+              stored.headId = item.parentId;
+          }
+        }),
+      };
+      const { core } = createController(async (input, subscriber) => {
+        if (identity === "wire") snapshot(core, subscriber);
+        else reasoning(subscriber);
+        text(subscriber);
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+      }, history);
+      await core.append(question());
+      await vi.waitFor(() => expect(stored.messages).toHaveLength(2));
+      const persistedId = stored.messages[1]!.message.id;
+
+      const { core: reloaded } = createController(async (input, subscriber) => {
+        reasoning(subscriber);
+        text(subscriber, "server-answer", "regenerated");
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+      }, history);
+      await reloaded.__internal_load();
+      const user = reloaded.getMessages()[0]!;
+      reloaded.applyExternalMessages([user]);
+      await reloaded.reload(user.id);
+      const recreatedId = reloaded.getMessages().at(-1)!.id;
+      expect(recreatedId).not.toBe(persistedId);
+      await vi.waitFor(() => expect(history.update).toHaveBeenCalled());
+      await reloaded.deleteMessage(recreatedId);
+
+      const { core: restored } = createController(async () => {}, history);
+      await restored.__internal_load();
+      expect(restored.getMessages().map(({ id }) => id)).toEqual([user.id]);
+      expect(stored.messages.map(({ message }) => message.id)).toEqual([
+        user.id,
+      ]);
+      expect(history.delete).toHaveBeenCalledWith([
+        expect.objectContaining({
+          parentId: user.id,
+          message: expect.objectContaining({ id: persistedId }),
+        }),
+      ]);
+    },
+  );
+
   it.each(["resolve", "reject"] as const)(
     "isolates a previous thread's pending append when it %ss",
     async (ending) => {

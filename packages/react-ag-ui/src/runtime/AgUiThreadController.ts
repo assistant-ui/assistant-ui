@@ -799,11 +799,15 @@ export class AgUiThreadController {
     const item = this.session.tryGetMessage(messageId);
     if (!item) return;
     const parentId = item.parentId ?? null;
+    const historyItem = this.toHistoryItem(parentId, item.message);
+    const wireId = agUiWireMessageId(item.message);
     this.session.deleteMessage(messageId, parentId);
-    this.wireMessageIds.delete(agUiWireMessageId(item.message));
+    this.wireMessageIds.delete(wireId);
+    this.historyMessageIds.delete(wireId);
+    this.persistedHistoryIds.delete(historyItem.message.id);
     this.snapshotHistoryIds.delete(messageId);
     this.publishUpdate();
-    await this.history?.delete?.([{ parentId, message: item.message }]);
+    await this.history?.delete?.([historyItem]);
   }
 
   async cancel(): Promise<void> {
