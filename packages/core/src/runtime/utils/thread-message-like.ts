@@ -209,7 +209,7 @@ export const fromThreadMessageLike = (
                 return sanitizeImageContent(part);
 
               case "data":
-                return part;
+                return keepWellFormed(part);
 
               case "generative-ui":
                 return part;
