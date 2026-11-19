@@ -1500,6 +1500,86 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("holds a prepended row when content above it settles as the footer shrinks", () => {
+    const view = geometry(320, 100);
+    const heights = Array<number>(8).fill(80);
+    const messages = heights.map((_, index) => {
+      const message = document.createElement("div");
+      message.dataset["messageId"] = `message-${index}`;
+      message.getBoundingClientRect = () => {
+        let top = 40 - view.element.scrollTop;
+        for (const sibling of view.element.children) {
+          if (sibling === message) break;
+          top += heights[messages.indexOf(sibling as HTMLDivElement)]!;
+        }
+        return new DOMRect(0, top, 100, heights[index]!);
+      };
+      return message;
+    });
+    view.element.getBoundingClientRect = () => new DOMRect(0, 40, 100, 100);
+    view.element.append(...messages.slice(4));
+    const updateHeight = () =>
+      view.grow(
+        [...view.element.children].reduce(
+          (total, message) =>
+            total + heights[messages.indexOf(message as HTMLDivElement)]!,
+          0,
+        ),
+      );
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({
+        ...options(),
+        autoScroll: false,
+        scrollToBottomOnInitialize: false,
+      }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    const footer = controller.registerContentInset();
+    footer.setHeight(20);
+    view.setTop(0);
+    const observer = observers[0]!;
+    view.element.prepend(...messages.slice(0, 4));
+    updateHeight();
+    controller.messagesPrepended("message-4");
+    observer.trigger();
+    expect(view.element.scrollTop).toBe(320);
+
+    heights[3] = 120;
+    updateHeight();
+    footer.setHeight(10);
+    observer.trigger();
+
+    expect(view.element.scrollTop).toBe(360);
+    controller.dispose();
+  });
+
+  it("retargets an in-flight smooth scroll when content grows as the footer shrinks", () => {
+    const view = geometry(500, 100);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    const footer = controller.registerContentInset();
+    footer.setHeight(50);
+    view.setTop(200);
+    view.scrollTo.mockImplementation(() => {});
+    controller.scrollToBottom("smooth");
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    footer.setHeight(30);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledExactlyOnceWith({
+      top: 600,
+      behavior: "smooth",
+    });
+    controller.dispose();
+  });
+
   it("remeasures registered insets even when viewport metrics are unchanged", () => {
     const view = geometry(100, 100);
     const onContentInsetChange = vi.fn();
