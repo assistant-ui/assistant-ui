@@ -15,6 +15,8 @@ import {
 import { BrainIcon, ChevronDownIcon } from "@lucide/vue";
 import MarkdownText from "./markdown-text.vue";
 
+const { label = "Reasoning" } = defineProps<{ label?: string }>();
+
 const aui = useAui();
 const index = useAuiState(() => {
   const query = aui.part.query;
@@ -127,7 +129,7 @@ watch(
         class="inline-block leading-none"
         :class="streaming && 'animate-pulse motion-reduce:animate-none'"
       >
-        Reasoning
+        {{ label }}
       </span>
       <ChevronDownIcon
         class="mt-0.5 size-4 shrink-0 -rotate-90 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-[state=open]/trigger:rotate-0 motion-reduce:transition-none"
