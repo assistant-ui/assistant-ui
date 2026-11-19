@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { HttpAgent } from "@ag-ui/client";
@@ -35,9 +36,9 @@ function createHistory(writes: string[]) {
     rows: () =>
       new Map<string, Row>(
         [...items.values()].map((item) => [
-          item.message.id,
+          agUiWireMessageId(item.message),
           {
-            id: item.message.id,
+            id: agUiWireMessageId(item.message),
             status: item.message.status?.type,
             text: item.message.content
               .flatMap((part: any) => (part.type === "text" ? [part.text] : []))
@@ -47,11 +48,11 @@ function createHistory(writes: string[]) {
       ),
     load: async () => ({ headId, messages: [...items.values()] }),
     append: async (item: any) => {
-      writes.push(`append ${item.message.id}`);
+      writes.push(`append ${agUiWireMessageId(item.message)}`);
       store(item, true);
     },
     update: async (item: any) => {
-      writes.push(`update ${item.message.id}`);
+      writes.push(`update ${agUiWireMessageId(item.message)}`);
       store(item, false);
     },
   };
@@ -65,7 +66,9 @@ async function reload(history: ReturnType<typeof createHistory>) {
     history: history as any,
   });
   await core.__internal_load();
-  return core.getMessages().map((m: any) => `${m.id}:${m.status?.type ?? "-"}`);
+  return core
+    .getMessages()
+    .map((m: any) => `${agUiWireMessageId(m)}:${m.status?.type ?? "-"}`);
 }
 
 async function run(
@@ -112,7 +115,7 @@ async function run(
   await settle();
   const shown = core
     .getMessages()
-    .map((m: any) => `${m.id}:${m.status?.type ?? "-"}`);
+    .map((m: any) => `${agUiWireMessageId(m)}:${m.status?.type ?? "-"}`);
   return {
     rows: history.rows(),
     writes,

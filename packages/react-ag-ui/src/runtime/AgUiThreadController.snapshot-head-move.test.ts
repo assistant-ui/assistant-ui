@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it, vi } from "vitest";
 import { HttpAgent } from "@ag-ui/client";
 import {
@@ -8,6 +9,12 @@ import {
 } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
 import { makeLogger } from "./logger";
+
+const localId = (core: AgUiThreadController, wireId: string) =>
+  core
+    .getMessageRepository()
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId)
+    ?.message.id ?? wireId;
 
 const userMessage: AppendMessage = {
   role: "user",
@@ -107,7 +114,9 @@ const snapshot = (wire: Wire, ...rest: object[]) => ({
 });
 
 function statuses(core: AgUiThreadController) {
-  const answer = core.getMessages().find(({ id }) => id === "answer")!;
+  const answer = core
+    .getMessages()
+    .find((message) => agUiWireMessageId(message) === "answer")!;
   const toolCall = answer.content.find(
     (part) => part.type === "tool-call" && part.toolCallId === "task",
   );
@@ -119,7 +128,9 @@ function statuses(core: AgUiThreadController) {
 }
 
 function taskPartFor(core: AgUiThreadController, messageId: string) {
-  const message = core.getMessages().find(({ id }) => id === messageId);
+  const message = core
+    .getMessages()
+    .find((message) => agUiWireMessageId(message) === messageId);
   if (message?.role !== "assistant") return undefined;
   return message.content.find(
     (part) => part.type === "tool-call" && part.toolCallId === "task",
@@ -389,7 +400,7 @@ describe("AgUiThreadController snapshot head moves", () => {
       core.getMessages().filter(({ role }) => role === "assistant"),
     ).toMatchObject([
       {
-        id: "answer",
+        id: localId(core, "answer"),
         content: [
           { type: "text", text: "Checking the task." },
           { type: "tool-call", toolCallId: "task", result: "done" },
@@ -424,7 +435,7 @@ describe("AgUiThreadController snapshot head moves", () => {
 
     expect(sampled).toMatchObject([
       {
-        id: "answer",
+        id: localId(core, "answer"),
         content: [
           { type: "text", text: "Let me check." },
           { type: "text", text: "a1" },
@@ -436,7 +447,7 @@ describe("AgUiThreadController snapshot head moves", () => {
       core.getMessages().filter(({ role }) => role === "assistant"),
     ).toMatchObject([
       {
-        id: "answer",
+        id: localId(core, "answer"),
         status: { type: "complete" },
       },
     ]);
@@ -516,7 +527,7 @@ describe("AgUiThreadController snapshot head moves", () => {
       approval: { id: "approval" },
     });
     expect(core.getPendingInterrupts()).toEqual({
-      messageId: "answer",
+      messageId: localId(core, "answer"),
       interrupts: [interrupt],
     });
 
@@ -542,7 +553,7 @@ describe("AgUiThreadController snapshot head moves", () => {
             payload: { approved: true },
           },
         ],
-        interruptedMessageId: "answer",
+        interruptedMessageId: localId(core, "answer"),
       },
     );
     expect(core.getPendingInterrupts()).toBeNull();
@@ -565,7 +576,7 @@ describe("AgUiThreadController snapshot head moves", () => {
     await core.append(userMessage);
 
     expect(core.getPendingInterrupts()).toEqual({
-      messageId: "answer",
+      messageId: localId(core, "answer"),
       interrupts: [interrupt],
     });
 
@@ -658,7 +669,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       }
       expect(headId).toBe("other");
       expect(
-        vi.mocked(history.append).mock.calls.map(([item]) => item.message.id),
+        vi
+          .mocked(history.append)
+          .mock.calls.map(([item]) => agUiWireMessageId(item.message)),
       ).toEqual([expect.any(String), "answer", "other"]);
     },
   );
@@ -860,12 +873,17 @@ describe("AgUiThreadController snapshot head moves", () => {
     expect(core.isRunning()).toBe(false);
     expect(statuses(core).answer).toBe("complete");
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.status?.type,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.status
+        ?.type,
     ).toBe("complete");
     expect(taskPartFor(core, "answer")).toMatchObject({ result: "done" });
     expect(taskPartFor(core, "other")).toBeUndefined();
     expect(
-      core.getMessages().find(({ id }) => id === "answer")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "answer")?.content,
     ).toEqual([
       { type: "text", text: "Let me check." },
       {
@@ -879,7 +897,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       },
     ]);
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.content,
     ).toEqual([{ type: "text", text: "Next step." }]);
   });
 
@@ -902,10 +922,15 @@ describe("AgUiThreadController snapshot head moves", () => {
       subagent: "complete",
     });
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.status?.type,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.status
+        ?.type,
     ).toBe("complete");
     expect(
-      core.getMessages().find(({ id }) => id === "answer")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "answer")?.content,
     ).toEqual([
       { type: "text", text: "Let me check." },
       {
@@ -927,7 +952,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       },
     ]);
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.content,
     ).toEqual([{ type: "text", text: "Next step." }]);
   });
 
@@ -953,7 +980,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       expect(core.isRunning()).toBe(false);
       expect(statuses(core).answer).toBe("complete");
       expect(
-        core.getMessages().find(({ id }) => id === "answer")?.content,
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "answer")?.content,
       ).toEqual([
         { type: "text", text: "Let me check." },
         {
@@ -966,12 +995,14 @@ describe("AgUiThreadController snapshot head moves", () => {
           unstable_toolMessageId: "tool-task",
         },
       ]);
-      expect(core.getMessages().find(({ id }) => id === "other")).toMatchObject(
-        {
-          status: { type: "complete" },
-          content: [{ type: "text", text: "Next step. Before. After." }],
-        },
-      );
+      expect(
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "other"),
+      ).toMatchObject({
+        status: { type: "complete" },
+        content: [{ type: "text", text: "Next step. Before. After." }],
+      });
     },
   );
 
@@ -1013,7 +1044,7 @@ const moveSnapshot = { type: "MESSAGES_SNAPSHOT", messages: moveRecords };
 const answerEnd = { type: "TEXT_MESSAGE_END", messageId: "answer" };
 
 const message = (core: AgUiThreadController, id: string) =>
-  core.getMessages().find((entry) => entry.id === id);
+  core.getMessages().find((entry) => agUiWireMessageId(entry) === id);
 
 async function sampleBetween(
   head: object[],

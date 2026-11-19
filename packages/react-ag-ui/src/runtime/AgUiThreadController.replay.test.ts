@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it, vi } from "vitest";
 import type { AbstractAgent } from "@ag-ui/client";
 import type {
@@ -73,6 +74,12 @@ function assistant(
   };
 }
 
+const localId = (core: AgUiThreadController, wireId: string) =>
+  core
+    .getMessageRepository()
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId)
+    ?.message.id ?? wireId;
+
 const call = (id: string, extras: Record<string, unknown> = {}) =>
   ({
     type: "tool-call" as const,
@@ -122,10 +129,16 @@ async function loaded(
   return core;
 }
 
-const ids = (core: AgUiThreadController) => core.getMessages().map((m) => m.id);
+const ids = (core: AgUiThreadController) =>
+  core.getMessages().map((m) => agUiWireMessageId(m));
 const contents = (core: AgUiThreadController, id: string) =>
-  (core.getMessages().find((m) => m.id === id) as ThreadAssistantMessage)
-    .content;
+  (
+    core
+      .getMessages()
+      .find(
+        (m) => m.id === id || agUiWireMessageId(m) === id,
+      ) as ThreadAssistantMessage
+  ).content;
 const toolResultCount = (messages: readonly unknown[], toolCallId: string) =>
   messages.filter(
     (message) =>
@@ -252,7 +265,7 @@ describe("AgUiThreadController selected-turn replay", () => {
       expect(
         core
           .getMessageRepository()
-          .messages.filter(({ message }) => message.id === "b"),
+          .messages.filter(({ message }) => agUiWireMessageId(message) === "b"),
       ).toHaveLength(1);
     },
   );
@@ -422,11 +435,13 @@ describe("AgUiThreadController selected-turn replay", () => {
     await resume(core, "u");
     const repository = core.getMessageRepository().messages;
     expect(
-      repository.find(({ message }) => message.id === "b")?.message.content,
+      repository.find(({ message }) => agUiWireMessageId(message) === "b")
+        ?.message.content,
     ).toEqual([{ type: "text", text: "old B" }]);
     expect(ids(core)).toEqual(["u", "a", "fresh"]);
     expect(
-      repository.find(({ message }) => message.id === "fresh")?.parentId,
+      repository.find(({ message }) => agUiWireMessageId(message) === "fresh")
+        ?.parentId,
     ).toBe("a");
   });
 
@@ -479,21 +494,27 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(contents(core, "b")).toEqual([{ type: "text", text: "replayed B" }]);
     expect(contents(core, "d")).toEqual([{ type: "text", text: "new answer" }]);
     const repository = core.getMessageRepository();
-    expect(repository.headId).toBe("d");
+    expect(repository.headId).toBe(localId(core, "d"));
     expect(
-      repository.messages.find(({ message }) => message.id === "u2"),
+      repository.messages.find(
+        ({ message }) => agUiWireMessageId(message) === "u2",
+      ),
     ).toMatchObject({
       parentId: "b",
       message: { content: [{ type: "text", text: "u2" }] },
     });
     expect(
-      repository.messages.find(({ message }) => message.id === "c"),
+      repository.messages.find(
+        ({ message }) => agUiWireMessageId(message) === "c",
+      ),
     ).toMatchObject({
       parentId: "u2",
       message: { content: [{ type: "text", text: "later C" }] },
     });
     expect(
-      repository.messages.find(({ message }) => message.id === "d")?.parentId,
+      repository.messages.find(
+        ({ message }) => agUiWireMessageId(message) === "d",
+      )?.parentId,
     ).toBe("b");
   });
 
@@ -573,11 +594,12 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(contents(core, "fresh")).toEqual([
       { type: "text", text: "complete answer" },
     ]);
-    expect(core.getMessageRepository().headId).toBe("fresh");
+    expect(core.getMessageRepository().headId).toBe(localId(core, "fresh"));
     expect(
       core
         .getMessageRepository()
-        .messages.find(({ message }) => message.id === "fresh")?.parentId,
+        .messages.find(({ message }) => agUiWireMessageId(message) === "fresh")
+        ?.parentId,
     ).toBe("u");
   });
 
@@ -1032,20 +1054,20 @@ describe("AgUiThreadController selected-turn replay", () => {
 
     const repository = core.getMessageRepository();
     expect(ids(core)).toEqual(["u", "a", "server-s", "c"]);
-    expect(repository.headId).toBe("c");
+    expect(repository.headId).toBe(localId(core, "c"));
     expect(repository.messages).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           parentId: "a",
           message: expect.objectContaining({
-            id: "server-s",
+            id: localId(core, "server-s"),
             content: [{ type: "text", text: "server S" }],
           }),
         }),
         expect.objectContaining({
           parentId: "server-s",
           message: expect.objectContaining({
-            id: "c",
+            id: localId(core, "c"),
             content: [{ type: "text", text: "fresh C" }],
           }),
         }),
@@ -1283,7 +1305,7 @@ describe("AgUiThreadController selected-turn replay", () => {
       }
       const abandoned = core
         .getMessageRepository()
-        .messages.find(({ message }) => message.id === "b");
+        .messages.find(({ message }) => agUiWireMessageId(message) === "b");
       expect(abandoned?.message.content).toContainEqual(
         expect.objectContaining({ toolCallId: "waiting", result: "done" }),
       );
@@ -1612,7 +1634,7 @@ describe("AgUiThreadController selected-turn replay", () => {
         )?.parentId;
       const aMessageAfterReplay = core
         .getMessages()
-        .find((message) => message.id === "a");
+        .find((message) => agUiWireMessageId(message) === "a");
       const aContentAfterReplay =
         aMessageAfterReplay?.role === "assistant"
           ? aMessageAfterReplay.content
@@ -1626,7 +1648,7 @@ describe("AgUiThreadController selected-turn replay", () => {
       const ownerId = pendingAfterReplay.messageId;
       const bMessageAfterReplay = core
         .getMessages()
-        .find((message) => message.id === "b");
+        .find((message) => agUiWireMessageId(message) === "b");
       const bContentAfterReplay =
         bMessageAfterReplay?.role === "assistant"
           ? bMessageAfterReplay.content
@@ -1665,13 +1687,16 @@ describe("AgUiThreadController selected-turn replay", () => {
             (part) => part.type === "tool-call" && part.toolCallId === "x",
           );
         const historicalA = repository.messages.find(
-          ({ message }) => message.id === "a",
+          ({ message }) => agUiWireMessageId(message) === "a",
         )?.message;
         const historicalB = repository.messages.find(
-          ({ message }) => message.id === "b",
+          ({ message }) => agUiWireMessageId(message) === "b",
         )?.message;
 
-        expect(idsAfterReplay).toEqual(["u", ownerId]);
+        expect(idsAfterReplay).toEqual([
+          "u",
+          replayTextId === "c" ? "c" : ownerId,
+        ]);
         expect(headAfterReplay).toBe(ownerId);
         expect(ownerId).not.toBe("a");
         expect(ownerEntry?.parentId).toBe("u");
@@ -1687,7 +1712,7 @@ describe("AgUiThreadController selected-turn replay", () => {
           content: [{ type: "text", text: "old B" }],
         });
         if (replayTextId === "c") {
-          expect(ownerId).toBe("c");
+          expect(ownerId).toBe(localId(core, "c"));
           expect(ownerMessage).toMatchObject({
             content: expect.arrayContaining([
               { type: "text", text: "fresh C" },
@@ -1933,7 +1958,9 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(
       core
         .getMessageRepository()
-        .messages.find(({ message }) => message.id === "continued")?.parentId,
+        .messages.find(
+          ({ message }) => agUiWireMessageId(message) === "continued",
+        )?.parentId,
     ).toBe("b");
     expect(continuationMessages).toEqual(
       expect.arrayContaining([
@@ -3313,7 +3340,8 @@ describe("AgUiThreadController selected-turn replay", () => {
       }),
     );
     expect(
-      core.getMessages().find((message) => message.id === "a")?.status,
+      core.getMessages().find((message) => agUiWireMessageId(message) === "a")
+        ?.status,
     ).toMatchObject({ type: "complete" });
     expect(core.getPendingToolCalls()).toBeNull();
     expect(attempts).toBe(1);
@@ -3365,10 +3393,13 @@ describe("AgUiThreadController selected-turn replay", () => {
 
     const repository = core.getMessageRepository().messages;
     expect(
-      repository.find(({ message }) => message.id === "off-branch")?.message,
+      repository.find(
+        ({ message }) => agUiWireMessageId(message) === "off-branch",
+      )?.message,
     ).toMatchObject({ content: [{ type: "text", text: "old off branch" }] });
     expect(
-      repository.find(({ message }) => message.id === "fresh-a")?.message,
+      repository.find(({ message }) => agUiWireMessageId(message) === "fresh-a")
+        ?.message,
     ).toMatchObject({
       content: expect.arrayContaining([
         expect.objectContaining({ toolCallId: "t", result: "server result" }),
@@ -3419,7 +3450,9 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(
       core
         .getMessageRepository()
-        .messages.find(({ message }) => message.id === "off-branch")?.message,
+        .messages.find(
+          ({ message }) => agUiWireMessageId(message) === "off-branch",
+        )?.message,
     ).toMatchObject({
       content: [{ type: "text", text: "old off branch" }],
       status: { type: "complete" },
@@ -3427,7 +3460,9 @@ describe("AgUiThreadController selected-turn replay", () => {
     expect(
       core
         .getMessageRepository()
-        .messages.find(({ message }) => message.id === "fresh-b")?.message,
+        .messages.find(
+          ({ message }) => agUiWireMessageId(message) === "fresh-b",
+        )?.message,
     ).toMatchObject({
       content: expect.arrayContaining([
         expect.objectContaining({ toolCallId: "t", result: "server result" }),
