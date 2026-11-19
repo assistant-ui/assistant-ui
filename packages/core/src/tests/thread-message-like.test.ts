@@ -201,7 +201,7 @@ describe("fromThreadMessageLike", () => {
           role: "assistant",
           content: [
             { type: "text", text: "Before" },
-            { type: "reasoning", text: "", redacted: true },
+            { type: "reasoning", text: "", unstable_redacted: true },
             { type: "text", text: "After" },
           ],
         },
@@ -211,7 +211,7 @@ describe("fromThreadMessageLike", () => {
 
       expect(message.content).toEqual([
         { type: "text", text: "Before" },
-        { type: "reasoning", text: "", redacted: true },
+        { type: "reasoning", text: "", unstable_redacted: true },
         { type: "text", text: "After" },
       ]);
     });

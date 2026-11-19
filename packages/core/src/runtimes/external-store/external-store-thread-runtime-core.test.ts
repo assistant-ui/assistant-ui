@@ -44,7 +44,7 @@ it("keeps redacted reasoning from an external store", () => {
       role: "assistant",
       content: [
         { type: "text", text: "Before" },
-        { type: "reasoning", text: "", redacted: true },
+        { type: "reasoning", text: "", unstable_redacted: true },
         { type: "text", text: "After" },
       ],
     }),
@@ -53,7 +53,7 @@ it("keeps redacted reasoning from an external store", () => {
 
   expect(runtime.messages[0]?.content).toEqual([
     { type: "text", text: "Before" },
-    { type: "reasoning", text: "", redacted: true },
+    { type: "reasoning", text: "", unstable_redacted: true },
     { type: "text", text: "After" },
   ]);
 });
