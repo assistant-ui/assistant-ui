@@ -720,6 +720,18 @@ for (const [change, patch] of [
     " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: true",
   ],
   [
+    "multiple added build permissions for one removed version",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.4: true\n+  foo@1.2.5: true",
+  ],
+  [
+    "multiple removed build permissions for one added version",
+    " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: true\n+  foo@1.2.5: true",
+  ],
+  [
+    "swapped build booleans across existing versions",
+    " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: false\n+  foo@1.2.3: false\n+  foo@1.2.4: true",
+  ],
+  [
     "unchanged exact build version",
     " allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.3: true",
   ],
@@ -1131,6 +1143,24 @@ for (const [base, head] of [
 }
 
 for (const [commit, tier, patch] of [
+  [
+    "f0dda8646 (PR #10642 files API)",
+    1,
+    `@@ -22,9 +22,9 @@ overrides:
+   '@earendil-works/pi-coding-agent>undici': ^8.12.2
+   guarded-fetch>undici: ^7.30.1
+   miniflare>undici: ^7.30.1
+-  '@modelcontextprotocol/client@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-104850, CVE-2026-111769
+-  '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, CVE-2026-111768, CVE-2026-111769, CVE-2026-111771, GHSA-F897-62HF-6GXQ
+-  '@modelcontextprotocol/server@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-111768, CVE-2026-111770, CVE-2026-111771, GHSA-F897-62HF-6GXQ
++  '@modelcontextprotocol/client@>=2.0.0 <2.2.0': ^2.2.0 # aui-sec: CVE-2026-104850
++  '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, GHSA-F897-62HF-6GXQ
++  '@modelcontextprotocol/server@>=2.0.0 <2.1.0': ^2.1.0 # aui-sec: GHSA-F897-62HF-6GXQ
+   'ajv@>=8.0.0 <8.18.0': ^8.18.0 # aui-sec: CVE-2025-69873
+   'fflate@>=0.7.0 <0.7.5': ^0.7.5 # aui-sec: CVE-2026-45820
+   'js-yaml@>=4.0.0 <4.3.2': ^4.3.2 # aui-sec: CVE-2026-53550, CVE-2026-59869, CVE-2026-84375, GHSA-5P4M-2WFM-XMQJ
+`,
+  ],
   [
     "f0dda8646",
     1,

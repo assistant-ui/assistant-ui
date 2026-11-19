@@ -151,17 +151,22 @@ function changesInstallPolicy(lines) {
     return true;
   }
 
-  return ["+", "-"].some((side) =>
-    builds[side].some(
-      ({ name, version, value }) =>
-        !builds[side === "+" ? "-" : "+"].some(
-          (other) =>
-            other.name === name &&
-            other.version !== version &&
-            other.value === value,
-        ),
-    ),
+  const names = new Set(
+    [...builds["+"], ...builds["-"]].map(({ name }) => name),
   );
+  return [...names].some((name) => {
+    const added = builds["+"].filter((entry) => entry.name === name);
+    const removed = builds["-"].filter((entry) => entry.name === name);
+    const removedVersions = new Set(removed.map(({ version }) => version));
+    return (
+      added.some(({ version }) => removedVersions.has(version)) ||
+      ["true", "false"].some(
+        (value) =>
+          added.filter((entry) => entry.value === value).length !==
+          removed.filter((entry) => entry.value === value).length,
+      )
+    );
+  });
 }
 
 export function computeTier(input, policy) {
