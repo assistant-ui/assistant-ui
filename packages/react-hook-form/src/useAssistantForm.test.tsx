@@ -33,6 +33,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 import { useAssistantForm } from "./useAssistantForm";
+import { formTools } from "./formTools";
 
 let provider: { getModelContext: () => ModelContext };
 
@@ -263,7 +264,10 @@ describe("useAssistantForm", () => {
     const setField = (name: string, value: string | number | boolean) => {
       const formTool = provider.getModelContext().tools?.["set_form_field"];
       if (!formTool?.execute) throw new Error("set_form_field is missing");
-      return formTool.execute({ name, value }, {} as never);
+      return formTool.execute(
+        formTools.set_form_field.parameters.parse({ name, value }),
+        {} as never,
+      );
     };
 
     it("sets a rendered field, including array paths in bracket form", async () => {
@@ -497,10 +501,114 @@ describe("useAssistantForm", () => {
       });
       await waitFor(async () => expect(await form.trigger()).toBe(true));
 
-      // `valueAsNumber` coerces on write, so widening the schema cannot turn
-      // a number field back into a string.
       await setField("age", "42");
       expect(form.getValues("age")).toBe(42);
+    });
+
+    it("writes a number input without valueAsNumber as a string", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ age: string }>>;
+      const Form = () => {
+        form = useAssistantForm<{ age: string }>();
+        return <input type="number" {...form.register("age")} />;
+      };
+      const { getByRole } = render(<Form />);
+      const input = getByRole("spinbutton") as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: "5" } });
+      expect(form.getValues("age")).toBe("5");
+      fireEvent.change(input, { target: { value: "" } });
+
+      await setField("age", 5);
+
+      expect(form.getValues("age")).toBe("5");
+      expect(input.value).toBe("5");
+    });
+
+    it("writes a Controller text input without a default as a string", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ nickname: string }>>;
+      const Form = () => {
+        form = useAssistantForm<{ nickname: string }>();
+        return (
+          <Controller
+            control={form.control}
+            name="nickname"
+            render={({ field }) => (
+              <input {...field} value={field.value ?? ""} />
+            )}
+          />
+        );
+      };
+      const { getByRole } = render(<Form />);
+      expect(form.getValues("nickname")).toBeUndefined();
+
+      await act(async () => {
+        await setField("nickname", 7);
+      });
+
+      expect(form.getValues("nickname")).toBe("7");
+      expect((getByRole("textbox") as HTMLInputElement).value).toBe("7");
+    });
+
+    it("checks and unchecks a checkbox with boolean tool arguments", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ newsletter: boolean }>>;
+      const Form = () => {
+        form = useAssistantForm<{ newsletter: boolean }>({
+          defaultValues: { newsletter: false },
+        });
+        return <input type="checkbox" {...form.register("newsletter")} />;
+      };
+      const { getByRole } = render(<Form />);
+      const checkbox = getByRole("checkbox") as HTMLInputElement;
+
+      await setField("newsletter", true);
+      expect(form.getValues("newsletter")).toBe(true);
+      expect(checkbox.checked).toBe(true);
+
+      await setField("newsletter", false);
+      expect(form.getValues("newsletter")).toBe(false);
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it("preserves number and boolean values in Controller fields", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ age: number; newsletter: boolean }>
+      >;
+      const Form = () => {
+        form = useAssistantForm<{ age: number; newsletter: boolean }>({
+          defaultValues: { age: 0, newsletter: false },
+        });
+        return (
+          <>
+            <Controller
+              control={form.control}
+              name="age"
+              render={({ field }) => <input type="number" {...field} />}
+            />
+            <Controller
+              control={form.control}
+              name="newsletter"
+              render={({ field: { value, ...field } }) => (
+                <input type="checkbox" {...field} checked={value} />
+              )}
+            />
+          </>
+        );
+      };
+      const { getByRole } = render(<Form />);
+
+      await act(async () => {
+        await setField("age", 42);
+        await setField("newsletter", true);
+      });
+      expect(form.getValues()).toEqual({ age: 42, newsletter: true });
+      expect((getByRole("spinbutton") as HTMLInputElement).value).toBe("42");
+      expect((getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+
+      await act(async () => {
+        await setField("newsletter", false);
+      });
+      expect(form.getValues("newsletter")).toBe(false);
+      expect((getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
     });
 
     it("writes a number into a string field as a string", async () => {
@@ -536,8 +644,6 @@ describe("useAssistantForm", () => {
       await setField("nickname", 7);
       await setField("size", 3);
 
-      // A radio group registers `null` until an option is chosen, so the
-      // element decides the type rather than the stored value.
       expect(form.getValues()).toEqual({ nickname: "7", size: "3" });
     });
 

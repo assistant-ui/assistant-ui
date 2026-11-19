@@ -124,23 +124,12 @@ const isSensitiveElement = (element: unknown): boolean => {
   );
 };
 
-/**
- * Whether the field stores a string, so a model-supplied number or boolean has
- * to be written as text. A radio group, a select and a textarea all hold
- * strings, and a radio group holds `null` until an option is chosen, so the
- * current value alone cannot answer this.
- */
 const holdsStringValue = (element: unknown, current: unknown): boolean => {
-  if (element instanceof HTMLInputElement) {
-    return !["number", "range", "checkbox"].includes(element.type);
+  if (element instanceof HTMLInputElement && element.type === "checkbox") {
+    return false;
   }
-  if (
-    element instanceof HTMLSelectElement ||
-    element instanceof HTMLTextAreaElement
-  ) {
-    return true;
-  }
-  return typeof current === "string";
+  if (element instanceof HTMLElement) return true;
+  return typeof current !== "number" && typeof current !== "boolean";
 };
 
 export const useAssistantForm = <
