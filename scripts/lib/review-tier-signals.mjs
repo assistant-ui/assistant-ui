@@ -270,8 +270,9 @@ export function computeTier(input, policy) {
       addReason(3, "ci-permissions", file.path);
     }
     if (
-      (file.path === "pnpm-workspace.yaml" ||
-        file.previousPath === "pnpm-workspace.yaml") &&
+      [file.path, file.previousPath].some(
+        (path) => path?.split("/").at(-1) === "pnpm-workspace.yaml",
+      ) &&
       (file.status === "removed" ||
         file.status === "renamed" ||
         file.patch === null ||

@@ -1505,17 +1505,19 @@ for (const patch of [
   });
 }
 
-test("workspace install policy signals only apply to the root workspace file", () => {
+test("workspace install policy signals apply to a nested workspace file", () => {
+  const path = "templates/minimal/pnpm-workspace.yaml";
   const result = computeTier(
     input({
-      files: [
-        file("examples/demo/pnpm-workspace.yaml", { patch: "+allowBuilds:" }),
-      ],
+      files: [file(path, { patch: "+registry: https://evil.example/" })],
     }),
     policy,
   );
-  assert.equal(result.tier, 0);
-  assert.ok(!result.reasons.some(({ code }) => code === "install-policy"));
+  assert.equal(result.tier, 3);
+  assert.deepEqual(
+    result.reasons.filter(({ code }) => code === "install-policy"),
+    [{ tier: 3, code: "install-policy", detail: path }],
+  );
 });
 
 test("an unknown title type adds a failure without an override", () => {
