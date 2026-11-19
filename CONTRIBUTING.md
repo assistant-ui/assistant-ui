@@ -56,7 +56,7 @@ pnpm dev
 
 ### Coverage shard runtimes
 
-The two coverage jobs assign every workspace with a `test:coverage` script once. `scripts/coverage-runtimes.json` supplies millisecond weights so packages with similar file counts but different execution costs do not overload one shard. Both jobs read the same committed profile. A new, unmeasured workspace is assigned the median recorded runtime and reported on stderr; it is never omitted.
+The two coverage jobs assign every workspace with a `test:coverage` script once. `scripts/coverage-runtimes.json` supplies millisecond weights so packages with similar file counts but different execution costs do not overload one shard. The plan job computes the split once per run: workspaces whose coverage task hits the Turbo cache restored from main weigh nothing, and only cache misses are balanced by runtime. A new, unmeasured workspace is assigned the median recorded runtime and reported on stderr; it is never omitted.
 
 Refresh the profile after substantial suite or runner changes. Download both shard job logs from several successful pull request runs on comparable revisions:
 

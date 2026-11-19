@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import {
   cachedCoverageWorkspaces,
   coverageShards,
+  parseCoverageShards,
 } from "./coverage-shards.mjs";
 
 function workspace(t, packages) {
@@ -187,7 +188,10 @@ test("the CLI moves cached workspaces off the shard that runs the cache misses",
       tasks: { "test:coverage": { outputs: ["coverage/**"] } },
     }),
   );
-  writeFileSync(path.join(root, ".gitignore"), ".turbo\nnode_modules\n");
+  writeFileSync(
+    path.join(root, ".gitignore"),
+    ".turbo\nnode_modules\ndry-run.json\n",
+  );
   const options = {
     cwd: root,
     encoding: "utf8",
@@ -197,44 +201,133 @@ test("the CLI moves cached workspaces off the shard that runs the cache misses",
       PATH: `${path.join(repoRoot, "node_modules/.bin")}${path.delimiter}${process.env.PATH}`,
     },
   };
-  const shard = (index) =>
+  const dryRun = path.join(root, "dry-run.json");
+  const plan = () => {
+    writeFileSync(
+      dryRun,
+      execFileSync(
+        "pnpm",
+        ["--silent", "run", "test:coverage", "--dry=json", "--cache=local:r"],
+        options,
+      ),
+    );
+    return execFileSync(
+      process.execPath,
+      ["scripts/coverage-shards.mjs", "--plan", dryRun],
+      options,
+    ).trim();
+  };
+  const shard = (index, split) =>
     execFileSync(
       process.execPath,
       ["scripts/coverage-shards.mjs", String(index)],
-      options,
+      { ...options, env: { ...options.env, COVERAGE_SHARDS: split } },
     ).trim();
   execFileSync("pnpm", ["install", "--offline"], options);
-  const { PATH } = process.env;
-  t.after(() => {
-    process.env.PATH = PATH;
-  });
-  process.env.PATH = options.env.PATH;
-  assert.deepEqual(cachedCoverageWorkspaces(root), new Set());
-  assert.deepEqual([shard(0), shard(1)], ["--filter=first", "--filter=second"]);
+  const cold = plan();
+  assert.deepEqual(
+    cachedCoverageWorkspaces(JSON.parse(readFileSync(dryRun, "utf8"))),
+    new Set(),
+  );
+  assert.equal(cold, JSON.stringify([["first"], ["second"]]));
+  assert.equal(
+    execFileSync(
+      process.execPath,
+      ["scripts/coverage-shards.mjs", "--plan"],
+      options,
+    ).trim(),
+    cold,
+  );
+  assert.deepEqual(
+    [shard(0, cold), shard(1, cold)],
+    ["--filter=first", "--filter=second"],
+  );
 
   execFileSync("pnpm", ["test:coverage", "--filter=first"], options);
-  assert.deepEqual(cachedCoverageWorkspaces(root), new Set(["first"]));
-  assert.deepEqual([shard(0), shard(1)], ["--filter=second", "--filter=first"]);
+  const warm = plan();
+  assert.deepEqual(
+    cachedCoverageWorkspaces(JSON.parse(readFileSync(dryRun, "utf8"))),
+    new Set(["first"]),
+  );
+  assert.equal(warm, JSON.stringify([["second"], ["first"]]));
+  assert.deepEqual(
+    [shard(0, warm), shard(1, warm)],
+    ["--filter=second", "--filter=first"],
+  );
 });
 
-test("a dry run without cache status fails instead of guessing a split", (t) => {
-  const root = workspace(t, [{ name: "a", tests: 1 }]);
-  writeFileSync(
-    path.join(root, "dry-run.mjs"),
-    `console.log(JSON.stringify({ tasks: [{ task: "test:coverage", package: "a", command: "vitest" }] }));`,
-  );
-  writeFileSync(
-    path.join(root, "package.json"),
-    JSON.stringify({
-      name: "coverage-fixture",
-      private: true,
-      scripts: { "test:coverage": "node dry-run.mjs" },
-    }),
-  );
+test("a dry run without cache status or coverage tasks fails instead of guessing a split", () => {
   assert.throws(
-    () => cachedCoverageWorkspaces(root),
+    () =>
+      cachedCoverageWorkspaces({
+        tasks: [{ task: "test:coverage", package: "a", command: "vitest" }],
+      }),
     /no cache status for a\. Check that `pnpm run test:coverage --dry=json`/,
   );
+  for (const plan of [
+    {},
+    { tasks: [] },
+    {
+      tasks: [
+        { task: "test:coverage", package: "a", command: "<NONEXISTENT>" },
+      ],
+    },
+    {
+      tasks: [
+        {
+          task: "build",
+          package: "a",
+          command: "tsc",
+          cache: { status: "HIT" },
+        },
+      ],
+    },
+  ]) {
+    assert.throws(
+      () => cachedCoverageWorkspaces(plan),
+      /listed no test:coverage tasks/,
+    );
+  }
+});
+
+test("a split must assign every coverage workspace to exactly one of two non-empty shards", (t) => {
+  const root = workspace(t, [
+    ...["a", "b", "c"].map((name) => ({ name, tests: 1 })),
+    { name: "build-only", tests: 1, coverage: false },
+  ]);
+  const split = JSON.stringify(coverageShards(root, { a: 3, b: 2, c: 1 }));
+  assert.deepEqual(parseCoverageShards(split, root), JSON.parse(split));
+  for (const [shards, message] of [
+    [[["a"], ["b"]], /missing: c/],
+    [
+      [
+        ["a", "b"],
+        ["b", "c"],
+      ],
+      /duplicated: b/,
+    ],
+    [
+      [
+        ["a", "b"],
+        ["c", "build-only"],
+      ],
+      /unknown: build-only/,
+    ],
+    [[["a", "b", "c"], []], /two non-empty workspace lists/],
+    [[["a"], ["b"], ["c"]], /two non-empty workspace lists/],
+    [{ 0: ["a"], 1: ["b", "c"] }, /two non-empty workspace lists/],
+  ]) {
+    assert.throws(
+      () => parseCoverageShards(JSON.stringify(shards), root),
+      message,
+    );
+  }
+  for (const missing of [undefined, ""]) {
+    assert.throws(
+      () => parseCoverageShards(missing, root),
+      /Pass the split that `node scripts\/coverage-shards\.mjs --plan` printed/,
+    );
+  }
 });
 
 test("rejects unusable timing profiles instead of assigning invalid weights", (t) => {
@@ -247,24 +340,46 @@ test("rejects unusable timing profiles instead of assigning invalid weights", (t
   }
 });
 
-test("the CLI emits the selected shard filters and rejects invalid shard indexes", () => {
+test("the CLI emits each shard's filters from the plan, verifies the plan, and rejects a missing plan or invalid shard index", (t) => {
   const script = fileURLToPath(
     new URL("./coverage-shards.mjs", import.meta.url),
   );
-  for (const index of [0, 1]) {
-    const output = execFileSync(process.execPath, [script, String(index)], {
+  const run = (args, env = {}) =>
+    execFileSync(process.execPath, [script, ...args], {
       encoding: "utf8",
+      stdio: "pipe",
+      env: { ...process.env, ...env },
     });
+  const split = run(["--plan"]).trim();
+  assert.deepEqual(JSON.parse(split), coverageShards());
+  for (const index of [0, 1]) {
     assert.deepEqual(
-      output.trim().split("\n"),
-      coverageShards(undefined, undefined, cachedCoverageWorkspaces())[
-        index
-      ].map((name) => `--filter=${name}`),
+      run([String(index)], { COVERAGE_SHARDS: split })
+        .trim()
+        .split("\n"),
+      coverageShards()[index].map((name) => `--filter=${name}`),
     );
   }
-  assert.throws(() =>
-    execFileSync(process.execPath, [script, "2"], { stdio: "pipe" }),
-  );
+  assert.doesNotThrow(() => run(["--verify", split]));
+  const [first, second] = JSON.parse(split);
+  for (const tampered of [
+    [first.slice(1), second],
+    [first, [...second, first[0]]],
+  ]) {
+    assert.throws(
+      () => run(["--verify", JSON.stringify(tampered)]),
+      new RegExp(`(missing|duplicated): ${first[0]}`),
+    );
+  }
+  assert.throws(() => run(["--verify"]), /Pass the split/);
+  assert.throws(() => run(["0"]), /Pass the split/);
+  assert.throws(() => run(["2"], { COVERAGE_SHARDS: split }));
+
+  const dir = mkdtempSync(path.join(tmpdir(), "coverage-dry-run-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dryRun = path.join(dir, "dry-run.json");
+  writeFileSync(dryRun, JSON.stringify({ tasks: [] }));
+  assert.throws(() => run(["--plan", dryRun]), /listed no test:coverage tasks/);
 });
 
 for (const [shard, empty] of [
@@ -369,7 +484,15 @@ for (const [shard, empty] of [
       },
     };
     execFileSync("pnpm", ["install", "--offline"], options);
-    execFileSync("bash", ["-e", "-o", "pipefail", "-c", command], options);
+    const split = execFileSync(
+      process.execPath,
+      ["scripts/coverage-shards.mjs", "--plan"],
+      { ...options, encoding: "utf8" },
+    ).trim();
+    execFileSync("bash", ["-e", "-o", "pipefail", "-c", command], {
+      ...options,
+      env: { ...options.env, COVERAGE_SHARDS: split },
+    });
     const built = [
       "first",
       "second",

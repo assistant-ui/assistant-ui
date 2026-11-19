@@ -10,6 +10,12 @@ const recordedRuntimesMs = JSON.parse(
   readFileSync(new URL("./coverage-runtimes.json", import.meta.url), "utf8"),
 );
 
+function coverageWorkspaces(root) {
+  return readWorkspaceManifestEntries(root)
+    .manifests.filter(({ pkg }) => pkg.scripts?.["test:coverage"])
+    .map(({ pkg }) => pkg.name);
+}
+
 export function coverageShards(
   root = repoRoot,
   runtimesMs = recordedRuntimesMs,
@@ -25,14 +31,13 @@ export function coverageShards(
     );
   }
   const unmeasuredRuntimeMs = Math.round(median(durations));
-  const weighted = readWorkspaceManifestEntries(root)
-    .manifests.filter(({ pkg }) => pkg.scripts?.["test:coverage"])
-    .map(({ pkg }) => ({
-      name: pkg.name,
-      weight: cached.has(pkg.name)
+  const weighted = coverageWorkspaces(root)
+    .map((name) => ({
+      name,
+      weight: cached.has(name)
         ? 0
-        : Object.hasOwn(runtimesMs, pkg.name)
-          ? runtimesMs[pkg.name]
+        : Object.hasOwn(runtimesMs, name)
+          ? runtimesMs[name]
           : unmeasuredRuntimeMs,
     }))
     .sort((a, b) => b.weight - a.weight || a.name.localeCompare(b.name));
@@ -53,23 +58,21 @@ export function coverageShards(
   return shards;
 }
 
-export function cachedCoverageWorkspaces(root = repoRoot) {
-  const plan = JSON.parse(
-    execFileSync(
-      "pnpm",
-      ["--silent", "run", "test:coverage", "--dry=json", "--cache=local:r"],
-      { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-    ),
-  );
+export function cachedCoverageWorkspaces(plan) {
   const tasks = plan.tasks?.filter(
     (task) => task.task === "test:coverage" && task.command !== "<NONEXISTENT>",
   );
-  const unknown = tasks?.filter(
+  if (!tasks?.length) {
+    throw new Error(
+      "Turbo's dry run listed no test:coverage tasks. Check that `pnpm run test:coverage --dry=json` still prints `tasks`.",
+    );
+  }
+  const unknown = tasks.filter(
     (task) => !["HIT", "MISS"].includes(task.cache?.status),
   );
-  if (!tasks || unknown.length > 0) {
+  if (unknown.length > 0) {
     throw new Error(
-      `Turbo's dry run reported no cache status for ${unknown?.map((task) => task.package).join(", ") || "any test:coverage task"}. Check that \`pnpm run test:coverage --dry=json\` still prints \`tasks[].cache.status\`.`,
+      `Turbo's dry run reported no cache status for ${unknown.map((task) => task.package).join(", ")}. Check that \`pnpm run test:coverage --dry=json\` still prints \`tasks[].cache.status\`.`,
     );
   }
   return new Set(
@@ -77,6 +80,38 @@ export function cachedCoverageWorkspaces(root = repoRoot) {
       .filter((task) => task.cache.status === "HIT")
       .map((task) => task.package),
   );
+}
+
+export function parseCoverageShards(json, root = repoRoot) {
+  if (!json) {
+    throw new Error(
+      "Pass the split that `node scripts/coverage-shards.mjs --plan` printed.",
+    );
+  }
+  const shards = JSON.parse(json);
+  if (
+    !Array.isArray(shards) ||
+    shards.length !== 2 ||
+    !shards.every((names) => Array.isArray(names) && names.length > 0)
+  ) {
+    throw new Error(`Expected two non-empty workspace lists, got ${json}`);
+  }
+  const assigned = shards.flat();
+  const expected = coverageWorkspaces(root);
+  const problems = [
+    ["missing", expected.filter((name) => !assigned.includes(name))],
+    [
+      "duplicated",
+      assigned.filter((name, index) => assigned.indexOf(name) !== index),
+    ],
+    ["unknown", assigned.filter((name) => !expected.includes(name))],
+  ].filter(([, names]) => names.length > 0);
+  if (problems.length > 0) {
+    throw new Error(
+      `The coverage split must assign every workspace with a test:coverage script exactly once (${problems.map(([kind, names]) => `${kind}: ${names.join(", ")}`).join("; ")}).`,
+    );
+  }
+  return shards;
 }
 
 function buildFilters(filters, index) {
@@ -107,32 +142,42 @@ function buildFilters(filters, index) {
 }
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
-  const index = Number(process.argv[2]);
-  if (![0, 1].includes(index)) throw new Error("Expected shard 0 or 1");
-  const names = coverageShards(
-    repoRoot,
-    recordedRuntimesMs,
-    cachedCoverageWorkspaces(),
-  )[index];
-  if (names.length === 0) throw new Error("Coverage shard has no workspaces");
-  const unmeasured = names.filter(
-    (name) => !Object.hasOwn(recordedRuntimesMs, name),
-  );
-  if (unmeasured.length > 0) {
-    console.error(
-      `No recorded coverage runtime for ${unmeasured.join(", ")}; assigning the median recorded runtime. Refresh scripts/coverage-runtimes.json after CI completes.`,
-    );
-  }
-  const filters = names.map((name) => `--filter=${name}`);
-  if (process.argv.includes("--build")) {
-    const builds = buildFilters(filters, index);
-    if (builds.length > 0) {
-      execFileSync("pnpm", ["exec", "turbo", "build", ...builds], {
-        cwd: repoRoot,
-        stdio: "inherit",
-      });
+  const [mode, argument] = process.argv.slice(2);
+  if (mode === "--plan") {
+    const cached = argument
+      ? cachedCoverageWorkspaces(JSON.parse(readFileSync(argument, "utf8")))
+      : new Set();
+    const shards = coverageShards(repoRoot, recordedRuntimesMs, cached);
+    const unmeasured = shards
+      .flat()
+      .filter((name) => !Object.hasOwn(recordedRuntimesMs, name));
+    if (unmeasured.length > 0) {
+      console.error(
+        `No recorded coverage runtime for ${unmeasured.join(", ")}; assigning the median recorded runtime. Refresh scripts/coverage-runtimes.json after CI completes.`,
+      );
     }
+    console.log(JSON.stringify(shards));
+  } else if (mode === "--verify") {
+    parseCoverageShards(argument);
   } else {
-    for (const filter of filters) console.log(filter);
+    const index = Number(mode);
+    if (![0, 1].includes(index)) {
+      throw new Error(
+        "Expected shard 0 or 1, --plan [turbo-dry-run.json], or --verify <split>",
+      );
+    }
+    const names = parseCoverageShards(process.env.COVERAGE_SHARDS)[index];
+    const filters = names.map((name) => `--filter=${name}`);
+    if (process.argv.includes("--build")) {
+      const builds = buildFilters(filters, index);
+      if (builds.length > 0) {
+        execFileSync("pnpm", ["exec", "turbo", "build", ...builds], {
+          cwd: repoRoot,
+          stdio: "inherit",
+        });
+      }
+    } else {
+      for (const filter of filters) console.log(filter);
+    }
   }
 }

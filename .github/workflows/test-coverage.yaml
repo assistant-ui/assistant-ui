@@ -46,8 +46,7 @@ jobs:
     timeout-minutes: 2
     outputs:
       run: ${{ steps.inputs.outputs.run }}
-      turbo-cache-0: ${{ steps.turbo-cache-0.outputs.cache-matched-key }}
-      turbo-cache-1: ${{ steps.turbo-cache-1.outputs.cache-matched-key }}
+      shards: ${{ steps.split.outputs.shards }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -92,26 +91,43 @@ jobs:
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
-      # Each shard splits the packages by which coverage tasks miss the Turbo cache, so both must restore the same entries; looking them up once here keeps a main push that lands mid-run from giving the shards different caches.
-      - name: Find main's coverage Turbo cache, shard 0
-        id: turbo-cache-0
+      - name: Setup pnpm and node.js
+        if: steps.inputs.outputs.run == 'true'
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          cache: false
+          install: false
+
+      - name: Restore main's coverage Turbo cache, shard 0
         if: github.event_name == 'pull_request' && steps.inputs.outputs.run == 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
         with:
           path: .turbo/cache
           key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
           restore-keys: turbo-coverage-${{ runner.os }}-0-
-          lookup-only: true
 
-      - name: Find main's coverage Turbo cache, shard 1
-        id: turbo-cache-1
+      - name: Restore main's coverage Turbo cache, shard 1
         if: github.event_name == 'pull_request' && steps.inputs.outputs.run == 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
         with:
           path: .turbo/cache
           key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
           restore-keys: turbo-coverage-${{ runner.os }}-1-
-          lookup-only: true
+
+      # Both shards read this one split, because shards that each weighed their own cache view could leave a workspace on neither. Cached workspaces weigh nothing; without a restored cache every workspace misses and the split is the static runtime split.
+      - name: Split coverage workspaces
+        id: split
+        if: steps.inputs.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          if [ -d .turbo/cache ]; then
+            turbo=$(pnpm --filter=. list turbo --lockfile-only --depth=0 --json | node -p 'JSON.parse(require("node:fs").readFileSync(0, "utf8"))[0].devDependencies.turbo.version')
+            pnpm dlx "turbo@$turbo" run test:coverage --dry=json --cache=local:r > "$RUNNER_TEMP/coverage-dry-run.json"
+            shards=$(node scripts/coverage-shards.mjs --plan "$RUNNER_TEMP/coverage-dry-run.json")
+          else
+            shards=$(node scripts/coverage-shards.mjs --plan)
+          fi
+          echo "shards=$shards" >> "$GITHUB_OUTPUT"
 
   shards:
     name: Coverage shard ${{ matrix.shard }}
@@ -157,24 +173,25 @@ jobs:
 
       # Pull requests run without Turbo's remote cache, so they restore the local caches the latest main push saved. Both shards restore both entries, because a package can land on either shard. GitHub scopes a cache a pull request writes to its merge ref, so main never reads one.
       - name: Restore main's coverage Turbo cache, shard 0
-        if: github.event_name == 'pull_request' && needs.plan.outputs.turbo-cache-0 != ''
+        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
         with:
           path: .turbo/cache
-          key: ${{ needs.plan.outputs.turbo-cache-0 }}
-          fail-on-cache-miss: true
+          key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-0-
 
       - name: Restore main's coverage Turbo cache, shard 1
-        if: github.event_name == 'pull_request' && needs.plan.outputs.turbo-cache-1 != ''
+        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
         with:
           path: .turbo/cache
-          key: ${{ needs.plan.outputs.turbo-cache-1 }}
-          fail-on-cache-miss: true
+          key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-1-
 
       # Each vitest run already spreads its files across every core, so prebuild its prerequisites at turbo's default concurrency before coverage limits concurrency to two.
       - name: Build packages
         env:
+          COVERAGE_SHARDS: ${{ needs.plan.outputs.shards }}
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: node scripts/coverage-shards.mjs "${{ matrix.shard }}" --build
@@ -188,6 +205,7 @@ jobs:
 
       - name: Run assigned packages with coverage
         env:
+          COVERAGE_SHARDS: ${{ needs.plan.outputs.shards }}
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
@@ -241,9 +259,15 @@ jobs:
             test "$SHARD_RESULT" = skipped
           fi
 
-      - name: Checkout summary script
+      - name: Checkout code repository
         if: needs.plan.outputs.run == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+
+      - name: Verify every coverage workspace ran
+        if: needs.plan.outputs.run == 'true'
+        env:
+          SHARDS: ${{ needs.plan.outputs.shards }}
+        run: node scripts/coverage-shards.mjs --verify "$SHARDS"
 
       - name: Download coverage reports
         if: needs.plan.outputs.run == 'true'
