@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -17,8 +18,6 @@ const ANSWER =
   "while it is still writing. The run keeps going on the server, and when " +
   "you come back the thread picks up where the stream is now and finishes. " +
   "Every word you see was written once, in order, by the same run.";
-
-const hasUv = spawnSync("uv", ["--version"]).status === 0;
 
 const freePort = () =>
   new Promise<number>((resolve, reject) => {
@@ -77,12 +76,17 @@ const openThread = (baseUrl: string, threadId: string, tab: Browser) => {
   return renderHook(() => useAgUiRuntime({ agent, adapters: { history } }));
 };
 
-describe.skipIf(!hasUv)("durable thread against the Python server", () => {
+describe("durable thread against the Python server", () => {
   let server: ChildProcess;
   let baseUrl: string;
   let dataDir: string;
 
   beforeAll(async () => {
+    if (spawnSync("uv", ["--version"]).status !== 0) {
+      throw new Error(
+        "Install uv from https://docs.astral.sh/uv/getting-started/installation/ and rerun `pnpm test:e2e`.",
+      );
+    }
     const port = await freePort();
     baseUrl = `http://127.0.0.1:${port}`;
     dataDir = mkdtempSync(join(tmpdir(), "durable-agui-"));
@@ -90,6 +94,7 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
       "uv",
       [
         "run",
+        "--locked",
         "uvicorn",
         "main:app",
         "--port",
@@ -102,6 +107,8 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
         env: {
           ...process.env,
           OPENAI_API_KEY: "",
+          DATABASE_URL: "",
+          REDIS_URL: "",
           DEMO_WORD_DELAY: "0.03",
           SQLITE_PATH: join(dataDir, "threads.db"),
         },
@@ -117,9 +124,13 @@ describe.skipIf(!hasUv)("durable thread against the Python server", () => {
     );
   }, 90_000);
 
-  afterAll(() => {
+  afterAll(async () => {
     cleanup();
-    server?.kill();
+    if (server?.exitCode === null && server.signalCode === null) {
+      const closed = once(server, "close");
+      server.kill();
+      await closed;
+    }
     if (dataDir) rmSync(dataDir, { recursive: true, force: true });
   });
 
