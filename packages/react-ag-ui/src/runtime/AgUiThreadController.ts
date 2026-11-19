@@ -105,6 +105,16 @@ const getAgentInitialState = (agent: AbstractAgent) => {
   return agentInitialStates.get(agent);
 };
 
+const resumePlaceholderId = (parentId: string | null, index: number) => {
+  const identity = JSON.stringify([parentId, index]);
+  let hash = 14695981039346656037n;
+  for (const character of identity) {
+    hash ^= BigInt(character.codePointAt(0)!);
+    hash = BigInt.asUintN(64, hash * 1099511628211n);
+  }
+  return `agui-resume:${hash.toString(36)}`;
+};
+
 // AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
 // is cancelled through agent.abortRun(); the run options stay for subclasses
 // that inherit the base no-op abortRun and have no other cancellation hook.
@@ -2029,6 +2039,7 @@ export class AgUiThreadController {
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
     let assistantWireMessageId: string | undefined;
+    const resumePlaceholderIndexes = new Map<string | null, number>();
     let snapshotAssistantId: string | undefined;
     const importedRunAssistants = new Set<string>();
     const runSubagentIds = new Set<string>();
@@ -2081,9 +2092,25 @@ export class AgUiThreadController {
         this.session.hasMessage(assistantParentId)
           ? assistantParentId
           : repositoryHeadId;
+      let placeholderId = cached;
+      if (placeholderId === undefined && resumeSource !== undefined) {
+        const storedSiblingCount = this.getMessageRepository().messages.filter(
+          (item) =>
+            item.parentId === parentId && item.message.role === "assistant",
+        ).length;
+        const runSiblingIndex = resumePlaceholderIndexes.get(parentId) ?? 0;
+        placeholderId = resumePlaceholderId(
+          parentId,
+          storedSiblingCount + runSiblingIndex,
+        );
+        resumePlaceholderIndexes.set(parentId, runSiblingIndex + 1);
+      }
+      if (cached === undefined && placeholderId !== undefined) {
+        this.optimisticIds.add(placeholderId);
+      }
       const created = this.insertAssistantPlaceholder(
         parentId,
-        cached,
+        placeholderId,
         deferUpdateNotifications,
       );
       if (cached !== undefined && assistantWireMessageId !== undefined) {

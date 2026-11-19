@@ -5,6 +5,7 @@ import type {
   ExportedMessageRepository,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
+  ThreadMessage,
 } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
 import { toAgUiMessages } from "./adapter/conversions";
@@ -180,6 +181,81 @@ describe("AgUiThreadController wire message identity", () => {
       expect(core.getMessages().at(-1)!.metadata.isOptimistic).toBeUndefined();
     },
   );
+
+  it("uses the same placeholder identity when two clients resume the same parent", async () => {
+    const append = vi.fn(
+      async (_item: Parameters<ThreadHistoryAdapter["append"]>[0]) => {},
+    );
+    const history: ThreadHistoryAdapter = {
+      load: async () => ({
+        headId: "partial",
+        messages: [
+          {
+            parentId: null,
+            message: {
+              id: "u1",
+              role: "user",
+              content: [{ type: "text", text: "question" }],
+              attachments: [],
+              createdAt: new Date(0),
+              metadata: { custom: {} },
+            } satisfies ThreadMessage,
+          },
+          {
+            parentId: "u1",
+            message: {
+              id: "partial",
+              role: "assistant",
+              content: [{ type: "text", text: "partial" }],
+              status: { type: "incomplete", reason: "cancelled" },
+              createdAt: new Date(0),
+              metadata: {
+                unstable_state: null,
+                unstable_annotations: [],
+                unstable_data: [],
+                steps: [],
+                custom: {},
+              },
+            } satisfies ThreadAssistantMessage,
+          },
+        ],
+      }),
+      append,
+      update: vi.fn(async () => {}),
+    };
+    const localIds: string[] = [];
+    const createPeer = () => createController(async () => {}, history).core;
+    const peers = [createPeer(), createPeer()];
+
+    await Promise.all(
+      peers.map(async (peer) => {
+        await peer.__internal_load();
+        await peer.resume({
+          parentId: "u1",
+          sourceId: null,
+          runConfig: {},
+          stream: async function* (options) {
+            localIds.push(options.unstable_assistantMessageId!);
+            yield {
+              content: [{ type: "text", text: "answer" }],
+              status: { type: "complete", reason: "unknown" },
+            };
+          },
+        });
+      }),
+    );
+
+    expect(localIds).toHaveLength(2);
+    expect(new Set(localIds).size).toBe(1);
+    expect(
+      append.mock.calls
+        .map(([item]) => item.message.id)
+        .filter((id) => id !== "u1" && id !== "partial"),
+    ).toEqual(localIds);
+    expect(peers.map((peer) => peer.getMessages().at(-1)?.id)).toEqual(
+      localIds,
+    );
+  });
 
   it("sends the wire id on the next run while retaining the original row id", async () => {
     let localId!: string;
