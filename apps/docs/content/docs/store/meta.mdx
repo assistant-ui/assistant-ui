@@ -6,7 +6,7 @@ description: Track scope origin with source and query.
 Every scope accessor has three metadata properties: `source` and `query` describe where a scope comes from, and `name` is the scope's own name. They are reserved: scope methods cannot use these names. The function members `call`, `apply`, and `bind` are also reserved so accessors remain callable when a bundler lowers optional chaining.
 
 ```tsx
-aui.thread.source; // "root" | "parentScope" | null
+aui.thread.source; // "root" | the parent scope's name, e.g. "thread" | null
 aui.thread.query; // {} | { index: 0 } | null
 aui.thread.name; // "thread"
 ```
@@ -32,8 +32,6 @@ const RootScope = () => {
   );
 };
 ```
-
-`ThreadMetadata` renders `{"source":"root","query":{}}`.
 
 This is the default: the scope was provided directly, not derived from another scope.
 
@@ -66,8 +64,6 @@ const DerivedScope = () => {
   );
 };
 ```
-
-`MessageMetadata` renders `{"source":"thread","query":{"index":0}}`.
 
 You can declare the expected meta shape in `ScopeRegistry`:
 
@@ -110,5 +106,5 @@ if (aui.optional.message) {
 | `source` | Meaning |
 | --- | --- |
 | `"root"` | Scope was filled directly via `AuiConfig({ ... })` |
-| `"parentScope"` | Scope was derived from another scope via `Derived` |
+| The parent scope's name, e.g. `"thread"` | Scope was derived from that scope via `Derived` |
 | `null` | Scope is not available in the current context |
