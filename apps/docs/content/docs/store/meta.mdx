@@ -6,7 +6,7 @@ description: Track scope origin with source and query.
 Every scope accessor has three metadata properties: `source` and `query` describe where a scope comes from, and `name` is the scope's own name. They are reserved: scope methods cannot use these names. The function members `call`, `apply`, and `bind` are also reserved so accessors remain callable when a bundler lowers optional chaining.
 
 ```tsx
-aui.thread.source; // "root" | the parent scope's name, e.g. "thread" | null
+aui.thread.source; // "root" | the parent scope's name, e.g. "threads" | null
 aui.thread.query; // {} | { index: 0 } | null
 aui.thread.name; // "thread"
 ```
