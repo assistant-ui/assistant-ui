@@ -92,14 +92,14 @@ function* dependencySpecs(manifest) {
 
 function changesInstallPolicy(lines) {
   const topLevelKey = /^(['"]?)([^\s'"#].*?)\1:(?:\s|$)/;
-  const sections = { "+": undefined, "-": undefined };
+  let section;
   const sources = { "+": new Map(), "-": new Map() };
   const builds = { "+": new Set(), "-": new Set() };
 
   for (const line of lines) {
     if (line.startsWith("@@")) {
       const context = /^@@.*?@@ ?(.*)$/.exec(line)?.[1] ?? "";
-      sections["+"] = sections["-"] = topLevelKey.exec(context)?.[2];
+      section = topLevelKey.exec(context)?.[2];
       continue;
     }
     if (line.startsWith("+++") || line.startsWith("---")) continue;
@@ -108,11 +108,10 @@ function changesInstallPolicy(lines) {
     const text = line.slice(1);
     const key = topLevelKey.exec(text)?.[2];
     if (key !== undefined) {
-      if (side !== "-") sections["+"] = key;
-      if (side !== "+") sections["-"] = key;
+      if (side !== " ") return true;
+      section = key;
     }
     if (side === " " || /^\s*(?:#.*)?$/.test(text)) continue;
-    const section = sections[side];
     if (section === undefined) return true;
     if (
       /^\s*-\s+(['"]?)(?:@[\w.-]+\/)?[\w.-]+@(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?\1(?:\s+#.*)?\s*$/.test(
@@ -122,10 +121,6 @@ function changesInstallPolicy(lines) {
       continue;
     }
     if (section !== "overrides" && section !== "allowBuilds") return true;
-    if (key !== undefined) {
-      if (!/:\s*(?:#.*)?$/.test(text)) return true;
-      continue;
-    }
     const entry =
       /^\s+(?:'([^']+)'|"([^"]+)"|([^\s:'"][^:]*)):\s*(?:'([^']*)'|"([^"]*)"|([^'"].*?))\s*(?:\s+#.*)?$/.exec(
         text,
@@ -138,16 +133,25 @@ function changesInstallPolicy(lines) {
     } else {
       if (value !== "true" && value !== "false") return true;
       if (value === "true") {
-        builds[side].add(name.replace(/(.+)@[^@]+$/, "$1"));
+        builds[side].add(name);
       }
     }
   }
 
+  const previousBuilds = new Set(
+    [...builds["-"]].map((name) => name.replace(/(.+)@[^@]+$/, "$1")),
+  );
   return (
     [...sources["+"]].some(
       ([name, source]) =>
         source !== undefined && sources["-"].get(name) !== source,
-    ) || [...builds["+"]].some((name) => !builds["-"].has(name))
+    ) ||
+    [...builds["+"]].some((name) => {
+      const packageName = name.replace(/(.+)@[^@]+$/, "$1");
+      return name === packageName
+        ? !builds["-"].has(name)
+        : !previousBuilds.has(packageName);
+    })
   );
 }
 

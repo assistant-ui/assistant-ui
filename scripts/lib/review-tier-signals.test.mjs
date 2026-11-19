@@ -688,6 +688,65 @@ for (const [change, patch] of [
     "scoped build permission with a different scope",
     " allowBuilds:\n-  '@old/foo@1.2.3': true\n+  '@new/foo@1.2.4': true",
   ],
+  [
+    "unversioned build permission widening",
+    " allowBuilds:\n-  esbuild@0.27.0: true\n+  esbuild: true",
+  ],
+  [
+    "scoped unversioned build permission widening",
+    " allowBuilds:\n-  '@scope/foo@1.2.3': true\n+  '@scope/foo': true",
+  ],
+  ["new overrides section", "+overrides:\n+  foo: ^1.2.4"],
+  ["removed overrides section", "-overrides:\n-  foo: github:someone/foo"],
+  ["new allowBuilds section", "+allowBuilds:\n+  foo: false"],
+  ["removed allowBuilds section", "-allowBuilds:\n-  foo: true"],
+  ["new empty overrides section", "+overrides:"],
+  ["removed empty overrides section", "-overrides:"],
+  ["new quoted allowBuilds section", '+"allowBuilds":'],
+  ["removed quoted allowBuilds section", "-'allowBuilds':"],
+  [
+    "overrides renamed to allowBuilds across hunks",
+    `@@ -13,7 +13,7 @@ publicHoistPattern:
+\x20
+ strictDepBuilds: true
+\x20
+-overrides:
++allowBuilds:
+   '@google/adk>adm-zip': ^0.6.1
+   '@vercel/container>tar': ^7.5.22
+   # @lhci/cli 0.15.1, the latest release, bundles Lighthouse 12.6.1, which returned no performance score (NO_LCP) on current Chrome.
+@@ -22,6 +22,7 @@ overrides:
+   '@earendil-works/pi-coding-agent>undici': ^8.12.2
+   guarded-fetch>undici: ^7.30.1
+   miniflare>undici: ^7.30.1
++  evil: true
+   '@modelcontextprotocol/client@>=2.0.0 <2.2.0': ^2.2.0 # aui-sec: CVE-2026-104850
+   '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, GHSA-F897-62HF-6GXQ
+   '@modelcontextprotocol/server@>=2.0.0 <2.1.0': ^2.1.0 # aui-sec: GHSA-F897-62HF-6GXQ
+@@ -176,21 +177,3 @@ trustPolicyExclude:
+ # Drop entries on add, update and remove once the locked version is gone.
+ trustPolicyExcludePrune: true
+\x20
+-allowBuilds:
+-  '@clerk/shared': false
+-  '@google/genai': false
+-  '@mongodb-js/zstd': false
+-  '@openuidev/lang-core': false
+-  '@parcel/watcher': false
+-  '@tailwindcss/oxide': false
+-  core-js: false
+-  core-js-pure: false
+-  cpu-features: false
+-  esbuild@0.27.0: true
+-  esbuild@0.28.2: true
+-  node-liblzma: false
+-  protobufjs: false
+-  react-grab: false
+-  ssh2: false
+-  vue-demi: false
+-  workerd@1.20261019.1: true
+`,
+  ],
   ["trust policy", "-trustPolicy: no-downgrade\n+trustPolicy: off"],
   ["release age", "-minimumReleaseAge: 1440\n+minimumReleaseAge: 0"],
   ["removed trust policy", "-trustPolicy: no-downgrade"],
@@ -799,9 +858,7 @@ for (const [change, patch] of [
     "registry override from a hunk header",
     "@@ -20,1 +20,1 @@ overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4",
   ],
-  ["new overrides section", "+overrides:\n+  foo: ^1.2.4"],
   ["quoted overrides section", ' "overrides":\n+    foo: ^1.2.4'],
-  ["removed overrides section", "-overrides:\n-  foo: github:someone/foo"],
   [
     "registry override replacing a non-registry source",
     " overrides:\n-  foo: github:someone/foo\n+  foo: ^1.2.4",
@@ -817,6 +874,14 @@ for (const [change, patch] of [
   ["new blocked build", " allowBuilds:\n+  foo: false"],
   ["removed build permission", " allowBuilds:\n-  foo: true"],
   ["revoked build permission", " allowBuilds:\n-  foo: true\n+  foo: false"],
+  [
+    "existing unversioned build permission",
+    " allowBuilds:\n-  foo: true\n+  foo: true # Reviewed",
+  ],
+  [
+    "narrowed build permission",
+    " allowBuilds:\n-  foo: true\n+  foo@1.2.3: true",
+  ],
   [
     "build permission version bump",
     " allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.4: true",
