@@ -399,30 +399,152 @@ test("the required coverage check rejects failed, cancelled, or missing shards",
   }
 });
 
-test("pull requests restore the Turbo cache that only main pushes save", () => {
-  const names = coverageSteps.map((step) => step.split("\n")[0]);
-  const step = (name) => coverageSteps[names.indexOf(name)];
-  const restore = step("Restore the Turbo cache from main");
-  const save = step("Save the Turbo cache for pull requests");
-  assert(restore && save);
-  assert.match(restore, /if: github\.event_name == 'pull_request'\n/);
-  assert.match(restore, /uses: actions\/cache\/restore@/);
+const jobSteps = (job) =>
+  new Map(
+    coverageWorkflow
+      .split(`\n  ${job}:\n`)[1]
+      .split(/\n  [a-z]+:\n/)[0]
+      .split(/^      - name: /m)
+      .slice(1)
+      .map((step) => [step.split("\n")[0], step]),
+  );
+
+test("pull requests split coverage once from main's restored caches, and both shards run that split", () => {
+  const plan = jobSteps("plan");
+  const shards = jobSteps("shards");
+  const save = shards.get("Save the Turbo cache for pull requests");
+  assert(save);
   assert.match(save, /if: github\.event_name == 'push' && !cancelled\(\)\n/);
   assert.match(save, /uses: actions\/cache\/save@/);
+  assert.match(save, /^ {10}path: \.turbo\/cache$/m);
   const key = (text) => text.match(/^ {10}key: (.+)$/m)?.[1];
-  assert.equal(key(restore), key(save));
-  const prefix = restore.match(/^ {10}restore-keys: (.+)$/m)?.[1];
-  assert(prefix && key(save).startsWith(prefix));
-  for (const text of [restore, save]) {
-    assert.match(text, /^ {10}path: \.turbo\/cache$/m);
+  assert.doesNotMatch(
+    coverageWorkflow,
+    /fail-on-cache-miss|lookup-only|turbo-cache-/,
+  );
+  for (const [steps, gate, consumer] of [
+    [
+      plan,
+      "github.event_name == 'pull_request' && steps.inputs.outputs.run == 'true'",
+      "Split coverage workspaces",
+    ],
+    [shards, "github.event_name == 'pull_request'", "Build packages"],
+  ]) {
+    const names = [...steps.keys()];
+    for (const shard of [0, 1]) {
+      const name = `Restore main's coverage Turbo cache, shard ${shard}`;
+      const restore = steps.get(name);
+      assert(restore, name);
+      assert(restore.includes(`\n        if: ${gate}\n`), name);
+      assert.match(restore, /uses: actions\/cache\/restore@/);
+      assert.match(restore, /^ {10}path: \.turbo\/cache$/m);
+      assert.equal(
+        key(restore),
+        key(save).replace("${{ matrix.shard }}", String(shard)),
+      );
+      assert.equal(
+        restore.match(/^ {10}restore-keys: (.+)$/m)?.[1],
+        key(restore).replace("${{ github.sha }}", ""),
+      );
+      assert(names.indexOf(name) < names.indexOf(consumer), name);
+    }
   }
+
+  const planNames = [...plan.keys()];
+  const setup = plan.get("Setup pnpm and node.js");
+  const split = plan.get("Split coverage workspaces");
+  assert(setup && split);
+  assert.match(setup, /^ {10}install: false$/m);
   assert(
-    names.indexOf(restore.split("\n")[0]) < names.indexOf("Build packages"),
+    planNames.indexOf("Setup pnpm and node.js") <
+      planNames.indexOf("Split coverage workspaces"),
   );
+  assert.doesNotMatch(
+    coverageWorkflow.split("\n  plan:\n")[1].split("\n  shards:\n")[0],
+    /pnpm install/,
+  );
+  assert.match(
+    coverageWorkflow,
+    /^ {6}shards: \$\{\{ steps\.split\.outputs\.shards \}\}$/m,
+  );
+  assert.match(split, /^ {8}id: split$/m);
+  assert.match(split, /^ {8}if: steps\.inputs\.outputs\.run == 'true'$/m);
+  assert.match(split, /^ {10}if \[ -d \.turbo\/cache \]; then$/m);
+  assert.match(
+    split,
+    /pnpm --filter=\. list turbo --lockfile-only --depth=0 --json/,
+  );
+  assert.match(
+    split,
+    /pnpm dlx "turbo@\$turbo" run test:coverage --dry=json --cache=local:r > "\$RUNNER_TEMP\/coverage-dry-run\.json"/,
+  );
+  assert.match(
+    split,
+    /shards=\$\(node scripts\/coverage-shards\.mjs --plan "\$RUNNER_TEMP\/coverage-dry-run\.json"\)/,
+  );
+  assert.match(split, /shards=\$\(node scripts\/coverage-shards\.mjs --plan\)/);
+  assert.match(split, /echo "shards=\$shards" >> "\$GITHUB_OUTPUT"/);
+
+  const shardsJob = coverageWorkflow
+    .split("\n  shards:\n")[1]
+    .split("\n  coverage:\n")[0];
+  const shardRedis = shardsJob.match(/^ {6}REDIS_URL: (.+)$/m)?.[1];
+  assert(shardRedis);
+  assert.equal(split.match(/^ {10}REDIS_URL: (.+)$/m)?.[1], shardRedis);
+  assert.doesNotMatch(shardsJob, /--plan|--dry=json/);
+  for (const name of [
+    "Build packages",
+    "Run assigned packages with coverage",
+  ]) {
+    const step = shards.get(name);
+    assert(step, name);
+    assert.match(
+      step,
+      /^ {10}COVERAGE_SHARDS: \$\{\{ needs\.plan\.outputs\.shards \}\}$/m,
+    );
+    assert.match(
+      step,
+      /node scripts\/coverage-shards\.mjs "\$\{\{ matrix\.shard \}\}"/,
+    );
+  }
+  const shardNames = [...shards.keys()];
   assert(
-    names.indexOf(save.split("\n")[0]) >
-      names.indexOf("Run assigned packages with coverage"),
+    shardNames.indexOf("Save the Turbo cache for pull requests") >
+      shardNames.indexOf("Run assigned packages with coverage"),
   );
+});
+
+test("the required coverage check fails unless the planned split ran every coverage workspace exactly once", () => {
+  const steps = jobSteps("coverage");
+  const names = [...steps.keys()];
+  const verify = steps.get("Verify every coverage workspace ran");
+  assert(verify);
+  assert(
+    names.indexOf("Checkout code repository") <
+      names.indexOf("Verify every coverage workspace ran"),
+  );
+  assert.match(
+    steps.get("Checkout code repository"),
+    /if: needs\.plan\.outputs\.run == 'true'\n/,
+  );
+  assert.match(verify, /if: needs\.plan\.outputs\.run == 'true'\n/);
+  assert.match(
+    verify,
+    /^ {10}SHARDS: \$\{\{ needs\.plan\.outputs\.shards \}\}$/m,
+  );
+  const command = verify.match(/^ {8}run: (.+)$/m)?.[1];
+  assert.equal(command, 'node scripts/coverage-shards.mjs --verify "$SHARDS"');
+  const execute = (shards) => () =>
+    execFileSync("bash", ["-e", "-c", command], {
+      cwd: root,
+      env: { ...process.env, SHARDS: JSON.stringify(shards) },
+      stdio: "pipe",
+    });
+  const [first, second] = coverageShards(root);
+  assert.doesNotThrow(execute([first, second]));
+  assert.throws(execute([first.slice(1), second]), /missing/);
+  assert.throws(execute([first, [...second, first[0]]]), /duplicated/);
+  assert.throws(execute([[...first, ...second], []]), /non-empty/);
 });
 
 test(
