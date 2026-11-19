@@ -15,24 +15,22 @@ aui.thread.name; // "thread"
 
 When you fill a scope directly via a provider's `AuiConfig({ ... })`, it gets `source: "root"` and an empty `query`:
 
-This example uses your registered `thread` scope and its `ThreadResource`.
-
 ```tsx
-import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
-
-function ThreadMetadata() {
-  const { source, query } = useAui().thread;
+const ThreadMetadata = () => {
+  const aui = useAui();
+  const source = aui.thread.source; // "root"
+  const query = aui.thread.query; // {}
   return <pre>{JSON.stringify({ source, query })}</pre>;
-}
+};
 
-function RootScope() {
+const RootScope = () => {
   const config = AuiConfig({ thread: ThreadResource() });
   return (
     <AuiProvider config={config}>
       <ThreadMetadata />
     </AuiProvider>
   );
-}
+};
 ```
 
 `ThreadMetadata` renders `{"source":"root","query":{}}`.
@@ -43,17 +41,15 @@ This is the default: the scope was provided directly, not derived from another s
 
 When a scope is created via `Derived`, its `source` points to the parent scope it was derived from, and `query` carries the lookup parameters:
 
-Render `DerivedScope` under a provider for the `thread` scope, with a message at index 0.
-
 ```tsx
-import { AuiConfig, AuiProvider, Derived, useAui } from "@assistant-ui/store";
-
-function MessageMetadata() {
-  const { source, query } = useAui().message;
+const MessageMetadata = () => {
+  const aui = useAui();
+  const source = aui.message.source; // "thread"
+  const query = aui.message.query; // { index: 0 }
   return <pre>{JSON.stringify({ source, query })}</pre>;
-}
+};
 
-function DerivedScope() {
+const DerivedScope = () => {
   const aui = useAui();
   const config = AuiConfig({
     message: Derived({
@@ -68,7 +64,7 @@ function DerivedScope() {
       <MessageMetadata />
     </AuiProvider>
   );
-}
+};
 ```
 
 `MessageMetadata` renders `{"source":"thread","query":{"index":0}}`.
