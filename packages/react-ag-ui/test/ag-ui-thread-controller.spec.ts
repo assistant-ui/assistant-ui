@@ -4548,7 +4548,7 @@ describe("AGUIThreadRuntimeCore", () => {
       type: "text",
       text: "recovered",
     });
-    expect(assistant.metadata.isOptimistic).toBeUndefined();
+    expect(assistant.metadata.isOptimistic).toBe(false);
 
     const loadedRepository = core.getMessageRepository();
     expect(loadedRepository?.headId).toBe(assistant.id);
@@ -9286,7 +9286,7 @@ describe("AGUIThreadRuntimeCore", () => {
     );
     const optimisticLingerers = core
       .getMessages()
-      .filter((m) => m.id.startsWith("__optimistic__"));
+      .filter((m) => m.metadata.isOptimistic);
     expect(optimisticLingerers).toHaveLength(0);
     expect(
       core
@@ -9314,7 +9314,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore(agent);
     await core.append(createAppendMessage());
 
-    expect(midRunAssistant?.id.startsWith("__optimistic__")).toBe(true);
+    expect(midRunAssistant?.id.startsWith("__optimistic__")).toBe(false);
     expect(midRunAssistant?.metadata.isOptimistic).toBe(true);
 
     const assistant = core
@@ -9339,7 +9339,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     expect(assistant.id.startsWith("__optimistic__")).toBe(false);
-    expect(assistant.metadata.isOptimistic).toBeUndefined();
+    expect(assistant.metadata.isOptimistic).toBe(false);
   });
 
   it("keeps the active turn visible when a server id collides on a disjoint branch", async () => {
