@@ -75,8 +75,10 @@ function ComposerInput() {
   );
 }
 
+const components = { ComposerInput };
+
 export default function ChatScreen() {
-  return <Thread components={{ ComposerInput }} />;
+  return <Thread components={components} />;
 }
 ```
 
@@ -88,8 +90,10 @@ The thread also takes a `history` prop for a thread that keeps only a window of 
 import { ConversationMapAui } from "@/components/assistant-ui/elements/conversation-map.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
+const components = { Rail: ConversationMapAui };
+
 export default function ChatScreen() {
-  return <Thread components={{ Rail: ConversationMapAui }} />;
+  return <Thread components={components} />;
 }
 ```
 
@@ -101,8 +105,10 @@ Delegated tool calls, meaning a tool call carrying `messages`, render through th
 import { TaskGroup } from "@/components/assistant-ui/elements/task-card.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
+const components = { TaskGroup };
+
 export default function ChatScreen() {
-  return <Thread components={{ TaskGroup }} />;
+  return <Thread components={components} />;
 }
 ```
 
