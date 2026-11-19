@@ -24,11 +24,53 @@ afterEach(cleanup);
 
 const onReact18 = version.startsWith("18.");
 
+it("renders the default reasoning label and appends duration to an override", () => {
+  const view = render(
+    <ReasoningRoot>
+      <ReasoningTrigger duration={3} />
+    </ReasoningRoot>,
+  );
+  expect(screen.getByRole("button", { name: "Reasoning (3s)" })).toBeTruthy();
+
+  view.rerender(
+    <ReasoningRoot>
+      <ReasoningTrigger
+        duration={3}
+        label={<strong>Analysis</strong>}
+        {...{ children: "ignored" }}
+      />
+    </ReasoningRoot>,
+  );
+  expect(screen.getByRole("button", { name: "Analysis (3s)" })).toBeTruthy();
+  expect(screen.queryByText("ignored")).toBeNull();
+});
+
+it("renders the tool count by default and replaces it with a custom label", () => {
+  const view = render(
+    <ToolGroupRoot>
+      <ToolGroupTrigger count={2} />
+    </ToolGroupRoot>,
+  );
+  expect(screen.getByRole("button", { name: "2 tool calls" })).toBeTruthy();
+
+  view.rerender(
+    <ToolGroupRoot>
+      <ToolGroupTrigger
+        count={2}
+        label={<strong>Actions</strong>}
+        {...{ children: "ignored" }}
+      />
+    </ToolGroupRoot>,
+  );
+  expect(screen.getByRole("button", { name: "Actions" })).toBeTruthy();
+  expect(screen.queryByText("ignored")).toBeNull();
+});
+
 it("forwards the reasoning root to the caller and scroll lock", () => {
   const ref = createRef<HTMLDivElement>();
   const view = render(
     <ReasoningRoot ref={ref}>
-      <ReasoningTrigger>reasoning</ReasoningTrigger>
+      <ReasoningTrigger />
     </ReasoningRoot>,
   );
   const root = view.container.querySelector('[data-slot="reasoning-root"]');
@@ -50,7 +92,7 @@ it.skipIf(onReact18)(
     );
     const view = render(
       <ReasoningRoot ref={ref}>
-        <ReasoningTrigger>reasoning</ReasoningTrigger>
+        <ReasoningTrigger />
       </ReasoningRoot>,
     );
 
@@ -70,7 +112,7 @@ it("forwards null when a callback ref returns no cleanup", () => {
         calls.push(node);
       }}
     >
-      <ReasoningTrigger>reasoning</ReasoningTrigger>
+      <ReasoningTrigger />
     </ReasoningRoot>,
   );
 

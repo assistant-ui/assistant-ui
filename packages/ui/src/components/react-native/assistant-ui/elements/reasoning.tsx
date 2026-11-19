@@ -88,17 +88,19 @@ export type ReasoningTriggerProps = Omit<
 > & {
   active?: boolean;
   duration?: number | undefined;
+  label?: string;
 };
 
 export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
   active,
   duration,
+  label = "Reasoning",
   className,
   onPress,
   ...props
 }) => {
   const { isOpen, onOpenChange } = useReasoningContext();
-  const label = `Reasoning${duration ? ` (${duration}s)` : ""}`;
+  const text = `${label}${duration ? ` (${duration}s)` : ""}`;
 
   return (
     <Pressable
@@ -107,7 +109,7 @@ export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
         className,
       )}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={text}
       aria-expanded={isOpen}
       aria-busy={active === true}
       hitSlop={textButtonHitSlop}
@@ -122,7 +124,7 @@ export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
         active={active}
         className="text-muted-foreground text-sm tabular-nums"
       >
-        {label}
+        {text}
       </ShimmerLabel>
       <Icon
         as={isOpen ? ChevronDownIcon : ChevronRightIcon}
