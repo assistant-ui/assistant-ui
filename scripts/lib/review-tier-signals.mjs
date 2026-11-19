@@ -92,9 +92,23 @@ function* dependencySpecs(manifest) {
 
 function changesInstallPolicy(lines) {
   const topLevelKey = /^(['"]?)([^\s'"#].*?)\1:(?:\s|$)/;
+  const packageName = /(?:@[\w.-]+\/)?[\w.-]+/;
+  const exactVersion =
+    /(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?/;
+  const rangeVersion =
+    /(?:\d+|x|\*)(?:\.(?:\d+|x|\*)){0,2}(?:-[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?/;
+  const overrideKey = /(?:[^\s:'"\\{}[\],#]+|'[^'\\]+'|"[^"\\]+")/;
+  const override = new RegExp(
+    `^ +${overrideKey.source}: +(?:[~^]|[<>]=?|=)? *${rangeVersion.source}(?:(?: +(?:- +)?| *\\|\\| *)(?:[~^]|[<>]=?|=)? *${rangeVersion.source})*(?: +#.*)? *$`,
+  );
+  const build = new RegExp(
+    `^ +(['"]?)(${packageName.source})@(${exactVersion.source})\\1: +(true|false)(?: +#.*)? *$`,
+  );
+  const exclusion = new RegExp(
+    `^ *- +(['"]?)${packageName.source}@${exactVersion.source}\\1(?: +#.*)? *$`,
+  );
   let section;
-  const sources = { "+": new Map(), "-": new Map() };
-  const builds = { "+": new Set(), "-": new Set() };
+  const builds = { "+": [], "-": [] };
 
   for (const line of lines) {
     if (line.startsWith("@@")) {
@@ -102,7 +116,11 @@ function changesInstallPolicy(lines) {
       section = topLevelKey.exec(context)?.[2];
       continue;
     }
-    if (line.startsWith("+++") || line.startsWith("---")) continue;
+    if (
+      /^(?:\+\+\+|---) (?:[ab]\/pnpm-workspace\.yaml|\/dev\/null)$/.test(line)
+    ) {
+      continue;
+    }
     const side = line[0];
     if (side !== "+" && side !== "-" && side !== " ") continue;
     const text = line.slice(1);
@@ -112,46 +130,37 @@ function changesInstallPolicy(lines) {
       section = key;
     }
     if (side === " " || /^\s*(?:#.*)?$/.test(text)) continue;
-    if (section === undefined) return true;
+    if (section === "overrides" && override.test(text)) {
+      continue;
+    }
+    if (section === "allowBuilds") {
+      const entry = build.exec(text);
+      if (entry) {
+        const [, , name, version, value] = entry;
+        builds[side].push({ name, version, value });
+        continue;
+      }
+    }
     if (
-      /^\s*-\s+(['"]?)(?:@[\w.-]+\/)?[\w.-]+@(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?\1(?:\s+#.*)?\s*$/.test(
-        text,
-      )
+      (section === "minimumReleaseAgeExclude" ||
+        section === "trustPolicyExclude") &&
+      exclusion.test(text)
     ) {
       continue;
     }
-    if (section !== "overrides" && section !== "allowBuilds") return true;
-    const entry =
-      /^\s+(?:'([^']+)'|"([^"]+)"|([^\s:'"][^:]*)):\s*(?:'([^']*)'|"([^"]*)"|([^'"].*?))\s*(?:\s+#.*)?$/.exec(
-        text,
-      );
-    if (!entry) return true;
-    const name = (entry[1] ?? entry[2] ?? entry[3]).trim();
-    const value = entry[4] ?? entry[5] ?? entry[6];
-    if (section === "overrides") {
-      sources[side].set(name, dependencySource(value));
-    } else {
-      if (value !== "true" && value !== "false") return true;
-      if (value === "true") {
-        builds[side].add(name);
-      }
-    }
+    return true;
   }
 
-  const previousBuilds = new Set(
-    [...builds["-"]].map((name) => name.replace(/(.+)@[^@]+$/, "$1")),
-  );
-  return (
-    [...sources["+"]].some(
-      ([name, source]) =>
-        source !== undefined && sources["-"].get(name) !== source,
-    ) ||
-    [...builds["+"]].some((name) => {
-      const packageName = name.replace(/(.+)@[^@]+$/, "$1");
-      return name === packageName
-        ? !builds["-"].has(name)
-        : !previousBuilds.has(packageName);
-    })
+  return ["+", "-"].some((side) =>
+    builds[side].some(
+      ({ name, version, value }) =>
+        !builds[side === "+" ? "-" : "+"].some(
+          (other) =>
+            other.name === name &&
+            other.version !== version &&
+            other.value === value,
+        ),
+    ),
   );
 }
 

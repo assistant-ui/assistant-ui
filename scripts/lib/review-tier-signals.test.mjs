@@ -672,6 +672,65 @@ for (const [path, patch] of [
 for (const [change, patch] of [
   ["git override", " overrides:\n-  foo: ^1.2.3\n+  foo: github:someone/foo"],
   ["alias override", " overrides:\n-  foo: ^1.2.3\n+  foo: npm:fork@1.2.3"],
+  [
+    "escaped git shorthand in a double quoted override",
+    ' overrides:\n-  foo: ^1.2.3\n+  foo: "someone\\x2ffoo"',
+  ],
+  [
+    "unicode escaped git shorthand in a double quoted override",
+    ' overrides:\n+  foo: "someone\\u002ffoo"',
+  ],
+  ["quoted override value", ' overrides:\n+  foo: "^1.2.4"'],
+  ["single quoted override value", " overrides:\n+  'foo': '^1.2.4'"],
+  ["double quoted override key and value", ' overrides:\n+  "foo": "^1.2.4"'],
+  [
+    "escaped double quoted override key",
+    ' overrides:\n+  "@scope\\x2ffoo": ^1.2.4',
+  ],
+  [
+    "backslash in a single quoted override key",
+    " overrides:\n+  '@scope\\foo': ^1.2.4",
+  ],
+  ["backslash in an unquoted override key", " overrides:\n+  foo\\bar: ^1.2.4"],
+  ["mismatched override key quotes", " overrides:\n+  'foo\": ^1.2.4"],
+  ["flow override value", " overrides:\n+  foo: {bar: ^1.2.4}"],
+  ["flow override entry", " overrides:\n+  {foo: ^1.2.4}"],
+  ["single pipe override", " overrides:\n+  foo: ^1.2.3 | ^2.0.0"],
+  ["metadata override", " overrides:\n+  foo: 1.2.3+build.1"],
+  ["unknown section exact item", " futureInstallPolicy:\n+  - foo@1.2.3"],
+  ["packages exact item", " packages:\n+  - foo@1.2.3"],
+  ["overrides exact item", " overrides:\n+  - foo@1.2.3"],
+  ["allowBuilds exact item", " allowBuilds:\n+  - foo@1.2.3"],
+  [
+    "tagged build permission",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  foo@latest: true",
+  ],
+  [
+    "ranged build permission",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  foo@^1.2.4: true",
+  ],
+  [
+    "non-exact previous build permission",
+    " allowBuilds:\n-  foo@latest: true\n+  foo@1.2.4: true",
+  ],
+  ["new versioned blocked build", " allowBuilds:\n+  foo@1.2.3: false"],
+  ["removed exact build permission", " allowBuilds:\n-  foo@1.2.3: true"],
+  [
+    "removed multiple exact build permissions",
+    " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: true",
+  ],
+  [
+    "unchanged exact build version",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.3: true",
+  ],
+  [
+    "disabled build permission with a version bump",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.4: false",
+  ],
+  [
+    "context cannot supply a previous build version",
+    " allowBuilds:\n   foo@1.2.3: true\n+  foo@1.2.4: true",
+  ],
   ["build permission", " allowBuilds:\n+  foo@1.2.3: true"],
   ["unversioned build permission", " allowBuilds:\n+  foo: true"],
   ["scoped build permission", " allowBuilds:\n+  '@scope/foo@1.2.3': true"],
@@ -686,7 +745,7 @@ for (const [change, patch] of [
   ],
   [
     "scoped build permission with a different scope",
-    " allowBuilds:\n-  '@old/foo@1.2.3': true\n+  '@new/foo@1.2.4': true",
+    " allowBuilds:\n-  @old/foo@1.2.3: true\n+  @new/foo@1.2.4: true",
   ],
   [
     "unversioned build permission widening",
@@ -696,6 +755,34 @@ for (const [change, patch] of [
     "scoped unversioned build permission widening",
     " allowBuilds:\n-  '@scope/foo@1.2.3': true\n+  '@scope/foo': true",
   ],
+  [
+    "escaped double quoted build key",
+    ' allowBuilds:\n-  "@scope/foo@1.2.3": true\n+  "@scope\\u002ffoo@1.2.4": true',
+  ],
+  [
+    "backslash in a single quoted build key",
+    " allowBuilds:\n-  'foo@1.2.3': true\n+  'fo\\o@1.2.4': true",
+  ],
+  [
+    "quoted build boolean",
+    ' allowBuilds:\n-  "foo@1.2.3": true\n+  "foo@1.2.4": "true"',
+  ],
+  [
+    "quoted build boolean change",
+    " allowBuilds:\n-  'foo@1.2.3': false\n+  'foo@1.2.4': true",
+  ],
+  [
+    "quoted build package change",
+    ' allowBuilds:\n-  "foo@1.2.3": true\n+  "bar@1.2.4": true',
+  ],
+  [
+    "quoted unchanged build version",
+    " allowBuilds:\n-  'foo@1.2.3': true\n+  'foo@1.2.3': true",
+  ],
+  [
+    "mismatched build key quotes",
+    " allowBuilds:\n-  'foo@1.2.3': true\n+  'foo@1.2.4\": true",
+  ],
   ["new overrides section", "+overrides:\n+  foo: ^1.2.4"],
   ["removed overrides section", "-overrides:\n-  foo: github:someone/foo"],
   ["new allowBuilds section", "+allowBuilds:\n+  foo: false"],
@@ -704,48 +791,17 @@ for (const [change, patch] of [
   ["removed empty overrides section", "-overrides:"],
   ["new quoted allowBuilds section", '+"allowBuilds":'],
   ["removed quoted allowBuilds section", "-'allowBuilds':"],
+  ["renamed section", "-overrides:\n+allowBuilds:"],
   [
-    "overrides renamed to allowBuilds across hunks",
-    `@@ -13,7 +13,7 @@ publicHoistPattern:
-\x20
- strictDepBuilds: true
-\x20
--overrides:
-+allowBuilds:
-   '@google/adk>adm-zip': ^0.6.1
-   '@vercel/container>tar': ^7.5.22
-   # @lhci/cli 0.15.1, the latest release, bundles Lighthouse 12.6.1, which returned no performance score (NO_LCP) on current Chrome.
-@@ -22,6 +22,7 @@ overrides:
-   '@earendil-works/pi-coding-agent>undici': ^8.12.2
-   guarded-fetch>undici: ^7.30.1
-   miniflare>undici: ^7.30.1
-+  evil: true
-   '@modelcontextprotocol/client@>=2.0.0 <2.2.0': ^2.2.0 # aui-sec: CVE-2026-104850
-   '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, GHSA-F897-62HF-6GXQ
-   '@modelcontextprotocol/server@>=2.0.0 <2.1.0': ^2.1.0 # aui-sec: GHSA-F897-62HF-6GXQ
-@@ -176,21 +177,3 @@ trustPolicyExclude:
- # Drop entries on add, update and remove once the locked version is gone.
- trustPolicyExcludePrune: true
-\x20
--allowBuilds:
--  '@clerk/shared': false
--  '@google/genai': false
--  '@mongodb-js/zstd': false
--  '@openuidev/lang-core': false
--  '@parcel/watcher': false
--  '@tailwindcss/oxide': false
--  core-js: false
--  core-js-pure: false
--  cpu-features: false
--  esbuild@0.27.0: true
--  esbuild@0.28.2: true
--  node-liblzma: false
--  protobufjs: false
--  react-grab: false
--  ssh2: false
--  vue-demi: false
--  workerd@1.20261019.1: true
-`,
+    "sensitive list in a later hunk",
+    `@@ -40,2 +40,3 @@ minimumReleaseAgeExclude:
+   - foo@1.2.3
++  - bar@1.2.3
+   - baz@1.2.3
+@@ -80,2 +81,3 @@ futureInstallPolicy:
+   - foo@1.2.3
++  - bar@1.2.3
+   - baz@1.2.3`,
   ],
   ["trust policy", "-trustPolicy: no-downgrade\n+trustPolicy: off"],
   ["release age", "-minimumReleaseAge: 1440\n+minimumReleaseAge: 0"],
@@ -763,6 +819,8 @@ for (const [change, patch] of [
     "-registry: https://registry.npmjs.org/\n+registry: https://example.com/",
   ],
   ["unknown setting", "+futureInstallPolicy: false"],
+  ["key resembling an added diff header", "+++futureInstallPolicy: false"],
+  ["key resembling a removed diff header", "---futureInstallPolicy: false"],
   ["wildcard exception", " minimumReleaseAgeExclude:\n+  - foo@*"],
   ["unversioned exception", " minimumReleaseAgeExclude:\n+  - foo"],
   ["range exception", " minimumReleaseAgeExclude:\n+  - foo@^1.2.3"],
@@ -791,6 +849,30 @@ for (const [change, patch] of [
   ["leading zero", " minimumReleaseAgeExclude:\n+  - foo@01.2.3"],
   ["invalid prerelease", " minimumReleaseAgeExclude:\n+  - foo@1.2.3-01"],
   ["mismatched quotes", " minimumReleaseAgeExclude:\n+  - 'foo@1.2.3\""],
+  [
+    "escaped double quoted exception",
+    ' minimumReleaseAgeExclude:\n+  - "@scope\\x2ffoo@1.2.3"',
+  ],
+  [
+    "unicode escaped double quoted trust exception",
+    ' trustPolicyExclude:\n+  - "foo@1.2.\\u0033" # Verified release',
+  ],
+  [
+    "backslash in a single quoted exception",
+    " minimumReleaseAgeExclude:\n+  - 'fo\\o@1.2.3'",
+  ],
+  [
+    "quoted ranged exception",
+    " minimumReleaseAgeExclude:\n+  - 'foo@^1.2.3' # Verified release",
+  ],
+  [
+    "quoted exception with a leading zero",
+    ' trustPolicyExclude:\n+  - "foo@01.2.3"',
+  ],
+  [
+    "quoted hash without a comment separator",
+    ' minimumReleaseAgeExclude:\n+  - "foo@1.2.3"#verified',
+  ],
   ["mixed changes", "+  - foo@1.2.3\n+minimumReleaseAge: 0"],
   ["override without a section", "+  foo: ^1.2.3"],
   [
@@ -826,39 +908,6 @@ for (const [change, patch] of [
   ["inline build permissions", "+allowBuilds: {foo: true}"],
   ["unparsed override", " overrides:\n+  foo:\n+    bar: github:someone/bar"],
   ["unparsed build permission", " allowBuilds:\n+  foo: *allow"],
-  ["unavailable patch", null],
-]) {
-  test(`workspace install policy changes give T3: ${change}`, () => {
-    const path = "pnpm-workspace.yaml";
-    const result = computeTier(
-      input({ files: [file(path, { patch })] }),
-      policy,
-    );
-    assert.equal(result.tier, 3);
-    assert.deepEqual(
-      result.reasons.filter(({ code }) => code === "install-policy"),
-      [{ tier: 3, code: "install-policy", detail: path }],
-    );
-  });
-}
-
-for (const [change, patch] of [
-  ["registry override", " overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4"],
-  ["new registry override", " overrides:\n+  foo: 1.2.4"],
-  ["major registry override", " overrides:\n-  foo: ^1.2.3\n+  foo: ^2.0.0"],
-  [
-    "registry override with a parent selector",
-    " overrides:\n+  '@scope/parent>foo': ^1.2.4",
-  ],
-  [
-    "registry override with an advisory comment",
-    " overrides:\n+  'foo@>=1.0.0 <1.2.4': ^1.2.4 # https://example.com/advisory",
-  ],
-  [
-    "registry override from a hunk header",
-    "@@ -20,1 +20,1 @@ overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4",
-  ],
-  ["quoted overrides section", ' "overrides":\n+    foo: ^1.2.4'],
   [
     "registry override replacing a non-registry source",
     " overrides:\n-  foo: github:someone/foo\n+  foo: ^1.2.4",
@@ -883,40 +932,112 @@ for (const [change, patch] of [
     " allowBuilds:\n-  foo: true\n+  foo@1.2.3: true",
   ],
   [
+    "multiple existing build permission versions",
+    " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: false\n+  foo@1.2.5: true",
+  ],
+  ["override comment without a space", " overrides:\n+  foo: ^1.2.4#Reviewed"],
+  ["unavailable patch", null],
+]) {
+  test(`workspace install policy changes give T3: ${change}`, () => {
+    const path = "pnpm-workspace.yaml";
+    const result = computeTier(
+      input({ files: [file(path, { patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, 3);
+    assert.deepEqual(
+      result.reasons.filter(({ code }) => code === "install-policy"),
+      [{ tier: 3, code: "install-policy", detail: path }],
+    );
+  });
+}
+
+for (const [change, patch] of [
+  ["registry override", " overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4"],
+  ["new registry override", " overrides:\n+  foo: 1.2.4"],
+  ["removed registry override", " overrides:\n-  foo: ^1.2.3"],
+  ["unquoted scoped override", " overrides:\n+  @scope/foo: ~1.2.4"],
+  ["single quoted override key", " overrides:\n+  'foo': ^1.2.4"],
+  ["double quoted scoped override key", ' overrides:\n+  "@scope/foo": ^1.2.4'],
+  [
+    "single quoted override selector",
+    " overrides:\n-  'undici@<5.29.0': ^5.28.0\n+  'undici@<5.29.0': ^5.29.0",
+  ],
+  [
+    "double quoted override selector",
+    ' overrides:\n+  "undici@>=5.0.0 <5.29.0": ^5.29.0',
+  ],
+  [
+    "registry override with a parent selector",
+    " overrides:\n+  '@scope/parent>foo': ^1.2.4",
+  ],
+  ["unquoted parent selector", " overrides:\n+  guarded-fetch>undici: ^7.30.1"],
+  ["wildcard registry override", " overrides:\n+  foo: *"],
+  ["partial registry override", " overrides:\n+  foo: 1.2.x"],
+  ["prerelease registry override", " overrides:\n+  foo: ^1.2.3-beta.1"],
+  ["comparator registry override", " overrides:\n+  foo: >=1.2.3 <2.0.0"],
+  ["hyphen registry override", " overrides:\n+  foo: 1.2.3 - 2.0.0"],
+  ["union registry override", " overrides:\n+  foo: ^1.2.3 || ~2.0.0"],
+  ["major registry override", " overrides:\n-  foo: ^1.2.3\n+  foo: ^2.0.0"],
+  [
+    "registry override from a hunk header",
+    "@@ -20,1 +20,1 @@ overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4",
+  ],
+  ["quoted overrides section", ' "overrides":\n+    foo: ^1.2.4'],
+  [
     "build permission version bump",
     " allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.4: true",
   ],
   [
-    "scoped build permission version bump",
+    "unquoted scoped build permission version bump",
+    " allowBuilds:\n-  @scope/foo@1.2.3: true\n+  @scope/foo@1.2.4: true",
+  ],
+  [
+    "single quoted build permission version bump",
+    " allowBuilds:\n-  'foo@1.2.3': true\n+  'foo@1.2.4': true",
+  ],
+  [
+    "double quoted scoped build permission version bump",
     ' allowBuilds:\n-  "@scope/foo@1.2.3": true\n+  "@scope/foo@1.2.4": true',
+  ],
+  [
+    "build version bump with different key quotes",
+    " allowBuilds:\n-  'foo@1.2.3': false\n+  \"foo@1.2.4\": false",
+  ],
+  [
+    "build version bump from an unquoted to a quoted key",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  'foo@1.2.4': true",
+  ],
+  [
+    "blocked build version bump",
+    " allowBuilds:\n-  foo@1.2.3: false\n+  foo@1.2.4: false",
+  ],
+  [
+    "exact prerelease build version bump",
+    " allowBuilds:\n-  foo@1.2.3-rc.1: true\n+  foo@1.2.3-rc.2: true",
+  ],
+  [
+    "build version bump across hunks with additions first",
+    "@@ -20,1 +20,2 @@ allowBuilds:\n   bar@1.2.3: true\n+  foo@1.2.4: true\n@@ -30,2 +31,1 @@ allowBuilds:\n   baz@1.2.3: true\n-  foo@1.2.3: true",
+  ],
+  [
+    "multiple matching build version bumps",
+    " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: false\n+  foo@1.2.5: true\n+  foo@1.2.6: false",
   ],
   [
     "build permission version bump from a hunk header",
     "@@ -20,1 +20,1 @@ allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.4: true",
   ],
   [
-    "multiple existing build permission versions",
-    " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: false\n+  foo@1.2.5: true",
-  ],
-  [
-    "build permission version bump with a comment",
-    " allowBuilds:\n-  foo@1.2.3: true # Reviewed\n+  foo@1.2.4: true # Reviewed",
-  ],
-  [
     "overrides and build permissions in the same hunk",
     " overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4\n allowBuilds:\n-  bar@1.2.3: true\n+  bar@1.2.4: true",
   ],
   ["exact exception", " minimumReleaseAgeExclude:\n+  - foo@1.2.3"],
+  ["indentless exact exception", " minimumReleaseAgeExclude:\n+- foo@1.2.3"],
   ["scoped exception", " minimumReleaseAgeExclude:\n+  - @scope/foo@1.2.3"],
+  ["trust exception", " trustPolicyExclude:\n+  - @scope/foo@1.2.3"],
   ["quoted scoped exception", " trustPolicyExclude:\n+  - '@scope/foo@1.2.3'"],
   ["double quoted exception", ' minimumReleaseAgeExclude:\n+  - "foo@1.2.3"'],
-  ["prerelease exception", " minimumReleaseAgeExclude:\n+  - foo@1.2.3-rc.1"],
-  ["build metadata", " minimumReleaseAgeExclude:\n+  - foo@1.2.3+build.007"],
-  ["removed exception", " minimumReleaseAgeExclude:\n-  - foo@1.2.3"],
-  [
-    "exact exception with a trailing comment",
-    " minimumReleaseAgeExclude:\n+  - foo@1.2.3 # Verified release",
-  ],
   [
     "quoted scoped exception with a trailing comment",
     " trustPolicyExclude:\n+  - '@scope/foo@1.2.3' # Verified release",
@@ -924,6 +1045,21 @@ for (const [change, patch] of [
   [
     "double quoted exception with a trailing comment",
     ' minimumReleaseAgeExclude:\n+  - "foo@1.2.3" # Verified release',
+  ],
+  [
+    "removed double quoted trust exception with prerelease and metadata",
+    ' trustPolicyExclude:\n-  - "@scope/foo@1.2.3-rc.1+build.007" # Verified release',
+  ],
+  [
+    "removed trust exception with a comment",
+    " trustPolicyExclude:\n-  - @scope/foo@1.2.3 # Verified release",
+  ],
+  ["prerelease exception", " minimumReleaseAgeExclude:\n+  - foo@1.2.3-rc.1"],
+  ["build metadata", " minimumReleaseAgeExclude:\n+  - foo@1.2.3+build.007"],
+  ["removed exception", " minimumReleaseAgeExclude:\n-  - foo@1.2.3"],
+  [
+    "exact exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n+  - foo@1.2.3 # Verified release",
   ],
   [
     "prerelease exception with a trailing comment",
@@ -939,6 +1075,15 @@ for (const [change, patch] of [
     "diff headers and context",
     "--- a/pnpm-workspace.yaml\n+++ b/pnpm-workspace.yaml\n@@ -1,2 +1,3 @@\n minimumReleaseAge: 1440\n minimumReleaseAgeExclude:\n+  - foo@1.2.3",
   ],
+  ["commented override", " overrides:\n+  foo: ^1.2.4 # Reviewed"],
+  [
+    "registry override with an advisory comment",
+    " overrides:\n+  'foo@>=1.0.0 <1.2.4': ^1.2.4 # https://example.com/advisory",
+  ],
+  [
+    "build permission version bump with a comment",
+    " allowBuilds:\n-  foo@1.2.3: true # Reviewed\n+  foo@1.2.4: true # Reviewed",
+  ],
 ]) {
   test(`workspace install policy exemptions stay T1: ${change}`, () => {
     const result = computeTier(
@@ -952,35 +1097,35 @@ for (const [change, patch] of [
   });
 }
 
-for (const [base, head, tier] of [
-  ["^1.2.3", "latest", 1],
-  ["^1.2.3", '"^1.2.4"', 1],
-  ["^1.2.3", "workspace:*", 1],
-  ["^1.2.3", "catalog:", 1],
-  ["^1.2.3", "file:../foo", 1],
-  ["^1.2.3", "link:../foo", 1],
-  ["^1.2.3", "github:someone/foo", 3],
-  ["^1.2.3", "git+https://example.com/foo.git", 3],
-  ["^1.2.3", "ssh://git@example.com/foo.git", 3],
-  ["^1.2.3", "git@example.com:someone/foo.git", 3],
-  ["^1.2.3", "https://example.com/foo.tgz", 3],
-  ["^1.2.3", "someone/foo#main", 3],
-  ["^1.2.3", "npm:@scope/fork@^1.2.3", 3],
-  ["npm:fork@^1.2.3", "npm:other@^1.2.4", 3],
-  ["github:someone/foo#main", "github:someone/foo#next", 3],
-  ["github:someone/foo#main", '"github:someone/foo#main"', 1],
+for (const [base, head] of [
+  ["^1.2.3", "latest"],
+  ["^1.2.3", '"^1.2.4"'],
+  ["^1.2.3", "workspace:*"],
+  ["^1.2.3", "catalog:"],
+  ["^1.2.3", "file:../foo"],
+  ["^1.2.3", "link:../foo"],
+  ["^1.2.3", "github:someone/foo"],
+  ["^1.2.3", "git+https://example.com/foo.git"],
+  ["^1.2.3", "ssh://git@example.com/foo.git"],
+  ["^1.2.3", "git@example.com:someone/foo.git"],
+  ["^1.2.3", "https://example.com/foo.tgz"],
+  ["^1.2.3", "someone/foo#main"],
+  ["^1.2.3", "npm:@scope/fork@^1.2.3"],
+  ["npm:fork@^1.2.3", "npm:other@^1.2.4"],
+  ["github:someone/foo#main", "github:someone/foo#next"],
+  ["github:someone/foo#main", '"github:someone/foo#main"'],
 ]) {
-  test(`workspace override source ${base} to ${head} stays T${tier}`, () => {
+  test(`workspace override source ${base} to ${head} gives T3`, () => {
     const path = "pnpm-workspace.yaml";
     const patch = ` overrides:\n-  foo: ${base}\n+  foo: ${head}`;
     const result = computeTier(
       input({ files: [file(path, { patch })] }),
       policy,
     );
-    assert.equal(result.tier, tier);
+    assert.equal(result.tier, 3);
     assert.deepEqual(
       result.reasons.filter(({ code }) => code === "install-policy"),
-      tier === 3 ? [{ tier, code: "install-policy", detail: path }] : [],
+      [{ tier: 3, code: "install-policy", detail: path }],
     );
   });
 }
