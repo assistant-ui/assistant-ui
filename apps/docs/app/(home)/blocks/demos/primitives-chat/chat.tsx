@@ -310,7 +310,7 @@ function ThreadList() {
       <ThreadListPrimitive.Items>
         {() => <ThreadListItem />}
       </ThreadListPrimitive.Items>
-      <AuiIf condition={(s) => s.threads.archivedThreadIds.length > 0}>
+      <AuiIf condition={(s: any) => s.threads.archivedThreadIds.length > 0}>
         <p className="text-muted-foreground mt-4 px-2.5 pb-1 text-xs">
           Archived
         </p>
@@ -415,7 +415,7 @@ function Thread() {
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
         <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col pt-6">
-          <AuiIf condition={(s) => s.thread.isEmpty}>
+          <AuiIf condition={(s: any) => s.thread.isEmpty}>
             <Welcome />
           </AuiIf>
           <div className="flex flex-col gap-6 pb-10 empty:hidden">
@@ -530,7 +530,7 @@ function Composer() {
             <PaperclipIcon />
           </ComposerPrimitive.AddAttachment>
           <div className="flex items-center gap-1.5">
-            <AuiIf condition={(s) => s.thread.isRunning}>
+            <AuiIf condition={(s: any) => s.thread.isRunning}>
               <ComposerPrimitive.Cancel
                 aria-label="Stop the reply"
                 title="Stop the reply"
@@ -594,7 +594,7 @@ function UserMessage() {
         </MessagePrimitive.Attachments>
       </div>
       <MessagePrimitive.Quote>
-        {({ text }) => (
+        {({ text }: { text: string }) => (
           <blockquote className="text-muted-foreground line-clamp-3 max-w-[80%] border-s-2 ps-3">
             {text}
           </blockquote>
@@ -676,7 +676,7 @@ function AssistantMessage() {
           className="flex gap-0.5 group-focus-within:opacity-100 group-hover:opacity-100 data-floating:opacity-0"
         >
           <CopyButton />
-          <AuiIf condition={(s) => s.message.speech == null}>
+          <AuiIf condition={(s: any) => s.message.speech == null}>
             <ActionBarPrimitive.Speak
               aria-label="Read aloud"
               title="Read aloud"
@@ -685,7 +685,7 @@ function AssistantMessage() {
               <Volume2Icon />
             </ActionBarPrimitive.Speak>
           </AuiIf>
-          <AuiIf condition={(s) => s.message.speech != null}>
+          <AuiIf condition={(s: any) => s.message.speech != null}>
             <ActionBarPrimitive.StopSpeaking
               aria-label="Stop reading"
               title="Stop reading"
@@ -789,15 +789,15 @@ function ChainOfThought() {
       <ChainOfThoughtPrimitive.AccordionTrigger
         className={`text-muted-foreground hover:text-foreground flex w-full items-center gap-1.5 rounded-lg px-3 py-2 transition-colors motion-reduce:transition-none ${focusRing}`}
       >
-        <AuiIf condition={(s) => s.chainOfThought.collapsed}>
+        <AuiIf condition={(s: any) => s.chainOfThought.collapsed}>
           <ChevronRightIcon className="size-4 rtl:rotate-180" />
         </AuiIf>
-        <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+        <AuiIf condition={(s: any) => !s.chainOfThought.collapsed}>
           <ChevronDownIcon className="size-4" />
         </AuiIf>
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
-      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+      <AuiIf condition={(s: any) => !s.chainOfThought.collapsed}>
         <div className="flex flex-col gap-2 px-3 pb-3">
           <ChainOfThoughtPrimitive.Parts
             components={{
@@ -850,10 +850,10 @@ function CopyButton() {
       title="Copy"
       className={iconButton}
     >
-      <AuiIf condition={(s) => s.message.isCopied}>
+      <AuiIf condition={(s: any) => s.message.isCopied}>
         <CheckIcon />
       </AuiIf>
-      <AuiIf condition={(s) => !s.message.isCopied}>
+      <AuiIf condition={(s: any) => !s.message.isCopied}>
         <CopyIcon />
       </AuiIf>
     </ActionBarPrimitive.Copy>
