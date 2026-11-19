@@ -71,6 +71,7 @@ on:
       - "scripts/code-quality-inputs.test.mjs"
       - "scripts/turbo-redis-env.test.mjs"
       - "scripts/turbo-env-files.test.mjs"
+      - "scripts/pull-request-turbo-cache.test.mjs"
       - "scripts/turbo-package-docs.test.mjs"
       - "scripts/prepare-ci-base.mjs"
       - "scripts/prepare-ci-base.test.mjs"
