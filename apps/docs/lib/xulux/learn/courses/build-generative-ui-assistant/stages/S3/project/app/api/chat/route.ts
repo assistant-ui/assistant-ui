@@ -6,6 +6,7 @@ import {
   streamText,
   type UIMessage,
 } from "ai";
+import { isAllowedRequestContext } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S1/project/app/api/request-context";
 import toolkit from "../../toolkit";
 
 const aiToolkit = new AISDKToolkit({ toolkit });
@@ -13,6 +14,13 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 export const maxDuration = 30;
 
 export async function POST(request: Request) {
+  if (!isAllowedRequestContext(request)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   const { messages, tools }: { messages: UIMessage[]; tools?: FrontendTools } =
     await request.json();
   const aiSDKTools = await aiToolkit.tools(
