@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import { analytics } from "@/lib/analytics";
 import {
   BUILDING_MAX_LENGTH,
   COMPANY_SIZES,
+  FIELD_MAX_LENGTH,
   EMPTY_CONTACT_SALES_VALUES,
   REFERRAL_SOURCES,
   ROLES,
@@ -106,11 +107,42 @@ function OptionSelect({
   );
 }
 
+/** How long the form waits on the email before moving on to cal.com. */
+const NOTIFY_TIMEOUT_MS = 2_500;
+
+/**
+ * Emails the answers to the team. Never rejects: the visitor books on cal.com
+ * whether or not the email goes out, and the route logs any failure.
+ */
+function notifySales(
+  values: ContactSalesValues,
+  website: string,
+): Promise<void> {
+  const request = fetch("/api/contact-sales", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...values,
+      website,
+      pageUrl: window.location.href,
+    }),
+    keepalive: true,
+  }).then(
+    () => undefined,
+    () => undefined,
+  );
+  const timeout = new Promise<void>((resolve) =>
+    setTimeout(resolve, NOTIFY_TIMEOUT_MS),
+  );
+  return Promise.race([request, timeout]);
+}
+
 export function ContactSalesForm({
   navigate = (url: string) => window.location.assign(url),
 }: {
   navigate?: (url: string) => void;
 }) {
+  const honeypot = useRef<HTMLInputElement>(null);
   const id = useId();
   const [values, setValues] = useState<ContactSalesValues>(
     EMPTY_CONTACT_SALES_VALUES,
@@ -145,6 +177,7 @@ export function ContactSalesForm({
     id: fieldId(field),
     name: field,
     value: values[field],
+    maxLength: field === "building" ? BUILDING_MAX_LENGTH : FIELD_MAX_LENGTH,
     onChange: (
       event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     ) => set(field)(event.target.value),
@@ -154,7 +187,7 @@ export function ContactSalesForm({
 
   const emailHint =
     !errors.email && isPersonalEmail(values.email)
-      ? "Use your work email if you have one. It tells us which team you're on."
+      ? "A work email helps us find your team."
       : undefined;
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -168,15 +201,17 @@ export function ContactSalesForm({
     }
     setSubmitting(true);
     const url = buildSalesBookingUrl(values);
-    void analytics.contactSales
-      .submitted({
-        company_size: values.companySize,
-        role: values.role || "unspecified",
-        referral: values.referral || "unspecified",
-        personal_email: isPersonalEmail(values.email),
-      })
-      .catch(() => undefined)
-      .then(() => navigate(url));
+    void Promise.all([
+      analytics.contactSales
+        .submitted({
+          company_size: values.companySize,
+          role: values.role || "unspecified",
+          referral: values.referral || "unspecified",
+          personal_email: isPersonalEmail(values.email),
+        })
+        .catch(() => undefined),
+      notifySales(values, honeypot.current?.value ?? ""),
+    ]).then(() => navigate(url));
   };
 
   return (
@@ -261,8 +296,7 @@ export function ContactSalesForm({
       >
         <Textarea
           rows={4}
-          maxLength={BUILDING_MAX_LENGTH}
-          placeholder="The product, who uses it, and where assistant-ui fits."
+          placeholder="Your product and where chat fits in."
           className="min-h-28"
           {...inputProps("building")}
         />
@@ -282,6 +316,24 @@ export function ContactSalesForm({
         />
       </Field>
 
+      {/* Hidden from people and screen readers. Bots that fill it are dropped. */}
+      <div
+        aria-hidden="true"
+        className="absolute -left-[9999px] h-px w-px overflow-hidden"
+      >
+        <label>
+          Website
+          <input
+            ref={honeypot}
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            defaultValue=""
+          />
+        </label>
+      </div>
+
       <div className="flex flex-col gap-3 pt-1">
         <Button
           type="submit"
@@ -292,7 +344,7 @@ export function ContactSalesForm({
           {submitting ? "Opening cal.com" : "Contact sales"}
         </Button>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          Next, you'll continue to cal.com with your answers filled in.
+          Next, you'll pick a time on cal.com. Your answers carry over.
         </p>
       </div>
     </form>

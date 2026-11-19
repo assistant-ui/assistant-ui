@@ -59,8 +59,10 @@ export const TimelineToolFallback: ToolCallMessagePartComponent = (part) => {
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { TimelineToolFallback } from "@/components/timeline-tool-fallback";
 
+const components = { ToolFallback: TimelineToolFallback };
+
 export function ChatScreen() {
-  return <Thread components={{ ToolFallback: TimelineToolFallback }} />;
+  return <Thread components={components} />;
 }
 ```
 

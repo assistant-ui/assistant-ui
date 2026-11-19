@@ -1,5 +1,5 @@
 import { overrideSignal } from "./review-policy.mjs";
-import { protectedPaths } from "./review-tier-signals.mjs";
+import { pathsAboveT0 } from "./review-tier-signals.mjs";
 
 // The latest approval, change request or dismissal per reviewer.
 export function latestReviews(reviews) {
@@ -24,8 +24,8 @@ export function latestReviews(reviews) {
 }
 
 // An approval of an older commit carries over when that commit is an ancestor
-// of the head and the commits since touch no protected path. Anything that
-// cannot be verified leaves the approval stale.
+// of the head and the commits since stay within T0. Anything that cannot be
+// verified leaves the approval stale.
 function carryOver(comparison, policy) {
   if (comparison === undefined) return { stale: true };
   if (comparison === null) {
@@ -37,7 +37,7 @@ function carryOver(comparison, policy) {
   if (!comparison.complete) {
     return { stale: true, detail: "too many later changes to compare" };
   }
-  const paths = protectedPaths(comparison.files, policy);
+  const paths = pathsAboveT0(comparison.files, policy);
   if (paths.length > 0) return { stale: true, paths };
   return { stale: false };
 }

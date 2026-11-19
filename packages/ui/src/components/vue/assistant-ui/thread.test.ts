@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, nextTick } from "vue";
+import { createApp, defineComponent, h, nextTick, type VNode } from "vue";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type {
@@ -11,8 +11,13 @@ import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
 } from "@assistant-ui/core/internal";
-import { AuiProvider } from "@assistant-ui/vue";
+import {
+  AuiProvider,
+  MessagePrimitiveParts,
+  ThreadPrimitiveMessages,
+} from "@assistant-ui/vue";
 
+import Reasoning from "./reasoning.vue";
 import Thread from "./thread.vue";
 
 const mountThread = (
@@ -20,6 +25,7 @@ const mountThread = (
   options: {
     isRunning?: boolean;
     adapter?: Partial<ExternalStoreAdapter<ThreadMessageLike>>;
+    render?: () => VNode;
   } = {},
 ) => {
   const createAdapter = (
@@ -42,7 +48,7 @@ const mountThread = (
         h(
           AuiProvider,
           { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
-          { default: () => h(Thread) },
+          { default: () => options.render?.() ?? h(Thread) },
         ),
     }),
   );
@@ -87,6 +93,16 @@ const type = (field: HTMLTextAreaElement, value: string) => {
 
 const trigger = (root: ParentNode, slot: string) =>
   root.querySelector<HTMLButtonElement>(`[data-slot="${slot}"]`)!;
+
+const stubScrollTo = (viewport: HTMLElement, scrollHeight = 460) => {
+  Object.defineProperty(viewport, "clientHeight", { value: 300 });
+  Object.defineProperty(viewport, "scrollHeight", { value: scrollHeight });
+  Object.defineProperty(viewport, "scrollTo", {
+    value: vi.fn(({ top }: ScrollToOptions) => {
+      viewport.scrollTop = Math.max(0, Math.min(top ?? 0, scrollHeight - 300));
+    }),
+  });
+};
 
 const pendingApproval = (
   approval: Omit<NonNullable<ToolCallMessagePart["approval"]>, "id"> = {},
@@ -281,6 +297,7 @@ describe("vue thread", () => {
       },
     ]);
     const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    stubScrollTo(viewport);
     viewport.style.overflowY = "auto";
     viewport.scrollTop = 120;
 
@@ -562,6 +579,9 @@ describe("vue thread", () => {
         el.querySelector('[data-slot="aui_reasoning-trigger"]'),
       ).not.toBeNull(),
     );
+    expect(trigger(el, "aui_reasoning-trigger").textContent?.trim()).toBe(
+      "Reasoning",
+    );
     expect(el.querySelector('[data-slot="aui_reasoning-text"]')).toBeNull();
 
     trigger(el, "aui_reasoning-trigger").click();
@@ -576,6 +596,34 @@ describe("vue thread", () => {
     unmount();
   });
 
+  it("shows a custom reasoning label on the trigger", async () => {
+    const { el, unmount } = mountThread(
+      [
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "weighing options" }],
+        },
+      ],
+      {
+        render: () =>
+          h(ThreadPrimitiveMessages, null, {
+            default: () =>
+              h(MessagePrimitiveParts, null, {
+                reasoning: () => h(Reasoning, { label: "Analysis" }),
+              }),
+          }),
+      },
+    );
+
+    await settle(() =>
+      expect(trigger(el, "aui_reasoning-trigger").textContent?.trim()).toBe(
+        "Analysis",
+      ),
+    );
+
+    unmount();
+  });
+
   it("locks the thread viewport while reasoning toggles", async () => {
     const { el, unmount } = mountThread([
       {
@@ -584,6 +632,7 @@ describe("vue thread", () => {
       },
     ]);
     const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    stubScrollTo(viewport);
     viewport.style.overflowY = "auto";
     viewport.scrollTop = 120;
 
@@ -647,6 +696,7 @@ describe("vue thread", () => {
       { isRunning: true },
     );
     const viewport = el.querySelector<HTMLElement>(".overflow-y-scroll")!;
+    stubScrollTo(viewport, 420);
     viewport.style.overflowY = "auto";
     viewport.scrollTop = 120;
 

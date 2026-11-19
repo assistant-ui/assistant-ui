@@ -14,13 +14,28 @@ type MergeStreamHold = {
   flushed: Promise<void>;
 };
 
+/**
+ * How many chunks a part stream has written. The merge stream sets `onWrite`
+ * so it learns when an idle part writes again without polling every part.
+ */
+export type MergeStreamWriteCounter = {
+  readonly count: number;
+  onWrite: (() => void) | undefined;
+};
+
 type MergeStreamItem = {
+  /** Order of `addStream` calls; reads start in this order. */
+  seq: number;
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
   pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
   orderedFinish?: MergeStreamFinishOrder | undefined;
-  written?: (() => number) | undefined;
+  written?: MergeStreamWriteCounter | undefined;
   delivered: number;
+  /** The part barrier count when this item last had nothing undelivered. */
+  idleAt: number;
+  /** Whether this item is in `busy`, which may still hold it after it caught up. */
+  inBusy: boolean;
   gate?: Promise<void> | undefined;
   holds: MergeStreamHold[];
   pathMapper?:
@@ -45,12 +60,24 @@ type RawChunkBatchItem = {
 
 type MergeStreamOptions = {
   orderedFinish?: MergeStreamFinishOrder | undefined;
-  written?: (() => number) | undefined;
+  written?: MergeStreamWriteCounter | undefined;
   pathTransform?: "merge" | undefined;
 };
 
 export const createMergeStream = () => {
-  const list: MergeStreamItem[] = [];
+  const list = new Set<MergeStreamItem>();
+  // Items with no read in flight. A pull starts reads only for these, so its
+  // cost does not grow with the number of open parts.
+  let unread: MergeStreamItem[] = [];
+  // Every counted item with chunks not yet delivered, plus items that caught up
+  // since the last part barrier, which prunes them. Only items with undelivered
+  // chunks need a hold at a part barrier; an idle item instead takes the latest
+  // part barrier as its gate when it writes again.
+  const busy = new Set<MergeStreamItem>();
+  let countedItems = 0;
+  let partBarriers = 0;
+  let latestPartBarrier: Promise<void> | undefined;
+  let nextSeq = 0;
   const pendingPartIndexes = new Set<PartIndexReservation>();
   const contentCounter = new Counter();
   let sealed = false;
@@ -77,8 +104,13 @@ export const createMergeStream = () => {
     }
     pendingPartIndexes.clear();
     if (!cleanupPromise) {
-      const items = list.splice(0);
+      const items = [...list];
+      list.clear();
+      unread = [];
+      busy.clear();
+      countedItems = 0;
       for (const item of items) {
+        if (item.written) item.written.onWrite = undefined;
         item.orderedFinish?.delivered.resolve();
         releaseHolds(item);
       }
@@ -109,6 +141,36 @@ export const createMergeStream = () => {
     currentPull = undefined;
   };
 
+  const markIdleIfCaughtUp = (item: MergeStreamItem) => {
+    if (item.written && item.delivered >= item.written.count) {
+      item.idleAt = partBarriers;
+    }
+  };
+
+  const noteWrite = (item: MergeStreamItem) => {
+    // Only the write that ends an idle stretch has work to do.
+    if (item.delivered < item.written!.count - 1) return;
+    if (!item.inBusy) {
+      item.inBusy = true;
+      busy.add(item);
+    }
+    // A chunk written after a part barrier must not pass that part-start.
+    if (latestPartBarrier && partBarriers > item.idleAt) {
+      item.gate = item.gate
+        ? Promise.all([item.gate, latestPartBarrier]).then(() => undefined)
+        : latestPartBarrier;
+    }
+  };
+
+  const removeItem = (item: MergeStreamItem) => {
+    list.delete(item);
+    busy.delete(item);
+    if (item.written) {
+      item.written.onWrite = undefined;
+      countedItems--;
+    }
+  };
+
   const handlePull = (item: MergeStreamItem) => {
     if (!item.promise) {
       // TODO for most streams, we can directly pipeTo to avoid the microTask queue
@@ -123,10 +185,10 @@ export const createMergeStream = () => {
 
           if (done) {
             item.orderedFinish?.delivered.resolve();
-            list.splice(list.indexOf(item), 1);
+            removeItem(item);
             item.reader.releaseLock();
             releaseHolds(item);
-            if (sealed && list.length === 0 && pendingRawBatches === 0) {
+            if (sealed && list.size === 0 && pendingRawBatches === 0) {
               controller.close();
             }
           } else {
@@ -149,6 +211,7 @@ export const createMergeStream = () => {
             }
             controller.enqueue(item.pathMapper?.(value) ?? value);
             item.delivered++;
+            markIdleIfCaughtUp(item);
             for (const hold of item.holds) {
               if (item.delivered >= hold.writtenBefore) hold.reached.resolve();
             }
@@ -158,6 +221,7 @@ export const createMergeStream = () => {
           }
 
           item.promise = undefined;
+          if (!done) unread.push(item);
           currentPull?.resolve();
           currentPull = undefined;
         })
@@ -174,9 +238,10 @@ export const createMergeStream = () => {
     },
     pull() {
       currentPull = promiseWithResolvers();
-      list.forEach((item) => {
-        handlePull(item);
-      });
+      const items = unread;
+      unread = [];
+      if (items.length > 1) items.sort((a, b) => a.seq - b.seq);
+      for (const item of items) handlePull(item);
 
       return currentPull.promise;
     },
@@ -191,7 +256,7 @@ export const createMergeStream = () => {
 
   const holdChild = (item: MergeStreamItem, flushed: Promise<void>) => {
     const hold: MergeStreamHold = {
-      writtenBefore: item.written!(),
+      writtenBefore: item.written!.count,
       reached: promiseWithResolvers<void>(),
       flushed,
     };
@@ -211,7 +276,7 @@ export const createMergeStream = () => {
       chunk.type === "message-finish" ||
       chunk.type === "error";
     // Active child reads split raw batches to preserve microtask ordering.
-    if (list.length > 0 || waitForPartWrites) {
+    if (list.size > 0 || waitForPartWrites) {
       rawChunkBatch = undefined;
     }
 
@@ -220,15 +285,25 @@ export const createMergeStream = () => {
       rawChunkBatch = batch;
       pendingRawBatches++;
       const previous = rawBarrier;
-      const parts = waitForPartWrites
-        ? list.filter((item) => item.written)
-        : [];
+      const partBarrier = waitForPartWrites && countedItems > 0;
       const flushed =
-        previous || parts.length > 0 ? promiseWithResolvers<void>() : undefined;
-      const reached = flushed
-        ? parts.map((item) => holdChild(item, flushed.promise))
-        : [];
+        previous || partBarrier ? promiseWithResolvers<void>() : undefined;
+      const reached: Promise<void>[] = [];
+      if (flushed && partBarrier) {
+        for (const item of busy) {
+          if (item.delivered < item.written!.count) {
+            reached.push(holdChild(item, flushed.promise));
+          } else {
+            busy.delete(item);
+            item.inBusy = false;
+          }
+        }
+      }
       if (flushed) rawBarrier = flushed.promise;
+      if (partBarrier) {
+        partBarriers++;
+        latestPartBarrier = flushed!.promise;
+      }
 
       // Match the readiness ordering of the one-chunk streams this replaces.
       void Promise.resolve()
@@ -250,7 +325,7 @@ export const createMergeStream = () => {
             }
             controller.enqueue(rawChunk);
           }
-          if (sealed && list.length === 0 && pendingRawBatches === 0) {
+          if (sealed && list.size === 0 && pendingRawBatches === 0) {
             controller.close();
           }
 
@@ -288,11 +363,14 @@ export const createMergeStream = () => {
     // A ready child must stay ahead of raw chunks enqueued after it.
     rawChunkBatch = undefined;
     const item: MergeStreamItem = {
+      seq: nextSeq++,
       reader: stream.getReader(),
       pipeTask: handledPipeTask,
       orderedFinish: options?.orderedFinish,
       written: options?.written,
       delivered: 0,
+      idleAt: partBarriers,
+      inBusy: false,
       gate: rawBarrier,
       holds: [],
       pathMapper:
@@ -300,7 +378,16 @@ export const createMergeStream = () => {
           ? createPathMergeMapper(() => contentCounter.up())
           : undefined,
     };
-    list.push(item);
+    list.add(item);
+    const { written } = item;
+    if (written) {
+      countedItems++;
+      written.onWrite = () => noteWrite(item);
+      if (written.count > 0) {
+        item.inBusy = true;
+        busy.add(item);
+      }
+    }
     handlePull(item);
   };
 
@@ -318,7 +405,7 @@ export const createMergeStream = () => {
     seal() {
       if (sealed || cancelled || errored) return;
       sealed = true;
-      if (list.length === 0 && pendingRawBatches === 0) controller.close();
+      if (list.size === 0 && pendingRawBatches === 0) controller.close();
     },
     addStream,
     enqueuePartStart(chunk: AssistantStreamChunk) {

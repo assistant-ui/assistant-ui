@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it, vi } from "vitest";
 import { HttpAgent } from "@ag-ui/client";
 import {
@@ -8,6 +9,14 @@ import {
 } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
 import { makeLogger } from "./logger";
+
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
+    .getMessageRepository()
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const userMessage: AppendMessage = {
   role: "user",
@@ -107,7 +116,9 @@ const snapshot = (wire: Wire, ...rest: object[]) => ({
 });
 
 function statuses(core: AgUiThreadController) {
-  const answer = core.getMessages().find(({ id }) => id === "answer")!;
+  const answer = core
+    .getMessages()
+    .find((message) => agUiWireMessageId(message) === "answer")!;
   const toolCall = answer.content.find(
     (part) => part.type === "tool-call" && part.toolCallId === "task",
   );
@@ -119,7 +130,9 @@ function statuses(core: AgUiThreadController) {
 }
 
 function taskPartFor(core: AgUiThreadController, messageId: string) {
-  const message = core.getMessages().find(({ id }) => id === messageId);
+  const message = core
+    .getMessages()
+    .find((message) => agUiWireMessageId(message) === messageId);
   if (message?.role !== "assistant") return undefined;
   return message.content.find(
     (part) => part.type === "tool-call" && part.toolCallId === "task",
@@ -240,6 +253,255 @@ describe("AgUiThreadController snapshot head moves", () => {
     expect(core.getPendingInterrupts()).toBeNull();
   });
 
+  it("keeps one tool-call owner through a joined snapshot head move and approval resume", async () => {
+    const interrupt = {
+      id: "approval",
+      reason: "tool_call",
+      toolCallId: "task",
+    };
+    const events = vi
+      .fn<(wire: Wire) => object[]>()
+      .mockImplementationOnce((wire) => [
+        start,
+        ...answerText,
+        ...taskCallEvents,
+        snapshot(wire, otherRecord),
+        {
+          ...finished,
+          outcome: { type: "interrupt", interrupts: [interrupt] },
+        },
+      ])
+      .mockReturnValue([start, taskResult, finished]);
+    const core = createController(events, {
+      joinAdjacentAssistantMessages: true,
+    });
+
+    await core.append(userMessage);
+
+    expect(
+      core
+        .getMessages()
+        .filter((message) => message.role === "assistant")
+        .flatMap(({ content }) => content)
+        .filter(
+          (part) => part.type === "tool-call" && part.toolCallId === "task",
+        ),
+    ).toHaveLength(1);
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval" },
+    });
+    expect(core.getPendingInterrupts()).toEqual({
+      messageId: "other",
+      interrupts: [interrupt],
+    });
+
+    await core.respondToToolApproval({
+      approvalId: "approval",
+      approved: true,
+    });
+
+    expect(events).toHaveBeenCalledTimes(2);
+    expect(
+      core
+        .getMessages()
+        .filter((message) => message.role === "assistant")
+        .flatMap(({ content }) => content)
+        .filter(
+          (part) => part.type === "tool-call" && part.toolCallId === "task",
+        ),
+    ).toHaveLength(1);
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      approval: { id: "approval", approved: true },
+      result: "done",
+    });
+    expect(core.getPendingInterrupts()).toBeNull();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("routes later tool-call args and results to one owner after a joined snapshot head move", async () => {
+    const core = createController(
+      (wire) => [
+        start,
+        ...answerText,
+        taskCallEvents[0]!,
+        { type: "TOOL_CALL_ARGS", toolCallId: "task", delta: '{"q":' },
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            ...wire.messages,
+            {
+              ...answerRecord,
+              toolCalls: [
+                {
+                  id: "task",
+                  type: "function",
+                  function: { name: "task", arguments: '{"q":' },
+                },
+              ],
+            },
+            otherRecord,
+          ],
+        },
+        { type: "TOOL_CALL_ARGS", toolCallId: "task", delta: '"x"}' },
+        taskCallEvents[1]!,
+        taskResult,
+        finished,
+      ],
+      { joinAdjacentAssistantMessages: true },
+    );
+
+    await core.append(userMessage);
+
+    expect(
+      core
+        .getMessages()
+        .filter((message) => message.role === "assistant")
+        .flatMap(({ content }) => content)
+        .filter(
+          (part) => part.type === "tool-call" && part.toolCallId === "task",
+        ),
+    ).toHaveLength(1);
+    expect(taskPartFor(core, "answer")).toMatchObject({
+      argsText: '{"q":"x"}',
+      args: { q: "x" },
+      result: "done",
+    });
+    expect(message(core, "other")?.content).toEqual([
+      { type: "text", text: "Next step." },
+    ]);
+    expect(message(core, "answer")?.status?.type).toBe("complete");
+  });
+
+  it("joins a prior assistant record under the active text record id", async () => {
+    const { core, sampled: assistantId } = await sampleBetween(
+      [start, ...answerText],
+      [
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            question,
+            { ...answerRecord, id: "step", content: "Checking the task." },
+            {
+              id: "tool-task",
+              role: "tool",
+              toolCallId: "task",
+              content: "done",
+            },
+            { id: "answer", role: "assistant", content: "Let me check." },
+          ],
+        },
+        finished,
+      ],
+      (core) => localId(core, "answer"),
+      { joinAdjacentAssistantMessages: true },
+    );
+
+    expect(
+      core.getMessages().filter(({ role }) => role === "assistant"),
+    ).toMatchObject([
+      {
+        id: assistantId,
+        content: [
+          { type: "text", text: "Checking the task." },
+          { type: "tool-call", toolCallId: "task", result: "done" },
+          { type: "text", text: "Let me check." },
+        ],
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("keeps a text-only continuation joined to the active assistant during a mid-run snapshot", async () => {
+    const { core, sampled } = await sampleBetween(
+      [
+        ...openAnswer,
+        {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            question,
+            { id: "step", role: "assistant", content: "Let me check." },
+            { id: "answer", role: "assistant", content: "a1" },
+          ],
+        },
+      ],
+      [
+        { type: "TEXT_MESSAGE_CONTENT", messageId: "answer", delta: "a2" },
+        answerEnd,
+        finished,
+      ],
+      (core) => core.getMessages().filter(({ role }) => role === "assistant"),
+      { joinAdjacentAssistantMessages: true },
+    );
+
+    expect(sampled).toMatchObject([
+      {
+        id: localId(core, "answer"),
+        content: [
+          { type: "text", text: "Let me check." },
+          { type: "text", text: "a1" },
+        ],
+        status: { type: "running" },
+      },
+    ]);
+    expect(
+      core.getMessages().filter(({ role }) => role === "assistant"),
+    ).toMatchObject([
+      {
+        id: localId(core, "answer"),
+        status: { type: "complete" },
+      },
+    ]);
+    expect(message(core, "answer")?.content).toContainEqual({
+      type: "text",
+      text: "a1a2",
+    });
+  });
+
+  it.each(["before", "after"] as const)(
+    "keeps one tool-call owner when a joined snapshot places text %s the preserved synthetic container",
+    async (position) => {
+      const container = { ...answerRecord, id: "task", content: "" };
+      const records =
+        position === "before"
+          ? [otherRecord, container]
+          : [container, otherRecord];
+      const core = createController(
+        (wire) => [
+          start,
+          {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [...wire.messages, container],
+          },
+          {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [...wire.messages, ...records],
+          },
+          finished,
+        ],
+        { joinAdjacentAssistantMessages: true },
+      );
+
+      await core.append(userMessage);
+
+      expect(
+        core
+          .getMessages()
+          .filter((message) => message.role === "assistant")
+          .flatMap(({ content }) => content)
+          .filter(
+            (part) => part.type === "tool-call" && part.toolCallId === "task",
+          ),
+      ).toHaveLength(1);
+      expect(taskPartFor(core, "task")).toMatchObject({
+        toolCallId: "task",
+        toolName: "task",
+      });
+      expect(message(core, "other")?.content).toEqual([
+        { type: "text", text: "Next step." },
+      ]);
+    },
+  );
+
   it("keeps a moved-off interrupt answerable after a snapshot to a user head", async () => {
     const interrupt = {
       id: "approval",
@@ -265,7 +527,7 @@ describe("AgUiThreadController snapshot head moves", () => {
       approval: { id: "approval" },
     });
     expect(core.getPendingInterrupts()).toEqual({
-      messageId: "answer",
+      messageId: localId(core, "answer"),
       interrupts: [interrupt],
     });
 
@@ -291,7 +553,7 @@ describe("AgUiThreadController snapshot head moves", () => {
             payload: { approved: true },
           },
         ],
-        interruptedMessageId: "answer",
+        interruptedMessageId: localId(core, "answer"),
       },
     );
     expect(core.getPendingInterrupts()).toBeNull();
@@ -314,7 +576,7 @@ describe("AgUiThreadController snapshot head moves", () => {
     await core.append(userMessage);
 
     expect(core.getPendingInterrupts()).toEqual({
-      messageId: "answer",
+      messageId: localId(core, "answer"),
       interrupts: [interrupt],
     });
 
@@ -407,7 +669,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       }
       expect(headId).toBe("other");
       expect(
-        vi.mocked(history.append).mock.calls.map(([item]) => item.message.id),
+        vi
+          .mocked(history.append)
+          .mock.calls.map(([item]) => agUiWireMessageId(item.message)),
       ).toEqual([expect.any(String), "answer", "other"]);
     },
   );
@@ -609,12 +873,17 @@ describe("AgUiThreadController snapshot head moves", () => {
     expect(core.isRunning()).toBe(false);
     expect(statuses(core).answer).toBe("complete");
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.status?.type,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.status
+        ?.type,
     ).toBe("complete");
     expect(taskPartFor(core, "answer")).toMatchObject({ result: "done" });
     expect(taskPartFor(core, "other")).toBeUndefined();
     expect(
-      core.getMessages().find(({ id }) => id === "answer")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "answer")?.content,
     ).toEqual([
       { type: "text", text: "Let me check." },
       {
@@ -628,7 +897,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       },
     ]);
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.content,
     ).toEqual([{ type: "text", text: "Next step." }]);
   });
 
@@ -651,10 +922,15 @@ describe("AgUiThreadController snapshot head moves", () => {
       subagent: "complete",
     });
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.status?.type,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.status
+        ?.type,
     ).toBe("complete");
     expect(
-      core.getMessages().find(({ id }) => id === "answer")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "answer")?.content,
     ).toEqual([
       { type: "text", text: "Let me check." },
       {
@@ -676,7 +952,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       },
     ]);
     expect(
-      core.getMessages().find(({ id }) => id === "other")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "other")?.content,
     ).toEqual([{ type: "text", text: "Next step." }]);
   });
 
@@ -702,7 +980,9 @@ describe("AgUiThreadController snapshot head moves", () => {
       expect(core.isRunning()).toBe(false);
       expect(statuses(core).answer).toBe("complete");
       expect(
-        core.getMessages().find(({ id }) => id === "answer")?.content,
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "answer")?.content,
       ).toEqual([
         { type: "text", text: "Let me check." },
         {
@@ -715,12 +995,14 @@ describe("AgUiThreadController snapshot head moves", () => {
           unstable_toolMessageId: "tool-task",
         },
       ]);
-      expect(core.getMessages().find(({ id }) => id === "other")).toMatchObject(
-        {
-          status: { type: "complete" },
-          content: [{ type: "text", text: "Next step. Before. After." }],
-        },
-      );
+      expect(
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "other"),
+      ).toMatchObject({
+        status: { type: "complete" },
+        content: [{ type: "text", text: "Next step. Before. After." }],
+      });
     },
   );
 
@@ -762,12 +1044,13 @@ const moveSnapshot = { type: "MESSAGES_SNAPSHOT", messages: moveRecords };
 const answerEnd = { type: "TEXT_MESSAGE_END", messageId: "answer" };
 
 const message = (core: AgUiThreadController, id: string) =>
-  core.getMessages().find((entry) => entry.id === id);
+  core.getMessages().find((entry) => agUiWireMessageId(entry) === id);
 
 async function sampleBetween(
   head: object[],
   tail: object[],
   sample: (core: AgUiThreadController) => unknown,
+  options: Partial<ConstructorParameters<typeof AgUiThreadController>[0]> = {},
 ) {
   const encode = (events: object[]) =>
     new TextEncoder().encode(
@@ -802,6 +1085,7 @@ async function sampleBetween(
     logger: makeLogger(),
     showThinking: false,
     onError: () => {},
+    ...options,
   });
   const run = core.append(userMessage);
   await headSent;

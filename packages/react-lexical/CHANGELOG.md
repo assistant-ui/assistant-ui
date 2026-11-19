@@ -1,5 +1,13 @@
 # @assistant-ui/react-lexical
 
+## 0.2.24
+
+### Patch Changes
+
+- [#10553](https://github.com/assistant-ui/assistant-ui/pull/10553) [`d156e79`](https://github.com/assistant-ui/assistant-ui/commit/d156e7987ddf4aca65feb89df8d23f29d8b1bc63) - fix: omit `aria-expanded` from `unstable_useTriggerPopoverAriaProps` and `ComposerPrimitive.Input` so textbox inputs do not emit invalid ARIA attributes when a trigger popover is open ([@chuganzy](https://github.com/chuganzy))
+
+- [#10649](https://github.com/assistant-ui/assistant-ui/pull/10649) [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524) - share composition, attachment key, and message id helpers across bindings without changing their behavior. ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.23
 
 ### Patch Changes

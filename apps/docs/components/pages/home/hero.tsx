@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
@@ -65,29 +65,11 @@ export function Hero({
           </p>
         </div>
 
-        <div
-          className="hero-rise flex flex-wrap items-center gap-3"
+        <HeroCta
+          section="hero"
+          className="hero-rise"
           style={{ animationDelay: "700ms" }}
-        >
-          <SetupCommandPrompt page="home" section="hero" />
-          <Button
-            variant="ghost"
-            nativeButton={false}
-            className="group/expert hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent"
-            render={
-              <Link
-                href={CONTACT_SALES_PATH}
-                onClick={() => analytics.cta.clicked("contact_sales", "hero")}
-              />
-            }
-          >
-            Talk to an expert
-            <ArrowRightIcon
-              aria-hidden
-              className="transition-transform duration-200 group-hover/expert:translate-x-1"
-            />
-          </Button>
-        </div>
+        />
 
         <div
           className="hero-rise text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-3 text-[13px]"
@@ -124,5 +106,42 @@ export function Hero({
         </div>
       </div>
     </section>
+  );
+}
+
+/** The hero's call to action: the setup prompt plus a link to sales. */
+export function HeroCta({
+  section,
+  className,
+  style,
+}: {
+  section: string;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <div
+      className={cn("flex flex-wrap items-center gap-3", className)}
+      style={style}
+    >
+      <SetupCommandPrompt page="home" section={section} />
+      <Button
+        variant="ghost"
+        nativeButton={false}
+        className="group/expert hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent"
+        render={
+          <Link
+            href={CONTACT_SALES_PATH}
+            onClick={() => analytics.cta.clicked("contact_sales", section)}
+          />
+        }
+      >
+        Talk to an expert
+        <ArrowRightIcon
+          aria-hidden
+          className="transition-transform duration-200 group-hover/expert:translate-x-1"
+        />
+      </Button>
+    </div>
   );
 }

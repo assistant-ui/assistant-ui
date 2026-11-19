@@ -30,6 +30,11 @@ export type ReasoningMessagePart = {
   /** A stable identity the host supplies for this part, used as its render and store key when non-empty and no other part of the same type in the message shares it; otherwise the part is keyed by its type and position. */
   readonly id?: string;
   readonly text: string;
+  /**
+   * Reasoning content is unavailable; renderers may show a marker instead.
+   * @deprecated Experimental since 2026-11-19. Not scheduled for removal; the API may change in any release.
+   */
+  readonly unstable_redacted?: boolean;
   readonly status?: MessagePartStreamStatus;
   /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   readonly unstable_summary?: string;
@@ -367,6 +372,12 @@ export type ToolCallMessagePart<
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   /** Human-input request that must be resolved before the run can continue. */
   readonly interrupt?: { type: "human"; payload: unknown };
+  /**
+   * The call is answered outside the frontend, such as by a provider-executed
+   * tool, so a frontend tool of the same name never executes it, whether or
+   * not a result arrives.
+   */
+  readonly providerExecuted?: boolean | undefined;
   /** Server-side approval gate. `respondToApproval` may only be called while `approved` is undefined and no `resolution` is recorded. */
   readonly approval?: {
     readonly id: string;

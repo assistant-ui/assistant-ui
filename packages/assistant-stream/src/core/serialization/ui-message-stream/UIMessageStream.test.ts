@@ -323,6 +323,68 @@ describe("UIMessageStreamDecoder", () => {
     expect(result?.result).toEqual({ temp: 72 });
   });
 
+  it.each([
+    { label: "output", output: { type: "tool-output-available", output: 1 } },
+    {
+      label: "output error",
+      output: { type: "tool-output-error", errorText: "x" },
+    },
+  ])(
+    "keeps the provider-executed mark on a call its $label opens",
+    async ({ output }) => {
+      const events = [
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          ...output,
+          toolCallId: "call_abc",
+          providerExecuted: true,
+        }),
+        "[DONE]",
+      ];
+
+      const chunks = await collectChunks(
+        createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+      );
+
+      const toolCallStart = chunks.find(
+        (c): c is AssistantStreamChunk & { type: "part-start" } =>
+          c.type === "part-start" && c.part.type === "tool-call",
+      );
+      expect(toolCallStart?.part).toMatchObject({ providerExecuted: true });
+    },
+  );
+
+  it("leaves a dynamic call without providerExecuted unmarked", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "tool-input-start",
+        toolCallId: "call_abc",
+        toolName: "web_search",
+        dynamic: true,
+      }),
+      JSON.stringify({
+        type: "tool-input-available",
+        toolCallId: "call_abc",
+        toolName: "web_search",
+        input: { query: "weather" },
+        dynamic: true,
+      }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    const toolCallStart = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "part-start" } =>
+        c.type === "part-start" && c.part.type === "tool-call",
+    );
+    expect(toolCallStart?.part).toBeDefined();
+    expect(toolCallStart?.part).not.toHaveProperty("providerExecuted");
+  });
+
   it("should decode source-url parts", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),
@@ -524,6 +586,75 @@ describe("UIMessageStreamDecoder", () => {
       name: "weather",
       data: { temp: 72, city: "NYC" },
       transient: undefined,
+    });
+  });
+
+  it("should pass the wire id of a data-* chunk to onData", async () => {
+    const onData = vi.fn();
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "data-weather",
+        id: "weather-1",
+        data: { status: "loading" },
+      }),
+      JSON.stringify({
+        type: "data-weather",
+        id: "weather-1",
+        data: { status: "success" },
+      }),
+      JSON.stringify({
+        type: "data-weather",
+        id: "weather-2",
+        data: { status: "loading" },
+      }),
+      JSON.stringify({ type: "data-weather", data: { status: "loading" } }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    await collectChunks(
+      stream.pipeThrough(new UIMessageStreamDecoder({ onData })),
+    );
+
+    expect(onData.mock.calls.map(([data]) => data.id)).toEqual([
+      "weather-1",
+      "weather-1",
+      "weather-2",
+      undefined,
+    ]);
+  });
+
+  it("should not forward a non-string data-* wire id to onData", async () => {
+    const onData = vi.fn();
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "data-weather",
+        id: 42,
+        data: { status: "loading" },
+      }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    await collectChunks(
+      stream.pipeThrough(new UIMessageStreamDecoder({ onData })),
+    );
+    expect(onData).toHaveBeenCalledExactlyOnceWith({
+      type: "data-weather",
+      name: "weather",
+      data: { status: "loading" },
     });
   });
 

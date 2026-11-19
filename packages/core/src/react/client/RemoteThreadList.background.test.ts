@@ -161,7 +161,6 @@ describe("RemoteThreadList backgroundThreads", () => {
         const aui = handle.getClient();
         await aui.threads.getLoadThreadsPromise();
         await aui.threads.item("main").initialize();
-        flushTapSync(() => {});
         if (backgroundThreads)
           await vi.waitFor(() =>
             expect(adapter.generateTitle).toHaveBeenCalledTimes(1),

@@ -1,7 +1,7 @@
 import type { MDXComponents } from "mdx/types";
 import type { CSSProperties, ComponentProps, ReactNode } from "react";
 import { Callout } from "@/components/ui/callout";
-import { AgentSetup } from "@/components/shared/shop-entry";
+import { AgentSetup } from "@/components/shared/lazy-agent-setup";
 import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { ManualSteps } from "@/components/shared/manual-steps";
 import { AnchorAlias } from "@/components/shared/anchor-alias";

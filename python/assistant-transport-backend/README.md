@@ -36,7 +36,7 @@ cp .env.example .env
 Default configuration:
 ```env
 # Server Configuration
-HOST=0.0.0.0
+HOST=127.0.0.1
 PORT=8000
 DEBUG=true
 
@@ -54,8 +54,10 @@ assistant-transport-backend
 python main.py
 
 # Or using uvicorn
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+`HOST` applies to the first two commands. The uvicorn command ignores it and uses its own `--host`, so change that flag for remote access. Browser clients on another machine also need their frontend origin in `CORS_ORIGINS`.
 
 The server will be available at:
 - **API**: http://localhost:8000
@@ -193,7 +195,7 @@ curl -X POST http://localhost:8000/assistant \
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HOST` | Server host | `0.0.0.0` |
+| `HOST` | Server host (set `0.0.0.0` only to accept other machines) | `127.0.0.1` |
 | `PORT` | Server port | `8000` |
 | `DEBUG` | Enable debug mode | `false` |
 | `LOG_LEVEL` | Logging level | `info` |

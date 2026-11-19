@@ -162,7 +162,7 @@ const elementsRegistryItems: RegistryItem[] = [
     type: "registry:component",
     title: "Elements Href",
     description:
-      "Link safety for the elements family: reducing a model's or a tool's URL to a target a browser can follow without running script.",
+      "Link safety for the elements family: reducing a model's or a tool's URL to a target a browser can follow without running script, and deciding which URLs may load before the user acts.",
     files: [
       {
         type: "registry:component",
@@ -556,6 +556,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Files as received rather than staged: an image to open, a document with its page count.",
     file: "message-attachment.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["href"],
   }),
   createElementRegistryItem({
     slug: "reviewable-diff",
@@ -608,6 +609,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Audio and video a tool returned, played inline without leaving the thread.",
     file: "media-player.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["href"],
   }),
   createElementRegistryItem({
     slug: "trace-waterfall",
@@ -1966,7 +1968,7 @@ export const registry: RegistryItem[] = [
     type: "registry:component",
     title: "Sources",
     description:
-      "Display URL sources with favicon, title, and an external link.",
+      "Display URL sources with a domain initial or an opt-in favicon, title, and an external link.",
     files: [
       {
         type: "registry:component",

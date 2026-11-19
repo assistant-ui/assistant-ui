@@ -7,7 +7,7 @@ import { XIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
 import { configMatchesPreset } from "./presets";
-import { encodeConfig } from "@/lib/playground-config-codec";
+import { configIssue, encodeConfig } from "@/lib/playground-config-codec";
 import { BASE_URL } from "@/lib/constants";
 import { analytics } from "@/lib/analytics";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
@@ -67,6 +67,9 @@ export function CreateDialog({
 
             <CommandBlock
               label={commands.alternative.label}
+              {...(commands.alternative.description && {
+                description: commands.alternative.description,
+              })}
               {...(commands.alternative.command && {
                 command: commands.alternative.command,
               })}
@@ -192,11 +195,12 @@ interface CliCommands {
   summary: string[];
 }
 
-function generateCliCommands(config: BuilderConfig): CliCommands {
+export function generateCliCommands(config: BuilderConfig): CliCommands {
   const { components } = config;
 
   const matchingPreset = configMatchesPreset(config);
   const playgroundInitUrl = `${BASE_URL}/playground/init`;
+  const issue = matchingPreset ? undefined : configIssue(config);
   const presetUrl = matchingPreset
     ? `${playgroundInitUrl}?preset=${matchingPreset.id}`
     : `${playgroundInitUrl}?c=${encodeConfig(config)}`;
@@ -246,14 +250,21 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
   ];
 
   return {
-    primary: {
-      label: "One-command setup",
-      description: "Install with your current configuration",
-      command: `npx assistant-ui@latest create my-app --preset "${presetUrl}"`,
-    },
+    primary: issue
+      ? {
+          label: "One-command setup",
+          description: `This configuration has no install link yet. Fix ${issue}, or set up manually below.`,
+        }
+      : {
+          label: "One-command setup",
+          description: "Install with your current configuration",
+          command: `npx assistant-ui@latest create my-app --preset "${presetUrl}"`,
+        },
     alternative: {
       label: "Using shadcn",
-      command: `npx shadcn@latest add "${presetUrl}"`,
+      ...(issue
+        ? { description: "Needs a valid configuration." }
+        : { command: `npx shadcn@latest add "${presetUrl}"` }),
     },
     manual: [
       {

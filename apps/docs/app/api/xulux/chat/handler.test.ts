@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { XuluxAgentDefinition } from "./agents";
 
 const mocks = vi.hoisted(() => ({
@@ -88,10 +88,11 @@ const agent: XuluxAgentDefinition = {
 const request = (
   config?: Record<string, unknown>,
   overrides?: Record<string, unknown>,
+  headers?: Record<string, string>,
 ) =>
   new Request("https://www.assistant-ui.com/api/xulux/chat", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify({
       sessionId: "xulux-chat-session",
       ...(config ? { config } : {}),
@@ -173,17 +174,23 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
     });
 
-    const response = await createXuluxChatHandler(agent)(request());
+    const response = await createXuluxChatHandler(agent)(
+      request(undefined, undefined, {
+        "x-vercel-forwarded-for": "203.0.113.7",
+      }),
+    );
 
     expect(response.status).toBe(200);
     expect(mocks.beginTurn).toHaveBeenCalledWith(
       `${publicSession.id}:xulux-chat-session`,
       publicSession.id,
+      "203.0.113.7",
     );
     expect(mocks.beginTurn).not.toHaveBeenCalledWith(
       "xulux-chat-session",
@@ -201,6 +208,8 @@ describe("createXuluxChatHandler access boundary", () => {
       publicSession.id,
       usage,
       "2026-08-27",
+      "203.0.113.7",
+      50_000,
     );
   });
 
@@ -214,6 +223,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -236,7 +246,39 @@ describe("createXuluxChatHandler access boundary", () => {
       publicSession.id,
       { inputTokens: 30, outputTokens: 12 },
       "2026-08-27",
+      null,
+      50_000,
     );
+  });
+
+  it("leaves the reservation charged when the model call fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    mocks.requireSession.mockReturnValue({
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.beginTurn.mockResolvedValue({
+      denied: null,
+      budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
+    });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response("ok"),
+    });
+
+    const response = await createXuluxChatHandler(agent)(request());
+
+    expect(response.status).toBe(200);
+    const options = mocks.streamText.mock.calls[0]?.[0] as {
+      onError: (result: { error: unknown }) => Promise<void>;
+    };
+    await options.onError({ error: new Error("model call failed") });
+
+    expect(mocks.finishTurn).not.toHaveBeenCalled();
   });
 
   it("forwards the request abort signal to streamText", async () => {
@@ -248,6 +290,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -269,6 +312,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -292,6 +336,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),
@@ -317,6 +362,7 @@ describe("createXuluxChatHandler access boundary", () => {
     mocks.beginTurn.mockResolvedValue({
       denied: null,
       budgetDate: "2026-08-27",
+      reservedMicroUsd: 50_000,
     });
     mocks.streamText.mockReturnValue({
       toUIMessageStreamResponse: () => new Response("ok"),

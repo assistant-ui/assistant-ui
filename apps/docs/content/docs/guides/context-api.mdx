@@ -443,7 +443,7 @@ Scopes are resolved during render and bound into the client. State updates never
 const aui = useAui();
 
 // Bound to the thread current at this render
-aui.thread.append({ role: "user", content: "Hello" });
+const sayHello = () => aui.thread.append("Hello");
 
 // After a thread switch, the component re-renders with a new client.
 // Accessors read from a previous render keep pointing at the old thread.

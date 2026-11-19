@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useInsertionEffect } from "react";
 import { resource } from "@assistant-ui/tap";
 import {
   Derived,
@@ -49,3 +49,14 @@ export const messageDerived = () =>
     get: (aui: AnyClient) =>
       aui.thread.message({ index: aui.thread.getState().selected }),
   } as never);
+
+const useThrowingCleanup = () => {
+  useInsertionEffect(
+    () => () => {
+      throw new Error("cleanup failed");
+    },
+    [],
+  );
+  return { getState: () => ({}) };
+};
+export const ThrowingCleanup = resource(useThrowingCleanup);

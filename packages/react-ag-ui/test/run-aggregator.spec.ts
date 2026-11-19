@@ -270,7 +270,7 @@ describe("RunAggregator", () => {
       false,
     );
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
-      { id: "m1", encryptedValue: "sig-1" },
+      { id: "m1", encryptedValue: "sig-1", index: 0 },
     ]);
   });
 
@@ -456,7 +456,7 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
-      { id: "lead", encryptedValue: "sig-lead" },
+      { id: "lead", encryptedValue: "sig-lead", index: 0 },
       { id: "trail", encryptedValue: "sig-trail", after: true },
     ]);
   });
@@ -621,7 +621,7 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
-      { id: "m1", encryptedValue: "sig-1" },
+      { id: "m1", encryptedValue: "sig-1", index: 0 },
     ]);
   });
 

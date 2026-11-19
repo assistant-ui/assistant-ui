@@ -24,7 +24,21 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
     return existing;
   }
 
-  const scrollPosition = scrollContainer.scrollTop;
+  const ownerDocument = scrollContainer.ownerDocument;
+  // A body scrolls the viewport only while the root leaves overflow visible;
+  // otherwise its overflow does not propagate and it owns its scroll box.
+  const rootStyle = getComputedStyle(ownerDocument.documentElement);
+  const rootClips = (value: string) => value !== "" && value !== "visible";
+  const isViewportScroller =
+    scrollContainer === ownerDocument.documentElement ||
+    scrollContainer === ownerDocument.scrollingElement ||
+    (scrollContainer === ownerDocument.body &&
+      !rootClips(rootStyle.overflowX) &&
+      !rootClips(rootStyle.overflowY));
+  const positionElement = isViewportScroller
+    ? (ownerDocument.scrollingElement ?? ownerDocument.documentElement)
+    : scrollContainer;
+  const scrollPosition = positionElement.scrollTop;
   const scrollbarWidth = scrollContainer.style.scrollbarWidth;
 
   // Hiding the scrollbar collapses its gutter on classic scrollbars, which
@@ -44,12 +58,8 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
   // viewport, and only then does the viewport measure apply. A body that
   // scrolls in its own right is measured by the element formula like any
   // other scroller, whether or not the viewport is scrolling too.
-  const ownerDocument = scrollContainer.ownerDocument;
-  const isRootScroller =
-    scrollContainer === ownerDocument.documentElement ||
-    scrollContainer === ownerDocument.body;
   const scrollbarSize =
-    isRootScroller && elementScrollbarSize <= 0
+    isViewportScroller && elementScrollbarSize <= 0
       ? (ownerDocument.defaultView?.innerWidth ?? 0) -
         ownerDocument.documentElement.clientWidth
       : elementScrollbarSize;
@@ -66,13 +76,18 @@ const acquireScrollLock = (scrollContainer: HTMLElement) => {
     scrollContainer.style[paddingSide] = previousPadding;
   };
 
-  const resetPosition = () => (scrollContainer.scrollTop = scrollPosition);
-  scrollContainer.addEventListener("scroll", resetPosition);
+  const resetPosition = () =>
+    positionElement.scrollTo({ top: scrollPosition, behavior: "instant" });
+  // Viewport scroll events target the document, not the root element.
+  const scrollEventTarget = isViewportScroller
+    ? ownerDocument
+    : scrollContainer;
+  scrollEventTarget.addEventListener("scroll", resetPosition);
 
   const lock = {
     count: 1,
     restore: () => {
-      scrollContainer.removeEventListener("scroll", resetPosition);
+      scrollEventTarget.removeEventListener("scroll", resetPosition);
       restoreStyles();
     },
   };

@@ -31,10 +31,10 @@ type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text"> & {
  * have a part scope), use `MarkdownText` directly and pass `text`/`status`
  * as props.
  */
-const MarkdownTextPrimitive = ({
+function MarkdownTextPrimitive({
   preprocess,
   ...props
-}: MarkdownTextPrimitiveProps) => {
+}: MarkdownTextPrimitiveProps) {
   const part = useAuiState((s) => {
     if (s.part.type !== "text" && s.part.type !== "reasoning")
       throw new Error(
@@ -51,7 +51,7 @@ const MarkdownTextPrimitive = ({
   );
 
   return <MarkdownText text={text} {...props} />;
-};
+}
 
 MarkdownTextPrimitive.displayName = "MarkdownTextPrimitive";
 

@@ -50,7 +50,7 @@ export function DemoCard({
     <div
       ref={rootRef}
       className={cn(
-        "group/plate flex flex-col",
+        "group/plate flex min-w-0 flex-col",
         wide && "md:col-span-2 xl:col-span-3",
       )}
     >

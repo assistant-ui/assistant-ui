@@ -15,6 +15,7 @@ import {
 import {
   type ComponentRef,
   type FC,
+  type MouseEvent as ReactMouseEvent,
   forwardRef,
   memo,
   useDeferredValue,
@@ -87,9 +88,68 @@ const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
 // unrecognized shape falls back to that default, which hast-util-sanitize
 // shallow-merges, so a partial schema here would strip every unlisted tag.
 const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
-const streamdownSanitizeSchema = (
-  Array.isArray(sanitizeEntry) ? sanitizeEntry[1] : defaultSchema
-) as SanitizeSchema;
+
+// Streamdown clears the clobber prefix, so an `id` or `name` from model output
+// would land on the element as written and could shadow properties of
+// `document` or `window`. Every id and name gets this prefix, and in-page
+// links reach them through followPrefixedFragment.
+const CLOBBER_PREFIX = "user-content-";
+
+const streamdownSanitizeSchema: SanitizeSchema = {
+  ...((Array.isArray(sanitizeEntry)
+    ? sanitizeEntry[1]
+    : defaultSchema) as SanitizeSchema),
+  clobberPrefix: CLOBBER_PREFIX,
+};
+
+/**
+ * In-page links keep the `#id` the markdown wrote, while the sanitize step
+ * prefixes the ids they point at. Streamdown renders each block on its own, so
+ * a link and its target are often in different trees and cannot be matched
+ * while rendering. A click on `#id` moves focus and scroll to
+ * `user-content-id` when the message has that id. It leaves the URL alone, so
+ * a host's hash router is not affected. Only plain anchors get here: with
+ * `linkSafety` on (the default), Streamdown renders links as buttons. The
+ * prefixed id wins over an exact match, because the exact
+ * match is usually a different model id that sanitize prefixed (footnotes are
+ * the common case). Otherwise the browser handles the link as written, which
+ * reaches ids a custom plugin added unprefixed.
+ */
+function followPrefixedFragment(event: ReactMouseEvent<HTMLDivElement>) {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  ) {
+    return;
+  }
+  const anchor = (event.target as Element | null)?.closest?.("a[href^='#']");
+  if (!anchor || !event.currentTarget.contains(anchor)) return;
+  let id: string;
+  try {
+    id = decodeURIComponent(anchor.getAttribute("href")?.slice(1) ?? "");
+  } catch {
+    return;
+  }
+  if (!id) return;
+  const target = [...event.currentTarget.querySelectorAll("[id]")].find(
+    (element) => element.id === CLOBBER_PREFIX + id,
+  );
+  if (!target) return;
+  event.preventDefault();
+  if (target instanceof HTMLElement || target instanceof SVGElement) {
+    // Elements that cannot take focus get tabindex -1, which makes them a
+    // focus target without adding them to the tab order.
+    if (target.tabIndex < 0 && !target.hasAttribute("tabindex")) {
+      target.tabIndex = -1;
+    }
+    target.focus({ preventScroll: true });
+  }
+  target.scrollIntoView?.();
+}
 
 function buildSecuritySanitizeSchema(
   allowedTags: AllowedTags | undefined,
@@ -257,13 +317,23 @@ export const StreamdownTextPrimitive = forwardRef<
       return classes || undefined;
     }, [containerClassName, containerProps?.className]);
 
-    const rehypePlugins = useMemo(() => {
-      if (!security) return userRehypePlugins;
-      return [
-        ...buildSecurityRehypePlugins(security, allowedTags),
-        ...(userRehypePlugins ?? []),
-      ];
-    }, [allowedTags, security, userRehypePlugins]);
+    // The sanitize pipeline always runs first: custom plugins extend it rather
+    // than replace it, and without `security` it uses Streamdown's allow-all
+    // URL policy.
+    // Inline `security`, `allowedTags` and `rehypePlugins` values are fresh
+    // every render, so the pipeline is keyed on their content and the merged
+    // list keeps its entries' identities; otherwise the memoized body would
+    // re-parse on every render.
+    const securityKey = JSON.stringify([security ?? {}, allowedTags ?? null]);
+    const securityPlugins = useMemo(
+      () => buildSecurityRehypePlugins(security ?? {}, allowedTags),
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- securityKey is the content of security and allowedTags
+      [securityKey],
+    );
+    const rehypePlugins = useMemo(
+      () => [...securityPlugins, ...(userRehypePlugins ?? [])],
+      [securityPlugins, userRehypePlugins],
+    );
 
     const optionalProps = {
       ...(className && { className }),
@@ -279,7 +349,7 @@ export const StreamdownTextPrimitive = forwardRef<
       ...(resolvedPlugins && { plugins: resolvedPlugins }),
       ...(resolvedShikiTheme && { shikiTheme: resolvedShikiTheme }),
       ...(remarkRehypeOptions && { remarkRehypeOptions }),
-      ...(rehypePlugins && { rehypePlugins }),
+      rehypePlugins,
       ...(BlockComponent && { BlockComponent }),
       ...(parseMarkdownIntoBlocksFn && { parseMarkdownIntoBlocksFn }),
     };
@@ -298,6 +368,10 @@ export const StreamdownTextPrimitive = forwardRef<
         data-status={status.type}
         {...containerProps}
         className={containerClass}
+        onClick={(event) => {
+          containerProps?.onClick?.(event);
+          followPrefixedFragment(event);
+        }}
       >
         <CodeAdapterContext.Provider value={adapted.codeAdapter}>
           <Body

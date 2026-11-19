@@ -78,7 +78,7 @@ Ids are a prefix and 24 characters: `thread_0…`, `msg_0…`, `run_0…`, `scor
 | List | Cursor | Default page | Maximum |
 |---|---|---|---|
 | `GET /v1/threads`, `GET /v1/projects/threads` | `after`, the last thread id of the page | 20 | 100 |
-| `GET /v1/threads/{thread_id}/messages` and the project variant | `after`, the last message id of the page | 200 | 200 |
+| `GET /v1/threads/{thread_id}/messages` and the project variant | `after`, the message id returned as `next_cursor` | 200 | 200 |
 | `GET /v1/projects/scores` | `after`, the last score id of the page | 50 | 200 |
 | `GET /v1/projects/runs` | `cursor`, an opaque value returned as `next_cursor` | 50 | 100 |
 | MCP `list_threads`, `list_scores`, `list_runs` | `cursor`, opaque, returned as `next_cursor` | 50 | 100 |

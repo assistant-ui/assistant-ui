@@ -227,11 +227,21 @@ export async function POST(req: Request) {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return toolsError;
 
-    // Guard against oversized configs (token inflation / DoS)
-    const configStr = JSON.stringify(builderConfig ?? {});
-    if (configStr.length > 10_000) {
+    // The size cap applies to the config as sent, before parsing drops
+    // unknown keys, and again to what reaches the prompt.
+    if ((JSON.stringify(builderConfig ?? {}) ?? "").length > 10_000) {
       return new Response("Config too large", { status: 400 });
     }
+    // Only the config fields the playground knows reach the prompt, with
+    // their declared types; anything else is dropped or refused.
+    const parsedConfig = updateConfigSchema.safeParse(builderConfig ?? {});
+    if (!parsedConfig.success) {
+      return new Response("Invalid config", { status: 400 });
+    }
+    if (JSON.stringify(parsedConfig.data).length > 10_000) {
+      return new Response("Config too large", { status: 400 });
+    }
+    const configJson = JSON.stringify(parsedConfig.data, null, 2);
 
     const modelConfig = resolveChatModel();
 
@@ -248,7 +258,7 @@ export async function POST(req: Request) {
       {
         system:
           SYSTEM_PROMPT +
-          `\n\n## Current Config State\n\n\`\`\`json\n${JSON.stringify(builderConfig, null, 2)}\n\`\`\``,
+          `\n\n## Current Config State\n\n\`\`\`json\n${configJson}\n\`\`\``,
         messages: prunedMessages,
         maxOutputTokens: 4000,
         stopWhen: stepCountIs(3),

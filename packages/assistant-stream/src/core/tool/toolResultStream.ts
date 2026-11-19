@@ -81,6 +81,14 @@ const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
     isError: true,
   });
 
+const disabledToolResponse = (
+  toolName: string,
+): ToolResponse<ReadonlyJSONValue> =>
+  new ToolResponse({
+    result: `Tool "${toolName}" is disabled.`,
+    isError: true,
+  });
+
 function getToolResponse(
   tools: Record<string, Tool> | undefined,
   abortSignal: AbortSignal,
@@ -93,6 +101,16 @@ function getToolResponse(
   human: InternalHumanCallback,
 ) {
   const tool = tools?.[toolCall.toolName];
+  // A disabled tool is hidden from the model. A call that names a disabled
+  // frontend tool, or any disabled tool with `execute` or `streamCall`, gets
+  // an error result instead of running. Other disabled tools without either
+  // callback remain pending.
+  if (
+    tool?.disabled &&
+    (tool.type === "frontend" || tool.execute || tool.streamCall)
+  ) {
+    return Promise.resolve(disabledToolResponse(toolCall.toolName));
+  }
   if (!tool?.execute) return undefined;
 
   const getResult = async (
@@ -204,7 +222,9 @@ function getToolStreamResponse(
       human(context.toolCallId, payload, context.executionId),
     [TOOL_EXECUTION_ID]: context.executionId,
   } as ToolExecutionContext;
-  return tools?.[context.toolName]?.streamCall?.(reader, executionContext);
+  const tool = tools?.[context.toolName];
+  if (tool?.disabled) return undefined;
+  return tool?.streamCall?.(reader, executionContext);
 }
 
 const isPendingToolCall = (
@@ -213,7 +233,8 @@ const isPendingToolCall = (
   part.type === "tool-call" &&
   part.state !== "result" &&
   part.result === undefined &&
-  part.approval === undefined;
+  part.approval === undefined &&
+  part.providerExecuted !== true;
 
 /** @deprecated Experimental since 2025-04-07. Not scheduled for removal; the API may change in any release. */
 export async function unstable_runPendingTools(

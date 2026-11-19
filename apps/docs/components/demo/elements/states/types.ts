@@ -13,6 +13,11 @@ export interface ElementState {
 
 export type ElementStates = readonly [ElementState, ...ElementState[]];
 
+/** One element's states, or the shared map of the generative templates' states. */
+export type ElementStatesSource =
+  | ElementStates
+  | Readonly<Record<string, ElementStates>>;
+
 export const DEFAULT_STATE_KEY = "default";
 
 export function defineStates<const T extends ElementStates>(states: T): T {

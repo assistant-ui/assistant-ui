@@ -3,6 +3,7 @@ import {
   readJsonBody,
   type AllowedHosts,
 } from "./server/handler";
+import { peerTag } from "./server/peer";
 
 const MOUNT = "/__variants";
 
@@ -26,6 +27,11 @@ export type VariantsRouteOptions = {
    * `server.allowedHosts` semantics: `.example.test` also allows subdomains.
    */
   allowedHosts?: AllowedHosts | undefined;
+  /**
+   * Admits clients outside loopback, for a dev server reached through a
+   * container or VM port mapping. The Host check still applies.
+   */
+  allowRemoteClients?: boolean | undefined;
 };
 
 const handle = async (
@@ -35,19 +41,35 @@ const handle = async (
   const url = new URL(request.url);
   const at = url.pathname.indexOf(MOUNT);
   const path = `${at === -1 ? url.pathname : url.pathname.slice(at + MOUNT.length) || "/"}${url.search}`;
-  const { status, body } = await handleNotesRequest(
-    {
-      method: request.method,
-      path,
-      header: (name) => request.headers.get(name),
-      json: () => readJsonBody(chunks(request.body)),
-    },
-    {
-      root: process.cwd(),
-      dev: process.env.NODE_ENV === "development",
-      allowedHosts: options.allowedHosts,
-    },
-  );
+  const dev = process.env.NODE_ENV === "development";
+  // Subscribed on the first development request only, so production requests
+  // never gain the address header.
+  const remoteAddress = dev
+    ? (request.headers.get(peerTag().header) ?? undefined)
+    : undefined;
+  const { status, body } =
+    dev && remoteAddress === undefined && !options.allowRemoteClients
+      ? {
+          // The request that first loads this module arrives before the
+          // address tag exists; the client retries once on this status.
+          status: 503,
+          body: { error: "client address unknown; retry", retry: true },
+        }
+      : await handleNotesRequest(
+          {
+            method: request.method,
+            path,
+            remoteAddress,
+            header: (name) => request.headers.get(name),
+            json: () => readJsonBody(chunks(request.body)),
+          },
+          {
+            root: process.cwd(),
+            dev,
+            allowedHosts: options.allowedHosts,
+            allowRemoteClients: options.allowRemoteClients,
+          },
+        );
   return new Response(JSON.stringify(body), {
     status,
     headers: {
@@ -66,8 +88,11 @@ const handle = async (
  * export { GET, POST, DELETE } from "@assistant-ui/variants/next";
  * ```
  *
- * They answer 404 unless `NODE_ENV` is `development`, and 403 unless the
- * `Host` is loopback. For another dev host, use `createVariantsRoutes`.
+ * They answer 404 unless `NODE_ENV` is `development`, and 403 unless both the
+ * client address and the `Host` are loopback. The first request after the
+ * route loads arrives before the address hook exists and gets a 503 with
+ * `retry: true`; the sidebar asks again once. For another dev host, or a
+ * client outside loopback, use `createVariantsRoutes`.
  * `next dev` listens on all network interfaces by default. On an untrusted
  * network, start it with `next dev -H 127.0.0.1`.
  */

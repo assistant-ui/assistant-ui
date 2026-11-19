@@ -11,6 +11,11 @@ export const FIRST_LOAD_JS_BUDGETS: Record<string, number> = {
   "/docs/[[...slug]]": 1_085_000,
   // Measured 1,036 kB.
   "/[site]/docs/[[...slug]]": 1_088_000,
+  // Measured 979 kB. Each element page loads only its own demo and states
+  // through element-demos.tsx; a static demo import puts all of them back.
+  "/elements/[slug]": 1_028_000,
+  // Measured 400 kB. Demos load as their cards scroll into view.
+  "/elements": 420_000,
   // Measured 193 kB. The shell every page shares.
   "/_not-found": 203_000,
 };

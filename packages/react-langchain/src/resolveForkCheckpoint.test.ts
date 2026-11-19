@@ -46,26 +46,166 @@ describe("resolveForkCheckpoint", () => {
     expect(client.threads.getHistory).not.toHaveBeenCalled();
   });
 
-  it("falls back to history search when sourceId is not the head message", async () => {
+  it("finds the checkpoint before a source message that is not the head", async () => {
     const client = makeClient([
       {
-        values: { messages: [msg("h1")] },
-        checkpoint: { checkpoint_id: "cp-h1" },
+        values: { messages: [msg("h1"), msg("a1")] },
+        checkpoint: { checkpoint_id: "cp-before-h2" },
       },
     ]);
 
     const result = await resolveForkCheckpoint(
       client,
       "thread-1",
-      [msg("h1"), msg("a1"), msg("h2")],
-      "h1",
-      "h1",
-      metadata({ h2: "cp-head" }),
+      [msg("h1"), msg("a1"), msg("h2"), msg("a2")],
+      "a1",
+      "h2",
+      metadata({ a2: "cp-head" }),
       "messages",
     );
 
-    expect(result).toBe("cp-h1");
+    expect(result).toBe("cp-before-h2");
     expect(client.threads.getHistory).toHaveBeenCalled();
+  });
+
+  it("uses the edited source boundary after a joined multi-tool assistant turn", async () => {
+    const ids = [
+      "h-hi",
+      "a-hi",
+      "h-copy",
+      "ai-a",
+      "tool-a",
+      "ai-b",
+      "tool-b",
+      "ai-c",
+      "tool-c",
+      "ai-summary",
+      "h-followup",
+      "a-followup",
+    ];
+    const messages = ids.map(msg);
+    const client = makeClient([
+      {
+        values: { messages },
+        checkpoint: { checkpoint_id: "cp-after-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 10) },
+        checkpoint: { checkpoint_id: "cp-before-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 4) },
+        checkpoint: { checkpoint_id: "cp-after-first-ai" },
+      },
+    ]);
+
+    const result = await resolveForkCheckpoint(
+      client,
+      "thread-1",
+      messages,
+      "ai-a",
+      "h-followup",
+      undefined,
+      "messages",
+    );
+
+    expect(result).toBe("cp-before-followup");
+  });
+
+  it("uses the longest checkpoint prefix when a cancellation and followup share a step", async () => {
+    const ids = [
+      "h-hi",
+      "a-hi",
+      "h-copy",
+      "ai-a",
+      "tool-a",
+      "ai-b",
+      "tool-b",
+      "ai-c",
+      "cancel-c",
+      "h-followup",
+      "a-followup",
+    ];
+    const messages = ids.map(msg);
+    const client = makeClient([
+      {
+        values: { messages },
+        checkpoint: { checkpoint_id: "cp-after-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 10) },
+        checkpoint: { checkpoint_id: "cp-with-followup" },
+      },
+      {
+        values: { messages: messages.slice(0, 7) },
+        checkpoint: { checkpoint_id: "cp-tool-b" },
+      },
+      {
+        values: { messages: messages.slice(0, 4) },
+        checkpoint: { checkpoint_id: "cp-ai-a" },
+      },
+      {
+        values: { messages: messages.slice(0, 8) },
+        checkpoint: { checkpoint_id: "cp-ai-c" },
+      },
+    ]);
+
+    const result = await resolveForkCheckpoint(
+      client,
+      "thread-1",
+      messages,
+      "ai-a",
+      "h-followup",
+      undefined,
+      "messages",
+    );
+
+    expect(result).toBe("cp-ai-c");
+    expect(client.threads.getHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to the parent checkpoint when a cancellation stub shares the edited message's step", async () => {
+    const messages: LangChainBaseMessage[] = [
+      msg("h1"),
+      {
+        ...msg("ai1"),
+        _getType: () => "ai",
+        tool_calls: [{ id: "call-1", name: "lookup", args: {} }],
+      },
+      {
+        ...msg("cancel-stub"),
+        _getType: () => "tool",
+        tool_call_id: "call-1",
+      },
+      msg("h2"),
+      { ...msg("a2"), _getType: () => "ai" },
+    ];
+    const client = makeClient([
+      {
+        values: { messages },
+        checkpoint: { checkpoint_id: "cp-a2" },
+      },
+      {
+        values: { messages: messages.slice(0, 4) },
+        checkpoint: { checkpoint_id: "cp-h2" },
+      },
+      {
+        values: { messages: messages.slice(0, 2) },
+        checkpoint: { checkpoint_id: "cp-ai1" },
+      },
+    ]);
+
+    const result = await resolveForkCheckpoint(
+      client,
+      "thread-1",
+      messages,
+      "ai1",
+      "h2",
+      undefined,
+      "messages",
+    );
+
+    expect(result).toBe("cp-ai1");
   });
 
   it("falls back to history search when the head metadata has no checkpoint", async () => {

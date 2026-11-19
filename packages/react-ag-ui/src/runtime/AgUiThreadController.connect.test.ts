@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it, vi } from "vitest";
 import {
   HttpAgent,
@@ -77,7 +78,7 @@ const fetchFor = (routes: Record<string, object[]>) =>
 
 const transcript = (core: AgUiThreadController) =>
   core.getMessages().map((message) => ({
-    id: message.id,
+    id: agUiWireMessageId(message),
     role: message.role,
     text: message.content
       .map((part) => (part.type === "text" ? part.text : ""))

@@ -26,6 +26,16 @@ describe("validateContactSales", () => {
     ).toEqual(["firstName", "lastName", "email", "company", "companySize"]);
   });
 
+  it("caps one-line fields at 200 characters", () => {
+    const long = "a".repeat(201);
+    expect(
+      validateContactSales({ ...filled, firstName: long, company: long }),
+    ).toEqual({
+      firstName: "Keep it under 200 characters.",
+      company: "Keep it under 200 characters.",
+    });
+  });
+
   it("rejects a malformed email", () => {
     expect(
       validateContactSales({ ...filled, email: "ada@acme" }).email,

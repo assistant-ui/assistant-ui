@@ -18,6 +18,7 @@ import type {
   ComposerRuntimeEventType,
   ComposerSetTextOptions,
   ComposerSubmission,
+  DictationEnd,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,
@@ -66,6 +67,12 @@ type BaseComposerState = {
    * Undefined when dictation is not active.
    */
   readonly dictation: DictationState | undefined;
+
+  /**
+   * How the last dictation session ended, with the adapter's error when it
+   * failed. Undefined before the first session ends and while a new one runs.
+   */
+  readonly lastDictationEnd?: DictationEnd | undefined;
 
   /**
    * The currently quoted text, if any.
@@ -126,6 +133,7 @@ const getThreadComposerState = (
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
+    lastDictationEnd: runtime?.lastDictationEnd,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
     submission: runtime?.submission,
@@ -152,6 +160,7 @@ const getEditComposerState = (
     runConfig: runtime?.runConfig ?? EMPTY_OBJECT,
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
+    lastDictationEnd: runtime?.lastDictationEnd,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
     submission: runtime?.submission,

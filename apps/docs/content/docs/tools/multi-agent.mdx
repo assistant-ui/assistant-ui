@@ -145,7 +145,7 @@ With `@assistant-ui/react-ag-ui` there is no `messages` field to populate: the r
 
 The subagent's `name`, `description`, `result`, `interruptIds`, and `errorCode` ride on the nested message's `metadata.custom.agui`. A run whose `parentToolCallId` names no reachable call has nowhere to nest and renders in the parent thread instead.
 
-See [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) for the full behavior, the comparison with LangChain's discovery-hook shape, and two limitations (nesting does not survive a reload, and nested human-in-the-loop has no resume path).
+See [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) for the full behavior, how a suspended subagent's interrupts are answered, the comparison with LangChain's discovery-hook shape, and the one limitation (nesting does not survive a reload).
 
 </Tab>
 </Tabs>

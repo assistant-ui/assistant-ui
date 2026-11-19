@@ -87,3 +87,61 @@ describe("rejectedPropType", () => {
     expect(rejectedPropType(undefined, { value: {} })).toBeUndefined();
   });
 });
+
+describe("rejectedPropType after resolution", () => {
+  const schema = {
+    type: "object" as const,
+    properties: {
+      href: { type: "string" as const, enum: ["/home", "/docs"] },
+      label: { type: "string" as const },
+    },
+    required: ["label"],
+  };
+
+  it("checks values resolved from expressions against the full schema", () => {
+    expect(
+      rejectedPropType(
+        schema,
+        { href: "javascript:bad()", label: "Home" },
+        { href: { $state: "/href" }, label: "Home" },
+      ),
+    ).toBe('href must be one of "/home", "/docs"');
+    expect(
+      rejectedPropType(
+        schema,
+        { href: "/docs", label: "Docs" },
+        { href: { $state: "/href" }, label: "Docs" },
+      ),
+    ).toBeUndefined();
+  });
+
+  it("accepts an expression that resolves to nothing", () => {
+    expect(
+      rejectedPropType(
+        schema,
+        { label: undefined },
+        { label: { $state: "/label" } },
+      ),
+    ).toBeUndefined();
+  });
+
+  it("checks every prop of a Standard Schema once one is an expression", () => {
+    const standard = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: (value: unknown) =>
+          (value as { href?: unknown }).href === "/home"
+            ? { value }
+            : { issues: [{ message: "is not allowed", path: ["href"] }] },
+      },
+    };
+    expect(
+      rejectedPropType(
+        standard,
+        { href: "javascript:bad()", label: "Home" },
+        { href: "javascript:bad()", label: { $state: "/label" } },
+      ),
+    ).toBe("href is not allowed");
+  });
+});

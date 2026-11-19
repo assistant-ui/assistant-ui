@@ -32,7 +32,9 @@ declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) =>
 
 declare const useContextProvider: <T, TResult>(context: Context<T>, value: T, fn: () => TResult) => TResult;
 
-declare const useMemoCache: (size: number) => unknown[];
+declare const useMemoCache: typeof useMemoCache$1;
+
+declare const useMemoCache$1: (size: number) => unknown[];
 
 declare function useRefreshScope<T>(token: unknown, fn: () => T): T;
 

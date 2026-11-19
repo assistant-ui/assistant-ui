@@ -28,8 +28,14 @@ Pick a policy below and click Get weather. The data comes from [Open-Meteo](http
 | `network` | `connect-src` | |
 | --- | --- | --- |
 | `"public"` | `https: wss:` | Default. Any public endpoint. |
-| `"none"` | `'none'` | No network at all. |
+| `"none"` | `'none'` | No `fetch`, WebSocket or remote images. |
 | `["https://api.example.com"]` | those origins | Exactly these. `https://*.example.com` matches subdomains. |
+
+With `"none"` or a list, images and media (`img-src`, `media-src`) load only from the remote's own origin, `data:` and `blob:` URLs, and the listed origins, since an image URL carries data out as well as a `fetch` does.
+
+<Callout type="warn">
+  `"none"` keeps an honest page off the network. It is not a data boundary. A page written to leak can still put data in the URL of a script, stylesheet, font, frame or form it adds, use WebRTC, or navigate. Those stay open so pages can load from CDNs. Don't pass a remote data it must never send out.
+</Callout>
 
 Set it per element with `network`, or for every remote on `<RemoteHostProvider network>`. It is a Content Security Policy. For documents your page shows itself (the `html` prop, Safe Content Frame) the host writes it into the document. For URL remotes it goes on the iframe's `csp` attribute, which the serving layer accepts.
 
@@ -59,6 +65,6 @@ There is no relay through the host, and the remote never gets your credentials. 
 
 ## What to trust it with
 
-With network on, a remote can send anything it can read to any public endpoint: its props, what it stores, what the user types. Treat it like a third-party script. Only pass data you would give that publisher. For code you don't trust with data, such as widgets from strangers or a model's output, use `network="none"`.
+With network on, a remote can send anything it can read to any public endpoint: its props, what it stores, what the user types. Treat it like a third-party script. Only pass data you would give that publisher. For code you don't trust with data, such as widgets from strangers or a model's output, use `network="none"`, and still pass only what it may see: `"none"` closes `fetch` and images, not every way out.
 
 CSP can't express address ranges. `https:` also matches private and loopback addresses. Those requests carry none of your cookies, and Chromium blocks public frames from private addresses without a preflight. If that is not enough, use `"none"` or a list. See [Security](/remote-components/docs/security).

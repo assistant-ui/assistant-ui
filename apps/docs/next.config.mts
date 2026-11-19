@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { withDocs } from "@farming-labs/next/config";
 import docsConfig from "./docs.config.ts";
@@ -10,6 +10,7 @@ import { withAui } from "@assistant-ui/next";
 import { liteAliases } from "./scripts/lite-packages.mts";
 import { writeLiteDemos } from "./lib/lite-demos.ts";
 import type { NextConfig } from "next";
+import { type AuiJson, resolveEnvironment } from "aui-auth";
 import { SETUP_ORIGIN as SETUP_URL } from "./lib/setup-origin.ts";
 import {
   AGENT_DISCOVERY_REWRITES,
@@ -73,8 +74,18 @@ const sdkVersion = process.env.VERCEL_GIT_COMMIT_SHA
   : undefined;
 
 // Chrome applies form-action to the redirects that follow a submit, and the
-// sign-out form lands on the accounts end-session endpoint.
-const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
+// sign-out form lands on the accounts end-session endpoint. The issuer follows
+// from aui.json; a build outside Vercel without AUI_ENV signs nobody in.
+const authOrigin = (() => {
+  try {
+    const aui = JSON.parse(
+      readFileSync(new URL("./aui.json", import.meta.url), "utf8"),
+    ) as AuiJson;
+    return resolveEnvironment(aui).issuer;
+  } catch {
+    return process.env.NEXT_PUBLIC_AUTH_URL ?? "";
+  }
+})();
 
 // The playground AI Builder renders same-origin preview routes inside an iframe.
 // Keep frame ancestors self-only so external sites still cannot embed docs pages;
@@ -131,9 +142,29 @@ function codeHighlightVersions() {
     .join(" ");
 }
 
+// About half of Vercel builds restore a Turbopack cache they cannot reuse, and
+// compiling against it takes 3-5 min, against about 1 min with no cache.
+// Vercel would keep restoring and uploading the folder an earlier build wrote,
+// so it is removed as well.
+const skipBuildCache = Boolean(process.env.VERCEL);
+if (skipBuildCache)
+  rmSync(new URL("./.next/cache/turbopack", import.meta.url), {
+    recursive: true,
+    force: true,
+  });
+
 const config: NextConfig = {
   cacheComponents: true,
-  ...(buildCpus ? { experimental: { cpus: buildCpus } } : {}),
+  ...(buildCpus || skipBuildCache
+    ? {
+        experimental: {
+          ...(buildCpus ? { cpus: buildCpus } : {}),
+          ...(skipBuildCache
+            ? { turbopackFileSystemCacheForBuild: false }
+            : {}),
+        },
+      }
+    : {}),
   // `next dev` blocks cross-origin dev requests (HMR, dev chunks), which
   // leaves pages unhydrated behind a tunnel or proxy. Comma-separated hosts.
   ...(process.env.NEXT_ALLOWED_DEV_ORIGINS
@@ -143,6 +174,8 @@ const config: NextConfig = {
   env: {
     COPYRIGHT_YEAR: String(new Date().getFullYear()),
     DOCS_CODE_VERSIONS: codeHighlightVersions(),
+    // The account menu links to accounts; the issuer follows from aui.json.
+    NEXT_PUBLIC_AUTH_URL: authOrigin,
   },
   // This app keeps a hand-written AGENTS.md, and the root one already points
   // agents at the bundled Next.js docs, so `next dev` must not append its block.
@@ -630,24 +663,12 @@ const config: NextConfig = {
         destination: "/llms.mdx/elements/:path*",
       },
       {
-        source: "/umami/:path*",
-        destination: "https://assistant-ui-umami.vercel.app/:path*",
-      },
-      {
         source: "/blog/:path.md",
         destination: "/blog/llms.md/:path",
       },
       {
         source: "/blog/:path.mdx",
         destination: "/blog/llms.md/:path",
-      },
-      {
-        source: "/ph/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ph/:path*",
-        destination: "https://us.i.posthog.com/:path*",
       },
     ],
     fallback: [

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { accountsOptions, getAccessToken } from "@/lib/accounts-auth";
+import { accountsIssuer, getAccessToken } from "@/lib/accounts-auth";
 import { listCloudProjects, type CloudProject } from "@/lib/cloud-projects";
 import { isSetupAppRequest, setupCorsHeaders } from "@/lib/setup-origin";
 
@@ -17,7 +17,8 @@ export async function GET(request: Request) {
     return new Response(null, { status: 403, headers });
   }
 
-  if (!accountsOptions) {
+  const issuer = accountsIssuer();
+  if (!issuer) {
     return NextResponse.json(
       { error: "Sign-in is not configured on this deployment." },
       { status: 503, headers },
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
 
   try {
     const payload: CloudProjectsPayload = {
-      projects: await listCloudProjects(accessToken, accountsOptions),
+      projects: await listCloudProjects(accessToken, { issuer }),
     };
     return NextResponse.json(payload, { headers });
   } catch {

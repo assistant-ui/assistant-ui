@@ -2,7 +2,7 @@ import { createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SourceIcon, Sources } from "./sources.aui";
+import { duckDuckGoFaviconUrl, SourceIcon, Sources } from "./sources.aui";
 
 const imageDescriptors = {
   complete: Object.getOwnPropertyDescriptor(
@@ -27,10 +27,40 @@ afterEach(() => {
   Object.defineProperties(HTMLImageElement.prototype, imageDescriptors);
 });
 
+const faviconUrl = (domain: string) => `/favicons/${domain}.ico`;
+
 const renderIcon = () =>
-  render(<SourceIcon url="https://example.com/reference" />);
+  render(
+    <SourceIcon url="https://example.com/reference" faviconUrl={faviconUrl} />,
+  );
 
 describe("SourceIcon", () => {
+  it("shows the domain initial and loads no image without a faviconUrl", () => {
+    stubImage(false, 0);
+
+    const { container } = render(
+      <SourceIcon url="https://example.com/reference" />,
+    );
+
+    expect(screen.getByText("E")).toBeTruthy();
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("loads the favicon the resolver returns", () => {
+    stubImage(false, 0);
+
+    const { container } = render(
+      <SourceIcon
+        url="https://example.com/reference"
+        faviconUrl={duckDuckGoFaviconUrl}
+      />,
+    );
+
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://icons.duckduckgo.com/ip3/example.com.ico",
+    );
+  });
+
   it("falls back to the domain initial when the image failed before mount", () => {
     stubImage(true, 0);
 
@@ -76,7 +106,13 @@ describe("SourceIcon", () => {
     stubImage(true, 0);
     const callerRef = vi.fn();
 
-    render(<SourceIcon url="https://example.com/reference" ref={callerRef} />);
+    render(
+      <SourceIcon
+        url="https://example.com/reference"
+        faviconUrl={faviconUrl}
+        ref={callerRef}
+      />,
+    );
 
     expect(screen.getByText("E")).toBeTruthy();
     expect(callerRef).toHaveBeenCalledWith(
@@ -88,7 +124,11 @@ describe("SourceIcon", () => {
     stubImage(false, 0);
     const ref = createRef<HTMLSpanElement>();
     const { container, unmount } = render(
-      <SourceIcon url="https://example.com/reference" ref={ref} />,
+      <SourceIcon
+        url="https://example.com/reference"
+        faviconUrl={faviconUrl}
+        ref={ref}
+      />,
     );
     const image = container.querySelector('[data-slot="source-icon"]')!;
     expect(ref.current).toBe(image);

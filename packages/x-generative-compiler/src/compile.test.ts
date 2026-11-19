@@ -12,6 +12,7 @@ import {
   compileGenerative,
   isGenerativeModule,
   isGenerativeSource,
+  assertGenerativeDirectivePlacement,
   GenerativeCompileError,
 } from "./compile";
 
@@ -1792,6 +1793,141 @@ export default defineToolkit({
     );
   });
 
+  it.each([
+    [
+      "a call",
+      'const db = createDb("postgres://u:SECRET@h/db");',
+      "db.query()",
+    ],
+    [
+      "a constructor",
+      'const db = new PrismaClient({ url: "SECRET" });',
+      "db.query()",
+    ],
+    ["an awaited call", 'const db = await connect("SECRET");', "db.query()"],
+    ["a destructured call", 'const { query } = createDb("SECRET");', "query()"],
+    [
+      "a class with a static block",
+      'class Db { static { open("SECRET"); } static query() {} }',
+      "Db.query()",
+    ],
+  ])(
+    "prunes a server binding initialised by %s from the client",
+    (_label, declaration, use) => {
+      const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { createDb, PrismaClient, connect, open } from "@/server/db";
+${declaration}
+const helper = () => ${use};
+export default defineToolkit({
+  weather: {
+    execute: async () => helper(),
+    render: () => null,
+  },
+});`;
+      const client = compileGenerative(src, { target: "client" }).code;
+      expect(client).not.toContain("SECRET");
+      expect(client).not.toContain("@/server/db");
+      expect(client).not.toContain("helper");
+      const server = compileGenerative(src, { target: "server" }).code;
+      expect(server).toContain("SECRET");
+      expect(server).toContain("@/server/db");
+    },
+  );
+
+  it.each([
+    [
+      "an object pattern with an unused name",
+      'const { query, close } = createDb("SECRET");',
+      "query()",
+    ],
+    [
+      "an array pattern with holes and an unused name",
+      'const [, query, close] = createDb("SECRET");',
+      "query()",
+    ],
+    [
+      "nested patterns with defaults and rest",
+      'const { pool: { query = fallback("SECRET"), ...poolRest }, list: [first = 1, ...others] = [], ...rest } = createDb("SECRET");',
+      "query()",
+    ],
+    [
+      "a pattern in a multi-declarator statement",
+      'const { query, close } = createDb("SECRET"), other = connect("SECRET");',
+      "query() + other.ping()",
+    ],
+  ])(
+    "prunes a destructured server binding with %s from the client",
+    (_label, declaration, use) => {
+      const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { createDb, connect, fallback } from "@/server/db";
+${declaration}
+export default defineToolkit({
+  weather: {
+    execute: async () => ${use},
+    render: () => null,
+  },
+});`;
+      const client = compileGenerative(src, { target: "client" }).code;
+      expect(client).not.toContain("SECRET");
+      expect(client).not.toContain("@/server/db");
+      const server = compileGenerative(src, { target: "server" }).code;
+      expect(server).toContain("SECRET");
+      expect(server).toContain("@/server/db");
+    },
+  );
+
+  it("keeps a destructured binding when one of its names is used on the client", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { createStore } from "@/store";
+const { query, label, close } = createStore("KEY");
+export default defineToolkit({
+  weather: {
+    execute: async () => query(),
+    render: () => label,
+  },
+});`;
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain('createStore("KEY")');
+    expect(client).toContain("@/store");
+  });
+
+  it("keeps an unused destructured call the source never referenced", () => {
+    const src = minimalSource.replace(
+      "export default",
+      'const { a, b } = register("x");\nexport default',
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain('register("x")');
+  });
+
+  it("keeps a call-initialised binding the render still uses", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { createStore } from "@/store";
+const store = createStore();
+export default defineToolkit({
+  weather: {
+    execute: async () => 1,
+    render: () => store.get(),
+  },
+});`;
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("createStore()");
+    expect(client).toContain("@/store");
+  });
+
+  it("keeps an unused call-initialised binding the source never referenced", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const registered = register();\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("register()");
+  });
+
   it("keeps an unused class with a static block", () => {
     const src = minimalSource.replace(
       "export default",
@@ -1894,6 +2030,46 @@ export default defineToolkit({
     );
     const code = compileGenerative(src, { target: "client" }).code;
     expect(code).not.toContain("class Registry");
+  });
+});
+
+describe("directive placement", () => {
+  it.each([
+    ['"use client";\n"use generative";\nexport default {};'],
+    ['import x from "x";\n"use generative";\nexport default x;'],
+    ['export const a = 1;\n"use generative";'],
+  ])("rejects a directive that is not the first statement: %s", (source) => {
+    expect(() => isGenerativeSource("/app/tool.ts", source)).toThrow(
+      GenerativeCompileError,
+    );
+    expect(() => assertGenerativeDirectivePlacement(source)).toThrow(
+      /must be the first statement/,
+    );
+  });
+
+  it("checks a TS file that the JSX parser cannot read", () => {
+    const source =
+      'const id = <T,>(x: T) => x;\nconst cast = <string>id("a");\n"use generative";';
+    expect(() => isGenerativeSource("/app/tool.mts", source)).toThrow(
+      GenerativeCompileError,
+    );
+  });
+
+  it("accepts a mention of the directive that is not a statement", () => {
+    const source =
+      'const DIRECTIVE = "use generative";\n// "use generative"\nexport default DIRECTIVE;';
+    expect(isGenerativeSource("/app/tool.ts", source)).toBe(false);
+  });
+
+  it("accepts a leading directive in every JS/TS extension", () => {
+    for (const ext of ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"])
+      expect(isGenerativeSource(`/app/tool.${ext}`, minimalSource)).toBe(true);
+  });
+
+  it("ignores files that are not JS/TS", () => {
+    expect(isGenerativeSource("/app/tool.vue", 'x;\n"use generative";')).toBe(
+      false,
+    );
   });
 });
 
