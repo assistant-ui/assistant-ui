@@ -60,6 +60,6 @@ cd server && uv run --locked python -m unittest
 
 `test` and `test:coverage` run the unit and in-memory Cloud suites. `test:e2e` starts the real Python server with its demo model and requires uv and Python 3.11+. It fails when uv is missing. The last command runs the server's Python unit tests. From the repository root, first build the workspace dependencies with `pnpm turbo build --filter='with-pydantic-ai-durable^...'`.
 
-The normal coverage workflow runs the unit and Cloud suites. The Durable Example Tests workflow provisions Python 3.12 and uv, installs the locked server dependencies, and runs the server unit tests and the server-backed suite on changes to the example, its workspace dependencies, or `python/assistant-stream`.
+The normal coverage workflow runs the unit and Cloud suites. The Durable Example Tests workflow provisions Python 3.12 and uv, installs the locked server dependencies, and runs the server unit tests and the server-backed suite on changes to the example, its workspace dependencies, `python/assistant-stream`, or the root install files (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`).
 
 The adapter's own tests (disconnect, reopen, cancel, owners) live in `python/assistant-stream/tests/test_pydantic_ai_durable.py` and also run against Postgres and Redis when `DATABASE_URL` and `REDIS_URL` are set.
