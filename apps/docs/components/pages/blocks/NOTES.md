@@ -14,10 +14,11 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 
 ## Adding a demo block
 
-1. Make a folder under `app/(home)/blocks/demos/` with the demo's files. The main file default-exports the component.
-2. Add the component to `app/(home)/blocks/demos/index.ts` under the block's slug.
-3. Add the block to `lib/blocks.ts` with `previewUrl: "/blocks-preview/<slug>"` and the folder as `source.directory`.
-4. Add `public/screenshot/blocks/<slug>-light.webp` and `-dark.webp`.
+A demo block is a small app inside the docs, in its own folder under `app/(blocks)/blocks/demos/`. The folder sits beside `(home)` so the block's page has no site header, and its address is `/blocks/demos/<slug>`.
+
+1. Make the folder with `page.tsx`, `layout.tsx` (fonts and the block's root element), `block.css` (styles scoped to that root) and `components/`.
+2. Add the block to `lib/blocks.ts` with `previewUrl: "/blocks/demos/<slug>"` and the folder as `source.directory`.
+3. Add `public/screenshot/blocks/<slug>-light.webp` and `-dark.webp`.
 
 ## Done
 
@@ -31,5 +32,6 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 - Section designs picked from options: Use cases as numbered rows, Capabilities and Requirements as boxed cells, Dependencies as lined columns with each package's logo, Environment variables as the `.env.example` file.
 - "From assistant-ui" section: the hooks, primitives, components, runtime pieces and types the block imports, read from its code.
 - Problem solved section removed.
-- Demo blocks: a block can live in the docs app, in its own folder under `app/(home)/blocks/demos/`. Its preview is the docs page `/blocks-preview/<slug>`, so it needs no port and works on the live site.
-- Primitives chat, the first demo block: one file that uses all 17 assistant-ui primitives, with scripted replies.
+- Demo blocks: a block can live in the docs app, in its own folder under `app/(blocks)/blocks/demos/`, with its own page, layout, CSS and components. Its preview is its own page, so it needs no port.
+- Primitives chat, the first demo block: a chat that uses all 17 assistant-ui primitives, with scripted replies, set in Geist.
+- Primitives chat styling: shadcn neutral theme, hand cursor on anything clickable, and Hugeicons in place of lucide.

@@ -40,34 +40,35 @@ import {
 } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
 import {
-  ArchiveIcon,
-  ArchiveRestoreIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CopyIcon,
-  DownloadIcon,
-  MessageCircleIcon,
+  Add01Icon,
+  Archive02Icon,
+  ArrowDown01Icon,
+  ArrowDown02Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  ArrowUp02Icon,
+  Attachment01Icon,
+  BubbleChatIcon,
+  Cancel01Icon,
+  Copy01Icon,
+  Delete02Icon,
+  Download01Icon,
   MoreHorizontalIcon,
-  PanelBottomCloseIcon,
-  PaperclipIcon,
-  PencilIcon,
-  PictureInPicture2Icon,
-  PlusIcon,
-  QuoteIcon,
-  RefreshCwIcon,
-  SquareIcon,
+  PencilEdit02Icon,
+  PictureInPictureExitIcon,
+  PictureInPictureOnIcon,
+  QuoteDownIcon,
+  RefreshIcon,
+  StopIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
-  TrashIcon,
-  Volume2Icon,
-  VolumeXIcon,
-  WrenchIcon,
-  XIcon,
-} from "lucide-react";
+  Tick02Icon,
+  Unarchive03Icon,
+  VolumeHighIcon,
+  VolumeMute02Icon,
+  Wrench01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 
 /* -------------------------------------------------------------------------- */
 /* Runtime: a scripted model, so the chat runs without a key or a server.     */
@@ -224,6 +225,23 @@ function useScriptedRuntime() {
 /* Shared styles                                                              */
 /* -------------------------------------------------------------------------- */
 
+function Icon({
+  icon,
+  className,
+}: {
+  icon: IconSvgElement;
+  className?: string;
+}) {
+  return (
+    <HugeiconsIcon
+      icon={icon}
+      strokeWidth={1.75}
+      aria-hidden
+      {...(className ? { className } : {})}
+    />
+  );
+}
+
 const focusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-ring/50";
 
@@ -233,13 +251,13 @@ const menu =
   "bg-popover text-popover-foreground z-50 min-w-40 rounded-lg border p-1 shadow-md";
 
 const menuItem =
-  "hover:bg-accent focus:bg-accent flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none [&_svg]:size-4";
+  "hover:bg-accent focus:bg-accent flex items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none [&_svg]:size-4";
 
 /* -------------------------------------------------------------------------- */
 /* App                                                                        */
 /* -------------------------------------------------------------------------- */
 
-export default function PrimitivesChat() {
+export function Chat() {
   const runtime = useScriptedRuntime();
   const [floating, setFloating] = useState(false);
 
@@ -278,7 +296,7 @@ function Header({
         title="New chat"
         className={`${iconButton} md:hidden`}
       >
-        <PlusIcon />
+        <Icon icon={Add01Icon} />
       </ThreadListPrimitive.New>
       <button
         type="button"
@@ -288,7 +306,11 @@ function Header({
         onClick={() => onFloatingChange(!floating)}
         className={iconButton}
       >
-        {floating ? <PanelBottomCloseIcon /> : <PictureInPicture2Icon />}
+        {floating ? (
+          <Icon icon={PictureInPictureExitIcon} />
+        ) : (
+          <Icon icon={PictureInPictureOnIcon} />
+        )}
       </button>
     </header>
   );
@@ -304,7 +326,7 @@ function ThreadList() {
       <ThreadListPrimitive.New
         className={`hover:bg-accent data-active:bg-accent mb-1 flex h-9 items-center gap-2 rounded-lg px-2.5 font-medium transition-colors motion-reduce:transition-none ${focusRing}`}
       >
-        <PlusIcon className="size-4" />
+        <Icon icon={Add01Icon} className="size-4" />
         New chat
       </ThreadListPrimitive.New>
       <ThreadListPrimitive.Items>
@@ -337,7 +359,7 @@ function ThreadListItem() {
           aria-label="Chat options"
           className={`${iconButton} absolute end-1 opacity-0 group-hover:opacity-100 group-data-active:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100`}
         >
-          <MoreHorizontalIcon />
+          <Icon icon={MoreHorizontalIcon} />
         </ThreadListItemMorePrimitive.Trigger>
         <ThreadListItemMorePrimitive.Content
           side="bottom"
@@ -348,14 +370,14 @@ function ThreadListItem() {
           {archived ? (
             <ThreadListItemPrimitive.Unarchive asChild>
               <ThreadListItemMorePrimitive.Item className={menuItem}>
-                <ArchiveRestoreIcon />
+                <Icon icon={Unarchive03Icon} />
                 Restore
               </ThreadListItemMorePrimitive.Item>
             </ThreadListItemPrimitive.Unarchive>
           ) : (
             <ThreadListItemPrimitive.Archive asChild>
               <ThreadListItemMorePrimitive.Item className={menuItem}>
-                <ArchiveIcon />
+                <Icon icon={Archive02Icon} />
                 Archive
               </ThreadListItemMorePrimitive.Item>
             </ThreadListItemPrimitive.Archive>
@@ -365,7 +387,7 @@ function ThreadListItem() {
             <ThreadListItemMorePrimitive.Item
               className={`${menuItem} text-destructive`}
             >
-              <TrashIcon />
+              <Icon icon={Delete02Icon} />
               Delete
             </ThreadListItemMorePrimitive.Item>
           </ThreadListItemPrimitive.Delete>
@@ -391,7 +413,7 @@ function FloatingChat() {
             aria-label="Toggle the chat"
             className={`bg-primary text-primary-foreground flex size-full items-center justify-center rounded-full transition-transform active:scale-95 motion-reduce:transition-none ${focusRing}`}
           >
-            <MessageCircleIcon className="size-5" />
+            <Icon icon={BubbleChatIcon} className="size-5" />
           </AssistantModalPrimitive.Trigger>
         </AssistantModalPrimitive.Anchor>
         <AssistantModalPrimitive.Content
@@ -428,7 +450,7 @@ function Thread() {
               aria-label="Scroll to the newest message"
               className={`${iconButton} bg-background absolute -top-10 self-center rounded-full border disabled:invisible`}
             >
-              <ArrowDownIcon />
+              <Icon icon={ArrowDown02Icon} />
             </ThreadPrimitive.ScrollToBottom>
             <Composer />
           </ThreadPrimitive.ViewportFooter>
@@ -439,7 +461,7 @@ function Thread() {
         <SelectionToolbarPrimitive.Quote
           className={`hover:bg-accent flex items-center gap-1.5 rounded-md px-2 py-1 text-sm ${focusRing}`}
         >
-          <QuoteIcon className="size-3.5" />
+          <Icon icon={QuoteDownIcon} className="size-3.5" />
           Quote
         </SelectionToolbarPrimitive.Quote>
       </SelectionToolbarPrimitive.Root>
@@ -491,20 +513,23 @@ function Composer() {
                 aria-label="Remove from the queue"
                 className={iconButton}
               >
-                <XIcon />
+                <Icon icon={Cancel01Icon} />
               </QueueItemPrimitive.Remove>
             </div>
           )}
         </ComposerPrimitive.Queue>
 
         <ComposerPrimitive.Quote className="bg-background flex items-start gap-2 rounded-lg border py-1.5 ps-2.5 pe-1">
-          <QuoteIcon className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
+          <Icon
+            icon={QuoteDownIcon}
+            className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+          />
           <ComposerPrimitive.QuoteText className="text-muted-foreground line-clamp-2 min-w-0 flex-1" />
           <ComposerPrimitive.QuoteDismiss
             aria-label="Remove the quote"
             className={iconButton}
           >
-            <XIcon />
+            <Icon icon={Cancel01Icon} />
           </ComposerPrimitive.QuoteDismiss>
         </ComposerPrimitive.Quote>
 
@@ -527,7 +552,7 @@ function Composer() {
             title="Add a file"
             className={iconButton}
           >
-            <PaperclipIcon />
+            <Icon icon={Attachment01Icon} />
           </ComposerPrimitive.AddAttachment>
           <div className="flex items-center gap-1.5">
             <AuiIf condition={(s: any) => s.thread.isRunning}>
@@ -536,7 +561,7 @@ function Composer() {
                 title="Stop the reply"
                 className={`${iconButton} border`}
               >
-                <SquareIcon className="size-3! fill-current" />
+                <Icon icon={StopIcon} className="size-3! fill-current" />
               </ComposerPrimitive.Cancel>
             </AuiIf>
             <ComposerPrimitive.Send
@@ -544,7 +569,7 @@ function Composer() {
               title="Send the message"
               className={`bg-primary text-primary-foreground inline-flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-30 motion-reduce:transition-none ${focusRing}`}
             >
-              <ArrowUpIcon className="size-4" />
+              <Icon icon={ArrowUp02Icon} className="size-4" />
             </ComposerPrimitive.Send>
           </div>
         </div>
@@ -565,7 +590,7 @@ function Attachment({ removable = false }: { removable?: boolean }) {
           aria-label="Remove the file"
           className={`${iconButton} -me-1.5 size-6`}
         >
-          <XIcon />
+          <Icon icon={Cancel01Icon} />
         </AttachmentPrimitive.Remove>
       )}
     </AttachmentPrimitive.Root>
@@ -615,7 +640,7 @@ function UserMessage() {
             title="Edit"
             className={iconButton}
           >
-            <PencilIcon />
+            <Icon icon={PencilEdit02Icon} />
           </ActionBarPrimitive.Edit>
           <CopyButton />
         </ActionBarPrimitive.Root>
@@ -682,7 +707,7 @@ function AssistantMessage() {
               title="Read aloud"
               className={iconButton}
             >
-              <Volume2Icon />
+              <Icon icon={VolumeHighIcon} />
             </ActionBarPrimitive.Speak>
           </AuiIf>
           <AuiIf condition={(s: any) => s.message.speech != null}>
@@ -691,7 +716,7 @@ function AssistantMessage() {
               title="Stop reading"
               className={iconButton}
             >
-              <VolumeXIcon />
+              <Icon icon={VolumeMute02Icon} />
             </ActionBarPrimitive.StopSpeaking>
           </AuiIf>
           <ActionBarPrimitive.FeedbackPositive
@@ -699,21 +724,21 @@ function AssistantMessage() {
             title="Good reply"
             className={`${iconButton} data-submitted:bg-accent data-submitted:text-foreground`}
           >
-            <ThumbsUpIcon />
+            <Icon icon={ThumbsUpIcon} />
           </ActionBarPrimitive.FeedbackPositive>
           <ActionBarPrimitive.FeedbackNegative
             aria-label="Bad reply"
             title="Bad reply"
             className={`${iconButton} data-submitted:bg-accent data-submitted:text-foreground`}
           >
-            <ThumbsDownIcon />
+            <Icon icon={ThumbsDownIcon} />
           </ActionBarPrimitive.FeedbackNegative>
           <ActionBarPrimitive.Reload
             aria-label="Regenerate"
             title="Regenerate"
             className={iconButton}
           >
-            <RefreshCwIcon />
+            <Icon icon={RefreshIcon} />
           </ActionBarPrimitive.Reload>
           <ActionBarMorePrimitive.Root>
             <ActionBarMorePrimitive.Trigger
@@ -721,7 +746,7 @@ function AssistantMessage() {
               title="More"
               className={`${iconButton} data-[state=open]:bg-accent`}
             >
-              <MoreHorizontalIcon />
+              <Icon icon={MoreHorizontalIcon} />
             </ActionBarMorePrimitive.Trigger>
             <ActionBarMorePrimitive.Content
               side="bottom"
@@ -731,7 +756,7 @@ function AssistantMessage() {
             >
               <ActionBarPrimitive.ExportMarkdown asChild>
                 <ActionBarMorePrimitive.Item className={menuItem}>
-                  <DownloadIcon />
+                  <Icon icon={Download01Icon} />
                   Export as Markdown
                 </ActionBarMorePrimitive.Item>
               </ActionBarPrimitive.ExportMarkdown>
@@ -790,10 +815,10 @@ function ChainOfThought() {
         className={`text-muted-foreground hover:text-foreground flex w-full items-center gap-1.5 rounded-lg px-3 py-2 transition-colors motion-reduce:transition-none ${focusRing}`}
       >
         <AuiIf condition={(s: any) => s.chainOfThought.collapsed}>
-          <ChevronRightIcon className="size-4 rtl:rotate-180" />
+          <Icon icon={ArrowRight01Icon} className="size-4 rtl:rotate-180" />
         </AuiIf>
         <AuiIf condition={(s: any) => !s.chainOfThought.collapsed}>
-          <ChevronDownIcon className="size-4" />
+          <Icon icon={ArrowDown01Icon} className="size-4" />
         </AuiIf>
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
@@ -828,7 +853,7 @@ function ToolCallPart({
   return (
     <div className="bg-muted/40 rounded-md border px-2.5 py-2 font-mono text-xs">
       <p className="flex items-center gap-1.5">
-        <WrenchIcon className="text-muted-foreground size-3.5" />
+        <Icon icon={Wrench01Icon} className="text-muted-foreground size-3.5" />
         {toolName}
         <span className="text-muted-foreground">{argsText}</span>
       </p>
@@ -851,10 +876,10 @@ function CopyButton() {
       className={iconButton}
     >
       <AuiIf condition={(s: any) => s.message.isCopied}>
-        <CheckIcon />
+        <Icon icon={Tick02Icon} />
       </AuiIf>
       <AuiIf condition={(s: any) => !s.message.isCopied}>
-        <CopyIcon />
+        <Icon icon={Copy01Icon} />
       </AuiIf>
     </ActionBarPrimitive.Copy>
   );
@@ -870,7 +895,7 @@ function BranchPicker() {
         aria-label="Previous version"
         className={iconButton}
       >
-        <ChevronLeftIcon className="rtl:rotate-180" />
+        <Icon icon={ArrowLeft01Icon} className="rtl:rotate-180" />
       </BranchPickerPrimitive.Previous>
       <span>
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
@@ -879,7 +904,7 @@ function BranchPicker() {
         aria-label="Next version"
         className={iconButton}
       >
-        <ChevronRightIcon className="rtl:rotate-180" />
+        <Icon icon={ArrowRight01Icon} className="rtl:rotate-180" />
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
   );

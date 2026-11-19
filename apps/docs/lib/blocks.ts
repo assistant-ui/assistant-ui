@@ -156,22 +156,22 @@ export const BLOCKS: readonly Block[] = [
     slug: "primitives-chat",
     title: "Primitives chat",
     description:
-      "A whole chat in one file, written with every assistant-ui primitive and no component kit.",
+      "A whole chat written with every assistant-ui primitive and no component kit.",
     image: {
       light: "/screenshot/blocks/primitives-chat-light.webp",
       dark: "/screenshot/blocks/primitives-chat-dark.webp",
     },
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(home)/blocks/demos/primitives-chat",
-    previewUrl: "/blocks-preview/primitives-chat",
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/primitives-chat",
+    previewUrl: "/blocks/demos/primitives-chat",
     source: {
-      directory: "apps/docs/app/(home)/blocks/demos/primitives-chat",
-      include: ["chat.tsx"],
-      entry: "chat.tsx",
+      directory: "apps/docs/app/(blocks)/blocks/demos/primitives-chat",
+      include: ["components", "block.css", "layout.tsx", "page.tsx"],
+      entry: "components/chat.tsx",
     },
     useCases: [
-      "A starting file for a chat whose markup and styles are all yours.",
-      "A reference for how each primitive is composed, with every one in a single place.",
+      "A starting point for a chat whose markup and styles are all yours.",
+      "A reference for how each primitive is composed, with every one in a single file.",
       "A chat to try a design on before you wire up a model.",
     ],
     capabilities: [
@@ -221,8 +221,8 @@ export const BLOCKS: readonly Block[] = [
       },
     ],
     requirements: [
-      "React 19 and Tailwind CSS 4 with the shadcn/ui color tokens, such as background, muted and primary.",
-      "A model of your own. The file answers from a script, so replace scriptedModel with a ChatModelAdapter or another assistant-ui runtime.",
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
+      "A model of your own. The chat answers from a script, so replace scriptedModel with a ChatModelAdapter or another assistant-ui runtime.",
       "A browser with speech synthesis for reading a reply aloud.",
     ],
   },

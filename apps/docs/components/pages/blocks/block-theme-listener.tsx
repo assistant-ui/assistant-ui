@@ -44,11 +44,20 @@ export function BlockThemeListener() {
       )
         return;
       setMode(data.mode);
+      // A block sets its own font on the body and on its root element.
+      const fontTargets = [
+        document.body,
+        ...document.querySelectorAll<HTMLElement>("[data-block-preview] > *"),
+      ];
       for (const property of PROPERTIES) {
         const value = data.style?.[property];
-        if (typeof value === "string" && value)
-          root.style.setProperty(property, value);
-        else root.style.removeProperty(property);
+        const targets =
+          property === "font-family" ? [root, ...fontTargets] : [root];
+        for (const target of targets) {
+          if (typeof value === "string" && value)
+            target.style.setProperty(property, value);
+          else target.style.removeProperty(property);
+        }
       }
     };
     window.addEventListener("message", onMessage);

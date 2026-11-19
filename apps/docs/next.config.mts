@@ -196,7 +196,7 @@ const config: NextConfig = {
       "../../examples/with-agent-document-editor/{app,components,lib}/**/*",
       "../../examples/with-agent-document-editor/*.{json,ts,mjs}",
       "../../examples/with-agent-document-editor/.env.example",
-      "./app/(home)/blocks/demos/**/*",
+      "./app/(blocks)/blocks/demos/**/*",
     ],
     "/api/doc/chat": REPO_SOURCE_TRACE,
     "/api/xulux/chat": REPO_SOURCE_TRACE,
