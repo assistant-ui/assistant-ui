@@ -43,6 +43,7 @@ import {
   type ChatModelAdapter,
   type ChatModelRunResult,
   type LocalRuntimeOptions,
+  type SuggestionAdapter,
   type ThreadAssistantMessagePart,
   type ThreadMessage,
   type ToolCallMessagePartProps,
@@ -50,6 +51,7 @@ import {
 import { createAssistantStream } from "assistant-stream";
 import {
   Add01Icon,
+  Alert02Icon,
   Archive02Icon,
   ArrowDown01Icon,
   ArrowDown02Icon,
@@ -64,6 +66,7 @@ import {
   Copy01Icon,
   Delete01Icon,
   Download01Icon,
+  Image01Icon,
   LayoutAlignLeftIcon,
   MoreHorizontalIcon,
   PencilEdit02Icon,
@@ -72,6 +75,7 @@ import {
   QuoteDownIcon,
   RefreshIcon,
   SidebarLeftIcon,
+  SunCloud01Icon,
   StopIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
@@ -205,6 +209,46 @@ class ScriptedThreadList extends InMemoryThreadListAdapter {
   }
 }
 
+const PROMPTS = [
+  {
+    title: "Check the weather",
+    label: "with reasoning and a tool call",
+    prompt: "What is the weather in Tokyo?",
+  },
+  {
+    title: "Show an image",
+    label: "in the reply",
+    prompt: "Draw me a picture.",
+  },
+  {
+    title: "Cause an error",
+    label: "to see the error state",
+    prompt: "Fail with an error.",
+  },
+];
+
+const PROMPT_ICONS: Record<string, IconSvgElement> = {
+  "What is the weather in Tokyo?": SunCloud01Icon,
+  "Draw me a picture.": Image01Icon,
+  "Fail with an error.": Alert02Icon,
+};
+
+/** After a reply, offers the prompts this chat has not used yet. */
+const followUps: SuggestionAdapter = {
+  async generate({ messages }) {
+    const sent = new Set(
+      messages
+        .filter((message) => message.role === "user")
+        .flatMap((message) =>
+          message.content.map((part) =>
+            part.type === "text" ? part.text : "",
+          ),
+        ),
+    );
+    return PROMPTS.filter((entry) => !sent.has(entry.prompt));
+  },
+};
+
 const runtimeOptions: LocalRuntimeOptions = {
   unstable_enableMessageQueue: true,
   adapters: {
@@ -214,28 +258,11 @@ const runtimeOptions: LocalRuntimeOptions = {
     ]),
     feedback: { submit: () => {} },
     speech: new WebSpeechSynthesisAdapter(),
+    suggestion: followUps,
   },
 };
 
-const config = AuiConfig({
-  suggestions: Suggestions([
-    {
-      title: "Check the weather",
-      label: "with reasoning and a tool call",
-      prompt: "What is the weather in Tokyo?",
-    },
-    {
-      title: "Show an image",
-      label: "in the reply",
-      prompt: "Draw me a picture.",
-    },
-    {
-      title: "Cause an error",
-      label: "to see the error state",
-      prompt: "Fail with an error.",
-    },
-  ]),
-});
+const config = AuiConfig({ suggestions: Suggestions(PROMPTS) });
 
 function useScriptedRuntime() {
   const adapter = useMemo(() => new ScriptedThreadList(), []);
@@ -297,6 +324,9 @@ function Tip({
 
 /* A filled area with no border. */
 const field = "bg-foreground/4 dark:bg-foreground/6";
+
+/* A suggestion chip: white with a light border and the composer's shadow. */
+const chip = `bg-background border-border/60 hover:bg-accent flex h-8 items-center gap-1.5 rounded-full border px-3 shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-colors motion-reduce:transition-none ${focusRing}`;
 
 /*
  * A menu: a 16px glass popup with the float shadow, 13px text and 26px rows
@@ -735,6 +765,7 @@ function Thread() {
                 <Icon icon={ArrowDown02Icon} />
               </ThreadPrimitive.ScrollToBottom>
             </Tip>
+            <FollowUps />
             <Composer />
           </ThreadPrimitive.ViewportFooter>
         </div>
@@ -752,21 +783,68 @@ function Thread() {
   );
 }
 
+/* Suggestions that follow a reply, as chips right above the composer. */
+function FollowUps() {
+  const suggestions = useAuiState((s) => s.thread.suggestions);
+  const visible = useAuiState(
+    (s) =>
+      !s.thread.isEmpty &&
+      !s.thread.isRunning &&
+      s.thread.suggestions.length > 0,
+  );
+  if (!visible) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 pb-2">
+      {suggestions.map((suggestion) => {
+        const icon = PROMPT_ICONS[suggestion.prompt];
+        return (
+          <ThreadPrimitive.Suggestion
+            key={suggestion.prompt}
+            prompt={suggestion.prompt}
+            send
+            className={chip}
+          >
+            {icon && <Icon icon={icon} className="size-3.5" />}
+            {suggestion.title ?? suggestion.prompt}
+          </ThreadPrimitive.Suggestion>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The icon for the suggestion being rendered, matched by its prompt. */
+function SuggestionIcon({ className }: { className?: string }) {
+  const prompt = useAuiState((s) => s.suggestion.prompt);
+  const icon = PROMPT_ICONS[prompt];
+  return icon ? (
+    <Icon icon={icon} {...(className ? { className } : {})} />
+  ) : null;
+}
+
 function Welcome() {
   return (
-    <div className="my-auto flex flex-col gap-4 pb-6">
-      <p className="text-xl font-medium tracking-tight">
+    <div className="my-auto flex flex-col items-center gap-6 pb-6">
+      <p className="text-center text-2xl font-medium tracking-tight">
         What should we try first?
       </p>
-      <div className="flex flex-col gap-1">
+      <div className="flex w-full max-w-sm flex-col gap-0.5">
         <ThreadPrimitive.Suggestions>
           {() => (
             <SuggestionPrimitive.Trigger
               send
-              className={`hover:bg-accent -mx-2.5 rounded-lg px-2.5 py-2 text-start transition-colors motion-reduce:transition-none ${focusRing}`}
+              className={`hover:bg-accent flex h-11 items-center gap-3 rounded-xl px-2 text-start transition-colors motion-reduce:transition-none ${focusRing}`}
             >
-              <SuggestionPrimitive.Title />{" "}
-              <SuggestionPrimitive.Description className="text-muted-foreground" />
+              <span
+                className={`${field} flex size-7 shrink-0 items-center justify-center rounded-full`}
+              >
+                <SuggestionIcon className="size-3.5" />
+              </span>
+              <span className="min-w-0 flex-1 truncate">
+                <SuggestionPrimitive.Title />{" "}
+                <SuggestionPrimitive.Description className="text-muted-foreground" />
+              </span>
             </SuggestionPrimitive.Trigger>
           )}
         </ThreadPrimitive.Suggestions>
