@@ -90,6 +90,67 @@ function* dependencySpecs(manifest) {
   }
 }
 
+function changesInstallPolicy(lines) {
+  const topLevelKey = /^(['"]?)([^\s'"#].*?)\1:(?:\s|$)/;
+  const sections = { "+": undefined, "-": undefined };
+  const sources = { "+": new Map(), "-": new Map() };
+  const builds = { "+": new Set(), "-": new Set() };
+
+  for (const line of lines) {
+    if (line.startsWith("@@")) {
+      const context = /^@@.*?@@ ?(.*)$/.exec(line)?.[1] ?? "";
+      sections["+"] = sections["-"] = topLevelKey.exec(context)?.[2];
+      continue;
+    }
+    if (line.startsWith("+++") || line.startsWith("---")) continue;
+    const side = line[0];
+    if (side !== "+" && side !== "-" && side !== " ") continue;
+    const text = line.slice(1);
+    const key = topLevelKey.exec(text)?.[2];
+    if (key !== undefined) {
+      if (side !== "-") sections["+"] = key;
+      if (side !== "+") sections["-"] = key;
+    }
+    if (side === " " || /^\s*(?:#.*)?$/.test(text)) continue;
+    const section = sections[side];
+    if (section === undefined) return true;
+    if (
+      /^\s*-\s+(['"]?)(?:@[\w.-]+\/)?[\w.-]+@(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?\1(?:\s+#.*)?\s*$/.test(
+        text,
+      )
+    ) {
+      continue;
+    }
+    if (section !== "overrides" && section !== "allowBuilds") return true;
+    if (key !== undefined) {
+      if (!/:\s*(?:#.*)?$/.test(text)) return true;
+      continue;
+    }
+    const entry =
+      /^\s+(?:'([^']+)'|"([^"]+)"|([^\s:'"][^:]*)):\s*(?:'([^']*)'|"([^"]*)"|([^'"].*?))\s*(?:\s+#.*)?$/.exec(
+        text,
+      );
+    if (!entry) return true;
+    const name = (entry[1] ?? entry[2] ?? entry[3]).trim();
+    const value = entry[4] ?? entry[5] ?? entry[6];
+    if (section === "overrides") {
+      sources[side].set(name, dependencySource(value));
+    } else {
+      if (value !== "true" && value !== "false") return true;
+      if (value === "true") {
+        builds[side].add(name.replace(/(.+)@[^@]+$/, "$1"));
+      }
+    }
+  }
+
+  return (
+    [...sources["+"]].some(
+      ([name, source]) =>
+        source !== undefined && sources["-"].get(name) !== source,
+    ) || [...builds["+"]].some((name) => !builds["-"].has(name))
+  );
+}
+
 export function computeTier(input, policy) {
   const type = parseTitleType(policy, input.title);
   const reasons = new Map();
@@ -198,13 +259,10 @@ export function computeTier(input, policy) {
     if (
       (file.path === "pnpm-workspace.yaml" ||
         file.previousPath === "pnpm-workspace.yaml") &&
-      (file.patch === null ||
-        [...added, ...removed].some(
-          (line) =>
-            !/^\s*(?:#.*|-\s+(['"]?)(?:@[\w.-]+\/)?[\w.-]+@(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?\1)?\s*$/.test(
-              line.slice(1),
-            ),
-        ))
+      (file.status === "removed" ||
+        file.status === "renamed" ||
+        file.patch === null ||
+        changesInstallPolicy(lines))
     ) {
       addReason(3, "install-policy", file.path);
     }

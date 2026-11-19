@@ -673,19 +673,100 @@ for (const [change, patch] of [
   ["git override", " overrides:\n-  foo: ^1.2.3\n+  foo: github:someone/foo"],
   ["alias override", " overrides:\n-  foo: ^1.2.3\n+  foo: npm:fork@1.2.3"],
   ["build permission", " allowBuilds:\n+  foo@1.2.3: true"],
+  ["unversioned build permission", " allowBuilds:\n+  foo: true"],
+  ["scoped build permission", " allowBuilds:\n+  '@scope/foo@1.2.3': true"],
+  ["enabled build permission", " allowBuilds:\n-  foo: false\n+  foo: true"],
+  [
+    "enabled build permission with a version bump",
+    " allowBuilds:\n-  foo@1.2.3: false\n+  foo@1.2.4: true",
+  ],
+  [
+    "renamed build permission",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  bar@1.2.3: true",
+  ],
+  [
+    "scoped build permission with a different scope",
+    " allowBuilds:\n-  '@old/foo@1.2.3': true\n+  '@new/foo@1.2.4': true",
+  ],
   ["trust policy", "-trustPolicy: no-downgrade\n+trustPolicy: off"],
   ["release age", "-minimumReleaseAge: 1440\n+minimumReleaseAge: 0"],
   ["removed trust policy", "-trustPolicy: no-downgrade"],
+  [
+    "trust exception pruning",
+    "-trustPolicyExcludePrune: true\n+trustPolicyExcludePrune: false",
+  ],
+  ["strict build policy", "-strictDepBuilds: true\n+strictDepBuilds: false"],
+  ["all builds allowed", "+dangerouslyAllowAllBuilds: true"],
+  ["pnpmfile", "+pnpmfile: ./install.cjs"],
+  ["config dependency", " configDependencies:\n+  foo: 1.2.3"],
+  [
+    "registry",
+    "-registry: https://registry.npmjs.org/\n+registry: https://example.com/",
+  ],
   ["unknown setting", "+futureInstallPolicy: false"],
   ["wildcard exception", " minimumReleaseAgeExclude:\n+  - foo@*"],
   ["unversioned exception", " minimumReleaseAgeExclude:\n+  - foo"],
   ["range exception", " minimumReleaseAgeExclude:\n+  - foo@^1.2.3"],
   ["tag exception", " minimumReleaseAgeExclude:\n+  - foo@latest"],
+  [
+    "range exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n+  - foo@^1.2.3 # Verified release",
+  ],
+  [
+    "wildcard exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n+  - foo@* # Verified release",
+  ],
+  [
+    "tag exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n+  - foo@latest # Verified release",
+  ],
+  [
+    "unversioned exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n+  - foo # Verified release",
+  ],
+  [
+    "hash without a comment separator",
+    " minimumReleaseAgeExclude:\n+  - foo@1.2.3#verified",
+  ],
   ["partial version", " minimumReleaseAgeExclude:\n+  - foo@1.2"],
   ["leading zero", " minimumReleaseAgeExclude:\n+  - foo@01.2.3"],
   ["invalid prerelease", " minimumReleaseAgeExclude:\n+  - foo@1.2.3-01"],
   ["mismatched quotes", " minimumReleaseAgeExclude:\n+  - 'foo@1.2.3\""],
   ["mixed changes", "+  - foo@1.2.3\n+minimumReleaseAge: 0"],
+  ["override without a section", "+  foo: ^1.2.3"],
+  [
+    "build permission without a section",
+    "-  foo@1.2.3: true\n+  foo@1.2.4: true",
+  ],
+  ["exact exception without a section", "+  - foo@1.2.3"],
+  [
+    "section missing in a later hunk",
+    "@@ -1,2 +1,2 @@ overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4\n@@ -20,1 +20,1 @@\n-  bar: ^1.2.3\n+  bar: ^1.2.4",
+  ],
+  [
+    "unknown section after overrides",
+    " overrides:\n+  foo: ^1.2.3\n futureInstallPolicy:\n+  bar: ^1.2.3",
+  ],
+  [
+    "changed unknown section after overrides",
+    " overrides:\n+  foo: ^1.2.3\n+futureInstallPolicy:\n+  bar: ^1.2.3",
+  ],
+  [
+    "quoted unknown section after overrides",
+    " overrides:\n+  foo: ^1.2.3\n 'futureInstallPolicy':\n+  bar: ^1.2.3",
+  ],
+  [
+    "scoped registry section after overrides",
+    " overrides:\n+  foo: ^1.2.3\n @scope:registry:\n+  bar: ^1.2.3",
+  ],
+  [
+    "unknown removed section before overrides",
+    "-futureInstallPolicy:\n+overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4",
+  ],
+  ["inline override mapping", "+overrides: {foo: 'github:someone/foo'}"],
+  ["inline build permissions", "+allowBuilds: {foo: true}"],
+  ["unparsed override", " overrides:\n+  foo:\n+    bar: github:someone/bar"],
+  ["unparsed build permission", " allowBuilds:\n+  foo: *allow"],
   ["unavailable patch", null],
 ]) {
   test(`workspace install policy changes give T3: ${change}`, () => {
@@ -703,6 +784,63 @@ for (const [change, patch] of [
 }
 
 for (const [change, patch] of [
+  ["registry override", " overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4"],
+  ["new registry override", " overrides:\n+  foo: 1.2.4"],
+  ["major registry override", " overrides:\n-  foo: ^1.2.3\n+  foo: ^2.0.0"],
+  [
+    "registry override with a parent selector",
+    " overrides:\n+  '@scope/parent>foo': ^1.2.4",
+  ],
+  [
+    "registry override with an advisory comment",
+    " overrides:\n+  'foo@>=1.0.0 <1.2.4': ^1.2.4 # https://example.com/advisory",
+  ],
+  [
+    "registry override from a hunk header",
+    "@@ -20,1 +20,1 @@ overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4",
+  ],
+  ["new overrides section", "+overrides:\n+  foo: ^1.2.4"],
+  ["quoted overrides section", ' "overrides":\n+    foo: ^1.2.4'],
+  ["removed overrides section", "-overrides:\n-  foo: github:someone/foo"],
+  [
+    "registry override replacing a non-registry source",
+    " overrides:\n-  foo: github:someone/foo\n+  foo: ^1.2.4",
+  ],
+  [
+    "alias range bump",
+    " overrides:\n-  foo: npm:fork@^1.2.3\n+  foo: npm:fork@^1.2.4",
+  ],
+  [
+    "scoped alias range bump",
+    " overrides:\n-  foo: 'npm:@scope/fork@^1.2.3'\n+  foo: 'npm:@scope/fork@^1.2.4'",
+  ],
+  ["new blocked build", " allowBuilds:\n+  foo: false"],
+  ["removed build permission", " allowBuilds:\n-  foo: true"],
+  ["revoked build permission", " allowBuilds:\n-  foo: true\n+  foo: false"],
+  [
+    "build permission version bump",
+    " allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.4: true",
+  ],
+  [
+    "scoped build permission version bump",
+    ' allowBuilds:\n-  "@scope/foo@1.2.3": true\n+  "@scope/foo@1.2.4": true',
+  ],
+  [
+    "build permission version bump from a hunk header",
+    "@@ -20,1 +20,1 @@ allowBuilds:\n-  foo@1.2.3: true\n+  foo@1.2.4: true",
+  ],
+  [
+    "multiple existing build permission versions",
+    " allowBuilds:\n-  foo@1.2.3: true\n-  foo@1.2.4: false\n+  foo@1.2.5: true",
+  ],
+  [
+    "build permission version bump with a comment",
+    " allowBuilds:\n-  foo@1.2.3: true # Reviewed\n+  foo@1.2.4: true # Reviewed",
+  ],
+  [
+    "overrides and build permissions in the same hunk",
+    " overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4\n allowBuilds:\n-  bar@1.2.3: true\n+  bar@1.2.4: true",
+  ],
   ["exact exception", " minimumReleaseAgeExclude:\n+  - foo@1.2.3"],
   ["scoped exception", " minimumReleaseAgeExclude:\n+  - @scope/foo@1.2.3"],
   ["quoted scoped exception", " trustPolicyExclude:\n+  - '@scope/foo@1.2.3'"],
@@ -710,6 +848,26 @@ for (const [change, patch] of [
   ["prerelease exception", " minimumReleaseAgeExclude:\n+  - foo@1.2.3-rc.1"],
   ["build metadata", " minimumReleaseAgeExclude:\n+  - foo@1.2.3+build.007"],
   ["removed exception", " minimumReleaseAgeExclude:\n-  - foo@1.2.3"],
+  [
+    "exact exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n+  - foo@1.2.3 # Verified release",
+  ],
+  [
+    "quoted scoped exception with a trailing comment",
+    " trustPolicyExclude:\n+  - '@scope/foo@1.2.3' # Verified release",
+  ],
+  [
+    "double quoted exception with a trailing comment",
+    ' minimumReleaseAgeExclude:\n+  - "foo@1.2.3" # Verified release',
+  ],
+  [
+    "prerelease exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n+  - foo@1.2.3-rc.1+build.007 # Verified release",
+  ],
+  [
+    "removed exception with a trailing comment",
+    " minimumReleaseAgeExclude:\n-  - foo@1.2.3 # Verified release",
+  ],
   ["comments", "-# Old comment\n+# New comment\n+  # Indented comment"],
   ["blank lines", "+\n-  "],
   [
@@ -729,11 +887,378 @@ for (const [change, patch] of [
   });
 }
 
+for (const [base, head, tier] of [
+  ["^1.2.3", "latest", 1],
+  ["^1.2.3", '"^1.2.4"', 1],
+  ["^1.2.3", "workspace:*", 1],
+  ["^1.2.3", "catalog:", 1],
+  ["^1.2.3", "file:../foo", 1],
+  ["^1.2.3", "link:../foo", 1],
+  ["^1.2.3", "github:someone/foo", 3],
+  ["^1.2.3", "git+https://example.com/foo.git", 3],
+  ["^1.2.3", "ssh://git@example.com/foo.git", 3],
+  ["^1.2.3", "git@example.com:someone/foo.git", 3],
+  ["^1.2.3", "https://example.com/foo.tgz", 3],
+  ["^1.2.3", "someone/foo#main", 3],
+  ["^1.2.3", "npm:@scope/fork@^1.2.3", 3],
+  ["npm:fork@^1.2.3", "npm:other@^1.2.4", 3],
+  ["github:someone/foo#main", "github:someone/foo#next", 3],
+  ["github:someone/foo#main", '"github:someone/foo#main"', 1],
+]) {
+  test(`workspace override source ${base} to ${head} stays T${tier}`, () => {
+    const path = "pnpm-workspace.yaml";
+    const patch = ` overrides:\n-  foo: ${base}\n+  foo: ${head}`;
+    const result = computeTier(
+      input({ files: [file(path, { patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, tier);
+    assert.deepEqual(
+      result.reasons.filter(({ code }) => code === "install-policy"),
+      tier === 3 ? [{ tier, code: "install-policy", detail: path }] : [],
+    );
+  });
+}
+
+for (const [commit, tier, patch] of [
+  [
+    "f0dda8646",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 3794f9bad..56c982f73 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -22,9 +22,9 @@ overrides:
+   '@earendil-works/pi-coding-agent>undici': ^8.12.2
+   guarded-fetch>undici: ^7.30.1
+   miniflare>undici: ^7.30.1
+-  '@modelcontextprotocol/client@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-104850, CVE-2026-111769
+-  '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, CVE-2026-111768, CVE-2026-111769, CVE-2026-111771, GHSA-F897-62HF-6GXQ
+-  '@modelcontextprotocol/server@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-111768, CVE-2026-111770, CVE-2026-111771, GHSA-F897-62HF-6GXQ
++  '@modelcontextprotocol/client@>=2.0.0 <2.2.0': ^2.2.0 # aui-sec: CVE-2026-104850
++  '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, GHSA-F897-62HF-6GXQ
++  '@modelcontextprotocol/server@>=2.0.0 <2.1.0': ^2.1.0 # aui-sec: GHSA-F897-62HF-6GXQ
+   'ajv@>=8.0.0 <8.18.0': ^8.18.0 # aui-sec: CVE-2025-69873
+   'fflate@>=0.7.0 <0.7.5': ^0.7.5 # aui-sec: CVE-2026-45820
+   'js-yaml@>=4.0.0 <4.3.2': ^4.3.2 # aui-sec: CVE-2026-53550, CVE-2026-59869, CVE-2026-84375, GHSA-5P4M-2WFM-XMQJ
+`,
+  ],
+  [
+    "294e932db",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 48777b82b..3794f9bad 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -27,11 +27,11 @@ overrides:
+   '@modelcontextprotocol/server@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-111768, CVE-2026-111770, CVE-2026-111771, GHSA-F897-62HF-6GXQ
+   'ajv@>=8.0.0 <8.18.0': ^8.18.0 # aui-sec: CVE-2025-69873
+   'fflate@>=0.7.0 <0.7.5': ^0.7.5 # aui-sec: CVE-2026-45820
+-  'js-yaml@>=4.0.0 <4.3.2': ^4.3.2 # aui-sec: CVE-2026-53550, CVE-2026-59869, CVE-2026-84375
++  'js-yaml@>=4.0.0 <4.3.2': ^4.3.2 # aui-sec: CVE-2026-53550, CVE-2026-59869, CVE-2026-84375, GHSA-5P4M-2WFM-XMQJ
+   'minimatch@>=10.0.0 <10.2.3': ^10.2.3 # aui-sec: CVE-2026-26996, CVE-2026-27903, CVE-2026-27904
+-  'path-to-regexp@>=6.0.0 <6.3.0': ^6.3.0 # aui-sec: CVE-2024-45296, CVE-2026-4867
++  'path-to-regexp@>=6.0.0 <6.3.0': ^6.3.0 # aui-sec: CVE-2024-45296
+   'path-to-regexp@>=8.0.0 <8.4.0': ^8.4.0 # aui-sec: CVE-2026-4923, CVE-2026-4926
+-  'smol-toml@>=1.0.0 <1.7.1': ^1.7.1 # aui-sec: CVE-2026-85730
++  'smol-toml@>=1.0.0 <1.9.0': ^1.9.0 # aui-sec: CVE-2026-85730, GHSA-R4XH-JQRQ-34V2, GHSA-V3RJ-XJV7-4JMQ
+   'undici@>=5.0.0 <5.29.0': ^5.29.0 # aui-sec: CVE-2025-22150, CVE-2025-47279
+   'undici@>=7.0.0 <7.30.1': ^7.30.1 # aui-sec: CVE-2026-109383, CVE-2026-109829, CVE-2026-109841, CVE-2026-109869, CVE-2026-109924, CVE-2026-109932, CVE-2026-87018
+   'undici@>=8.0.0 <8.12.2': ^8.12.2 # aui-sec: CVE-2026-109383, CVE-2026-109829, CVE-2026-109841, CVE-2026-109869, CVE-2026-109924, CVE-2026-109932, CVE-2026-87018
+`,
+  ],
+  [
+    "104d140f4",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index d6cc10d7a..48777b82b 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -22,6 +22,19 @@ overrides:
+   '@earendil-works/pi-coding-agent>undici': ^8.12.2
+   guarded-fetch>undici: ^7.30.1
+   miniflare>undici: ^7.30.1
++  '@modelcontextprotocol/client@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-104850, CVE-2026-111769
++  '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, CVE-2026-111768, CVE-2026-111769, CVE-2026-111771, GHSA-F897-62HF-6GXQ
++  '@modelcontextprotocol/server@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-111768, CVE-2026-111770, CVE-2026-111771, GHSA-F897-62HF-6GXQ
++  'ajv@>=8.0.0 <8.18.0': ^8.18.0 # aui-sec: CVE-2025-69873
++  'fflate@>=0.7.0 <0.7.5': ^0.7.5 # aui-sec: CVE-2026-45820
++  'js-yaml@>=4.0.0 <4.3.2': ^4.3.2 # aui-sec: CVE-2026-53550, CVE-2026-59869, CVE-2026-84375
++  'minimatch@>=10.0.0 <10.2.3': ^10.2.3 # aui-sec: CVE-2026-26996, CVE-2026-27903, CVE-2026-27904
++  'path-to-regexp@>=6.0.0 <6.3.0': ^6.3.0 # aui-sec: CVE-2024-45296, CVE-2026-4867
++  'path-to-regexp@>=8.0.0 <8.4.0': ^8.4.0 # aui-sec: CVE-2026-4923, CVE-2026-4926
++  'smol-toml@>=1.0.0 <1.7.1': ^1.7.1 # aui-sec: CVE-2026-85730
++  'undici@>=5.0.0 <5.29.0': ^5.29.0 # aui-sec: CVE-2025-22150, CVE-2025-47279
++  'undici@>=7.0.0 <7.30.1': ^7.30.1 # aui-sec: CVE-2026-109383, CVE-2026-109829, CVE-2026-109841, CVE-2026-109869, CVE-2026-109924, CVE-2026-109932, CVE-2026-87018
++  'undici@>=8.0.0 <8.12.2': ^8.12.2 # aui-sec: CVE-2026-109383, CVE-2026-109829, CVE-2026-109841, CVE-2026-109869, CVE-2026-109924, CVE-2026-109932, CVE-2026-87018
+\x20
+ verifyDepsBeforeRun: install
+\x20
+`,
+  ],
+  [
+    "1cc7137f4",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 7e5589633..d6cc10d7a 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -16,6 +16,9 @@ strictDepBuilds: true
+ overrides:
+   '@google/adk>adm-zip': ^0.6.1
+   '@vercel/container>tar': ^7.5.22
++  # @lhci/cli 0.15.1, the latest release, bundles Lighthouse 12.6.1, which returned no performance score (NO_LCP) on current Chrome.
++  '@lhci/cli>lighthouse': ^13.5.0
++  '@lhci/utils>lighthouse': ^13.5.0
+   '@earendil-works/pi-coding-agent>undici': ^8.12.2
+   guarded-fetch>undici: ^7.30.1
+   miniflare>undici: ^7.30.1
+@@ -142,6 +145,7 @@ trustPolicyExclude:
+   - '@vercel/vc-native-win32-x64@65.2.0'
+   - babel-preset-expo@57.0.16
+   - chokidar@4.0.3
++  - chromium-bidi@157.0.8090-0
+   - expo-asset@57.0.20
+   - expo-constants@57.0.22
+   - expo-image-manipulator@57.0.21
+`,
+  ],
+  [
+    "819231606",
+    3,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 6d3f37faa..7e5589633 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -80,6 +80,85 @@ minimumReleaseAgeExclude:
+   - tw-shimmer
+   - typescript
+\x20
++# Fail the install when a package loses the trusted publishing or provenance it used to have.
++trustPolicy: no-downgrade
++# Exact releases the policy flags, each checked on the registry before trusting it.
++trustPolicyExclude:
++  - '@expo/cli@57.0.32'
++  - '@expo/config-plugins@57.0.11'
++  - '@expo/config@57.0.10'
++  - '@expo/fingerprint@0.20.14'
++  - '@expo/image-utils@0.11.6'
++  - '@expo/inline-modules@0.1.8'
++  - '@expo/local-build-cache-provider@57.0.9'
++  - '@expo/metro-config@57.0.13'
++  - '@expo/metro-file-map@57.0.4'
++  - '@expo/metro-runtime@57.0.17'
++  - '@expo/prebuild-config@57.0.19'
++  - '@expo/require-utils@57.0.6'
++  - '@expo/router-server@57.0.14'
++  - '@expo/ui@57.0.26'
++  - '@flue/react@2.3.0'
++  - '@flue/runtime@2.3.0'
++  - '@flue/sdk@2.3.0'
++  - '@flue/vite@2.3.0'
++  - '@pierre/theme@2.0.0'
++  - '@vercel/backends@22.0.1'
++  - '@vercel/build-utils@15.0.1'
++  - '@vercel/cervel@0.1.87'
++  - '@vercel/cli-auth@0.3.12'
++  - '@vercel/cli-config@0.3.1'
++  - '@vercel/cli-config@0.3.3'
++  - '@vercel/cli-exec@1.0.1'
++  - '@vercel/container@22.0.1'
++  - '@vercel/detect-agent@1.2.7'
++  - '@vercel/elysia@22.0.1'
++  - '@vercel/error-utils@2.2.1'
++  - '@vercel/express@22.0.1'
++  - '@vercel/fastify@22.0.1'
++  - '@vercel/gatsby-plugin-vercel-analytics@1.0.12'
++  - '@vercel/gatsby-plugin-vercel-builder@2.2.79'
++  - '@vercel/go@25.0.1'
++  - '@vercel/h3@22.0.1'
++  - '@vercel/hono@22.0.1'
++  - '@vercel/hydrogen@23.0.1'
++  - '@vercel/koa@22.0.1'
++  - '@vercel/nestjs@22.0.1'
++  - '@vercel/next@26.0.1'
++  - '@vercel/node@27.0.1'
++  - '@vercel/oidc@3.8.10'
++  - '@vercel/python-analysis@0.15.2'
++  - '@vercel/python@28.0.1'
++  - '@vercel/redwood@24.0.1'
++  - '@vercel/remix-builder@27.0.1'
++  - '@vercel/ruby@24.0.1'
++  - '@vercel/rust@23.0.1'
++  - '@vercel/static-build@24.0.1'
++  - '@vercel/static-config@3.4.4'
++  - '@vercel/vc-native-darwin-arm64@65.2.0'
++  - '@vercel/vc-native-darwin-x64@65.2.0'
++  - '@vercel/vc-native-linux-arm64@65.2.0'
++  - '@vercel/vc-native-linux-x64@65.2.0'
++  - '@vercel/vc-native-win32-x64@65.2.0'
++  - babel-preset-expo@57.0.16
++  - chokidar@4.0.3
++  - expo-asset@57.0.20
++  - expo-constants@57.0.22
++  - expo-image-manipulator@57.0.21
++  - expo-linking@57.0.13
++  - expo-modules-autolinking@57.0.16
++  - expo-modules-core@57.0.24
++  - expo-modules-jsi@57.1.3
++  - expo-router@57.0.29
++  - expo-splash-screen@57.0.10
++  - expo@57.0.31
++  - semver@6.3.1
++  - ua-parser-js@1.0.41
++  - undici@5.29.0
++  - vercel@65.2.0
++# Drop entries on add, update and remove once the locked version is gone.
++trustPolicyExcludePrune: true
++
+ allowBuilds:
+   '@clerk/shared': false
+   '@google/genai': false
+`,
+  ],
+  [
+    "e1e7ea39d",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index dbad6baa8..6d3f37faa 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -37,6 +37,9 @@ minimumReleaseAgeExclude:
+   - '@farming-labs/docs@0.2.137'
+   - '@farming-labs/theme@0.2.137'
+   - '@farming-labs/next@0.2.137'
++  - '@farming-labs/docs@0.2.141'
++  - '@farming-labs/theme@0.2.141'
++  - '@farming-labs/next@0.2.141'
+   - '@lexical/a11y@0.53.0'
+   - '@lexical/clipboard@0.53.0'
+   - '@lexical/code-core@0.53.0'
+`,
+  ],
+  [
+    "f451b5978",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index bf6a520bf..dbad6baa8 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -34,8 +34,9 @@ update:
+ # Release age is a verification gate: review fresh releases, then add narrowly scoped, exact-version exceptions when justified.
+ minimumReleaseAge: 1440
+ minimumReleaseAgeExclude:
+-  - '@farming-labs/docs@0.2.127'
+-  - '@farming-labs/theme@0.2.127'
++  - '@farming-labs/docs@0.2.137'
++  - '@farming-labs/theme@0.2.137'
++  - '@farming-labs/next@0.2.137'
+   - '@lexical/a11y@0.53.0'
+   - '@lexical/clipboard@0.53.0'
+   - '@lexical/code-core@0.53.0'
+`,
+  ],
+  [
+    "36ab8fdec",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index a3c05a739..bf6a520bf 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -36,6 +36,30 @@ minimumReleaseAge: 1440
+ minimumReleaseAgeExclude:
+   - '@farming-labs/docs@0.2.127'
+   - '@farming-labs/theme@0.2.127'
++  - '@lexical/a11y@0.53.0'
++  - '@lexical/clipboard@0.53.0'
++  - '@lexical/code-core@0.53.0'
++  - '@lexical/devtools-core@0.53.0'
++  - '@lexical/dragon@0.53.0'
++  - '@lexical/extension@0.53.0'
++  - '@lexical/hashtag@0.53.0'
++  - '@lexical/history@0.53.0'
++  - '@lexical/html@0.53.0'
++  - '@lexical/internal@0.53.0'
++  - '@lexical/link@0.53.0'
++  - '@lexical/list@0.53.0'
++  - '@lexical/mark@0.53.0'
++  - '@lexical/markdown@0.53.0'
++  - '@lexical/overflow@0.53.0'
++  - '@lexical/plain-text@0.53.0'
++  - '@lexical/react@0.53.0'
++  - '@lexical/rich-text@0.53.0'
++  - '@lexical/selection@0.53.0'
++  - '@lexical/table@0.53.0'
++  - '@lexical/text@0.53.0'
++  - '@lexical/utils@0.53.0'
++  - '@lexical/yjs@0.53.0'
++  - 'lexical@0.53.0'
+   - '@assistant-ui/*'
+   - '@next/*'
+   - '@openuidev/assistant-ui'
+`,
+  ],
+  [
+    "8e4a46935",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index c7f0fad88..a3c05a739 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -69,4 +69,4 @@ allowBuilds:
+   react-grab: false
+   ssh2: false
+   vue-demi: false
+-  workerd@1.20261012.1: true
++  workerd@1.20261019.1: true
+`,
+  ],
+  [
+    "d56b46509",
+    1,
+    `diff --git a/pnpm-workspace.yaml b/pnpm-workspace.yaml
+index 0ad59b376..c7f0fad88 100644
+--- a/pnpm-workspace.yaml
++++ b/pnpm-workspace.yaml
+@@ -16,6 +16,9 @@ strictDepBuilds: true
+ overrides:
+   '@google/adk>adm-zip': ^0.6.1
+   '@vercel/container>tar': ^7.5.22
++  '@earendil-works/pi-coding-agent>undici': ^8.12.2
++  guarded-fetch>undici: ^7.30.1
++  miniflare>undici: ^7.30.1
+\x20
+ verifyDepsBeforeRun: install
+\x20
+`,
+  ],
+]) {
+  test(`workspace install policy replay ${commit} stays T${tier}`, () => {
+    const path = "pnpm-workspace.yaml";
+    const result = computeTier(
+      input({ files: [file(path, { patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, tier);
+    assert.deepEqual(
+      result.reasons.filter(({ code }) => code === "install-policy"),
+      tier === 3 ? [{ tier, code: "install-policy", detail: path }] : [],
+    );
+  });
+}
+
 for (const [path, previousPath] of [
   ["pnpm-workspace.yaml", "workspace.yaml"],
   ["workspace.yaml", "pnpm-workspace.yaml"],
 ]) {
-  for (const patch of ["+allowBuilds:\n+  foo@1.2.3: true", null]) {
+  for (const patch of [
+    "+allowBuilds:\n+  foo@1.2.3: true",
+    " overrides:\n-  foo: ^1.2.3\n+  foo: ^1.2.4",
+    " minimumReleaseAgeExclude:\n+  - foo@1.2.3",
+    "-# Old comment\n+# New comment",
+    "",
+    null,
+  ]) {
     test(`a workspace install policy rename from ${previousPath} to ${path} gives T3: ${patch}`, () => {
       const result = computeTier(
         input({
@@ -748,6 +1273,26 @@ for (const [path, previousPath] of [
       );
     });
   }
+}
+
+for (const patch of [
+  "-# Workspace settings",
+  "@@ -1,1 +0,0 @@ minimumReleaseAgeExclude:\n-  - foo@1.2.3 # Verified release",
+  "",
+  null,
+]) {
+  test(`removing the root workspace file gives T3: ${patch}`, () => {
+    const path = "pnpm-workspace.yaml";
+    const result = computeTier(
+      input({ files: [file(path, { status: "removed", patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, 3);
+    assert.deepEqual(
+      result.reasons.filter(({ code }) => code === "install-policy"),
+      [{ tier: 3, code: "install-policy", detail: path }],
+    );
+  });
 }
 
 test("workspace install policy signals only apply to the root workspace file", () => {
