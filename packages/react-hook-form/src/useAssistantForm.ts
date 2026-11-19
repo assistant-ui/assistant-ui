@@ -33,9 +33,6 @@ type ToolExecutionContext = Parameters<
   NonNullable<NonNullable<ModelContext["tools"]>[string]["execute"]>
 >[1];
 
-/** `items[0].name` and `items.0.name` name the same react-hook-form field. */
-const toFieldPath = (name: string) => name.replace(/\[(\d+)\]/g, ".$1");
-
 const requestFormApproval = async (
   human: ToolExecutionContext["human"],
   type: "form-submit" | "form-reset",
@@ -102,26 +99,6 @@ export type UseAssistantFormProps<
           | undefined;
       }
     | undefined;
-};
-
-const isSensitiveElement = (element: unknown): boolean => {
-  if (!(element instanceof HTMLElement)) return false;
-  const autocomplete = (element.getAttribute("autocomplete") ?? "")
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
-  const autofillField =
-    autocomplete.at(-1) === "webauthn"
-      ? autocomplete.at(-2)
-      : autocomplete.at(-1);
-  return (
-    (element instanceof HTMLInputElement && element.type === "password") ||
-    (autofillField !== undefined &&
-      (["current-password", "new-password", "one-time-code"].includes(
-        autofillField,
-      ) ||
-        autofillField.startsWith("cc-")))
-  );
 };
 
 export const useAssistantForm = <
@@ -251,66 +228,14 @@ export const useAssistantForm = <
     "\n",
   );
   useEffect(() => {
-    const collectSensitiveFields = () => {
-      const sensitiveFields = new Set<string>(
-        detectedSensitiveFieldsRef.current,
-      );
-      for (const name of sensitiveFieldsKey
-        ? sensitiveFieldsKey.split("\n")
-        : []) {
-        sensitiveFields.add(toFieldPath(name));
-      }
-      for (const name of control._names.mount) {
-        const field: Field | undefined = get(control._fields, name);
-        if (typeof HTMLElement === "undefined") break;
-        const fieldReference: unknown = Array.isArray(field?._f?.refs)
-          ? field._f.refs[0]
-          : field?._f?.ref;
-        // A `Controller` field stores a methods-only proxy instead of the
-        // element, so look its input up by name. This searches the whole
-        // page; a sensitive input with the same name elsewhere fails closed.
-        const elements: unknown[] =
-          fieldReference instanceof HTMLElement
-            ? [fieldReference]
-            : typeof document === "undefined"
-              ? []
-              : [...document.getElementsByName(name)];
-        if (!elements.some(isSensitiveElement)) continue;
-        const path = toFieldPath(name);
-        detectedSensitiveFieldsRef.current.add(path);
-        sensitiveFields.add(path);
-      }
-      return sensitiveFields;
-    };
-
     const value: ModelContext = {
       tools: {
         set_form_field: tool({
           ...formTools.set_form_field,
           parameters: formTools.set_form_field.parameters,
           execute: async (args) => {
-            // Only fields the form renders can be set, and sensitive fields
-            // (and anything under one) stay out of the model's reach in both
-            // directions.
-            const path = toFieldPath(args.name);
-            const name = [...control._names.mount].find(
-              (mounted) => toFieldPath(mounted) === path,
-            );
-            const field: Field | undefined =
-              name === undefined ? undefined : get(control._fields, name);
-            const sensitiveFields = collectSensitiveFields();
-            const segments = path.split(".");
-            const underSensitive = segments.some((_, index) =>
-              sensitiveFields.has(segments.slice(0, index + 1).join(".")),
-            );
-            if (name === undefined || !field?._f?.mount || underSensitive) {
-              return {
-                success: false,
-                message: `The form has no field named "${args.name}" that can be set.`,
-              };
-            }
             setValue(
-              name as Path<TFieldValues>,
+              args.name as Path<TFieldValues>,
               args.value as PathValue<TFieldValues, Path<TFieldValues>>,
             );
 
@@ -353,9 +278,13 @@ export const useAssistantForm = <
                   ? field._f.refs[0]
                   : field._f.ref;
 
-                if (fieldReference instanceof HTMLElement) {
+                if (
+                  typeof HTMLElement !== "undefined" &&
+                  fieldReference instanceof HTMLElement
+                ) {
                   if ("form" in fieldReference) {
                     formElement =
+                      typeof HTMLFormElement !== "undefined" &&
                       fieldReference.form instanceof HTMLFormElement
                         ? fieldReference.form
                         : null;
@@ -438,6 +367,27 @@ export const useAssistantForm = <
               };
             }
 
+            if (typeof HTMLElement === "undefined") {
+              // A non-DOM renderer has no form element to dispatch a native
+              // submit to, but the fields are still registered with RHF. Submit
+              // through RHF itself so tools work the same way set_form_field
+              // does in that environment.
+              let valid = false;
+              await handleSubmit(
+                () => {
+                  valid = true;
+                },
+                () => {},
+              )();
+              return valid
+                ? { success: true }
+                : {
+                    success: false,
+                    message:
+                      "The form contains invalid fields and was not submitted.",
+                  };
+            }
+
             return {
               success: false,
               message:
@@ -464,7 +414,48 @@ export const useAssistantForm = <
 
     return aui.modelContext.register({
       getModelContext: () => {
-        const sensitiveFields = collectSensitiveFields();
+        const sensitiveFields = new Set<string>(
+          detectedSensitiveFieldsRef.current,
+        );
+        for (const name of sensitiveFieldsKey
+          ? sensitiveFieldsKey.split("\n")
+          : []) {
+          sensitiveFields.add(name.replace(/\[(\d+)\]/g, ".$1"));
+        }
+        for (const name of control._names.mount) {
+          const field: Field | undefined = get(control._fields, name);
+          const fieldReference: unknown = Array.isArray(field?._f?.refs)
+            ? field._f.refs[0]
+            : field?._f?.ref;
+          if (
+            typeof HTMLElement === "undefined" ||
+            !(fieldReference instanceof HTMLElement)
+          )
+            continue;
+          const autocomplete = (
+            fieldReference.getAttribute("autocomplete") ?? ""
+          )
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean);
+          const autofillField =
+            autocomplete.at(-1) === "webauthn"
+              ? autocomplete.at(-2)
+              : autocomplete.at(-1);
+          if (
+            (fieldReference instanceof HTMLInputElement &&
+              fieldReference.type === "password") ||
+            (autofillField !== undefined &&
+              (["current-password", "new-password", "one-time-code"].includes(
+                autofillField,
+              ) ||
+                autofillField.startsWith("cc-")))
+          ) {
+            const path = name.replace(/\[(\d+)\]/g, ".$1");
+            detectedSensitiveFieldsRef.current.add(path);
+            sensitiveFields.add(path);
+          }
+        }
 
         const omitSensitive = (current: unknown, path: string): unknown => {
           if (Array.isArray(current)) {
