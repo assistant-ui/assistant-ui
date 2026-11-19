@@ -2471,6 +2471,7 @@ export class AgUiThreadController {
       const adopted = this.adoptAssistantWireId(
         placeholder,
         serverId,
+        resumeSource !== undefined,
         deferUpdateNotifications,
       );
       // A collision drops the placeholder before revealing the existing
@@ -2478,11 +2479,11 @@ export class AgUiThreadController {
       // this run can replace the placeholder; regeneration must not rewrite
       // a previous branch when the server incorrectly reuses its id.
       const adoptsVisibleCollision =
-        !adopted &&
+        adopted === undefined &&
         !runStartMessageIds.has(existingId) &&
         this.session.headId === existingId;
-      if (adopted || adoptsVisibleCollision) {
-        assistantMessageId = adopted ? placeholder : existingId;
+      if (adopted !== undefined || adoptsVisibleCollision) {
+        assistantMessageId = adopted ?? existingId;
         assistantWireMessageId =
           assistantMessageId === serverId ? undefined : serverId;
         if (adoptsVisibleCollision) {
@@ -3435,14 +3436,16 @@ export class AgUiThreadController {
   private adoptAssistantWireId(
     localId: string,
     wireId: string,
+    followsRun: boolean,
     deferNotification = false,
-  ): boolean {
+  ): string | undefined {
     const item = this.session.tryGetMessage(localId);
-    if (!item) return false;
+    if (!item) return undefined;
     const existing = this.findMessageByWireId(wireId);
-    if (existing?.message.id === localId) return true;
+    if (existing?.message.id === localId) return localId;
 
     this.optimisticIds.delete(localId);
+    const { isOptimistic: _, ...metadata } = item.message.metadata;
     if (existing) {
       this.session.deleteMessage(localId, item.parentId ?? null);
       this.assistantHistoryParents.delete(localId);
@@ -3450,8 +3453,29 @@ export class AgUiThreadController {
       this.persistedHistoryIds.delete(localId);
       this.historyWrites.move(localId, undefined);
       this.unappendedHistoryIds.delete(localId);
+    } else if (
+      followsRun &&
+      item.message.content.length === 0 &&
+      !this.session.hasMessage(wireId)
+    ) {
+      // Other clients may follow a run joined in flight, and only the agent's
+      // id is shared, so a row with nothing mounted yet takes it.
+      this.session.addOrUpdateMessage(item.parentId, {
+        ...item.message,
+        id: wireId,
+        metadata,
+      } as ThreadMessage);
+      this.session.switchToBranch(wireId);
+      this.session.tryDeleteMessage(localId);
+      const pendingParent = this.assistantHistoryParents.get(localId);
+      this.assistantHistoryParents.delete(localId);
+      if (pendingParent !== undefined)
+        this.assistantHistoryParents.set(wireId, pendingParent);
+      if (this.snapshotHistoryIds.delete(localId))
+        this.snapshotHistoryIds.add(wireId);
+      this.publishUpdate(deferNotification);
+      return wireId;
     } else {
-      const { isOptimistic: _, ...metadata } = item.message.metadata;
       this.session.updateMessage(
         localId,
         () =>
@@ -3468,7 +3492,7 @@ export class AgUiThreadController {
       this.wireMessageIds.set(wireId, localId);
     }
     this.publishUpdate(deferNotification);
-    return existing === undefined;
+    return existing === undefined ? localId : undefined;
   }
 
   private updateAssistantMessage(

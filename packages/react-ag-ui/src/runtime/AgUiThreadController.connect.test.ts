@@ -186,6 +186,47 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
     expect(transcript(core).at(-1)).toMatchObject({ text: "Hello again" });
   });
 
+  it("stores one answer when two clients rejoin the same run", async () => {
+    const stored = new Map<string, ThreadMessage>();
+    const sharedHistory = (): ThreadHistoryAdapter => ({
+      load: async () => ({
+        headId: storedUser.id,
+        messages: [{ parentId: null, message: storedUser }],
+        unstable_resume: true,
+      }),
+      append: async ({ message }) => {
+        stored.set(message.id, message);
+      },
+    });
+    const clients = [0, 1].map(
+      () =>
+        new AgUiThreadController({
+          agent: new ReconnectingAgent({
+            url: "https://agent.test",
+            fetch: fetchFor({ "https://agent.test/stream": inFlightRun }),
+          }),
+          logger: makeLogger(),
+          showThinking: false,
+          history: sharedHistory(),
+        }),
+    );
+
+    await Promise.all(clients.map((core) => core.__internal_load()));
+
+    expect(
+      [...stored.values()].map((message) => [
+        message.id,
+        message.role,
+        message.status?.type,
+      ]),
+    ).toEqual([["answer", "assistant", "complete"]]);
+    for (const core of clients)
+      expect(core.getMessages().map(({ id }) => id)).toEqual([
+        "question",
+        "answer",
+      ]);
+  });
+
   describe("a rejoined run that replays a messages snapshot", () => {
     const question = { id: "question", role: "user", content: "Hi" };
     const rejoin = async (events: object[]) => {
