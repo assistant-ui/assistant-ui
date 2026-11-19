@@ -108,7 +108,9 @@ describe("RemoteThreadList thread mutations", () => {
       const actions = threads.__internal_getRawActions!();
       try {
         await actions.switchToThread("a");
-        flushTapSync(() => {});
+        await vi.waitFor(() =>
+          expect(threads.getState().mainThreadId).toBe("a"),
+        );
         const firstRename = actions.rename("a", "First");
         const firstResult = firstRename.catch((error: unknown) => error);
         await started.promise;
@@ -270,7 +272,7 @@ describe("RemoteThreadList thread mutations", () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       firstArchive.resolve();
       await Promise.all([first, second, unarchived!]);
-      flushTapSync(() => {});
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
       expect(calls).toEqual(["archive", "archive", "unarchive"]);
       expect({
         shown: threads.item({ id: "a" }).getState().status,

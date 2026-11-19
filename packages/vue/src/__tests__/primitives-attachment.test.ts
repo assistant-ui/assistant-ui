@@ -171,7 +171,6 @@ describe("composer attachment primitives", () => {
 
     await client().composer.addAttachment(makeFile("report.pdf"));
     await client().composer.addAttachment(makeFile("noext", "text/plain"));
-    flushTapSync(() => {});
 
     await vi.waitFor(async () => {
       await nextTick();
@@ -190,7 +189,6 @@ describe("composer attachment primitives", () => {
     const { el, client, unmount } = mountChat(runtime, ComposerAttachmentsView);
 
     await client().composer.addAttachment(makeFile("a.txt"));
-    flushTapSync(() => {});
     await vi.waitFor(async () => {
       await nextTick();
       expect(el.querySelector("button.remove")).not.toBeNull();
@@ -224,14 +222,12 @@ describe("composer attachment primitives", () => {
 
     await client().composer.addAttachment(makeFile("first.txt"));
     await client().composer.addAttachment(makeFile("second.txt"));
-    flushTapSync(() => {});
     await vi.waitFor(async () => {
       await nextTick();
       expect(el.querySelectorAll(".stateful-att")).toHaveLength(2);
     });
 
     await client().composer.attachment({ index: 0 }).remove();
-    flushTapSync(() => {});
     await vi.waitFor(async () => {
       await nextTick();
       const names = [...el.querySelectorAll(".stateful-att")].map(
@@ -389,7 +385,6 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     expect(composer.addAttachment).toHaveBeenCalledOnce();
     expect(dz.dataset["dragging"]).toBeUndefined();
     await vi.waitFor(() => {
-      flushTapSync(() => {});
       expect(client().composer.getState().attachments).toHaveLength(1);
     });
 
