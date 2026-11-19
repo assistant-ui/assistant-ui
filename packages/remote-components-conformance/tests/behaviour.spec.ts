@@ -850,7 +850,9 @@ test.describe("network policy", () => {
       await page
         .locator("#remote .subject-url-none iframe")
         .getAttribute("csp"),
-    ).toBe("connect-src 'none'");
+    ).toBe(
+      "connect-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:",
+    );
     if (browserName === "chromium")
       expect(await run("url-none")).toContain('"loopback":"error:TypeError"');
   });

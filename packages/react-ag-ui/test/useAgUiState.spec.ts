@@ -1,4 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+// @vitest-environment jsdom
+
+import { cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 const { mockUseAuiState, mockUseAui } = vi.hoisted(() => ({
   mockUseAuiState: vi.fn(),
@@ -16,6 +19,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 
 import { agUiExtras } from "../src/agUiExtras";
 import { useAgUiState, useAgUiSetState } from "../src/hooks";
+
+afterEach(cleanup);
 
 const againstState = (extras: unknown) =>
   mockUseAuiState.mockImplementation((selector: (s: unknown) => unknown) =>
@@ -35,13 +40,15 @@ describe("useAgUiState", () => {
       }),
     );
 
-    expect(useAgUiState<{ count: number }>()).toEqual({ count: 1 });
+    expect(
+      renderHook(() => useAgUiState<{ count: number }>()).result.current,
+    ).toEqual({ count: 1 });
   });
 
   it("returns undefined state when extras are absent", () => {
     againstState(undefined);
 
-    expect(useAgUiState()).toBeUndefined();
+    expect(renderHook(() => useAgUiState()).result.current).toBeUndefined();
   });
 });
 

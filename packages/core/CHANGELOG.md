@@ -1,5 +1,34 @@
 # @assistant-ui/core
 
+## 0.3.37
+
+### Patch Changes
+
+- [#10593](https://github.com/assistant-ui/assistant-ui/pull/10593) [`528bfe9`](https://github.com/assistant-ui/assistant-ui/commit/528bfe964f1306f7070fd4efe034873b5f1cfe45) - `MessageRepository.import` now leaves the repository unchanged when it throws, for example when a message's parent or the head is missing. Thread `import` and `reset`, and loading history in the local runtime, check the data before clearing the current messages, so a history that cannot be placed no longer empties the thread. ([@Yonom](https://github.com/Yonom))
+
+- [#10597](https://github.com/assistant-ui/assistant-ui/pull/10597) [`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804) - never run a frontend tool's `execute` for a tool call the backend owns. Tool-call parts gain `providerExecuted`: the tool invocation tracker, `ToolExecutionStream` and `unstable_runPendingTools` skip a call that carries it, even when the run ends before the backend's result arrives. UI message streams set it for provider-executed calls, the data stream format carries it from `addToolCallPart({ providerExecuted: true })` to the client, and `@assistant-ui/ai-sdk` sets it from the AI SDK part's `providerExecuted`. A dynamic tool call is marked only when its part carries `providerExecuted: true`, so otherwise it stays client-runnable as it is in the AI SDK. `@assistant-ui/react-langchain` holds a call while the graph is paused on an interrupt, and `@assistant-ui/eve` never hands a call to a frontend tool. ([@Yonom](https://github.com/Yonom))
+
+- [#10641](https://github.com/assistant-ui/assistant-ui/pull/10641) [`8f30cfc`](https://github.com/assistant-ui/assistant-ui/commit/8f30cfc76b6e1483cc390a293eafc4d8fffb2bcd) - Keep Cloud message ID mappings available when a thread history moves from its live item to the listed item, so edits to loaded messages reach Cloud. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10601](https://github.com/assistant-ui/assistant-ui/pull/10601) [`11afc02`](https://github.com/assistant-ui/assistant-ui/commit/11afc0276e87cc0834342d6fdeeaaf0595fccdbe) - fix(cloud): loading a thread follows `has_more` from the message list, so a page that ends before its limit no longer ends the thread early ([@Yonom](https://github.com/Yonom))
+
+- [#10666](https://github.com/assistant-ui/assistant-ui/pull/10666) [`d9a7f68`](https://github.com/assistant-ui/assistant-ui/commit/d9a7f68b5a38fcc3f68b5acf127f71dd5b8a6837) - keep how a dictation session ended. Composer state gains `lastDictationEnd` (`{ reason, error?: AssistantError }`), set when a session ends and cleared before the next adapter listen attempt, so a UI can explain a failed dictation after `dictation` returns to `undefined`. The ended `DictationAdapter.Status` gains `error?: unknown`, which the composer normalizes to `AssistantError`, and `WebSpeechDictationAdapter` fills it with the browser's `{ code, message }` (for example `not-allowed` for a blocked microphone). `DictationEnd` is exported. ([@vidiyala99](https://github.com/vidiyala99))
+
+- [#10594](https://github.com/assistant-ui/assistant-ui/pull/10594) [`8c67589`](https://github.com/assistant-ui/assistant-ui/commit/8c67589ca1b3ffac888c19e9a2759ee7c052ce4b) - `fromThreadMessageLike` (used for `convertMessage` and `initialMessages`) now checks file, image and source parts with the same rules as the local storage and cloud history readers, so a malformed part is handled the same way on every runtime. A part is dropped when a field it needs to render has the wrong type: a file's `data` or `mimeType`, an image's `image`, a url source's `id` or `url`, a document source's `id`, `title` or `mediaType`. An optional field that is `null` or of the wrong type is removed and the part is kept: a file's `filename`, a file's `sourceType` when it is not `"url"` or `"id"`, an image's `filename`, a url source's `title`, a document source's `filename`. This applies in `fromThreadMessageLike` and when local storage history and stored attachments are read, so history saved with such a field still loads in full. Text parts whose `text` is not a string are dropped, and a system message whose text is not a string gets an empty text. A reasoning part whose `text` is not a string gets an empty `text`, and a `unstable_summary` that is not a string is removed. ([@Yonom](https://github.com/Yonom))
+
+- [#10625](https://github.com/assistant-ui/assistant-ui/pull/10625) [`48b920e`](https://github.com/assistant-ui/assistant-ui/commit/48b920eebdfbbe169bd408782fd7f364e84e9621) - An archived thread stays archived, and a renamed thread keeps the newer title, when initializing a draft merges its queued mutations with those of a listed copy. The list applies them in the same order as the server. ([@rome-xi](https://github.com/rome-xi))
+
+- [#10532](https://github.com/assistant-ui/assistant-ui/pull/10532) [`b43be24`](https://github.com/assistant-ui/assistant-ui/commit/b43be2420a395ec193a01a8e85bf818c76a7cc90) - Add an optional `storeKey` on `RemoteThreadListAdapter` so a recreated adapter for the same store keeps in-flight thread-list mutations and their optimistic updates on the `RemoteThreadList` client. `useRemoteThreadListRuntime` with an adapter that has `unstable_Provider` runs on the deprecated class core, which ignores `storeKey`. ([@gentil93](https://github.com/gentil93))
+
+- [#10649](https://github.com/assistant-ui/assistant-ui/pull/10649) [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524) - share composition, attachment key, and message id helpers across bindings without changing their behavior. ([@okisdev](https://github.com/okisdev))
+
+- [#10623](https://github.com/assistant-ui/assistant-ui/pull/10623) [`334bf5c`](https://github.com/assistant-ui/assistant-ui/commit/334bf5cfc2e86756bf1d6cb2001d11926c73dba4) - Filter malformed attachment parts when converting thread messages. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10710](https://github.com/assistant-ui/assistant-ui/pull/10710) [`0f49172`](https://github.com/assistant-ui/assistant-ui/commit/0f49172e1d7d7152e0665ddedb10f3b7f73e2425) - fix: reject a pending `human()` request when the tool call's arguments change after they completed, so an answer never applies to arguments the user was not shown ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804), [`11afc02`](https://github.com/assistant-ui/assistant-ui/commit/11afc0276e87cc0834342d6fdeeaaf0595fccdbe), [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e)]:
+  - assistant-stream@0.3.58
+  - assistant-cloud@0.2.13
+
 ## 0.3.36
 
 ### Patch Changes

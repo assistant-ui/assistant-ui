@@ -31,11 +31,29 @@ jobs:
       matrix:
         package:
           - assistant-stream
+          - assistant-transport-backend
+          - assistant-transport-backend-langgraph
           - assistant-ui-sync-server-api
         python-version: ["3.10", "3.12", "3.14"]
     defaults:
       run:
         working-directory: python/${{ matrix.package }}
+    services:
+      postgres:
+        image: postgres:17-alpine # ratchet:exclude
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: assistant_stream
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-start-period 5s
+          --health-start-interval 1s
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -56,16 +74,25 @@ jobs:
           BASE_REF: ${{ github.event_name == 'pull_request' && 'HEAD^1' || github.event.before }}
         run: |
           set -euo pipefail
-          case "$PACKAGE" in
-            assistant-stream) other=assistant-ui-sync-server-api ;;
-            assistant-ui-sync-server-api) other=assistant-stream ;;
-            *) exit 1 ;;
-          esac
+          packages=(
+            assistant-stream
+            assistant-transport-backend
+            assistant-transport-backend-langgraph
+            assistant-ui-sync-server-api
+          )
+          paths=(python .github/workflows/python-tests.yaml scripts/python-test-selection.test.mjs)
+          known=false
+          for candidate in "${packages[@]}"; do
+            if [ "$candidate" = "$PACKAGE" ]; then
+              known=true
+            else
+              paths+=(":(exclude)python/$candidate")
+            fi
+          done
+          "$known" || exit 1
           run=true
           if git rev-parse --verify --quiet "${BASE_REF}^{commit}" > /dev/null &&
-            git diff --quiet --no-renames "$BASE_REF" HEAD -- \
-              python .github/workflows/python-tests.yaml \
-              scripts/python-test-selection.test.mjs ":(exclude)python/$other"; then
+            git diff --quiet --no-renames "$BASE_REF" HEAD -- "${paths[@]}"; then
             run=false
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
@@ -83,4 +110,7 @@ jobs:
 
       - name: Run tests
         if: steps.selection.outputs.run == 'true'
+        env:
+          # The Postgres thread store cases skip without a database.
+          DATABASE_URL: ${{ matrix.package == 'assistant-stream' && 'postgresql://postgres:postgres@127.0.0.1:5432/assistant_stream' || '' }}
         run: uv run pytest

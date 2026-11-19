@@ -74,7 +74,6 @@ const mountHost = async (
     rename: () => actions.rename("t1", "Winner"),
     delete: () => actions.delete("t1"),
     title: () => {
-      flushTapSync(() => {});
       return threads.getState().threadIds.includes("t1")
         ? threads.item({ id: "t1" }).getState().title
         : undefined;

@@ -22,8 +22,13 @@ export const resolveForkCheckpoint = async (
   sourceId: string | null | undefined,
   metadata: MessageMetadataSnapshot,
   messagesKey: string,
+  useSourceBoundary = true,
 ): Promise<string | null> => {
   const lastMessage = messages[messages.length - 1];
+  const sourceIndex =
+    !useSourceBoundary || sourceId == null
+      ? -1
+      : messages.findIndex((message) => message.id === sourceId);
   let checkpointId: string | null =
     sourceId != null && lastMessage?.id === sourceId
       ? (metadata?.get(sourceId)?.parentCheckpointId ?? null)
@@ -32,13 +37,18 @@ export const resolveForkCheckpoint = async (
   if (!checkpointId) {
     const parentIndex =
       parentId == null ? -1 : messages.findIndex((m) => m.id === parentId);
-    if (parentId != null && parentIndex === -1) return null;
+    if (sourceIndex === -1 && parentId != null && parentIndex === -1)
+      return null;
     try {
       checkpointId = await findForkCheckpointInHistory(
         client,
         threadId,
-        messages.slice(0, parentIndex + 1),
+        sourceIndex === -1
+          ? messages.slice(0, parentIndex + 1)
+          : messages.slice(0, sourceIndex),
         messagesKey,
+        100,
+        parentIndex + 1,
       );
     } catch {
       return null;

@@ -376,6 +376,31 @@ describe("AssistantFrameProvider", () => {
     });
   });
 
+  it("refuses calls to a disabled tool", async () => {
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          sensitiveTool: { ...createTool(execute), disabled: true },
+        },
+      }),
+    });
+
+    dispatchToolCall(window.location.origin);
+
+    await vi.waitFor(() => {
+      const frame = (
+        parentWindow.postMessage as ReturnType<typeof vi.fn>
+      ).mock.calls
+        .map(([data]) => data)
+        .find((data) => data?.message?.type === "tool-result");
+      expect(frame?.message).toMatchObject({
+        error: 'Tool "sensitiveTool" is disabled',
+      });
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("reports tool results that cannot cross the frame boundary", async () => {
     const consoleError = vi
       .spyOn(console, "error")

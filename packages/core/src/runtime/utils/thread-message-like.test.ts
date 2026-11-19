@@ -110,6 +110,34 @@ describe("fromThreadMessageLike", () => {
     ).toEqual(message);
   });
 
+  it("drops malformed image parts from attachment content", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "user",
+        content: "hello",
+        attachments: [
+          {
+            id: "attachment",
+            type: "file",
+            name: "photo.jpg",
+            status: { type: "complete" },
+            content: [
+              { type: "image", image: 42 },
+              { type: "image", image: "https://example.com/photo.jpg" },
+            ],
+          },
+        ],
+      } as never,
+      "user-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    if (message.role !== "user") throw new Error("expected user");
+    expect(message.attachments[0]?.content).toEqual([
+      { type: "image", image: "https://example.com/photo.jpg" },
+    ]);
+  });
+
   it("preserves modality on user and assistant messages", () => {
     const user = fromThreadMessageLike(
       {
@@ -306,6 +334,28 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
       ).toEqual([good]);
     },
   );
+
+  it("drops malformed top-level audio and data parts while retaining valid parts", () => {
+    const audio = {
+      type: "audio",
+      audio: { data: "data:audio/wav;base64,YQ==", format: "wav" },
+    };
+    const data = { type: "data", name: "workflow", data: { step: 1 } };
+
+    expect(
+      convert("user", [
+        { type: "audio", audio: { data: 42, format: "wav" } },
+        {
+          type: "audio",
+          audio: { data: "data:audio/wav;base64,YQ==", format: 42 },
+        },
+        { type: "data", data: { step: 2 } },
+        { type: "data", name: 42, data: { step: 2 } },
+        audio,
+        data,
+      ]),
+    ).toEqual([audio, data]);
+  });
 
   it.each(["assistant", "user"] as const)(
     "keeps a file part whose optional fields have the wrong type on %s messages, without them",
