@@ -658,6 +658,7 @@ const useStreamThreadRuntime = (
           config.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
+          fork.transcripts.length === 0,
         );
         if (threadController.getState().forkGeneration !== forkGeneration)
           return;
@@ -719,6 +720,7 @@ const useStreamThreadRuntime = (
           message.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
+          fork.transcripts.length === 0,
         );
         if (threadController.getState().forkGeneration !== forkGeneration)
           return;

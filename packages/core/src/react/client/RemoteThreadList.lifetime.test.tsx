@@ -103,8 +103,9 @@ const mount = (
     signals,
     replaceAdapter(next: RemoteThreadListAdapter) {
       adapter = next;
-      for (const listener of listeners) listener();
-      flushTapSync(() => {});
+      flushTapSync(() => {
+        for (const listener of listeners) listener();
+      });
     },
   };
 };
@@ -432,7 +433,6 @@ describe("RemoteThreadList body lifetimes", () => {
       const replacement = makeAdapter();
       setup.replaceAdapter(replacement);
       await vi.waitFor(async () => {
-        flushTapSync(() => {});
         await setup.handle.getClient().threads.reload();
         expect(replacement.list).toHaveBeenCalled();
       });
@@ -478,7 +478,6 @@ describe("RemoteThreadList body lifetimes", () => {
       });
       setup.replaceAdapter(replacement);
       await vi.waitFor(async () => {
-        flushTapSync(() => {});
         await setup.handle.getClient().threads.reload();
         expect(replacement.list).toHaveBeenCalled();
       });
@@ -517,7 +516,6 @@ describe("RemoteThreadList body lifetimes", () => {
     const replacement = makeAdapter();
     setup.replaceAdapter(replacement);
     await vi.waitFor(async () => {
-      flushTapSync(() => {});
       await setup.handle.getClient().threads.reload();
       expect(replacement.list).toHaveBeenCalled();
     });
@@ -604,7 +602,6 @@ describe("RemoteThreadList body lifetimes", () => {
     expect(draftSignal.aborted).toBe(false);
     expect(regularSignal.aborted).toBe(false);
     await vi.waitFor(async () => {
-      flushTapSync(() => {});
       await setup.handle.getClient().threads.reload();
       expect(replacement.list).toHaveBeenCalled();
     });
@@ -651,7 +648,6 @@ describe("RemoteThreadList body lifetimes", () => {
     });
     setup.replaceAdapter(replacement);
     await vi.waitFor(async () => {
-      flushTapSync(() => {});
       await setup.handle.getClient().threads.reload();
       expect(replacement.list).toHaveBeenCalled();
     });

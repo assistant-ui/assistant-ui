@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, nextTick } from "vue";
+import { createApp, defineComponent, h, nextTick, type VNode } from "vue";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type {
@@ -11,8 +11,13 @@ import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
 } from "@assistant-ui/core/internal";
-import { AuiProvider } from "@assistant-ui/vue";
+import {
+  AuiProvider,
+  MessagePrimitiveParts,
+  ThreadPrimitiveMessages,
+} from "@assistant-ui/vue";
 
+import Reasoning from "./reasoning.vue";
 import Thread from "./thread.vue";
 
 const mountThread = (
@@ -20,6 +25,7 @@ const mountThread = (
   options: {
     isRunning?: boolean;
     adapter?: Partial<ExternalStoreAdapter<ThreadMessageLike>>;
+    render?: () => VNode;
   } = {},
 ) => {
   const createAdapter = (
@@ -42,7 +48,7 @@ const mountThread = (
         h(
           AuiProvider,
           { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
-          { default: () => h(Thread) },
+          { default: () => options.render?.() ?? h(Thread) },
         ),
     }),
   );
@@ -573,6 +579,9 @@ describe("vue thread", () => {
         el.querySelector('[data-slot="aui_reasoning-trigger"]'),
       ).not.toBeNull(),
     );
+    expect(trigger(el, "aui_reasoning-trigger").textContent?.trim()).toBe(
+      "Reasoning",
+    );
     expect(el.querySelector('[data-slot="aui_reasoning-text"]')).toBeNull();
 
     trigger(el, "aui_reasoning-trigger").click();
@@ -582,6 +591,34 @@ describe("vue thread", () => {
         el.querySelector('[data-slot="aui_reasoning-text"] strong')
           ?.textContent,
       ).toBe("options"),
+    );
+
+    unmount();
+  });
+
+  it("shows a custom reasoning label on the trigger", async () => {
+    const { el, unmount } = mountThread(
+      [
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "weighing options" }],
+        },
+      ],
+      {
+        render: () =>
+          h(ThreadPrimitiveMessages, null, {
+            default: () =>
+              h(MessagePrimitiveParts, null, {
+                reasoning: () => h(Reasoning, { label: "Analysis" }),
+              }),
+          }),
+      },
+    );
+
+    await settle(() =>
+      expect(trigger(el, "aui_reasoning-trigger").textContent?.trim()).toBe(
+        "Analysis",
+      ),
     );
 
     unmount();

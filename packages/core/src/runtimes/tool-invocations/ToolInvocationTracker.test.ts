@@ -257,6 +257,70 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
+  it("rejects a pending human-input request when the call's args change under it", async () => {
+    const execute = vi.fn(async (args, { human }) => {
+      try {
+        await human({ request: "approve" });
+        return { ran: args.query as string };
+      } catch (error) {
+        return { rejected: (error as Error).message };
+      }
+    });
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange: (s) => {
+          statuses = Object.fromEntries(s);
+        },
+      });
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
+
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"Paris"}', { query: "Paris" })],
+          false,
+        ),
+      );
+
+      expect(tracker.resume("tool-1", true)).toBe(false);
+      await waitFor(() => {
+        expect(onResult).toHaveBeenCalledWith(
+          expect.objectContaining({
+            toolCallId: "tool-1",
+            result: {
+              rejected:
+                "Tool call arguments changed while waiting for human input",
+            },
+          }),
+        );
+      });
+      expect(onResult).not.toHaveBeenCalledWith(
+        expect.objectContaining({ result: { ran: "London" } }),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("keeps a human-input interrupt that execute requests before its first await", async () => {
     const execute = vi.fn(async (_args, { human }) => ({
       approved: (await human({ request: "approve" })) === true,
@@ -911,6 +975,52 @@ describe("ToolInvocationTracker", () => {
 
     expect(onResult).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["execute", { execute: vi.fn(async () => ({ deleted: true })) }],
+    ["streamCall", { streamCall: vi.fn() }],
+  ] as const)(
+    "reports an error result for a disabled %s tool without running it",
+    async (_kind, handlers) => {
+      const getTools = () => ({
+        deleteFile: {
+          parameters: { type: "object", properties: {} },
+          disabled: true,
+          ...handlers,
+        } as Tool,
+      });
+      const onResult = vi.fn();
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange: () => {},
+      });
+      tracker.setState(createState([]));
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"path":"/tmp/a"}',
+              { path: "/tmp/a" },
+              { toolName: "deleteFile" },
+            ),
+          ],
+          false,
+        ),
+      );
+
+      await waitFor(() =>
+        expect(onResult).toHaveBeenCalledWith(
+          expect.objectContaining({
+            toolCallId: "tool-1",
+            result: 'Tool "deleteFile" is disabled.',
+            isError: true,
+          }),
+        ),
+      );
+      for (const handler of Object.values(handlers))
+        expect(handler).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not execute a registered tool while the provider's run is open", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));

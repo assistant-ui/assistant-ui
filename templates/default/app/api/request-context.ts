@@ -1,6 +1,4 @@
-// Refuses chat requests that a browser sends from another site, so a page the
-// developer visits cannot spend this app's model key or drive its tools. This
-// is not authentication: add your own before you deploy the app publicly.
+// Refuses cross-origin browser requests so another origin cannot spend this app's model key or drive its tools. This is not authentication: add your own before you deploy the app publicly.
 export function isAllowedRequestContext(req: Request) {
   const fetchSite = req.headers.get("sec-fetch-site");
   if (fetchSite !== null) {

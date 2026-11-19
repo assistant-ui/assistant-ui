@@ -163,11 +163,13 @@ function ComposerInput() {
   );
 }
 
+const components = { ComposerInput };
+
 export function ChatScreen() {
   return (
     <>
       <Header />
-      <Thread components={{ ComposerInput }} />
+      <Thread components={components} />
     </>
   );
 }

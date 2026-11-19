@@ -68,6 +68,7 @@
     ".github/workflows/changeset.yaml",
     ".github/workflows/pypi-publish.yaml",
     ".pnpmfile.*",
+    "**/.npmrc",
     "scripts/review-tier.mjs",
     "scripts/diff-api-surface.mjs",
     "scripts/review-coverage-advice.mjs",

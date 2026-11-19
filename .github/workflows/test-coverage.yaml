@@ -17,14 +17,13 @@ on:
       - "scripts/coverage-summary.mjs"
       - "scripts/coverage-summary.test.mjs"
       - "scripts/test-coverage-contract.test.mjs"
-      - "scripts/durable-example-tests.test.mjs"
+      - "scripts/vitest-waitfor-interval.mjs"
       - "scripts/lib/**"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - ".github/workflows/test-coverage.yaml"
-      - ".github/workflows/durable-example-tests.yaml"
       - ".github/workflows/code-quality.yaml"
   # Pull requests and merge groups always start a run, because a required check that never reports blocks the merge; the job skips its own steps when no coverage input changed.
   pull_request:
@@ -79,14 +78,13 @@ jobs:
             scripts/coverage-summary.mjs \
             scripts/coverage-summary.test.mjs \
             scripts/test-coverage-contract.test.mjs \
-            scripts/durable-example-tests.test.mjs \
+            scripts/vitest-waitfor-interval.mjs \
             scripts/lib \
             turbo.json \
             package.json \
             pnpm-lock.yaml \
             pnpm-workspace.yaml \
             .github/workflows/test-coverage.yaml \
-            .github/workflows/durable-example-tests.yaml \
             .github/workflows/code-quality.yaml; then
             run=false
           fi
@@ -132,7 +130,7 @@ jobs:
 
       - name: Test coverage routing and summary
         if: matrix.shard == 0
-        run: node --test scripts/test-coverage-contract.test.mjs scripts/durable-example-tests.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs scripts/coverage-runtimes.test.mjs
+        run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs scripts/coverage-shards.test.mjs scripts/coverage-runtimes.test.mjs
 
       # Pull requests run without Turbo's remote cache, so they restore the local cache the latest main push saved. GitHub scopes a cache a pull request writes to its merge ref, so main never reads one.
       - name: Restore the Turbo cache from main

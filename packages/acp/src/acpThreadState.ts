@@ -22,8 +22,10 @@ import {
   appendContentBlock,
   applyToolCallUpdate,
   attachToolCallApproval,
+  findToolCallPart,
   permissionOptionToApprovalOption,
   resolveToolCallApproval,
+  toolCallApprovalSubject,
 } from "./conversions";
 
 type AssistantPart = ThreadAssistantMessage["content"][number];
@@ -62,6 +64,12 @@ export type AcpPendingPermission = {
   readonly assistantId: string;
   readonly toolCallId: string;
   readonly options: readonly ToolApprovalOption[];
+  /**
+   * What the prompt showed when it opened. A later update that changes it
+   * withdraws the prompt, so a decision never covers a call the user did not
+   * see.
+   */
+  readonly subject: string;
 };
 
 export type AcpThreadState = {
@@ -226,6 +234,49 @@ const cancelPermissions = (state: AcpThreadState): AcpThreadState => {
   return next;
 };
 
+/**
+ * Withdraws every pending prompt on `toolCallId` whose call no longer matches
+ * what the prompt showed. The controller answers each withdrawn request as
+ * cancelled.
+ */
+const withdrawChangedPermissions = (
+  state: AcpThreadState,
+  assistantId: string | undefined,
+  toolCallId: string,
+): AcpThreadState => {
+  const message =
+    assistantId === undefined ? undefined : state.messagesById[assistantId];
+  if (message?.role !== "assistant") return state;
+  const part = findToolCallPart(message.content, toolCallId);
+  const subject = part ? toolCallApprovalSubject(part) : undefined;
+  let next = state;
+  for (const permission of Object.values(state.permissions)) {
+    if (
+      permission.toolCallId !== toolCallId ||
+      permission.assistantId !== assistantId ||
+      permission.subject === subject
+    )
+      continue;
+    const { [permission.approvalId]: _withdrawn, ...permissions } =
+      next.permissions;
+    const stillWaiting = Object.values(permissions).some(
+      (other) => other.assistantId === permission.assistantId,
+    );
+    next = patchAssistant(
+      { ...next, permissions },
+      permission.assistantId,
+      (current) =>
+        resolveApproval(
+          current,
+          permission.approvalId,
+          { resolution: "cancelled" },
+          stillWaiting,
+        ),
+    );
+  }
+  return next;
+};
+
 const reduceSessionUpdate = (
   state: AcpThreadState,
   update: AcpSessionUpdate,
@@ -248,14 +299,14 @@ const reduceSessionUpdate = (
     case "tool_call":
     case "tool_call_update": {
       if (typeof update.toolCallId !== "string") return state;
-      return patchAssistant(
-        state,
-        state.settlingAssistantId ?? runningId(state),
-        (message) => {
-          const content = applyToolCallUpdate(message.content, update);
-          return content ? { ...message, content } : message;
-        },
-      );
+      const assistantId = state.settlingAssistantId ?? runningId(state);
+      const next = patchAssistant(state, assistantId, (message) => {
+        const content = applyToolCallUpdate(message.content, update);
+        return content ? { ...message, content } : message;
+      });
+      return next === state
+        ? state
+        : withdrawChangedPermissions(next, assistantId, update.toolCallId);
     }
     case "plan":
       return state.plan === update.entries
@@ -349,11 +400,21 @@ export const reduceAcpThreadState = (
         id: event.approvalId,
         options: options.map(permissionOptionToApprovalOption),
       };
-      const next = patchAssistant(state, assistantId, (message) => ({
-        ...message,
-        status: { type: "requires-action", reason: "tool-calls" },
-        content: attachToolCallApproval(message.content, toolCall, approval),
-      }));
+      let subject = "";
+      const next = patchAssistant(state, assistantId, (message) => {
+        const attached = attachToolCallApproval(
+          message.content,
+          toolCall,
+          approval,
+        );
+        subject = attached.subject;
+        return {
+          ...message,
+          status: { type: "requires-action", reason: "tool-calls" },
+          content: attached.content,
+        };
+      });
+      if (next === state) return state;
       return {
         ...next,
         permissions: {
@@ -363,6 +424,7 @@ export const reduceAcpThreadState = (
             assistantId,
             toolCallId: toolCall.toolCallId,
             options: approval.options,
+            subject,
           },
         },
       };

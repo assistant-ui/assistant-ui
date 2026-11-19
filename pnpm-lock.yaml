@@ -545,8 +545,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/assistant-stream
       aui-auth:
-        specifier: ^0.2.0
-        version: 0.2.0(hono@4.13.18)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        specifier: ^0.2.3
+        version: 0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       bash-tool:
         specifier: ^1.3.19
         version: 1.3.19(ai@7.0.153(zod@4.6.7))(just-bash@3.6.0(supports-color@10.2.2))
@@ -930,9 +930,6 @@ importers:
       typescript-7:
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
-      vercel:
-        specifier: ^65.2.0
-        version: 65.2.0(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(rollup@4.68.3)(supports-color@10.2.2)
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -1289,6 +1286,100 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+
+  examples/with-agent-document-editor:
+    dependencies:
+      '@ai-sdk/anthropic':
+        specifier: ^4.0.88
+        version: 4.0.88(zod@4.6.7)
+      '@ai-sdk/google':
+        specifier: ^4.0.105
+        version: 4.0.105(zod@4.6.7)
+      '@ai-sdk/openai':
+        specifier: ^4.0.102
+        version: 4.0.102(zod@4.6.7)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@assistant-ui/react-markdown':
+        specifier: workspace:*
+        version: link:../../packages/react-markdown
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@lexical/link':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      '@lexical/list':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      '@lexical/react':
+        specifier: ^0.53.0
+        version: 0.53.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)(yjs@13.6.33)
+      '@lexical/rich-text':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      '@lexical/selection':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      ai:
+        specifier: ^7.0.153
+        version: 7.0.153(zod@4.6.7)
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      lexical:
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      lucide-react:
+        specifier: ^1.61.0
+        version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
+      next:
+        specifier: ^16.4.5
+        version: 16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.3.1
+        version: 19.3.1(react@19.3.1)
+      tw-shimmer:
+        specifier: workspace:*
+        version: link:../../packages/tw-shimmer
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.3.3
+        version: 4.3.3
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   examples/with-ai-sdk-v7:
     dependencies:
@@ -4352,10 +4443,10 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2(zod@4.6.7)
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/store':
@@ -4417,10 +4508,10 @@ importers:
         specifier: ^4.0.157
         version: 4.0.157(react@19.3.1)(zod@4.6.7)
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.23
+        specifier: ^0.3.24
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.26
@@ -4429,7 +4520,7 @@ importers:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4512,8 +4603,8 @@ importers:
         specifier: ^1.8.1
         version: 1.8.1
       aui-auth:
-        specifier: ^0.0.11
-        version: 0.0.11(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
+        specifier: ^0.2.3
+        version: 0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       chalk:
         specifier: ^6.0.1
         version: 6.0.1
@@ -4588,7 +4679,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4622,10 +4713,10 @@ importers:
   packages/core:
     dependencies:
       assistant-cloud:
-        specifier: ^0.2.12
+        specifier: ^0.2.13
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.2
@@ -4781,15 +4872,18 @@ importers:
   packages/eve:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
     devDependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -4928,7 +5022,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -5132,19 +5226,19 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.23
+        specifier: ^0.3.24
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.26
         version: link:../tap
       assistant-cloud:
-        specifier: ^0.2.12
+        specifier: ^0.2.13
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
       radix-ui:
         specifier: ^1.8.1
@@ -5202,18 +5296,21 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.11
+        specifier: ^0.0.12
         version: link:../generative-ui
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -5248,16 +5345,16 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.11
+        specifier: ^0.0.12
         version: link:../generative-ui
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -5266,6 +5363,9 @@ importers:
       '@ag-ui/core':
         specifier: ^1.0.3
         version: 1.0.3(zod@4.6.7)
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -5303,7 +5403,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/ai-sdk':
-        specifier: ^0.0.18
+        specifier: ^0.0.19
         version: link:../ai-sdk
       ai:
         specifier: ^7.0.101
@@ -5346,13 +5446,19 @@ importers:
         specifier: ^4.0.34
         version: 4.0.34
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
+      '@assistant-ui/store':
+        specifier: workspace:^
+        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.56
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5441,7 +5547,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.11
+        specifier: ^0.0.12
         version: link:../generative-ui
     devDependencies:
       '@assistant-ui/react':
@@ -5477,9 +5583,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.36
         version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       '@google/adk':
         specifier: '>=0.5.0'
         version: 2.3.0(@bufbuild/protobuf@2.16.0)(@grpc/grpc-js@1.14.6)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(dataloader@2.2.3)(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
@@ -5490,6 +5596,9 @@ importers:
         specifier: ^0.3.56
         version: link:../assistant-stream
     devDependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -5520,13 +5629,16 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.36
         version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.22
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       zod:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -5558,10 +5670,10 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.22
+        specifier: ^0.3.24
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.26
@@ -5570,7 +5682,7 @@ importers:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.55
+        specifier: ^0.3.58
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -5616,11 +5728,11 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       markdansi:
         specifier: ^0.3.7
         version: 0.3.7
@@ -5628,6 +5740,9 @@ importers:
       '@assistant-ui/react-ink':
         specifier: workspace:*
         version: link:../react-ink
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -5656,18 +5771,21 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.56
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -5702,21 +5820,24 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/react-langchain':
-        specifier: ^0.0.40
+        specifier: ^0.0.41
         version: link:../react-langchain
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -5891,10 +6012,10 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.22
+        specifier: ^0.3.24
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.26
@@ -5903,7 +6024,7 @@ importers:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.55
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5980,11 +6101,11 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       '@opencode-ai/sdk':
         specifier: ^1.19.4
         version: 1.19.4
@@ -5995,6 +6116,9 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -6028,9 +6152,9 @@ importers:
       '@assistant-ui/core':
         specifier: workspace:^
         version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.23
-        version: link:../store
+      '@assistant-ui/tap':
+        specifier: workspace:^
+        version: link:../tap
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
@@ -6038,12 +6162,15 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.57
+        specifier: ^0.3.58
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -6403,6 +6530,9 @@ importers:
       vite:
         specifier: ^8.3.5
         version: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.10.0)(@types/node@26.6.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(jsdom@30.1.3)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/safe-content-frame:
     devDependencies:
@@ -6456,10 +6586,10 @@ importers:
   packages/solid:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.23
+        specifier: ^0.3.24
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.26
@@ -6520,10 +6650,10 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.23
+        specifier: ^0.3.24
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.26
@@ -6856,7 +6986,7 @@ importers:
   packages/vscode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
     devDependencies:
       '@assistant-ui/store':
@@ -6902,10 +7032,10 @@ importers:
   packages/vue:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.36
+        specifier: ^0.3.37
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.23
+        specifier: ^0.3.24
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.26
@@ -6972,6 +7102,12 @@ importers:
       '@changesets/get-github-info':
         specifier: ^1.0.1
         version: 1.0.1
+
+  packages/x-deploy:
+    devDependencies:
+      vercel:
+        specifier: ^65.2.0
+        version: 65.2.0(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(rollup@4.68.3)(supports-color@10.2.2)
 
   packages/x-generative-compiler:
     dependencies:
@@ -7963,6 +8099,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.0.0
 
+  '@ai-sdk/anthropic@4.0.88':
+    resolution: {integrity: sha512-7h/rI3jLCfLbQsjVt37Q5PCEGOHrpVgrO2zl+y///UpUcWfiRDcqk8DL7br//OFxiEhyxgeIoU/5ulsN1llOyg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/gateway@3.0.221':
     resolution: {integrity: sha512-21M3q5NuAuItmHmU2rlcK3OBb9zvcvctcyzQUu/O6YkAjVNqQjyhJ9XnYlUupdrZhNR0sn0QNmSh3zKtesqY8w==}
     engines: {node: '>=18'}
@@ -7971,6 +8113,12 @@ packages:
 
   '@ai-sdk/gateway@4.0.126':
     resolution: {integrity: sha512-gOrvnfrWxslTws5puMe+CvEDjZ0rxbpQYLZgdngQl1g/z3mRc5sllcflVAhy2xJSZacrWtsXwua+NJoc/IKZDw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/google@4.0.105':
+    resolution: {integrity: sha512-CTeWVshKJKilEWQwqrjHG6GYUE0f/BbeDDUtRestAoH9vEf0f1YariQYbu69fPJGa6itc0pMdqvHzTWqAVD1OA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -15920,16 +16068,8 @@ packages:
     resolution: {integrity: sha512-0bDNnY/u6pPwHDMoF0FieU354oBi0a8rD9FcsLwzcGWbc8KS8KPIi7y+s13OlVY+gMWc/9xEMUgNE6Qm8ZllYQ==}
     engines: {node: '>=4'}
 
-  aui-auth@0.0.11:
-    resolution: {integrity: sha512-5ydJ309UzcAq29w4dFXvnvntOwK/FRxSEd4Gql82pGoyyiTmqzjcklViq/jZWXdEONyTqK0iQWGkti6AaJYjCg==}
-    peerDependencies:
-      next: '>=16.3'
-    peerDependenciesMeta:
-      next:
-        optional: true
-
-  aui-auth@0.2.0:
-    resolution: {integrity: sha512-WY3r1+Z/TkFmsJ7muwbk40go9n9guohwiPl2viELbIqwXRDcmnaeExsh+WTKAB7WL5OytnB9w4N90PuEbHWanQ==}
+  aui-auth@0.2.3:
+    resolution: {integrity: sha512-iyUw6po2dZPsNjLqYuUrOfjEUruzdJSEJkYUp7RffnOuVTCnr8vF8kl8K9NEuuDWQGcdleLUbouYCJQKrMMkaw==}
     peerDependencies:
       hono: '>=4'
       next: '>=16.3'
@@ -15942,11 +16082,8 @@ packages:
       react:
         optional: true
 
-  authical@0.0.1:
-    resolution: {integrity: sha512-7r52PFSUlvNyq9QLtCzNmZay8X4p+KSgZCLg5DIhNp7Z/E5E2yu/AMqlEXL+RQVlUFkQo5gXhOJaqMsi9E7hdw==}
-
-  authical@0.0.2:
-    resolution: {integrity: sha512-JRgBNv/oyBsBn12a0AcIyO/hk673WT7bBjzhqBFN7kfKTaeOGNEqD6uESHafWYOYqjkIzqjVZC1QdBWsVOqNow==}
+  authical@0.0.3:
+    resolution: {integrity: sha512-Te7aPjFxMq9tfN9/cENy4NBzLsIePxJfsYAn4ZTNgyVUmbDI/IAv7zeO4IqA++3bb4AlYYnAeHjBHGoxk/WhiA==}
 
   auto-bind@5.0.1:
     resolution: {integrity: sha512-ooviqdwwgfIfNmDwo94wlshcdzfO64XV0Cg6oDsDYBJfITDz1EngD2z7DkbvCWn+XIMsIqW27sEVF6qcpJrRcg==}
@@ -24422,6 +24559,12 @@ snapshots:
     dependencies:
       zod: 4.6.7
 
+  '@ai-sdk/anthropic@4.0.88(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.34
+      '@ai-sdk/provider-utils': 5.0.68(zod@4.6.7)
+      zod: 4.6.7
+
   '@ai-sdk/gateway@3.0.221(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 3.0.19
@@ -24434,6 +24577,12 @@ snapshots:
       '@ai-sdk/provider': 4.0.34
       '@ai-sdk/provider-utils': 5.0.68(zod@4.6.7)
       '@vercel/oidc': 3.2.0
+      zod: 4.6.7
+
+  '@ai-sdk/google@4.0.105(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.34
+      '@ai-sdk/provider-utils': 5.0.68(zod@4.6.7)
       zod: 4.6.7
 
   '@ai-sdk/mcp@2.0.84(zod@4.6.7)':
@@ -34049,23 +34198,23 @@ snapshots:
 
   attr-accept@2.2.5: {}
 
-  aui-auth@0.0.11(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)):
+  aui-auth@0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
     dependencies:
-      authical: 0.0.1
+      authical: 0.0.3
     optionalDependencies:
+      hono: 4.13.18
       next: 16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react: 19.3.1
 
-  aui-auth@0.2.0(hono@4.13.18)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
+  aui-auth@0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
     dependencies:
-      authical: 0.0.2
+      authical: 0.0.3
     optionalDependencies:
       hono: 4.13.18
       next: 16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
 
-  authical@0.0.1: {}
-
-  authical@0.0.2: {}
+  authical@0.0.3: {}
 
   auto-bind@5.0.1: {}
 

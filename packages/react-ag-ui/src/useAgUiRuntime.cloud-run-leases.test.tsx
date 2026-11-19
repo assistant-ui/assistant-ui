@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./runtime/adapter/conversions";
 // @vitest-environment jsdom
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
@@ -335,7 +336,7 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
     );
     expect(createsWith(server.calls, true)).toHaveLength(1);
     const reply = getAui().thread.getState().messages[1]!;
-    expect(reply.id).toBe("agent-msg-1");
+    expect(agUiWireMessageId(reply)).toBe("agent-msg-1");
   });
 
   it("shows a reloaded empty run quiet for longer than staleAfter as stale; Resume deletes it and runs the agent again from the user message with no sibling", async () => {

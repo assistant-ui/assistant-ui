@@ -6,7 +6,7 @@ description: Track scope origin with source and query.
 Every scope accessor has three metadata properties: `source` and `query` describe where a scope comes from, and `name` is the scope's own name. They are reserved: scope methods cannot use these names. The function members `call`, `apply`, and `bind` are also reserved so accessors remain callable when a bundler lowers optional chaining.
 
 ```tsx
-aui.thread.source; // "root" | "parentScope" | null
+aui.thread.source; // "root" | the parent scope's name, e.g. "threads" | null
 aui.thread.query; // {} | { index: 0 } | null
 aui.thread.name; // "thread"
 ```
@@ -16,12 +16,21 @@ aui.thread.name; // "thread"
 When you fill a scope directly via a provider's `AuiConfig({ ... })`, it gets `source: "root"` and an empty `query`:
 
 ```tsx
-const config = AuiConfig({ thread: ThreadResource() });
+const ThreadMetadata = () => {
+  const aui = useAui();
+  const source = aui.thread.source; // "root"
+  const query = aui.thread.query; // {}
+  return <pre>{JSON.stringify({ source, query })}</pre>;
+};
 
-<AuiProvider config={config}>
-
-aui.thread.source; // "root"
-aui.thread.query; // {}
+const RootScope = () => {
+  const config = AuiConfig({ thread: ThreadResource() });
+  return (
+    <AuiProvider config={config}>
+      <ThreadMetadata />
+    </AuiProvider>
+  );
+};
 ```
 
 This is the default: the scope was provided directly, not derived from another scope.
@@ -31,19 +40,29 @@ This is the default: the scope was provided directly, not derived from another s
 When a scope is created via `Derived`, its `source` points to the parent scope it was derived from, and `query` carries the lookup parameters:
 
 ```tsx
-const aui = useAui();
-const config = AuiConfig({
-  message: Derived({
-    source: "thread",
-    query: { index: 0 },
-    get: (aui) => aui.thread.message({ index: 0 }),
-  }),
-});
+const MessageMetadata = () => {
+  const aui = useAui();
+  const source = aui.message.source; // "thread"
+  const query = aui.message.query; // { index: 0 }
+  return <pre>{JSON.stringify({ source, query })}</pre>;
+};
 
-<AuiProvider extends={aui} config={config}>
+const DerivedScope = () => {
+  const aui = useAui();
+  const config = AuiConfig({
+    message: Derived({
+      source: "thread",
+      query: { index: 0 },
+      get: (aui) => aui.thread.message({ index: 0 }),
+    }),
+  });
 
-aui.message.source; // "thread"
-aui.message.query; // { index: 0 }
+  return (
+    <AuiProvider extends={aui} config={config}>
+      <MessageMetadata />
+    </AuiProvider>
+  );
+};
 ```
 
 You can declare the expected meta shape in `ScopeRegistry`:
@@ -87,5 +106,5 @@ if (aui.optional.message) {
 | `source` | Meaning |
 | --- | --- |
 | `"root"` | Scope was filled directly via `AuiConfig({ ... })` |
-| `"parentScope"` | Scope was derived from another scope via `Derived` |
+| The parent scope's name, e.g. `"thread"` | Scope was derived from that scope via `Derived` |
 | `null` | Scope is not available in the current context |

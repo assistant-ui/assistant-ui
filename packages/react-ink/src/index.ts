@@ -389,6 +389,7 @@ export type {
   CreateStartRunConfig,
   ComposerSubmission,
   DictationAdapter,
+  DictationEnd,
   DictationState,
   EditComposerState,
   ExportedMessageRepositoryItem,

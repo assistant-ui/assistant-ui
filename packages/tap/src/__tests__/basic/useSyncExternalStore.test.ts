@@ -211,7 +211,14 @@ describe("useSyncExternalStore", () => {
     expect(getCommittedValue(testFiber)).toBe("c");
   });
 
-  it("warns once in dev when getSnapshot returns a fresh object every call", () => {
+  it("warns once in dev when getSnapshot returns a fresh object every call", async () => {
+    // The warning fires once per module instance, so this test loads its own.
+    vi.resetModules();
+    const { useSyncExternalStore } =
+      await import("../../react-hooks/useSyncExternalStore");
+    const { createResourceFiber, renderResourceFiber } =
+      await import("../../core/ResourceFiber");
+    const { createResourceFiberRoot } = await import("../../core/helpers/root");
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const fiber = createResourceFiber(
       function useUncached() {

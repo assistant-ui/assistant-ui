@@ -1,5 +1,6 @@
 import { describe, inject, test } from "vitest";
 import {
+  AssistantMessageAccumulator,
   DataStreamDecoder,
   DataStreamEncoder,
   type AssistantStreamChunk,
@@ -74,6 +75,29 @@ describe("assistant-stream: data stream decode (16-char deltas)", () => {
     test(`${n} deltas`, async ({ bench }) => {
       await bench(`${n} deltas`, async () => {
         await drain(byteSource(wire).pipeThrough(new DataStreamDecoder()));
+      }).run(inject("benchSampling"));
+    });
+  }
+});
+
+const toolCallStartWire = (parts: number) => {
+  let body = "";
+  for (let i = 0; i < parts; i++) {
+    body += `b:${JSON.stringify({ toolCallId: `t${i}`, toolName: "x" })}\n`;
+  }
+  return [new TextEncoder().encode(body)];
+};
+
+describe("assistant-stream: data stream decode + accumulate, one tool-call start per part", () => {
+  for (const n of [100, 500, 2000]) {
+    const wire = toolCallStartWire(n);
+    test(`${n} parts`, async ({ bench }) => {
+      await bench(`${n} parts`, async () => {
+        await drain(
+          byteSource(wire)
+            .pipeThrough(new DataStreamDecoder())
+            .pipeThrough(new AssistantMessageAccumulator()),
+        );
       }).run(inject("benchSampling"));
     });
   }

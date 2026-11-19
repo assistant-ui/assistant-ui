@@ -77,6 +77,7 @@ namespace DictationAdapter {
     | {
         type: "ended";
         reason: "stopped" | "cancelled" | "error";
+        error?: unknown;
       };
 
   type Result = {
@@ -157,6 +158,18 @@ const ComposerWithDictation = () => (
 
 `ComposerPrimitive.Dictate` is disabled when no dictation adapter is configured. For a separate interim transcript display, `ComposerPrimitive.DictationTranscript` and `composer.dictation?.transcript` are available.
 
+`composer.dictation` is `undefined` once a session ends. `composer.lastDictationEnd` keeps how it ended, `{ reason, error? }`, until the next session starts, with errors normalized to `AssistantError`. `WebSpeechDictationAdapter` sets `error` to `{ code, message }` from the browser, so a UI can tell a blocked microphone (`not-allowed`) from silence (`no-speech`):
+
+`cancelled` is also recorded when a message is sent or an edit is cancelled during dictation, so a UI should show a message only for `error`.
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const end = useAuiState((s) => s.composer.lastDictationEnd);
+const micBlocked =
+  end?.reason === "error" && end.error?.code === "not-allowed";
+```
+
 ## Server-side transcription
 
 Browser speech recognition is convenient, but production apps often need higher accuracy, more languages, or a consistent model across devices. Implement a custom `DictationAdapter` that records audio with `MediaRecorder`, then POST the blob to a Next.js route that calls the AI SDK's `transcribe` API.
@@ -203,12 +216,22 @@ export class ServerDictationAdapter implements DictationAdapter {
     let stream: MediaStream | null = null;
     let cancelled = false;
     const chunks: BlobPart[] = [];
+    let settle!: () => void;
+    const settled = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
 
     const session: DictationAdapter.Session = {
       status: { type: "starting" },
 
       stop: async () => {
-        mediaRecorder?.stop();
+        if (session.status.type === "ended") return;
+        if (!mediaRecorder) {
+          session.cancel();
+          return;
+        }
+        mediaRecorder.stop();
+        await settled;
       },
 
       cancel: () => {
@@ -216,6 +239,7 @@ export class ServerDictationAdapter implements DictationAdapter {
         mediaRecorder?.stop();
         stream?.getTracks().forEach((t) => t.stop());
         session.status = { type: "ended", reason: "cancelled" };
+        settle();
       },
 
       onSpeechStart: (cb) => {
@@ -237,6 +261,7 @@ export class ServerDictationAdapter implements DictationAdapter {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
+          settle();
           return;
         }
         mediaRecorder = new MediaRecorder(stream);
@@ -271,13 +296,24 @@ export class ServerDictationAdapter implements DictationAdapter {
             for (const cb of speech) cb(result);
             for (const cb of speechEnd) cb(result);
             session.status = { type: "ended", reason: "stopped" };
-          } catch {
-            session.status = { type: "ended", reason: "error" };
+          } catch (error) {
+            session.status = { type: "ended", reason: "error", error };
+          } finally {
+            settle();
           }
         };
         mediaRecorder.start();
-      } catch {
-        session.status = { type: "ended", reason: "error" };
+      } catch (error) {
+        if (cancelled) return;
+        session.status = {
+          type: "ended",
+          reason: "error",
+          error:
+            error instanceof DOMException && error.name === "NotAllowedError"
+              ? { code: "not-allowed", message: error.message }
+              : error,
+        };
+        settle();
       }
     })();
 

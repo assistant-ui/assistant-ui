@@ -36,7 +36,7 @@ The model must produce reasoning for the route to send any reasoning parts. The 
 
 ## The registry reasoning block
 
-The registry's `reasoning.vue` renders consecutive reasoning parts in one block from the first part in the run. It renders each part's text as Markdown. A text part between reasoning parts starts a new block.
+The registry's `reasoning.vue` renders consecutive reasoning parts in one block from the first part in the run. It renders each part's text as Markdown. A text part between reasoning parts starts a new block. Its `label` prop replaces the "Reasoning" trigger text, for example with a translation.
 
 The block opens while a reasoning part is running and collapses when reasoning stops streaming, unless the user has toggled it. Its text area is capped by `max-h-64` and scrolls during a long response; while streaming, it follows new content until the user scrolls up. The content carries `aria-busy` while streaming. On an open or close animation, `useScrollLock` holds the scrollable ancestor's position for the animation's 200 milliseconds.
 

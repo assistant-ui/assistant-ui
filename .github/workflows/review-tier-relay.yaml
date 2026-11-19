@@ -2,13 +2,17 @@ name: Review Tier Relay
 
 on:
   pull_request_review:
-    types: [submitted, edited, dismissed]
+    types: [submitted, dismissed]
 
 permissions: {}
 
 jobs:
   relay:
     name: Relay review event
+    if: >-
+      github.event.action == 'dismissed' ||
+      github.event.review.state == 'approved' ||
+      github.event.review.state == 'changes_requested'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

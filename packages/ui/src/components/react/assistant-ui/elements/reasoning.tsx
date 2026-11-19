@@ -8,6 +8,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -172,11 +173,13 @@ function ReasoningFade({
 function ReasoningTrigger({
   active,
   duration,
+  label = "Reasoning",
   className,
   ...props
-}: React.ComponentProps<typeof CollapsibleTrigger> & {
+}: Omit<React.ComponentProps<typeof CollapsibleTrigger>, "children"> & {
   active?: boolean;
   duration?: number | undefined;
+  label?: ReactNode;
 }) {
   const durationText = duration ? ` (${duration}s)` : "";
 
@@ -200,7 +203,8 @@ function ReasoningTrigger({
           active && "shimmer motion-reduce:animate-none",
         )}
       >
-        Reasoning{durationText}
+        {label}
+        {durationText}
       </span>
       <ChevronDownIcon
         data-slot="reasoning-trigger-chevron"

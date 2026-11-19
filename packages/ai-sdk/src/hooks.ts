@@ -9,7 +9,8 @@ import { aiSDKExtras } from "./aiSDKExtras";
  * `undefined` when there is no error or the current thread is not backed by
  * the AI SDK runtime.
  */
-export const useAISDKError = () => aiSDKExtras.use((e) => e.error, undefined);
+export const useAISDKError = () =>
+  aiSDKExtras.useExtras((e) => e.error, undefined);
 
 /**
  * The underlying `useChat` helpers object, for advanced views — reach
@@ -18,6 +19,6 @@ export const useAISDKError = () => aiSDKExtras.use((e) => e.error, undefined);
  * SDK runtime.
  */
 export const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>() =>
-  aiSDKExtras.use((e) => e.chat, undefined) as
+  aiSDKExtras.useExtras((e) => e.chat, undefined) as
     | UseChatHelpers<UI_MESSAGE>
     | undefined;

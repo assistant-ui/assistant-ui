@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from origin_guard import AgentOriginGuard
 
 # Load environment variables from .env.local
 load_dotenv(".env.local")
@@ -37,6 +38,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AgentOriginGuard, allowed_origins=cors_origins)
 
 
 def create_event(event_type: str, **kwargs) -> str:

@@ -3,42 +3,33 @@ title: "Typing indicator"
 description: "The classic three dots, tuned to read as presence rather than noise."
 ---
 
-Three dots bouncing in a staggered wave, either bare or sitting inside a rounded bubble. With a runtime you mount it for the brief window before the first token lands; standalone you show and hide it yourself.
+Three dots bouncing in a staggered wave, either bare or sitting inside a rounded bubble. With a runtime you mount it while the assistant reply is pending; standalone you show and hide it yourself.
 
 ## Getting started
 
 <RuntimeMode>
 
-This belongs on screen for exactly one window: a run is active and the newest message has not produced any content yet. Nothing about the dots themselves depends on the runtime; only the decision to render it does.
+`Thread` renders a pending indicator while an assistant message is running and its last part is not streaming text, such as before the first token or after a tool call returns. Pass `TypingIndicator` to its `Indicator` slot to replace the built-in dot.
 
 <Steps>
   <Step>
 
-### Show it before the first token
+### Use it in Thread
 
-```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+```tsx title="app/chat/page.tsx"
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 
-function AssistantTyping() {
-  const waiting = useAuiState((s) => {
-    if (!s.thread.isRunning) return false;
-    const last = s.thread.messages.at(-1);
-    return last?.role === "assistant" && last.parts.length === 0;
-  });
-  if (!waiting) return null;
-  return <TypingIndicator />;
+const components = { Indicator: TypingIndicator };
+
+export default function Chat() {
+  return <Thread components={components} />;
 }
 ```
 
-  </Step>
-  <Step>
-
-### Place it where the reply will render
-
-Render `AssistantTyping` in the same spot the assistant's message body will take over once content starts arriving, so nothing shifts when it disappears.
+`Thread` mounts the dots where the assistant's message content will appear.
 
   </Step>
 </Steps>
@@ -102,12 +93,11 @@ The bubble variant wraps the dots in the shared `paper` surface from `surfaces.t
 
 <RuntimeMode>
 
-### Thread state
+### Thread slot
 
-| Selector | Type | Description |
-|----------|------|-------------|
-| `s.thread.isRunning` | `boolean` | Whether a run is active. |
-| `s.thread.messages` | `readonly MessageState[]` | `.at(-1)` is the newest message; an assistant message with an empty `parts` array means nothing has streamed in yet. |
+| Slot | Type | Description |
+|------|------|-------------|
+| `components.Indicator` | `ComponentType` | Replaces the pending indicator in a running assistant message. |
 
 </RuntimeMode>
 

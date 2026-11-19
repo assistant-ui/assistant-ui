@@ -207,6 +207,7 @@ Standalone, `text` and `streaming` come from wherever you fetch them, for exampl
 | `text` | `string` | The reasoning text so far. |
 | `status` | `MessagePartStreamStatus \| undefined` | Streaming status of this part. |
 | `unstable_summary` | `string \| undefined` | Provider-supplied summary, when present. Not rendered by `Reasoning`; read it yourself if you need it. |
+| `unstable_redacted` | `boolean \| undefined` | The provider hid this part's content. Not rendered by `Reasoning`; read it to show a marker. |
 
 ### Sub-components
 
@@ -235,10 +236,11 @@ All other `Collapsible` props are forwarded.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `active` | `boolean` | | Shimmers the label while true. |
+| `label` | `ReactNode` (`string` on React Native, where it is also the accessibility label) | `"Reasoning"` | Visible trigger label. |
 | `duration` | `number` | | Seconds; appends `(Ns)` to the label. |
 | `className` | `string` | | Merged onto the trigger. |
 
-All other `CollapsibleTrigger` props are forwarded.
+Other `CollapsibleTrigger` props are forwarded, except `children`; use `label` for the visible text.
 
 ### ReasoningContent, ReasoningText, and ReasoningFade
 

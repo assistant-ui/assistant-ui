@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.3.24
+
+### Patch Changes
+
+- [#10656](https://github.com/assistant-ui/assistant-ui/pull/10656) [`cba4061`](https://github.com/assistant-ui/assistant-ui/commit/cba406112b09de49e99764b51a9d90a8ca952cc7) - keep the viewport footer inset accurate as content grows and its top margin changes. ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.23
 
 ### Patch Changes

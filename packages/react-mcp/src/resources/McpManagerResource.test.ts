@@ -363,9 +363,9 @@ describe("McpManagerResource storage failures", () => {
         url: "https://example.com/docs/mcp",
         auth: { type: "none" },
       });
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(root.getValue().getState().customServers).toHaveLength(1);
+      await waitFor(() =>
+        expect(root.getValue().getState().customServers).toHaveLength(1),
+      );
       expect(saveCustomServers).not.toHaveBeenCalled();
       expect(consoleError).toHaveBeenCalledWith(
         "[assistant-ui/react-mcp] custom server changes remain in memory because loading the persisted list failed; remount the manager to retry",

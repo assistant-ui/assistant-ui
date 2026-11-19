@@ -36,6 +36,8 @@ Needs an `AssistantRuntimeProvider` ancestor; `Thread` itself takes no runtime p
 ### Override a slot
 
 ```tsx
+"use client";
+
 import {
   Thread,
   type ThreadComponents,
@@ -167,6 +169,7 @@ See the [Suggestions guide](/docs/guides/suggestions) for the full configuration
 |------|------|--------------|
 | `AssistantMessage` | `ComponentType` | Replaces the entire assistant message, action bar and branch picker included. |
 | `Welcome` | `ComponentType` | Replaces the welcome screen shown for a new chat. |
+| `Indicator` | `ComponentType` | Replaces the pending indicator in a running assistant message. The built-in indicator remains when unset. |
 | `ToolFallback` | `ToolCallMessagePartComponent` | Renders a tool call with no registered UI. A tool UI registered by name takes precedence over this slot. |
 | `ToolGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive tool calls; receives the group's `indices` and `status`. |
 | `ReasoningGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive reasoning parts; receives the same shape. |

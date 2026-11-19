@@ -7,6 +7,8 @@ import { AguiIcon } from "@/components/icons/agui";
 
 Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/ag-ui/quickstart) if you have not already.
 
+A message created locally keeps its local `id` when the agent later names it, so its row stays mounted. In that case, the agent's id is stored at `metadata.custom.agui.messageId` and is used when sending history back to the agent. A message created directly under the agent's id keeps that value as `message.id` without a `metadata.custom.agui.messageId` override. In a run rejoined in flight through `connect()`, a message that has no content and has not been stored yet when the agent names it takes the agent's id as its `id`, so clients following that run store it under the same id.
+
 ## useAgUiRuntime options
 
 | Option | Type | Description |
@@ -301,11 +303,11 @@ A repeated `SUBAGENT_STARTED` for an id the run has already seen is treated as a
 
 A subagent's frontend-executed tool calls behave the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record. Approval gates cover nested calls too, so a gate naming a subagent-scoped call projects onto the nested part, the frontend tool never runs its `execute`, and an undecided gate's result is never exported to the backend.
 
-Two limitations apply:
+A suspended subagent's interrupts are answered the same way the root agent's are. The protocol carries their full records on the run's `RUN_FINISHED` interrupt outcome, each naming its subagent in `subagentRunId`, while the `suspended` outcome's `interruptIds` only reference them. `useAgUiInterrupts` returns them beside any root interrupts, and `useAgUiSubmitInterruptResponses` answers them on the parent run's `resume`, which continues the suspended subagent.
+
+One limitation applies:
 
 - **Nested structure does not survive a reload.** Thread restore reads the flattened wire shape, so a restored subagent tool call comes back as a root-level part rather than nested under its spawning call. Results and decisions are preserved; only the nesting is not.
-
-- **Nested human-in-the-loop has no resume path.** A `SUBAGENT_FINISHED` carrying a `suspended` outcome marks the nested message `requires-action` and preserves its `interruptIds` on the message metadata, but nothing answers them yet.
 
 ### Compared to LangChain
 
@@ -315,9 +317,11 @@ Two limitations apply:
 
 The runtime parses the AG-UI event stream and maps each event type to assistant-ui state.
 
+During server cleanup, a tool approval that leaves other gates undecided is recorded immediately, while the approval that completes the batch waits for the response to close. Only the latest waiting action proceeds. Displaced plain sends resolve quietly because their messages travel with that request. A displaced interrupt response, completing tool approval, or `steerAway` rejects with "a run is already in progress" before recording a decision or changing the thread. A displaced approval reaches `onError` without recording a decision, so its gate remains answerable unless the displacing action was `steerAway`, which cancels the gate. An A2UI action deferred during cleanup travels exactly once in a user request already waiting for the response to close, in `forwardedProps.a2uiAction`. If no action is waiting and the finished run leaves an interrupt pending, the deferred A2UI action is dropped.
+
 | Event | Effect |
 | --- | --- |
-| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. A cancelled `RUN_FINISHED.outcome` leaves the message incomplete with reason `cancelled` and no answerable interrupts. An interrupt outcome leaves it requiring a response. On success, a non-empty `pendingToolCallIds` list makes the run require tool calls only when a listed call is still unresolved, and `getPendingToolCalls` then returns only the listed calls, so the run resumes once those are answered; with no list or an empty list, any unresolved call counts. |
+| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. `RUN_FINISHED` sets `isRunning` to false while the response stays open for server cleanup, unless the run already owes a continuation. A send, tool result continuation, interrupt response, or `steerAway` submitted during cleanup waits for the finished response to close on its own before starting another request. A sequential run whose `RUN_STARTED` arrives after an action begins waiting for cleanup is ignored in full, while an already accepted run continues streaming. Waiting work keeps `isRunning` true. Stop still aborts the response. Unmount and a thread switch abort it too, except for an agent that implements `connect()`, which is detached while its run continues on the server. A cancelled `RUN_FINISHED.outcome` leaves the message incomplete with reason `cancelled` and no answerable interrupts. An interrupt outcome leaves it requiring a response. On success, a non-empty `pendingToolCallIds` list makes the run require tool calls only when a listed call is still unresolved, and `getPendingToolCalls` then returns only the listed calls, so the run resumes once those are answered; with no list or an empty list, any unresolved call counts. |
 | `RUN_CANCELLED` | Marks the in-flight assistant message as cancelled. |
 | `RUN_ERROR` | Marks the message as errored; fires `onError`. |
 | `TEXT_MESSAGE_START` / `_CONTENT` / `_END` | Streams text content into an assistant message. |
@@ -361,7 +365,7 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
 | Thinking / reasoning blocks | Yes |
 | Tool calls and results | Yes |
 | Tool result handoff (client-side execution) | Yes |
-| Subagents (nested `ToolCallMessagePart.messages`) | Yes, with [two limitations](#subagents) |
+| Subagents (nested `ToolCallMessagePart.messages`) | Yes, with [one limitation](#subagents) |
 | State snapshots and deltas | Yes |
 | Custom events (as `data` parts) | Yes |
 | Cancellation | Yes |

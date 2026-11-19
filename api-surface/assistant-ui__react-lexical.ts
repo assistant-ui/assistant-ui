@@ -73,7 +73,7 @@ declare const LexicalComposerInput: import("react").ForwardRefExoticComponent<Om
   autoFocus?: boolean | undefined;
   directivePluginProps?: DirectivePluginProps | undefined;
   directiveChip?: FC<DirectiveChipProps> | undefined;
-  formatter?: Unstable_DirectiveFormatter | undefined;
+  formatter?: Unstable_DirectiveFormatter | null | undefined;
   children?: ReactNode | undefined;
 } & import("react").RefAttributes<HTMLDivElement>>;
 
@@ -84,7 +84,7 @@ type LexicalComposerInputProps = Omit<ComponentPropsWithoutRef<"div">, "autoFocu
   autoFocus?: boolean | undefined;
   directivePluginProps?: DirectivePluginProps | undefined;
   directiveChip?: FC<DirectiveChipProps> | undefined;
-  formatter?: Unstable_DirectiveFormatter | undefined;
+  formatter?: Unstable_DirectiveFormatter | null | undefined;
   children?: ReactNode | undefined;
 };
 

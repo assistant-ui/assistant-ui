@@ -1,6 +1,10 @@
 import type { DictationAdapter } from "../../adapters/speech";
-import type { DictationState } from "../interfaces/composer-runtime-core";
+import type {
+  DictationEnd,
+  DictationState,
+} from "../interfaces/composer-runtime-core";
 import type { Unsubscribe } from "../../types/unsubscribe";
+import { toAssistantError } from "../../types/error";
 
 type DictationSessionHost = {
   getAdapter: () => DictationAdapter | undefined;
@@ -30,12 +34,15 @@ export class DictationSessionController {
     if (!this._dictationSession) return;
 
     const sessionId = this._activeDictationSessionId;
+    this._cancellingSessionId = sessionId;
+    let end: DictationEnd = { reason: "cancelled" };
     try {
       this._dictationSession.cancel();
     } catch (error) {
+      end = { reason: "error", error: toAssistantError(error) };
       console.error("[assistant-ui] Dictation session cancel threw", error);
     } finally {
-      this._cleanupDictation({ sessionId });
+      this._cleanupDictation({ sessionId, end });
     }
   }
 
@@ -48,9 +55,15 @@ export class DictationSessionController {
   private _dictationSessionIdCounter = 0;
   private _activeDictationSessionId: number | undefined;
   private _isCleaningDictation = false;
+  private _lastDictationEnd: DictationEnd | undefined;
+  private _cancellingSessionId: number | undefined;
 
   public get dictation(): DictationState | undefined {
     return this._dictation;
+  }
+
+  public get lastDictationEnd(): DictationEnd | undefined {
+    return this._lastDictationEnd;
   }
 
   private _isActiveSession(
@@ -69,7 +82,6 @@ export class DictationSessionController {
       throw new Error("Dictation adapter not configured");
     }
 
-    const isReplacing = this._dictationSession !== undefined;
     if (this._dictationSession) {
       const oldSession = this._dictationSession;
       this._cleanupDictation({ notify: false });
@@ -81,36 +93,8 @@ export class DictationSessionController {
     this._dictationBaseText = this._host.getText();
     this._currentInterimText = "";
 
-    let session: DictationAdapter.Session;
-    try {
-      session = adapter.listen();
-    } catch (error) {
-      if (isReplacing) {
-        try {
-          this._host.notify();
-        } catch (notifyError) {
-          console.error(
-            "[assistant-ui] Dictation replacement rollback notification threw",
-            notifyError,
-          );
-        }
-      }
-      throw error;
-    }
-    this._dictationSession = session;
     const sessionId = ++this._dictationSessionIdCounter;
     this._activeDictationSessionId = sessionId;
-    this._dictation = { status: session.status, inputDisabled };
-    try {
-      this._host.notify();
-    } catch (notifyError) {
-      console.error(
-        "[assistant-ui] Dictation start notification threw",
-        notifyError,
-      );
-    }
-
-    if (!this._isActiveSession(sessionId, session)) return;
 
     // Handles stay local because cleanup can run synchronously during setup
     // and would drain the shared list before the remaining handles exist.
@@ -124,14 +108,33 @@ export class DictationSessionController {
         }
       }
     };
-    const keepUnsubscribe = (unsubscribe: Unsubscribe) => {
-      setupUnsubscribes.push(unsubscribe);
-      if (this._isActiveSession(sessionId, session)) return true;
-      releaseSetup();
-      return false;
-    };
-
+    this._lastDictationEnd = undefined;
     try {
+      const session = adapter.listen();
+      if (this._activeDictationSessionId !== sessionId) {
+        this._stopDictationSession(session);
+        return;
+      }
+      this._dictationSession = session;
+      this._dictation = { status: session.status, inputDisabled };
+      try {
+        this._host.notify();
+      } catch (notifyError) {
+        console.error(
+          "[assistant-ui] Dictation start notification threw",
+          notifyError,
+        );
+      }
+
+      if (!this._isActiveSession(sessionId, session)) return;
+
+      const keepUnsubscribe = (unsubscribe: Unsubscribe) => {
+        setupUnsubscribes.push(unsubscribe);
+        if (this._isActiveSession(sessionId, session)) return true;
+        releaseSetup();
+        return false;
+      };
+
       const unsubSpeech = session.onSpeech((result) => {
         if (!this._isActiveSession(sessionId, session)) return;
         const isFinal = result.isFinal !== false;
@@ -185,7 +188,8 @@ export class DictationSessionController {
       if (!keepUnsubscribe(unsubStart)) return;
 
       const unsubEnd = session.onSpeechEnd(() => {
-        this._cleanupDictation({ sessionId });
+        if (this._cancellingSessionId === sessionId) return;
+        this._cleanupDictation({ sessionId, end: { reason: "stopped" } });
       });
       if (!keepUnsubscribe(unsubEnd)) return;
 
@@ -193,7 +197,7 @@ export class DictationSessionController {
         if (!this._isActiveSession(sessionId, session)) return;
 
         if (session.status.type === "ended") {
-          this._cleanupDictation({ sessionId });
+          this._cleanupDictation({ sessionId, end: { reason: "stopped" } });
         }
       }, 100);
       if (!keepUnsubscribe(() => clearInterval(statusInterval))) return;
@@ -201,16 +205,19 @@ export class DictationSessionController {
       this._dictationUnsubscribes.push(...setupUnsubscribes.splice(0));
     } catch (error) {
       releaseSetup();
-      if (this._isActiveSession(sessionId, session)) {
+      if (this._activeDictationSessionId === sessionId) {
+        const session = this._dictationSession;
+        this._cleanupDictation({
+          sessionId,
+          end: { reason: "error", error: toAssistantError(error) },
+        });
         try {
-          session.cancel();
+          session?.cancel();
         } catch (cancelError) {
           console.error(
             "[assistant-ui] Dictation session cancel threw",
             cancelError,
           );
-        } finally {
-          this._cleanupDictation({ sessionId });
         }
       }
       throw error;
@@ -224,37 +231,47 @@ export class DictationSessionController {
     if (this._stoppingDictationSession === session) return;
     this._stoppingDictationSession = session;
     const sessionId = this._activeDictationSessionId;
-    const cleanup = () => this._cleanupDictation({ sessionId });
+    const cleanup = (end: DictationEnd) =>
+      this._cleanupDictation({ sessionId, end });
     this._stopDictationSession(session, cleanup);
   }
 
   private _stopDictationSession(
     session: DictationAdapter.Session,
-    onSettled: () => void = () => {},
+    onSettled: (end: DictationEnd) => void = () => {},
   ): void {
     let task: Promise<void>;
     try {
       task = session.stop();
     } catch (error) {
       console.error("[assistant-ui] Dictation session stop threw", error);
-      onSettled();
+      onSettled({ reason: "error", error: toAssistantError(error) });
       return;
     }
 
-    void task.then(onSettled, (error) => {
-      console.error("[assistant-ui] Dictation session stop rejected", error);
-      onSettled();
-    });
+    void task.then(
+      () => onSettled({ reason: "stopped" }),
+      (error) => {
+        console.error("[assistant-ui] Dictation session stop rejected", error);
+        onSettled({ reason: "error", error: toAssistantError(error) });
+      },
+    );
   }
 
   private _cleanupDictation(options?: {
     sessionId?: number | undefined;
     notify?: boolean | undefined;
+    end?: DictationEnd | undefined;
   }): void {
     const isStaleSession =
       options?.sessionId !== undefined &&
       options.sessionId !== this._activeDictationSessionId;
-    if (isStaleSession || this._isCleaningDictation) return;
+    if (
+      isStaleSession ||
+      this._isCleaningDictation ||
+      this._activeDictationSessionId === undefined
+    )
+      return;
 
     this._isCleaningDictation = true;
     const runCleanup = (cleanup: () => void) => {
@@ -266,6 +283,24 @@ export class DictationSessionController {
     };
 
     try {
+      let end = options?.end;
+      if (end !== undefined) {
+        runCleanup(() => {
+          const status = this._dictationSession?.status;
+          if (status?.type === "ended") {
+            end =
+              status.error === undefined
+                ? { reason: status.reason }
+                : {
+                    reason: status.reason,
+                    error: toAssistantError(status.error),
+                  };
+          }
+        });
+        this._lastDictationEnd = end;
+      }
+      this._cancellingSessionId = undefined;
+
       const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;
