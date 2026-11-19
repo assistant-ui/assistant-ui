@@ -9,7 +9,7 @@ Three dots bouncing in a staggered wave, either bare or sitting inside a rounded
 
 <RuntimeMode>
 
-`Thread` renders a pending indicator for a running assistant message before visible content arrives. Pass `TypingIndicator` to its `Indicator` slot to replace the built-in dot.
+`Thread` renders a pending indicator while an assistant message is running and its last part is not streaming text, such as before the first token or after a tool call returns. Pass `TypingIndicator` to its `Indicator` slot to replace the built-in dot.
 
 <Steps>
   <Step>

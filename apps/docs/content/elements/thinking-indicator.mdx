@@ -9,7 +9,7 @@ A pulsing dot, a label that fades in fresh every time it changes, and an optiona
 
 <RuntimeMode>
 
-The runtime does not hand you a phrase like "Reading the docs"; it hands you the parts that make up the message so far. The most concrete label you can build from that is the name of whatever tool call is still pending, falling back to a plain "Thinking" while the run is active and nothing else is happening yet.
+The runtime does not hand you a phrase like "Reading the docs"; it hands you the parts that make up the message so far. The most concrete label you can build from that is the name of whatever tool call is still pending, falling back to a plain "Thinking" otherwise.
 
 <Steps>
   <Step>
@@ -23,17 +23,17 @@ import { useAuiState } from "@assistant-ui/react";
 
 function useThinkingLabel() {
   return useAuiState((s) => {
-    if (s.message.status?.type !== "running") return undefined;
     const pending = s.message.parts.find(
       (part) => part.type === "tool-call" && part.result === undefined,
     );
-    if (pending?.type === "tool-call") return `Running ${pending.toolName}`;
-    return s.message.parts.length === 0 ? "Thinking" : undefined;
+    return pending?.type === "tool-call"
+      ? `Running ${pending.toolName}`
+      : "Thinking";
   });
 }
 ```
 
-Once the assistant has streamed visible text and no tool call is pending, this returns `undefined`. `Thread` also stops mounting its indicator slot when the message no longer needs a pending affordance.
+`Thread` mounts its `Indicator` slot only while the message is running and still needs a pending affordance, so the hook always has a label to show and needs no running check of its own.
 
   </Step>
   <Step>
@@ -44,31 +44,26 @@ Once the assistant has streamed visible text and no tool call is pending, this r
 import { useEffect, useState } from "react";
 import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 
-function useElapsedLabel(active: boolean) {
+function useElapsedLabel() {
   const [label, setLabel] = useState<string | undefined>(undefined);
   useEffect(() => {
-    if (!active) {
-      setLabel(undefined);
-      return;
-    }
     const start = Date.now();
     const id = setInterval(() => {
       setLabel(`${Math.round((Date.now() - start) / 1000)}s`);
     }, 1000);
     return () => clearInterval(id);
-  }, [active]);
+  }, []);
   return label;
 }
 
 export function AssistantThinking() {
   const label = useThinkingLabel();
-  const elapsed = useElapsedLabel(label !== undefined);
-  if (label === undefined) return null;
+  const elapsed = useElapsedLabel();
   return <ThinkingIndicator label={label} elapsed={elapsed} />;
 }
 ```
 
-There is no runtime selector for "seconds elapsed so far": `metadata.timing` only finalizes once the message stops streaming, so a live badge needs its own timer, started the moment you have a label to show.
+There is no runtime selector for "seconds elapsed so far": `metadata.timing` only finalizes once the message stops streaming, so a live badge needs its own timer, started when the indicator mounts.
 
   </Step>
   <Step>
