@@ -329,7 +329,10 @@ export const ThreadListItem: FC = () => {
   useEffect(() => {
     if (isRenaming || !restoreFocusRef.current) return;
     restoreFocusRef.current = false;
-    triggerRef.current?.focus();
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const { activeElement, body } = trigger.ownerDocument;
+    if (activeElement === body) trigger.focus();
   }, [isRenaming]);
 
   return (
@@ -398,10 +401,11 @@ const ThreadListItemRename: FC<{
     Promise.resolve()
       .then(() => aui.threadListItem.rename(next))
       .then(
-        () => onDone(restoreFocus),
+        () => {
+          onDone(restoreFocus && inputRef.current?.matches(":focus") === true);
+        },
         () => {
           settledRef.current = false;
-          if (restoreFocus) inputRef.current?.focus();
         },
       );
   };
