@@ -311,7 +311,13 @@ export class ExternalStoreThreadRuntimeCore
   private get _errorMessageIds() {
     let ids = this._errorMessageIdsByRepository.get(this.repository);
     if (!ids) {
-      ids = new Set();
+      // A repository can outlive the core that synthesized its error message.
+      ids = new Set(
+        this.repository
+          .export()
+          .messages.map(({ message }) => message.id)
+          .filter(isErrorMessageId),
+      );
       this._errorMessageIdsByRepository.set(this.repository, ids);
     }
     return ids;
