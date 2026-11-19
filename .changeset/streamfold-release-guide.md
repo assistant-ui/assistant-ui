@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-docs: recommend Streamfold 0.1.20 in the parser backend guide.
+The parser backend guide recommends Streamfold 0.1.19, the first release with the iterator cleanup and diagnostic fixes its assistant-ui integration relies on.
