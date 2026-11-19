@@ -68,6 +68,28 @@ function TestThread(props: ThreadProps) {
   );
 }
 
+function RunningAssistantTestThread(props: ThreadProps) {
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages: [
+      {
+        id: "running-assistant",
+        role: "assistant",
+        content: [],
+        status: { type: "running" },
+      },
+    ],
+    isRunning: true,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread {...props} autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
 function ResumableTestThread({
   onResume,
   onNew,
@@ -476,6 +498,34 @@ describe("Thread", () => {
     const { container } = render(<TestThread />);
 
     expect(container.querySelector(".aui-composer-action-start")).toBeNull();
+  });
+
+  it("keeps the default indicator for an empty running assistant message", () => {
+    const { container } = render(<RunningAssistantTestThread />);
+
+    const indicator = container.querySelector(
+      '[data-slot="aui_assistant-message-indicator"]',
+    );
+    expect(indicator?.tagName).toBe("SPAN");
+    expect(indicator?.textContent).toBe("●");
+    expect(indicator?.getAttribute("aria-label")).toBe("Assistant is working");
+  });
+
+  it("replaces the pending indicator with a custom component", () => {
+    const Indicator = () => <span data-testid="custom-indicator">Waiting</span>;
+    const { container } = render(
+      <RunningAssistantTestThread components={{ Indicator }} />,
+    );
+
+    const content = container.querySelector(
+      '[data-slot="aui_assistant-message-content"]',
+    );
+    expect(
+      content?.querySelector('[data-testid="custom-indicator"]')?.textContent,
+    ).toBe("Waiting");
+    expect(
+      content?.querySelector('[data-slot="aui_assistant-message-indicator"]'),
+    ).toBeNull();
   });
 
   it("hides the empty user attachment wrapper", async () => {

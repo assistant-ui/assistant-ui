@@ -38,10 +38,11 @@ import {
 } from "../nodes/DirectiveNode";
 import { $getCollapsedRuntimeOffset } from "../runtimeOffset";
 
-type ParsedSegment = {
-  readonly segment: Unstable_DirectiveSegment;
-  readonly formatter: Unstable_DirectiveFormatter;
-};
+type ParsedSegment =
+  | Extract<Unstable_DirectiveSegment, { kind: "text" }>
+  | (Extract<Unstable_DirectiveSegment, { kind: "mention" }> & {
+      readonly formatter: Unstable_DirectiveFormatter;
+    });
 
 type CompositeParser = (text: string) => readonly ParsedSegment[];
 type ParsedLines = readonly (readonly ParsedSegment[])[];
@@ -61,43 +62,42 @@ type PreservedDirective = Pick<
   readonly label?: string;
 };
 
-/** Ordered, identity-deduped: prop formatter, trigger formatters, default tail. */
 export function collectFormatters(
   triggers: ReadonlyMap<string, Unstable_RegisteredTrigger>,
-  propFormatter: Unstable_DirectiveFormatter | undefined,
+  propFormatter: Unstable_DirectiveFormatter | null | undefined,
 ): readonly Unstable_DirectiveFormatter[] {
   const ordered: Unstable_DirectiveFormatter[] = [];
   const seen = new Set<Unstable_DirectiveFormatter["parse"]>();
-  const push = (f: Unstable_DirectiveFormatter | undefined) => {
+  const push = (f: Unstable_DirectiveFormatter | null | undefined) => {
     if (!f || seen.has(f.parse)) return;
     seen.add(f.parse);
     ordered.push(f);
   };
   push(propFormatter);
   for (const trigger of triggers.values()) push(trigger.behavior?.formatter);
-  push(unstable_defaultDirectiveFormatter);
+  if (propFormatter !== null) push(unstable_defaultDirectiveFormatter);
   return ordered;
 }
 
-/** First formatter whose parse yields a mention wins; else first formatter's plain-text. */
 export function composeParsers(
   formatters: readonly Unstable_DirectiveFormatter[],
 ): CompositeParser {
-  const ordered = formatters.length
-    ? formatters
-    : [unstable_defaultDirectiveFormatter];
   return (text: string) => {
     let fallback: readonly ParsedSegment[] | null = null;
-    for (const formatter of ordered) {
-      const segments = formatter.parse(text);
+    for (const formatter of formatters) {
+      const segments = formatter
+        .parse(text)
+        .map((segment) =>
+          segment.kind === "mention" ? { ...segment, formatter } : segment,
+        );
       if (segments.some((s) => s.kind === "mention")) {
-        return segments.map((segment) => ({ segment, formatter }));
+        return segments;
       }
       if (!fallback) {
-        fallback = segments.map((segment) => ({ segment, formatter }));
+        fallback = segments;
       }
     }
-    return fallback!;
+    return fallback ?? [{ kind: "text", text }];
   };
 }
 
@@ -123,7 +123,7 @@ function getParsedLines(
 function getParsedLineKeys(parsedLines: ParsedLines): SegmentKey[][] {
   return parsedLines.map((line) => {
     const segments: SegmentKey[] = [];
-    for (const { segment } of line) {
+    for (const segment of line) {
       if (segment.kind === "text") {
         appendTextSegment(segments, segment.text);
       } else {
@@ -181,7 +181,7 @@ function collectEditorDirectiveCounts(editor: LexicalEditor) {
 function collectParsedMentionCounts(parsedLines: ParsedLines) {
   const counts = new Map<string, number>();
   for (const line of parsedLines) {
-    for (const { segment } of line) {
+    for (const segment of line) {
       if (segment.kind === "mention") {
         incrementCount(counts, directiveKey(segment.id, segment.type));
       }
@@ -291,7 +291,7 @@ function syncHistoryMergeTags(editor: LexicalEditor) {
 function parsedLabelQueues(parsedLines: ParsedLines) {
   const queues = new Map<string, string[]>();
   for (const line of parsedLines) {
-    for (const { segment } of line) {
+    for (const segment of line) {
       if (segment.kind !== "mention") continue;
       const key = directiveKey(segment.id, segment.type);
       const labels = queues.get(key) ?? [];
@@ -364,7 +364,7 @@ function syncRuntimeToLexical(
       for (const segments of lines) {
         const paragraph = $createParagraphNode();
 
-        for (const { segment, formatter } of segments) {
+        for (const segment of segments) {
           if (segment.kind === "text") {
             if (segment.text.length > 0) {
               paragraph.append($createTextNode(segment.text));
@@ -386,7 +386,7 @@ function syncRuntimeToLexical(
                     ? { metadata: extra.metadata }
                     : {}),
                 },
-                formatter,
+                segment.formatter,
               ),
             );
           }
@@ -419,7 +419,7 @@ const noopSubscribe = () => () => {};
 export function SyncPlugin({
   formatter: propFormatter,
 }: {
-  formatter?: Unstable_DirectiveFormatter | undefined;
+  formatter?: Unstable_DirectiveFormatter | null | undefined;
 } = {}) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
@@ -441,15 +441,18 @@ export function SyncPlugin({
 
   const propParse = propFormatter?.parse;
   const propSerialize = propFormatter?.serialize;
+  const isFormatterDisabled = propFormatter === null;
   const formatters = useMemo(
     () =>
       collectFormatters(
         triggers,
-        propParse && propSerialize
-          ? { parse: propParse, serialize: propSerialize }
-          : undefined,
+        isFormatterDisabled
+          ? null
+          : propParse && propSerialize
+            ? { parse: propParse, serialize: propSerialize }
+            : undefined,
       ),
-    [triggers, propParse, propSerialize],
+    [triggers, propParse, propSerialize, isFormatterDisabled],
   );
 
   const parser = useMemo(() => composeParsers(formatters), [formatters]);
