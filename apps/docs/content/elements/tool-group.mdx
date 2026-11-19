@@ -57,15 +57,17 @@ import {
 Pass `components.ToolGroup` to `Thread` to replace this composition everywhere a group of tool calls appears. Your component receives the same `group` (with `status` and `indices`) and pre-rendered `children` that the default composition above receives.
 
 ```tsx
-<Thread
-  components={{
-    ToolGroup: ({ group, children }) => (
-      <MyToolGroup running={group.status.type === "running"} count={group.indices.length}>
-        {children}
-      </MyToolGroup>
-    ),
-  }}
-/>
+const components = {
+  ToolGroup: ({ group, children }) => (
+    <MyToolGroup running={group.status.type === "running"} count={group.indices.length}>
+      {children}
+    </MyToolGroup>
+  ),
+};
+
+export function Chat() {
+  return <Thread components={components} />;
+}
 ```
 
   </Step>

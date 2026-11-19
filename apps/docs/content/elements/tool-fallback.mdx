@@ -33,7 +33,9 @@ Pass `components.ToolFallback` to `Thread` to swap the renderer used whenever a 
 ```tsx
 const components = { ToolFallback: MyToolCard };
 
-<Thread components={components} />
+export function Chat() {
+  return <Thread components={components} />;
+}
 ```
 
 `MyToolCard` receives the same props as `ToolFallback` itself. See the API reference below.
