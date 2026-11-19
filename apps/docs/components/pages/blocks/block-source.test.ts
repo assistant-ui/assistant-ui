@@ -103,7 +103,29 @@ describe("blockDependencies", () => {
     ]);
   });
 
-  it("lists nothing for a block without a manifest", () => {
+  it("lists the packages a block without a manifest imports, at the given ranges", () => {
+    const code = [
+      'import { useState } from "react";',
+      'import { ThreadPrimitive } from "@assistant-ui/react";',
+      'import { PlusIcon } from "lucide-react/icons";',
+      'import { cn } from "@/lib/utils";',
+      'import { helper } from "./helper";',
+    ].join("\n");
+
+    expect(
+      blockDependencies([{ path: "chat.tsx", code }], {
+        react: "^19.3.1",
+        "@assistant-ui/react": "workspace:*",
+        next: "^16.0.0",
+      }),
+    ).toEqual([
+      { name: "@assistant-ui/react", range: "workspace:*" },
+      { name: "lucide-react", range: "" },
+      { name: "react", range: "^19.3.1" },
+    ]);
+  });
+
+  it("lists nothing for a block without a manifest or imports", () => {
     expect(
       blockDependencies([{ path: "app/page.tsx", code: "export {};" }]),
     ).toEqual([]);

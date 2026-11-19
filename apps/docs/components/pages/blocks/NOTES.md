@@ -12,6 +12,13 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 - **The picked theme in the Code tab.** The picker restyles the preview only; the code shown is the block's own.
 - **A link to Blocks in the site header, and a sitemap entry.** The pages are reached only by typing `/blocks` for now.
 
+## Adding a demo block
+
+1. Make a folder under `app/(home)/blocks/demos/` with the demo's files. The main file default-exports the component.
+2. Add the component to `app/(home)/blocks/demos/index.ts` under the block's slug.
+3. Add the block to `lib/blocks.ts` with `previewUrl: "/blocks-preview/<slug>"` and the folder as `source.directory`.
+4. Add `public/screenshot/blocks/<slug>-light.webp` and `-dark.webp`.
+
 ## Done
 
 - Blocks page and block page, with the Preview / Code viewer and six sections.
@@ -24,3 +31,5 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 - Section designs picked from options: Use cases as numbered rows, Capabilities and Requirements as boxed cells, Dependencies as lined columns with each package's logo, Environment variables as the `.env.example` file.
 - "From assistant-ui" section: the hooks, primitives, components, runtime pieces and types the block imports, read from its code.
 - Problem solved section removed.
+- Demo blocks: a block can live in the docs app, in its own folder under `app/(home)/blocks/demos/`. Its preview is the docs page `/blocks-preview/<slug>`, so it needs no port and works on the live site.
+- Primitives chat, the first demo block: one file that uses all 17 assistant-ui primitives, with scripted replies.

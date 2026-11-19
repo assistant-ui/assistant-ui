@@ -100,11 +100,29 @@ async function listSourceFiles(
   return nested.flat();
 }
 
+const PACKAGE_IMPORT =
+  /from\s+"((?:@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*)(?:\/[^"]*)?"/g;
+
+/**
+ * A block's runtime dependencies, from its manifest. A block without one, a
+ * demo inside the docs app, lists the packages its files import, at the
+ * version ranges of `ranges`.
+ */
 export function blockDependencies(
   files: readonly BlockFile[],
+  ranges: Readonly<Record<string, string>> = {},
 ): BlockDependency[] {
   const manifest = files.find((file) => file.path === "package.json");
-  if (!manifest) return [];
+  if (!manifest) {
+    const names = new Set(
+      files.flatMap((file) =>
+        [...file.code.matchAll(PACKAGE_IMPORT)].map(([, name = ""]) => name),
+      ),
+    );
+    return [...names]
+      .sort()
+      .map((name) => ({ name, range: ranges[name] ?? "" }));
+  }
   const { dependencies = {} } = JSON.parse(manifest.code) as {
     dependencies?: Record<string, string>;
   };

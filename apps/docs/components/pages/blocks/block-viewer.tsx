@@ -296,7 +296,7 @@ export function BlockViewer({
     if (!previewUrl) return;
     iframeRef.current?.contentWindow?.postMessage(
       { type: "aui-block-theme", mode, style: blockThemeStyle(choice) },
-      new URL(previewUrl).origin,
+      new URL(previewUrl, window.location.href).origin,
     );
   };
   useEffect(postTheme);

@@ -26,15 +26,18 @@ export type Block = {
   description: string;
   image: { light: string; dark: string };
   githubLink: string;
-  /** Address of a deployed copy to frame; the live site shows the screenshot without one. */
+  /**
+   * Address the Preview tab frames: a deployed copy, or the docs page that
+   * renders a demo block. The live site shows the screenshot without one.
+   */
   previewUrl: string | null;
-  /** Port the docs dev server starts the block on when it has no deployment. */
-  devPort: number;
+  /** Port the docs dev server starts the block on when it has no address. */
+  devPort?: number;
   source: BlockSource;
   useCases: readonly string[];
   capabilities: readonly BlockCapability[];
   requirements: readonly string[];
-  env: {
+  env?: {
     note: string;
     variables: readonly BlockEnvVar[];
   };
@@ -148,6 +151,80 @@ export const BLOCKS: readonly Block[] = [
         },
       ],
     },
+  },
+  {
+    slug: "primitives-chat",
+    title: "Primitives chat",
+    description:
+      "A whole chat in one file, written with every assistant-ui primitive and no component kit.",
+    image: {
+      light: "/screenshot/blocks/primitives-chat-light.webp",
+      dark: "/screenshot/blocks/primitives-chat-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(home)/blocks/demos/primitives-chat",
+    previewUrl: "/blocks-preview/primitives-chat",
+    source: {
+      directory: "apps/docs/app/(home)/blocks/demos/primitives-chat",
+      include: ["chat.tsx"],
+      entry: "chat.tsx",
+    },
+    useCases: [
+      "A starting file for a chat whose markup and styles are all yours.",
+      "A reference for how each primitive is composed, with every one in a single place.",
+      "A chat to try a design on before you wire up a model.",
+    ],
+    capabilities: [
+      {
+        title: "Thread and messages",
+        description:
+          "A scrolling thread with a welcome screen, suggestions, a scroll-to-bottom button, and separate user and assistant messages.",
+      },
+      {
+        title: "Composer",
+        description:
+          "Send and stop, files by button or by drop, a quoted passage, and a queue for messages sent while a reply is being written.",
+      },
+      {
+        title: "Message actions",
+        description:
+          "Copy, edit, regenerate, read aloud, rate, and export as Markdown from a More menu.",
+      },
+      {
+        title: "Branches",
+        description:
+          "Editing a message or regenerating a reply keeps the earlier version, and a picker moves between them.",
+      },
+      {
+        title: "Reasoning and tool calls",
+        description:
+          "A collapsible Thinking block holds the reasoning and the tool call that came before the answer.",
+      },
+      {
+        title: "Quoting",
+        description:
+          "Selecting text in a message shows a Quote button, and the passage is sent with the next message.",
+      },
+      {
+        title: "Errors",
+        description: "A failed reply shows its error under the message.",
+      },
+      {
+        title: "Chat list",
+        description:
+          "A sidebar of chats with new, archive, restore and delete, kept in memory.",
+      },
+      {
+        title: "Floating layout",
+        description:
+          "One button moves the same thread into a bubble in the corner of the page.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4 with the shadcn/ui color tokens, such as background, muted and primary.",
+      "A model of your own. The file answers from a script, so replace scriptedModel with a ChatModelAdapter or another assistant-ui runtime.",
+      "A browser with speech synthesis for reading a reply aloud.",
+    ],
   },
 ];
 

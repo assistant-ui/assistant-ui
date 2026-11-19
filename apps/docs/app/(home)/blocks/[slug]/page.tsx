@@ -22,6 +22,7 @@ import { typeDeck, typePage } from "@/components/shared/type";
 import { BLOCKS, getBlock } from "@/lib/blocks";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
+import docsManifest from "@/package.json";
 
 export function generateStaticParams() {
   return BLOCKS.map((block) => ({ slug: block.slug }));
@@ -49,17 +50,18 @@ export default async function BlockPage(props: {
   if (!block) notFound();
 
   let previewUrl = block.previewUrl;
-  if (!previewUrl && process.env.NODE_ENV === "development") {
+  if (
+    !previewUrl &&
+    block.devPort !== undefined &&
+    process.env.NODE_ENV === "development"
+  ) {
     startBlockPreview(block.source.directory, block.devPort);
     previewUrl = `http://localhost:${block.devPort}`;
   }
 
   const files = await readBlockSource(block.source);
-  const dependencies = blockDependencies(files);
+  const dependencies = blockDependencies(files, docsManifest.dependencies);
   const imports = blockAssistantUi(files);
-  const envExample =
-    files.find((file) => file.path === ".env.example")?.code ??
-    block.env.variables.map((variable) => `${variable.name}=`).join("\n");
 
   return (
     <PageFrame pad="sub">
@@ -104,7 +106,17 @@ export default async function BlockPage(props: {
         <AssistantUi imports={imports} />
         <Dependencies dependencies={dependencies} />
         <Requirements requirements={block.requirements} />
-        <EnvironmentVariables env={block.env} example={envExample} />
+        {block.env && (
+          <EnvironmentVariables
+            env={block.env}
+            example={
+              files.find((file) => file.path === ".env.example")?.code ??
+              block.env.variables
+                .map((variable) => `${variable.name}=`)
+                .join("\n")
+            }
+          />
+        )}
       </div>
     </PageFrame>
   );

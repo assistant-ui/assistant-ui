@@ -146,7 +146,10 @@ export function Requirements({ requirements }: Pick<Block, "requirements">) {
 export function EnvironmentVariables({
   env,
   example,
-}: Pick<Block, "env"> & { example: string }) {
+}: {
+  env: NonNullable<Block["env"]>;
+  example: string;
+}) {
   return (
     <BlockSection id="environment-variables" label="Environment variables">
       <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">
