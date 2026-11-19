@@ -1,0 +1,129 @@
+import { useEffect, useState, useInsertionEffect } from "react";
+import { resource, useResource } from "@assistant-ui/tap";
+import { createComponent, type JSX } from "solid-js";
+import { render } from "solid-js/web";
+import {
+  Derived,
+  useAssistantEmit,
+  useClientResource,
+  type AssistantClient,
+  type AuiConfig,
+} from "@assistant-ui/store/client";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import { Suggestions } from "@assistant-ui/core/store";
+import { AuiProvider } from "./AuiProvider";
+import { useAui } from "./useAui";
+
+export type AnyClient = Record<string, any>;
+
+export const flushEvents = () => new Promise((resolve) => setTimeout(resolve));
+
+export const trackers = { threadCleanups: 0 };
+
+const useMessageClient = ({ id }: { id: string }) => {
+  const emit = useAssistantEmit();
+  const [text, setText] = useState("");
+  return {
+    getState: () => ({ id, text }),
+    setText,
+    ping: (value: string) =>
+      emit("message.pinged" as never, { id, value } as never),
+  };
+};
+export const MessageClient = resource(useMessageClient);
+
+const useThreadClient = () => {
+  const [selected, setSelected] = useState(0);
+  const m0 = useClientResource(MessageClient({ id: "m0" }));
+  const m1 = useClientResource(MessageClient({ id: "m1" }));
+  const messages = [m0, m1];
+  useEffect(() => {
+    return () => {
+      trackers.threadCleanups++;
+    };
+  }, []);
+  return {
+    getState: () => ({ selected }),
+    setSelected,
+    message: ({ index }: { index: number }) => messages[index]!.methods,
+  };
+};
+export const ThreadClient = resource(useThreadClient);
+
+export const messageDerived = () =>
+  Derived({
+    source: "thread",
+    query: {},
+    get: (aui: AnyClient) =>
+      aui.thread.message({ index: aui.thread.getState().selected }),
+  } as never);
+
+export const mount = (root: () => JSX.Element) => {
+  const container = document.createElement("div");
+  const unmount = render(root, container);
+  return { container, unmount };
+};
+
+export const captureAui = () => {
+  let aui!: AnyClient;
+  const Probe = () => {
+    aui = useAui() as AnyClient;
+    return null;
+  };
+  return { Probe, getAui: () => aui };
+};
+
+export const providerWith = (
+  config: AuiConfig,
+  child: () => JSX.Element,
+  props?: { extends?: AssistantClient | null },
+) =>
+  createComponent(AuiProvider, {
+    config,
+    ...props,
+    get children() {
+      return child();
+    },
+  });
+
+const useThrowingCleanup = () => {
+  useInsertionEffect(
+    () => () => {
+      throw new Error("cleanup failed");
+    },
+    [],
+  );
+  return { getState: () => ({}) };
+};
+export const ThrowingCleanup = resource(useThrowingCleanup);
+
+const useMountEffectItems = () => {
+  const [items, setItems] = useState<string[]>([]);
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- Mount updates must be synchronous to detect hydration mismatches.
+    setItems(["loaded"]);
+  }, []);
+  return { getState: () => ({ items }), setItems };
+};
+export const MountEffectItems = resource(useMountEffectItems);
+
+export const TrackedSuggestions = resource(
+  function useTrackedSuggestions(lifecycle: {
+    effects: number;
+    insertionEffects: number;
+    signals: Set<AbortSignal>;
+  }) {
+    lifecycle.signals.add(useAssistantClientDestroySignal()!);
+    useEffect(() => {
+      lifecycle.effects++;
+    }, [lifecycle]);
+    useInsertionEffect(() => {
+      lifecycle.insertionEffects++;
+    }, [lifecycle]);
+    return useResource(
+      Suggestions([
+        { title: "Say hello", label: "A friendly opener", prompt: "Hello!" },
+      ]),
+    );
+  },
+);

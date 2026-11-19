@@ -1,8 +1,17 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it } from "vitest";
 import { HttpAgent } from "@ag-ui/client";
 import type { AppendMessage } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
 import { makeLogger } from "./logger";
+
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
+    .getMessageRepository()
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const userMessage: AppendMessage = {
   role: "user",
@@ -59,7 +68,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
 
       expect(core.isRunning()).toBe(false);
       expect(core.getMessages().at(-1)).toMatchObject({
-        id: "answer",
+        id: localId(core, "answer"),
         content: [{ type: "text", text: "partial answer" }],
         status: { type: "incomplete", reason: "error" },
       });
@@ -87,7 +96,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
       });
       expect(core.isRunning()).toBe(false);
       expect(core.getMessages().at(-1)).toMatchObject({
-        id: "next",
+        id: localId(core, "next"),
         content: [{ type: "text", text: "next answer" }],
         status: { type: "complete" },
       });
@@ -118,7 +127,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
     await core.append(userMessage);
 
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "answer",
+      id: localId(core, "answer"),
       content: [
         { type: "text", text: "snapshot answer continued" },
         { type: "data", name: "before", data: { retained: true } },
@@ -215,7 +224,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
     await core.append(userMessage);
 
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "answer",
+      id: localId(core, "answer"),
       status: { type: "incomplete", reason: "error" },
       content: [
         { type: "text", text: "snapshot answer" },
@@ -293,7 +302,9 @@ describe("AgUiThreadController HTTP stream closure", () => {
 
     await core.append(userMessage);
 
-    const answer = core.getMessages().find(({ id }) => id === "answer");
+    const answer = core
+      .getMessages()
+      .find((message) => agUiWireMessageId(message) === "answer");
     expect(answer?.status).toMatchObject({
       type: "incomplete",
       reason: "error",
@@ -306,7 +317,9 @@ describe("AgUiThreadController HTTP stream closure", () => {
       ],
     });
     expect(
-      core.getMessages().find(({ id }) => id === "next")?.status?.type,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "next")?.status?.type,
     ).toBe("complete");
   });
 
@@ -351,7 +364,9 @@ describe("AgUiThreadController HTTP stream closure", () => {
 
       expect(core.isRunning()).toBe(false);
       expect(
-        core.getMessages().find(({ id }) => id === "answer")?.status,
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "answer")?.status,
       ).toMatchObject(status);
     },
   );
@@ -410,7 +425,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
     await core.append(userMessage);
 
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "answer",
+      id: localId(core, "answer"),
       content: [
         { type: "text", text: "snapshot answer" },
         {
@@ -463,7 +478,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
     await core.append(userMessage);
 
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "answer",
+      id: localId(core, "answer"),
       content: [
         { type: "text", text: "snapshot answer" },
         { type: "tool-call", toolCallId: "lookup", result: "ok" },
@@ -666,7 +681,9 @@ describe("AgUiThreadController HTTP stream closure", () => {
           : { type: "incomplete", reason: "error" },
       );
       expect(core.getPendingToolCalls()).toEqual(
-        runFinished ? { messageId: "answer", toolCallIds: ["task"] } : null,
+        runFinished
+          ? { messageId: localId(core, "answer"), toolCallIds: ["task"] }
+          : null,
       );
     },
   );
@@ -699,7 +716,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
 
       expect(core.isRunning()).toBe(false);
       expect(core.getMessages().at(-1)).toMatchObject({
-        id: "answer",
+        id: localId(core, "answer"),
         content: [{ type: "text", text: "snapshot answer" }],
         status:
           terminal === "finished"
@@ -707,7 +724,9 @@ describe("AgUiThreadController HTTP stream closure", () => {
             : { type: "incomplete", reason: "error" },
       });
       expect(
-        core.getMessages().find((message) => message.id === "history")?.status,
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "history")?.status,
       ).toMatchObject({ type: "complete" });
     },
   );
@@ -806,13 +825,13 @@ describe("AgUiThreadController HTTP stream closure", () => {
     await snapshotImported;
     const answerDuringRun = core
       .getMessages()
-      .find(({ id }) => id === "answer");
+      .find((message) => agUiWireMessageId(message) === "answer");
     const toolCallDuringRun = answerDuringRun?.content.find(
       (part) => part.type === "tool-call",
     );
     const subagentDuringRun =
       toolCallDuringRun?.type === "tool-call"
-        ? toolCallDuringRun.messages?.find(({ id }) => id === "sub")
+        ? toolCallDuringRun.messages?.find((message) => message.id === "sub")
         : undefined;
     const statusDuringRun = {
       isRunning: core.isRunning(),
@@ -829,7 +848,9 @@ describe("AgUiThreadController HTTP stream closure", () => {
       subagentStatus: { type: "running" },
     });
     expect(core.isRunning()).toBe(false);
-    const answerAfterRun = core.getMessages().find(({ id }) => id === "answer");
+    const answerAfterRun = core
+      .getMessages()
+      .find((message) => agUiWireMessageId(message) === "answer");
     expect(answerAfterRun?.status).toMatchObject({
       type: "incomplete",
       reason: "error",
@@ -839,7 +860,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
     );
     const subagentAfterRun =
       toolCallAfterRun?.type === "tool-call"
-        ? toolCallAfterRun.messages?.find(({ id }) => id === "sub")
+        ? toolCallAfterRun.messages?.find((message) => message.id === "sub")
         : undefined;
     expect(subagentAfterRun?.status).toMatchObject({
       type: "incomplete",

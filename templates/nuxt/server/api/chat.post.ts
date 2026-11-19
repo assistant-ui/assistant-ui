@@ -2,6 +2,13 @@ import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
 export default defineEventHandler(async (event) => {
+  if (!isAllowedRequestContext(event)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   const abortController = new AbortController();
   event.node.res.on("close", () => {
     if (!event.node.res.writableFinished) {

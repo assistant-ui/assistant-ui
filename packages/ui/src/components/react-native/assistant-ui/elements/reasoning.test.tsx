@@ -100,11 +100,16 @@ describe("Reasoning", () => {
     duration = 3,
     children: ReactNode = <Text>Live reasoning</Text>,
     active = true,
+    label?: string,
   ) => {
     await act(async () => {
       root.render(
         <ReasoningRoot {...props}>
-          <ReasoningTrigger active={active} duration={duration} />
+          <ReasoningTrigger
+            active={active}
+            duration={duration}
+            {...(label === undefined ? {} : { label })}
+          />
           <ReasoningContent>
             <ReasoningText {...textProps}>{children}</ReasoningText>
           </ReasoningContent>
@@ -163,6 +168,15 @@ describe("Reasoning", () => {
 
     await render({ defaultOpen: true }, {}, 3, undefined, false);
     expect(trigger().getAttribute("aria-busy")).toBe("false");
+  });
+
+  it("uses the custom label for visible text and accessibility", async () => {
+    await render({}, {}, 3, undefined, true, "Analysis");
+
+    const trigger = container.querySelector('[aria-label="Analysis (3s)"]');
+    expect(trigger).not.toBeNull();
+    expect(trigger?.textContent).toContain("Analysis (3s)");
+    expect(container.querySelector('[aria-label="Reasoning (3s)"]')).toBeNull();
   });
 
   it("omits a zero-second duration", async () => {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createOgMetadata } from "@/lib/og";
 import { Button } from "@/components/ui/button";
 import { DemoCard } from "@/components/pages/elements/demo-card";
+import { ElementDemo } from "@/components/pages/elements/element-demos";
 import {
   SectionHeader,
   SectionIndex,
@@ -10,12 +11,23 @@ import {
 import {
   ELEMENT_COUNT,
   ELEMENT_SECTIONS,
+  ELEMENTS,
+  elementRegistryName,
 } from "@/components/pages/elements/registry";
+import { CartToggle } from "@/components/pages/elements/cart/cart-toggle";
+import { ElementsCart } from "@/components/pages/elements/cart/elements-cart";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const sectionId = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
+
+const CART_ELEMENTS = Object.fromEntries(
+  ELEMENTS.filter((element) => !element.generative).map((element) => [
+    element.slug,
+    { title: element.title, registryName: elementRegistryName(element) },
+  ]),
+);
 
 const title = "Elements";
 const description = `${ELEMENT_COUNT} interface pieces for AI products: reasoning, tool calls, approvals, artifacts, and the composer itself. Every demo is live, every element ships its source.`;
@@ -74,8 +86,18 @@ export default function ElementsPage() {
                       ? { connection: element.connection }
                       : {})}
                     {...(element.wide ? { wide: true } : {})}
+                    {...(element.generative
+                      ? {}
+                      : {
+                          captionAction: (
+                            <CartToggle
+                              slug={element.slug}
+                              title={element.title}
+                            />
+                          ),
+                        })}
                   >
-                    <element.Component />
+                    <ElementDemo demo={element.slug} />
                   </DemoCard>
                 );
               })}
@@ -103,6 +125,7 @@ export default function ElementsPage() {
           </Link>
         </div>
       </footer>
+      <ElementsCart elements={CART_ELEMENTS} />
     </PageFrame>
   );
 }

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { Plugin, ResolvedConfig, ViteDevServer } from "vite";
 import {
-  connectSrc,
+  networkCsp,
   frameAncestorsDirective,
   remoteComponentsMiddleware,
   RUNTIME_DIR,
@@ -45,6 +45,116 @@ export interface RemoteComponentsOptions {
   singleFile?: { plugins?: import("vite").PluginOption[] };
   /** Add the runtime tag to the app's own `index.html` too. Default true. */
   injectIndex?: boolean;
+  /**
+   * Answer `Origin: null` in dev, for remotes shown in opaque frames
+   * (sandbox without allow-same-origin) that load modules from the dev
+   * server. This lets a sandboxed frame on any site read the dev server,
+   * since the browser sends nothing that tells the two apart. Default false.
+   */
+  opaqueFrames?: boolean;
+}
+
+/** Vite's own default: loopback origins only. */
+const LOOPBACK_ORIGIN =
+  /^https?:\/\/(?:(?:[^:/]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i;
+
+/**
+ * Whether the dev server answers a cross-origin request. The dev server
+ * serves the whole project's source, so it answers its own origin and
+ * loopback origins. A page on another site is refused.
+ *
+ * `Origin: null` comes from opaque frames (sandbox without
+ * allow-same-origin) and carries no `Referer`, so a frame on the
+ * developer's page and a sandboxed frame on any other site look the same.
+ * It is refused unless `allowOpaque` (the plugin's `opaqueFrames` option).
+ */
+export function devCorsAllows(
+  origin: string | undefined,
+  host?: string,
+  allowOpaque = false,
+): boolean {
+  if (origin === undefined) return true;
+  if (origin === "null") return allowOpaque;
+  if (host !== undefined) {
+    try {
+      if (new URL(origin).host === host.toLowerCase()) return true;
+    } catch {}
+  }
+  return LOOPBACK_ORIGIN.test(origin);
+}
+
+/**
+ * Vite's `allowedHosts` rule, for the plugin's own responses: Vite 6 runs
+ * plugin middleware before its host check, so a rebound host name would
+ * otherwise reach them. Loopback names, IP literals and listed hosts pass;
+ * an entry starting with `.` also allows its subdomains.
+ */
+export function devHostAllowed(
+  host: string | undefined,
+  allowedHosts: readonly string[] | true | undefined,
+): boolean {
+  if (allowedHosts === true) return true;
+  if (host === undefined) return false;
+  let name: string;
+  try {
+    name = new URL(`http://${host}`).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  if (name === "localhost" || name.endsWith(".localhost")) return true;
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(name) || name.startsWith("["))
+    return true;
+  return (allowedHosts ?? []).some((entry) => {
+    const allowed = entry.toLowerCase();
+    return allowed.startsWith(".")
+      ? name === allowed.slice(1) || name.endsWith(allowed)
+      : name === allowed;
+  });
+}
+
+/** The hosts Vite's own host check admits for this config. */
+export function devAllowedHosts(config: {
+  server: Pick<
+    ResolvedConfig["server"],
+    "allowedHosts" | "host" | "hmr" | "origin"
+  >;
+  preview: Pick<ResolvedConfig["preview"], "host">;
+}): readonly string[] | true {
+  const listed = config.server.allowedHosts;
+  if (listed === true) return true;
+  const extra: string[] = [];
+  const add = (value: unknown) => {
+    if (typeof value === "string" && value) extra.push(value);
+  };
+  add(config.server.host);
+  add(config.preview.host);
+  const hmr = config.server.hmr;
+  if (typeof hmr === "object") add(hmr.host);
+  if (config.server.origin) {
+    try {
+      add(new URL(config.server.origin).hostname);
+    } catch {}
+  }
+  return [...(listed ?? []), ...extra];
+}
+
+/**
+ * CORS headers for `/<name>/single.html`, which the plugin answers itself.
+ * With the project's own `server.cors` it adds none: Vite 8 has already
+ * applied that policy, and on Vite 6 an allowed origin gets none (fails
+ * closed). Otherwise it echoes an origin `devCorsAllows` admits.
+ */
+export function singleFileCors(
+  headers: { origin?: string | undefined; host?: string | undefined },
+  options: { customCors: boolean; opaqueFrames?: boolean | undefined },
+): Record<string, string> {
+  const { origin, host } = headers;
+  if (options.customCors) return {};
+  // The answer depends on Origin, present or not, so a cache must key on it.
+  if (origin === undefined) return { vary: "Origin" };
+  return devCorsAllows(origin, host, options.opaqueFrames)
+    ? { "access-control-allow-origin": origin, vary: "Origin" }
+    : { vary: "Origin" };
 }
 
 const ENTRY_PREFIX = "virtual:rc-entry:";
@@ -154,10 +264,12 @@ export function remoteComponents(
   options: RemoteComponentsOptions = {},
 ): Plugin {
   let config: ResolvedConfig;
+  // The project set its own `server.cors`; the plugin then leaves CORS to it.
+  let customCors = false;
   let components = new Map<string, string>();
   const singleCache = new Map<string, Promise<string>>();
   const csp = [
-    `connect-src ${connectSrc(options.network)}`,
+    networkCsp(options.network),
     ...(options.frameAncestors
       ? [frameAncestorsDirective(options.frameAncestors)]
       : []),
@@ -190,11 +302,20 @@ export function remoteComponents(
     config(userConfig, env) {
       const root = path.resolve(userConfig.root ?? process.cwd());
       components = resolveComponents(root, options.components);
-      // Remote code is public. Opaque-origin remotes (sandbox without
-      // allow-same-origin) fetch their scripts with `Origin: null`.
+      // Built remote code is public, so preview answers any origin. The dev
+      // server serves the project's source, so its CORS admits only loopback
+      // origins, plus `Origin: null` (opaque frames, sandbox without
+      // allow-same-origin) with `opaqueFrames`.
       if (env.command !== "build") {
+        customCors = userConfig.server?.cors !== undefined;
         return {
-          server: { cors: userConfig.server?.cors ?? { origin: "*" } },
+          server: {
+            cors: userConfig.server?.cors ?? {
+              origin: options.opaqueFrames
+                ? [LOOPBACK_ORIGIN, "null"]
+                : [LOOPBACK_ORIGIN],
+            },
+          },
           preview: { cors: userConfig.preview?.cors ?? { origin: "*" } },
         };
       }
@@ -242,6 +363,30 @@ export function remoteComponents(
       server.watcher.on("add", refresh);
       server.watcher.on("unlink", refresh);
       server.watcher.on("change", () => singleCache.clear());
+      const refuse = (res: import("node:http").ServerResponse, why: string) => {
+        res.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+        res.end(`[rc] ${why}`);
+      };
+      const allowedHosts = () => devAllowedHosts(config);
+      server.middlewares.use((req, res, next) => {
+        // Only the plugin's own pages: Vite checks the rest itself.
+        const page = /^\/([^/]+)(?:\/(?:index\.html|single\.html)?)?$/.exec(
+          new URL(req.url ?? "/", "http://x").pathname,
+        );
+        if (
+          page !== null &&
+          components.has(page[1]!) &&
+          !config.server.https &&
+          !devHostAllowed(req.headers.host, allowedHosts())
+        )
+          return refuse(res, "host not allowed; add it to server.allowedHosts");
+        // Cross-origin reads are left to the CORS headers: Vite's
+        // `server.cors` for its own responses, and singleFileCors (which
+        // applies devCorsAllows) for `single.html`, which the plugin answers
+        // itself. A response without one can't be read, and refusing outright
+        // would also stop proxied same-origin requests.
+        next();
+      });
       const runtime = remoteComponentsMiddleware({ runtimeBase: base() });
       server.middlewares.use((req, res, next) => void runtime(req, res, next));
       server.middlewares.use((req, res, next) => {
@@ -252,7 +397,10 @@ export function remoteComponents(
             .then((html) => {
               res.writeHead(200, {
                 "content-type": "text/html; charset=utf-8",
-                "access-control-allow-origin": "*",
+                ...singleFileCors(req.headers, {
+                  customCors,
+                  opaqueFrames: options.opaqueFrames,
+                }),
               });
               res.end(html);
             })

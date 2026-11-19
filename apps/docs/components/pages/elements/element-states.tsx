@@ -1,13 +1,23 @@
 "use client";
 
-import { useRef, useSyncExternalStore, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  type KeyboardEvent,
+} from "react";
 import { cn } from "@/lib/utils";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
-import { getElementStates } from "@/components/demo/elements/states";
+import {
+  DEFAULT_ONLY_STATE_SLUGS,
+  ELEMENT_STATES,
+} from "@/components/demo/elements/states";
 import {
   DEFAULT_STATE_KEY,
   type ElementState,
+  type ElementStates,
+  type ElementStatesSource,
 } from "@/components/demo/elements/states/types";
 
 const PARAM = "state";
@@ -43,20 +53,98 @@ function writeStateParam(key: string, mode: HistoryMode) {
   window.dispatchEvent(new Event(STATE_CHANGE));
 }
 
-export function ElementStatesPreview({
-  slug,
-  caption,
-  canvasClassName,
-  children,
-}: {
+function pickStates(
+  source: ElementStatesSource | undefined,
+  slug: string,
+): ElementStates | undefined {
+  if (!source) return undefined;
+  if (Array.isArray(source)) return source as ElementStates;
+  return (source as Readonly<Record<string, ElementStates>>)[slug];
+}
+
+type PreviewProps = {
   slug: string;
   /** Caption of the live demo; a fixture state replaces it with the state note. */
   caption: string;
   canvasClassName: string;
   /** The live demo, shown for the `default` state. */
   children: React.ReactNode;
+};
+
+// Each element's states load on their own, so a page downloads only its own
+// fixtures. `undefined` is still loading, `null` means the element has none.
+const loadedStates = new Map<string, ElementStates | null>();
+const statesListeners = new Set<() => void>();
+
+function subscribeStates(onChange: () => void) {
+  statesListeners.add(onChange);
+  return () => {
+    statesListeners.delete(onChange);
+  };
+}
+
+const requested = new Set<string>();
+
+function requestStates(slug: string) {
+  if (requested.has(slug)) return;
+  requested.add(slug);
+  const settle = (states: ElementStates | null) => {
+    loadedStates.set(slug, states);
+    for (const listener of statesListeners) listener();
+  };
+  const load = ELEMENT_STATES[slug];
+  if (!load) return settle(null);
+  load().then(
+    (source) => settle(pickStates(source, slug) ?? null),
+    () => {
+      // A failed chunk leaves the live demo without a switcher; a later
+      // visit to the page tries again.
+      requested.delete(slug);
+      settle(null);
+    },
+  );
+}
+
+const noStatesOnServer = () => undefined;
+
+/**
+ * The states for `slug`, loaded after hydration. The live demo never waits on
+ * them and stays mounted when they arrive; the switcher's row is held empty
+ * until then so nothing below it moves.
+ */
+function useElementStates(slug: string) {
+  useEffect(() => requestStates(slug), [slug]);
+  return useSyncExternalStore(
+    subscribeStates,
+    () => loadedStates.get(slug),
+    noStatesOnServer,
+  );
+}
+
+export function ElementStatesPreview({ slug, ...props }: PreviewProps) {
+  const states = useElementStates(slug);
+  return (
+    <ElementStatesFigure
+      {...props}
+      states={states ?? undefined}
+      reserveSwitcher={
+        states === undefined && !DEFAULT_ONLY_STATE_SLUGS.has(slug)
+      }
+    />
+  );
+}
+
+export function ElementStatesFigure({
+  states,
+  reserveSwitcher = false,
+  caption,
+  canvasClassName,
+  children,
+}: Omit<PreviewProps, "slug"> & {
+  states: ElementStates | undefined;
+  /** Holds the switcher's row while the states load, so the demo does not jump. */
+  reserveSwitcher?: boolean;
 }) {
-  const states = getElementStates(slug);
   const key = useSyncExternalStore(
     subscribe,
     readStateParam,
@@ -73,6 +161,7 @@ export function ElementStatesPreview({
 
   return (
     <figure className="mt-10">
+      {reserveSwitcher && <div aria-hidden className="mb-2.5 h-6" />}
       {states && states.length > 1 && (
         <StateSwitcher
           states={states}

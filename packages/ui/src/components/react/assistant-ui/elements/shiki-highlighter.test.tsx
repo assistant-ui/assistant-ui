@@ -103,6 +103,9 @@ describe("SyntaxHighlighter", () => {
   });
 
   it("highlights with the JavaScript engine by default, without WebAssembly", async () => {
+    // The default highlighter is cached per module, so this test loads its own.
+    vi.resetModules();
+    const { SyntaxHighlighter } = await import("./shiki-highlighter");
     const { container } = render(
       <SyntaxHighlighter code="const answer = 42;" language="ts" delay={0} />,
     );

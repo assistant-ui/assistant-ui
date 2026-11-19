@@ -6,6 +6,7 @@ import { Activity, type FC, version } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import { flushTapSync } from "@assistant-ui/tap";
 import {
   type AttachmentAdapter,
   CompositeAttachmentAdapter,
@@ -850,7 +851,7 @@ describe("ExternalThread attachments", () => {
     await act(async () => {
       await composer().addAttachment(new File(["a"], "a"));
       await composer().addAttachment(new File(["b"], "b"));
-      composer().send();
+      flushTapSync(() => composer().send());
     });
     let removing!: Promise<void>;
     await act(async () => {
@@ -892,8 +893,10 @@ describe("ExternalThread attachments", () => {
     await act(async () => {
       await composer().addAttachment(new File(["a"], "a"));
       await composer().addAttachment(new File(["b"], "b"));
-      composer().setText("hello");
-      composer().send();
+      flushTapSync(() => {
+        composer().setText("hello");
+        composer().send();
+      });
     });
     expect(aui().thread().getState().messages).toMatchObject([
       {
@@ -928,6 +931,9 @@ describe("ExternalThread attachments", () => {
       await composer().addAttachment(new File(["a"], "a"));
       await composer().addAttachment(new File(["b"], "b"));
     });
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(2),
+    );
     let removing!: Promise<void>;
     await act(async () => {
       removing = composer().attachment({ id: "a" }).remove();
@@ -1187,12 +1193,14 @@ describe("ExternalThread attachments", () => {
 
     await act(() => aui().thread.composer().addAttachment(foreignFile));
 
-    expect(aui().thread.composer().getState().attachments[0]).toMatchObject({
-      type: "file",
-      name: "photo.png",
-      contentType: "image/png",
-      file: foreignFile,
-    });
+    await waitFor(() =>
+      expect(aui().thread.composer().getState().attachments[0]).toMatchObject({
+        type: "file",
+        name: "photo.png",
+        contentType: "image/png",
+        file: foreignFile,
+      }),
+    );
   });
 
   it("rejects files that do not match the adapter accept string", async () => {
@@ -1858,6 +1866,9 @@ describe("ExternalThread attachments", () => {
         composer().addAttachment(
           new File(["data"], "notes.txt", { type: "text/plain" }),
         ),
+      );
+      await waitFor(() =>
+        expect(composer().getState().attachments).toHaveLength(1),
       );
       let removing!: Promise<unknown>;
       act(() => {
@@ -2920,7 +2931,7 @@ describe("cancelled edit sessions", () => {
     });
     const composer = () => aui().thread.message({ id: "u1" }).composer();
     await act(async () => {
-      composer().beginEdit();
+      flushTapSync(() => composer().beginEdit());
     });
     await act(async () => {
       await composer().attachment({ id: "saved" }).remove();

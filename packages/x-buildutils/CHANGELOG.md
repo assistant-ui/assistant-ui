@@ -1,5 +1,11 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.33
+
+### Patch Changes
+
+- [#10544](https://github.com/assistant-ui/assistant-ui/pull/10544) [`7854908`](https://github.com/assistant-ui/assistant-ui/commit/7854908de003619397e9e30c578eb926246d2068) - Emit the declarations of ESM packages with the native TypeScript 7 compiler. In local measurements this about halved a cold build of every package in the repository. The emitted types are equivalent, though some unions, members and inferred types print differently. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.32
 
 ### Patch Changes

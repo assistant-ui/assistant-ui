@@ -42,7 +42,7 @@ describe("createAddComponentsPlan", () => {
       command: "npx",
       args: [
         "--yes",
-        "shadcn@latest",
+        "shadcn@4.23.0",
         "add",
         "https://r.assistant-ui.com/base/thread.json",
         "--yes",
@@ -62,7 +62,7 @@ describe("createAddComponentsPlan", () => {
       command: "pnpm",
       args: [
         "dlx",
-        "shadcn@latest",
+        "shadcn@4.23.0",
         "add",
         "https://r.assistant-ui.com/base/thread.json",
         "https://r.assistant-ui.com/base/markdown-text.json",
@@ -82,7 +82,7 @@ describe("createAddComponentsPlan", () => {
     ).toEqual({
       command: "bunx",
       args: [
-        "shadcn@latest",
+        "shadcn@4.23.0",
         "add",
         "https://r.assistant-ui.com/base/thread.json",
       ],
@@ -101,7 +101,7 @@ describe("createAddComponentsPlan", () => {
       command: "pnpm",
       args: [
         "dlx",
-        "shadcn@latest",
+        "shadcn@4.23.0",
         "add",
         "https://r.assistant-ui.com/native/thread.json",
         "https://r.assistant-ui.com/native/markdown-text.json",

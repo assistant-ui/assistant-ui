@@ -1,7 +1,7 @@
 import { formulaIssue } from "./calc";
 import type { Catalog } from "./catalog";
 import { isExpressionKey } from "./expressions";
-import { escapePointerToken } from "./pointer";
+import { escapePointerToken, FORBIDDEN_KEYS } from "./pointer";
 import { exceedsRenderBudget } from "./tree";
 import type { ActionBinding, Spec, SpecElement } from "./types";
 
@@ -173,7 +173,12 @@ export function validateSpec(
     });
   };
 
-  const checkExpressions = (id: string, path: string, value: unknown) => {
+  const checkExpressions = (
+    id: string,
+    path: string,
+    value: unknown,
+    code: "invalid-props" | "invalid-params",
+  ) => {
     const seen = new Set<object>();
     const pending: [string, unknown][] = [[path, value]];
     for (let next = pending.pop(); next; next = pending.pop()) {
@@ -184,6 +189,15 @@ export function validateSpec(
       const children: [string, unknown][] = [];
       for (const [key, child] of Object.entries(current)) {
         const childPath = `${at}/${escapePointerToken(key)}`;
+        if (FORBIDDEN_KEYS.has(key) && !Array.isArray(current)) {
+          error({
+            code,
+            elementId: id,
+            path: childPath,
+            message: `"${id}" uses the reserved key "${key}". Rename it.`,
+          });
+          continue;
+        }
         if (key !== "$calc" || Array.isArray(current)) {
           const plain =
             typeof child === "string" &&
@@ -337,17 +351,27 @@ export function validateSpec(
         bindingsOf(bindings),
       );
     }
-    checkExpressions(id, `${path}/props`, element.props);
-    checkExpressions(id, `${path}/visible`, element.visible);
+    checkExpressions(id, `${path}/props`, element.props, "invalid-props");
+    checkExpressions(id, `${path}/visible`, element.visible, "invalid-props");
     for (const key of ["on", "watch"] as const) {
       for (const [name, bindings] of Object.entries(element[key] ?? {})) {
         const at = `${path}/${key}/${escapePointerToken(name)}`;
         if (Array.isArray(bindings)) {
           bindings.forEach((binding, index) =>
-            checkExpressions(id, `${at}/${index}/params`, binding?.params),
+            checkExpressions(
+              id,
+              `${at}/${index}/params`,
+              binding?.params,
+              "invalid-params",
+            ),
           );
         } else {
-          checkExpressions(id, `${at}/params`, bindings?.params);
+          checkExpressions(
+            id,
+            `${at}/params`,
+            bindings?.params,
+            "invalid-params",
+          );
         }
       }
     }

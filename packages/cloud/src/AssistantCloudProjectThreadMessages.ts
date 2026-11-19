@@ -1,6 +1,7 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import {
   decodeCloudMessage,
+  decodeCloudMessagePaging,
   type CloudMessage,
 } from "./AssistantCloudThreadMessages";
 import { readCloudArray, readCloudRecord } from "./cloudResponse";
@@ -13,6 +14,14 @@ type AssistantCloudProjectThreadMessageListQuery = {
 
 type AssistantCloudProjectThreadMessageListResponse = {
   messages: CloudMessage[];
+  /**
+   * Whether the thread holds messages past this page. A page can end early,
+   * before its `limit`, so page on while this is true. Absent from servers
+   * that predate it.
+   */
+  has_more?: boolean;
+  /** The `after` cursor for the next page while `has_more`. */
+  next_cursor?: string | null;
 };
 
 export class AssistantCloudProjectThreadMessages {
@@ -39,6 +48,7 @@ export class AssistantCloudProjectThreadMessages {
       messages: messages.map((message, index) =>
         decodeCloudMessage(message, `messages[${index}]`),
       ),
+      ...decodeCloudMessagePaging(response),
     };
   }
 }

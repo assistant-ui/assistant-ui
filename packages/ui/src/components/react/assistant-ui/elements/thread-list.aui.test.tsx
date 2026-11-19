@@ -479,6 +479,38 @@ const openRename = async (container: HTMLElement) => {
 };
 
 describe("ThreadList rename", () => {
+  it.each(["succeeds", "fails"])(
+    "keeps focus on search if an Enter rename %s after focus leaves",
+    async (outcome) => {
+      const { promise, resolve, reject } = Promise.withResolvers<void>();
+      const adapter = makeAdapter(withTitles("Trip planning"), {
+        rename: vi.fn(() => promise),
+      });
+      const { container, getByRole } = renderThreadList(adapter);
+
+      const input = await openRename(container);
+      fireEvent.change(input, { target: { value: "Trip notes" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      await waitFor(() =>
+        expect(adapter.rename).toHaveBeenCalledWith("t0", "Trip notes"),
+      );
+
+      const search = getByRole("searchbox");
+      act(() => search.focus());
+      expect(document.activeElement).toBe(search);
+
+      await act(async () => {
+        if (outcome === "succeeds") resolve();
+        else reject(new Error("rename failed"));
+      });
+
+      expect(document.activeElement).toBe(search);
+      expect(slots(container, "item-rename")).toEqual(
+        outcome === "succeeds" ? [] : [input],
+      );
+    },
+  );
+
   it.each([
     { label: "IME keyCode", event: { key: "Enter", keyCode: 229 } },
     { label: "isComposing", event: { key: "Enter", isComposing: true } },
@@ -519,6 +551,7 @@ describe("ThreadList rename", () => {
     await waitFor(() =>
       expect(slots(container, "item-rename")).toHaveLength(0),
     );
+    expect(document.activeElement).toBe(slots(container, "item-trigger")[0]);
   });
 
   it("leaves the title alone when the value is unchanged or blank", async () => {

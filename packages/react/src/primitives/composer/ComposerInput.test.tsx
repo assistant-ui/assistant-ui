@@ -64,7 +64,8 @@ vi.mock("@assistant-ui/store", () => {
   };
 });
 
-vi.mock("@assistant-ui/tap", () => ({
+vi.mock("@assistant-ui/tap", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/tap")>()),
   flushTapSync: (fn: () => void) => fn(),
 }));
 
@@ -353,7 +354,7 @@ describe("ComposerPrimitiveInput", () => {
     expect(setText).not.toHaveBeenCalled();
   });
 
-  it("does not apply ARIA combobox attributes when no trigger popover is open", async () => {
+  it("does not apply ARIA attributes when no trigger popover is open", async () => {
     activeAria = null;
     const textarea = await mount();
 
@@ -363,7 +364,7 @@ describe("ComposerPrimitiveInput", () => {
     expect(textarea.getAttribute("aria-activedescendant")).toBeNull();
   });
 
-  it("applies ARIA combobox attributes when a trigger popover is open", async () => {
+  it("applies ARIA attributes when a trigger popover is open", async () => {
     activeAria = {
       popoverId: "popover-1",
       highlightedItemId: "popover-1-option-foo",
@@ -371,7 +372,7 @@ describe("ComposerPrimitiveInput", () => {
     const textarea = await mount();
 
     expect(textarea.getAttribute("aria-controls")).toBe("popover-1");
-    expect(textarea.getAttribute("aria-expanded")).toBe("true");
+    expect(textarea.getAttribute("aria-expanded")).toBeNull();
     expect(textarea.getAttribute("aria-haspopup")).toBe("listbox");
     expect(textarea.getAttribute("aria-activedescendant")).toBe(
       "popover-1-option-foo",
@@ -386,7 +387,7 @@ describe("ComposerPrimitiveInput", () => {
     const textarea = await mount();
 
     expect(textarea.getAttribute("aria-controls")).toBe("popover-1");
-    expect(textarea.getAttribute("aria-expanded")).toBe("true");
+    expect(textarea.getAttribute("aria-expanded")).toBeNull();
     expect(textarea.getAttribute("aria-haspopup")).toBe("listbox");
     expect(textarea.getAttribute("aria-activedescendant")).toBeNull();
   });

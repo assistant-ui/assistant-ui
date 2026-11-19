@@ -1,4 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+// @vitest-environment jsdom
+
+import { cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 const { mockUseAuiState, mockUseAui } = vi.hoisted(() => ({
   mockUseAuiState: vi.fn(),
@@ -42,6 +45,8 @@ const userMessage: AppendMessage = {
   runConfig: {},
 };
 
+afterEach(cleanup);
+
 const againstState = (extras: unknown) =>
   mockUseAuiState.mockImplementationOnce((selector: (s: unknown) => unknown) =>
     selector({ thread: { extras } }),
@@ -60,12 +65,14 @@ describe("useAgUiInterrupts", () => {
         setState: vi.fn(),
       }),
     );
-    expect(useAgUiInterrupts()).toEqual([interrupt]);
+    expect(renderHook(() => useAgUiInterrupts()).result.current).toEqual([
+      interrupt,
+    ]);
   });
 
   it("returns an empty array when the thread is not backed by ag-ui", () => {
     againstState(undefined);
-    expect(useAgUiInterrupts()).toEqual([]);
+    expect(renderHook(() => useAgUiInterrupts()).result.current).toEqual([]);
   });
 });
 

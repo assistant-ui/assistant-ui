@@ -37,3 +37,10 @@ export async function GET(
 
   return createMarkdownResponse(await getMarkdown(slug, platform, flavor));
 }
+
+// One prerendered page keeps the route cacheable: every other platform, flavor
+// and page renders on its first request and stays cached until the next deploy.
+// See `llms.mdx/[[...slug]]/route.ts`.
+export function generateStaticParams() {
+  return [{ platform: "react", flavor: "base", slug: [] }];
+}

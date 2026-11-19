@@ -146,6 +146,7 @@ Each State table describes the object selected from `s.scope`; each Methods tabl
 | `isEmpty` | `boolean` | Whether the draft has no content. |
 | `type` | `"thread" \| "edit"` | Which composer is selected. |
 | `dictation` | `DictationState \| undefined` | Active dictation state. |
+| `lastDictationEnd` | `DictationEnd \| undefined` | Last dictation end reason and optional `AssistantError`, cleared when the next session starts. |
 | `quote` | `QuoteInfo \| undefined` | Quote for the next message. |
 | `queue` | `readonly QueueItemState[]` | Messages waiting to be processed. |
 | `submission` | `ComposerSubmission \| undefined` | Message whose attachments are being prepared for sending. |
@@ -253,6 +254,7 @@ Each State table describes the object selected from `s.scope`; each Methods tabl
 | `artifact` | `unknown` | UI artifact, when present. |
 | `timing` | `MessagePartTiming \| ToolCallTiming \| undefined` | Timing on reasoning and tool-call parts. |
 | `unstable_summary` | `string \| undefined` | Optional reasoning summary. |
+| `unstable_redacted` | `boolean \| undefined` | Whether a reasoning part's content is hidden. |
 | `modelContent` | `readonly ToolModelContentPart[] \| undefined` | Content returned to the model. |
 | `mcp` | `ToolCallMessagePartMcpMetadata \| undefined` | MCP app metadata. |
 | `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | Human input request. |

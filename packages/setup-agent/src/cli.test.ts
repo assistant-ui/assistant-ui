@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { connectCheckout } from "./client";
 import { initialCheckoutState, type Checkout } from "./protocol";
+import { testGuide } from "./tests/guide-fixture";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   chmod,
@@ -19,10 +20,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   HELP,
-  INSTRUCTIONS,
   main,
   askSeed,
-  agentInstructions,
   diffEvents,
   detectAgentKind,
   isDirectInvocation,
@@ -41,21 +40,115 @@ vi.mock("./client", async (importOriginal) => ({
   connectCheckout: connectCheckoutMock,
 }));
 
-describe("the agent's briefing", () => {
-  it("preserves the published instructions export and setup-created event wording", () => {
-    expect(INSTRUCTIONS).toBe(agentInstructions);
-    expect(typeof HELP).toBe("string");
-    expect(INSTRUCTIONS("https://example.test/session")).toContain(
-      '"setup.created"',
+describe("waiting on the user", () => {
+  // Under the two minutes Claude Code's shell gives a command by default.
+  const DEFAULT_WAIT_SECONDS = 100;
+  const URL = "https://checkout.test/session";
+
+  const connect = () => {
+    const listeners = new Set<() => void>();
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      id: "setup-a",
+      createdAt: 1,
+      status: "planning",
+      inputs: [
+        {
+          id: "q1",
+          phase: "planning",
+          kind: "text",
+          prompt: "Which project?",
+          optional: false,
+          status: "open",
+          createdAt: 2,
+        },
+      ],
+    };
+    const client = {
+      state,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      commands: {},
+      dispose: vi.fn(),
+    };
+    connectCheckoutMock.mockResolvedValue(
+      client as unknown as Awaited<ReturnType<typeof connectCheckout>>,
     );
-    expect(INSTRUCTIONS("https://example.test/session")).not.toContain(
-      '"checkout.created"',
-    );
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+      stdout.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    const printed = () =>
+      JSON.parse(String(stdout.mock.lastCall?.[0] ?? "null")) as unknown;
+    const answer = (value: string) => {
+      state.inputs[0]!.status = "answered";
+      state.inputs[0]!.answer = value;
+      for (const listener of listeners) listener();
+    };
+    return { state, printed, answer };
+  };
+
+  it("hands the turn back with the command to run again before an agent shell kills the wait", async () => {
+    const t = connect();
+    const run = main([URL, "wait", "q1"]);
+    await vi.advanceTimersByTimeAsync(DEFAULT_WAIT_SECONDS * 1000 - 1);
+    expect(t.printed()).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    await run;
+    expect(t.printed()).toMatchObject({
+      ok: false,
+      status: "waiting",
+      waitingFor: "q1",
+      next: `npx setup-agent ${URL} wait q1`,
+    });
   });
 
-  it("describes a setup without the wording of a purchase", () => {
-    const briefing = HELP + INSTRUCTIONS("https://example.test/session");
-    expect(briefing).not.toMatch(/\b(?:cart|shop|checkout|purchase)\b/i);
+  it("hands back a plan wait as wait plan, so the agent does not submit the plan again", async () => {
+    const t = connect();
+    t.state.plans.push({
+      revision: 1,
+      markdown: "## Steps",
+      status: "proposed",
+      submittedAt: 3,
+    });
+    const run = main([URL, "wait", "plan"]);
+    await vi.advanceTimersByTimeAsync(DEFAULT_WAIT_SECONDS * 1000);
+    await run;
+    expect(t.printed()).toMatchObject({
+      ok: false,
+      status: "waiting",
+      waitingFor: "plan",
+      next: `npx setup-agent ${URL} wait plan`,
+    });
+  });
+
+  it("prints the answer when it arrives in time", async () => {
+    const t = connect();
+    const run = main([URL, "wait", "q1"]);
+    await vi.advanceTimersByTimeAsync(5_000);
+    t.answer("apps/web");
+    await run;
+    expect(t.printed()).toMatchObject({
+      ok: true,
+      inputId: "q1",
+      status: "answered",
+      answer: "apps/web",
+    });
+  });
+
+  it("waits as long as it takes with --timeout 0", async () => {
+    const t = connect();
+    const run = main([URL, "wait", "q1", "--timeout", "0"]);
+    await vi.advanceTimersByTimeAsync(DEFAULT_WAIT_SECONDS * 1000 * 5);
+    expect(t.printed()).toBeNull();
+    t.answer("apps/web");
+    await run;
+    expect(t.printed()).toMatchObject({ ok: true, answer: "apps/web" });
   });
 });
 
@@ -437,10 +530,10 @@ describe("chat stream events", () => {
         },
       ],
     };
-    expect(diffEvents(before, after)).toEqual([
+    expect(diffEvents(before, after, testGuide)).toEqual([
       { event: "message.created", messageId: "l2", text: "Use pnpm" },
     ]);
-    expect(diffEvents(after, after)).toEqual([]);
+    expect(diffEvents(after, after, testGuide)).toEqual([]);
   });
 });
 
@@ -465,7 +558,9 @@ describe("begin planning", () => {
       ...before,
       inputs: [{ ...asked, status: "answered", answer, answeredAt: 2 }],
     });
-    expect(diffEvents(before, answered('["slack","email"]'))).toEqual([
+    expect(
+      diffEvents(before, answered('["slack","email"]'), testGuide),
+    ).toEqual([
       {
         event: "input.answered",
         inputId: "q1",
@@ -473,7 +568,9 @@ describe("begin planning", () => {
         answer: ["slack", "email"],
       },
     ]);
-    expect(diffEvents(before, answered('["email","Discord"]'))).toEqual([
+    expect(
+      diffEvents(before, answered('["email","Discord"]'), testGuide),
+    ).toEqual([
       {
         event: "input.answered",
         inputId: "q1",
@@ -490,18 +587,18 @@ describe("begin planning", () => {
       ...waiting,
       agent: { ...waiting.agent, connected: true, lastSeenAt: 1 },
     };
-    expect(diffEvents(waiting, connected)).toEqual([]);
+    expect(diffEvents(waiting, connected, testGuide)).toEqual([]);
     const planning: Checkout.State = { ...connected, status: "planning" };
-    expect(diffEvents(connected, planning)).toEqual([
+    expect(diffEvents(connected, planning, testGuide)).toEqual([
       { event: "planning.started" },
     ]);
-    expect(diffEvents(planning, planning)).toEqual([]);
-    expect(diffEvents(waiting, { ...waiting, status: "done" })).toEqual([
-      { event: "finished", next: expect.stringContaining("Keep the stream") },
-    ]);
-    expect(diffEvents(waiting, { ...waiting, status: "cancelled" })).toEqual([
-      { event: "cancelled", next: expect.stringContaining("Keep the stream") },
-    ]);
+    expect(diffEvents(planning, planning, testGuide)).toEqual([]);
+    expect(
+      diffEvents(waiting, { ...waiting, status: "done" }, testGuide),
+    ).toEqual([{ event: "finished", next: "[stream.stay-connected]" }]);
+    expect(
+      diffEvents(waiting, { ...waiting, status: "cancelled" }, testGuide),
+    ).toEqual([{ event: "cancelled", next: "[stream.stay-connected]" }]);
   });
 
   it("announces the next setup the browser creates on the same link", () => {
@@ -516,13 +613,13 @@ describe("begin planning", () => {
       id: "c2",
       products: [{ slug: "cloud", name: "Cloud" }],
     };
-    expect(diffEvents(done, next)).toEqual([
+    expect(diffEvents(done, next, testGuide)).toEqual([
       { event: "setup.created", products: ["cloud"] },
     ]);
-    expect(diffEvents(next, next)).toEqual([]);
-    expect(diffEvents(initialCheckoutState(), initialCheckoutState())).toEqual(
-      [],
-    );
+    expect(diffEvents(next, next, testGuide)).toEqual([]);
+    expect(
+      diffEvents(initialCheckoutState(), initialCheckoutState(), testGuide),
+    ).toEqual([]);
   });
 
   it.each(["planning", "cancelled"] as const)(
@@ -599,90 +696,6 @@ describe("begin planning", () => {
       expect(settled).toHaveBeenCalledWith("cancelled");
     },
   );
-});
-
-describe("agent instructions", () => {
-  it("goes straight to planning for a setup the agent started", () => {
-    const browserUrl =
-      "https://setup.assistant-ui.com/#link=abc12345&setup=def67890";
-    const started = agentInstructions("https://setup.test/abc12345", {
-      startedByAgent: { browserUrl },
-    });
-    expect(started).not.toContain("click Begin plan");
-    expect(started).not.toContain("wait start\nKeep the stream running");
-    expect(started).toContain("there is no Begin plan click to wait for");
-    expect(started).toContain(browserUrl);
-    expect(started).toContain("a setup you opened in the user's browser");
-    const opened = agentInstructions("https://setup.test/abc12345");
-    expect(opened).toContain("click Begin plan");
-    expect(opened).toContain("a setup the user opened in their browser");
-  });
-
-  it("asks what to set up when the setup has no products", () => {
-    expect(agentInstructions("https://setup.test/s")).toContain(
-      "If the setup lists no products, first ask the user what to set up",
-    );
-  });
-
-  it("prints a setup URL as one quoted shell word", () => {
-    const instructions = agentInstructions("https://checkout.test/a'b;c");
-    expect(instructions).toContain(
-      "npx setup-agent 'https://checkout.test/a'\\''b;c' stream",
-    );
-    expect(instructions).not.toContain(
-      "npx setup-agent https://checkout.test/a'",
-    );
-    expect(agentInstructions("https://checkout.test/s")).toContain(
-      "npx setup-agent https://checkout.test/s stream",
-    );
-  });
-
-  it("discovers related products and asks contextual entry points before the plan", () => {
-    const instructions = agentInstructions(
-      "http://localhost:18892/checkout/session",
-    );
-    expect(instructions).toContain(
-      "products are starting names and guide references",
-    );
-    expect(instructions).toContain(
-      "The starting list does not restrict the implementation",
-    );
-    expect(instructions).toContain("only 1–3 sensible alternatives");
-    expect(instructions).toContain(
-      "two options may use the same form factor in different places",
-    );
-    expect(instructions).toContain("--entry-points '<JSON array>'");
-    expect(instructions).not.toContain("--product assistant-ui");
-    expect(instructions.indexOf("--entry-points")).toBeLessThan(
-      instructions.indexOf("plan --file"),
-    );
-  });
-
-  it("waits for the entry-point answer before the plan is submitted", () => {
-    const ask = agentInstructions("http://localhost:18892/checkout/session")
-      .split("\n")
-      .find((line) => line.includes("--entry-points '<JSON array>'"));
-    expect(ask?.trim().endsWith("--wait")).toBe(true);
-    expect(ask).not.toContain("--default");
-  });
-
-  it("skips the entry-point question for a setup that puts no assistant in the app", () => {
-    const instructions = agentInstructions(
-      "http://localhost:18892/checkout/session",
-    );
-    expect(instructions).toContain(
-      "When the setup puts an assistant in the app, ask how users should access it",
-    );
-    expect(instructions).toContain(
-      "Skip this question when no product's guide installs an assistant",
-    );
-    expect(instructions).toContain(
-      "When you ask it, do not submit the plan before the user picks an entry point.",
-    );
-    expect(instructions).not.toContain(
-      "recommendation. Do not submit the plan before the user picks an entry point.",
-    );
-  });
 });
 
 describe("writeEnvSecret", () => {

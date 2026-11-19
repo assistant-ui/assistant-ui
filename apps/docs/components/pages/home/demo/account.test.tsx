@@ -56,7 +56,7 @@ describe("SidebarAccount", () => {
 
     expect(
       screen.getByRole("link", { name: "Sign in" }).getAttribute("href"),
-    ).toBe("/api/auth/login?redirect=%2Fdocs%2Fgetting-started");
+    ).toBe("/api/auth/login?return=%2Fdocs%2Fgetting-started");
   });
 
   it("names the signed-in visitor and falls back to initials", () => {

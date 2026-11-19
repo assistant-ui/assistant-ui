@@ -10,6 +10,7 @@ import { getThreadMessageText } from "../../utils/text";
 import {
   ExportedMessageRepository,
   MessageRepository,
+  replaceMessageRepository,
 } from "../utils/message-repository";
 import {
   captureThreadRuntimeDisposal,
@@ -532,8 +533,7 @@ export abstract class BaseThreadRuntimeCore
 
   public import(data: ExportedMessageRepository) {
     this.ensureInitialized();
-    this.repository.clear();
-    this.repository.import(data);
+    replaceMessageRepository(this.repository, data);
     this._beforeImportNotify();
     this._notifySubscribers();
   }

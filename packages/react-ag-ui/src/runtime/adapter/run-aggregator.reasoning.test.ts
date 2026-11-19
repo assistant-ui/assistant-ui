@@ -100,10 +100,16 @@ describe.each([true, false])(
           );
         } else {
           expect(opaqueOf(previous)).toEqual([
-            { id: "r-1", encryptedValue: "sig-r-1" },
+            {
+              id: "r-1",
+              encryptedValue: "sig-r-1",
+              index: parentText ? 1 : 0,
+            },
           ]);
           expect(opaqueOf(latest)).toEqual(
-            nextReasoning ? [{ id: "r-2", encryptedValue: "sig-r-2" }] : [],
+            nextReasoning
+              ? [{ id: "r-2", encryptedValue: "sig-r-2", index: 0 }]
+              : [],
           );
         }
         const exported = toAgUiMessages([
@@ -141,3 +147,94 @@ describe.each([true, false])(
     );
   },
 );
+
+describe("step boundaries in a joined run", () => {
+  const setup = (showThinking: boolean) => {
+    let latest: ChatModelRunResult = {};
+    const aggregator = new RunAggregator({
+      showThinking,
+      joinStrategy: "concat-content",
+      logger: { debug: () => {}, error: () => {} },
+      emit: (update) => {
+        latest = update;
+      },
+    });
+    const exported = () =>
+      toAgUiMessages([
+        {
+          id: "a-1",
+          role: "assistant",
+          content: latest.content ?? [],
+          metadata: latest.metadata,
+        },
+      ]).map((message) => message.id);
+    return { aggregator, exported, content: () => latest.content };
+  };
+  const call = (aggregator: RunAggregator, id: string, parent?: string) => {
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: id,
+      toolCallName: "lookup",
+      ...(parent !== undefined ? { parentMessageId: parent } : {}),
+    });
+    aggregator.handle({ type: "TOOL_CALL_END", toolCallId: id });
+  };
+  const result = (aggregator: RunAggregator, id: string) =>
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: id,
+      messageId: `${id}:tool`,
+      content: "ok",
+    });
+  const redacted = (aggregator: RunAggregator, id: string) => {
+    aggregator.handle({ type: "REASONING_MESSAGE_START", messageId: id });
+    aggregator.handle({ type: "REASONING_MESSAGE_END", messageId: id });
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: id,
+      encryptedValue: `sig-${id}`,
+    });
+  };
+
+  it.each([true, false])(
+    "opens a step at a redacted block after a parentless result (showThinking=%s)",
+    (showThinking) => {
+      const { aggregator, exported } = setup(showThinking);
+      aggregator.handle({ type: "RUN_STARTED", runId: "run-1" });
+      call(aggregator, "c-1");
+      result(aggregator, "c-1");
+      redacted(aggregator, "x-1");
+      call(aggregator, "c-2");
+      result(aggregator, "c-2");
+      aggregator.handle({ type: "RUN_FINISHED", runId: "run-1" });
+      expect(exported()).toEqual(["a-1", "c-1:tool", "x-1", "c-2", "c-2:tool"]);
+    },
+  );
+
+  it("keeps a late sibling call with its step", () => {
+    const { aggregator, content } = setup(true);
+    aggregator.handle({ type: "RUN_STARTED", runId: "run-1" });
+    aggregator.handle({ type: "TEXT_MESSAGE_START", messageId: "m-1" });
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m-1",
+      delta: "Checking.",
+    });
+    call(aggregator, "c-1", "m-1");
+    aggregator.handle({ type: "REASONING_MESSAGE_START", messageId: "r-2" });
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "r-2",
+      delta: "more",
+    });
+    aggregator.handle({ type: "REASONING_MESSAGE_END", messageId: "r-2" });
+    call(aggregator, "c-2", "m-1");
+    aggregator.handle({ type: "RUN_FINISHED", runId: "run-1" });
+    expect(
+      content()?.map((part) =>
+        part.type === "tool-call" ? part.toolCallId : part.type,
+      ),
+    ).toEqual(["text", "c-1", "c-2", "reasoning"]);
+  });
+});

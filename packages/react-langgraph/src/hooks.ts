@@ -19,7 +19,7 @@ const EMPTY_MESSAGE_METADATA: Map<string, LangGraphTupleMetadata> = new Map();
 export const useLangGraphState = <
   TState extends Record<string, unknown> = Record<string, unknown>,
 >(): TState | undefined =>
-  langGraphExtras.use((e) => e.state as TState | undefined, undefined);
+  langGraphExtras.useExtras((e) => e.state as TState | undefined, undefined);
 
 /** Stage an optimistic graph state update that rides the next run input. */
 export const useLangGraphSetState = <
@@ -40,7 +40,7 @@ export const useLangGraphSetState = <
 
 /** Read the current LangGraph interrupt state from the runtime extras. */
 export const useLangGraphInterruptState = () =>
-  langGraphExtras.use((e) => e.interrupt, undefined);
+  langGraphExtras.useExtras((e) => e.interrupt, undefined);
 
 /** Submit raw LangChain-shaped messages to the active LangGraph thread. */
 export const useLangGraphSend = () => {
@@ -57,8 +57,8 @@ export const useLangGraphSendCommand = () => {
 
 /** Read the per-message LangGraph tuple metadata, keyed by message ID. */
 export const useLangGraphMessageMetadata = () =>
-  langGraphExtras.use((e) => e.messageMetadata, EMPTY_MESSAGE_METADATA);
+  langGraphExtras.useExtras((e) => e.messageMetadata, EMPTY_MESSAGE_METADATA);
 
 /** Read the accumulated LangSmith Generative UI messages. */
 export const useLangGraphUIMessages = () =>
-  langGraphExtras.use((e) => e.uiMessages, EMPTY_UI_MESSAGES);
+  langGraphExtras.useExtras((e) => e.uiMessages, EMPTY_UI_MESSAGES);

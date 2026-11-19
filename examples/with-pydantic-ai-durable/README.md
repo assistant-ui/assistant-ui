@@ -41,10 +41,18 @@ The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "a
 
 On the client, `DurableHttpAgent` (`lib/durable-agent.ts`) implements AG-UI's `connect()`. When the history adapter reports a running thread, `useAgUiRuntime` rejoins the run through `agent.connectAgent()` instead of starting a new one. Stop calls `abortRun()`, which cancels the run on the server. Switching threads or unmounting only drops the connection.
 
+## With Assistant Cloud
+
+Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` in `.env.local` to an Assistant Cloud frontend API URL. Assistant Cloud then keeps the thread list and the messages, and the server keeps the runs (`app/CloudRuntimeProvider.tsx`). Each cloud thread's external id is the durable server's thread id.
+
+`lib/cloud-durable.ts` wraps the Cloud history: a thread opened mid-run rejoins the run in place of the stored partial reply, and a run that finished with no tab open has its answer stored. A second tab leaves the reply to the tab writing it, and rejoins through `resumeRun` once that tab's run lease goes stale.
+
+Cloud access here is anonymous, which suits a local prototype only. In production, sign users in, pass the same identity to the durable server in the agent's `headers`, and scope threads with `DurableAGUI`'s `owner`.
+
 ## Tests
 
 ```sh
-pnpm exec vitest run                    # browser runtime against the real server (needs uv)
+pnpm exec vitest run                    # browser runtime against the real server (needs uv), and the Cloud pairing against in-memory servers
 ```
 
 The adapter's own tests (disconnect, reopen, cancel, owners) live in `python/assistant-stream/tests/test_pydantic_ai_durable.py` and also run against Postgres and Redis when `DATABASE_URL` and `REDIS_URL` are set.

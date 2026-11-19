@@ -287,6 +287,25 @@ describe("WebSpeechDictationAdapter", () => {
     expect(session.status).toEqual({ type: "ended", reason: "stopped" });
   });
 
+  it("carries the browser error code in the ended status", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const listeners = stubSpeechRecognition();
+    const session = new WebSpeechDictationAdapter().listen();
+
+    listeners.get("error")!(
+      Object.assign(new Event("error"), {
+        error: "not-allowed",
+        message: "Permission denied",
+      }),
+    );
+
+    expect(session.status).toEqual({
+      type: "ended",
+      reason: "error",
+      error: { code: "not-allowed", message: "Permission denied" },
+    });
+  });
+
   it("publishes the entire interim suffix when only its last result changes", () => {
     const listeners = stubSpeechRecognition();
     const session = new WebSpeechDictationAdapter().listen();

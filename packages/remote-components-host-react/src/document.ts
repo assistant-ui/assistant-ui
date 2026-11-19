@@ -1,5 +1,5 @@
 import {
-  connectSrc,
+  networkCsp,
   hasRuntime,
   injectHead,
   normalizeHtml,
@@ -46,5 +46,5 @@ export function frameCsp(
 ): string | undefined {
   return network === undefined || network === "public"
     ? undefined
-    : `connect-src ${connectSrc(network)}`;
+    : networkCsp(network);
 }

@@ -4,6 +4,7 @@ import {
   appendContentBlock,
   applyToolCallUpdate,
   attachToolCallApproval,
+  toolCallApprovalSubject,
   buildToolCallPart,
   mergeToolCallPart,
   permissionOptionToApprovalOption,
@@ -886,7 +887,7 @@ describe("tool call approvals", () => {
       [],
       { toolCallId: "t1", title: "write_file", status: "pending" },
       approval,
-    );
+    ).content;
     const part = content[0] as ToolCallMessagePart;
     expect(part.toolName).toBe("write_file");
     expect(part.approval?.id).toBe("acp-permission-1");
@@ -898,7 +899,7 @@ describe("tool call approvals", () => {
       [],
       { toolCallId: "t1", title: "write_file" },
       approval,
-    );
+    ).content;
     const resolved = resolveToolCallApproval(content, "acp-permission-1", {
       approved: true,
       optionId: "allow",
@@ -913,9 +914,33 @@ describe("tool call approvals", () => {
       [],
       { toolCallId: "t1", title: "write_file" },
       approval,
-    );
+    ).content;
     expect(resolveToolCallApproval(content, "nope", { approved: true })).toBe(
       undefined,
+    );
+  });
+
+  it("shows the call the permission request asks about", () => {
+    const existing = attachToolCallApproval(
+      [],
+      { toolCallId: "t1", title: "Run ls", rawInput: { command: "ls" } },
+      { id: "earlier" },
+    ).content;
+    const { content, subject } = attachToolCallApproval(
+      existing,
+      {
+        toolCallId: "t1",
+        title: "Run cat secrets",
+        rawInput: { command: "cat secrets" },
+      },
+      approval,
+    );
+    const part = content[0] as ToolCallMessagePart;
+    expect(part.args).toEqual({ command: "cat secrets" });
+    expect(part.approval?.id).toBe("acp-permission-1");
+    expect(subject).toBe(toolCallApprovalSubject(part));
+    expect(subject).not.toBe(
+      toolCallApprovalSubject(existing[0] as ToolCallMessagePart),
     );
   });
 
@@ -924,7 +949,7 @@ describe("tool call approvals", () => {
       [],
       { toolCallId: "t1", title: "write_file" },
       approval,
-    );
+    ).content;
     const part = resolveToolCallApproval(content, "acp-permission-1", {
       resolution: "cancelled",
     })![0] as ToolCallMessagePart;

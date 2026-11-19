@@ -52,12 +52,11 @@ const useMessageClientById = ({
 
 const MessageClientById = resource(useMessageClientById);
 
-const useThreadClient = ({
-  runtime,
-}: {
-  runtime: ThreadRuntime;
-}): ClientOutput<"thread"> => {
-  const runtimeState = useSubscribable(runtime);
+// Module scope prevents stable methods and subscriptions from sharing the V8 context that holds a render's messages.
+const useThreadRuntimeBinding = (
+  runtime: ThreadRuntime,
+  isRunning: boolean,
+) => {
   const emit = useAssistantEmit();
 
   useEffect(() => {
@@ -116,6 +115,83 @@ const useThreadClient = ({
         .suggestions.some((suggestion) => suggestion.prompt === text),
     [runtime],
   );
+
+  return {
+    threadIdRef,
+    isSuggestion,
+    append: (message: CreateAppendMessage) => {
+      const appended: Exclude<CreateAppendMessage, string> =
+        typeof message === "string"
+          ? { content: [{ type: "text", text: message }] }
+          : message;
+      if ((appended.role ?? "user") === "user") {
+        const text = appended.content
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("");
+        emit("composer.send", {
+          threadId: runtime.getState()!.threadId,
+          chars: text.length,
+          attachments: appended.attachments?.length ?? 0,
+          ...(isSuggestion(text) ? { suggestion: true } : undefined),
+        });
+      }
+      runtime.append(message);
+    },
+    cancelRun: () => {
+      if (isRunning) emitThreadEvent("thread.cancelRun");
+      runtime.cancelRun();
+    },
+    loadEarlier: () => runtime.loadEarlier(),
+    connectVoice: () => {
+      runtime.connectVoice();
+      emitThreadEvent("thread.voiceStarted");
+    },
+  };
+};
+
+function createValueAccessor<T>(value: T) {
+  return () => value;
+}
+
+const createTaskAccessor =
+  (
+    tasks: ThreadState["tasks"],
+    taskClients: ReturnType<typeof useClientLookup<ClientOutput<"task">>>,
+  ): ClientOutput<"thread">["task"] =>
+  (selector) => {
+    if ("id" in selector) {
+      const task = tasks.find((candidate) => candidate.id === selector.id);
+      return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
+    }
+    return taskClients.get(selector);
+  };
+
+const createMessageAccessor =
+  (
+    messages: ReturnType<typeof useClientLookup<ClientOutput<"message">>>,
+  ): ClientOutput<"thread">["message"] =>
+  (selector) => {
+    if ("id" in selector) {
+      return messages.get({ key: selector.id });
+    } else {
+      return messages.get(selector);
+    }
+  };
+
+const useThreadClient = ({
+  runtime,
+}: {
+  runtime: ThreadRuntime;
+}): ClientOutput<"thread"> => {
+  const runtimeState = useSubscribable(runtime);
+  const {
+    threadIdRef,
+    isSuggestion,
+    append,
+    cancelRun,
+    loadEarlier,
+    connectVoice,
+  } = useThreadRuntimeBinding(runtime, runtimeState.isRunning);
 
   const composer = useClientResource(
     ComposerClient({
@@ -211,64 +287,29 @@ const useThreadClient = ({
 
   return {
     getState: () => state,
-    composer: () => composer.methods,
-    suggestions: () => suggestions.methods,
-    task: (selector) => {
-      if ("id" in selector) {
-        const task = tasks.find((candidate) => candidate.id === selector.id);
-        return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
-      }
-      return taskClients.get(selector);
-    },
-    append: (message) => {
-      const appended: Exclude<CreateAppendMessage, string> =
-        typeof message === "string"
-          ? { content: [{ type: "text", text: message }] }
-          : message;
-      if ((appended.role ?? "user") === "user") {
-        const text = appended.content
-          .map((part) => (part.type === "text" ? part.text : ""))
-          .join("");
-        emit("composer.send", {
-          threadId: runtime.getState()!.threadId,
-          chars: text.length,
-          attachments: appended.attachments?.length ?? 0,
-          ...(isSuggestion(text) ? { suggestion: true } : undefined),
-        });
-      }
-      runtime.append(message);
-    },
+    composer: createValueAccessor(composer.methods),
+    suggestions: createValueAccessor(suggestions.methods),
+    task: createTaskAccessor(tasks, taskClients),
+    append,
     deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
     importExternalState: runtime.importExternalState,
-    cancelRun: () => {
-      if (runtimeState.isRunning) emitThreadEvent("thread.cancelRun");
-      runtime.cancelRun();
-    },
-    loadEarlier: () => runtime.loadEarlier(),
+    cancelRun,
+    loadEarlier,
     getModelContext: runtime.getModelContext,
     export: runtime.export,
     import: runtime.import,
     reset: runtime.reset,
     stopSpeaking: runtime.stopSpeaking,
-    connectVoice: () => {
-      runtime.connectVoice();
-      emitThreadEvent("thread.voiceStarted");
-    },
+    connectVoice,
     disconnectVoice: runtime.disconnectVoice,
     getVoiceVolume: runtime.getVoiceVolume,
     subscribeVoiceVolume: runtime.subscribeVoiceVolume,
     muteVoice: runtime.muteVoice,
     unmuteVoice: runtime.unmuteVoice,
-    message: (selector) => {
-      if ("id" in selector) {
-        return messages.get({ key: selector.id });
-      } else {
-        return messages.get(selector);
-      }
-    },
-    __internal_getRuntime: () => runtime,
+    message: createMessageAccessor(messages),
+    __internal_getRuntime: createValueAccessor(runtime),
   };
 };
 

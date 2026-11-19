@@ -43,6 +43,14 @@ langgraph.json      LangGraph CLI config (graph id, node version, env file)
 
 ## Deployment security
 
-The bundled proxy rejects browser requests marked same-site or cross-site so the local starter works without exposing `LANGCHAIN_API_KEY` to the client. For clients without Fetch Metadata, reverse proxies must preserve the public scheme and host in the request URL for the `Origin` fallback. Request-context checks are not user authentication. Before deploying with a cloud API key, require your application session in `app/api/[..._path]/route.ts` and apply a durable rate limit.
+The bundled proxy in `app/api/[..._path]/route.ts` adds `LANGCHAIN_API_KEY` to the requests it forwards, so the key never reaches the browser. It limits what it forwards:
 
-The route adds the server API key to every forwarded request. Before deployment, require authentication and enforce per-user thread ownership in front of the route.
+- Only the calls the chat UI makes: `POST threads`, `GET threads/<id>/state`, and `POST` to a thread's `runs/stream`, `runs/<run>/cancel`, `history`, `commands` and `stream/events`. Other paths and methods get 404.
+- Browser requests from other sites get 403, judged by `Sec-Fetch-Site` or, when a browser omits it, `Origin`. Reverse proxies must keep the public scheme and host in the request URL for the `Origin` comparison.
+
+Paths and methods are checked after the request context, so a refused browser request gets 403 whatever its path.
+
+None of this keeps out clients that are not browsers. curl or another server can send any headers, so with the server key they can reach every thread on the deployment. Only your own session and ownership checks stop them. Before deploying with a cloud API key:
+
+1. Require your application session in the route and apply a durable rate limit.
+2. Scope threads to the signed-in user. On `POST threads`, set `metadata.owner` to the user id on the server, replacing any value the client sent. For every `threads/<id>/...` path, read the thread with the server key and forward the request only when `metadata.owner` matches the user.

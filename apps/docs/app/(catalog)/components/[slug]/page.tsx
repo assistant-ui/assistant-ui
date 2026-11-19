@@ -4,6 +4,7 @@ import { DemoStage } from "@/components/demo/elements/demo-stage";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoCard } from "@/components/pages/elements/demo-card";
 import { getElement } from "@/components/pages/elements/registry";
+import { ElementDemo } from "@/components/pages/elements/element-demos";
 import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
@@ -76,7 +77,7 @@ export default async function ProductPage({
             )}
           >
             <DemoStage replay={preview.replay !== false}>
-              <preview.Component />
+              <ElementDemo demo={preview.slug} />
             </DemoStage>
           </div>
           <figcaption className="text-muted-foreground mt-2.5 text-xs">
@@ -138,7 +139,7 @@ export default async function ProductPage({
                   title={element.title}
                   description={element.description}
                 >
-                  <element.Component />
+                  <ElementDemo demo={element.slug} />
                 </DemoCard>
               </li>
             ))}

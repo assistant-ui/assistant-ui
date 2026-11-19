@@ -33,6 +33,8 @@ export const REFERRAL_SOURCES = [
 ] as const;
 
 export const BUILDING_MAX_LENGTH = 1000;
+/** Longest value a one-line text field may hold. */
+export const FIELD_MAX_LENGTH = 200;
 
 export type ContactSalesValues = {
   firstName: string;
@@ -103,12 +105,18 @@ export function validateContactSales(
   values: ContactSalesValues,
 ): ContactSalesErrors {
   const errors: ContactSalesErrors = {};
+  const tooLong = `Keep it under ${FIELD_MAX_LENGTH} characters.`;
   if (!values.firstName.trim()) errors.firstName = "Enter your first name.";
+  else if (values.firstName.length > FIELD_MAX_LENGTH)
+    errors.firstName = tooLong;
   if (!values.lastName.trim()) errors.lastName = "Enter your last name.";
+  else if (values.lastName.length > FIELD_MAX_LENGTH) errors.lastName = tooLong;
   if (!values.email.trim()) errors.email = "Enter your work email.";
+  else if (values.email.length > FIELD_MAX_LENGTH) errors.email = tooLong;
   else if (!EMAIL_PATTERN.test(values.email.trim()))
     errors.email = "Enter an email like name@company.com.";
   if (!values.company.trim()) errors.company = "Enter your company name.";
+  else if (values.company.length > FIELD_MAX_LENGTH) errors.company = tooLong;
   if (!values.companySize) errors.companySize = "Choose a company size.";
   if (values.building.length > BUILDING_MAX_LENGTH)
     errors.building = `Keep it under ${BUILDING_MAX_LENGTH} characters.`;

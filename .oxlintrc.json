@@ -132,6 +132,7 @@
         "packages/react-native/**/*.test.{ts,tsx}",
         "packages/react-syntax-highlighter/**/*.test.{ts,tsx}",
         "packages/safe-content-frame/**/*.test.{ts,tsx}",
+        "packages/solid/**/*.test.{ts,tsx}",
         "packages/svelte/**/*.test.{ts,tsx}",
         "packages/variants/**/*.test.{ts,tsx}",
         "packages/vite/**/*.test.{ts,tsx}",

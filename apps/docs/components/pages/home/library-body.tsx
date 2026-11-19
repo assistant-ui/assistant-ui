@@ -1,18 +1,14 @@
 "use client";
 
-import { InstallCommands } from "@/components/pages/home/install-commands";
+import { HeroCta } from "@/components/pages/home/hero";
 import {
   LibraryShowcase,
   type SetupTab,
 } from "@/components/pages/home/library-showcase";
 import { TESTIMONIALS } from "@/components/pages/home/testimonials/data";
 import { TrustedBy } from "@/components/pages/home/trusted-by";
-import { Button } from "@/components/ui/button";
 import { typeDeck, typePackage, typeSection } from "@/components/shared/type";
-import { analytics } from "@/lib/analytics";
-import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import Image from "next/image";
-import Link from "next/link";
 
 const HOME_QUOTE_USERNAMES = [
   "@LangChainAI",
@@ -25,13 +21,7 @@ const HOME_QUOTES = HOME_QUOTE_USERNAMES.flatMap((username) => {
   return quote ? [quote] : [];
 });
 
-export function LibraryBody({
-  setupTabs,
-  reactVersion,
-}: {
-  setupTabs: SetupTab[];
-  reactVersion: string;
-}) {
+export function LibraryBody({ setupTabs }: { setupTabs: SetupTab[] }) {
   return (
     <div className="mt-16 flex flex-col gap-12 md:mt-20 md:gap-16">
       <section
@@ -84,71 +74,9 @@ export function LibraryBody({
         </ul>
       </section>
 
-      <section className="border-foreground/10 flex flex-col gap-10 border-t pt-10">
-        <h2 className={typeSection}>Start in the docs.</h2>
-        <ol className="grid gap-10 md:grid-cols-3 md:gap-12">
-          <li className="flex flex-col gap-4">
-            <p className="text-[15px] font-medium">
-              Scaffold a thread.{" "}
-              <span className="text-muted-foreground font-normal">
-                The CLI copies the UI source into your project.
-              </span>
-            </p>
-            <InstallCommands />
-            <p className="text-muted-foreground text-xs">
-              <span className="font-mono">
-                @assistant-ui/react@{reactVersion}
-              </span>{" "}
-              · MIT License
-            </p>
-          </li>
-          <li className="flex flex-col gap-4">
-            <p className="text-[15px] font-medium">
-              Connect a backend.{" "}
-              <span className="text-muted-foreground font-normal">
-                Pick the runtime adapter for your stack.
-              </span>
-            </p>
-            <div>
-              <Button
-                nativeButton={false}
-                render={
-                  <Link
-                    href="/docs"
-                    onClick={() =>
-                      analytics.cta.clicked("get_started", "home_closer")
-                    }
-                  />
-                }
-              >
-                Read the docs
-              </Button>
-            </div>
-          </li>
-          <li className="flex flex-col gap-4">
-            <p className="text-[15px] font-medium">
-              Talk to the team.{" "}
-              <span className="text-muted-foreground font-normal">
-                Book a call about your deployment.
-              </span>
-            </p>
-            <div>
-              <Button
-                nativeButton={false}
-                render={
-                  <Link
-                    href={CONTACT_SALES_PATH}
-                    onClick={() =>
-                      analytics.cta.clicked("contact_sales", "home_closer")
-                    }
-                  />
-                }
-              >
-                Talk to an expert
-              </Button>
-            </div>
-          </li>
-        </ol>
+      <section className="border-foreground/10 flex flex-col gap-6 border-t pt-10">
+        <h2 className={typeSection}>Start building.</h2>
+        <HeroCta section="home_closer" />
       </section>
     </div>
   );

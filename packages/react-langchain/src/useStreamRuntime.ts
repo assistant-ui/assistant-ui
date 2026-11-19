@@ -516,6 +516,18 @@ const useStreamThreadRuntime = (
     adapters,
     extras,
     unstable_enableToolInvocations: true,
+    // A call the graph paused on an interrupt waits for the interrupt to be
+    // answered; its frontend `execute` must not answer it instead. `false` on
+    // a settled snapshot holds the call, and it is asked again once the
+    // interrupt clears.
+    unstable_isClientToolCall: () => {
+      const current = streamRef.current;
+      return !current.isLoading &&
+        !threadController.getState().forkPending &&
+        current.interrupts.length > 0
+        ? false
+        : undefined;
+    },
     setToolStatuses,
     onNew: async (msg) => {
       if (!(msg.startRun ?? msg.role === "user")) {
@@ -646,6 +658,7 @@ const useStreamThreadRuntime = (
           config.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
+          fork.transcripts.length === 0,
         );
         if (threadController.getState().forkGeneration !== forkGeneration)
           return;
@@ -707,6 +720,7 @@ const useStreamThreadRuntime = (
           message.sourceId,
           s[STREAM_CONTROLLER]?.messageMetadataStore?.getSnapshot?.(),
           messagesKey,
+          fork.transcripts.length === 0,
         );
         if (threadController.getState().forkGeneration !== forkGeneration)
           return;

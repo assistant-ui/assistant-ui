@@ -11,7 +11,7 @@ vi.mock("@/lib/docs-markdown", async (importOriginal) => ({
   getDocsMarkdown,
 }));
 
-import { GET } from "./route";
+import { GET, generateStaticParams } from "./route";
 
 const variants = PLATFORMS.flatMap((platform) =>
   (["base", "radix"] as const).map((flavor) => [platform, flavor] as const),
@@ -58,5 +58,16 @@ describe("GET", () => {
       }),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
     expect(getDocsMarkdown).not.toHaveBeenCalled();
+  });
+});
+
+describe("generateStaticParams", () => {
+  it("prerenders one valid variant so the rest are cached after their first request", async () => {
+    const params = generateStaticParams();
+    expect(params).toEqual([{ platform: "react", flavor: "base", slug: [] }]);
+    const response = await GET(new Request("https://example.com/docs.md"), {
+      params: Promise.resolve(params[0]!),
+    });
+    expect(response.status).toBe(200);
   });
 });

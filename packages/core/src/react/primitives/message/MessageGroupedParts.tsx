@@ -281,11 +281,11 @@ export const renderGroupNode = <TKey extends `group-${string}`>(
  * </MessagePrimitive.GroupedParts>
  * ```
  */
-export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
+export function MessagePrimitiveGroupedParts<TKey extends `group-${string}`>({
   groupBy,
   indicator = "no-text",
   children,
-}: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
+}: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode {
   const parts = useAuiState(useShallowSelector((s) => s.message.parts));
   // Handed to `groupBy` as its `context` argument (see GroupByContext).
   const toolUIs = useAuiState((s) => s.tools.toolUIs);
@@ -323,6 +323,6 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
         })}
     </>
   );
-};
+}
 
 MessagePrimitiveGroupedParts.displayName = "MessagePrimitive.GroupedParts";
