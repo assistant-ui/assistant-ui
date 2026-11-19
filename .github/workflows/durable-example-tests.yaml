@@ -35,6 +35,8 @@ on:
       - "packages/vue/**"
       - "packages/x-buildutils/**"
       - "packages/x-generative-compiler/**"
+      - "!packages/**/*.test.ts"
+      - "!packages/**/*.test.tsx"
   pull_request:
     branches: [main]
     paths:
@@ -69,6 +71,8 @@ on:
       - "packages/vue/**"
       - "packages/x-buildutils/**"
       - "packages/x-generative-compiler/**"
+      - "!packages/**/*.test.ts"
+      - "!packages/**/*.test.tsx"
   workflow_dispatch:
 
 permissions:
@@ -112,7 +116,30 @@ jobs:
         working-directory: examples/with-pydantic-ai-durable/server
         run: uv sync --locked
 
+      - name: Run server unit tests
+        working-directory: examples/with-pydantic-ai-durable/server
+        run: uv run --locked python -m unittest
+
+      - name: Restore main's coverage Turbo cache, shard 0
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-0-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-0-
+
+      - name: Restore main's coverage Turbo cache, shard 1
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache/restore@v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-coverage-${{ runner.os }}-1-${{ github.sha }}
+          restore-keys: turbo-coverage-${{ runner.os }}-1-
+
       - name: Build workspace dependencies
+        env:
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: pnpm turbo build --filter='with-pydantic-ai-durable^...'
 
       - name: Run server-backed tests

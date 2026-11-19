@@ -4,7 +4,7 @@ import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { workspaceInputs } from "./deploy-examples-changes.mjs";
-import { readJson } from "./lib/workspace.mjs";
+import { posixPath, readJson } from "./lib/workspace.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const example = path.join(root, "examples/with-pydantic-ai-durable");
@@ -14,15 +14,17 @@ const workflow = readFileSync(
   "utf8",
 );
 
+function pathsFor(event) {
+  const block = workflow.match(
+    new RegExp(`^  ${event}:\\n[\\s\\S]*?(?=^  \\w+:|^\\S)`, "m"),
+  );
+  assert.ok(block, event);
+  return [...block[0].matchAll(/^      - "(.+)"$/gm)].map((match) => match[1]);
+}
+
 for (const event of ["pull_request", "push"]) {
   test(`${event}: durable server tests watch their dependency graph`, () => {
-    const block = workflow.match(
-      new RegExp(`^  ${event}:\\n[\\s\\S]*?(?=^  \\w+:|^\\S)`, "m"),
-    );
-    assert.ok(block, event);
-    const paths = [...block[0].matchAll(/^      - "(.+)"$/gm)].map(
-      (match) => match[1],
-    );
+    const paths = pathsFor(event);
     const runsFor = (file) =>
       paths.reduce((included, pattern) => {
         const negative = pattern.startsWith("!");
@@ -37,6 +39,7 @@ for (const event of ["pull_request", "push"]) {
       "examples/with-pydantic-ai-durable/lib/durable-agent.ts",
       "examples/with-pydantic-ai-durable/lib/durable-agent.e2e.test.tsx",
       "examples/with-pydantic-ai-durable/server/main.py",
+      "examples/with-pydantic-ai-durable/server/test_origin_guard.py",
       "examples/with-pydantic-ai-durable/server/uv.lock",
       "python/assistant-stream/assistant_stream/pydantic_ai.py",
       "package.json",
@@ -58,8 +61,32 @@ for (const event of ["pull_request", "push"]) {
       "apps/docs/app/page.tsx",
       "examples/with-expo/app/index.tsx",
       "python/assistant-ui-sync-server-api/pyproject.toml",
+      "packages/react/src/index.test.ts",
+      "packages/react/src/index.test.tsx",
     ]) {
       assert.equal(runsFor(file), false, file);
+    }
+  });
+
+  test(`${event}: durable server tests watch exactly their workspace packages`, () => {
+    const paths = pathsFor(event);
+    assert.deepEqual(
+      paths
+        .filter((pattern) => pattern.startsWith("packages/"))
+        .map((pattern) => pattern.replace(/\/\*\*$/, ""))
+        .sort(),
+      workspaceInputs(root, pkg).map(posixPath),
+    );
+    const exclusions = ["!packages/**/*.test.ts", "!packages/**/*.test.tsx"];
+    assert.deepEqual(
+      paths.filter((pattern) => pattern.startsWith("!packages/")),
+      exclusions,
+    );
+    const lastPackage = paths.findLastIndex((pattern) =>
+      pattern.startsWith("packages/"),
+    );
+    for (const exclusion of exclusions) {
+      assert.ok(paths.indexOf(exclusion) > lastPackage, exclusion);
     }
   });
 }
@@ -98,7 +125,7 @@ test("normal and server-backed commands discover every durable suite once", () =
   );
 });
 
-test("the server job provisions Python and executes the real suite", () => {
+test("the server job provisions Python and executes the real suites", () => {
   const steps = workflow.split(/^      - name: /m).slice(1);
   const setup = steps.findIndex((step) =>
     step.includes("uses: astral-sh/setup-uv@"),
@@ -106,14 +133,21 @@ test("the server job provisions Python and executes the real suite", () => {
   const install = steps.findIndex((step) =>
     step.includes("run: uv sync --locked"),
   );
+  const unit = steps.findIndex((step) =>
+    step.includes("run: uv run --locked python -m unittest"),
+  );
   const run = steps.findIndex((step) =>
     step.includes("run: pnpm --filter with-pydantic-ai-durable test:e2e"),
   );
-  assert.ok(setup >= 0 && install > setup && run > install);
+  assert.ok(setup >= 0 && install > setup && unit > install && run > unit);
   assert.match(steps[setup], /python-version: "3\.12"/);
-  assert.match(
-    steps[install],
-    /working-directory: examples\/with-pydantic-ai-durable\/server/,
-  );
-  assert.doesNotMatch(steps[run], /continue-on-error: true|if:/);
+  for (const step of [steps[install], steps[unit]]) {
+    assert.match(
+      step,
+      /working-directory: examples\/with-pydantic-ai-durable\/server/,
+    );
+  }
+  for (const step of [steps[unit], steps[run]]) {
+    assert.doesNotMatch(step, /continue-on-error: true|if:/);
+  }
 });
