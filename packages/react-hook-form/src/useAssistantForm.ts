@@ -124,6 +124,25 @@ const isSensitiveElement = (element: unknown): boolean => {
   );
 };
 
+/**
+ * Whether the field stores a string, so a model-supplied number or boolean has
+ * to be written as text. A radio group, a select and a textarea all hold
+ * strings, and a radio group holds `null` until an option is chosen, so the
+ * current value alone cannot answer this.
+ */
+const holdsStringValue = (element: unknown, current: unknown): boolean => {
+  if (element instanceof HTMLInputElement) {
+    return !["number", "range", "checkbox"].includes(element.type);
+  }
+  if (
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement
+  ) {
+    return true;
+  }
+  return typeof current === "string";
+};
+
 export const useAssistantForm = <
   TFieldValues extends FieldValues = FieldValues,
   TContext = any,
@@ -309,12 +328,13 @@ export const useAssistantForm = <
                 message: `The form has no field named "${args.name}" that can be set.`,
               };
             }
-            // A field that already holds a string keeps its string form: the
-            // model may send `12345` for a text field, and a number there
-            // would break a `z.string()` resolver and `value.trim()`.
+            const fieldReference: unknown = Array.isArray(field?._f?.refs)
+              ? field?._f?.refs[0]
+              : field?._f?.ref;
             const current: unknown = getValues(name as Path<TFieldValues>);
-            const next =
-              typeof current === "string" ? String(args.value) : args.value;
+            const next = holdsStringValue(fieldReference, current)
+              ? String(args.value)
+              : args.value;
             setValue(
               name as Path<TFieldValues>,
               next as PathValue<TFieldValues, Path<TFieldValues>>,

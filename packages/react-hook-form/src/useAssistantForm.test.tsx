@@ -517,6 +517,42 @@ describe("useAssistantForm", () => {
 
       expect(form.getValues("zip")).toBe("12345");
     });
+
+    it("writes text into a field that has no value yet", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ nickname: string; size: string }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({});
+        return (
+          <>
+            <input {...form.register("nickname")} />
+            <input type="radio" value="3" {...form.register("size")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await setField("nickname", 7);
+      await setField("size", 3);
+
+      // A radio group registers `null` until an option is chosen, so the
+      // element decides the type rather than the stored value.
+      expect(form.getValues()).toEqual({ nickname: "7", size: "3" });
+    });
+
+    it("keeps a number out of a textarea", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ note: string }>>;
+      const Form = () => {
+        form = useAssistantForm({});
+        return <textarea {...form.register("note")} />;
+      };
+      render(<Form />);
+
+      await setField("note", 12);
+
+      expect(form.getValues("note")).toBe("12");
+    });
   });
 
   it("omits sensitive fields from the model context", () => {
