@@ -36,7 +36,7 @@ function createHistory(writes: string[]) {
     rows: () =>
       new Map<string, Row>(
         [...items.values()].map((item) => [
-          agUiWireMessageId(item.message),
+          item.message.id,
           {
             id: agUiWireMessageId(item.message),
             status: item.message.status?.type,
@@ -66,6 +66,9 @@ async function reload(history: ReturnType<typeof createHistory>) {
     history: history as any,
   });
   await core.__internal_load();
+  const rows = [...history.rows().values()];
+  expect(rows).toHaveLength(core.getMessageRepository().messages.length);
+  expect(new Set(rows.map(({ id }) => id)).size).toBe(rows.length);
   return core
     .getMessages()
     .map((m: any) => `${agUiWireMessageId(m)}:${m.status?.type ?? "-"}`);
@@ -409,7 +412,10 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
     expect(shown.slice(1)).toEqual(["answer:complete", "other:complete"]);
-    expect(rows.get("answer"), writes.join(", ")).toMatchObject({
+    expect(
+      [...rows.values()].find(({ id }) => id === "answer"),
+      writes.join(", "),
+    ).toMatchObject({
       status: "complete",
       text: "a1a2",
     });
@@ -445,7 +451,9 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
       start,
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
-    expect(rows.get("answer")?.status).toBe("complete");
+    expect([...rows.values()].find(({ id }) => id === "answer")?.status).toBe(
+      "complete",
+    );
     expect(reloaded).toEqual(shown);
   });
 });

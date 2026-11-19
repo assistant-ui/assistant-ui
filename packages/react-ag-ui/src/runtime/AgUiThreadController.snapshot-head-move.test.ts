@@ -373,14 +373,13 @@ describe("AgUiThreadController snapshot head moves", () => {
   });
 
   it("joins a prior assistant record under the active text record id", async () => {
-    const core = createController(
-      (wire) => [
-        start,
-        ...answerText,
+    const { core, sampled: assistantId } = await sampleBetween(
+      [start, ...answerText],
+      [
         {
           type: "MESSAGES_SNAPSHOT",
           messages: [
-            ...wire.messages,
+            question,
             { ...answerRecord, id: "step", content: "Checking the task." },
             {
               id: "tool-task",
@@ -393,16 +392,15 @@ describe("AgUiThreadController snapshot head moves", () => {
         },
         finished,
       ],
+      (core) => localId(core, "answer"),
       { joinAdjacentAssistantMessages: true },
     );
-
-    await core.append(userMessage);
 
     expect(
       core.getMessages().filter(({ role }) => role === "assistant"),
     ).toMatchObject([
       {
-        id: localId(core, "answer"),
+        id: assistantId,
         content: [
           { type: "text", text: "Checking the task." },
           { type: "tool-call", toolCallId: "task", result: "done" },

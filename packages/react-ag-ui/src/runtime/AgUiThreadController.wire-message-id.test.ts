@@ -425,8 +425,10 @@ describe("AgUiThreadController wire message identity", () => {
       if (identity === "wire") expect(persistedId).toBe("server-answer");
 
       let runs = 0;
+      let recreatedId!: string;
       const { core: reloaded } = createController(async (input, subscriber) => {
         reasoning(subscriber);
+        if (runs === 0) recreatedId = reloaded.getMessages().at(-1)!.id;
         text(
           subscriber,
           ++runs === 1 ? "server-answer" : "child-answer",
@@ -438,18 +440,38 @@ describe("AgUiThreadController wire message identity", () => {
       }, history);
       await reloaded.__internal_load();
       const user = reloaded.getMessages()[0]!;
+      reloaded.applyExternalMessages([]);
       reloaded.applyExternalMessages([user]);
+      expect(reloaded.getMessageRepository().messages).toEqual([
+        { parentId: null, message: user },
+      ]);
       await reloaded.reload(user.id);
-      const recreatedId = reloaded.getMessages().at(-1)!.id;
       expect(recreatedId).not.toBe(persistedId);
+      expect(reloaded.getMessages().at(-1)).toMatchObject({
+        id: recreatedId,
+        role: "assistant",
+        content: expect.arrayContaining([{ type: "text", text: "updated" }]),
+        metadata: { custom: { agui: { messageId: "server-answer" } } },
+      });
+      expect(
+        reloaded
+          .getMessageRepository()
+          .messages.map(({ message }) => message.id),
+      ).toEqual([user.id, recreatedId]);
       await vi.waitFor(() =>
         expect(history.update).toHaveBeenCalledWith(
           expect.objectContaining({
             parentId: user.id,
-            message: expect.objectContaining({ id: persistedId }),
+            message: expect.objectContaining({
+              id: persistedId,
+              content: expect.arrayContaining([
+                { type: "text", text: "updated" },
+              ]),
+            }),
           }),
         ),
       );
+      expect(history.append).toHaveBeenCalledTimes(2);
       await reloaded.append(question(recreatedId));
       await vi.waitFor(() => expect(stored.messages).toHaveLength(4));
       expect(stored.messages[1]!.message).toMatchObject({
@@ -507,9 +529,12 @@ describe("AgUiThreadController wire message identity", () => {
       await core.append(question());
       await vi.waitFor(() => expect(stored.messages).toHaveLength(2));
       const persistedId = stored.messages[1]!.message.id;
+      if (identity === "wire") expect(persistedId).toBe("server-answer");
 
+      let recreatedId!: string;
       const { core: reloaded } = createController(async (input, subscriber) => {
         reasoning(subscriber);
+        recreatedId = reloaded.getMessages().at(-1)!.id;
         text(subscriber, "server-answer", "regenerated");
         subscriber.onRunFinishedEvent?.({
           event: { type: "RUN_FINISHED", runId: input.runId },
@@ -517,11 +542,43 @@ describe("AgUiThreadController wire message identity", () => {
       }, history);
       await reloaded.__internal_load();
       const user = reloaded.getMessages()[0]!;
+      reloaded.applyExternalMessages([]);
       reloaded.applyExternalMessages([user]);
+      expect(reloaded.getMessageRepository().messages).toEqual([
+        { parentId: null, message: user },
+      ]);
       await reloaded.reload(user.id);
-      const recreatedId = reloaded.getMessages().at(-1)!.id;
       expect(recreatedId).not.toBe(persistedId);
-      await vi.waitFor(() => expect(history.update).toHaveBeenCalled());
+      expect(reloaded.getMessages().at(-1)).toMatchObject({
+        id: recreatedId,
+        role: "assistant",
+        content: expect.arrayContaining([
+          { type: "text", text: "regenerated" },
+        ]),
+        metadata: { custom: { agui: { messageId: "server-answer" } } },
+      });
+      expect(
+        reloaded
+          .getMessageRepository()
+          .messages.map(({ message }) => message.id),
+      ).toEqual([user.id, recreatedId]);
+      await vi.waitFor(() =>
+        expect(history.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            parentId: user.id,
+            message: expect.objectContaining({
+              id: persistedId,
+              content: expect.arrayContaining([
+                { type: "text", text: "regenerated" },
+              ]),
+            }),
+          }),
+        ),
+      );
+      expect(stored.messages.map(({ message }) => message.id)).toEqual([
+        user.id,
+        persistedId,
+      ]);
       await reloaded.deleteMessage(recreatedId);
 
       const { core: restored } = createController(async () => {}, history);
@@ -533,7 +590,12 @@ describe("AgUiThreadController wire message identity", () => {
       expect(history.delete).toHaveBeenCalledWith([
         expect.objectContaining({
           parentId: user.id,
-          message: expect.objectContaining({ id: persistedId }),
+          message: expect.objectContaining({
+            id: persistedId,
+            content: expect.arrayContaining([
+              { type: "text", text: "regenerated" },
+            ]),
+          }),
         }),
       ]);
     },
@@ -643,6 +705,14 @@ describe("AgUiThreadController wire message identity", () => {
           delta: " extended",
         },
       });
+      expect
+        .soft(core.getMessages().find((message) => message.id === localId))
+        .toMatchObject({
+          id: localId,
+          content: expect.arrayContaining([
+            { type: "text", text: "answer extended" },
+          ]),
+        });
       snapshot(core, subscriber, "answer extended");
       expect(
         core.getMessages().find((message) => message.id === localId),
