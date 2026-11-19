@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import { resource } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadList } from "./RemoteThreadList";
@@ -115,7 +115,11 @@ const runMergedQueueArchive = async (
     unarchiveGate.resolve();
     await Promise.all([draftArchive, switched]);
     await yieldTasks(20);
-    flushTapSync(() => {});
+    await vi.waitFor(() =>
+      expect(threads.item({ id: draft }).getState().status).toBe(
+        archiveDraft ? "archived" : "regular",
+      ),
+    );
 
     const state = threads.getState();
     const shown = [...state.threadIds, ...state.archivedThreadIds]
@@ -199,7 +203,9 @@ const runMergedQueueRename = async () => {
     renameGate.resolve();
     await Promise.all([draftRename, listedRename]);
     await yieldTasks(20);
-    flushTapSync(() => {});
+    await vi.waitFor(() =>
+      expect(threads.item({ id: draft }).getState().title).toBe("A"),
+    );
 
     const state = threads.getState();
     const shown = [...state.threadIds, ...state.archivedThreadIds]
