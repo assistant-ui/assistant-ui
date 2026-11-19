@@ -488,6 +488,9 @@ test("pull requests split coverage once from main's restored caches, and both sh
   const shardsJob = coverageWorkflow
     .split("\n  shards:\n")[1]
     .split("\n  coverage:\n")[0];
+  const shardRedis = shardsJob.match(/^ {6}REDIS_URL: (.+)$/m)?.[1];
+  assert(shardRedis);
+  assert.equal(split.match(/^ {10}REDIS_URL: (.+)$/m)?.[1], shardRedis);
   assert.doesNotMatch(shardsJob, /--plan|--dry=json/);
   for (const name of [
     "Build packages",

@@ -118,6 +118,8 @@ jobs:
       - name: Split coverage workspaces
         id: split
         if: steps.inputs.outputs.run == 'true'
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
         run: |
           set -euo pipefail
           if [ -d .turbo/cache ]; then
