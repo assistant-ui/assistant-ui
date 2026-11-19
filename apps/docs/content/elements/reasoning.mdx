@@ -207,6 +207,7 @@ Standalone, `text` and `streaming` come from wherever you fetch them, for exampl
 | `text` | `string` | The reasoning text so far. |
 | `status` | `MessagePartStreamStatus \| undefined` | Streaming status of this part. |
 | `unstable_summary` | `string \| undefined` | Provider-supplied summary, when present. Not rendered by `Reasoning`; read it yourself if you need it. |
+| `unstable_redacted` | `boolean \| undefined` | The provider hid this part's content. Not rendered by `Reasoning`; read it to show a marker. |
 
 ### Sub-components
 
