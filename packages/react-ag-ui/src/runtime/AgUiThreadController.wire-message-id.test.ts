@@ -88,6 +88,66 @@ function snapshot(
 }
 
 describe("AgUiThreadController wire message identity", () => {
+  it("streams current and retained text without exporting existing messages", async () => {
+    let exportCalls = -1;
+    const { core } = createController(async (input, subscriber) => {
+      reasoning(subscriber);
+      const exportRepository = vi.spyOn(core["session"], "export");
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "server-answer" },
+      });
+      for (let index = 0; index < 3000; index++) {
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "server-answer",
+            delta: "a",
+          },
+        });
+      }
+      subscriber.onTextMessageEndEvent?.({
+        event: { type: "TEXT_MESSAGE_END", messageId: "server-answer" },
+      });
+      text(subscriber, "second-answer", "second");
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "server-answer",
+          delta: " extended",
+        },
+      });
+      exportCalls = exportRepository.mock.calls.length;
+      exportRepository.mockRestore();
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId: input.runId },
+      });
+    });
+    core.applyExternalMessages(
+      Array.from({ length: 2000 }, (_, index) => ({
+        id: `history-${index}`,
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "history" }],
+        attachments: [],
+        createdAt: new Date(0),
+        metadata: { custom: {} },
+      })),
+    );
+    await core.append(question("history-1999"));
+    expect(exportCalls).toBe(0);
+    expect(core.getMessages().slice(-2)).toMatchObject([
+      {
+        content: expect.arrayContaining([
+          { type: "text", text: `${"a".repeat(3000)} extended` },
+        ]),
+        metadata: { custom: { agui: { messageId: "server-answer" } } },
+      },
+      {
+        content: [{ type: "text", text: "second" }],
+        metadata: { custom: { agui: { messageId: "second-answer" } } },
+      },
+    ]);
+  });
+
   it.each(["text", "tool-call"] as const)(
     "keeps a reasoning-first assistant mounted when a %s event names it",
     async (eventType) => {

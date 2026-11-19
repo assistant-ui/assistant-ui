@@ -472,6 +472,7 @@ export class AgUiThreadController {
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
   private readonly historyMessageIds = new Map<string, string>();
+  private readonly wireMessageIds = new Map<string, string>();
   // Ids whose append has not succeeded yet. A write queued behind that append
   // runs as an append too, since an update may not move the stored head.
   private readonly unappendedHistoryIds = new Set<string>();
@@ -632,10 +633,12 @@ export class AgUiThreadController {
       this.snapshotHistoryIds.clear();
       this.persistedHistoryIds.clear();
       this.historyMessageIds.clear();
+      this.wireMessageIds.clear();
       this.unappendedHistoryIds.clear();
       for (const { message } of repo.messages) {
         this.persistedHistoryIds.add(message.id);
         this.historyMessageIds.set(agUiWireMessageId(message), message.id);
+        this.wireMessageIds.set(agUiWireMessageId(message), message.id);
       }
       this.publishUpdate();
 
@@ -745,6 +748,7 @@ export class AgUiThreadController {
   appendVoiceTranscript(message: ThreadMessage): void {
     const parentId = this.session.headId;
     this.session.addOrUpdateMessage(parentId, message);
+    this.wireMessageIds.set(agUiWireMessageId(message), message.id);
     this.session.switchToBranch(message.id);
     this.publishUpdate();
     this.recordHistoryEntry(parentId, message);
@@ -767,6 +771,7 @@ export class AgUiThreadController {
           ? message.parentId
           : this.session.headId;
     this.session.addOrUpdateMessage(parentId, threadMessage);
+    this.wireMessageIds.set(agUiWireMessageId(threadMessage), threadMessage.id);
     this.session.switchToBranch(threadMessage.id);
     this.publishUpdate();
     this.recordHistoryEntry(parentId, threadMessage);
@@ -794,6 +799,7 @@ export class AgUiThreadController {
     if (!item) return;
     const parentId = item.parentId ?? null;
     this.session.deleteMessage(messageId, parentId);
+    this.wireMessageIds.delete(agUiWireMessageId(item.message));
     this.snapshotHistoryIds.delete(messageId);
     this.publishUpdate();
     await this.history?.delete?.([{ parentId, message: item.message }]);
@@ -1804,8 +1810,10 @@ export class AgUiThreadController {
     }
 
     this.snapshotHistoryIds.clear();
+    this.wireMessageIds.clear();
     for (const { message } of this.getMessageRepository().messages) {
       this.snapshotHistoryIds.add(message.id);
+      this.wireMessageIds.set(agUiWireMessageId(message), message.id);
     }
     // A soft merge leaves dropped messages off branch; only selected
     // messages with resolved tool calls can still own a continuation.
@@ -1873,6 +1881,7 @@ export class AgUiThreadController {
     this.subagentParentToolCallIds.clear();
     this.interruptNamedToolCallIds.clear();
     this.optimisticIds.clear();
+    this.wireMessageIds.clear();
 
     if (controller) {
       this.abortController = null;
@@ -1948,9 +1957,11 @@ export class AgUiThreadController {
         ? (this.session.tryGetMessages(parentId) ?? this.session.getMessages())
         : this.session.getMessages()),
     ];
-    const runStartMessageIds = new Set(
-      this.getMessageRepository().messages.map(({ message }) => message.id),
-    );
+    const runStartMessageIds = new Set<string>();
+    for (const { message } of this.getMessageRepository().messages) {
+      runStartMessageIds.add(message.id);
+      this.wireMessageIds.set(agUiWireMessageId(message), message.id);
+    }
     const selectedMessages = this.session.getMessages();
     const parentIndex = selectedMessages.findIndex(
       (message) => message.id === parentId,
@@ -2079,6 +2090,7 @@ export class AgUiThreadController {
               },
             }) as ThreadMessage,
         );
+        this.wireMessageIds.set(assistantWireMessageId, created);
       }
       assistantMessageId = created;
       this.markPendingAssistantHistory(created, parentId);
@@ -2567,7 +2579,9 @@ export class AgUiThreadController {
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       resolveMessageId: (wireId) =>
-        this.findMessageByWireId(wireId)?.message.id ?? wireId,
+        (assistantWireMessageId === wireId ? assistantMessageId : undefined) ??
+        this.findMessageByWireId(wireId)?.message.id ??
+        wireId,
       joinStrategy,
       logger: this.logger,
       emit: (update) => {
@@ -3400,12 +3414,10 @@ export class AgUiThreadController {
   private findMessageByWireId(wireId: string) {
     const direct = this.session.tryGetMessage(wireId);
     if (direct) return direct;
-    const match = this.session
-      .export()
-      .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
-    return match === undefined
+    const localId = this.wireMessageIds.get(wireId);
+    return localId === undefined
       ? undefined
-      : this.session.tryGetMessage(match.message.id);
+      : this.session.tryGetMessage(localId);
   }
 
   private adoptAssistantWireId(
@@ -3441,6 +3453,7 @@ export class AgUiThreadController {
             },
           }) as ThreadMessage,
       );
+      this.wireMessageIds.set(wireId, localId);
     }
     this.publishUpdate(deferNotification);
     return existing === undefined;

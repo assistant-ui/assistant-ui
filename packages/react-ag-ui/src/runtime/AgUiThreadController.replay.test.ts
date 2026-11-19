@@ -1698,7 +1698,7 @@ describe("AgUiThreadController selected-turn replay", () => {
           replayTextId === "c" ? "c" : ownerId,
         ]);
         expect(headAfterReplay).toBe(ownerId);
-        expect(ownerId).not.toBe("a");
+        expect(agUiWireMessageId(ownerMessage!)).not.toBe("a");
         expect(ownerEntry?.parentId).toBe("u");
         expect(pendingAfterReplay).toEqual({
           messageId: ownerId,
