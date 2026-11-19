@@ -89,7 +89,7 @@ describe("a runtime core created over a repository another core wrote to", () =>
     expect(errorIds(second)).toEqual([newErrorId]);
   });
 
-  it("keeps a repository error the host built further turns on", () => {
+  it("keeps a repository error with child turns when a new core publishes another branch", () => {
     const repository = new MessageRepository();
     const first = new ExternalStoreThreadRuntimeCore(
       contextProvider,
@@ -98,13 +98,14 @@ describe("a runtime core created over a repository another core wrote to", () =>
     const error = first.messages.at(-1)!;
     expect(isErrorMessageId(error.id)).toBe(true);
 
-    // u2 was sent on top of the error the host kept, so that branch is the
-    // host's, not a leftover.
+    first.__internal_setAdapter(adapter([u1, error, u2, a2], { repository }));
+
     const second = new ExternalStoreThreadRuntimeCore(
       contextProvider,
-      adapter([u1, error, u2, a2], { repository }),
+      adapter([u1, a1], { repository }),
     );
 
     expect(errorIds(second)).toEqual([error.id]);
+    expect(repository.getMessage("u2").parentId).toBe(error.id);
   });
 });
