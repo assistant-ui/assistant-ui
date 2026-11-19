@@ -235,10 +235,11 @@ All other `Collapsible` props are forwarded.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `active` | `boolean` | | Shimmers the label while true. |
+| `label` | `ReactNode` | `"Reasoning"` | Visible trigger label. |
 | `duration` | `number` | | Seconds; appends `(Ns)` to the label. |
 | `className` | `string` | | Merged onto the trigger. |
 
-All other `CollapsibleTrigger` props are forwarded.
+Other `CollapsibleTrigger` props are forwarded, except `children`; use `label` for the visible text.
 
 ### ReasoningContent, ReasoningText, and ReasoningFade
 

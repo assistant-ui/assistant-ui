@@ -96,7 +96,7 @@ Standalone, there's no run to group calls from. See [The parallel-tools design](
 </div>
 ```
 
-The trigger's label always reads the plural "tool calls" except for a group of exactly one, which reads "1 tool call". The content's children fade and slide in with a small stagger, each child's delay increasing up to the fifth; beyond that every remaining child shares the same delay. Collapsing or expanding briefly locks the page's scroll position so the height change doesn't jump the viewport.
+By default, the trigger reads "N tool calls" except for a group of exactly one, which reads "1 tool call". Pass `label` to replace that text. The content's children fade and slide in with a small stagger, each child's delay increasing up to the fifth; beyond that every remaining child shares the same delay. Collapsing or expanding briefly locks the page's scroll position so the height change doesn't jump the viewport.
 
 </RuntimeMode>
 
@@ -135,7 +135,7 @@ The trigger's label always reads the plural "tool calls" except for a group of e
 | Part | Renders | Notes |
 |------|---------|-------|
 | `ToolGroupRoot` | `div` | Collapsible container. Accepts `variant`, `open`, `onOpenChange`, `defaultOpen`. |
-| `ToolGroupTrigger` | `button` | Takes `count` and `active`; toggles the group. |
+| `ToolGroupTrigger` | `button` | Takes `count`, `active`, and optional `label`; toggles the group. |
 | `ToolGroupContent` | `div` | The collapsible panel; renders `children` when open. |
 
 ### ToolGroupRoot props
@@ -151,7 +151,8 @@ The trigger's label always reads the plural "tool calls" except for a group of e
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `count` | `number` | Number of tool calls in the group; drives the label text. |
+| `count` | `number` | Number of tool calls in the group; used in the default label. |
+| `label` | `ReactNode` | Visible trigger label; defaults to `"N tool call(s)"` from `count`. |
 | `active` | `boolean` | Shows a spinner and a shimmering label while `true`. |
 
 ### Composition
