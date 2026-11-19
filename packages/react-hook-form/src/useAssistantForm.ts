@@ -125,10 +125,16 @@ const isSensitiveElement = (element: unknown): boolean => {
 };
 
 const holdsStringValue = (element: unknown, current: unknown): boolean => {
-  if (element instanceof HTMLInputElement && element.type === "checkbox") {
+  if (
+    typeof HTMLInputElement !== "undefined" &&
+    element instanceof HTMLInputElement &&
+    element.type === "checkbox"
+  ) {
     return false;
   }
-  if (element instanceof HTMLElement) return true;
+  if (typeof HTMLElement !== "undefined" && element instanceof HTMLElement) {
+    return true;
+  }
   return typeof current !== "number" && typeof current !== "boolean";
 };
 
