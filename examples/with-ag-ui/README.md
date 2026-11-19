@@ -24,7 +24,7 @@ python server/agent.py
 OPENAI_API_KEY=sk-xxx python server/agent.py
 ```
 
-The agent will start at `http://localhost:8000/agent`.
+The agent will start at `http://localhost:8000/agent`. It listens on `127.0.0.1` and allows CORS only from `http://localhost:3000`; set `HOST` (for example `HOST=0.0.0.0`) and `CORS_ORIGINS` (a comma separated list of origins) to override them.
 
 ### 2. Configure Environment
 

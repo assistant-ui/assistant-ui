@@ -134,13 +134,32 @@ function toAgUiWireMetadata(
   return isObject(metadata) ? { ...metadata } : undefined;
 }
 
+export function agUiWireMessageId(message: {
+  readonly id: string;
+  readonly metadata?: unknown;
+}): string {
+  const { metadata } = message;
+  if (!isObject(metadata) || !isObject(metadata.custom)) return message.id;
+  const namespaced = metadata.custom[AG_UI_METADATA_NAMESPACE];
+  return isObject(namespaced) &&
+    typeof namespaced.messageId === "string" &&
+    namespaced.messageId.trim()
+    ? namespaced.messageId
+    : message.id;
+}
+
 function readLegacyAgUiNamespace(metadata: unknown): Record<string, unknown> {
   if (!isObject(metadata) || !isObject(metadata.custom)) return {};
   const namespaced = metadata.custom[AG_UI_METADATA_NAMESPACE];
   if (!isObject(namespaced)) return {};
-  return "interrupts" in namespaced
-    ? { interrupts: namespaced.interrupts }
-    : {};
+  return {
+    ...("interrupts" in namespaced
+      ? { interrupts: namespaced.interrupts }
+      : {}),
+    ...(typeof namespaced.messageId === "string"
+      ? { messageId: namespaced.messageId }
+      : {}),
+  };
 }
 
 function withoutPersistedStatusMetadata(
@@ -1973,6 +1992,7 @@ function convertAssistantMessage(
   positionedReasoning: readonly (AgUiOpaqueReasoning & { index: number })[],
   toOpaqueRecord: (entry: AgUiOpaqueReasoning) => AgUiMessage,
 ): void {
+  const messageId = agUiWireMessageId(message);
   const contentArray = Array.isArray(message.content) ? message.content : [];
   const steps =
     typeof message.content === "string"
@@ -2042,7 +2062,7 @@ function convertAssistantMessage(
   });
   const stepParentId = (stepIndex: number) => {
     const id = stepParentIds[stepIndex];
-    return id !== undefined && id !== message.id && parentIdCounts.get(id) === 1
+    return id !== undefined && id !== messageId && parentIdCounts.get(id) === 1
       ? id
       : undefined;
   };
@@ -2052,11 +2072,11 @@ function convertAssistantMessage(
     const { content, toolCalls } = stepRecords[stepIndex]!;
     const recordId =
       stepIndex === ownerStep || ownerStep < 0
-        ? message.id
+        ? messageId
         : (stepParentId(stepIndex) ??
           (content.length === 0 && toolCalls[0] !== undefined
             ? toolCalls[0].id
-            : `${message.id}:step-${stepIndex}`));
+            : `${messageId}:step-${stepIndex}`));
 
     // An AG-UI assistant record has no reasoning field, so reasoning leaves as
     // the standalone record it arrived as, ahead of the assistant it belongs
@@ -2095,8 +2115,8 @@ function convertAssistantMessage(
         id: reasoningId?.trim()
           ? reasoningId
           : shellIsDropped && firstRecordStep < 0 && reasoningIndex === 0
-            ? message.id
-            : `${message.id}:reasoning-${reasoningIndex}`,
+            ? messageId
+            : `${messageId}:reasoning-${reasoningIndex}`,
         role: "reasoning",
         content: text,
         ...(encryptedValue !== undefined ? { encryptedValue } : {}),
@@ -2142,7 +2162,7 @@ function convertAssistantMessage(
       role: "assistant",
       content,
       ...(message.name ? { name: message.name } : {}),
-      ...(recordId === message.id
+      ...(recordId === messageId
         ? withAgUiMessageMetadata(message.metadata)
         : {}),
       ...(toolCalls.length + nestedToolCalls.length > 0
@@ -2240,7 +2260,7 @@ function convertToolMessage(
   const toolCallId = message.toolCallId ?? generateId();
 
   converted.push({
-    id: message.id,
+    id: agUiWireMessageId(message),
     role: "tool",
     content,
     toolCallId,
@@ -2259,6 +2279,7 @@ export function toAgUiMessages(
       ...rawMessage,
       id: rawMessage.id ?? generateId(),
     };
+    const messageId = agUiWireMessageId(message);
     const opaqueReasoning = readOpaqueReasoning(message.metadata);
     const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
       id: entry.id,
@@ -2300,7 +2321,7 @@ export function toAgUiMessages(
 
     if (message.role === "user") {
       converted.push({
-        id: message.id,
+        id: messageId,
         role: "user",
         content: buildUserContent(message),
         ...(message.name ? { name: message.name } : {}),
@@ -2324,7 +2345,7 @@ export function toAgUiMessages(
           ? ("developer" as const)
           : message.role;
       converted.push({
-        id: message.id,
+        id: messageId,
         role: wireRole,
         content: extractText(message.content),
         ...(message.name ? { name: message.name } : {}),
@@ -2336,7 +2357,7 @@ export function toAgUiMessages(
 
     if (message.role === "reasoning") {
       converted.push({
-        id: message.id,
+        id: messageId,
         role: "reasoning",
         content: extractText(message.content),
         ...withAgUiMessageMetadata(message.metadata),

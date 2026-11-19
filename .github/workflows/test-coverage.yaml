@@ -17,6 +17,7 @@ on:
       - "scripts/coverage-summary.mjs"
       - "scripts/coverage-summary.test.mjs"
       - "scripts/test-coverage-contract.test.mjs"
+      - "scripts/vitest-waitfor-interval.mjs"
       - "scripts/lib/**"
       - "turbo.json"
       - "package.json"
@@ -79,6 +80,7 @@ jobs:
             scripts/coverage-summary.mjs \
             scripts/coverage-summary.test.mjs \
             scripts/test-coverage-contract.test.mjs \
+            scripts/vitest-waitfor-interval.mjs \
             scripts/lib \
             turbo.json \
             package.json \

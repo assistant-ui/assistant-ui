@@ -681,6 +681,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly id?: string;
   readonly text: string;
+  readonly unstable_redacted?: boolean;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
   readonly timing?: MessagePartTiming;
@@ -1339,6 +1340,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     type: "human";
     payload: unknown;
   };
+  readonly providerExecuted?: boolean | undefined;
   readonly approval?: {
     readonly id: string;
     readonly prompt?: string;

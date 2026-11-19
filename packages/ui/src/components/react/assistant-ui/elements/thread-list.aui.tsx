@@ -398,10 +398,11 @@ const ThreadListItemRename: FC<{
     Promise.resolve()
       .then(() => aui.threadListItem.rename(next))
       .then(
-        () => onDone(restoreFocus),
+        () => {
+          onDone(restoreFocus && inputRef.current?.matches(":focus") === true);
+        },
         () => {
           settledRef.current = false;
-          if (restoreFocus) inputRef.current?.focus();
         },
       );
   };

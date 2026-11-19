@@ -9,6 +9,10 @@ afterEach(() => {
   scopes.length = 0;
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(document.documentElement, "scrollTo");
+  Reflect.deleteProperty(document.body, "scrollTo");
+  Reflect.deleteProperty(document, "scrollingElement");
+  document.documentElement.scrollTop = 0;
   document.documentElement.removeAttribute("style");
   document.body.removeAttribute("style");
   document.body.replaceChildren();
@@ -26,6 +30,17 @@ function stubWidths(
     configurable: true,
     value: clientWidth,
   });
+}
+
+function stubScrollTo(element: HTMLElement) {
+  const scrollTo = vi.fn(({ top }: ScrollToOptions) => {
+    element.scrollTop = top ?? 0;
+  });
+  Object.defineProperty(element, "scrollTo", {
+    configurable: true,
+    value: scrollTo,
+  });
+  return scrollTo;
 }
 
 function createLock(animated: HTMLElement) {
@@ -113,6 +128,23 @@ describe("useScrollLock", () => {
     expect(body.style.paddingRight).toBe("6px");
   });
 
+  it("ignores the viewport gutter for a body that owns its scroll box", () => {
+    const root = document.documentElement;
+    root.style.overflowX = "hidden";
+    root.style.overflowY = "hidden";
+    stubWidths(root, { offsetWidth: 1594, clientWidth: 1594 });
+    vi.stubGlobal("innerWidth", 1600);
+    const body = document.body;
+    body.style.overflowY = "auto";
+    body.style.borderWidth = "0px";
+    stubWidths(body, { offsetWidth: 1594, clientWidth: 1594 });
+
+    lockWithin(body)();
+
+    expect(body.style.scrollbarWidth).toBe("none");
+    expect(body.style.paddingRight).toBe("");
+  });
+
   it("restores the padding it added once the animation is over", () => {
     vi.useFakeTimers();
     const scroller = document.createElement("div");
@@ -134,6 +166,7 @@ describe("useScrollLock", () => {
   it("keeps overlapping animations locked until the last one finishes", () => {
     vi.useFakeTimers();
     const { scroller, first, second } = createSharedScroller();
+    stubScrollTo(scroller);
     scroller.scrollTop = 120;
 
     first.lock();
@@ -242,6 +275,7 @@ describe("useScrollLock", () => {
     const scroller = document.createElement("div");
     scroller.style.overflowY = "auto";
     document.body.appendChild(scroller);
+    stubScrollTo(scroller);
     scroller.scrollTop = 120;
 
     lockWithin(scroller)();
@@ -268,5 +302,96 @@ describe("useScrollLock", () => {
 
     expect(scroller.style.paddingLeft).toBe("9px");
     expect(scroller.style.paddingRight).toBe("");
+  });
+
+  it("resets smooth scrolling instantly", () => {
+    const scroller = document.createElement("div");
+    scroller.style.overflowY = "auto";
+    scroller.style.scrollBehavior = "smooth";
+    document.body.appendChild(scroller);
+    const scrollTo = stubScrollTo(scroller);
+    scroller.scrollTop = 120;
+
+    lockWithin(scroller)();
+    scroller.scrollTop = 90;
+    scroller.dispatchEvent(new Event("scroll"));
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 120, behavior: "instant" });
+    expect(scroller.scrollTop).toBe(120);
+  });
+
+  it("holds root scroll events from document and releases them afterward", () => {
+    vi.useFakeTimers();
+    const root = document.documentElement;
+    root.style.overflowY = "auto";
+    stubScrollTo(root);
+    root.scrollTop = 120;
+
+    lockWithin(document.body)();
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(root.scrollTop).toBe(120);
+
+    vi.advanceTimersByTime(200);
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(root.scrollTop).toBe(90);
+  });
+
+  it("locks viewport position when body overflow propagates to the root", () => {
+    vi.useFakeTimers();
+    const root = document.documentElement;
+    const body = document.body;
+    root.style.overflowY = "visible";
+    Object.defineProperty(document, "scrollingElement", {
+      configurable: true,
+      value: root,
+    });
+    body.style.overflowY = "auto";
+    body.scrollTop = 0;
+    body.scrollTo = vi.fn();
+    const scrollTo = stubScrollTo(root);
+    root.scrollTop = 120;
+
+    lockWithin(body)();
+    expect(body.style.scrollbarWidth).toBe("none");
+    expect(root.style.scrollbarWidth).toBe("");
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 120, behavior: "instant" });
+    expect(root.scrollTop).toBe(120);
+
+    vi.advanceTimersByTime(200);
+    root.scrollTop = 90;
+    document.dispatchEvent(new Event("scroll"));
+    expect(root.scrollTop).toBe(90);
+  });
+
+  it("holds a body that scrolls on its own when the root clips overflow", () => {
+    vi.useFakeTimers();
+    const root = document.documentElement;
+    const body = document.body;
+    root.style.overflowX = "hidden";
+    root.style.overflowY = "hidden";
+    Object.defineProperty(document, "scrollingElement", {
+      configurable: true,
+      value: root,
+    });
+    body.style.overflowY = "auto";
+    const scrollTo = stubScrollTo(body);
+    const rootScrollTo = stubScrollTo(root);
+    body.scrollTop = 120;
+
+    lockWithin(body)();
+    body.scrollTop = 90;
+    body.dispatchEvent(new Event("scroll"));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 120, behavior: "instant" });
+    expect(body.scrollTop).toBe(120);
+    expect(rootScrollTo).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(200);
+    body.scrollTop = 90;
+    body.dispatchEvent(new Event("scroll"));
+    expect(body.scrollTop).toBe(90);
   });
 });

@@ -12,12 +12,23 @@ import type {
 } from "@assistant-ui/core";
 import { EventType, HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
-import { toAgUiMessages } from "../src/runtime/adapter/conversions";
+import {
+  agUiWireMessageId,
+  toAgUiMessages,
+} from "../src/runtime/adapter/conversions";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 import type {
   AgUiResumeTranscript,
   UseAgUiRuntimeOptions,
 } from "../src/runtime/types";
+
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
+    .getMessageRepository()
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -369,7 +380,9 @@ describe("joinStrategy", () => {
       const assistants = messages.filter(
         (message) => message.role === "assistant",
       );
-      expect(assistants.map((message) => message.id)).toEqual(["streamed"]);
+      expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
+        "streamed",
+      ]);
       expect(assistants[0]!.content).toMatchObject([
         { type: "text", text: "checking" },
         { type: "tool-call", toolCallId: "c-1", result: "sunny" },
@@ -498,6 +511,8 @@ const createCore = (
     ...(hooks.history ? { history: hooks.history } : {}),
   });
 
+const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 // On teardown @ag-ui/client rethrows an errored body's reader.cancel()
 // rejection as an unhandled rejection; the wrapped cancel absorbs it.
 const createStreamingHttpAgent = () => {
@@ -605,7 +620,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const readAssistantText = () => {
       const assistant = core
         .getMessages()
-        .find((message) => message.id === "assistant-2") as
+        .find((message) => agUiWireMessageId(message) === "assistant-2") as
         | ThreadAssistantMessage
         | undefined;
       const text = assistant?.content.find((part) => part.type === "text");
@@ -714,7 +729,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(streamedText).toEqual(["Hello", "Hello world"]);
     expect(core.getMessages()).toHaveLength(3);
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "assistant-2",
+      id: localId(core, "assistant-2"),
       role: "assistant",
       content: [{ type: "text", text: "Hello world" }],
       status: { type: "complete" },
@@ -805,7 +820,7 @@ describe("AGUIThreadRuntimeCore", () => {
       .filter(
         (message) => message.role === "assistant",
       ) as ThreadAssistantMessage[];
-    expect(assistants.map((message) => message.id)).toEqual([
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
       "assistant-1",
       "assistant-2",
     ]);
@@ -825,8 +840,10 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(
       core
         .getMessageRepository()
-        .messages.find((item) => item.message.id === "assistant-2")?.parentId,
-    ).toBe("assistant-1");
+        .messages.find(
+          (item) => agUiWireMessageId(item.message) === "assistant-2",
+        )?.parentId,
+    ).toBe(localId(core, "assistant-1"));
   });
 
   it("keeps the tool assistant on the head path before a snapshot", async () => {
@@ -866,10 +883,12 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onTextMessageStartEvent?.({
           event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
         });
-        midRunIds = core.getMessages().map((message) => message.id);
+        midRunIds = core
+          .getMessages()
+          .map((message) => agUiWireMessageId(message));
         midRunTool = core
           .getMessages()
-          .find((message) => message.id === "assistant-1") as
+          .find((message) => agUiWireMessageId(message) === "assistant-1") as
           | ThreadAssistantMessage
           | undefined;
         subscriber.onTextMessageContentEvent?.({
@@ -906,7 +925,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const assistants = messages.filter(
       (message) => message.role === "assistant",
     ) as ThreadAssistantMessage[];
-    expect(assistants.map((message) => message.id)).toEqual([
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
       "assistant-1",
       "assistant-2",
     ]);
@@ -923,8 +942,10 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(
       core
         .getMessageRepository()
-        .messages.find((item) => item.message.id === "assistant-2")?.parentId,
-    ).toBe("assistant-1");
+        .messages.find(
+          (item) => agUiWireMessageId(item.message) === "assistant-2",
+        )?.parentId,
+    ).toBe(localId(core, "assistant-1"));
   });
 
   it("splits follow-up text when the run opens with a tool call", async () => {
@@ -978,7 +999,7 @@ describe("AGUIThreadRuntimeCore", () => {
       .filter(
         (message) => message.role === "assistant",
       ) as ThreadAssistantMessage[];
-    expect(assistants.map((message) => message.id)).toEqual([
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
       "assistant-1",
       "assistant-2",
     ]);
@@ -2257,7 +2278,7 @@ describe("AGUIThreadRuntimeCore", () => {
         (core.getMessages().at(-1) as ThreadAssistantMessage).status,
       ).toMatchObject({ type: "complete" }),
     );
-    expect(core.isRunning()).toBe(true);
+    expect(core.isRunning()).toBe(false);
 
     await core.cancel();
     await run;
@@ -2339,6 +2360,661 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "unknown",
     });
     expect(onError.mock.calls).toEqual([[failure]]);
+  });
+
+  it("stops running at RUN_FINISHED while the response is still open", async () => {
+    const http = createStreamingHttpAgent();
+    const core = createCore(http.agent);
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "done",
+    });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m1" });
+    await vi.waitFor(() =>
+      expect(assistantText(core.getMessages().at(-1))).toBe("done"),
+    );
+    expect(core.isRunning()).toBe(true);
+
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "complete",
+    });
+
+    http.close();
+    await expect(run).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("runs again when a second run starts in the same response", async () => {
+    const http = createStreamingHttpAgent();
+    const core = createCore(http.agent);
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-1" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    http.write({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "one" });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m1" });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(true));
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m2",
+      role: "assistant",
+    });
+    http.write({ type: "TEXT_MESSAGE_CONTENT", messageId: "m2", delta: "two" });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m2" });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run-2" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "complete",
+    });
+    expect(assistantText(core.getMessages().at(-1))).toBe("two");
+    await flushPromises();
+    expect(core.isRunning()).toBe(false);
+
+    http.close();
+    await expect(run).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("settles subagent calls when a second run ends at end of stream", async () => {
+    const http = createStreamingHttpAgent();
+    const core = createCore(http.agent);
+    const run = core.append(createAppendMessage());
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-1" });
+    http.write({ type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    http.write({ type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m2",
+      role: "assistant",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m2",
+      delta: "researching",
+    });
+    http.write({
+      type: "TOOL_CALL_START",
+      toolCallId: "spawn",
+      toolCallName: "research",
+    });
+    http.write({ type: "TOOL_CALL_END", toolCallId: "spawn" });
+    http.write({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub",
+      parentToolCallId: "spawn",
+      name: "researcher",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_START",
+      messageId: "nested",
+      role: "assistant",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "nested",
+      delta: "working",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TOOL_CALL_START",
+      toolCallId: "nested-tool",
+      toolCallName: "lookup",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TOOL_CALL_END",
+      toolCallId: "nested-tool",
+      subagentRunId: "sub",
+    });
+    http.write({
+      type: "TEXT_MESSAGE_END",
+      messageId: "nested",
+      subagentRunId: "sub",
+    });
+    http.write({ type: "TEXT_MESSAGE_END", messageId: "m2" });
+    http.close();
+    await run;
+
+    const spawn = core
+      .getMessages()
+      .flatMap((message) =>
+        message.role === "assistant" ? message.content : [],
+      )
+      .find((part) => part.type === "tool-call" && part.toolCallId === "spawn");
+    expect(spawn).toMatchObject({
+      type: "tool-call",
+      toolCallId: "spawn",
+      messages: [
+        { id: "sub", status: { type: "incomplete", reason: "error" } },
+      ],
+    });
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("waits for the finished response to close before the next run starts", async () => {
+    const writers: ReadableStreamDefaultController<Uint8Array>[] = [];
+    const signals: AbortSignal[] = [];
+    const encoder = new TextEncoder();
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async (_url, init) => {
+        const signal = init!.signal!;
+        signals.push(signal);
+        const body = new ReadableStream<Uint8Array>({
+          start: (c) => {
+            writers.push(c);
+            signal.addEventListener("abort", () =>
+              c.error(new DOMException("aborted", "AbortError")),
+            );
+          },
+        });
+        return new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      },
+    });
+    const write = (index: number, event: object) =>
+      writers[index]!.enqueue(
+        encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+      );
+    const onCancel = vi.fn();
+    const core = createCore(agent, { onCancel });
+
+    const first = core.append(createAppendMessage());
+    await vi.waitFor(() => expect(writers).toHaveLength(1));
+    write(0, { type: "RUN_STARTED", threadId: "thread", runId: "run-1" });
+    write(0, {
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      role: "assistant",
+    });
+    write(0, { type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "one" });
+    write(0, { type: "TEXT_MESSAGE_END", messageId: "m1" });
+    write(0, { type: "RUN_FINISHED", threadId: "thread", runId: "run-1" });
+    await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+    let firstSettled = false;
+    void first.then(() => {
+      firstSettled = true;
+    });
+    const firstAnswer = core.getMessages().at(-1)!;
+
+    const second = core.append({
+      ...createAppendMessage(),
+      parentId: firstAnswer.id,
+    });
+    expect(core.isRunning()).toBe(true);
+    await flushPromises();
+    expect(firstSettled).toBe(false);
+    expect(writers).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(false);
+
+    writers[0]!.close();
+    await expect(first).resolves.toBeUndefined();
+    await vi.waitFor(() => expect(writers).toHaveLength(2));
+    expect(signals[0]?.aborted).toBe(false);
+    expect(core.isRunning()).toBe(true);
+    expect(
+      core.getMessages().find((message) => message.id === firstAnswer.id)
+        ?.status,
+    ).toMatchObject({ type: "complete" });
+
+    write(1, { type: "RUN_STARTED", threadId: "thread", runId: "run-2" });
+    write(1, { type: "RUN_FINISHED", threadId: "thread", runId: "run-2" });
+    writers[1]!.close();
+    await expect(second).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it.each(["tool result", "A2UI action"])(
+    "stays running through the drain when the %s arrives before RUN_FINISHED",
+    async (continuation) => {
+      let finishFirst!: () => void;
+      let releaseFirst!: () => void;
+      let finishContinuation!: () => void;
+      let releaseContinuation!: () => void;
+      const firstClosed = new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+      const continuationClosed = new Promise<void>((resolve) => {
+        releaseContinuation = resolve;
+      });
+      const runAgent = vi.fn(async (input: any, subscriber: any) => {
+        if (runAgent.mock.calls.length === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "lookup",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          finishFirst = () => notifyRunFinished(subscriber, input.runId);
+          await firstClosed;
+        } else {
+          finishContinuation = () => notifyRunFinished(subscriber, input.runId);
+          await continuationClosed;
+        }
+      });
+      const core = createCore({ runAgent } as unknown as HttpAgent);
+      const first = core.append(createAppendMessage());
+      const running: boolean[] = [];
+      const unsubscribe = core.subscribe(() => running.push(core.isRunning()));
+
+      if (continuation === "tool result") {
+        core.addToolResult({
+          messageId: core.getMessages().at(-1)!.id,
+          toolCallId: "call-1",
+          toolName: "lookup",
+          result: "found",
+          isError: false,
+        });
+      } else {
+        core.sendA2uiAction({ name: "continue" });
+      }
+      finishFirst();
+      expect(core.isRunning()).toBe(true);
+      await flushPromises();
+      expect(runAgent).toHaveBeenCalledOnce();
+
+      releaseFirst();
+      await first;
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(true);
+      expect(running).not.toContain(false);
+      if (continuation === "tool result") {
+        expect(runAgent.mock.calls[1]?.[0].messages).toContainEqual(
+          expect.objectContaining({
+            role: "tool",
+            toolCallId: "call-1",
+            content: "found",
+          }),
+        );
+      } else {
+        expect(runAgent.mock.calls[1]?.[0].forwardedProps).toMatchObject({
+          a2uiAction: { userAction: { name: "continue" } },
+        });
+      }
+
+      finishContinuation();
+      expect(core.isRunning()).toBe(false);
+      releaseContinuation();
+      await flushPromises();
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+      unsubscribe();
+    },
+  );
+
+  it("waits without aborting when a finish notification submits a send", async () => {
+    let finishFirst!: () => void;
+    let releaseFirst!: () => void;
+    const firstClosed = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+        finishFirst = () => notifyRunFinished(subscriber, input.runId);
+        await firstClosed;
+      } else {
+        notifyRunFinished(subscriber, input.runId);
+      }
+    });
+    const abortRun = vi.fn();
+    const onCancel = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent, {
+      onCancel,
+    });
+    const first = core.append(createAppendMessage());
+    let waiting: Promise<void> | undefined;
+    let submitted = false;
+    const unsubscribe = core.subscribe(() => {
+      const assistant = core.getMessages().at(-1)!;
+      if (submitted || assistant.status?.type !== "complete") return;
+      submitted = true;
+      waiting = core.append(createAppendMessage({ parentId: assistant.id }));
+    });
+
+    finishFirst();
+    expect(submitted).toBe(true);
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(abortRun).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(core.isRunning()).toBe(true);
+
+    releaseFirst();
+    await first;
+    await waiting;
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(core.isRunning()).toBe(false);
+    expect(onCancel).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("starts only the latest send waiting on one drain with both user messages", async () => {
+    let releaseFirst!: () => void;
+    let releaseNext!: () => void;
+    const firstClosed = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const nextClosed = new Promise<void>((resolve) => {
+      releaseNext = resolve;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length === 1) {
+        notifyRunFinished(subscriber, input.runId);
+        await firstClosed;
+      } else {
+        await nextClosed;
+        notifyRunFinished(subscriber, input.runId);
+      }
+    });
+    const abortRun = vi.fn();
+    const onCancel = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent, {
+      onCancel,
+    });
+    const first = core.append(createAppendMessage());
+    const second = core.append({
+      ...createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      content: [{ type: "text", text: "second" }],
+    });
+    const third = core.append({
+      ...createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      content: [{ type: "text", text: "third" }],
+    });
+    expect(core.isRunning()).toBe(true);
+    expect(runAgent).toHaveBeenCalledOnce();
+
+    releaseFirst();
+    await first;
+    await flushPromises();
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(abortRun).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(
+      runAgent.mock.calls[1]?.[0].messages
+        .filter((message: { role: string }) => message.role === "user")
+        .map((message: { content: string }) => message.content),
+    ).toEqual(["hi", "second", "third"]);
+    expect(core.isRunning()).toBe(true);
+
+    releaseNext();
+    await Promise.all([second, third]);
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it.each(["leave", "resetThreadState"] as const)(
+    "%s drops a send waiting on the drain and releases the thread",
+    async (mutation) => {
+      let releaseFirst!: () => void;
+      const firstClosed = new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+      const runAgent = vi.fn(async (input: any, subscriber: any) => {
+        notifyRunFinished(subscriber, input.runId);
+        if (runAgent.mock.calls.length === 1) await firstClosed;
+      });
+      const abortRun = vi.fn();
+      const core = createCore({ runAgent, abortRun } as unknown as HttpAgent);
+      const first = core.append(createAppendMessage());
+      const waiting = core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+      expect(core.isRunning()).toBe(true);
+
+      core[mutation]();
+      await waiting;
+      expect(core.isRunning()).toBe(false);
+      expect(runAgent).toHaveBeenCalledOnce();
+      expect(abortRun).toHaveBeenCalledOnce();
+
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      releaseFirst();
+      await first;
+      expect(runAgent).toHaveBeenCalledTimes(2);
+      expect(core.isRunning()).toBe(false);
+    },
+  );
+
+  it("drops the waiting run when Stop lands while the finished response drains", async () => {
+    let releaseFirst!: () => void;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      if (runAgent.mock.calls.length > 1) return;
+      notifyRunFinished(subscriber, input.runId);
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+    });
+    const abortRun = vi.fn(() => releaseFirst());
+    const onCancel = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent, {
+      onCancel,
+    });
+
+    const first = core.append(createAppendMessage());
+    await flushPromises();
+    expect(core.isRunning()).toBe(false);
+
+    const second = core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+    expect(core.isRunning()).toBe(true);
+
+    await core.cancel();
+    await first;
+    await second;
+
+    expect(abortRun).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(runAgent).toHaveBeenCalledOnce();
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("runs only the user's send when a frontend tool result also waits on the drain", async () => {
+    let releaseFirst!: () => void;
+    const runInputs: any[] = [];
+    let core!: AgUiThreadController;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runAgent.mock.calls.length > 1) {
+        notifyRunFinished(subscriber, input.runId);
+        return;
+      }
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-1",
+          toolCallName: "tool_a",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+      });
+      notifyRunFinished(subscriber, input.runId);
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+
+    const first = core.append(createAppendMessage());
+    await flushPromises();
+    expect(core.isRunning()).toBe(false);
+    const assistant = core.getMessages().at(-1)!;
+
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "tool_a",
+      result: "ok",
+      isError: false,
+    });
+    expect(core.isRunning()).toBe(true);
+    const second = core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    releaseFirst();
+    await first;
+    await second;
+    await flushPromises();
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(
+      runInputs[1].messages.filter((m: { role: string }) => m.role === "user"),
+    ).toHaveLength(2);
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it.each(["before", "after"])(
+    "carries an A2UI action submitted %s a user send during the drain in that request exactly once",
+    async (order) => {
+      const inputs: {
+        forwardedProps?: { a2uiAction?: unknown };
+        messages: { role: string; content: string }[];
+      }[] = [];
+      let writer!: ReadableStreamDefaultController<Uint8Array>;
+      let signal!: AbortSignal;
+      const encoder = new TextEncoder();
+      const agent = new HttpAgent({
+        url: "https://example.invalid",
+        fetch: async (_url, init) => {
+          const input = JSON.parse(init!.body as string);
+          inputs.push(input);
+          if (inputs.length > 1) {
+            return new Response(
+              `data: ${JSON.stringify({ type: "RUN_STARTED", threadId: input.threadId, runId: input.runId })}\n\ndata: ${JSON.stringify({ type: "RUN_FINISHED", threadId: input.threadId, runId: input.runId })}\n\n`,
+              { headers: { "Content-Type": "text/event-stream" } },
+            );
+          }
+          signal = init!.signal!;
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start: (controller) => {
+                writer = controller;
+              },
+            }),
+            { headers: { "Content-Type": "text/event-stream" } },
+          );
+        },
+      });
+      const core = createCore(agent);
+      const first = core.append(createAppendMessage());
+      await vi.waitFor(() => expect(inputs).toHaveLength(1));
+      for (const event of [
+        { type: "RUN_STARTED", threadId: "thread", runId: "run-1" },
+        { type: "RUN_FINISHED", threadId: "thread", runId: "run-1" },
+      ])
+        writer.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      await vi.waitFor(() => expect(core.isRunning()).toBe(false));
+
+      const action = {
+        type: "a2ui:action",
+        name: "submit",
+        surfaceId: "surface-1",
+        context: { answer: 42 },
+      };
+      if (order === "before") core.sendA2uiAction(action);
+      const send = core.append({
+        ...createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+        content: [{ type: "text", text: "next" }],
+      });
+      if (order === "after") core.sendA2uiAction(action);
+      expect(core.isRunning()).toBe(true);
+      expect(inputs).toHaveLength(1);
+      expect(signal.aborted).toBe(false);
+
+      writer.close();
+      await Promise.all([first, send]);
+      await flushPromises();
+      expect(signal.aborted).toBe(false);
+      expect(inputs).toHaveLength(2);
+      expect(
+        inputs[1]?.messages
+          .filter((message) => message.role === "user")
+          .map((message) => message.content),
+      ).toEqual(["hi", "next"]);
+      expect(inputs[1]?.forwardedProps?.a2uiAction).toEqual({
+        userAction: {
+          name: "submit",
+          surfaceId: "surface-1",
+          context: { answer: 42 },
+          timestamp: expect.any(String),
+        },
+      });
+
+      await core.append(
+        createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+      );
+      expect(inputs).toHaveLength(3);
+      expect(
+        inputs
+          .map((input) => input.forwardedProps?.a2uiAction)
+          .filter((action) => action !== undefined),
+      ).toHaveLength(1);
+      expect(core.isRunning()).toBe(false);
+    },
+  );
+
+  it("does not carry an A2UI action from a stopped drain into a later send before the old response settles", async () => {
+    let release!: () => void;
+    const closed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      notifyRunFinished(subscriber, input.runId);
+      if (runAgent.mock.calls.length === 1) await closed;
+    });
+    const abortRun = vi.fn();
+    const core = createCore({ runAgent, abortRun } as unknown as HttpAgent);
+    const first = core.append(createAppendMessage());
+    core.sendA2uiAction({ name: "discard" });
+    const waiting = core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+
+    await core.cancel();
+    await waiting;
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+    release();
+    await first;
+
+    expect(abortRun).toHaveBeenCalledOnce();
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(
+      runAgent.mock.calls[1]?.[0].forwardedProps.a2uiAction,
+    ).toBeUndefined();
+    expect(core.isRunning()).toBe(false);
   });
 
   it("renders a backend that still streams legacy THINKING_* and chunk events", async () => {
@@ -3891,7 +4567,7 @@ describe("AGUIThreadRuntimeCore", () => {
       type: "text",
       text: "recovered",
     });
-    expect(assistant.metadata.isOptimistic).toBeUndefined();
+    expect(assistant.metadata.isOptimistic).toBe(false);
 
     const loadedRepository = core.getMessageRepository();
     expect(loadedRepository?.headId).toBe(assistant.id);
@@ -5059,17 +5735,18 @@ describe("AGUIThreadRuntimeCore", () => {
 
       expect(runAgent).toHaveBeenCalledTimes(2);
       expect(
-        core.getMessages().find((message) => message.id === "a")?.status,
+        core.getMessages().find((message) => agUiWireMessageId(message) === "a")
+          ?.status,
       ).toMatchObject({ type: "complete" });
       const continuation = core
         .getMessageRepository()
         .messages.find(
           ({ message }) =>
             message.role === "assistant" &&
-            message.id !== "a" &&
-            message.id !== "b",
+            agUiWireMessageId(message) !== "a" &&
+            agUiWireMessageId(message) !== "b",
         );
-      expect(continuation?.parentId).toBe("b");
+      expect(continuation?.parentId).toBe(localId(core, "b"));
     },
   );
 
@@ -5079,7 +5756,9 @@ describe("AGUIThreadRuntimeCore", () => {
       thirdMessage: true,
       beforeFinish: () => {
         expect(
-          core.getMessages().find((message) => message.id === "a")?.status,
+          core
+            .getMessages()
+            .find((message) => agUiWireMessageId(message) === "a")?.status,
         ).toMatchObject({ type: "running" });
         expect(core.getPendingToolCalls()).toBeNull();
       },
@@ -5088,10 +5767,11 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(
-      core.getMessages().find((message) => message.id === "a")?.status,
+      core.getMessages().find((message) => agUiWireMessageId(message) === "a")
+        ?.status,
     ).toMatchObject({ type: "requires-action", reason: "tool-calls" });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
   });
@@ -5101,7 +5781,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore({ runAgent } as unknown as HttpAgent);
     await core.append(createAppendMessage());
 
-    expect(core.getPendingInterrupts()?.messageId).toBe("b");
+    expect(core.getPendingInterrupts()?.messageId).toBe(localId(core, "b"));
     core.addToolResult({
       messageId: "a",
       toolCallId: "call-1",
@@ -5111,7 +5791,8 @@ describe("AGUIThreadRuntimeCore", () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(
-      core.getMessages().find((message) => message.id === "a")?.status,
+      core.getMessages().find((message) => agUiWireMessageId(message) === "a")
+        ?.status,
     ).toMatchObject({ type: "complete" });
     expect(runAgent).toHaveBeenCalledTimes(1);
     await core.submitInterruptResponses([
@@ -5131,14 +5812,17 @@ describe("AGUIThreadRuntimeCore", () => {
         (message): message is ThreadAssistantMessage =>
           message.role === "assistant",
       );
-    expect(assistants.map((message) => message.id)).toEqual(["a", "b"]);
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
+      "a",
+      "b",
+    ]);
     expect(assistants[0]?.status).toMatchObject({
       type: "requires-action",
       reason: "tool-calls",
     });
     expect(assistants[1]?.status).toMatchObject({ type: "complete" });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
 
@@ -5166,7 +5850,9 @@ describe("AGUIThreadRuntimeCore", () => {
         }),
       ]),
     );
-    expect(core.getMessages().some((message) => message.id === "b")).toBe(true);
+    expect(
+      core.getMessages().some((message) => agUiWireMessageId(message) === "b"),
+    ).toBe(true);
   });
 
   it("keeps an earlier split message pending when RUN_FINISHED lists its call", async () => {
@@ -5191,7 +5877,7 @@ describe("AGUIThreadRuntimeCore", () => {
     ]);
     expect(b?.status).toMatchObject({ type: "complete" });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
   });
@@ -5216,7 +5902,7 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "tool-calls",
     });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "b",
+      messageId: localId(core, "b"),
       toolCallIds: ["call-2"],
     });
   });
@@ -5277,7 +5963,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1", "call-2"],
     });
     core.addToolResult({
@@ -5289,7 +5975,7 @@ describe("AGUIThreadRuntimeCore", () => {
     });
     expect(runAgent).toHaveBeenCalledTimes(1);
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "b",
+      messageId: localId(core, "b"),
       toolCallIds: ["call-2"],
     });
     core.addToolResult({
@@ -5330,7 +6016,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(runAgent).toHaveBeenCalledTimes(1);
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
   });
@@ -6261,7 +6947,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
-  it("steerAway throws when a run is still in progress", async () => {
+  it("steerAway starts its run once the finished run's response closes", async () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((r) => {
       release = r;
@@ -6269,6 +6955,10 @@ describe("AGUIThreadRuntimeCore", () => {
     let runCount = 0;
     const runAgent = vi.fn(async (_input: any, subscriber: any) => {
       runCount++;
+      if (runCount > 1) {
+        notifyRunFinished(subscriber, "run-2");
+        return;
+      }
       subscriber.onToolCallStartEvent?.({
         event: {
           type: "TOOL_CALL_START",
@@ -6283,20 +6973,26 @@ describe("AGUIThreadRuntimeCore", () => {
       await gate;
     });
 
-    const core = createCore({ runAgent } as unknown as HttpAgent);
+    const core = createCore({
+      runAgent,
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent);
     const appendPromise = core.append(createAppendMessage());
     await new Promise((r) => setTimeout(r, 0));
 
     expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["call-1"]);
-    expect(core.isRunning()).toBe(true);
+    expect(core.isRunning()).toBe(false);
 
-    await expect(core.steerAway("x")).rejects.toThrow(
-      "a run is already in progress",
-    );
+    const steer = core.steerAway("x");
+    await flushPromises();
+    expect(runCount).toBe(1);
 
     release();
     await appendPromise;
-    expect(runCount).toBe(1);
+    await steer;
+    expect(runCount).toBe(2);
+    expect(core.getPendingToolCalls()).toBeNull();
+    expect(core.isRunning()).toBe(false);
   });
 
   const createPendingToolCallAgent = (
@@ -8339,10 +9035,12 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getState()).toEqual({ count: 2, label: "base" });
   });
 
-  it("adopts TEXT_MESSAGE_START.messageId as the ThreadAssistantMessage.id", async () => {
+  it("records TEXT_MESSAGE_START.messageId without changing the local assistant id", async () => {
     const serverId = "11111111-1111-1111-1111-111111111111";
+    let originalId!: string;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
+        originalId = core.getMessages().at(-1)!.id;
         subscriber.onTextMessageStartEvent?.({
           event: {
             type: "TEXT_MESSAGE_START",
@@ -8369,11 +9067,12 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     expect(assistant.role).toBe("assistant");
-    expect(assistant.id).toBe(serverId);
+    expect(assistant.id).toBe(originalId);
+    expect(agUiWireMessageId(assistant)).toBe(serverId);
     expect(assistant.content[0]).toMatchObject({ type: "text", text: "Hello" });
   });
 
-  it("persists assistant history under the server id, not the placeholder", async () => {
+  it("persists the local assistant id with the server id in metadata", async () => {
     const serverId = "srv-msg-42";
     const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const history: ThreadHistoryAdapter = {
@@ -8381,8 +9080,10 @@ describe("AGUIThreadRuntimeCore", () => {
       append,
     } as unknown as ThreadHistoryAdapter;
 
+    let originalId!: string;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
+        originalId = core.getMessages().at(-1)!.id;
         subscriber.onTextMessageStartEvent?.({
           event: { type: "TEXT_MESSAGE_START", messageId: serverId },
         });
@@ -8410,7 +9111,8 @@ describe("AGUIThreadRuntimeCore", () => {
     ) {
       throw new Error("expected an assistant history entry");
     }
-    expect(assistantAppendEntry.message.id).toBe(serverId);
+    expect(assistantAppendEntry.message.id).toBe(originalId);
+    expect(agUiWireMessageId(assistantAppendEntry.message)).toBe(serverId);
   });
 
   it("stabilizes the assistant id before history.append fires", async () => {
@@ -8466,13 +9168,15 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(assistant.status).toMatchObject({ type: "complete" });
   });
 
-  it("routes addToolResult through the server id after id reassignment", async () => {
+  it("routes addToolResult through the local id after adopting the server id", async () => {
     const serverId = "srv-with-tools";
     let resumeCalls = 0;
+    let originalId!: string;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
         resumeCalls += 1;
         if (resumeCalls === 1) {
+          originalId = core.getMessages().at(-1)!.id;
           subscriber.onTextMessageStartEvent?.({
             event: { type: "TEXT_MESSAGE_START", messageId: serverId },
           });
@@ -8497,11 +9201,13 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const assistantBeforeResult = core
       .getMessages()
-      .find((m) => m.id === serverId) as ThreadAssistantMessage | undefined;
-    expect(assistantBeforeResult?.id).toBe(serverId);
+      .find((m) => agUiWireMessageId(m) === serverId) as
+      | ThreadAssistantMessage
+      | undefined;
+    expect(assistantBeforeResult?.id).toBe(originalId);
 
     core.addToolResult({
-      messageId: serverId,
+      messageId: assistantBeforeResult!.id,
       toolCallId: "tc-9",
       toolName: "lookup",
       result: { ok: true },
@@ -8510,7 +9216,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const updatedAssistant = core
       .getMessages()
-      .find((m) => m.id === serverId) as ThreadAssistantMessage;
+      .find((m) => agUiWireMessageId(m) === serverId) as ThreadAssistantMessage;
     const toolPart = updatedAssistant.content.find(
       (part) => part.type === "tool-call",
     ) as any;
@@ -8619,7 +9325,7 @@ describe("AGUIThreadRuntimeCore", () => {
     );
     const optimisticLingerers = core
       .getMessages()
-      .filter((m) => m.id.startsWith("__optimistic__"));
+      .filter((m) => m.metadata.isOptimistic);
     expect(optimisticLingerers).toHaveLength(0);
     expect(
       core
@@ -8647,12 +9353,12 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore(agent);
     await core.append(createAppendMessage());
 
-    expect(midRunAssistant?.id.startsWith("__optimistic__")).toBe(true);
+    expect(midRunAssistant?.id.startsWith("__optimistic__")).toBe(false);
     expect(midRunAssistant?.metadata.isOptimistic).toBe(true);
 
     const assistant = core
       .getMessages()
-      .find((m) => m.id === serverId) as ThreadAssistantMessage;
+      .find((m) => agUiWireMessageId(m) === serverId) as ThreadAssistantMessage;
     expect(assistant).toBeDefined();
     expect(assistant.metadata.isOptimistic).toBeUndefined();
   });
@@ -8672,7 +9378,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     expect(assistant.id.startsWith("__optimistic__")).toBe(false);
-    expect(assistant.metadata.isOptimistic).toBeUndefined();
+    expect(assistant.metadata.isOptimistic).toBe(false);
   });
 
   it("keeps the active turn visible when a server id collides on a disjoint branch", async () => {
@@ -8917,7 +9623,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: mid,
+      id: localId(core, mid),
       role: "assistant",
       content: [
         { type: "text", text: "Hi" },
@@ -9282,11 +9988,11 @@ describe("AGUIThreadRuntimeCore", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(runInputs).toHaveLength(2);
-    expect(postRunHead).toBe("assistant-1");
-    expect(preRunHead).not.toBe(postRunHead);
+    expect(postRunHead).toBe(localId(core, "assistant-1"));
+    expect(preRunHead).toBe(postRunHead);
     expect(runInputs[1].messages).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: postRunHead, role: "assistant" }),
+        expect.objectContaining({ id: "assistant-1", role: "assistant" }),
       ]),
     );
     expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
@@ -9688,7 +10394,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const reasoningOf = (core: AgUiThreadController, id: string) =>
       core
         .getMessages()
-        .find((message) => message.id === id)
+        .find((message) => agUiWireMessageId(message) === id)
         ?.content.flatMap((part) =>
           part.type === "reasoning" ? [part.text] : [],
         );
@@ -9741,7 +10447,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
       const answer = core
         .getMessages()
-        .find((message) => message.id === "assistant-2")!;
+        .find((message) => agUiWireMessageId(message) === "assistant-2")!;
       expect(
         answer.content.map((part) =>
           part.type === "reasoning" || part.type === "text"
@@ -9800,7 +10506,9 @@ describe("AGUIThreadRuntimeCore", () => {
       await core.append(createAppendMessage());
 
       const messageOf = (id: string) =>
-        core.getMessages().find((m) => m.id === id) as ThreadAssistantMessage;
+        core
+          .getMessages()
+          .find((m) => agUiWireMessageId(m) === id) as ThreadAssistantMessage;
       expect(messageOf("assistant-1").content.map((part) => part.type)).toEqual(
         ["tool-call"],
       );
@@ -9933,7 +10641,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
       const answer = core
         .getMessages()
-        .find((message) => message.id === "assistant-2")!;
+        .find((message) => agUiWireMessageId(message) === "assistant-2")!;
       expect(answer.content[0]).toMatchObject({
         type: "reasoning",
         text: "write the answer",

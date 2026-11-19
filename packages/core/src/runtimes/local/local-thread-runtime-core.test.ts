@@ -3148,31 +3148,66 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     });
   });
 
-  it("marks the message cancelled when a non-streaming adapter resolves after abort", async () => {
-    let released!: () => void;
-    const pending = new Promise<void>((resolve) => {
-      released = resolve;
-    });
-
-    const thread = createThread({
-      async run() {
-        await pending;
-        return { content: [{ type: "text", text: "hello" }] };
+  it.each([
+    {
+      name: "text without a status",
+      result: { content: [{ type: "text", text: "hello" }] },
+    },
+    {
+      name: "a completed response",
+      result: {
+        content: [{ type: "text", text: "hello" }],
+        status: { type: "complete", reason: "stop" },
       },
-    });
+    },
+    {
+      name: "an approval pause",
+      result: toolCallResult("deploy", { id: "approval-1" }),
+    },
+  ] satisfies { name: string; result: ChatModelRunResult }[])(
+    "ignores $name when a non-streaming adapter resolves after abort",
+    async ({ result }) => {
+      let released!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        released = resolve;
+      });
+      const appendHistory = vi.fn(
+        async (_item: ExportedMessageRepositoryItem) => {},
+      );
+      const thread = createThread(
+        {
+          async run() {
+            await pending;
+            return result;
+          },
+        },
+        {
+          history: {
+            async load() {
+              return { messages: [] };
+            },
+            append: appendHistory,
+          },
+        },
+      );
 
-    const appendPromise = thread.append(userMessage("hi"));
-    await flush();
+      const appendPromise = thread.append(userMessage("hi"));
+      await flush();
 
-    thread.cancelRun();
-    released();
-    await appendPromise;
+      thread.cancelRun();
+      released();
+      await appendPromise;
 
-    expect(thread.messages.at(-1)?.status).toEqual({
-      type: "incomplete",
-      reason: "cancelled",
-    });
-  });
+      expect(thread.messages.at(-1)?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+      expect(thread.messages.at(-1)?.content).toEqual([]);
+      expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(
+        thread.messages.at(-1),
+      );
+    },
+  );
 
   it("keeps a completed run complete", async () => {
     const thread = createThread({
@@ -3612,6 +3647,74 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
 
       expect(appended).toHaveLength(6);
       expect(appended.map((item) => item.message)).toEqual(thread.messages);
+    });
+
+    it("still writes the seed on the first send after an import that cannot be placed", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+      const seed = thread.messages;
+
+      expect(() =>
+        thread.import({
+          headId: "missing",
+          messages: [
+            {
+              parentId: null,
+              message: { ...seed[0]!, id: "other" },
+            },
+          ],
+        }),
+      ).toThrow();
+      expect(thread.messages).toEqual(seed);
+
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended.slice(0, 2)).toMatchObject([
+        { parentId: null, message: seed[0] },
+        { parentId: "seed-user", message: seed[1] },
+      ]);
+    });
+
+    it("still writes the seed on the first send after a history load that cannot be placed", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, {
+        history: {
+          ...history,
+          load: async () =>
+            ExportedMessageRepository.fromBranchableArray([
+              {
+                parentId: null,
+                message: { id: "x", role: "user", content: "x" },
+              },
+              {
+                parentId: "x",
+                message: { id: "y", role: "user", content: "y" },
+              },
+              {
+                parentId: "y",
+                message: { id: "x", role: "user", content: "x" },
+              },
+            ]),
+        },
+        initialMessages,
+      });
+      const seed = thread.messages;
+
+      await expect(thread.__internal_load()).rejects.toThrow();
+      expect(thread.messages).toEqual(seed);
+
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended.slice(0, 2)).toMatchObject([
+        { parentId: null, message: seed[0] },
+        { parentId: "seed-user", message: seed[1] },
+      ]);
     });
 
     it("defers seed feedback and flushes its current value on the first send", async () => {

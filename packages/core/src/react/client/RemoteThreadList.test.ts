@@ -2503,7 +2503,6 @@ describe("RemoteThreadList", () => {
     adapter = adapterB;
     for (const listener of listeners) listener();
     await vi.waitFor(async () => {
-      flushTapSync(() => {});
       await handle.getClient().threads.reload();
       expect(adapterB.list).toHaveBeenCalled();
       expect(handle.getClient().threads.getState().threadIds).toEqual(
@@ -2740,7 +2739,6 @@ describe("RemoteThreadList", () => {
     adapter = { ...methodsB };
     for (const listener of listeners) listener();
     await vi.waitFor(async () => {
-      flushTapSync(() => {});
       await handle.getClient().threads.reload();
       expect(handle.getClient().threads.getState().threadIds).toEqual([
         "thread-b",
@@ -2989,7 +2987,6 @@ describe("RemoteThreadList", () => {
       .mockImplementation(() => {});
     try {
       await vi.waitFor(async () => {
-        flushTapSync(() => {});
         await handle.getClient().threads.reload();
         expect(handle.getClient().threads.item("main").getState().status).toBe(
           "new",
@@ -3223,7 +3220,6 @@ describe("RemoteThreadList", () => {
     adapter = { ...methodsB };
     for (const listener of listeners) listener();
     await vi.waitFor(async () => {
-      flushTapSync(() => {});
       await handle.getClient().threads.reload();
       expect(handle.getClient().threads.getState().threadIds).toEqual([
         "thread-b",
@@ -3277,7 +3273,6 @@ describe("RemoteThreadList", () => {
       );
       handle.subscribe(() => {});
       await handle.getClient().threads.getLoadThreadsPromise();
-      flushTapSync(() => {});
       expect(warn).not.toHaveBeenCalled();
       handle.destroy();
     } finally {
@@ -3318,7 +3313,6 @@ describe("RemoteThreadList", () => {
       );
       handle.subscribe(() => {});
       await handle.getClient().threads.getLoadThreadsPromise();
-      flushTapSync(() => {});
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("unkeyed"));
       handle.destroy();
     } finally {

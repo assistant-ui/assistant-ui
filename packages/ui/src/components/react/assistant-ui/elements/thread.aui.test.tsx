@@ -68,6 +68,28 @@ function TestThread(props: ThreadProps) {
   );
 }
 
+function RunningAssistantTestThread(props: ThreadProps) {
+  const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+    messages: [
+      {
+        id: "running-assistant",
+        role: "assistant",
+        content: [],
+        status: { type: "running" },
+      },
+    ],
+    isRunning: true,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread {...props} autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
 function ResumableTestThread({
   onResume,
   onNew,
@@ -143,6 +165,36 @@ function AssistantContentTestThread({
         status: { type: "complete", reason: "stop" },
       },
     ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+/** Hands parts to the components as-is: no `convertMessage`, so core never filters them. */
+function RawAssistantPartsTestThread({ content }: { content: unknown[] }) {
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
+    messages: [
+      {
+        id: "raw-message",
+        role: "assistant",
+        createdAt: new Date(0),
+        content: content as ThreadMessage["content"],
+        status: { type: "complete", reason: "stop" },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      } as ThreadMessage,
+    ],
+    isRunning: false,
+    onNew: async () => {},
   });
 
   return (
@@ -448,6 +500,34 @@ describe("Thread", () => {
     expect(container.querySelector(".aui-composer-action-start")).toBeNull();
   });
 
+  it("keeps the default indicator for an empty running assistant message", () => {
+    const { container } = render(<RunningAssistantTestThread />);
+
+    const indicator = container.querySelector(
+      '[data-slot="aui_assistant-message-indicator"]',
+    );
+    expect(indicator?.tagName).toBe("SPAN");
+    expect(indicator?.textContent).toBe("●");
+    expect(indicator?.getAttribute("aria-label")).toBe("Assistant is working");
+  });
+
+  it("replaces the pending indicator with a custom component", () => {
+    const Indicator = () => <span data-testid="custom-indicator">Waiting</span>;
+    const { container } = render(
+      <RunningAssistantTestThread components={{ Indicator }} />,
+    );
+
+    const content = container.querySelector(
+      '[data-slot="aui_assistant-message-content"]',
+    );
+    expect(
+      content?.querySelector('[data-testid="custom-indicator"]')?.textContent,
+    ).toBe("Waiting");
+    expect(
+      content?.querySelector('[data-slot="aui_assistant-message-indicator"]'),
+    ).toBeNull();
+  });
+
   it("hides the empty user attachment wrapper", async () => {
     render(<UserMessageTestThread />);
 
@@ -506,6 +586,54 @@ describe("Thread", () => {
       files[1]!.querySelector('[data-slot="file-name"]')?.textContent,
     ).toBe("Text file");
     expect(screen.queryByText("Unnamed file")).toBeNull();
+  });
+
+  it("renders the well-formed file parts beside ones with fields of the wrong type", () => {
+    render(
+      <AssistantContentTestThread
+        content={
+          [
+            {
+              type: "file",
+              mimeType: { type: "image/png" },
+              data: PNG_DATA_URI,
+            },
+            { type: "file", mimeType: "image/png", data: { nested: true } },
+            { type: "file", mimeType: "image/png", data: PNG_DATA_URI },
+          ] as never
+        }
+      />,
+    );
+
+    const files = document.querySelectorAll<HTMLElement>(
+      '[data-slot="aui_assistant-message-file"]',
+    );
+    expect(files).toHaveLength(1);
+    expect(
+      files[0]!
+        .querySelector('[data-slot="image-preview"] img')
+        ?.getAttribute("src"),
+    ).toBe(PNG_DATA_URI);
+  });
+
+  it("renders a file card, not an image, for a file part that reaches the component with fields of the wrong type", () => {
+    render(
+      <RawAssistantPartsTestThread
+        content={[
+          { type: "file", mimeType: { type: "image/png" }, data: PNG_DATA_URI },
+          { type: "file", mimeType: "image/png", data: { nested: true } },
+        ]}
+      />,
+    );
+
+    const files = document.querySelectorAll<HTMLElement>(
+      '[data-slot="aui_assistant-message-file"]',
+    );
+    expect(files).toHaveLength(2);
+    for (const file of files) {
+      expect(file.querySelector('[data-slot="image-preview"]')).toBeNull();
+      expect(file.querySelector(".aui-file-root")).not.toBeNull();
+    }
   });
 
   it("shows feedback actions only when the runtime supports feedback", () => {

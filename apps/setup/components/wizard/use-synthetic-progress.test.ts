@@ -15,7 +15,7 @@ afterEach(() => {
 describe("useSyntheticProgress", () => {
   it("grows with time while active and never reaches the end", () => {
     const { result } = renderHook(() =>
-      useSyntheticProgress({ active: true, stepKey: "working" }),
+      useSyntheticProgress({ active: true, stepKey: "growing" }),
     );
     expect(result.current.value).toBe(0);
     act(() => vi.advanceTimersByTime(3_000));
@@ -28,7 +28,7 @@ describe("useSyntheticProgress", () => {
 
   it("holds its value while frozen and resumes when active again", () => {
     const { result, rerender } = renderHook(
-      ({ active }) => useSyntheticProgress({ active, stepKey: "working" }),
+      ({ active }) => useSyntheticProgress({ active, stepKey: "freezing" }),
       { initialProps: { active: true } },
     );
     act(() => vi.advanceTimersByTime(3_000));

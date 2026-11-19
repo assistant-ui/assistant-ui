@@ -49,6 +49,7 @@ export const createEchoRuntime = () => {
     const replyTo = currentId;
     isRunning = true;
     sync();
+    clearTimeout(replyTimer);
     replyTimer = setTimeout(() => {
       if (currentId !== replyTo) return;
       updateCurrent((thread) => ({
@@ -93,11 +94,14 @@ export const createEchoRuntime = () => {
     },
     onEdit: async (message) => {
       const text = messageText(message);
-      const parentIndex = message.parentId
-        ? current().messages.findIndex(
-            (entry) => entry.id === message.parentId,
-          ) + 1
-        : 0;
+      let parentIndex = 0;
+      if (message.parentId) {
+        const index = current().messages.findIndex(
+          (entry) => entry.id === message.parentId,
+        );
+        if (index === -1) return;
+        parentIndex = index + 1;
+      }
       updateCurrent((thread) => ({
         ...thread,
         messages: thread.messages.slice(0, parentIndex),
@@ -123,16 +127,9 @@ export const createEchoRuntime = () => {
     },
     onCancel: async () => {
       clearTimeout(replyTimer);
-      if (isRunning && current().messages.at(-1)?.role === "user") {
-        updateCurrent((thread) => ({
-          ...thread,
-          messages: thread.messages.slice(0, -1),
-        }));
-      }
       isRunning = false;
-      // cancelRun restores the trailing user message into the composer
-      // synchronously after onCancel returns; an eager sync would delete it
-      // before that restore reads it.
+      // Publishes the stopped run once cancelRun has handed the trailing user
+      // message back to the composer or left it in place.
       queueMicrotask(sync);
     },
     adapters: {

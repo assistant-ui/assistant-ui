@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it, vi } from "vitest";
 import type { AbstractAgent } from "@ag-ui/client";
 import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
@@ -59,7 +60,7 @@ const rootIds = (core: AgUiThreadController) =>
   core
     .getMessages()
     .filter((message) => message.role === "assistant")
-    .map((message) => message.id);
+    .map((message) => agUiWireMessageId(message));
 
 const nestedUnder = (core: AgUiThreadController, toolCallId: string) =>
   core

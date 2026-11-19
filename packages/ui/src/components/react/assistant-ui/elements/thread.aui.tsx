@@ -109,8 +109,8 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
- * `Welcome` replace whole sections; the remaining slots override how the
- * assistant message renders tool calls and part groups. Tool UIs registered
+ * `Welcome` replace whole sections; the message slots override tool calls,
+ * part groups, and the pending indicator. Tool UIs registered
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
  * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
  * conversation and have no registered UI render through it instead of the
@@ -121,6 +121,7 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
+  Indicator?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   ToolGroup?:
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
@@ -696,6 +697,7 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   const {
+    Indicator,
     ToolFallback: ToolFallbackComponent = ToolFallback,
     ToolGroup,
     ReasoningGroup,
@@ -773,7 +775,9 @@ const AssistantMessage: FC = () => {
                   </div>
                 );
               case "indicator":
-                return (
+                return Indicator ? (
+                  <Indicator />
+                ) : (
                   <span
                     data-slot="aui_assistant-message-indicator"
                     className="animate-pulse font-sans"
@@ -869,16 +873,19 @@ const AssistantActionBar: FC = () => {
 };
 
 const MessageFile: FileMessagePartComponent = (part) => {
-  const image = part.mimeType.toLowerCase().startsWith("image/")
-    ? getFileHref(part.data, part.mimeType, part.sourceType)
-    : null;
+  const image =
+    typeof part.mimeType === "string" &&
+    typeof part.data === "string" &&
+    part.mimeType.toLowerCase().startsWith("image/")
+      ? getFileHref(part.data, part.mimeType, part.sourceType)
+      : null;
   if (!image) return <File {...part} />;
   return (
     <Image
       type="image"
       image={image}
       status={part.status}
-      {...(part.filename !== undefined && { filename: part.filename })}
+      {...(typeof part.filename === "string" && { filename: part.filename })}
     />
   );
 };

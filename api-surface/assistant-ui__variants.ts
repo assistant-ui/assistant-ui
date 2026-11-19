@@ -89,6 +89,7 @@ type VariantsProps = {
 
 type VariantsRouteOptions = {
   allowedHosts?: AllowedHosts | undefined;
+  allowRemoteClients?: boolean | undefined;
 };
 
 type VariantsSelection = {

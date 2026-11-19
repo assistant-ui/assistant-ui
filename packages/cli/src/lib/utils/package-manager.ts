@@ -7,6 +7,13 @@ import { runSpawn, SpawnSignalError } from "../run-spawn";
 
 export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
 
+/**
+ * The shadcn CLI version the commands run through dlx. A fixed version keeps a
+ * new shadcn release from changing what `create`, `init` and `add` do; bump it
+ * with the CLI.
+ */
+export const SHADCN_PACKAGE = "shadcn@4.23.0";
+
 export function dlxCommand(pm: PackageManagerName): [string, string[]] {
   switch (pm) {
     case "pnpm":

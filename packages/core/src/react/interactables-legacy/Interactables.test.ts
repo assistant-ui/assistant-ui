@@ -106,6 +106,20 @@ const reg = (id: string): InteractableRegistration => ({
 
 const flushMicrotasks = () => vi.advanceTimersByTimeAsync(0);
 
+// vi.waitFor moves fake timers forward by its interval on every check; an
+// interval of 0 leaves the persistence timers where each test put them.
+const waitForCommit = <T>(assertion: () => T) =>
+  vi.waitFor(assertion, { interval: 0 });
+
+// getState returns what tap has committed, exportState the latest state.
+const committedState = (id: string) =>
+  waitForCommit(() => {
+    const value = root!.getValue();
+    const committed = value.getState().definitions[id]?.state;
+    expect(committed).toBe(value.exportState()[id]?.state);
+    return committed;
+  });
+
 let root: ReturnType<typeof mount> | undefined;
 
 beforeEach(() => {
@@ -160,9 +174,10 @@ describe("legacy Interactables update tool", () => {
       { toolCallId: "call-2" },
     );
     await flushMicrotasks();
-    expect(
-      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
-    ).toEqual({ title: "new", settings: { name: "new", size: 2 } });
+    expect(stateSchema.parse(await committedState("n1"))).toEqual({
+      title: "new",
+      settings: { name: "new", size: 2 },
+    });
   });
 
   it("keeps a streaming nested object parseable at every token", async () => {
@@ -204,7 +219,7 @@ describe("legacy Interactables update tool", () => {
             await flushMicrotasks();
             ticks.push({
               prefix: text.slice(0, end),
-              state: root!.getValue().getState().definitions["n1"]?.state,
+              state: await committedState("n1"),
             });
           }
         },
@@ -225,9 +240,10 @@ describe("legacy Interactables update tool", () => {
 
     await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
     await flushMicrotasks();
-    expect(
-      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
-    ).toEqual({ title: "old", settings: { name: "medium", size: 2 } });
+    expect(stateSchema.parse(await committedState("n1"))).toEqual({
+      title: "old",
+      settings: { name: "medium", size: 2 },
+    });
   });
 
   it("falls back to the raw schema when a re-registration cannot convert", async () => {
@@ -434,12 +450,17 @@ describe("legacy Interactables persistence", () => {
     root.getValue().setPersistenceAdapter({ save: vi.fn() });
     await flushMicrotasks();
 
-    expect(root.getValue().getState().persistence["n1"]?.isPending).toBe(true);
-    expect(root.getValue().getState().persistence["n2"]).toBeUndefined();
+    await waitForCommit(() => {
+      const { persistence } = root!.getValue().getState();
+      expect(persistence["n1"]?.isPending).toBe(true);
+      expect(persistence["n2"]).toBeUndefined();
+    });
 
     resolveFirstSave();
     await flushMicrotasks();
-    expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
+    await waitForCommit(() =>
+      expect(root!.getValue().getState().persistence["n1"]).toBeUndefined(),
+    );
   });
 
   it("does not publish a previous adapter's failure into the new adapter's scope", async () => {
@@ -495,8 +516,10 @@ describe("legacy Interactables persistence", () => {
     rejectSave(new Error("same scope save failed"));
     await flushMicrotasks();
 
-    expect(root.getValue().getState().persistence["n1"]?.error).toBeInstanceOf(
-      Error,
+    await waitForCommit(() =>
+      expect(
+        root!.getValue().getState().persistence["n1"]?.error,
+      ).toBeInstanceOf(Error),
     );
   });
 
@@ -523,12 +546,18 @@ describe("legacy Interactables persistence", () => {
 
     saveResolvers[0]!();
     await flushMicrotasks();
-    expect(root.getValue().getState().persistence["n1"]?.isPending).toBe(true);
+    await waitForCommit(() =>
+      expect(root!.getValue().getState().persistence["n1"]?.isPending).toBe(
+        true,
+      ),
+    );
     expect(secondSave).not.toHaveBeenCalled();
 
     saveResolvers[1]!();
     await flushMicrotasks();
     expect(secondSave).toHaveBeenCalledTimes(1);
-    expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
+    await waitForCommit(() =>
+      expect(root!.getValue().getState().persistence["n1"]).toBeUndefined(),
+    );
   });
 });

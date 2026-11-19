@@ -1,4 +1,5 @@
 import { flushTapSync } from "@assistant-ui/tap";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import {
   composerCancelDisabled,
   composerInputDisabled,
@@ -44,12 +45,7 @@ export const composerInput = (options?: {
   };
   const onkeydown = (event: KeyboardEvent) => {
     if (event.defaultPrevented || !submitOnEnter) return;
-    if (
-      event.key !== "Enter" ||
-      event.shiftKey ||
-      event.isComposing ||
-      event.keyCode === 229
-    )
+    if (event.key !== "Enter" || event.shiftKey || isCompositionKey(event))
       return;
     if (sendDisabled.current || inputDisabled.current) return;
     event.preventDefault();

@@ -1,5 +1,11 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.23
+
+### Patch Changes
+
+- [#10596](https://github.com/assistant-ui/assistant-ui/pull/10596) [`f154104`](https://github.com/assistant-ui/assistant-ui/commit/f15410492c531412555984830028ccc745f10949) - fix: prefix `id` and `name` attributes from markdown with `user-content-`, and keep the sanitize step when custom `rehypePlugins` are passed without `security` ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.22
 
 ### Patch Changes

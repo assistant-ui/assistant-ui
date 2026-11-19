@@ -13,6 +13,7 @@ import {
 import { composerInput, composerSend } from "../primitives/composer";
 import { threadMessages, type MessageItem } from "../primitives/threadMessages";
 import Host from "./fixtures/Host.svelte";
+import Nested from "./fixtures/Nested.svelte";
 import { createEchoRuntime, flushEvents, type AnyClient } from "./clients";
 
 const target = () => document.createElement("div");
@@ -246,11 +247,13 @@ describe("action bar builders", () => {
     ]);
     let copy!: ReturnType<typeof actionBarCopy>;
     let item!: MessageItem;
-    const app = mount(Host, {
+    const app = mount(Nested, {
       target: target(),
       props: {
-        setup: () => {
+        outerSetup: () => {
           provideAui(AuiConfig({ threads: RuntimeAdapter(echo.runtime) }));
+        },
+        innerSetup: () => {
           const messages = threadMessages();
           item = messages.item(1);
           item.source.subscribe(() => {});

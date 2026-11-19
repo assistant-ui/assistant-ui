@@ -30,6 +30,28 @@ const detectorScript = detectorStep
   .split("        run: |\n")[1]
   .split("\n  shards:")[0]
   .replace(/^ {10}/gm, "");
+const pushPaths = coverageWorkflow.match(
+  /^  push:\n[\s\S]*?^    paths:\n((?:      - .*\n)+)/m,
+)?.[1];
+assert(pushPaths);
+const pushPatterns = [...pushPaths.matchAll(/- "([^"]+)"/g)].map(
+  (match) => match[1],
+);
+const sharedTestInputs = JSON.parse(
+  readFileSync(path.join(root, "turbo.json"), "utf8"),
+)
+  .tasks["test:coverage"].inputs.filter((input) =>
+    input.startsWith("$TURBO_ROOT$/"),
+  )
+  .flatMap((input) =>
+    globSync(input.slice("$TURBO_ROOT$/".length), { cwd: root }),
+  )
+  .map((input) => input.replaceAll("\\", "/"))
+  .filter((input) => /\.[cm]?[jt]sx?$/.test(input));
+assert(
+  sharedTestInputs.length > 0,
+  "shared executable test inputs are discovered",
+);
 
 function coverageFixture(t) {
   const cwd = mkdtempSync(path.join(tmpdir(), "coverage-routing-"));
@@ -111,6 +133,31 @@ for (const file of [
   });
 }
 
+for (const file of sharedTestInputs) {
+  for (const event of ["pull_request", "merge_group"]) {
+    test(`shared test input ${file} runs coverage for ${event}`, (t) => {
+      const fixture = coverageFixture(t);
+      fixture.commit(file);
+      assert.equal(fixture.run(event), "run=true");
+    });
+  }
+
+  test(`shared test input ${file} triggers coverage on main`, () => {
+    assert.equal(
+      pushPatterns.reduce((included, pattern) => {
+        const negative = pattern.startsWith("!");
+        return path.posix.matchesGlob(
+          file,
+          negative ? pattern.slice(1) : pattern,
+        )
+          ? !negative
+          : included;
+      }, false),
+      true,
+    );
+  });
+}
+
 test("coverage uses the full merge group range and the PR first parent", (t) => {
   const fixture = coverageFixture(t);
   fixture.commit("packages/core/src/index.ts");
@@ -151,10 +198,6 @@ test("coverage reports for all PRs and merge groups while gating expensive steps
 });
 
 test("the push trigger watches the paths the detector compares", () => {
-  const pushPaths = coverageWorkflow.match(
-    /^  push:\n[\s\S]*?^    paths:\n((?:      - .*\n)+)/m,
-  )?.[1];
-  assert(pushPaths);
   const detectorPaths = detectorScript
     .split('git diff --quiet "$BASE" HEAD -- \\\n')[1]
     ?.split("; then")[0];

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { DefaultEditComposerRuntimeCore } from "../runtime/base/default-edit-composer-runtime-core";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
 import type { AppendMessage, ThreadMessage } from "../types/message";
@@ -7,6 +7,7 @@ import type {
   PendingAttachment,
 } from "../types/attachment";
 import type { AttachmentAdapter } from "../adapters/attachment";
+import type { DictationAdapter } from "../adapters/speech";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 
 const makeRuntime = (
@@ -901,4 +902,39 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
       expect(composer.attachments.map(({ id }) => id)).toEqual(["b"]);
     },
   );
+
+  it("keeps how dictation ended on the edit composer until the next start", () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    let status: DictationAdapter.Status = { type: "running" };
+    const listen = vi.fn((): DictationAdapter.Session => ({
+      get status() {
+        return status;
+      },
+      stop: async () => {},
+      cancel: () => {},
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    }));
+    const { runtime } = makeRuntime();
+    Object.assign(runtime, { adapters: { dictation: { listen } } });
+    const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+      parentId: null,
+      message: makeUserMessage(),
+    });
+    const error = { code: "no-speech", message: "" };
+
+    composer.startDictation();
+    status = { type: "ended", reason: "error", error };
+    vi.advanceTimersByTime(100);
+    expect(composer.lastDictationEnd).toEqual({ reason: "error", error });
+
+    status = { type: "running" };
+    composer.startDictation();
+    expect(composer.lastDictationEnd).toBeUndefined();
+    composer.stopDictation();
+  });
 });

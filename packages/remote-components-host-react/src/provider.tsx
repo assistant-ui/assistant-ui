@@ -12,7 +12,9 @@ export interface RemoteHostConfig {
   allow?: string;
   /**
    * Origins overlay content may be loaded from. Default "same-origin": the
-   * requesting remote's own origin only.
+   * requesting remote's own origin only (an inline `html` remote has an
+   * opaque origin, so it matches nothing). Overlay `src` must always be an
+   * absolute http(s) URL.
    */
   overlayOrigins?: "same-origin" | "any" | readonly string[];
   /** z-index of the overlay layer. Default 2147483000. */

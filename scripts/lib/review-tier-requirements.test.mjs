@@ -1325,9 +1325,16 @@ const pushedAfter = (comparison, overrides = {}) =>
   });
 const ahead = (files) => ({ ahead: true, complete: true, files });
 
-test("an approval carries over a docs-only push", () => {
+test("an approval carries over a push within T0", () => {
   const result = evaluateRequirements(
-    pushedAfter(ahead([changed("README.md"), changed("apps/docs/x.mdx")])),
+    pushedAfter(
+      ahead([
+        changed("README.md"),
+        changed("apps/docs/x.mdx"),
+        changed(".changeset/brave-owls.md"),
+        changed("apps/web/app/page.tsx"),
+      ]),
+    ),
     policy,
   );
   assert.equal(result.status, "success");
@@ -1338,12 +1345,14 @@ test("an approval carries over a docs-only push", () => {
   });
 });
 
-test("an approval carries over a package source push outside owner areas", () => {
-  const result = evaluateRequirements(
-    pushedAfter(ahead([changed("packages/react/src/index.ts")])),
-    policy,
-  );
-  assert.deepEqual(result.approvals.counted, ["alice"]);
+test("an approval carries over a push with no changed files", () => {
+  const result = evaluateRequirements(pushedAfter(ahead([])), policy);
+  assert.equal(result.status, "success");
+  assert.deepEqual(result.approvals, {
+    counted: ["alice"],
+    ignored: [],
+    carried: [{ login: "alice", sha: "approved" }],
+  });
 });
 
 for (const [name, path] of [
@@ -1351,6 +1360,13 @@ for (const [name, path] of [
   ["an api-surface file", "api-surface/assistant-ui__react.ts"],
   ["the CI policy area", ".github/workflows/ci.yaml"],
   ["a package manifest", "packages/react/package.json"],
+  ["react package source", "packages/react/src/index.ts"],
+  ["core package source", "packages/core/src/index.ts"],
+  ["cli package source", "packages/cli/src/index.ts"],
+  ["the lockfile", "pnpm-lock.yaml"],
+  ["the workspace file", "pnpm-workspace.yaml"],
+  ["the root manifest", "package.json"],
+  ["the turbo config", "turbo.json"],
 ]) {
   test(`a push touching ${name} leaves the approval stale`, () => {
     const result = evaluateRequirements(
@@ -1380,7 +1396,7 @@ test("a push touching a package with its own owners leaves the approval stale", 
   });
   assert.deepEqual(
     evaluateRequirements(
-      pushedAfter(ahead([changed("packages/react/src/index.ts")])),
+      pushedAfter(ahead([changed("apps/web/app/page.tsx")])),
       ownedPolicy,
     ).approvals.counted,
     ["alice"],

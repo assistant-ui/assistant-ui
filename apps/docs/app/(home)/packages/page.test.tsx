@@ -1,5 +1,5 @@
 import { Children, Suspense, isValidElement, type ReactElement } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NpmDownloads } from "@/lib/traction";
 
 const mocks = vi.hoisted(() => {
@@ -32,6 +32,10 @@ vi.mock("@/lib/traction", async (importOriginal) => ({
 }));
 
 const { default: PackagesPage } = await import("./page");
+
+beforeEach(() => {
+  mocks.requests.length = 0;
+});
 
 type Directory = ReactElement<{ concentration: unknown }>;
 

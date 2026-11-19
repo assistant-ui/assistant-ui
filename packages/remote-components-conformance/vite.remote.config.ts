@@ -16,6 +16,9 @@ export default defineConfig({
     remoteComponents({
       components: "components",
       singleFile: { plugins: [react()] },
+      // The suite's "opaque" case loads a dev-server remote in a sandbox
+      // without allow-same-origin.
+      opaqueFrames: true,
     }),
   ],
   server: { host: "127.0.0.1", port: 5181, strictPort: true },

@@ -157,6 +157,8 @@ type AssistantCloudProjectThreadMessageListQuery = {
 
 type AssistantCloudProjectThreadMessageListResponse = {
   messages: CloudMessage[];
+  has_more?: boolean;
+  next_cursor?: string | null;
 };
 
 declare class AssistantCloudProjectThreadMessages {
@@ -343,6 +345,8 @@ type AssistantCloudThreadMessageListQuery = {
 
 type AssistantCloudThreadMessageListResponse = {
   messages: CloudMessage[];
+  has_more?: boolean;
+  next_cursor?: string | null;
 };
 
 type AssistantCloudThreadMessageUpdateBody = {
@@ -418,6 +422,16 @@ type AssistantCloudThreadsUpdateBody = {
   metadata?: unknown | undefined;
   is_archived?: boolean | undefined;
 };
+
+type AssistantError = {
+  readonly code: AssistantErrorCode;
+  readonly message: string;
+  readonly statusCode?: number;
+  readonly severity?: ErrorSeverity;
+  readonly display?: ErrorDisplay;
+};
+
+type AssistantErrorCode = "unknown" | "network" | "provider" | (string & {});
 
 type AssistantEventCallback<TEvent extends AssistantEventName> = (payload: AssistantEventPayload[TEvent]) => void;
 
@@ -610,6 +624,7 @@ type BaseComposerState = {
   readonly runConfig: RunConfig;
   readonly attachmentAccept: string;
   readonly dictation: DictationState | undefined;
+  readonly lastDictationEnd?: DictationEnd | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
   readonly submission?: ComposerSubmission | undefined;
@@ -879,6 +894,7 @@ declare namespace DictationAdapter {
   } | {
     type: "ended";
     reason: "cancelled" | "error" | "stopped";
+    error?: unknown;
   };
   type Result = {
     transcript: string;
@@ -897,6 +913,13 @@ declare namespace DictationAdapter {
 type DictationAdapter = {
   listen: () => DictationAdapter.Session;
   disableInputDuringDictation?: boolean;
+};
+
+type DictationEnd = {
+  readonly reason: Extract<DictationAdapter.Status, {
+    type: "ended";
+  }>["reason"];
+  readonly error?: AssistantError;
 };
 
 type DictationState = {
@@ -926,6 +949,10 @@ type EditComposerState = BaseComposerState & {
   readonly parentId: string | null;
   readonly sourceId: string | null;
 };
+
+type ErrorDisplay = "dev-only" | "inline" | "silent" | "toast";
+
+type ErrorSeverity = "critical" | "info" | "warning";
 
 interface EventLog {
   time: Date;
@@ -1390,6 +1417,7 @@ type PartInit = {
   readonly type: "tool-call";
   readonly toolCallId: string;
   readonly toolName: string;
+  readonly providerExecuted?: boolean;
   readonly parentId?: string;
 } | {
   readonly type: "source";
@@ -2285,6 +2313,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly id?: string;
   readonly text: string;
+  readonly unstable_redacted?: boolean;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
   readonly timing?: MessagePartTiming;
@@ -2881,6 +2910,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     type: "human";
     payload: unknown;
   };
+  readonly providerExecuted?: boolean | undefined;
   readonly approval?: {
     readonly id: string;
     readonly prompt?: string;
