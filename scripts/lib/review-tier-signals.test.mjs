@@ -46,6 +46,13 @@ const manifestInput = (base, head, path = "packages/react/package.json") =>
 
 for (const [path, deletions, tier, code, areas] of [
   [".github/review-policy.json", 0, 3, "decision-path", ["ci-policy"]],
+  [".npmrc", 0, 3, "decision-path", []],
+  ["apps/docs/.npmrc", 0, 3, "decision-path", []],
+  ["examples/demo/.npmrc", 0, 3, "decision-path", []],
+  ["templates/minimal/.npmrc", 0, 3, "decision-path", []],
+  ["packages/react/.npmrc", 0, 3, "decision-path", []],
+  ["packages/tap/.npmrc", 0, 3, "decision-path", ["reactivity"]],
+  [".config/pnpm/.npmrc", 0, 3, "decision-path", []],
   ["packages/tap/README.md", 0, 2, "contract-area", ["reactivity"]],
   ["apps/docs/content/docs/tap/x.mdx", 0, 2, "contract-docs", ["reactivity"]],
   ["CONTRIBUTING.md", 0, 2, "contract-area", ["ci-policy"]],
@@ -661,6 +668,100 @@ for (const [path, patch] of [
     );
   });
 }
+
+for (const [change, patch] of [
+  ["git override", " overrides:\n-  foo: ^1.2.3\n+  foo: github:someone/foo"],
+  ["alias override", " overrides:\n-  foo: ^1.2.3\n+  foo: npm:fork@1.2.3"],
+  ["build permission", " allowBuilds:\n+  foo@1.2.3: true"],
+  ["trust policy", "-trustPolicy: no-downgrade\n+trustPolicy: off"],
+  ["release age", "-minimumReleaseAge: 1440\n+minimumReleaseAge: 0"],
+  ["removed trust policy", "-trustPolicy: no-downgrade"],
+  ["unknown setting", "+futureInstallPolicy: false"],
+  ["wildcard exception", " minimumReleaseAgeExclude:\n+  - foo@*"],
+  ["unversioned exception", " minimumReleaseAgeExclude:\n+  - foo"],
+  ["range exception", " minimumReleaseAgeExclude:\n+  - foo@^1.2.3"],
+  ["tag exception", " minimumReleaseAgeExclude:\n+  - foo@latest"],
+  ["partial version", " minimumReleaseAgeExclude:\n+  - foo@1.2"],
+  ["leading zero", " minimumReleaseAgeExclude:\n+  - foo@01.2.3"],
+  ["invalid prerelease", " minimumReleaseAgeExclude:\n+  - foo@1.2.3-01"],
+  ["mismatched quotes", " minimumReleaseAgeExclude:\n+  - 'foo@1.2.3\""],
+  ["mixed changes", "+  - foo@1.2.3\n+minimumReleaseAge: 0"],
+  ["unavailable patch", null],
+]) {
+  test(`workspace install policy changes give T3: ${change}`, () => {
+    const path = "pnpm-workspace.yaml";
+    const result = computeTier(
+      input({ files: [file(path, { patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, 3);
+    assert.deepEqual(
+      result.reasons.filter(({ code }) => code === "install-policy"),
+      [{ tier: 3, code: "install-policy", detail: path }],
+    );
+  });
+}
+
+for (const [change, patch] of [
+  ["exact exception", " minimumReleaseAgeExclude:\n+  - foo@1.2.3"],
+  ["scoped exception", " minimumReleaseAgeExclude:\n+  - @scope/foo@1.2.3"],
+  ["quoted scoped exception", " trustPolicyExclude:\n+  - '@scope/foo@1.2.3'"],
+  ["double quoted exception", ' minimumReleaseAgeExclude:\n+  - "foo@1.2.3"'],
+  ["prerelease exception", " minimumReleaseAgeExclude:\n+  - foo@1.2.3-rc.1"],
+  ["build metadata", " minimumReleaseAgeExclude:\n+  - foo@1.2.3+build.007"],
+  ["removed exception", " minimumReleaseAgeExclude:\n-  - foo@1.2.3"],
+  ["comments", "-# Old comment\n+# New comment\n+  # Indented comment"],
+  ["blank lines", "+\n-  "],
+  [
+    "diff headers and context",
+    "--- a/pnpm-workspace.yaml\n+++ b/pnpm-workspace.yaml\n@@ -1,2 +1,3 @@\n minimumReleaseAge: 1440\n minimumReleaseAgeExclude:\n+  - foo@1.2.3",
+  ],
+]) {
+  test(`workspace install policy exemptions stay T1: ${change}`, () => {
+    const result = computeTier(
+      input({ files: [file("pnpm-workspace.yaml", { patch })] }),
+      policy,
+    );
+    assert.equal(result.tier, 1);
+    assert.deepEqual(result.reasons, [
+      { tier: 1, code: "source", detail: "pnpm-workspace.yaml" },
+    ]);
+  });
+}
+
+for (const [path, previousPath] of [
+  ["pnpm-workspace.yaml", "workspace.yaml"],
+  ["workspace.yaml", "pnpm-workspace.yaml"],
+]) {
+  for (const patch of ["+allowBuilds:\n+  foo@1.2.3: true", null]) {
+    test(`a workspace install policy rename from ${previousPath} to ${path} gives T3: ${patch}`, () => {
+      const result = computeTier(
+        input({
+          files: [file(path, { status: "renamed", previousPath, patch })],
+        }),
+        policy,
+      );
+      assert.equal(result.tier, 3);
+      assert.deepEqual(
+        result.reasons.filter(({ code }) => code === "install-policy"),
+        [{ tier: 3, code: "install-policy", detail: path }],
+      );
+    });
+  }
+}
+
+test("workspace install policy signals only apply to the root workspace file", () => {
+  const result = computeTier(
+    input({
+      files: [
+        file("examples/demo/pnpm-workspace.yaml", { patch: "+allowBuilds:" }),
+      ],
+    }),
+    policy,
+  );
+  assert.equal(result.tier, 0);
+  assert.ok(!result.reasons.some(({ code }) => code === "install-policy"));
+});
 
 test("an unknown title type adds a failure without an override", () => {
   const result = computeTier(
@@ -1453,7 +1554,7 @@ test("a dot-prefixed workflow file lands in the CI and policy area", () => {
 
 test("a dot-prefixed file in a contract package is a contract-area change", () => {
   const result = computeTier(
-    input({ files: [file("packages/tap/.npmrc")] }),
+    input({ files: [file("packages/tap/.config")] }),
     policy,
   );
   assert.equal(result.tier, 2);

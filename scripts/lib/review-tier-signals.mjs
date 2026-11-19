@@ -196,6 +196,19 @@ export function computeTier(input, policy) {
       addReason(3, "ci-permissions", file.path);
     }
     if (
+      (file.path === "pnpm-workspace.yaml" ||
+        file.previousPath === "pnpm-workspace.yaml") &&
+      (file.patch === null ||
+        [...added, ...removed].some(
+          (line) =>
+            !/^\s*(?:#.*|-\s+(['"]?)(?:@[\w.-]+\/)?[\w.-]+@(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?\1)?\s*$/.test(
+              line.slice(1),
+            ),
+        ))
+    ) {
+      addReason(3, "install-policy", file.path);
+    }
+    if (
       type === "refactor" &&
       isTestPath(policy, file.path) &&
       ((file.patch === null && file.deletions > 0) ||
