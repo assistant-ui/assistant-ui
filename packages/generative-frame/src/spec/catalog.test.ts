@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { createActionDispatcher } from "./actions";
+import { resolveProps } from "./expressions";
 import { defineCatalog, type PropsSchema } from "./catalog";
 import { createSpecTools } from "./render-spec";
 import { createStateStore } from "./state";
@@ -976,5 +977,163 @@ describe("state store and actions", () => {
     expect(
       onError.mock.calls.map(([error]) => (error as Error).message),
     ).toEqual(['Unknown action "explode"', "setState needs a string `path`"]);
+  });
+});
+
+describe("reserved keys", () => {
+  const strict = defineCatalog({
+    components: {
+      Link: {
+        description: "A link.",
+        props: {
+          type: "object",
+          properties: { href: { type: "string", enum: ["/home"] } },
+          additionalProperties: false,
+        },
+      },
+      Open: {
+        description: "A link without a closed shape.",
+        props: {
+          type: "object",
+          properties: { href: { type: "string", enum: ["/home"] } },
+        },
+      },
+    },
+  });
+
+  it.each(["__proto__", "constructor", "prototype"])(
+    "rejects a %s prop the schema does not declare",
+    (key) => {
+      const props = JSON.parse(`{"${key}": {"href": "elsewhere"}}`);
+      expect(strict.validateProps("Link", props)).toEqual([
+        { path: `/${key}`, message: "is not an allowed property" },
+      ]);
+    },
+  );
+
+  it.each(["__proto__", "constructor", "prototype"])(
+    "reports a %s key anywhere in props or params",
+    (key) => {
+      const spec = JSON.parse(`{
+        "root": "a",
+        "elements": {
+          "a": {
+            "type": "Open",
+            "props": { "${key}": { "href": "elsewhere" } },
+            "on": { "press": { "action": "setState", "params": { "path": "/x", "value": { "${key}": 1 } } } }
+          }
+        }
+      }`) as Spec;
+      const issues = validateSpec(spec, strict).issues.map((issue) => [
+        issue.code,
+        issue.path,
+      ]);
+      expect(issues).toContainEqual([
+        "invalid-props",
+        `/elements/a/props/${key}`,
+      ]);
+      expect(issues).toContainEqual([
+        "invalid-params",
+        `/elements/a/on/press/params/value/${key}`,
+      ]);
+    },
+  );
+
+  it("leaves reserved keys out of resolved props and values", () => {
+    const props = JSON.parse(
+      '{"__proto__": {"href": "elsewhere"}, "style": {"__proto__": {"color": "red"}}}',
+    );
+    const { props: resolved } = resolveProps(props, { state: {} });
+    expect(Object.getPrototypeOf(resolved)).toBe(Object.prototype);
+    expect(resolved["href"]).toBeUndefined();
+    expect(Object.hasOwn(resolved, "__proto__")).toBe(false);
+    const style = resolved["style"] as Record<string, unknown>;
+    expect(Object.getPrototypeOf(style)).toBe(Object.prototype);
+    expect(style["color"]).toBeUndefined();
+  });
+});
+
+describe("resolved action params", () => {
+  it("checks params resolved from expressions before the handler runs", async () => {
+    const refresh = vi.fn();
+    const onError = vi.fn();
+    const store = createStateStore({ range: 7 });
+    const dispatch = createActionDispatcher({
+      store,
+      catalog,
+      handlers: { refresh },
+      onError,
+    });
+    await dispatch(
+      { action: "refresh", params: { range: { $state: "/range" } } },
+      {},
+    );
+    expect(refresh).not.toHaveBeenCalled();
+    expect(
+      onError.mock.calls.map(([error]) => (error as Error).message),
+    ).toEqual(['Action "refresh" params range expected string, got integer']);
+
+    store.set("/range", "7d");
+    await dispatch(
+      { action: "refresh", params: { range: { $state: "/range" } } },
+      {},
+    );
+    expect(refresh).toHaveBeenCalledWith({ range: "7d" }, expect.anything());
+  });
+
+  it("passes an expression that resolves to nothing through", async () => {
+    const refresh = vi.fn();
+    const dispatch = createActionDispatcher({
+      store: createStateStore(),
+      catalog,
+      handlers: { refresh },
+    });
+    await dispatch(
+      { action: "refresh", params: { range: { $state: "/range" } } },
+      {},
+    );
+    expect(refresh).toHaveBeenCalledWith(
+      { range: undefined },
+      expect.anything(),
+    );
+  });
+
+  it("checks every param of a Standard Schema action once one is an expression", async () => {
+    const standard: PropsSchema = {
+      "~standard": {
+        version: 1,
+        vendor: "test",
+        validate: (value: unknown) => {
+          const { url, label } = value as { url?: unknown; label?: unknown };
+          const issues = [
+            ...(typeof url === "string" && url.startsWith("https://")
+              ? []
+              : [{ message: "must be https", path: [{ key: "url" }] }]),
+            ...(typeof label === "string"
+              ? []
+              : [{ message: "must be text", path: [{ key: "label" }] }]),
+          ];
+          return issues.length ? { issues } : { value };
+        },
+      },
+    };
+    const open = vi.fn();
+    const onError = vi.fn();
+    const zodLike = defineCatalog({
+      components: {},
+      actions: { open: { description: "Opens a page.", params: standard } },
+    });
+    const params = { url: "javascript:bad()", label: { $state: "/label" } };
+    expect(zodLike.validateParams("open", params)).toEqual([]);
+    await createActionDispatcher({
+      store: createStateStore({ label: "Docs" }),
+      catalog: zodLike,
+      handlers: { open },
+      onError,
+    })({ action: "open", params }, {});
+    expect(open).not.toHaveBeenCalled();
+    expect(
+      onError.mock.calls.map(([error]) => (error as Error).message),
+    ).toEqual(['Action "open" params url must be https']);
   });
 });

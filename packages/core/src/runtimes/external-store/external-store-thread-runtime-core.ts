@@ -52,7 +52,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
-import { generateId } from "../../utils/id";
+import { generateId, isErrorMessageId } from "../../utils/id";
 import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
   NO_TOOL_EXECUTIONS,
@@ -293,6 +293,29 @@ export class ExternalStoreThreadRuntimeCore
   // passes while the same tail message awaits its response so the placeholder
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
+
+  // Synthesized error messages (`__error__` ids) added from the host's
+  // messages array, per repository so a thread switched away from and back
+  // keeps its record. Each conversion of an error makes a fresh id, so once
+  // the host no longer sends one it is gone for good and would otherwise stay
+  // behind as a sibling branch.
+  private readonly _errorMessageIdsByRepository = new WeakMap<
+    MessageRepository,
+    Set<string>
+  >();
+
+  // Full host snapshot passes completed, so a pass resumed after a run event
+  // can tell whether a listener already applied a newer one.
+  private _completedHostSnapshots = 0;
+
+  private get _errorMessageIds() {
+    let ids = this._errorMessageIdsByRepository.get(this.repository);
+    if (!ids) {
+      ids = new Set();
+      this._errorMessageIdsByRepository.set(this.repository, ids);
+    }
+    return ids;
+  }
 
   // The last host branch with locally submitted feedback applied, or the array
   // last handed to setMessages, whichever was written last. Excludes the
@@ -778,6 +801,17 @@ export class ExternalStoreThreadRuntimeCore
       for (const [id, message] of hostDeletedMessages) {
         this._evictDeletedMessage(id, message, false);
       }
+      const errorMessageIds = this._errorMessageIds;
+      for (const id of errorMessageIds) {
+        if (incomingIds.has(id)) continue;
+        // A host that kept the error and built turns on it owns that branch.
+        if (this.repository.hasChildren(id)) continue;
+        errorMessageIds.delete(id);
+        this._evictDeletedMessage(id, undefined, false);
+      }
+      for (const message of messages) {
+        if (isErrorMessageId(message.id)) errorMessageIds.add(message.id);
+      }
 
       // A pass over the host's previous array, such as a client tool's
       // running refresh, can predate the host's answer to onDelete.
@@ -838,6 +872,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this._effectiveIsRunning = isRunning;
+    const completedHostSnapshots = this._completedHostSnapshots;
     if (previousIsRunning !== isRunning) {
       if (isRunning) {
         const scope = this._cancelledToolTurn;
@@ -857,6 +892,10 @@ export class ExternalStoreThreadRuntimeCore
       } else {
         this._notifyEventSubscribers("runEnd", {});
       }
+      // A listener may have published a newer host snapshot that already
+      // selected its head and drove tools; this one may point at a message it
+      // evicted.
+      if (this._completedHostSnapshots !== completedHostSnapshots) return;
     }
 
     // Append an optimistic placeholder while running but before a trailing
@@ -915,6 +954,7 @@ export class ExternalStoreThreadRuntimeCore
         this._runTrackerUpdate(() => this._toolInvocations?.reset());
       }
       this._runTrackerUpdate(() => this._driveToolInvocations());
+      this._completedHostSnapshots++;
     }
 
     this._notifySubscribers();

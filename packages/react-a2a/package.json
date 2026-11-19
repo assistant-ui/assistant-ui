@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.2.52",
+  "version": "0.2.53",
   "description": "A2A (Agent-to-Agent) v1.0 protocol adapter for assistant-ui",
   "keywords": [
     "a2a",
@@ -38,12 +38,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.36",
-    "@assistant-ui/generative-ui": "^0.0.11",
-    "@assistant-ui/store": "^0.3.23",
-    "assistant-stream": "^0.3.57"
+    "@assistant-ui/core": "^0.3.37",
+    "@assistant-ui/generative-ui": "^0.0.12",
+    "assistant-stream": "^0.3.58"
   },
   "peerDependencies": {
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -53,6 +54,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/dom": "^10.4.2",

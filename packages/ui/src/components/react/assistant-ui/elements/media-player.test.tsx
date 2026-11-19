@@ -216,3 +216,149 @@ describe("VideoPlayer", () => {
     expect(video.hasAttribute("autoplay")).toBe(false);
   });
 });
+
+describe("remote media", () => {
+  it("sets a remote audio source only when the user presses play", () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockResolvedValue(undefined);
+    const { container } = render(
+      <AudioPlayer
+        src="https://media.example/a.mp3"
+        artwork="https://media.example/cover.png"
+      />,
+    );
+    const audio = container.querySelector("audio")!;
+
+    expect(audio.hasAttribute("src")).toBe(false);
+    expect(audio.getAttribute("preload")).toBe("none");
+    expect(container.querySelector("img")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+
+    expect(audio.getAttribute("src")).toBe("https://media.example/a.mp3");
+    expect(play).toHaveBeenCalledOnce();
+  });
+
+  it("drops a played remote source when the source changes", () => {
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    const { container, rerender } = render(
+      <AudioPlayer src="https://media.example/a.mp3" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+    rerender(<AudioPlayer src="https://media.example/b.mp3" />);
+
+    expect(container.querySelector("audio")!.hasAttribute("src")).toBe(false);
+  });
+
+  it("unloads a preloaded source when the next source is held", () => {
+    const load = vi
+      .spyOn(HTMLMediaElement.prototype, "load")
+      .mockImplementation(() => {});
+    const mediaOrigins = ["https://media.example"];
+    const { container, rerender } = render(
+      <AudioPlayer
+        src="https://media.example/a.mp3"
+        mediaOrigins={mediaOrigins}
+      />,
+    );
+    rerender(
+      <AudioPlayer
+        src="https://other.example/b.mp3"
+        mediaOrigins={mediaOrigins}
+      />,
+    );
+
+    expect(container.querySelector("audio")!.hasAttribute("src")).toBe(false);
+    expect(load).toHaveBeenCalledOnce();
+  });
+
+  it("holds a played remote source again after switching away and back", () => {
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockReturnValue(
+      new Promise(() => {}),
+    );
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+    const { container, rerender } = render(
+      <AudioPlayer src="https://media.example/a.mp3" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+    rerender(<AudioPlayer src="https://media.example/b.mp3" />);
+    rerender(<AudioPlayer src="https://media.example/a.mp3" />);
+    const audio = container.querySelector("audio")!;
+
+    expect(audio.hasAttribute("src")).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play audio" }));
+
+    expect(audio.getAttribute("src")).toBe("https://media.example/a.mp3");
+  });
+
+  it("preloads an allowed remote audio source and artwork", () => {
+    const { container } = render(
+      <AudioPlayer
+        src="https://media.example/a.mp3"
+        artwork="https://media.example/cover.png"
+        mediaOrigins={["https://media.example"]}
+      />,
+    );
+    const audio = container.querySelector("audio")!;
+
+    expect(audio.getAttribute("src")).toBe("https://media.example/a.mp3");
+    expect(audio.getAttribute("preload")).toBe("metadata");
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://media.example/cover.png",
+    );
+  });
+
+  it("preloads local and allowed sources", () => {
+    const { container } = render(
+      <>
+        <AudioPlayer src="/a.mp3" artwork="/cover.png" />
+        <VideoPlayer
+          src="https://media.example/v.mp4"
+          poster="https://media.example/poster.png"
+          mediaOrigins={["https://media.example"]}
+        />
+      </>,
+    );
+
+    expect(container.querySelector("audio")?.getAttribute("preload")).toBe(
+      "metadata",
+    );
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "/cover.png",
+    );
+    const video = container.querySelector("video")!;
+    expect(video.getAttribute("preload")).toBe("metadata");
+    expect(video.getAttribute("poster")).toBe(
+      "https://media.example/poster.png",
+    );
+  });
+
+  it("holds a remote video and its poster until the user presses play", () => {
+    const play = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockResolvedValue(undefined);
+    const { container } = render(
+      <VideoPlayer
+        src="https://media.example/v.mp4"
+        poster="https://media.example/poster.png"
+        title="Clip"
+      />,
+    );
+    const video = container.querySelector("video")!;
+
+    expect(video.hasAttribute("src")).toBe(false);
+    expect(video.getAttribute("preload")).toBe("none");
+    expect(video.hasAttribute("poster")).toBe(false);
+    expect(video.hasAttribute("controls")).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play Clip" }));
+
+    expect(video.getAttribute("src")).toBe("https://media.example/v.mp4");
+    expect(video.hasAttribute("controls")).toBe(true);
+    expect(play).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Play Clip" })).toBeNull();
+  });
+});

@@ -2,6 +2,7 @@ export {
   compileGenerative,
   isGenerativeModule,
   isGenerativeSource,
+  assertGenerativeDirectivePlacement,
   GenerativeCompileError,
   type ToolType,
   type CompileOptions,

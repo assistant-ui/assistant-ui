@@ -33,6 +33,9 @@ export {
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
 export { getMessagePartKeys } from "./utils/getMessagePartKeys";
+export { isCompositionKey } from "./utils/isCompositionKey";
+export { getAttachmentKeys } from "./utils/getAttachmentKeys";
+export { hasMessageId } from "./utils/hasMessageId";
 export { getSuggestionKeys } from "./utils/getSuggestionKeys";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
 export { notifyEventListeners } from "./utils/notify-event-listeners";

@@ -355,24 +355,43 @@ class DurableAGUI(Generic[AgentDepsT]):
                     running=True,
                     owner=owner,
                 )
+                await producer_started.wait()
+                previous = await self.threads.get(thread_id)
+                claimed = False
                 while not (
                     settled or (producer_task is not None and producer_task.done())
                 ):
+                    if previous is not None and previous.owner != owner:
+                        token.cancel()
+                        ready.set_result(None)
+                        return _not_found()
                     if await self.threads.put_if_stream(
                         thread_id,
                         record,
                         expected=previous.stream_id if previous is not None else None,
                     ):
+                        claimed = True
                         break
                     previous = await self.threads.get(thread_id)
-                    if previous is not None and previous.owner != owner:
-                        token.cancel()
-                        ready.set_result(None)
-                        return _not_found()
-                await producer_started.wait()
                 if settled or (producer_task is not None and producer_task.done()):
                     self._tokens.pop(stream_id, None)
                     await settle([])
+                    if not claimed:
+                        if previous is None or (
+                            previous.owner == owner
+                            and not await self._is_running(previous)
+                        ):
+                            await self.threads.put_if_stream(
+                                thread_id,
+                                replace(record, running=False),
+                                expected=previous.stream_id
+                                if previous is not None
+                                else None,
+                            )
+                    elif previous is not None and await self._is_running(previous):
+                        await self.threads.put_if_stream(
+                            thread_id, previous, expected=stream_id
+                        )
                 elif previous is not None and previous.running and previous.stream_id:
                     self._cancel_local(previous.stream_id)
                 if not ready.done():

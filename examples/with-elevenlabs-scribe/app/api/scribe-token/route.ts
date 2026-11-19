@@ -1,19 +1,4 @@
-function isAllowedRequestContext(request: Request) {
-  const fetchSite = request.headers.get("sec-fetch-site");
-  if (fetchSite !== null) {
-    return fetchSite === "same-origin" || fetchSite === "none";
-  }
-
-  const origin = request.headers.get("origin");
-  if (origin === null) return true;
-
-  try {
-    return new URL(origin).origin === new URL(request.url).origin;
-  } catch {
-    return false;
-  }
-}
-
+import { isAllowedRequestContext } from "../request-context";
 /**
  * Generate a single-use token for ElevenLabs Scribe v2 Realtime
  * @see https://elevenlabs.io/docs/cookbooks/speech-to-text/streaming

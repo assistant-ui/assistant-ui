@@ -160,7 +160,7 @@ These fields come from `ToolDefinition`. The Vue column describes what the Vue b
 | `render` | Vue rendering | Vue component shown for a matching call. Cast it to `ToolCallMessagePartComponent`, the shared registry's declared type. |
 | `renderText` | Vue rendering | Running and complete text. Vue renders string or number results. |
 | `display` | Stored in tools scope | Inline or standalone presentation hint. Human entries default to standalone; `MessagePrimitiveParts` does not read the hint. |
-| `disabled` | Request filtering | Hides the entry from the uploaded tool schemas. |
+| `disabled` | Request filtering | Hides the entry from the uploaded tool schemas. A call that names a disabled frontend tool gets an error result and does not run. |
 | `providerOptions` | Sent to server | Provider options included alongside the uploaded schema. |
 
 `ToolDefinition` declares `render` with a React component type because the tools scope is shared. Pass a Vue component with `as unknown as ToolCallMessagePartComponent`, as the Nuxt example does in `RegisterToolUIs.vue`. The Vue renderer receives `tool.part` and `tool.addResult` through its required `tool` prop.

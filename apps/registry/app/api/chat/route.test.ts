@@ -201,11 +201,14 @@ describe.each(
     ].includes(name),
   ),
 )("$name chat route request context", ({ path }) => {
-  const request = (headers: Record<string, string>) =>
+  const request = (
+    headers: Record<string, string>,
+    body = JSON.stringify({ messages, tools }),
+  ) =>
     new Request("http://localhost/api/chat", {
       method: "POST",
       headers,
-      body: JSON.stringify({ messages, tools }),
+      body,
     });
 
   it.each([
@@ -214,7 +217,7 @@ describe.each(
     ["a foreign Origin", { origin: "https://example.net" }],
   ])("rejects %s before calling the model", async (_label, headers) => {
     const POST = await loadRoute(path);
-    const response = await POST(request(headers));
+    const response = await POST(request(headers, "not json"));
 
     expect(response.status).toBe(403);
     expect(mocks.streamText).not.toHaveBeenCalled();
@@ -256,11 +259,14 @@ it("preserves MCP tools and lets frontend tools override matching names in both 
 });
 
 describe.each(mcpRoutes)("mcp template $name route", ({ path, body }) => {
-  const request = (headers: Record<string, string>) =>
+  const request = (
+    headers: Record<string, string>,
+    payload = JSON.stringify(body),
+  ) =>
     new Request("http://localhost/api/mcp", {
       method: "POST",
       headers,
-      body: JSON.stringify(body),
+      body: payload,
     });
 
   it.each([
@@ -268,7 +274,7 @@ describe.each(mcpRoutes)("mcp template $name route", ({ path, body }) => {
     ["a foreign Origin", { origin: "https://example.net" }],
   ])("rejects %s before reaching the MCP server", async (_label, headers) => {
     const POST = await loadRoute(path);
-    const response = await POST(request(headers));
+    const response = await POST(request(headers, "not json"));
 
     expect(response.status).toBe(403);
     expect(mocks.getMcpTools).not.toHaveBeenCalled();

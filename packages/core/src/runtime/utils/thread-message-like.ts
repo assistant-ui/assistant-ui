@@ -125,12 +125,7 @@ const convertDataPrefixedPart = (
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
-/**
- * Input can carry fields of the wrong type. File and source parts follow the
- * same rule as the storage readers (`isStoredMessagePart`): a part missing a
- * field it needs to render is dropped and a malformed optional field is
- * removed, the same way whichever path delivered it.
- */
+/** Keep initial conversion aligned with history parsing by reusing its part guards. */
 const keepWellFormed = <T>(part: T): T | null =>
   isStoredMessagePart(part) ? withoutInvalidOptionals(part) : null;
 
@@ -306,11 +301,11 @@ export const fromThreadMessageLike = (
             switch (type) {
               case "file":
               case "image":
+              case "audio":
+              case "data":
                 return keepWellFormed(part);
 
               case "text":
-              case "audio":
-              case "data":
                 return part;
 
               case "reasoning":
@@ -351,9 +346,7 @@ export const fromThreadMessageLike = (
                 "id" in part ? part.id : undefined,
               );
               if (converted) return converted;
-              return part.type === "file"
-                ? keepWellFormed(part)
-                : (part as ThreadUserMessagePart);
+              return keepWellFormed(part as ThreadUserMessagePart);
             })
             .filter((part) => part !== null),
         })),

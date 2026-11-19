@@ -1,5 +1,12 @@
 # @assistant-ui/react-generative-ui
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies [[`51b4613`](https://github.com/assistant-ui/assistant-ui/commit/51b46137424e8b1041bf7f5b27ab6a9e6fe87d26), [`72080a9`](https://github.com/assistant-ui/assistant-ui/commit/72080a9af34364a2a13d61ddda3623b9893c5b13)]:
+  - @assistant-ui/generative-ui@0.0.12
+
 ## 0.1.10
 
 ### Patch Changes

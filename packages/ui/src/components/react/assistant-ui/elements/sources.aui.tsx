@@ -48,21 +48,29 @@ const sourceVariants = cva(
   },
 );
 
-const defaultFaviconUrl = (domain: string) =>
-  `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+/**
+ * Favicons from DuckDuckGo's icon service. Not used by default: each lookup
+ * sends the cited domain to DuckDuckGo. Pass it as `faviconUrl` to opt in.
+ */
+export const duckDuckGoFaviconUrl = (domain: string) =>
+  `https://icons.duckduckgo.com/ip3/${encodeURIComponent(domain)}.ico`;
 
 const SourceIcon = forwardRef<
   HTMLSpanElement,
   ComponentProps<"span"> & {
     url: string;
+    /**
+     * Resolves a domain to its favicon URL. Without it the icon is the
+     * domain initial and nothing is fetched.
+     */
     faviconUrl?: ((domain: string) => string) | undefined;
   }
->(function SourceIcon(
-  { url, className, faviconUrl = defaultFaviconUrl, ...props },
-  ref,
-) {
+>(function SourceIcon({ url, className, faviconUrl, ...props }, ref) {
   const domain = hostOf(url);
-  const src = domain === undefined ? undefined : faviconUrl(domain);
+  const src =
+    domain === undefined || faviconUrl === undefined
+      ? undefined
+      : faviconUrl(domain);
   const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
   const hasError = src === undefined || errorSrc === src;
   const imageRef = useCallback(
@@ -79,6 +87,7 @@ const SourceIcon = forwardRef<
     return (
       <span
         ref={ref}
+        aria-hidden
         data-slot="source-icon-fallback"
         className={cn(
           "bg-muted flex size-3 shrink-0 items-center justify-center rounded-sm text-[10px] font-medium",

@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { StatewireSendError } from "statewire";
 import { CheckoutHost } from "./host";
 
@@ -21,7 +21,6 @@ import type { Checkout } from "./protocol";
 
 const mount = (restored?: unknown) => {
   const root = createTapRoot(() => useResource(CheckoutHost(restored)));
-  flushTapSync(() => {});
   return root.getValue();
 };
 

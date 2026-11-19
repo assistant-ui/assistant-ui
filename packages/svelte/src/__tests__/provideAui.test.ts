@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, type AssistantClient } from "@assistant-ui/store/client";
@@ -12,6 +12,7 @@ import {
   MessageClient,
   ThreadClient,
   type AnyClient,
+  ThrowingCleanup,
 } from "./clients";
 
 const target = () => document.createElement("div");
@@ -39,7 +40,7 @@ describe("provideAui", () => {
     flushSync(() => void unmount(app));
   });
 
-  it("soft unmounts the client after the component is destroyed", async () => {
+  it("destroys the client on unmount, releasing its scopes at once", () => {
     const { TrackedThread, counters } = createTrackedThread();
     const app = mount(Host, {
       target: target(),
@@ -54,7 +55,26 @@ describe("provideAui", () => {
     const mounted = counters.cleanups;
 
     flushSync(() => void unmount(app));
-    await vi.waitFor(() => expect(counters.cleanups).toBeGreaterThan(mounted));
+    expect(counters.cleanups).toBe(mounted + 1);
+  });
+
+  it("reports a throwing cleanup without breaking unmount", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
+    const app = mount(Host, {
+      target: target(),
+      props: {
+        setup: () => {
+          provideAui(AuiConfig({ thread: ThrowingCleanup() } as never));
+        },
+      },
+    });
+
+    expect(() => flushSync(() => void unmount(app))).not.toThrow();
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[assistant-ui] provideAui cleanup threw an error",
+      expect.anything(),
+    );
   });
 
   it("throws on a nested provider without extends", () => {

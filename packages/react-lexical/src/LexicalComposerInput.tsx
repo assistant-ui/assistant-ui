@@ -29,6 +29,7 @@ import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import {
   INTERNAL,
   type Unstable_TriggerPopoverAriaProps,
@@ -74,8 +75,8 @@ export type LexicalComposerInputProps = Omit<
   directivePluginProps?: DirectivePluginProps | undefined;
   /** Custom component for rendering directive chips inline. */
   directiveChip?: FC<DirectiveChipProps> | undefined;
-  /** Custom formatter for serializing/parsing directives. */
-  formatter?: Unstable_DirectiveFormatter | undefined;
+  /** Custom formatter for serializing/parsing directives. `null` disables prop and default parsing; registered trigger formatters still apply. `undefined` uses the default formatter. */
+  formatter?: Unstable_DirectiveFormatter | null | undefined;
   /** Custom Lexical plugins rendered inside the composer context, after the built-in plugins. */
   children?: ReactNode | undefined;
 };
@@ -105,7 +106,7 @@ function KeyboardPlugin({
         KEY_ENTER_COMMAND,
         (event) => {
           if (!event) return false;
-          if (event.isComposing || event.keyCode === 229) return false;
+          if (isCompositionKey(event)) return false;
           if (event.shiftKey) return false;
 
           // Let registered plugins (mention, slash command, etc.) handle Enter first
@@ -284,7 +285,9 @@ export const LexicalComposerInput = forwardRef<
       (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
     );
     const resolvedFormatter =
-      formatterProp ?? unstable_defaultDirectiveFormatter;
+      formatterProp === undefined
+        ? unstable_defaultDirectiveFormatter
+        : formatterProp;
     // Older @assistant-ui/react peers may still emit aria-expanded.
     const { "aria-expanded": _, ...ariaProps } =
       unstable_useTriggerPopoverAriaProps() as Unstable_TriggerPopoverAriaProps & {
