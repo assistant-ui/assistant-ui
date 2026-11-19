@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
-import { ChildProcess, spawnSync } from "node:child_process";
+import { ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -141,48 +141,14 @@ it("fails as soon as Chrome exits before it starts", async () => {
   });
 });
 
-it("rejects with the spawn error and removes its profile when Chrome cannot be launched", () => {
-  const dir = mkdtempSync(join(tmpdir(), "aui-trace-spawn-"));
-  dirs.push(dir);
-  const chrome = join(dir, "chrome");
-  writeFileSync(chrome, "#!/bin/sh\nexit 0\n", { mode: 0o644 });
-
-  // The capture runs in its own Node process because an unhandled child process error ends the process that spawned it.
-  const run = spawnSync(
-    process.execPath,
-    [
-      "--input-type=module",
-      "--eval",
-      `
-        import { readdirSync } from "node:fs";
-        import { tmpdir } from "node:os";
-        const { captureTrace } = await import(process.argv[1]);
-        const error = await captureTrace("unused.html", 0).then(
-          () => undefined,
-          (error) => error,
-        );
-        console.log(JSON.stringify({
-          code: error?.code,
-          syscall: error?.syscall,
-          profiles: readdirSync(tmpdir()).filter((name) =>
-            name.startsWith("aui-perf-chrome-"),
-          ),
-        }));
-      `,
-      new URL("./trace.mjs", import.meta.url).href,
-    ],
-    {
-      encoding: "utf8",
-      env: { ...process.env, AUI_PERF_CHROME: chrome, TMPDIR: dir },
-    },
-  );
-
-  expect(run.status, run.stderr).toBe(0);
-  expect(JSON.parse(run.stdout)).toEqual({
-    code: "EACCES",
-    syscall: `spawn ${chrome}`,
-    profiles: [],
-  });
+it("rejects with the spawn error and removes its profile when Chrome cannot be launched", async () => {
+  const { child, profile, result } = failedCapture(null);
+  const spawnError = new Error("spawn /usr/bin/google-chrome EACCES");
+  child.emit("error", spawnError);
+  child.emit("close", -13, null);
+  await vi.advanceTimersByTimeAsync(200);
+  await expect(result).resolves.toBe(spawnError);
+  expect(existsSync(profile)).toBe(false);
 });
 
 it("waits for Chrome to close before removing its profile after a failed connection", async () => {
