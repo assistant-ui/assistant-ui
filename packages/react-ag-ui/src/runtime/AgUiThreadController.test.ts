@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, it, expect, vi } from "vitest";
 import { HttpAgent, type AbstractAgent } from "@ag-ui/client";
 import type {
@@ -187,7 +188,7 @@ describe("AgUiThreadController optimistic assistant identity", () => {
   });
 
   it.each(["text", "tool-call"] as const)(
-    "still adopts the first server id from a %s event",
+    "keeps the local id when adopting the first server id from a %s event",
     async (eventType) => {
       let optimisticId!: string;
       const runAgent = vi.fn(
@@ -213,7 +214,8 @@ describe("AgUiThreadController optimistic assistant identity", () => {
             });
           }
           expect(core.getMessages().at(-1)).toMatchObject({
-            id: "server-answer",
+            id: optimisticId,
+            metadata: { custom: { agui: { messageId: "server-answer" } } },
           });
           expect(
             core.getMessages().at(-1)!.metadata.isOptimistic,
@@ -227,25 +229,27 @@ describe("AgUiThreadController optimistic assistant identity", () => {
 
       await core.append({ ...userMessage("question"), startRun: true });
 
-      expect(core.getMessages().at(-1)!.id).toBe("server-answer");
+      expect(core.getMessages().at(-1)!.id).toBe(optimisticId);
       expect(
         core
           .getMessageRepository()
           .messages.some(({ message }) => message.id === optimisticId),
-      ).toBe(false);
+      ).toBe(true);
     },
   );
 
-  it("recreates an adopted server id without marking it optimistic", async () => {
+  it("recreates an adopted local id without marking it optimistic", async () => {
     let recreated!: ThreadAssistantMessage;
+    let optimisticId!: string;
     const runAgent = vi.fn(
       async (input: { runId: string }, subscriber: AgUiSubscriber) => {
         const optimistic = core.getMessages().at(-1)!;
         expect(optimistic.metadata.isOptimistic).toBe(true);
+        optimisticId = optimistic.id;
         subscriber.onTextMessageStartEvent?.({
           event: { type: "TEXT_MESSAGE_START", messageId: "server-answer" },
         });
-        expect(core.getMessages().at(-1)!.id).toBe("server-answer");
+        expect(core.getMessages().at(-1)!.id).toBe(optimisticId);
 
         core.applyExternalMessages([]);
         expect(core.getMessageRepository().messages).toEqual([]);
@@ -270,15 +274,18 @@ describe("AgUiThreadController optimistic assistant identity", () => {
     await core.append({ ...userMessage("question"), startRun: true });
 
     expect(recreated).toMatchObject({
-      id: "server-answer",
+      id: optimisticId,
       status: { type: "running" },
       content: [{ type: "text", text: "answer" }],
       metadata: { isOptimistic: false },
     });
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "server-answer",
+      id: optimisticId,
       status: { type: "complete" },
-      metadata: { isOptimistic: false },
+      metadata: {
+        isOptimistic: false,
+        custom: { agui: { messageId: "server-answer" } },
+      },
     });
   });
 
@@ -1032,30 +1039,30 @@ describe("AgUiThreadController resuming a disconnected run", () => {
         core.append({ ...userMessage("question"), startRun: true }),
       ).rejects.toThrow("stream disconnected");
       const userId = core.getMessages()[0]!.id;
+      const firstAssistantId = core.getMessages()[1]!.id;
       expect(core.getMessages()[1]).toMatchObject({
-        id: "assistant-a",
+        id: firstAssistantId,
+        metadata: { custom: { agui: { messageId: "assistant-a" } } },
         content: [{ type: "text", text: "first" }],
       });
 
       await core.resume({
-        parentId: parent === "user" ? userId : "assistant-a",
+        parentId: parent === "user" ? userId : firstAssistantId,
         sourceId: null,
         runConfig: {},
       });
 
       expect(runAgent).toHaveBeenCalledTimes(2);
-      expect(core.getMessages().map((message) => message.id)).toEqual([
-        userId,
-        "assistant-a",
-        "assistant-b",
-      ]);
+      expect(
+        core.getMessages().map((message) => agUiWireMessageId(message)),
+      ).toEqual([userId, "assistant-a", "assistant-b"]);
       expect(core.getMessages().slice(1)).toMatchObject([
         { content: [{ type: "text", text: "first and more" }] },
         { content: [{ type: "text", text: "second answer" }] },
       ]);
       expect(
         core.getMessageRepository().messages.map(({ parentId }) => parentId),
-      ).toEqual([null, userId, "assistant-a"]);
+      ).toEqual([null, userId, firstAssistantId]);
     },
   );
 });

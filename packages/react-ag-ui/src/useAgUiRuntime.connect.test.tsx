@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./runtime/adapter/conversions";
 // @vitest-environment jsdom
 
 import { useState } from "react";
@@ -140,7 +141,9 @@ describe("useAgUiRuntime with an agent that implements connect()", () => {
     );
     expect(agent.connected).toEqual(["thread-a", "thread-b"]);
     expect(
-      result.current.thread.getState().messages.map((message) => message.id),
+      result.current.thread
+        .getState()
+        .messages.map((message) => agUiWireMessageId(message)),
     ).toEqual(["question-thread-b", "answer-thread-b"]);
     expect(detachActiveRun).toHaveBeenCalled();
     expect(abortRun).not.toHaveBeenCalled();

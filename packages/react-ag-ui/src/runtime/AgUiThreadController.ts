@@ -13,6 +13,7 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
   ExportedMessageRepository,
+  ExportedMessageRepositoryItem,
   MessageStatus,
   RespondToToolApprovalOptions,
   RunConfig,
@@ -63,6 +64,7 @@ import {
   type RetainedMessageState,
 } from "./adapter/run-aggregator";
 import {
+  agUiWireMessageId,
   fromAgUiSnapshotMessages,
   toAgUiMessages,
   toAgUiTools,
@@ -420,10 +422,17 @@ export class AgUiThreadController {
   private runtime: AssistantRuntime | undefined;
   private readonly session = createMessageRepositorySession({
     decorateExport: (exported, repository) => {
+      const exportedIds = new Set(
+        exported.messages.map(({ message }) => agUiWireMessageId(message)),
+      );
       let parentId: string | null = null;
       for (const message of repository.getMessages()) {
-        if (message.metadata.isOptimistic) {
+        if (
+          message.metadata.isOptimistic &&
+          !exportedIds.has(agUiWireMessageId(message))
+        ) {
           exported.messages.push({ parentId, message });
+          exportedIds.add(agUiWireMessageId(message));
         }
         parentId = message.id;
       }
@@ -463,10 +472,12 @@ export class AgUiThreadController {
   >();
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
+  private readonly historyMessageIds = new Map<string, string>();
+  private readonly wireMessageIds = new Map<string, string>();
   // Ids whose append has not succeeded yet. A write queued behind that append
   // runs as an append too, since an update may not move the stored head.
-  private readonly unappendedHistoryIds = new Set<string>();
-  private readonly historyWrites = createHistoryWriteChain();
+  private unappendedHistoryIds = new Set<string>();
+  private historyWrites = createHistoryWriteChain();
   private _historyImportPromise: Promise<void> | undefined;
   private _loadPromise: Promise<void> | undefined;
 
@@ -622,9 +633,13 @@ export class AgUiThreadController {
       this.interruptNamedToolCallIds.clear();
       this.snapshotHistoryIds.clear();
       this.persistedHistoryIds.clear();
+      this.historyMessageIds.clear();
+      this.wireMessageIds.clear();
       this.unappendedHistoryIds.clear();
       for (const { message } of repo.messages) {
         this.persistedHistoryIds.add(message.id);
+        this.historyMessageIds.set(agUiWireMessageId(message), message.id);
+        this.wireMessageIds.set(agUiWireMessageId(message), message.id);
       }
       this.publishUpdate();
 
@@ -724,9 +739,6 @@ export class AgUiThreadController {
     if (startRun) {
       this.assertNoPendingInterrupts();
       this.maybeAutoCancelPendingToolCalls();
-      // Before the message is linked: callers parent it on the in-flight
-      // assistant, and settling that assistant reassigns its optimistic id,
-      // which would evict it and reparent this message onto a branch.
       ownsThread = this.supersedeActiveRun();
     }
     const threadMessageId = this.appendEntry(message);
@@ -737,6 +749,7 @@ export class AgUiThreadController {
   appendVoiceTranscript(message: ThreadMessage): void {
     const parentId = this.session.headId;
     this.session.addOrUpdateMessage(parentId, message);
+    this.wireMessageIds.set(agUiWireMessageId(message), message.id);
     this.session.switchToBranch(message.id);
     this.publishUpdate();
     this.recordHistoryEntry(parentId, message);
@@ -759,6 +772,7 @@ export class AgUiThreadController {
           ? message.parentId
           : this.session.headId;
     this.session.addOrUpdateMessage(parentId, threadMessage);
+    this.wireMessageIds.set(agUiWireMessageId(threadMessage), threadMessage.id);
     this.session.switchToBranch(threadMessage.id);
     this.publishUpdate();
     this.recordHistoryEntry(parentId, threadMessage);
@@ -785,10 +799,15 @@ export class AgUiThreadController {
     const item = this.session.tryGetMessage(messageId);
     if (!item) return;
     const parentId = item.parentId ?? null;
+    const historyItem = this.toHistoryItem(parentId, item.message);
+    const wireId = agUiWireMessageId(item.message);
     this.session.deleteMessage(messageId, parentId);
+    this.wireMessageIds.delete(wireId);
+    this.historyMessageIds.delete(wireId);
+    this.persistedHistoryIds.delete(historyItem.message.id);
     this.snapshotHistoryIds.delete(messageId);
     this.publishUpdate();
-    await this.history?.delete?.([{ parentId, message: item.message }]);
+    await this.history?.delete?.([historyItem]);
   }
 
   async cancel(): Promise<void> {
@@ -1584,8 +1603,9 @@ export class AgUiThreadController {
       return;
     }
 
-    await this.historyWrites.chain(sessionMessageId, () =>
-      history.update!({ parentId: item.parentId, message }),
+    const historyItem = this.toHistoryItem(item.parentId, message);
+    await this.historyWrites.chain(historyItem.message.id, () =>
+      history.update!(historyItem),
     );
   }
 
@@ -1796,8 +1816,10 @@ export class AgUiThreadController {
     }
 
     this.snapshotHistoryIds.clear();
+    this.wireMessageIds.clear();
     for (const { message } of this.getMessageRepository().messages) {
       this.snapshotHistoryIds.add(message.id);
+      this.wireMessageIds.set(agUiWireMessageId(message), message.id);
     }
     // A soft merge leaves dropped messages off branch; only selected
     // messages with resolved tool calls can still own a continuation.
@@ -1862,9 +1884,16 @@ export class AgUiThreadController {
 
     this.dispatch({ type: "resetThread" });
     this.snapshotHeadMovedAssistantIds.clear();
+    this.assistantHistoryParents.clear();
     this.subagentParentToolCallIds.clear();
     this.interruptNamedToolCallIds.clear();
     this.optimisticIds.clear();
+    this.snapshotHistoryIds.clear();
+    this.persistedHistoryIds.clear();
+    this.historyMessageIds.clear();
+    this.wireMessageIds.clear();
+    this.unappendedHistoryIds = new Set();
+    this.historyWrites = createHistoryWriteChain();
 
     if (controller) {
       this.abortController = null;
@@ -1940,9 +1969,11 @@ export class AgUiThreadController {
         ? (this.session.tryGetMessages(parentId) ?? this.session.getMessages())
         : this.session.getMessages()),
     ];
-    const runStartMessageIds = new Set(
-      this.getMessageRepository().messages.map(({ message }) => message.id),
-    );
+    const runStartMessageIds = new Set<string>();
+    for (const { message } of this.getMessageRepository().messages) {
+      runStartMessageIds.add(message.id);
+      this.wireMessageIds.set(agUiWireMessageId(message), message.id);
+    }
     const selectedMessages = this.session.getMessages();
     const parentIndex = selectedMessages.findIndex(
       (message) => message.id === parentId,
@@ -1997,6 +2028,7 @@ export class AgUiThreadController {
     let pendingError: Error | null = null;
     const assistantParentId = parent ? parentId : this.session.headId;
     let assistantMessageId: string | undefined;
+    let assistantWireMessageId: string | undefined;
     let snapshotAssistantId: string | undefined;
     const importedRunAssistants = new Set<string>();
     const runSubagentIds = new Set<string>();
@@ -2054,6 +2086,24 @@ export class AgUiThreadController {
         cached,
         deferUpdateNotifications,
       );
+      if (cached !== undefined && assistantWireMessageId !== undefined) {
+        this.session.updateMessage(
+          created,
+          (message) =>
+            ({
+              ...message,
+              metadata: {
+                ...message.metadata,
+                custom: mergeAgUiNamespace(message.metadata.custom, {
+                  [AG_UI_METADATA_NAMESPACE]: {
+                    messageId: assistantWireMessageId,
+                  },
+                }),
+              },
+            }) as ThreadMessage,
+        );
+        this.wireMessageIds.set(assistantWireMessageId, created);
+      }
       assistantMessageId = created;
       this.markPendingAssistantHistory(created, parentId);
       return created;
@@ -2337,20 +2387,25 @@ export class AgUiThreadController {
       startNewMessage: boolean,
       openToolCallIds: string[] = [],
     ) => {
-      const existing = this.session.tryGetMessage(serverId);
-      const replayIndex = replayMessageIds.indexOf(serverId);
+      const existing = this.findMessageByWireId(serverId);
+      const existingId = existing?.message.id ?? serverId;
+      const replayIndex = replayMessageIds.indexOf(existingId);
       const adoptsReplay =
         !replayEnded &&
         !assistantCollided &&
         replayIndex > lastReplayedIndex &&
         existing?.message.role === "assistant" &&
-        this.session.getMessages().some((message) => message.id === serverId);
+        this.session
+          .getMessages()
+          .some((message) => agUiWireMessageId(message) === serverId);
       if (adoptsReplay && replayContexts.size === 0) {
         replayContexts = candidateContexts;
         const selected = this.session.getMessages();
-        let tailId = serverId;
+        let tailId = existingId;
         for (const message of selected.slice(
-          selected.findIndex((message) => message.id === serverId) + 1,
+          selected.findIndex(
+            (message) => agUiWireMessageId(message) === serverId,
+          ) + 1,
         )) {
           if (message.role !== "assistant") break;
           tailId = message.id;
@@ -2392,6 +2447,7 @@ export class AgUiThreadController {
         }
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
+        assistantWireMessageId = undefined;
         if (!adoptsReplay && this.session.tryGetMessage(previousId)) {
           const created = this.insertAssistantPlaceholder(
             previousId,
@@ -2403,15 +2459,16 @@ export class AgUiThreadController {
         }
       }
       if (adoptsReplay) {
-        assistantMessageId = serverId;
+        assistantMessageId = existingId;
+        assistantWireMessageId = existingId === serverId ? undefined : serverId;
         lastReplayedIndex = replayIndex;
-        this.markPendingAssistantHistory(serverId, existing.parentId);
+        this.markPendingAssistantHistory(existingId, existing.parentId);
         return;
       }
       replayEnded = true;
       const placeholder = ensureAssistant(true);
-      if (placeholder === serverId) return;
-      const reassigned = this.reassignAssistantId(
+      if (existingId === placeholder && existing !== undefined) return;
+      const adopted = this.adoptAssistantWireId(
         placeholder,
         serverId,
         deferUpdateNotifications,
@@ -2421,15 +2478,17 @@ export class AgUiThreadController {
       // this run can replace the placeholder; regeneration must not rewrite
       // a previous branch when the server incorrectly reuses its id.
       const adoptsVisibleCollision =
-        !reassigned &&
-        !runStartMessageIds.has(serverId) &&
-        this.session.headId === serverId;
-      if (reassigned || adoptsVisibleCollision) {
-        assistantMessageId = serverId;
+        !adopted &&
+        !runStartMessageIds.has(existingId) &&
+        this.session.headId === existingId;
+      if (adopted || adoptsVisibleCollision) {
+        assistantMessageId = adopted ? placeholder : existingId;
+        assistantWireMessageId =
+          assistantMessageId === serverId ? undefined : serverId;
         if (adoptsVisibleCollision) {
           const parentId =
-            this.session.tryGetMessage(serverId)?.parentId ?? null;
-          this.markPendingAssistantHistory(serverId, parentId);
+            this.session.tryGetMessage(existingId)?.parentId ?? null;
+          this.markPendingAssistantHistory(existingId, parentId);
         }
       } else {
         assistantCollided = true;
@@ -2531,6 +2590,10 @@ export class AgUiThreadController {
     const abortSignal = abortController.signal;
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
+      resolveMessageId: (wireId) =>
+        (assistantWireMessageId === wireId ? assistantMessageId : undefined) ??
+        this.findMessageByWireId(wireId)?.message.id ??
+        wireId,
       joinStrategy,
       logger: this.logger,
       emit: (update) => {
@@ -2807,12 +2870,23 @@ export class AgUiThreadController {
             }
           }
           assistantMessageId = nextAssistantMessageId;
+          const activeMessage =
+            assistantMessageId === undefined
+              ? undefined
+              : this.session.tryGetMessage(assistantMessageId)?.message;
+          assistantWireMessageId =
+            activeMessage &&
+            agUiWireMessageId(activeMessage) !== activeMessage.id
+              ? agUiWireMessageId(activeMessage)
+              : undefined;
           const imported = assistantMessageId
             ? this.session.tryGetMessage(assistantMessageId)?.message
             : undefined;
           const source = event.messages.find(
             (message) =>
-              message?.role === "assistant" && message.id === imported?.id,
+              message?.role === "assistant" &&
+              imported !== undefined &&
+              message.id === agUiWireMessageId(imported),
           );
           latestSnapshot =
             imported?.role === "assistant" && source ? imported : undefined;
@@ -2828,9 +2902,9 @@ export class AgUiThreadController {
               !aggregator.isRetained(record.id)
             )
               continue;
-            const message = this.session.tryGetMessage(record.id)?.message;
+            const message = this.findMessageByWireId(record.id)?.message;
             if (message?.role !== "assistant") continue;
-            retainedSnapshots.set(record.id, {
+            retainedSnapshots.set(message.id, {
               message,
               toolCallIds: snapshotRecordToolCallIds(record),
             });
@@ -3349,74 +3423,52 @@ export class AgUiThreadController {
     return id;
   }
 
-  private reassignAssistantId(
-    oldId: string,
-    newId: string,
+  private findMessageByWireId(wireId: string) {
+    const direct = this.session.tryGetMessage(wireId);
+    if (direct && agUiWireMessageId(direct.message) === wireId) return direct;
+    const localId = this.wireMessageIds.get(wireId);
+    return localId === undefined
+      ? undefined
+      : this.session.tryGetMessage(localId);
+  }
+
+  private adoptAssistantWireId(
+    localId: string,
+    wireId: string,
     deferNotification = false,
   ): boolean {
-    if (oldId === newId) return true;
-    const oldItem = this.session.tryGetMessage(oldId);
-    if (!oldItem) return false;
+    const item = this.session.tryGetMessage(localId);
+    if (!item) return false;
+    const existing = this.findMessageByWireId(wireId);
+    if (existing?.message.id === localId) return true;
 
-    this.optimisticIds.delete(oldId);
-    const collidesWithExisting = this.session.hasMessage(newId);
-
-    if (collidesWithExisting) {
-      this.logger.debug?.(
-        "[agui] reassignAssistantId: server id already present in messages or repository, dropping placeholder",
-        { oldId, newId },
-      );
-      this.session.deleteMessage(oldId, oldItem.parentId ?? null);
+    this.optimisticIds.delete(localId);
+    if (existing) {
+      this.session.deleteMessage(localId, item.parentId ?? null);
+      this.assistantHistoryParents.delete(localId);
+      this.snapshotHistoryIds.delete(localId);
+      this.persistedHistoryIds.delete(localId);
+      this.historyWrites.move(localId, undefined);
+      this.unappendedHistoryIds.delete(localId);
     } else {
-      const { isOptimistic: _, ...metadata } = oldItem.message.metadata;
-      this.session.addOrUpdateMessage(oldItem.parentId, {
-        ...oldItem.message,
-        id: newId,
-        metadata,
-      } as ThreadMessage);
-      this.session.switchToBranch(newId);
-      this.session.tryDeleteMessage(oldId);
-    }
-
-    const pendingParent = this.assistantHistoryParents.get(oldId);
-    if (pendingParent !== undefined) {
-      this.assistantHistoryParents.delete(oldId);
-      if (!collidesWithExisting && !this.assistantHistoryParents.has(newId)) {
-        this.assistantHistoryParents.set(newId, pendingParent);
-      }
-    }
-
-    for (const ids of [this.snapshotHistoryIds, this.persistedHistoryIds]) {
-      if (ids.has(oldId)) {
-        ids.delete(oldId);
-        if (!collidesWithExisting) {
-          ids.add(newId);
-        }
-      }
-    }
-
-    // An in-flight write completes under the id it was started with, so the
-    // rename moves the chain entry and transfers the completion mark; without
-    // this the resolve records the dead id and the live one appends again.
-    const pendingWrite = this.historyWrites.move(
-      oldId,
-      collidesWithExisting ? undefined : newId,
-    );
-    if (this.unappendedHistoryIds.delete(oldId) && !collidesWithExisting)
-      this.unappendedHistoryIds.add(newId);
-    if (pendingWrite && !collidesWithExisting) {
-      void pendingWrite.then(
-        () => {
-          this.persistedHistoryIds.delete(oldId);
-          this.persistedHistoryIds.add(newId);
-          this.unappendedHistoryIds.delete(newId);
-        },
-        () => {},
+      const { isOptimistic: _, ...metadata } = item.message.metadata;
+      this.session.updateMessage(
+        localId,
+        () =>
+          ({
+            ...item.message,
+            metadata: {
+              ...metadata,
+              custom: mergeAgUiNamespace(metadata.custom, {
+                [AG_UI_METADATA_NAMESPACE]: { messageId: wireId },
+              }),
+            },
+          }) as ThreadMessage,
       );
+      this.wireMessageIds.set(wireId, localId);
     }
-
     this.publishUpdate(deferNotification);
-    return !collidesWithExisting;
+    return existing === undefined;
   }
 
   private updateAssistantMessage(
@@ -3977,7 +4029,10 @@ export class AgUiThreadController {
             movedToAssistantHead &&
             nextActiveAssistantId !== undefined &&
             joinStrategy !== "concat-content" &&
-            aggregator.rebaseMessage(nextActiveAssistantId, previousActiveId);
+            aggregator.rebaseMessage(
+              agUiWireMessageId(head!),
+              previousActiveId,
+            );
           if (previousActiveId && !retained) {
             const previous =
               this.session.tryGetMessage(previousActiveId)?.message;
@@ -4252,23 +4307,45 @@ export class AgUiThreadController {
         },
         this.subagentParentToolCallIds,
         new Set([
-          ...heldMessages.keys(),
-          ...(activeAssistant === undefined ? [] : [activeAssistant.id]),
+          ...Array.from(heldMessages.keys(), (id) => {
+            const message = this.session.tryGetMessage(id)?.message;
+            return message === undefined ? id : agUiWireMessageId(message);
+          }),
+          ...(activeAssistant === undefined
+            ? []
+            : [agUiWireMessageId(activeAssistant)]),
         ]),
       );
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
           const previous = message.id
-            ? this.session.tryGetMessage(message.id)?.message
+            ? this.findMessageByWireId(message.id)?.message
             : undefined;
           const fallbackStatus =
             previous?.role === "assistant" &&
             previous.status?.type === "running"
               ? previous.status
               : FALLBACK_USER_STATUS;
+          const imported = fromThreadMessageLike(
+            message,
+            generateId(),
+            fallbackStatus,
+          );
           converted.push(
-            fromThreadMessageLike(message, generateId(), fallbackStatus),
+            previous === undefined
+              ? imported
+              : ({
+                  ...imported,
+                  id: previous.id,
+                  metadata: {
+                    ...imported.metadata,
+                    custom: mergeAgUiNamespace(
+                      previous.metadata.custom,
+                      imported.metadata.custom,
+                    ),
+                  },
+                } as ThreadMessage),
           );
         } catch (error) {
           this.logger.error?.(
@@ -4432,7 +4509,9 @@ export class AgUiThreadController {
         }
       }
       const snapshotContainsActiveAssistant = converted.some(
-        (message) => message.id === activeAssistant?.id,
+        (message) =>
+          activeAssistant !== undefined &&
+          agUiWireMessageId(message) === agUiWireMessageId(activeAssistant),
       );
       const preservesActiveAssistant =
         activeAssistant !== undefined &&
@@ -4508,9 +4587,11 @@ export class AgUiThreadController {
     const item = this.session.tryGetMessage(messageId);
     if (!this.history?.update || !item) return;
     if (!this.isTerminalStatus(item.message.status)) return;
+    const historyMessageId = this.toHistoryItem(item.parentId, item.message)
+      .message.id;
     if (
-      !this.persistedHistoryIds.has(messageId) &&
-      this.historyWrites.pending(messageId) === undefined
+      !this.persistedHistoryIds.has(historyMessageId) &&
+      this.historyWrites.pending(historyMessageId) === undefined
     )
       return;
     this.markPendingAssistantHistory(messageId, item.parentId);
@@ -4520,33 +4601,46 @@ export class AgUiThreadController {
   private persistAssistantHistory(messageId: string) {
     const history = this.history;
     if (!history) return;
+    const historyWrites = this.historyWrites;
+    const unappendedHistoryIds = this.unappendedHistoryIds;
     const parentId = this.assistantHistoryParents.get(messageId);
     if (parentId === undefined) return;
     const message = this.session.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableMessage(message)) return;
-    const wasPersisted = this.persistedHistoryIds.has(messageId);
+    const item = this.toHistoryItem(parentId, message);
+    const historyMessageId = item.message.id;
+    const wasPersisted = this.persistedHistoryIds.has(historyMessageId);
     const update = history.update;
     const shouldUpdate =
       update !== undefined &&
       (wasPersisted ||
         this.snapshotHistoryIds.has(messageId) ||
-        this.historyWrites.pending(messageId) !== undefined);
+        this.historyWrites.pending(historyMessageId) !== undefined);
 
     if (shouldUpdate) {
-      const write = this.historyWrites.chain(messageId, () =>
-        this.unappendedHistoryIds.has(messageId)
-          ? this.appendOnce(history, messageId, { parentId, message })
-          : update.call(history, { parentId, message }),
+      const write = historyWrites.chain(historyMessageId, () =>
+        unappendedHistoryIds.has(historyMessageId)
+          ? this.appendOnce(
+              history,
+              historyMessageId,
+              item,
+              unappendedHistoryIds,
+            )
+          : update.call(history, item),
       );
       this.assistantHistoryParents.delete(messageId);
       void write.then(
         () => {
-          this.persistedHistoryIds.add(messageId);
+          if (this.historyWrites !== historyWrites) return;
+          this.persistedHistoryIds.add(historyMessageId);
         },
         (error) => {
-          const pending = this.historyWrites.pending(messageId);
-          if (pending === undefined || pending === write) {
+          const pending = historyWrites.pending(historyMessageId);
+          if (
+            this.historyWrites === historyWrites &&
+            (pending === undefined || pending === write)
+          ) {
             this.assistantHistoryParents.set(messageId, parentId);
           }
           this.logger.error?.("[agui] failed to update history entry", error);
@@ -4566,8 +4660,11 @@ export class AgUiThreadController {
     void write.then(
       () => {},
       (error) => {
-        const pending = this.historyWrites.pending(messageId);
-        if (pending === undefined || pending === write) {
+        const pending = historyWrites.pending(historyMessageId);
+        if (
+          this.historyWrites === historyWrites &&
+          (pending === undefined || pending === write)
+        ) {
           this.assistantHistoryParents.set(messageId, parentId);
         }
         this.logger.error?.("[agui] failed to append history entry", error);
@@ -4579,27 +4676,57 @@ export class AgUiThreadController {
     history: ThreadHistoryAdapter,
     messageId: string,
     item: { parentId: string | null; message: ThreadMessage },
+    unappendedHistoryIds: Set<string>,
   ): Promise<void> {
     await history.append(item);
-    this.unappendedHistoryIds.delete(messageId);
+    unappendedHistoryIds.delete(messageId);
+  }
+
+  private toHistoryItem(
+    parentId: string | null,
+    message: ThreadMessage,
+  ): ExportedMessageRepositoryItem {
+    const historyMessageId =
+      this.historyMessageIds.get(agUiWireMessageId(message)) ?? message.id;
+    const parent =
+      parentId === null
+        ? undefined
+        : this.session.tryGetMessage(parentId)?.message;
+    return {
+      parentId: parent
+        ? (this.historyMessageIds.get(agUiWireMessageId(parent)) ?? parentId)
+        : parentId,
+      message:
+        message.id === historyMessageId
+          ? message
+          : { ...message, id: historyMessageId },
+    };
   }
 
   private appendHistoryItem(
     parentId: string | null,
     message: ThreadMessage,
   ): Promise<void> | undefined {
-    if (!this.history || this.persistedHistoryIds.has(message.id)) return;
-    const pending = this.historyWrites.pending(message.id);
+    if (!this.history) return;
+    const wireId = agUiWireMessageId(message);
+    const item = this.toHistoryItem(parentId, message);
+    const historyMessageId = item.message.id;
+    if (this.persistedHistoryIds.has(historyMessageId)) return;
+    const pending = this.historyWrites.pending(historyMessageId);
     if (pending) return pending;
 
     const history = this.history;
-    this.unappendedHistoryIds.add(message.id);
-    const write = this.historyWrites.chain(message.id, () =>
-      this.appendOnce(history, message.id, { parentId, message }),
+    const historyWrites = this.historyWrites;
+    const unappendedHistoryIds = this.unappendedHistoryIds;
+    this.historyMessageIds.set(wireId, historyMessageId);
+    unappendedHistoryIds.add(historyMessageId);
+    const write = historyWrites.chain(historyMessageId, () =>
+      this.appendOnce(history, historyMessageId, item, unappendedHistoryIds),
     );
     void write.then(
       () => {
-        this.persistedHistoryIds.add(message.id);
+        if (this.historyWrites !== historyWrites) return;
+        this.persistedHistoryIds.add(historyMessageId);
       },
       () => {},
     );

@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it, vi, type Mock } from "vitest";
 import type { AbstractAgent } from "@ag-ui/client";
 import type {
@@ -309,7 +310,10 @@ describe("AgUiThreadController answered interrupt history", () => {
     await flush();
 
     expect(
-      core.getMessages().find(({ id }) => id === "assistant-1")?.content,
+      core
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "assistant-1")
+        ?.content,
     ).toMatchObject([{ toolCallId: "call-1", result: "order placed" }]);
     const written = [...rows, ...update.mock.calls.map(([item]) => item)];
     expect(written.map(({ message }) => message.id)).not.toContain(
@@ -334,10 +338,14 @@ describe("AgUiThreadController answered interrupt history", () => {
     await third.__internal_load();
 
     expect(
-      rows.filter(({ message }) => message.id === "assistant-1"),
+      rows.filter(
+        ({ message }) => agUiWireMessageId(message) === "assistant-1",
+      ),
     ).toHaveLength(1);
     expect(
-      third.getMessages().find(({ id }) => id === "assistant-1"),
+      third
+        .getMessages()
+        .find((message) => agUiWireMessageId(message) === "assistant-1"),
     ).toMatchObject({
       status: { type: "complete" },
       content: [{ toolCallId: "call-1", result: "order placed" }],
@@ -376,7 +384,9 @@ describe("AgUiThreadController answered interrupt history", () => {
       expect(runAgent).toHaveBeenCalledTimes(2);
       expect(reloaded.getPendingInterrupts()).toBeNull();
       expect(
-        reloaded.getMessages().find(({ id }) => id === "assistant-1"),
+        reloaded
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "assistant-1"),
       ).toMatchObject({
         status: { type: "complete" },
         content: [

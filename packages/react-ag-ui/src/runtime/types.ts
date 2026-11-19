@@ -53,6 +53,9 @@ export type AgUiCustomMetadata = {
   /** Wire role restored on export for messages the internal model cannot
    * represent (a developer record rides as a system message). */
   role?: "developer";
+  /** The agent's id for this assistant record when it named the record after
+   * the message was created; `message.id` stays the local id the UI keys on. */
+  messageId?: string;
   interrupts?: AgUiInterrupt[];
   pendingToolCallIds?: string[];
   opaqueReasoning?: AgUiOpaqueReasoning[];

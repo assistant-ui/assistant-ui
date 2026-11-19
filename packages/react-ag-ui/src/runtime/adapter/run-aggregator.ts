@@ -272,6 +272,7 @@ export type RunAggregatorOptions = {
     state: RetainedMessageState,
   ) => void;
   canRetainMessage?: (messageId: string) => boolean;
+  resolveMessageId?: (wireId: string) => string;
   onServerMessageId?: (messageId: string) => void;
   /** Returns the id the outgoing message lives under, when it may keep receiving events. */
   onTextMessageStart?: (
@@ -300,6 +301,7 @@ export class RunAggregator {
   private readonly onTextMessageStart: RunAggregatorOptions["onTextMessageStart"];
   private readonly onRetainedMessage: RunAggregatorOptions["onRetainedMessage"];
   private readonly canRetainMessage: RunAggregatorOptions["canRetainMessage"];
+  private readonly resolveMessageId: (wireId: string) => string;
 
   private status: ChatModelRunResult["status"] | undefined;
   private interrupts: AgUiInterrupt[] | undefined;
@@ -327,6 +329,7 @@ export class RunAggregator {
     this.onTextMessageStart = options.onTextMessageStart;
     this.onRetainedMessage = options.onRetainedMessage;
     this.canRetainMessage = options.canRetainMessage;
+    this.resolveMessageId = options.resolveMessageId ?? ((id) => id);
   }
 
   hasToolCall(toolCallId: string): boolean {
@@ -334,7 +337,7 @@ export class RunAggregator {
   }
 
   isRetained(messageId: string): boolean {
-    return this.retained.has(messageId);
+    return this.retained.has(this.resolveMessageId(messageId));
   }
 
   /**
@@ -384,6 +387,7 @@ export class RunAggregator {
     messageId: string,
     previousId: string | undefined,
   ): MessageBuffer | undefined {
+    messageId = this.resolveMessageId(messageId);
     const outgoing = this.current;
     const next = this.retained.get(messageId) ?? createMessageBuffer(messageId);
     this.retained.delete(messageId);
@@ -399,7 +403,10 @@ export class RunAggregator {
   }
 
   private ownerForMessage(messageId: string | undefined): MessageBuffer {
-    if (!messageId || messageId === this.current.id) return this.current;
+    if (!messageId) return this.current;
+    const wireId = messageId;
+    messageId = this.resolveMessageId(messageId);
+    if (messageId === this.current.id) return this.current;
     const retained = this.retained.get(messageId);
     if (retained) return retained;
     // A snapshot can deliver a message before the events that finish it, as
@@ -407,9 +414,9 @@ export class RunAggregator {
     if (this.canRetainMessage?.(messageId)) {
       const buffer = createMessageBuffer(messageId);
       this.retained.set(messageId, buffer);
-      if (this.pendingSnapshotText.has(messageId))
+      if (this.pendingSnapshotText.has(wireId))
         this.withBuffer(buffer, () =>
-          this.startTextMessage(ROOT_SCOPE, messageId),
+          this.startTextMessage(ROOT_SCOPE, wireId),
         );
       return buffer;
     }
@@ -1109,6 +1116,7 @@ export class RunAggregator {
     this.serverMessageIdReported = true;
     this.buf.reportedServerMessageId = messageId;
     this.onServerMessageId?.(messageId);
+    this.buf.id = this.resolveMessageId(messageId);
   }
 
   // A subagent only ever reports its own terminal, so a run that ends while
