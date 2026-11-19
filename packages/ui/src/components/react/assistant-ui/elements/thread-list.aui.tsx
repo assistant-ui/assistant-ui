@@ -329,10 +329,7 @@ export const ThreadListItem: FC = () => {
   useEffect(() => {
     if (isRenaming || !restoreFocusRef.current) return;
     restoreFocusRef.current = false;
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-    const { activeElement, body } = trigger.ownerDocument;
-    if (activeElement === body) trigger.focus();
+    triggerRef.current?.focus();
   }, [isRenaming]);
 
   return (
