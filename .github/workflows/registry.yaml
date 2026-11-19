@@ -171,8 +171,8 @@ jobs:
         run: |
           if [ -n "$DEPLOY_SHA" ]; then
             echo "::error::The registry deploy failed for ${DEPLOY_SHA}, so the registry still serves the previous release."
-            if [ -d "$GITHUB_WORKSPACE" ] && [ ! -f "$GITHUB_WORKSPACE/packages/x-deploy/package.json" ]; then
-              echo "::error::${DEPLOY_SHA} predates packages/x-deploy, so this workflow cannot deploy it. Run Deploy Shadcn Registry via workflow_dispatch on a release tag from that commit's era, so that commit's own workflow deploys it."
+            if [ "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD 2>/dev/null)" = "$DEPLOY_SHA" ] && [ ! -f "$GITHUB_WORKSPACE/packages/x-deploy/package.json" ]; then
+              echo "::error::${DEPLOY_SHA} predates packages/x-deploy, so this workflow cannot deploy it. Run Deploy Shadcn Registry via workflow_dispatch on a release tag from that commit's era with releaseSha=${DEPLOY_SHA}, so that commit's own workflow deploys it."
             else
               echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
             fi
