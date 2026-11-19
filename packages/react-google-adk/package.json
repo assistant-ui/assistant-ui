@@ -45,7 +45,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.36",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.56"
+    "assistant-stream": "^0.3.57"
   },
   "peerDependencies": {
     "@assistant-ui/store": "workspace:^",
@@ -71,7 +71,7 @@
     "@types/react": "^19.3.0",
     "jsdom": "^30.1.3",
     "react": "^19.3.1",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "publishConfig": {
     "access": "public",

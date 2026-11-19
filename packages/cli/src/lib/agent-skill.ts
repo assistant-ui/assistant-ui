@@ -6,7 +6,7 @@ import { dlxCommand, type PackageManagerName } from "./utils/package-manager";
 
 export const SKILLS_PACKAGE = "assistant-ui/skills";
 /** The `skills` CLI version that installs {@link SKILLS_PACKAGE}. */
-const SKILLS_CLI_PACKAGE = "skills@1.7.4";
+const SKILLS_CLI_PACKAGE = "skills@1.8.1";
 export const SKILLS_COMMIT = "b0609e66baff7e19f21053d5492464dcc22ec9c3";
 export const SKILLS_PLUGIN_SOURCE = `gh:${SKILLS_PACKAGE}/assistant-ui#${SKILLS_COMMIT}`;
 
