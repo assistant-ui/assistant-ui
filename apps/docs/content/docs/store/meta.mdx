@@ -15,14 +15,27 @@ aui.thread.name; // "thread"
 
 When you fill a scope directly via a provider's `AuiConfig({ ... })`, it gets `source: "root"` and an empty `query`:
 
+This example uses your registered `thread` scope and its `ThreadResource`.
+
 ```tsx
-const config = AuiConfig({ thread: ThreadResource() });
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 
-<AuiProvider config={config}>
+function ThreadMetadata() {
+  const { source, query } = useAui().thread;
+  return <pre>{JSON.stringify({ source, query })}</pre>;
+}
 
-aui.thread.source; // "root"
-aui.thread.query; // {}
+function RootScope() {
+  const config = AuiConfig({ thread: ThreadResource() });
+  return (
+    <AuiProvider config={config}>
+      <ThreadMetadata />
+    </AuiProvider>
+  );
+}
 ```
+
+`ThreadMetadata` renders `{"source":"root","query":{}}`.
 
 This is the default: the scope was provided directly, not derived from another scope.
 
@@ -30,21 +43,35 @@ This is the default: the scope was provided directly, not derived from another s
 
 When a scope is created via `Derived`, its `source` points to the parent scope it was derived from, and `query` carries the lookup parameters:
 
+Render `DerivedScope` under a provider for the `thread` scope, with a message at index 0.
+
 ```tsx
-const aui = useAui();
-const config = AuiConfig({
-  message: Derived({
-    source: "thread",
-    query: { index: 0 },
-    get: (aui) => aui.thread.message({ index: 0 }),
-  }),
-});
+import { AuiConfig, AuiProvider, Derived, useAui } from "@assistant-ui/store";
 
-<AuiProvider extends={aui} config={config}>
+function MessageMetadata() {
+  const { source, query } = useAui().message;
+  return <pre>{JSON.stringify({ source, query })}</pre>;
+}
 
-aui.message.source; // "thread"
-aui.message.query; // { index: 0 }
+function DerivedScope() {
+  const aui = useAui();
+  const config = AuiConfig({
+    message: Derived({
+      source: "thread",
+      query: { index: 0 },
+      get: (aui) => aui.thread.message({ index: 0 }),
+    }),
+  });
+
+  return (
+    <AuiProvider extends={aui} config={config}>
+      <MessageMetadata />
+    </AuiProvider>
+  );
+}
 ```
+
+`MessageMetadata` renders `{"source":"thread","query":{"index":0}}`.
 
 You can declare the expected meta shape in `ScopeRegistry`:
 
