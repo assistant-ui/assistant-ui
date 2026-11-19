@@ -107,6 +107,7 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
+  Indicator?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   /** Renders tool calls that carry a nested conversation and have no registered UI; without it they render like any other tool call. */
   TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
@@ -802,8 +803,11 @@ const taskAwareGroupBy = (
 };
 
 const AssistantMessage: FC = () => {
-  const { ToolFallback: CustomToolFallback, TaskGroup: TaskGroupComponent } =
-    useContext(ThreadComponentsContext);
+  const {
+    Indicator,
+    ToolFallback: CustomToolFallback,
+    TaskGroup: TaskGroupComponent,
+  } = useContext(ThreadComponentsContext);
   const ToolFallbackComponent = CustomToolFallback ?? ToolFallback;
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
@@ -847,7 +851,7 @@ const AssistantMessage: FC = () => {
               case "data":
                 return part.dataRendererUI;
               case "indicator":
-                return <AssistantIndicator />;
+                return Indicator ? <Indicator /> : <AssistantIndicator />;
               default:
                 return null;
             }

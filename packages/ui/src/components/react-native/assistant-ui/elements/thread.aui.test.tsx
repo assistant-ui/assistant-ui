@@ -1045,6 +1045,36 @@ describe("Thread", () => {
     expect(h.announceForAccessibility).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the default indicator for an empty running assistant message", async () => {
+    addMessages(h.makeMessage({ status: { type: "running" } }));
+    h.state.thread.isRunning = true;
+
+    await render();
+
+    const content = container.querySelector(".aui-assistant-message-content");
+    expect(
+      content
+        ?.querySelector(".aui-assistant-message-indicator")
+        ?.getAttribute("aria-label"),
+    ).toBe("Assistant is working");
+  });
+
+  it("replaces the pending indicator with a custom component", async () => {
+    const Indicator = () => <Text testID="custom-indicator">Waiting</Text>;
+    addMessages(h.makeMessage({ status: { type: "running" } }));
+    h.state.thread.isRunning = true;
+
+    await render({ components: { Indicator } });
+
+    const content = container.querySelector(".aui-assistant-message-content");
+    expect(
+      content?.querySelector('[data-testid="custom-indicator"]')?.textContent,
+    ).toBe("Waiting");
+    expect(
+      content?.querySelector(".aui-assistant-message-indicator"),
+    ).toBeNull();
+  });
+
   it("renders the error text for an errored message", async () => {
     addMessages(
       h.makeMessage({

@@ -16,7 +16,7 @@ The runtime does not hand you a phrase like "Reading the docs"; it hands you the
 
 ### Name what is happening from the message parts
 
-```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+```tsx title="components/assistant-ui/elements/assistant-thinking.tsx"
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
@@ -33,14 +33,14 @@ function useThinkingLabel() {
 }
 ```
 
-Once the assistant has streamed visible text and no tool call is pending, this returns `undefined`: that is your cue to stop rendering the indicator and let the real content show instead.
+Once the assistant has streamed visible text and no tool call is pending, this returns `undefined`. `Thread` also stops mounting its indicator slot when the message no longer needs a pending affordance.
 
   </Step>
   <Step>
 
 ### Tick the elapsed badge
 
-```tsx
+```tsx title="components/assistant-ui/elements/assistant-thinking.tsx"
 import { useEffect, useState } from "react";
 import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 
@@ -60,7 +60,7 @@ function useElapsedLabel(active: boolean) {
   return label;
 }
 
-function AssistantThinking() {
+export function AssistantThinking() {
   const label = useThinkingLabel();
   const elapsed = useElapsedLabel(label !== undefined);
   if (label === undefined) return null;
@@ -69,6 +69,24 @@ function AssistantThinking() {
 ```
 
 There is no runtime selector for "seconds elapsed so far": `metadata.timing` only finalizes once the message stops streaming, so a live badge needs its own timer, started the moment you have a label to show.
+
+  </Step>
+  <Step>
+
+### Pass it to Thread
+
+```tsx title="app/chat.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { AssistantThinking } from "@/components/assistant-ui/elements/assistant-thinking";
+
+export default function Chat() {
+  return <Thread components={{ Indicator: AssistantThinking }} />;
+}
+```
+
+The slot replaces Thread's built-in pending dot for a running assistant message.
 
   </Step>
 </Steps>
