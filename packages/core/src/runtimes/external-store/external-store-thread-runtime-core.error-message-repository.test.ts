@@ -71,7 +71,7 @@ describe("a runtime core created over a repository another core wrote to", () =>
     expect(second.getBranches("a1")).toEqual(["a1"]);
   });
 
-  it("keeps an error the previous core left when the new snapshot still carries it", () => {
+  it("evicts the previous core's error and keeps the new snapshot's error", () => {
     const repository = new MessageRepository();
     new ExternalStoreThreadRuntimeCore(
       contextProvider,
@@ -80,13 +80,13 @@ describe("a runtime core created over a repository another core wrote to", () =>
     const error = repository.getMessages().at(-1)!;
     expect(isErrorMessageId(error.id)).toBe(true);
 
-    // The host republishes the same error, so the new core must not evict it.
-    const second = new ExternalStoreThreadRuntimeCore(
-      contextProvider,
-      adapter([u1], { repository, error: "502" }),
-    );
+    const next = adapter([u1], { repository, error: "502" });
+    const newErrorId = next.messages!.at(-1)!.id;
+    expect(newErrorId).not.toBe(error.id);
+    const second = new ExternalStoreThreadRuntimeCore(contextProvider, next);
 
-    expect(errorIds(second)).toHaveLength(1);
+    expect(errorIds(second)).not.toContain(error.id);
+    expect(errorIds(second)).toEqual([newErrorId]);
   });
 
   it("keeps a repository error the host built further turns on", () => {
