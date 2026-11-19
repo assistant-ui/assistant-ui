@@ -160,6 +160,7 @@ function fakeClient({
   prSnapshots,
   stateSnapshots,
   comparisons = {},
+  relayed,
 } = {}) {
   const calls = [];
   const writes = [];
@@ -202,6 +203,22 @@ function fakeClient({
         if (reviewPages) pullRequest.reviews = structuredClone(reviewPages[0]);
         if (commitPages) pullRequest.commits = structuredClone(commitPages[0]);
         return { repository: { pullRequest } };
+      }
+      if (query.includes("query ReviewTierRelayedPullRequest(")) {
+        const current = prByNumber[variables.number] ?? pr;
+        return {
+          repository: {
+            pullRequest:
+              relayed === null
+                ? null
+                : {
+                    state: "OPEN",
+                    isDraft: current.isDraft,
+                    author: current.author,
+                    ...relayed,
+                  },
+          },
+        };
       }
       if (query.includes("query ReviewTierPullRequestState(")) {
         const latest =
@@ -443,6 +460,22 @@ function eventOptions(client, name, event = {}, overrides = {}) {
       assert.equal(file, "event.json");
       assert.equal(encoding, "utf8");
       return JSON.stringify(event);
+    },
+    ...overrides,
+  };
+}
+
+function relayOptions(client, number = "12", overrides = {}) {
+  return {
+    client,
+    policy: enforcePolicy,
+    now,
+    args: [],
+    env: { GITHUB_EVENT_NAME: "workflow_run" },
+    readFile: (file, encoding) => {
+      assert.equal(file, "review-tier-pr/number");
+      assert.equal(encoding, "utf8");
+      return `${number}\n`;
     },
     ...overrides,
   };
@@ -2001,7 +2034,11 @@ function workflowJobRuns(file, job, eventName, event, appId = "123") {
   );
   return Boolean(
     runInNewContext(expression, {
-      github: { event_name: eventName, event },
+      github: {
+        event_name: eventName,
+        event,
+        repository: "assistant-ui/assistant-ui",
+      },
       vars: { REVIEW_POLICY_APP_ID: appId },
       startsWith: (value, prefix) => value.startsWith(prefix),
       contains: (values, value) => values.includes(value),
@@ -2063,28 +2100,6 @@ for (const [eventName, event, expected] of [
   ["merge_group", {}, true],
   ["issues", { label: { name: "decision: accepted" } }, true],
   ["issues", { label: { name: "bug" } }, false],
-  ["pull_request_target", { action: "synchronize" }, true],
-  ["pull_request_target", { action: "labeled", label: { name: "bug" } }, false],
-  [
-    "pull_request_target",
-    { action: "labeled", label: { name: "behavior-change" } },
-    true,
-  ],
-  [
-    "pull_request_target",
-    { action: "edited", changes: {}, sender: { type: "User" } },
-    true,
-  ],
-  [
-    "pull_request_target",
-    {
-      action: "edited",
-      changes: {},
-      sender: { type: "Bot" },
-      pull_request: { labels: [] },
-    },
-    false,
-  ],
 ]) {
   test(`review evaluator preserves the ${eventName} ${JSON.stringify(event)} filter`, () => {
     assert.equal(
@@ -2093,6 +2108,188 @@ for (const [eventName, event, expected] of [
     );
     assert.equal(
       workflowJobRuns("review-tier.yaml", "evaluate", eventName, event, ""),
+      false,
+    );
+  });
+}
+
+test("no review workflow runs privileged code on pull_request_target", () => {
+  for (const file of [
+    "review-tier.yaml",
+    "review-tier-relay.yaml",
+    "claude-code-review.yml",
+    "claude-code-review-relay.yaml",
+  ]) {
+    const workflow = readFileSync(
+      new URL(`../.github/workflows/${file}`, import.meta.url),
+      "utf8",
+    );
+    assert.doesNotMatch(workflow, /^\s*pull_request_target:/m, file);
+  }
+});
+
+test("the pull request relays hold no permissions or secrets", () => {
+  for (const file of ["review-tier-relay.yaml", "claude-code-review-relay.yaml"]) {
+    const workflow = readFileSync(
+      new URL(`../.github/workflows/${file}`, import.meta.url),
+      "utf8",
+    );
+    assert.match(workflow, /^permissions: \{\}$/m, file);
+    assert.doesNotMatch(
+      workflow,
+      /secrets\.|permissions:\s*\n(?:\s+[\w-]+: \w+\n)*\s+[\w-]+: write/,
+      file,
+    );
+  }
+});
+
+for (const [event, expected] of [
+  [{ action: "opened" }, true],
+  [{ action: "synchronize" }, true],
+  [{ action: "labeled", label: { name: "claude-review" } }, true],
+  [{ action: "labeled", label: { name: "bug" } }, false],
+  [{ action: "opened", draft: true }, false],
+  [{ action: "opened", sameRepo: true }, false],
+  [{ action: "opened", bot: true }, false],
+]) {
+  test(`Claude review relay ${expected ? "runs" : "skips"} for ${JSON.stringify(event)}`, () => {
+    const { draft = false, sameRepo = false, bot = false, ...rest } = event;
+    assert.equal(
+      workflowJobRuns("claude-code-review-relay.yaml", "relay", "pull_request", {
+        ...rest,
+        sender: { type: bot ? "Bot" : "User" },
+        pull_request: {
+          draft,
+          head: {
+            repo: {
+              full_name: sameRepo ? "assistant-ui/assistant-ui" : "fork/x",
+            },
+          },
+        },
+      }),
+      expected,
+    );
+  });
+}
+
+test("Claude fork review validates the relay before the review job and rechecks the head before publishing", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/claude-code-review.yml", import.meta.url),
+    "utf8",
+  );
+  const job = (name) =>
+    workflow.split(`\n  ${name}:\n`)[1].split(/^  [\w-]+:\n/m)[0];
+  const validate = job("claude-fork-review-validate");
+  assert.match(validate, /\.head\.sha == \$sha/);
+  assert.doesNotMatch(validate, /concurrency:|secrets\.|: write/);
+  const review = job("claude-fork-review");
+  assert.match(review, /needs: \[claude-fork-review-validate, claude-fork-review-budget\]/);
+  assert.match(review, /group: claude-code-review-fork-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}/);
+  assert.doesNotMatch(review, /: write|download-artifact/);
+  const publish = job("claude-fork-review-publish");
+  assert.match(publish, /permissions:\n      pull-requests: write\n    steps:/);
+  assert.doesNotMatch(publish, /secrets\.|actions\/checkout/);
+  const recheck = publish.indexOf(".head.sha == $sha'");
+  assert.ok(recheck > 0, "publisher rechecks the head");
+  assert.ok(recheck < publish.indexOf("--method POST"), "before writing");
+});
+
+const pullRequest = (overrides = {}) => ({
+  draft: false,
+  labels: [],
+  ...overrides,
+});
+for (const [event, expected] of [
+  [{ action: "synchronize", pull_request: pullRequest() }, true],
+  [{ action: "opened", pull_request: pullRequest() }, true],
+  [
+    { action: "synchronize", pull_request: pullRequest({ draft: true }) },
+    false,
+  ],
+  [{ action: "closed", pull_request: pullRequest({ draft: true }) }, true],
+  [
+    {
+      action: "converted_to_draft",
+      pull_request: pullRequest({ draft: true }),
+    },
+    true,
+  ],
+  [
+    {
+      action: "labeled",
+      label: { name: "bug" },
+      sender: { type: "User" },
+      pull_request: pullRequest(),
+    },
+    false,
+  ],
+  [
+    {
+      action: "labeled",
+      label: { name: "behavior-change" },
+      sender: { type: "Bot" },
+      pull_request: pullRequest(),
+    },
+    true,
+  ],
+  [
+    {
+      action: "unlabeled",
+      label: { name: "tier/2" },
+      sender: { type: "User" },
+      pull_request: pullRequest(),
+    },
+    true,
+  ],
+  [
+    {
+      action: "labeled",
+      label: { name: "tier/2" },
+      sender: { type: "Bot" },
+      pull_request: pullRequest(),
+    },
+    false,
+  ],
+  [
+    {
+      action: "edited",
+      changes: {},
+      sender: { type: "User" },
+      pull_request: pullRequest(),
+    },
+    true,
+  ],
+  [
+    {
+      action: "edited",
+      changes: {},
+      sender: { type: "Bot" },
+      pull_request: pullRequest(),
+    },
+    false,
+  ],
+  [
+    {
+      action: "edited",
+      changes: {},
+      sender: { type: "Bot" },
+      pull_request: pullRequest({ labels: [{ name: "tier/3" }] }),
+    },
+    true,
+  ],
+]) {
+  test(`pull request relay ${expected ? "runs" : "skips"} for ${JSON.stringify(event)}`, () => {
+    assert.equal(
+      workflowJobRuns(
+        "review-tier-relay.yaml",
+        "relay-pull-request",
+        "pull_request",
+        event,
+      ),
+      expected,
+    );
+    assert.equal(
+      workflowJobRuns("review-tier-relay.yaml", "relay", "pull_request", event),
       false,
     );
   });
@@ -2133,6 +2330,17 @@ test("issues events reevaluate only open T3 pull requests and only for the decis
       .filter((call) => call.query?.includes("query ReviewTierPullRequest("))
       .map(({ variables }) => variables.number),
     [12],
+  );
+});
+
+test("a relayed number that names no pull request publishes nothing", async () => {
+  const recording = fakeClient({ relayed: null });
+  assert.equal(await main(relayOptions(recording.client, "99")), 0);
+  assert.deepEqual(recording.writes, []);
+  assert.ok(
+    !recording.calls.some(({ query }) =>
+      query?.includes("query ReviewTierPullRequest("),
+    ),
   );
 });
 
@@ -2284,13 +2492,14 @@ test("main fetches organization and teams once across two pull requests", async 
   );
 });
 
-test("explicit dispatch input and pull request events evaluate one PR", async () => {
-  for (const [name, event] of [
-    ["workflow_dispatch", { inputs: { pr: "12" } }],
-    ["pull_request_target", { pull_request: { number: 12, draft: false } }],
+test("explicit dispatch input and relayed pull request events evaluate one PR", async () => {
+  for (const options of [
+    (client) =>
+      eventOptions(client, "workflow_dispatch", { inputs: { pr: "12" } }),
+    (client) => relayOptions(client),
   ]) {
     const recording = fakeClient();
-    assert.equal(await main(eventOptions(recording.client, name, event)), 0);
+    assert.equal(await main(options(recording.client)), 0);
     assert.ok(
       recording.calls.some(
         (call) =>
@@ -2497,12 +2706,14 @@ test("a changing pull request publishes the third gather and later pull requests
   );
 });
 
-test("closing or drafting a pull request re-evaluates the author's open siblings", async () => {
-  for (const [action, draft] of [
-    ["closed", false],
-    ["converted_to_draft", true],
+test("a relayed pull request that closed or became a draft re-evaluates the author's open siblings", async () => {
+  for (const relayed of [
+    { state: "CLOSED" },
+    { state: "MERGED" },
+    { isDraft: true },
   ]) {
     const recording = fakeClient({
+      relayed,
       authorPages: [
         {
           nodes: [{ number: 12 }, { number: 13 }],
@@ -2514,19 +2725,7 @@ test("closing or drafting a pull request re-evaluates the author's open siblings
         },
       ],
     });
-    assert.equal(
-      await main(
-        eventOptions(recording.client, "pull_request_target", {
-          action,
-          pull_request: {
-            number: 12,
-            draft,
-            user: { login: "samdickson22" },
-          },
-        }),
-      ),
-      0,
-    );
+    assert.equal(await main(relayOptions(recording.client)), 0);
     assert.deepEqual(
       recording.calls
         .filter(({ query }) =>
@@ -2576,16 +2775,10 @@ test("closing or drafting a pull request re-evaluates the author's open siblings
 
 test("maintainer authors do not trigger sibling evaluation", async () => {
   for (const login of ["okisdev", "Kinfe123"]) {
-    const recording = fakeClient();
-    assert.equal(
-      await main(
-        eventOptions(recording.client, "pull_request_target", {
-          action: "closed",
-          pull_request: { number: 12, draft: false, user: { login } },
-        }),
-      ),
-      0,
-    );
+    const recording = fakeClient({
+      relayed: { state: "CLOSED", author: { login } },
+    });
+    assert.equal(await main(relayOptions(recording.client)), 0);
     assert.ok(
       !recording.calls.some(
         ({ query }) =>
@@ -2598,32 +2791,11 @@ test("maintainer authors do not trigger sibling evaluation", async () => {
 });
 
 test("draft pull requests are skipped outside merge groups, including fresh draft state", async () => {
-  for (const action of ["synchronize", "edited", "opened"]) {
-    const eventDraft = fakeClient();
-    assert.equal(
-      await main(
-        eventOptions(eventDraft.client, "pull_request_target", {
-          action,
-          pull_request: {
-            number: 12,
-            draft: true,
-            user: { login: "samdickson22" },
-          },
-        }),
-      ),
-      0,
-    );
-    assert.deepEqual(eventDraft.calls, []);
-  }
-  const freshDraft = fakeClient({ pr: tapPullRequest({ isDraft: true }) });
-  assert.equal(
-    await main(
-      eventOptions(freshDraft.client, "pull_request_target", {
-        pull_request: { number: 12, draft: false },
-      }),
-    ),
-    0,
-  );
+  const freshDraft = fakeClient({
+    pr: tapPullRequest({ isDraft: true }),
+    relayed: { isDraft: false },
+  });
+  assert.equal(await main(relayOptions(freshDraft.client)), 0);
   assert.deepEqual(freshDraft.writes, []);
   assert.equal(
     await main({
