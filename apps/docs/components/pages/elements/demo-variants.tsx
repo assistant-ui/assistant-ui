@@ -4,16 +4,18 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { demoFrameClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
-import type { ElementVariant } from "./registry";
+import { getElement } from "./registry";
 
 export function DemoVariants({
-  variants,
+  slug,
   replay,
 }: {
-  variants: ElementVariant[];
+  slug: string;
   replay: boolean;
 }) {
-  const [key, setKey] = useState(variants[0]!.key);
+  const variants = getElement(slug)?.variants;
+  const [key, setKey] = useState<string>();
+  if (!variants?.length) return null;
   const active =
     variants.find((variant) => variant.key === key) ?? variants[0]!;
 

@@ -277,7 +277,7 @@ export default async function ElementPage({
               }
             >
               {element.variants ? (
-                <DemoVariants variants={element.variants} replay={replayable} />
+                <DemoVariants slug={element.slug} replay={replayable} />
               ) : (
                 <div
                   className={cn(
