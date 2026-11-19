@@ -1474,6 +1474,32 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("rechecks at-bottom when the footer and content both return to their observed sizes", () => {
+    const view = geometry(5, 3);
+    const onAtBottomChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange,
+    });
+    controller.attach(view.element);
+    const footer = controller.registerContentInset();
+    footer.setHeight(1);
+    observers[0]!.trigger();
+    expect(controller.isAtBottom).toBe(true);
+
+    view.grow(7);
+    footer.setHeight(2);
+    footer.setHeight(1);
+    expect(controller.isAtBottom).toBe(false);
+
+    view.grow(5);
+    observers[0]!.trigger();
+
+    expect(controller.isAtBottom).toBe(true);
+    expect(onAtBottomChange).toHaveBeenLastCalledWith(true);
+    controller.dispose();
+  });
+
   it("remeasures registered insets even when viewport metrics are unchanged", () => {
     const view = geometry(100, 100);
     const onContentInsetChange = vi.fn();
