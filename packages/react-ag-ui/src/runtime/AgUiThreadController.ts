@@ -1864,6 +1864,7 @@ export class AgUiThreadController {
     this.snapshotHeadMovedAssistantIds.clear();
     this.subagentParentToolCallIds.clear();
     this.interruptNamedToolCallIds.clear();
+    this.optimisticIds.clear();
 
     if (controller) {
       this.abortController = null;
