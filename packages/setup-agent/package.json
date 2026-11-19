@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "cross-spawn": "^7.0.6",
-    "statewire": "^0.28.2"
+    "statewire": "^0.22.1"
   },
   "peerDependencies": {
     "@assistant-ui/tap": "workspace:^"

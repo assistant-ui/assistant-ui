@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@assistant-ui/tap": "^0.9.26",
-    "@statewire/cloudflare": "^0.7.0",
+    "@statewire/cloudflare": "^0.5.1",
     "setup-agent": "workspace:*",
-    "statewire": "^0.28.2"
+    "statewire": "^0.22.1"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

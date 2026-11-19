@@ -349,8 +349,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       statewire:
-        specifier: ^0.28.2
-        version: 0.28.2(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^0.22.1
+        version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
       streamdown:
         specifier: ^2.7.1
         version: 2.7.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)
@@ -395,14 +395,14 @@ importers:
         specifier: ^0.9.26
         version: link:../../packages/tap
       '@statewire/cloudflare':
-        specifier: ^0.7.0
-        version: 0.7.0(@cloudflare/workers-types@5.20261115.1)(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^0.5.1
+        version: 0.5.1(@cloudflare/workers-types@5.20261115.1)(@types/react@19.3.0)(react@19.3.1)
       setup-agent:
         specifier: workspace:*
         version: link:../../packages/setup-agent
       statewire:
-        specifier: ^0.28.2
-        version: 0.28.2(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^0.22.1
+        version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -732,8 +732,8 @@ importers:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       statewire:
-        specifier: ^0.28.2
-        version: 0.28.2(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^0.22.1
+        version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
       streamdown:
         specifier: ^2.7.1
         version: 2.7.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(supports-color@10.2.2)
@@ -1001,8 +1001,8 @@ importers:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       statewire:
-        specifier: ^0.28.2
-        version: 0.28.2(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^0.22.1
+        version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -4661,8 +4661,8 @@ importers:
         specifier: workspace:^
         version: link:../setup-agent
       statewire:
-        specifier: ^0.28.2
-        version: 0.28.2(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^0.22.1
+        version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -6571,8 +6571,8 @@ importers:
         specifier: ^7.0.6
         version: 7.0.6
       statewire:
-        specifier: ^0.28.2
-        version: 0.28.2(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^0.22.1
+        version: 0.22.1(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
       '@assistant-ui/tap':
         specifier: workspace:*
@@ -14464,8 +14464,8 @@ packages:
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
-  '@statewire/cloudflare@0.7.0':
-    resolution: {integrity: sha512-hdnk+ieV6m12wyEwGRRhJJYcxKSiyvHFTdAb3+RHviutblWPVNYHeZbwVIDEsMWbppIodnRBCD/be52me4GMNQ==}
+  '@statewire/cloudflare@0.5.1':
+    resolution: {integrity: sha512-srkGY9kM7R23LY5tQoo7IQohVTPl9wza5pQaDO9ueqMdpXIg93L+ctiNKcsZklolgtpaRJwgNoSjH20czlc+8g==}
     peerDependencies:
       '@cloudflare/workers-types': '>=4'
     peerDependenciesMeta:
@@ -22962,8 +22962,8 @@ packages:
   stat-mode@0.3.0:
     resolution: {integrity: sha512-QjMLR0A3WwFY2aZdV0okfFEJB5TRjkggXZjxP3A1RsWsNHNu3YPv8btmtc6iCFZ0Rul3FE93OYogvhOUClU+ng==}
 
-  statewire@0.28.2:
-    resolution: {integrity: sha512-ZWi6qJzM6aiR8PokQL5dj/bQL5adLBGKJATYyto4KZVjw9JnBXKseNCX6636vFg1EZpxYYWETCQYlBEQbTT3Qg==}
+  statewire@0.22.1:
+    resolution: {integrity: sha512-ELF0Yg3vmUqdvL3IqLj8yP5a/60I/vcLkjr3Z9cXynYtoOBIkXmkSYmfDP1QX2jL0HXswgCTZj7dZjeAHtqkDw==}
     peerDependencies:
       react: ^18 || ^19
 
@@ -32737,10 +32737,10 @@ snapshots:
 
   '@standard-schema/utils@0.3.0': {}
 
-  '@statewire/cloudflare@0.7.0(@cloudflare/workers-types@5.20261115.1)(@types/react@19.3.0)(react@19.3.1)':
+  '@statewire/cloudflare@0.5.1(@cloudflare/workers-types@5.20261115.1)(@types/react@19.3.0)(react@19.3.1)':
     dependencies:
       '@assistant-ui/tap': 0.9.26(@types/react@19.3.0)(react@19.3.1)
-      statewire: 0.28.2(@types/react@19.3.0)(react@19.3.1)
+      statewire: 0.22.1(@types/react@19.3.0)(react@19.3.1)
     optionalDependencies:
       '@cloudflare/workers-types': 5.20261115.1
     transitivePeerDependencies:
@@ -44107,7 +44107,7 @@ snapshots:
 
   stat-mode@0.3.0: {}
 
-  statewire@0.28.2(@types/react@19.3.0)(react@19.3.1):
+  statewire@0.22.1(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       '@assistant-ui/tap': 0.9.26(@types/react@19.3.0)(react@19.3.1)
       react: 19.3.1
