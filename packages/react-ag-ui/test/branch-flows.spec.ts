@@ -1045,7 +1045,7 @@ describe("AgUiThreadController branch flows", () => {
       type: "text",
       text: "resumed content",
     });
-    expect(tail.metadata.isOptimistic).toBeUndefined();
+    expect(tail.metadata.isOptimistic).toBe(false);
     expect(tail.id.startsWith("__optimistic__")).toBe(false);
   });
 

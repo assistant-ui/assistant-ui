@@ -112,10 +112,6 @@ type RunAgentWithRunOptions = (
   options: { signal: AbortSignal },
 ) => Promise<RunAgentResult>;
 
-const optimisticPrefix = "__optimistic__";
-const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
-const isOptimisticId = (id: string) => id.startsWith(optimisticPrefix);
-
 const isResolvedToolCall = (
   part: ThreadAssistantMessage["content"][number],
 ): boolean =>
@@ -419,6 +415,7 @@ export class AgUiThreadController {
     | undefined;
   private readonly isThreadSwitching: (() => boolean) | undefined;
   private readonly reportedErrors = new WeakSet<object>();
+  private readonly optimisticIds = new Set<string>();
 
   private runtime: AssistantRuntime | undefined;
   private readonly session = createMessageRepositorySession({
@@ -1867,6 +1864,7 @@ export class AgUiThreadController {
     this.snapshotHeadMovedAssistantIds.clear();
     this.subagentParentToolCallIds.clear();
     this.interruptNamedToolCallIds.clear();
+    this.optimisticIds.clear();
 
     if (controller) {
       this.abortController = null;
@@ -3319,9 +3317,15 @@ export class AgUiThreadController {
       this.setRunning(false);
   }
 
+  private generateOptimisticId(): string {
+    const id = generateId();
+    this.optimisticIds.add(id);
+    return id;
+  }
+
   private insertAssistantPlaceholder(
     parentId: string | null,
-    id: string = generateOptimisticId(),
+    id: string = this.generateOptimisticId(),
     deferNotification = false,
   ): string {
     const assistant: ThreadAssistantMessage = {
@@ -3335,7 +3339,7 @@ export class AgUiThreadController {
         unstable_annotations: [],
         unstable_data: [],
         steps: [],
-        isOptimistic: isOptimisticId(id),
+        isOptimistic: this.optimisticIds.has(id),
         custom: {},
       },
     };
@@ -3354,6 +3358,7 @@ export class AgUiThreadController {
     const oldItem = this.session.tryGetMessage(oldId);
     if (!oldItem) return false;
 
+    this.optimisticIds.delete(oldId);
     const collidesWithExisting = this.session.hasMessage(newId);
 
     if (collidesWithExisting) {
@@ -3421,14 +3426,13 @@ export class AgUiThreadController {
     pendingToolCallIds?: ReadonlySet<string>,
     deferNotification = false,
   ): string {
-    let latestStatus: MessageStatus | undefined;
     const touched = this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       const mergedMetadata = update.metadata
         ? this.mergeAssistantMetadata(assistant.metadata, update.metadata)
         : assistant.metadata;
-      latestStatus = update.status ?? assistant.status;
+      let latestStatus = update.status ?? assistant.status;
       let content =
         update.content !== undefined
           ? replay
@@ -3542,27 +3546,19 @@ export class AgUiThreadController {
         ...assistant,
         content,
         status: latestStatus,
-        metadata,
+        metadata:
+          latestStatus.type !== "running" &&
+          this.optimisticIds.delete(messageId)
+            ? { ...metadata, isOptimistic: false }
+            : metadata,
       };
     });
     if (!touched) return messageId;
 
-    let resolvedMessageId = messageId;
-    const isSettled =
-      latestStatus !== undefined && latestStatus.type !== "running";
-    if (isSettled && isOptimisticId(messageId)) {
-      const stableId = generateId();
-      this.reassignAssistantId(messageId, stableId, deferNotification);
-      resolvedMessageId = stableId;
-    } else {
-      this.publishUpdate(deferNotification);
-    }
-    this.persistAssistantHistory(resolvedMessageId);
-    this.maybeResumeAfterToolResults(
-      resolvedMessageId,
-      replay?.accountedResultIds,
-    );
-    return resolvedMessageId;
+    this.publishUpdate(deferNotification);
+    this.persistAssistantHistory(messageId);
+    this.maybeResumeAfterToolResults(messageId, replay?.accountedResultIds);
+    return messageId;
   }
 
   // The RunAggregator rebuilds the assistant content from stream events only,
@@ -3870,7 +3866,9 @@ export class AgUiThreadController {
       unstable_annotations: annotations,
       unstable_data: data,
       steps,
-      ...(current.isOptimistic ? { isOptimistic: true } : {}),
+      ...(current.isOptimistic !== undefined
+        ? { isOptimistic: current.isOptimistic }
+        : {}),
       ...(incoming.timing ? { timing: incoming.timing } : {}),
       custom: incoming.custom
         ? mergeAgUiNamespace(current.custom, incoming.custom)
