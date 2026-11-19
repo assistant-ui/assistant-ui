@@ -303,11 +303,11 @@ A repeated `SUBAGENT_STARTED` for an id the run has already seen is treated as a
 
 A subagent's frontend-executed tool calls behave the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record. Approval gates cover nested calls too, so a gate naming a subagent-scoped call projects onto the nested part, the frontend tool never runs its `execute`, and an undecided gate's result is never exported to the backend.
 
-Two limitations apply:
+A suspended subagent's interrupts are answered the same way the root agent's are. The protocol carries their full records on the run's `RUN_FINISHED` interrupt outcome, each naming its subagent in `subagentRunId`, while the `suspended` outcome's `interruptIds` only reference them. `useAgUiInterrupts` returns them beside any root interrupts, and `useAgUiSubmitInterruptResponses` answers them on the parent run's `resume`, which continues the suspended subagent.
+
+One limitation applies:
 
 - **Nested structure does not survive a reload.** Thread restore reads the flattened wire shape, so a restored subagent tool call comes back as a root-level part rather than nested under its spawning call. Results and decisions are preserved; only the nesting is not.
-
-- **Nested human-in-the-loop has no resume path.** A `SUBAGENT_FINISHED` carrying a `suspended` outcome marks the nested message `requires-action` and preserves its `interruptIds` on the message metadata, but nothing answers them yet.
 
 ### Compared to LangChain
 
@@ -365,7 +365,7 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
 | Thinking / reasoning blocks | Yes |
 | Tool calls and results | Yes |
 | Tool result handoff (client-side execution) | Yes |
-| Subagents (nested `ToolCallMessagePart.messages`) | Yes, with [two limitations](#subagents) |
+| Subagents (nested `ToolCallMessagePart.messages`) | Yes, with [one limitation](#subagents) |
 | State snapshots and deltas | Yes |
 | Custom events (as `data` parts) | Yes |
 | Cancellation | Yes |

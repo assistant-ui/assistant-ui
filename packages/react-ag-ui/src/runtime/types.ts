@@ -190,6 +190,7 @@ export type AgUiInterrupt = {
   reason: AgUiInterruptReason;
   message?: string;
   toolCallId?: string;
+  subagentRunId?: string;
   responseSchema?: Record<string, unknown>;
   expiresAt?: string;
   metadata?: Record<string, unknown>;
