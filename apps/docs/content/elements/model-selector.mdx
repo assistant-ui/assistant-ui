@@ -26,12 +26,13 @@ Model selector is a popover that lists AI models and, for models that support it
 
 ### Add the picker
 
-Each model needs an `id` and a display `name`; everything else is optional.
+Each model needs an `id` and a display `name`; everything else is optional. Pass the picker to `Thread` as `ComposerExtra`, which renders it in the composer's action row beside the attach button.
 
-```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+```tsx
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
-function ComposerAction() {
+function ModelPicker() {
   return (
     <ModelSelector
       models={[
@@ -45,6 +46,8 @@ function ComposerAction() {
     />
   );
 }
+
+<Thread components={{ ComposerExtra: ModelPicker }} />
 ```
 
   </Step>
