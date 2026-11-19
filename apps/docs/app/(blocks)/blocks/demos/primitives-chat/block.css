@@ -5,7 +5,7 @@
 
 /* Theme: shadcn/ui neutral. */
 :root:has(.primitives-chat) {
-  --radius: 0.625rem;
+  --radius: 14px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -24,6 +24,13 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+
+  /* Glass: the translucent, blurred surface of anything that floats. */
+  --glass: oklch(1 0 0 / 60%);
+  --glass-hover: oklch(0.145 0 0 / 6%);
+  --glass-muted-foreground: oklch(0.442 0 0);
+  --glass-blur: 4px;
+  --float-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 :root.dark:has(.primitives-chat) {
@@ -45,6 +52,15 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --glass: oklch(0.145 0 0 / 70%);
+  --glass-hover: oklch(0.985 0 0 / 9%);
+  --glass-muted-foreground: oklch(0.871 0 0);
+}
+
+/* Medium text is a little lighter than the default 500. */
+:root:has(.primitives-chat) {
+  --font-weight-medium: 430;
+  --font-weight-normal: 400;
 }
 
 /* Font: Geist, loaded in layout.tsx. */

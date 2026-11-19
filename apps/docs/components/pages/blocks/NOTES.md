@@ -35,3 +35,5 @@ A demo block is a small app inside the docs, in its own folder under `app/(block
 - Demo blocks: a block can live in the docs app, in its own folder under `app/(blocks)/blocks/demos/`, with its own page, layout, CSS and components. Its preview is its own page, so it needs no port.
 - Primitives chat, the first demo block: a chat that uses all 17 assistant-ui primitives, with scripted replies, set in Geist.
 - Primitives chat styling: shadcn neutral theme, hand cursor on anything clickable, and Hugeicons in place of lucide.
+- Primitives chat icon buttons: round ghost buttons with a press effect, a copy icon that swaps to a green tick, and a tooltip on every icon button.
+- Primitives chat: composer on the background color with a light border and shadow, and a sidebar you can resize or hide (button and ⌘B).

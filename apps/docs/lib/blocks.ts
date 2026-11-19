@@ -222,6 +222,7 @@ export const BLOCKS: readonly Block[] = [
     ],
     requirements: [
       "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
+      "The shadcn/ui tooltip and resizable components, for the labels on the icon buttons and the sidebar you can drag.",
       "A model of your own. The chat answers from a script, so replace scriptedModel with a ChatModelAdapter or another assistant-ui runtime.",
       "A browser with speech synthesis for reading a reply aloud.",
     ],
