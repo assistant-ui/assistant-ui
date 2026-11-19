@@ -49,10 +49,14 @@ const toNodeList = (
 };
 
 const warn = (message: string, ...args: unknown[]) => {
-  if (
-    typeof process !== "undefined" &&
-    process.env?.NODE_ENV !== "production"
-  ) {
+  const isNotProduction = (() => {
+    try {
+      return process.env.NODE_ENV !== "production";
+    } catch {
+      return false;
+    }
+  })();
+  if (isNotProduction) {
     console.warn(message, ...args);
   }
 };

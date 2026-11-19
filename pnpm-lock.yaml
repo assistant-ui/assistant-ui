@@ -4746,6 +4746,9 @@ importers:
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       jsdom:
         specifier: ^30.1.3
         version: 30.1.3

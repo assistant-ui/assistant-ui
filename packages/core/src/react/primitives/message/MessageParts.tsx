@@ -481,10 +481,14 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
     case "generative-ui": {
       if (!generativeUI?.components) {
-        if (
-          typeof process !== "undefined" &&
-          process.env?.NODE_ENV !== "production"
-        ) {
+        const isNotProduction = (() => {
+          try {
+            return process.env.NODE_ENV !== "production";
+          } catch {
+            return false;
+          }
+        })();
+        if (isNotProduction) {
           console.warn(
             "MessagePrimitive.Parts received a generative-ui part but no " +
               "`components.generativeUI.components` allowlist was provided. " +
