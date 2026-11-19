@@ -1,9 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { median } from "./coverage-runtimes.mjs";
+import { coverageWorkspaceDirectories, median } from "./coverage-runtimes.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
-import { readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const recordedRuntimesMs = JSON.parse(
@@ -11,9 +10,7 @@ const recordedRuntimesMs = JSON.parse(
 );
 
 function coverageWorkspaces(root) {
-  return readWorkspaceManifestEntries(root)
-    .manifests.filter(({ pkg }) => pkg.scripts?.["test:coverage"])
-    .map(({ pkg }) => pkg.name);
+  return [...coverageWorkspaceDirectories(root).keys()];
 }
 
 export function coverageShards(
