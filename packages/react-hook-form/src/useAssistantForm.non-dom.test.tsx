@@ -72,3 +72,41 @@ it.each([
     }
   },
 );
+
+it("reports a missing form from submit_form without DOM globals", async () => {
+  let provider!: { getModelContext: () => ModelContext };
+  mocks.register.mockImplementation((value) => {
+    provider = value;
+    return () => {};
+  });
+  const Form = () => {
+    const form = useAssistantForm<{ name: string }>({
+      defaultValues: { name: "Ada" },
+    });
+    return (
+      <Controller
+        control={form.control}
+        name="name"
+        render={({ field }) => <input ref={field.ref} />}
+      />
+    );
+  };
+  render(<Form />);
+  vi.stubGlobal("HTMLElement", undefined);
+  vi.stubGlobal("HTMLFormElement", undefined);
+
+  try {
+    const execute = provider.getModelContext().tools?.submit_form?.execute;
+    if (!execute) throw new Error("submit_form is missing");
+    await act(async () => {
+      await expect(
+        execute({}, { human: async () => true } as never),
+      ).resolves.toEqual({
+        success: false,
+        message: "Unable retrieve the form element. This is a coding error.",
+      });
+    });
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

@@ -2,4 +2,4 @@
 "@assistant-ui/react-hook-form": patch
 ---
 
-fix: submit forms through React Hook Form when DOM constructors are unavailable, instead of throwing on `instanceof HTMLElement` (#10739)
+`submit_form` reports that it found no form instead of throwing where DOM constructors are absent.
