@@ -272,9 +272,7 @@ describe("RemoteThreadList thread mutations", () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       firstArchive.resolve();
       await Promise.all([first, second, unarchived!]);
-      await vi.waitFor(() =>
-        expect(threads.item({ id: "a" }).getState().status).toBe("regular"),
-      );
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
       expect(calls).toEqual(["archive", "archive", "unarchive"]);
       expect({
         shown: threads.item({ id: "a" }).getState().status,

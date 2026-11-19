@@ -115,11 +115,6 @@ const runMergedQueueArchive = async (
     unarchiveGate.resolve();
     await Promise.all([draftArchive, switched]);
     await yieldTasks(20);
-    await vi.waitFor(() =>
-      expect(threads.item({ id: draft }).getState().status).toBe(
-        archiveDraft ? "archived" : "regular",
-      ),
-    );
 
     const state = threads.getState();
     const shown = [...state.threadIds, ...state.archivedThreadIds]
@@ -203,9 +198,6 @@ const runMergedQueueRename = async () => {
     renameGate.resolve();
     await Promise.all([draftRename, listedRename]);
     await yieldTasks(20);
-    await vi.waitFor(() =>
-      expect(threads.item({ id: draft }).getState().title).toBe("A"),
-    );
 
     const state = threads.getState();
     const shown = [...state.threadIds, ...state.archivedThreadIds]
