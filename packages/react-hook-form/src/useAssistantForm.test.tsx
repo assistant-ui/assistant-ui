@@ -569,6 +569,25 @@ describe("useAssistantForm", () => {
       expect(checkbox.checked).toBe(false);
     });
 
+    it("writes a number to a checkbox group as text", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ size: string }>>;
+      const Form = () => {
+        form = useAssistantForm<{ size: string }>({
+          defaultValues: { size: "" },
+        });
+        return (
+          <>
+            <input type="checkbox" value="2" {...form.register("size")} />
+            <input type="checkbox" value="3" {...form.register("size")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await setField("size", 3);
+      expect(form.getValues("size")).toBe("3");
+    });
+
     it("preserves number and boolean values in Controller fields", async () => {
       let form!: ReturnType<
         typeof useAssistantForm<{ age: number; newsletter: boolean }>

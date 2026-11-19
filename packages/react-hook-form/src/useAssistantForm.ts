@@ -124,13 +124,17 @@ const isSensitiveElement = (element: unknown): boolean => {
   );
 };
 
-const holdsStringValue = (element: unknown, current: unknown): boolean => {
+const holdsStringValue = (
+  element: unknown,
+  current: unknown,
+  value: unknown,
+): boolean => {
   if (
     typeof HTMLInputElement !== "undefined" &&
     element instanceof HTMLInputElement &&
     element.type === "checkbox"
   ) {
-    return false;
+    return typeof value !== "boolean";
   }
   if (typeof HTMLElement !== "undefined" && element instanceof HTMLElement) {
     return true;
@@ -327,7 +331,7 @@ export const useAssistantForm = <
               ? field?._f?.refs[0]
               : field?._f?.ref;
             const current: unknown = getValues(name as Path<TFieldValues>);
-            const next = holdsStringValue(fieldReference, current)
+            const next = holdsStringValue(fieldReference, current, args.value)
               ? String(args.value)
               : args.value;
             setValue(
