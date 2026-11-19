@@ -8,6 +8,7 @@ import {
 } from "@assistant-ui/store";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantProviderBase } from "@assistant-ui/core/react";
+import { isDevelopment } from "@assistant-ui/core/store/internal";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
 import { DevToolsProviderApi } from "../devtools/DevToolsHooks";
 
@@ -40,8 +41,7 @@ export namespace AssistantRuntimeProvider {
 const DevToolsRegistration: FC = () => {
   const aui = useAui();
   useEffect(() => {
-    if (typeof process === "undefined" || process.env.NODE_ENV === "production")
-      return;
+    if (!isDevelopment) return;
     return DevToolsProviderApi.register(aui);
   }, [aui]);
   return null;
