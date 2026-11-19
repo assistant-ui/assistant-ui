@@ -16,11 +16,13 @@ import { iterateToolCallParts } from "@assistant-ui/core/internal";
 import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
 import { makeLogger } from "../src/runtime/logger";
 
-const localId = (core: AgUiThreadController, wireId: string) =>
-  core
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
     .getMessageRepository()
-    .messages.find(({ message }) => agUiWireMessageId(message) === wireId)
-    ?.message.id ?? wireId;
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -706,10 +708,18 @@ describe("AgUiThreadController branch flows", () => {
 
     await core.append(createAppendMessage());
     await vi.waitFor(() => expect(assistantAppends).toBe(1));
+    const persistedId = core.getMessages().at(-1)!.id;
 
     core.applyExternalMessages([]);
     await core.reload(null);
     await vi.waitFor(() => expect(assistantAppends).toBe(2));
+    expect(
+      append.mock.calls
+        .filter(
+          ([item]) => agUiWireMessageId(item.message) === serverAssistantId,
+        )
+        .map(([item]) => item.message.id),
+    ).toEqual([persistedId, persistedId]);
 
     core.applyExternalMessages([]);
     await core.reload(null);
@@ -818,6 +828,7 @@ describe("AgUiThreadController branch flows", () => {
 
   it("keeps a recreated stable assistant after switching branches", async () => {
     const serverAssistantId = "server-assistant";
+    let assistantLocalId!: string;
     let core: AgUiThreadController;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
@@ -838,6 +849,7 @@ describe("AgUiThreadController branch flows", () => {
         const userMessage = core
           .getMessages()
           .find(({ role }) => role === "user");
+        assistantLocalId = core.getMessages().at(-1)!.id;
         core.applyExternalMessages([userMessage!]);
 
         subscriber.onTextMessageContentEvent?.({
@@ -861,7 +873,8 @@ describe("AgUiThreadController branch flows", () => {
     await core.append(createAppendMessage());
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
-    expect(assistant.id).toBe(localId(core, serverAssistantId));
+    expect(assistant.id).toBe(assistantLocalId);
+    expect(agUiWireMessageId(assistant)).toBe(serverAssistantId);
     expect(assistant.metadata.isOptimistic).not.toBe(true);
     await core.append(createAppendMessage({ parentId: null, startRun: false }));
     expect(

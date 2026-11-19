@@ -5,11 +5,13 @@ import type { AppendMessage } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
 import { makeLogger } from "./logger";
 
-const localId = (core: AgUiThreadController, wireId: string) =>
-  core
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
     .getMessageRepository()
-    .messages.find(({ message }) => agUiWireMessageId(message) === wireId)
-    ?.message.id ?? wireId;
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const userMessage: AppendMessage = {
   role: "user",
@@ -231,7 +233,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
           toolCallId: "task",
           messages: [
             {
-              id: localId(core, "sub"),
+              id: "sub",
               status: { type: "incomplete", reason: "error" },
               content: [{ type: "text", text: "working" }],
             },
@@ -431,7 +433,7 @@ describe("AgUiThreadController HTTP stream closure", () => {
           toolCallId: "task",
           messages: [
             {
-              id: localId(core, "sub"),
+              id: "sub",
               status: { type: "complete" },
               content: [{ type: "text", text: "working" }],
             },

@@ -74,11 +74,13 @@ function assistant(
   };
 }
 
-const localId = (core: AgUiThreadController, wireId: string) =>
-  core
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
     .getMessageRepository()
-    .messages.find(({ message }) => agUiWireMessageId(message) === wireId)
-    ?.message.id ?? wireId;
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const call = (id: string, extras: Record<string, unknown> = {}) =>
   ({
@@ -167,6 +169,43 @@ function streamToolCall(
 }
 
 describe("AgUiThreadController selected-turn replay", () => {
+  it("retains local row ids when replay adopts wire ids for a selected turn", async () => {
+    const first = assistant("local-a", [{ type: "text", text: "old A" }]);
+    const second = assistant("local-b", [{ type: "text", text: "old B" }]);
+    const core = await loaded(
+      [
+        user("u"),
+        {
+          ...first,
+          metadata: { ...first.metadata, custom: { agui: { messageId: "a" } } },
+        },
+        {
+          ...second,
+          metadata: {
+            ...second.metadata,
+            custom: { agui: { messageId: "b" } },
+          },
+        },
+      ],
+      async (input, subscriber) => {
+        text(subscriber, "a", "new A");
+        text(subscriber, "b", "new B");
+        emit(subscriber, { type: "RUN_FINISHED", runId: input.runId });
+      },
+    );
+    const localIds = core.getMessages().map((message) => message.id);
+
+    await resume(core, "u");
+
+    expect(core.getMessages().map((message) => message.id)).toEqual(localIds);
+    expect(ids(core)).toEqual(["u", "a", "b"]);
+    expect(contents(core, "a")).toEqual([{ type: "text", text: "new A" }]);
+    expect(contents(core, "b")).toEqual([{ type: "text", text: "new B" }]);
+    expect(
+      core.getMessageRepository().messages.map(({ parentId }) => parentId),
+    ).toEqual([null, "u", "local-a"]);
+  });
+
   it.each(["user", "assistant"] as const)(
     "adopts contiguous assistant IDs and parent links in forward order from the %s parent",
     async (parent) => {

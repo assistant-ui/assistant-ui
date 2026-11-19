@@ -7,7 +7,7 @@ import { AguiIcon } from "@/components/icons/agui";
 
 Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/ag-ui/quickstart) if you have not already.
 
-A live assistant message keeps its local `id` when the agent names it, so its row stays mounted. The agent's id is available at `metadata.custom.agui.messageId` and is used when sending history back to the agent.
+A message created locally keeps its local `id` when the agent later names it, so its row stays mounted. In that case, the agent's id is stored at `metadata.custom.agui.messageId` and is used when sending history back to the agent. A message created directly under the agent's id keeps that value as `message.id` without a `metadata.custom.agui.messageId` override.
 
 ## useAgUiRuntime options
 

@@ -22,11 +22,13 @@ import type {
   UseAgUiRuntimeOptions,
 } from "../src/runtime/types";
 
-const localId = (core: AgUiThreadController, wireId: string) =>
-  core
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
     .getMessageRepository()
-    .messages.find(({ message }) => agUiWireMessageId(message) === wireId)
-    ?.message.id ?? wireId;
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},

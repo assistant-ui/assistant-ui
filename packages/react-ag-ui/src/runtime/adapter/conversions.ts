@@ -141,7 +141,9 @@ export function agUiWireMessageId(message: {
   const { metadata } = message;
   if (!isObject(metadata) || !isObject(metadata.custom)) return message.id;
   const namespaced = metadata.custom[AG_UI_METADATA_NAMESPACE];
-  return isObject(namespaced) && typeof namespaced.messageId === "string"
+  return isObject(namespaced) &&
+    typeof namespaced.messageId === "string" &&
+    namespaced.messageId.trim()
     ? namespaced.messageId
     : message.id;
 }

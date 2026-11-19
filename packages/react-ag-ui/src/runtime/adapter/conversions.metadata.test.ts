@@ -1,7 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { fromAgUiMessages, toAgUiMessages } from "./conversions";
+import {
+  agUiWireMessageId,
+  fromAgUiMessages,
+  toAgUiMessages,
+} from "./conversions";
 
 describe("AG-UI message metadata", () => {
+  it.each(["", " \t\n", null, 42])(
+    "uses the local id for an invalid wire id %j",
+    (messageId) => {
+      const message = {
+        id: "local-answer",
+        role: "assistant",
+        content: [{ type: "text", text: "answer" }],
+        metadata: { custom: { agui: { messageId } } },
+      };
+      expect(agUiWireMessageId(message)).toBe("local-answer");
+      expect(toAgUiMessages([message])[0]!.id).toBe("local-answer");
+    },
+  );
+
+  it("preserves a non-blank wire id verbatim", () => {
+    expect(
+      agUiWireMessageId({
+        id: "local-answer",
+        metadata: { custom: { agui: { messageId: " server-answer " } } },
+      }),
+    ).toBe(" server-answer ");
+  });
+
   it("keeps a persisted wire id when filtering status metadata", () => {
     const imported = fromAgUiMessages([
       {

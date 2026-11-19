@@ -347,6 +347,217 @@ describe("AgUiThreadController wire message identity", () => {
     expect(reloaded.getMessageRepository().messages).toHaveLength(2);
   });
 
+  it("persists the same wire id independently after switching threads", async () => {
+    const threads: ExportedMessageRepository[] = [
+      { messages: [] },
+      { messages: [] },
+    ];
+    let thread = 0;
+    const history: ThreadHistoryAdapter = {
+      load: async () => structuredClone(threads[thread]!),
+      append: async (item) => {
+        threads[thread]!.messages.push(structuredClone(item));
+      },
+    };
+    const { core } = createController(async (input, subscriber) => {
+      reasoning(subscriber);
+      text(subscriber, "server-answer", `thread ${thread}`);
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId: input.runId },
+      });
+    }, history);
+
+    await core.append(question());
+    await vi.waitFor(() => expect(threads[0]!.messages).toHaveLength(2));
+    const firstId = core.getMessages().at(-1)!.id;
+    core.applyExternalMessages([]);
+    core.resetThreadState();
+    thread = 1;
+    await core.append(question());
+    await vi.waitFor(() => expect(threads[1]!.messages).toHaveLength(2));
+
+    const secondId = core.getMessages().at(-1)!.id;
+    expect(secondId).not.toBe(firstId);
+    expect(threads[0]!.messages[1]!.message).toMatchObject({
+      id: firstId,
+      content: expect.arrayContaining([{ type: "text", text: "thread 0" }]),
+    });
+    expect(threads[1]!.messages[1]).toMatchObject({
+      parentId: core.getMessages()[0]!.id,
+      message: {
+        id: secondId,
+        content: expect.arrayContaining([{ type: "text", text: "thread 1" }]),
+        metadata: { custom: { agui: { messageId: "server-answer" } } },
+      },
+    });
+  });
+
+  it.each(["wire", "local"] as const)(
+    "updates the persisted %s id and parents after reloading and recreating an assistant",
+    async (identity) => {
+      const stored: ExportedMessageRepository = { messages: [] };
+      const store = (item: Parameters<ThreadHistoryAdapter["append"]>[0]) => {
+        const index = stored.messages.findIndex(
+          ({ message }) => message.id === item.message.id,
+        );
+        if (index === -1) stored.messages.push(structuredClone(item));
+        else stored.messages[index] = structuredClone(item);
+      };
+      const history: ThreadHistoryAdapter = {
+        load: async () => structuredClone(stored),
+        append: vi.fn(async (item) => {
+          store(item);
+          stored.headId = item.message.id;
+        }),
+        update: vi.fn(async (item) => store(item)),
+      };
+      const { core } = createController(async (input, subscriber) => {
+        if (identity === "wire") snapshot(core, subscriber);
+        else reasoning(subscriber);
+        text(subscriber);
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+      }, history);
+      await core.append(question());
+      await vi.waitFor(() => expect(stored.messages).toHaveLength(2));
+      const persistedId = stored.messages[1]!.message.id;
+      if (identity === "wire") expect(persistedId).toBe("server-answer");
+
+      let runs = 0;
+      const { core: reloaded } = createController(async (input, subscriber) => {
+        reasoning(subscriber);
+        text(
+          subscriber,
+          ++runs === 1 ? "server-answer" : "child-answer",
+          "updated",
+        );
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+      }, history);
+      await reloaded.__internal_load();
+      const user = reloaded.getMessages()[0]!;
+      reloaded.applyExternalMessages([user]);
+      await reloaded.reload(user.id);
+      const recreatedId = reloaded.getMessages().at(-1)!.id;
+      expect(recreatedId).not.toBe(persistedId);
+      await vi.waitFor(() =>
+        expect(history.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            parentId: user.id,
+            message: expect.objectContaining({ id: persistedId }),
+          }),
+        ),
+      );
+      await reloaded.append(question(recreatedId));
+      await vi.waitFor(() => expect(stored.messages).toHaveLength(4));
+      expect(stored.messages[1]!.message).toMatchObject({
+        id: persistedId,
+        content: expect.arrayContaining([{ type: "text", text: "updated" }]),
+      });
+      expect(stored.messages[2]!.parentId).toBe(persistedId);
+      expect(stored.messages[3]!.parentId).toBe(stored.messages[2]!.message.id);
+      expect(reloaded.getMessages()[1]!.id).toBe(recreatedId);
+
+      const { core: restored } = createController(async () => {}, history);
+      await restored.__internal_load();
+      expect(restored.getMessages().map(({ id }) => id)).toEqual(
+        stored.messages.map(({ message }) => message.id),
+      );
+    },
+  );
+
+  it.each(["resolve", "reject"] as const)(
+    "isolates a previous thread's pending append when it %ss",
+    async (ending) => {
+      let finish!: () => void;
+      let fail!: (error: Error) => void;
+      const pending = new Promise<void>((resolve, reject) => {
+        finish = resolve;
+        fail = reject;
+      });
+      let thread = 0;
+      const appends = [vi.fn(), vi.fn()];
+      const history: ThreadHistoryAdapter = {
+        load: async () => ({ messages: [] }),
+        append: async (item) => {
+          appends[thread]!(item);
+          if (thread === 0 && item.message.role === "assistant") await pending;
+        },
+        update: vi.fn(async () => {}),
+      };
+      const { core } = createController(async (input, subscriber) => {
+        snapshot(core, subscriber, `thread ${thread}`);
+        text(subscriber, "server-answer", " updated");
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+      }, history);
+      await core.append(question());
+      expect(appends[0]).toHaveBeenCalledTimes(2);
+
+      core.applyExternalMessages([]);
+      core.resetThreadState();
+      thread = 1;
+      await core.append(question());
+      expect(appends[1]).toHaveBeenCalledTimes(2);
+      if (ending === "resolve") {
+        finish();
+        await pending;
+      } else {
+        fail(new Error("write failed"));
+        await expect(pending).rejects.toThrow("write failed");
+      }
+      core.applyExternalMessages([core.getMessages()[0]!]);
+      await core.reload(core.getMessages()[0]!.id);
+      await vi.waitFor(() => expect(history.update).toHaveBeenCalled());
+      expect(appends[1]).toHaveBeenCalledTimes(2);
+      expect(core.getMessages().at(-1)).toMatchObject({
+        id: "server-answer",
+        content: [{ type: "text", text: "thread 1 updated" }],
+      });
+    },
+  );
+
+  it("keeps the new placeholder when its wire id equals another row's local id", async () => {
+    let firstId!: string;
+    let secondId!: string;
+    let runs = 0;
+    const { core } = createController(async (input, subscriber) => {
+      reasoning(subscriber);
+      if (++runs === 1) {
+        firstId = core.getMessages().at(-1)!.id;
+        text(subscriber);
+      } else {
+        secondId = core.getMessages().at(-1)!.id;
+        text(subscriber, firstId, "second answer");
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId: input.runId },
+      });
+    });
+    await core.append(question());
+    await core.append(question(firstId));
+    expect(secondId).not.toBe(firstId);
+    expect(
+      core.getMessages().filter(({ role }) => role === "assistant"),
+    ).toMatchObject([
+      {
+        id: firstId,
+        content: expect.arrayContaining([{ type: "text", text: "answer" }]),
+        metadata: { custom: { agui: { messageId: "server-answer" } } },
+      },
+      {
+        id: secondId,
+        content: expect.arrayContaining([
+          { type: "text", text: "second answer" },
+        ]),
+        metadata: { custom: { agui: { messageId: firstId } } },
+      },
+    ]);
+  });
+
   it("routes late events to a retained local-id assistant after a new frame", async () => {
     let localId!: string;
     const { core } = createController(async (input, subscriber) => {
