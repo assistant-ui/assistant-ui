@@ -311,7 +311,18 @@ export class ExternalStoreThreadRuntimeCore
   private get _errorMessageIds() {
     let ids = this._errorMessageIdsByRepository.get(this.repository);
     if (!ids) {
-      ids = new Set();
+      // A host-supplied repository outlives the core that synthesized into it
+      // (`unstable_messageRepositoryInstance`), so a core attached over one it
+      // never wrote to would start with an empty set and treat the previous
+      // core's error as a host message -- leaving it behind as a sibling
+      // branch forever. Seed from what the repository already holds; an error
+      // the host kept and built turns on is spared by the hasChildren guard.
+      ids = new Set(
+        this.repository
+          .export()
+          .messages.map(({ message }) => message.id)
+          .filter(isErrorMessageId),
+      );
       this._errorMessageIdsByRepository.set(this.repository, ids);
     }
     return ids;
