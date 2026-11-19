@@ -70,14 +70,16 @@ There is no runtime selector for "seconds elapsed so far": `metadata.timing` onl
 
 ### Pass it to Thread
 
-```tsx title="app/chat.tsx"
+```tsx title="app/chat/page.tsx"
 "use client";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantThinking } from "@/components/assistant-ui/elements/assistant-thinking";
 
+const components = { Indicator: AssistantThinking };
+
 export default function Chat() {
-  return <Thread components={{ Indicator: AssistantThinking }} />;
+  return <Thread components={components} />;
 }
 ```
 

@@ -16,14 +16,16 @@ Three dots bouncing in a staggered wave, either bare or sitting inside a rounded
 
 ### Use it in Thread
 
-```tsx title="app/chat.tsx"
+```tsx title="app/chat/page.tsx"
 "use client";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 
+const components = { Indicator: TypingIndicator };
+
 export default function Chat() {
-  return <Thread components={{ Indicator: TypingIndicator }} />;
+  return <Thread components={components} />;
 }
 ```
 
