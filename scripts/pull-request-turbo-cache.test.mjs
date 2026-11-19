@@ -76,6 +76,12 @@ const jobs = [
     "Build workspace packages",
     "github.event_name == 'pull_request'",
   ],
+  [
+    "durable-example-tests.yaml",
+    "server",
+    "Build workspace dependencies",
+    "github.event_name == 'pull_request'",
+  ],
 ];
 
 for (const [file, job, turboStep, restoreGate] of jobs) {

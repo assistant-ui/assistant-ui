@@ -241,6 +241,31 @@ const executableTasks = () =>
     ),
   ).tasks.filter((task) => task.command !== "<NONEXISTENT>"));
 
+test(
+  "the durable example runs in the normal test and coverage graph",
+  {
+    skip: !turboReady && "Install dependencies before testing the Turbo graph",
+  },
+  () => {
+    const name = "with-pydantic-ai-durable";
+    const { pkg } = manifests.find(({ pkg }) => pkg.name === name);
+    assert.equal(typeof pkg.scripts.test, "string");
+    assert.equal(typeof pkg.scripts["test:coverage"], "string");
+    assert.deepEqual(
+      coverageShards(root)
+        .flat()
+        .filter((pkg) => pkg === name),
+      [name],
+    );
+    for (const task of ["test", "test:coverage"]) {
+      assert.ok(
+        executableTasks().some((entry) => entry.taskId === `${name}#${task}`),
+        `${name}#${task} must execute`,
+      );
+    }
+  },
+);
+
 function commands(script, scripts) {
   return script.split(/\s*&&\s*/).flatMap((command) => {
     const alias = /^pnpm run ([\w:-]+)$/.exec(command);
