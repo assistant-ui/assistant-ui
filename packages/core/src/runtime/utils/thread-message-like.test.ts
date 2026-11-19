@@ -532,4 +532,22 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
       ]),
     ).toEqual([{ type: "reasoning", text: "", unstable_summary: "S" }]);
   });
+
+  it("keeps redacted reasoning while normalizing malformed fields", () => {
+    expect(
+      convert("assistant", [
+        {
+          type: "reasoning",
+          text: 5,
+          unstable_summary: {},
+          unstable_redacted: true,
+        },
+        { type: "reasoning", text: "", unstable_redacted: "true" },
+        { type: "reasoning", text: "visible", unstable_redacted: "false" },
+      ]),
+    ).toStrictEqual([
+      { type: "reasoning", text: "", unstable_redacted: true },
+      { type: "reasoning", text: "visible" },
+    ]);
+  });
 });

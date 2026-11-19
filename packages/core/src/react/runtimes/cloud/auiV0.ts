@@ -73,6 +73,8 @@ type AuiV0MessagePart =
       readonly text: string;
       /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
       readonly unstable_summary?: string;
+      /** @deprecated Experimental since 2026-11-19. Not scheduled for removal; the API may change in any release. */
+      readonly unstable_redacted?: boolean;
       readonly timing?: MessagePartTiming;
       readonly providerMetadata?: NonNullable<
         ReasoningMessagePart["providerMetadata"]
@@ -429,6 +431,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             text: part.text,
             ...(part.unstable_summary !== undefined
               ? { unstable_summary: part.unstable_summary }
+              : undefined),
+            ...(part.unstable_redacted !== undefined
+              ? { unstable_redacted: part.unstable_redacted }
               : undefined),
             ...(part.timing !== undefined
               ? { timing: part.timing }
