@@ -141,6 +141,10 @@ export const captureTrace = async (
     { stdio: "ignore" },
   );
   let exit;
+  let spawnError;
+  proc.once("error", (error) => {
+    spawnError = error;
+  });
   const closed = new Promise((resolve) =>
     proc.once("close", (code, signal) => {
       exit = signal ?? code;
@@ -158,6 +162,7 @@ export const captureTrace = async (
       }
       if (!port) await sleep(100);
     }
+    if (spawnError) throw spawnError;
     if (!port) {
       throw new Error(
         exit === undefined

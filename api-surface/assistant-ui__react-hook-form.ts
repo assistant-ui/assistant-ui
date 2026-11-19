@@ -171,6 +171,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly id?: string;
   readonly text: string;
+  readonly unstable_redacted?: boolean;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
   readonly timing?: MessagePartTiming;
@@ -499,7 +500,11 @@ declare const formTools: {
     description: string;
     parameters: z.ZodObject<{
       name: z.ZodString;
-      value: z.ZodString;
+      value: z.ZodUnion<readonly [
+        z.ZodString,
+        z.ZodNumber,
+        z.ZodBoolean
+      ]>;
     }, z.core.$strip>;
   };
   submit_form: {

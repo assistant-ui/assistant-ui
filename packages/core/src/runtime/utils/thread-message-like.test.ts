@@ -357,6 +357,18 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
     ).toEqual([audio, data]);
   });
 
+  it("drops assistant data parts without a string name while retaining valid parts", () => {
+    const data = { type: "data", name: "workflow", data: { step: 1 } };
+
+    expect(
+      convert("assistant", [
+        { type: "data", data: { step: 2 } },
+        { type: "data", name: 42, data: { step: 3 } },
+        data,
+      ]),
+    ).toEqual([data]);
+  });
+
   it.each(["assistant", "user"] as const)(
     "keeps a file part whose optional fields have the wrong type on %s messages, without them",
     (role) => {
@@ -519,5 +531,23 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
         { type: "reasoning", text: 5, unstable_summary: { b: 1 } },
       ]),
     ).toEqual([{ type: "reasoning", text: "", unstable_summary: "S" }]);
+  });
+
+  it("keeps redacted reasoning while normalizing malformed fields", () => {
+    expect(
+      convert("assistant", [
+        {
+          type: "reasoning",
+          text: 5,
+          unstable_summary: {},
+          unstable_redacted: true,
+        },
+        { type: "reasoning", text: "", unstable_redacted: "true" },
+        { type: "reasoning", text: "visible", unstable_redacted: "false" },
+      ]),
+    ).toStrictEqual([
+      { type: "reasoning", text: "", unstable_redacted: true },
+      { type: "reasoning", text: "visible" },
+    ]);
   });
 });

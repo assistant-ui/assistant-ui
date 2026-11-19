@@ -190,14 +190,30 @@ export const fromThreadMessageLike = (
                 const summary = isString(part.unstable_summary)
                   ? part.unstable_summary
                   : undefined;
-                if (!text.trim() && !summary?.trim()) return null;
-                if (text === part.text && summary === part.unstable_summary)
+                const redacted =
+                  typeof part.unstable_redacted === "boolean"
+                    ? part.unstable_redacted
+                    : undefined;
+                if (redacted !== true && !text.trim() && !summary?.trim())
+                  return null;
+                if (
+                  text === part.text &&
+                  summary === part.unstable_summary &&
+                  redacted === part.unstable_redacted
+                )
                   return part;
-                const { unstable_summary: _summary, ...rest } = part;
+                const {
+                  unstable_summary: _summary,
+                  unstable_redacted: _redacted,
+                  ...rest
+                } = part;
                 return {
                   ...rest,
                   text,
                   ...(summary !== undefined && { unstable_summary: summary }),
+                  ...(redacted !== undefined && {
+                    unstable_redacted: redacted,
+                  }),
                 };
               }
 
@@ -209,7 +225,7 @@ export const fromThreadMessageLike = (
                 return sanitizeImageContent(part);
 
               case "data":
-                return part;
+                return keepWellFormed(part);
 
               case "generative-ui":
                 return part;
