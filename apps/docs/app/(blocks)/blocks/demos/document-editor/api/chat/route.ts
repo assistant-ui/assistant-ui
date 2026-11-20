@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import {
   frontendTools,
+  injectQuoteContext,
   unstable_injectInteractableContext,
   type FrontendTools,
 } from "@assistant-ui/ai-sdk";
@@ -21,6 +22,7 @@ The open page is the "document" interactable: a title and an ordered list of blo
 
 - To change the page, call update_document. Change only what the user asked for and leave every other block exactly as it is.
 - Block text takes inline formatting only: **bold**, *italic*, ~~strikethrough~~, \`code\` and <u>underline</u>.
+- A message can quote a passage of the page, or an edit you made. Treat the quote as what the request is about.
 - To give feedback without changing the text, add comments with update_comments.
 - After a tool call, reply in one or two short sentences that say what you changed. Never paste the page or the new text into the chat.`;
 
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
     model: openai("gpt-6-luna"),
     system: system ? `${SYSTEM}\n\n${system}` : SYSTEM,
     messages: await convertToModelMessages(
-      unstable_injectInteractableContext(messages),
+      unstable_injectInteractableContext(injectQuoteContext(messages)),
       { tools: aiSDKTools },
     ),
     tools: aiSDKTools,

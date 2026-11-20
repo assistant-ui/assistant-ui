@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   adoptStored,
   advance,
+  classifyEdit,
   commentChanges,
   createDocumentStore,
   descendantIds,
@@ -9,18 +10,23 @@ import {
   documentToMarkdown,
   duplicatePageIn,
   markdownFileName,
+  normalizeBlock,
   pageAncestors,
+  pageLinkText,
   pageTree,
   parseInline,
   plainText,
+  reactionCounts,
   receive,
   remaining,
   removePage,
+  reviewOf,
   serializeInline,
   settled,
   STORAGE_KEY,
   streamMarks,
   threadsToComments,
+  writingBlockId,
   type Block,
   type CommentThread,
   type DocumentStoreState,
@@ -40,8 +46,14 @@ const seed = (): DocumentStoreState => ({
   currentPageId: "home",
   threads: [],
   commentsVisible: true,
+  editMode: "manual",
+  pendingReview: null,
   activeThreadId: null,
   assistantRequests: 0,
+  assistantReference: null,
+  assistantUnseen: false,
+  assistantPresence: null,
+  lastEdit: null,
 });
 
 function memoryStorage(initial: Record<string, string> = {}) {
@@ -134,6 +146,60 @@ describe("inline text", () => {
       "Bold and italic code",
     );
   });
+
+  it("reads a link to a page as its title and writes the link back", () => {
+    const source = "See [[page:notes|Meeting notes]] before **Friday**.";
+    const runs = parseInline(source);
+
+    expect(runs).toContainEqual({ text: "Meeting notes", page: "notes" });
+    expect(plainText(source)).toBe("See Meeting notes before Friday.");
+    expect(serializeInline(runs)).toBe(source);
+  });
+
+  it("keeps two links side by side apart, and text that only looks like a link as text", () => {
+    const links = pageLinkText("a", "One") + pageLinkText("b", "Two");
+    expect(parseInline(links)).toEqual([
+      { text: "One", page: "a" },
+      { text: "Two", page: "b" },
+    ]);
+
+    const typed = serializeInline([{ text: "[[page:a|One]]" }]);
+    expect(parseInline(typed)).toEqual([{ text: "[[page:a|One]]" }]);
+  });
+
+  it("names a link to an untitled page, and keeps a title from closing its link", () => {
+    expect(parseInline(pageLinkText("a", ""))).toEqual([
+      { text: "Untitled", page: "a" },
+    ]);
+    expect(parseInline(pageLinkText("a", "x]]y"))).toEqual([
+      { text: "x] ]y", page: "a" },
+    ]);
+  });
+});
+
+describe("a table block", () => {
+  it("fills a table that is still arriving into a full grid", () => {
+    const block = normalizeBlock(
+      { id: "t", type: "table", rows: [["Task", "Status"], ["Write"]] },
+      0,
+    );
+
+    expect(block).toEqual({
+      id: "t",
+      type: "table",
+      text: "",
+      rows: [
+        ["Task", "Status"],
+        ["Write", ""],
+      ],
+    });
+    expect(normalizeBlock({ id: "t", type: "table" }, 0).rows).toEqual([]);
+    expect(normalizeBlock({ id: "p", text: "Hi" }, 0)).toEqual({
+      id: "p",
+      type: "paragraph",
+      text: "Hi",
+    });
+  });
 });
 
 describe("markdown export", () => {
@@ -166,6 +232,36 @@ describe("markdown export", () => {
         "---",
         "",
         "> Quoted",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  it("writes a table with its first row as the header, and a page link as its title", () => {
+    const blocks: Block[] = [
+      { id: "1", type: "paragraph", text: "See [[page:notes|Notes]]." },
+      {
+        id: "2",
+        type: "table",
+        text: "",
+        rows: [
+          ["Task", "Status"],
+          ["Write **docs**", "Done | checked"],
+          ["Two\nlines", "[[page:notes|Notes]]"],
+        ],
+      },
+    ];
+
+    expect(documentToMarkdown("Plan", blocks)).toBe(
+      [
+        "# Plan",
+        "",
+        "See Notes.",
+        "",
+        "| Task | Status |",
+        "| --- | --- |",
+        "| Write **docs** | Done \\| checked |",
+        "| Two<br>lines | Notes |",
         "",
       ].join("\n"),
     );
@@ -311,6 +407,65 @@ describe("document store", () => {
       },
     });
     expect(reopened.commentsVisible).toBe(false);
+  });
+
+  it("gives a page an icon, saves it, and takes it away again", () => {
+    const storage = memoryStorage();
+    const store = testStore(storage);
+    store.actions.setPageIcon("home", { kind: "emoji", value: "👋" });
+
+    expect(testStore(storage).getState().pages[0]?.icon).toEqual({
+      kind: "emoji",
+      value: "👋",
+    });
+
+    store.actions.setPageIcon("home", null);
+    expect(testStore(storage).getState().pages[0]).not.toHaveProperty("icon");
+  });
+
+  it("toggles a reaction on a comment and saves it", () => {
+    const storage = memoryStorage();
+    const store = testStore(storage);
+    const threadId = store.actions.addThread({
+      pageId: "home",
+      quote: "q",
+      text: "Hi",
+    });
+    const messageId = store.getState().threads[0]!.messages[0]!.id;
+
+    store.actions.toggleReaction(threadId, messageId, "👍");
+    store.actions.toggleReaction(threadId, messageId, "👍", "assistant");
+    store.actions.toggleReaction(threadId, messageId, "🎉");
+    store.actions.toggleReaction(threadId, messageId, "🎉");
+
+    const saved = testStore(storage).getState().threads[0]!.messages[0]!;
+    expect(saved.reactions).toEqual([
+      { emoji: "👍", by: "you" },
+      { emoji: "👍", by: "assistant" },
+    ]);
+    expect(reactionCounts(saved.reactions)).toEqual([
+      { emoji: "👍", count: 2, mine: true },
+    ]);
+    expect(reactionCounts(saved.reactions, "assistant")[0]?.mine).toBe(true);
+    expect(reactionCounts(undefined)).toEqual([]);
+  });
+
+  it("carries a reference to the assistant until it is cleared", () => {
+    const store = testStore();
+    store.actions.askAssistant({
+      kind: "selection",
+      pageId: "home",
+      text: "A passage",
+    });
+    store.actions.askAssistant();
+
+    expect(store.getState()).toMatchObject({
+      assistantRequests: 2,
+      assistantReference: { kind: "selection", text: "A passage" },
+    });
+
+    store.actions.clearAssistantReference();
+    expect(store.getState().assistantReference).toBeNull();
   });
 
   it("does not save which thread is open", () => {
@@ -682,5 +837,301 @@ describe("a streamed edit", () => {
     expect(displayBlocks(stream)).toEqual([
       { id: "c", type: "check", text: "Task", checked: true },
     ]);
+  });
+});
+
+describe("a streamed table", () => {
+  const before: Block[] = [{ id: "a", type: "paragraph", text: "Intro" }];
+
+  it("shows a table as far as it has arrived, without typing it", () => {
+    let stream = settled(before);
+    stream = receive(
+      stream,
+      [before[0]!, { id: "t", type: "table", text: "", rows: [["Task"]] }],
+      true,
+    );
+
+    expect(displayBlocks(stream)[1]).toEqual({
+      id: "t",
+      type: "table",
+      text: "",
+      rows: [["Task"]],
+    });
+    expect(remaining(stream)).toBe(0);
+    expect(streamMarks(stream)).toEqual({ working: [], empty: [] });
+    expect(writingBlockId(stream)).toBe("t");
+
+    const whole: Block = {
+      id: "t",
+      type: "table",
+      text: "",
+      rows: [
+        ["Task", "Status"],
+        ["Write", "Done"],
+      ],
+    };
+    stream = receive(stream, [before[0]!, whole], true);
+    expect(displayBlocks(stream)[1]).toEqual(whole);
+
+    stream = receive(stream, [before[0]!, whole], false);
+    expect(stream.active).toBe(false);
+    expect(writingBlockId(stream)).toBeNull();
+    expect(displayBlocks(stream)).toEqual([before[0], whole]);
+  });
+
+  it("keeps a table the page holds while an edit repeats it", () => {
+    const table: Block = {
+      id: "t",
+      type: "table",
+      text: "",
+      rows: [
+        ["Task", "Status"],
+        ["Write", "Done"],
+      ],
+    };
+    const page = [before[0]!, table];
+    const partial = (rows?: string[][]) => [
+      before[0]!,
+      { id: "t", type: "table" as const, text: "", ...(rows && { rows }) },
+    ];
+
+    let stream = settled(page);
+    for (const rows of [
+      undefined,
+      [["Ta"]],
+      [["Task", "Status"], ["Wr"]],
+      [["Task", "Status"], ["Wr"]],
+    ]) {
+      stream = receive(stream, partial(rows), true);
+      expect(displayBlocks(stream)).toEqual(page);
+      expect(writingBlockId(stream)).toBe("t");
+    }
+
+    stream = receive(stream, partial(table.rows), true);
+    expect(displayBlocks(stream)).toEqual(page);
+    expect(writingBlockId(stream)).toBeNull();
+  });
+
+  it("swaps new rows into a table the page holds once they are whole", () => {
+    const table: Block = { id: "t", type: "table", text: "", rows: [["A"]] };
+    const next: Block = { ...table, rows: [["A"], ["B"]] };
+
+    let stream = receive(
+      settled([table]),
+      [{ ...table, rows: [["A"], [""]] }],
+      true,
+    );
+    expect(displayBlocks(stream)).toEqual([table]);
+
+    stream = receive(stream, [next], true);
+    expect(displayBlocks(stream)).toEqual([table]);
+
+    const movedOn = receive(
+      stream,
+      [next, { id: "p", type: "paragraph", text: "" }],
+      true,
+    );
+    expect(displayBlocks(movedOn)[0]).toEqual(next);
+
+    expect(displayBlocks(receive(stream, [next], false))).toEqual([next]);
+  });
+
+  it("says which block is being typed", () => {
+    const next: Block[] = [
+      { id: "a", type: "paragraph", text: "Intro, rewritten" },
+    ];
+    let stream = receive(settled(before), next, true);
+    stream = receive(stream, next, false);
+
+    expect(remaining(stream)).toBeGreaterThan(0);
+    expect(writingBlockId(stream)).toBe("a");
+  });
+});
+
+describe("reviewing an edit", () => {
+  const before: Block[] = [
+    { id: "h", type: "h2", text: "Today" },
+    { id: "a", type: "check", text: "First", checked: true },
+    { id: "b", type: "check", text: "Second" },
+    { id: "c", type: "check", text: "Third" },
+  ];
+
+  it("names the blocks an edit added, rewrote or moved, and counts the ones it took out", () => {
+    const after: Block[] = [
+      before[0]!,
+      { ...before[2]!, text: "Second, reworded" },
+      before[3]!,
+      { id: "new", type: "h2", text: "Done" },
+      before[1]!,
+    ];
+
+    expect(reviewOf("home", before, after)).toEqual({
+      pageId: "home",
+      before,
+      changed: ["b", "new", "a"],
+      removed: 0,
+    });
+    expect(reviewOf("home", before, before.slice(0, 2))).toMatchObject({
+      changed: [],
+      removed: 2,
+    });
+    expect(reviewOf("home", before, [...before])).toBeNull();
+  });
+
+  it("counts a ticked box and a changed table cell as changes", () => {
+    const table: Block = { id: "t", type: "table", text: "", rows: [["A"]] };
+
+    expect(
+      reviewOf("home", before, [
+        before[0]!,
+        before[1]!,
+        { ...before[2]!, checked: true },
+        before[3]!,
+      ])?.changed,
+    ).toEqual(["b"]);
+    expect(
+      reviewOf("home", [table], [{ ...table, rows: [["B"]] }])?.changed,
+    ).toEqual(["t"]);
+  });
+
+  it("names an edit by what it did", () => {
+    const task: Block = { id: "n1", type: "check", text: "New" };
+    const table: Block = { id: "n2", type: "table", text: "", rows: [["A"]] };
+    const summary: Block = { id: "n3", type: "quote", text: "In short." };
+
+    expect(classifyEdit(before, [...before, task])).toBe("tasks");
+    expect(classifyEdit(before, [...before, table])).toBe("table");
+    expect(classifyEdit(before, [summary, ...before])).toBe("summary");
+    expect(
+      classifyEdit(before, [
+        { id: "r1", type: "h2", text: "Launch" },
+        { id: "r2", type: "paragraph", text: "A new plan." },
+      ]),
+    ).toBe("rewrite");
+    expect(
+      classifyEdit(before, [
+        ...before,
+        { id: "n4", type: "paragraph", text: "A note." },
+      ]),
+    ).toBe("edit");
+    expect(classifyEdit(before, [...before])).toBeNull();
+  });
+
+  const edited = (): Block[] => [
+    ...before,
+    { id: "n", type: "check", text: "Fourth" },
+  ];
+
+  it("keeps an edit for review in manual mode, and saves the review", () => {
+    const storage = memoryStorage();
+    const store = testStore(storage);
+    store.actions.recordEdit({ pageId: "home", before, after: edited() });
+
+    expect(store.getState()).toMatchObject({
+      pendingReview: { pageId: "home", changed: ["n"], removed: 0 },
+      lastEdit: { kind: "tasks", pageId: "home" },
+      assistantUnseen: true,
+    });
+    expect(testStore(storage).getState()).toMatchObject({
+      pendingReview: { pageId: "home", before, changed: ["n"] },
+      assistantUnseen: false,
+      lastEdit: null,
+    });
+  });
+
+  it("lets an edit land in auto mode, and accepts the one waiting when auto is chosen", () => {
+    const storage = memoryStorage();
+    const store = testStore(storage);
+    store.actions.recordEdit({ pageId: "home", before, after: edited() });
+    store.actions.setEditMode("auto");
+
+    expect(store.getState().pendingReview).toBeNull();
+
+    store.actions.recordEdit({ pageId: "home", before, after: edited() });
+    expect(store.getState()).toMatchObject({
+      pendingReview: null,
+      lastEdit: { kind: "tasks" },
+    });
+    expect(testStore(storage).getState().editMode).toBe("auto");
+  });
+
+  it("joins an edit to the one still waiting, so undo goes back to the first page", () => {
+    const store = testStore();
+    const first = edited();
+    const second: Block[] = [
+      ...first,
+      { id: "m", type: "paragraph", text: "A note." },
+    ];
+    store.actions.recordEdit({ pageId: "home", before, after: first });
+    store.actions.recordEdit({ pageId: "home", before: first, after: second });
+
+    expect(store.getState().pendingReview).toMatchObject({
+      before,
+      changed: ["n", "m"],
+    });
+
+    expect(store.actions.undoReview()).toMatchObject({ pageId: "home" });
+    expect(store.getState().pendingReview).toBeNull();
+    expect(contentOf(store.getState(), "home")).toEqual({
+      blocks: before,
+      state: null,
+    });
+  });
+
+  it("accepts a review, and drops it with its page", () => {
+    const store = testStore();
+    store.actions.recordEdit({ pageId: "notes", before, after: edited() });
+    store.actions.acceptReview();
+    expect(store.getState().pendingReview).toBeNull();
+    expect(store.actions.undoReview()).toBeNull();
+
+    store.actions.recordEdit({ pageId: "notes", before, after: edited() });
+    store.actions.deletePage("notes");
+    expect(store.getState().pendingReview).toBeNull();
+  });
+
+  it("marks the assistant unseen until it is opened", () => {
+    const store = testStore();
+    store.actions.recordComment("home");
+
+    expect(store.getState()).toMatchObject({
+      assistantUnseen: true,
+      lastEdit: { kind: "comment", pageId: "home" },
+    });
+
+    store.actions.markSeen();
+    expect(store.getState().assistantUnseen).toBe(false);
+    store.actions.markUnseen();
+    expect(store.getState().assistantUnseen).toBe(true);
+  });
+
+  it("says where the assistant is writing without telling listeners twice", () => {
+    const store = testStore();
+    let told = 0;
+    store.subscribe(() => told++);
+
+    store.actions.setPresence({ pageId: "home", blockId: "a" });
+    store.actions.setPresence({ pageId: "home", blockId: "a" });
+    expect(told).toBe(1);
+
+    store.actions.setPresence(null);
+    expect(store.getState().assistantPresence).toBeNull();
+    expect(told).toBe(2);
+  });
+
+  it("keeps the open page's review and takes another page's from the other tab", () => {
+    const mine = reviewOf("home", before, edited())!;
+    const theirs = reviewOf("notes", before, edited())!;
+    const current: DocumentStoreState = { ...seed(), pendingReview: mine };
+
+    expect(
+      adoptStored(current, { ...seed(), pendingReview: null }).pendingReview,
+    ).toBe(mine);
+    expect(
+      adoptStored(seed(), { ...seed(), pendingReview: theirs }).pendingReview,
+    ).toEqual(theirs);
+    expect(adoptStored(seed(), { ...seed(), editMode: "auto" }).editMode).toBe(
+      "auto",
+    );
   });
 });

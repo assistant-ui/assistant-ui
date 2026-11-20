@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { documentActions, pageTree, useDocumentStore } from "../lib/document";
-import { Icon, MenuItem, MenuSeparator, glyphFor, icons } from "./ui";
+import { Icon, MenuItem, MenuSeparator, PageGlyph, icons } from "./ui";
 
 const INDENT = 16;
 const MAX_INDENT_DEPTH = 6;
@@ -27,7 +27,7 @@ export function PagesMenu() {
             }}
             onClick={() => documentActions.selectPage(page.id)}
           >
-            <Icon {...glyphFor(page.icon)} />
+            <PageGlyph icon={page.icon} />
             <span
               className={
                 page.title

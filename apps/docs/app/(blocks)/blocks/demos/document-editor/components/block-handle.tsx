@@ -8,6 +8,7 @@ import {
   $isNodeSelection,
   $isRangeSelection,
   REDO_COMMAND,
+  SKIP_DOM_SELECTION_TAG,
   UNDO_COMMAND,
   type LexicalEditor,
   type NodeKey,
@@ -24,19 +25,41 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { isListType } from "../lib/document";
+import {
+  BLOCK_LABELS,
+  isListType,
+  type BlockType,
+  type TextBlockType,
+} from "../lib/document";
 import {
   $blockKeyOf,
   $blockTypeOf,
   $collectBlockNodes,
   deleteBlock,
+  getBlockLink,
+  idsOf,
   insertBlock,
   moveBlock,
+  saveOpenPage,
+  turnBlockInto,
   useEditorAnchor,
   useEditorScroller,
   useIsEditable,
 } from "./editor";
-import { focusBorder, Icon, icons, MenuItem, menuSurfaceClass } from "./ui";
+import { TEXT_BLOCKS } from "./selection-toolbar";
+import {
+  focusBorder,
+  Icon,
+  icons,
+  MenuCheckboxItem,
+  MenuItem,
+  MenuSeparator,
+  menuSurfaceClass,
+  popupMotion,
+  SubMenu,
+  SubMenuContent,
+  SubMenuTrigger,
+} from "./ui";
 
 const GRIP_WIDTH = 18;
 const GRIP_HEIGHT = 24;
@@ -47,6 +70,8 @@ const DRAG_START = 4;
 const REACH = 16;
 /** The band at the top and bottom of the page that scrolls it during a drag. */
 const SCROLL_BAND = 56;
+/** How long the menu shows that the link was copied before it closes. */
+const COPIED_SHOWN = 1000;
 
 type BlockBox = { key: NodeKey; element: HTMLElement; rect: DOMRect };
 type Drop = { key: NodeKey; position: "before" | "after" };
@@ -90,8 +115,17 @@ const $caretBlockKey = (): NodeKey | null => {
   return null;
 };
 
-/** Moves a block one place up or down. False at the end of the page. */
-function shiftBlock(editor: LexicalEditor, key: NodeKey, direction: -1 | 1) {
+/**
+ * Moves a block one place up or down. False at the end of the page. From the
+ * grip the selection is not written back to the page, which would take the
+ * keyboard off the grip before the next move.
+ */
+function shiftBlock(
+  editor: LexicalEditor,
+  key: NodeKey,
+  direction: -1 | 1,
+  fromGrip = false,
+) {
   const blocks = readBlocks(editor);
   const index = blocks.findIndex((block) => block.key === key);
   const self = blocks[index];
@@ -103,7 +137,13 @@ function shiftBlock(editor: LexicalEditor, key: NodeKey, direction: -1 | 1) {
           .slice(index + 1)
           .find((block) => !self.element.contains(block.element));
   if (!target) return false;
-  moveBlock(editor, key, target.key, direction === -1 ? "before" : "after");
+  moveBlock(
+    editor,
+    key,
+    target.key,
+    direction === -1 ? "before" : "after",
+    fromGrip ? { tag: SKIP_DOM_SELECTION_TAG } : undefined,
+  );
   requestAnimationFrame(() => {
     editor.getElementByKey(key)?.scrollIntoView({ block: "nearest" });
   });
@@ -141,9 +181,6 @@ const isMoveKey = (event: {
   !event.shiftKey &&
   (event.key === "ArrowUp" || event.key === "ArrowDown");
 
-const popupMotion =
-  "origin-(--transform-origin) transition-[opacity,scale] duration-150 data-ending-style:scale-[0.96] data-ending-style:opacity-0 data-starting-style:scale-[0.96] data-starting-style:opacity-0 motion-reduce:transition-none";
-
 export function BlockHandle() {
   const [editor] = useLexicalComposerContext();
   const anchor = useEditorAnchor();
@@ -158,6 +195,8 @@ export function BlockHandle() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [line, setLine] = useState<Line | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [currentType, setCurrentType] = useState<BlockType>("paragraph");
+  const [copied, setCopied] = useState<"done" | "failed" | null>(null);
 
   const grip = useRef<HTMLButtonElement>(null);
   const menuOpenRef = useRef(false);
@@ -171,13 +210,18 @@ export function BlockHandle() {
   const drop = useRef<Drop | null>(null);
   const skipClick = useRef(false);
   const acted = useRef(false);
+  const copyTimer = useRef(0);
 
   const key = heldKey ?? hoverKey ?? caretKey;
 
   const openMenu = useCallback((open: boolean) => {
+    window.clearTimeout(copyTimer.current);
+    if (open) setCopied(null);
     menuOpenRef.current = open;
     setMenuOpen(open);
   }, []);
+
+  useEffect(() => () => window.clearTimeout(copyTimer.current), []);
 
   // The grip is placed by hand, beside the first line of its block, so that
   // a layout change moves it without another render.
@@ -391,6 +435,12 @@ export function BlockHandle() {
     endDrag(true);
   };
 
+  const typeOf = () =>
+    editor.getEditorState().read((): BlockType => {
+      const node = $getNodeByKey(key);
+      return node ? $blockTypeOf(node) : "paragraph";
+    });
+
   const onClick = () => {
     if (skipClick.current) {
       skipClick.current = false;
@@ -398,6 +448,7 @@ export function BlockHandle() {
     }
     acted.current = false;
     setHeldKey(key);
+    setCurrentType(typeOf());
     openMenu(!menuOpenRef.current);
   };
 
@@ -412,20 +463,41 @@ export function BlockHandle() {
     }
     if (!isMoveKey(event)) return;
     event.preventDefault();
-    shiftBlock(editor, key, event.key === "ArrowUp" ? -1 : 1);
+    shiftBlock(editor, key, event.key === "ArrowUp" ? -1 : 1, true);
+  };
+
+  const turnInto = (type: TextBlockType) => {
+    acted.current = true;
+    setHeldKey(null);
+    setHoverKey(null);
+    turnBlockInto(editor, key, type);
+    editor.getRootElement()?.focus({ preventScroll: true });
   };
 
   const insertBelow = () => {
     acted.current = true;
-    const type = editor.getEditorState().read(() => {
-      const node = $getNodeByKey(key);
-      return node ? $blockTypeOf(node) : "paragraph";
-    });
+    const type = typeOf();
     setHeldKey(null);
     setHoverKey(null);
     insertBlock(editor, isListType(type) ? type : "paragraph", {
       afterKey: key,
     });
+  };
+
+  const copyLink = async () => {
+    // A block gets its id, and the store its copy of the block, when the page
+    // is saved. The link needs both.
+    saveOpenPage();
+    const id = idsOf(editor).get(key);
+    let result: "done" | "failed" = id ? "done" : "failed";
+    try {
+      if (id) await navigator.clipboard.writeText(getBlockLink(id));
+    } catch {
+      result = "failed";
+    }
+    setCopied(result);
+    window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => openMenu(false), COPIED_SHOWN);
   };
 
   const remove = () => {
@@ -475,6 +547,13 @@ export function BlockHandle() {
           className="bg-foreground/45 pointer-events-none absolute z-10 h-0.5 rounded-full"
         />
       ) : null}
+      <span role="status" className="sr-only">
+        {copied === "done"
+          ? "Link copied"
+          : copied === "failed"
+            ? "Could not copy the link"
+            : null}
+      </span>
       <BaseMenu.Root
         open={menuOpen}
         modal={false}
@@ -508,10 +587,45 @@ export function BlockHandle() {
               finalFocus={() => (acted.current ? false : grip.current)}
               className={cn(menuSurfaceClass, popupMotion)}
             >
+              <SubMenu>
+                <SubMenuTrigger
+                  disabled={
+                    currentType === "divider" || currentType === "table"
+                  }
+                >
+                  <Icon {...icons.turnInto} />
+                  Turn into
+                </SubMenuTrigger>
+                <SubMenuContent
+                  className="min-w-48"
+                  finalFocus={() => !acted.current}
+                >
+                  {TEXT_BLOCKS.map(({ type, icon }) => (
+                    <MenuCheckboxItem
+                      key={type}
+                      checked={currentType === type}
+                      closeOnClick
+                      onCheckedChange={() => turnInto(type)}
+                    >
+                      <Icon {...icon} />
+                      {BLOCK_LABELS[type]}
+                    </MenuCheckboxItem>
+                  ))}
+                </SubMenuContent>
+              </SubMenu>
               <MenuItem onClick={insertBelow}>
                 <Icon {...icons.insertBelow} />
                 Insert below
               </MenuItem>
+              <MenuItem closeOnClick={false} onClick={() => void copyLink()}>
+                <Icon {...(copied === "done" ? icons.tick : icons.link)} />
+                {copied === "done"
+                  ? "Link copied"
+                  : copied === "failed"
+                    ? "Could not copy"
+                    : "Copy link"}
+              </MenuItem>
+              <MenuSeparator />
               <MenuItem destructive onClick={remove}>
                 <Icon {...icons.delete} />
                 Delete

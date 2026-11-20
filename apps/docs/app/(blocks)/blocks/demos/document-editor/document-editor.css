@@ -25,7 +25,10 @@
   --destructive-subtle: oklch(0.577 0.245 27.325 / 4%);
   --success: oklch(0.527 0.154 150.069);
   --pending: oklch(0.555 0.163 48.998);
-  --brand: #5170ff;
+
+  /* The one hue: Tailwind's blue-500, on what is live and on small accents. */
+  --brand: var(--color-blue-500, oklch(0.623 0.214 259.815));
+  --brand-foreground: oklch(1 0 0);
   --live: var(--brand);
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
@@ -49,6 +52,24 @@
   --comment: oklch(0.87 0.15 88 / 38%);
   --comment-active: oklch(0.85 0.17 86 / 68%);
   --comment-ink: oklch(0.555 0.163 48.998);
+
+  /* An edit by the assistant that waits for review: blue ink on a soft tint. */
+  --review-ink: color-mix(in oklab, var(--brand) 88%, black);
+  --review-tint: color-mix(in oklab, var(--brand) 9%, var(--background));
+  --review-line: color-mix(in oklab, var(--brand) 28%, var(--background));
+
+  /* The name flag where the assistant is writing. */
+  --presence: var(--brand);
+  --presence-foreground: var(--brand-foreground);
+
+  /* A reaction under a comment, and one the reader gave. */
+  --reaction: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --reaction-active: color-mix(in oklab, var(--brand) 12%, transparent);
+  --reaction-active-line: color-mix(in oklab, var(--brand) 36%, transparent);
+
+  /* The ticks of the outline rail: a heading, and one that is in view. */
+  --tick: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+  --tick-active: var(--foreground);
 
   /* The small colored icons on the template chips. */
   --tint-green: oklch(0.6 0.15 150);
@@ -86,6 +107,12 @@
   --comment: oklch(0.828 0.189 84.429 / 24%);
   --comment-active: oklch(0.828 0.189 84.429 / 46%);
   --comment-ink: oklch(0.828 0.189 84.429);
+  --review-ink: color-mix(in oklab, var(--brand) 62%, white);
+  --review-tint: color-mix(in oklab, var(--brand) 16%, var(--background));
+  --review-line: color-mix(in oklab, var(--brand) 42%, var(--background));
+  --reaction: color-mix(in oklab, var(--foreground) 8%, transparent);
+  --reaction-active: color-mix(in oklab, var(--brand) 22%, transparent);
+  --reaction-active-line: color-mix(in oklab, var(--brand) 50%, transparent);
   --tint-green: oklch(0.76 0.17 152);
   --tint-blue: oklch(0.72 0.15 262);
   --tint-amber: oklch(0.82 0.16 82);
@@ -387,6 +414,120 @@ body:has(.document-editor) {
   font-size: 0.875em;
 }
 
+/* A link to another page: a chip that reads as part of the sentence. */
+.document-editor .doc-page-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline: 1px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 6px 0 4px;
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  color: inherit;
+  font: inherit;
+  font-weight: var(--weight-strong);
+  vertical-align: baseline;
+  outline: none;
+  transition: background-color 150ms;
+}
+
+.document-editor button.doc-page-link-chip:hover {
+  background: color-mix(in oklab, var(--foreground) 9%, transparent);
+}
+
+.document-editor .doc-page-link-chip:focus-visible {
+  box-shadow: 0 0 0 1px var(--ring);
+}
+
+.document-editor .doc-page-link-chip[data-missing] {
+  color: var(--muted-foreground);
+  font-weight: inherit;
+}
+
+/*
+ * Tables: hairlines, a muted header row and cells padded on the 4px grid.
+ * The cell that holds the caret carries `data-active`.
+ */
+.document-editor .doc-table-wrap {
+  margin-block: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.document-editor .doc-table {
+  width: 100%;
+  margin-block: 8px;
+  table-layout: fixed;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  border-spacing: 0;
+  border-collapse: separate;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+}
+
+.document-editor .doc-table-wrap > .doc-table {
+  margin-block: 0;
+}
+
+.document-editor .doc-td {
+  position: relative;
+  min-width: 96px;
+  border-bottom: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: start;
+  vertical-align: top;
+  outline: none;
+}
+
+.document-editor .doc-td:last-child {
+  border-inline-end: 0;
+}
+
+.document-editor .doc-tr:last-child > .doc-td {
+  border-bottom: 0;
+}
+
+.document-editor .doc-th {
+  background: color-mix(in oklab, var(--foreground) 3%, transparent);
+  font-weight: var(--weight-strong);
+}
+
+.document-editor .doc-tr:first-child > .doc-td:first-child {
+  border-start-start-radius: 11px;
+}
+
+.document-editor .doc-tr:first-child > .doc-td:last-child {
+  border-start-end-radius: 11px;
+}
+
+.document-editor .doc-tr:last-child > .doc-td:first-child {
+  border-end-start-radius: 11px;
+}
+
+.document-editor .doc-tr:last-child > .doc-td:last-child {
+  border-end-end-radius: 11px;
+}
+
+.document-editor .doc-td > .doc-p {
+  padding-block: 0;
+}
+
+.document-editor .doc-td[data-active] {
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.document-editor .doc-td.doc-cell-selected {
+  background: var(--selection);
+}
+
+.document-editor .doc-table-selecting ::selection {
+  background: transparent;
+}
+
 .document-editor .doc-placeholder {
   pointer-events: none;
   position: absolute;
@@ -460,6 +601,133 @@ body:has(.document-editor) {
   background: var(--live);
 }
 
+/* The assistant's name on its caret, as a collaborator's would be. */
+.document-editor .doc-flag {
+  position: absolute;
+  bottom: 100%;
+  inset-inline-start: 0;
+  height: 16px;
+  border-radius: 6px 6px 6px 0;
+  padding-inline: 6px;
+  background: var(--presence);
+  color: var(--presence-foreground);
+  font-size: 0.6875rem;
+  line-height: 16px;
+  font-weight: var(--weight-strong);
+  letter-spacing: 0;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Near the right edge of the column the flag opens to the left. */
+.document-editor .doc-stream-caret[data-side="end"] .doc-flag {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+  border-radius: 6px 6px 0 6px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* An edit that waits for review, and the block a link points at.             */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * The tint reaches 8px past the block on both sides, and a 1px line runs
+ * round it. Both are shadows, so the block keeps its place and its width.
+ * Every shadow is opaque: they overlap, and a see-through one would show.
+ */
+.document-editor .doc-body [data-doc-review="changed"] {
+  --review-reach: 8px;
+  --review-top:
+    calc(-1 * var(--review-reach)) -1px 0 0 var(--review-line),
+    8px -1px 0 0 var(--review-line);
+  --review-bottom:
+    calc(-1 * var(--review-reach)) 1px 0 0 var(--review-line),
+    8px 1px 0 0 var(--review-line);
+  border-radius: 8px;
+  background: var(--review-tint);
+  box-shadow:
+    calc(-1 * var(--review-reach)) 0 0 0 var(--review-tint),
+    8px 0 0 0 var(--review-tint),
+    calc(-1px - var(--review-reach)) 0 0 0 var(--review-line),
+    9px 0 0 0 var(--review-line),
+    var(--review-top),
+    var(--review-bottom);
+  color: var(--review-ink);
+}
+
+/* A list item starts after its marker, so its tint reaches back over it. */
+.document-editor .doc-ul:not(.doc-checklist) > [data-doc-review="changed"],
+.document-editor .doc-ol > [data-doc-review="changed"] {
+  --review-reach: calc(8px + 1.5rem);
+}
+
+.document-editor .doc-body [data-doc-review="changed"]::marker,
+.document-editor .doc-body [data-doc-review="changed"] .doc-th {
+  color: var(--review-ink);
+}
+
+/*
+ * Changed blocks in a row read as one outlined group: a block loses the line
+ * and the corners on the side where the next changed block begins, whether
+ * that block is its sibling or the first or last item of the list beside it.
+ */
+.document-editor
+  .doc-body
+  [data-doc-review="changed"]:is(
+    :has(+ [data-doc-review="changed"]),
+    :has(+ :is(ul, ol) > [data-doc-review="changed"]:first-child)
+  ),
+.document-editor
+  .doc-body
+  :is(ul, ol):has(
+    + [data-doc-review="changed"],
+    + :is(ul, ol) > [data-doc-review="changed"]:first-child
+  )
+  > [data-doc-review="changed"]:last-child {
+  --review-bottom: 0 0 transparent;
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.document-editor
+  .doc-body
+  [data-doc-review="changed"]
+  + [data-doc-review="changed"],
+.document-editor
+  .doc-body
+  :is(ul, ol):has(> [data-doc-review="changed"]:last-child)
+  + [data-doc-review="changed"],
+.document-editor
+  .doc-body
+  :is(
+    [data-doc-review="changed"],
+    :is(ul, ol):has(> [data-doc-review="changed"]:last-child)
+  )
+  + :is(ul, ol)
+  > [data-doc-review="changed"]:first-child {
+  --review-top: 0 0 transparent;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
+/* Room for the pills that float over the top of the page. */
+.document-editor .doc-body > *,
+.document-editor .doc-li {
+  scroll-margin-block: 6rem;
+}
+
+.document-editor .doc-body [data-doc-target] {
+  border-radius: 8px;
+  animation: doc-target 1.6s ease-out;
+}
+
+@keyframes doc-target {
+  from {
+    background: var(--review-tint);
+    box-shadow: 0 0 0 1px var(--review-line);
+  }
+}
+
 @keyframes doc-pulse {
   50% {
     opacity: 0.45;
@@ -481,6 +749,10 @@ body:has(.document-editor) {
 
 .document-editor [data-tint="rose"] {
   color: var(--tint-rose);
+}
+
+.document-editor [data-tint="ink"] {
+  color: var(--foreground);
 }
 
 @media (max-width: 639px) {
@@ -505,9 +777,17 @@ body:has(.document-editor) {
     animation: none;
   }
 
+  /* The block a link points at stays marked for as long as it would fade. */
+  .document-editor .doc-body [data-doc-target] {
+    animation: none;
+    background: var(--review-tint);
+    box-shadow: 0 0 0 1px var(--review-line);
+  }
+
   .document-editor .doc-li-checked::before,
   .document-editor .doc-li-unchecked::before,
-  .document-editor .doc-mark {
+  .document-editor .doc-mark,
+  .document-editor .doc-page-link-chip {
     transition: none;
   }
 }

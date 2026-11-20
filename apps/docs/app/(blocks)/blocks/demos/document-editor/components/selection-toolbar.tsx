@@ -3,6 +3,8 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
 import {
+  $getSelection,
+  $isRangeSelection,
   COMMAND_PRIORITY_LOW,
   FORMAT_TEXT_COMMAND,
   KEY_ESCAPE_COMMAND,
@@ -19,7 +21,12 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { BLOCK_LABELS, useCurrentPage, type BlockType } from "../lib/document";
+import {
+  BLOCK_LABELS,
+  documentActions,
+  useCurrentPage,
+  type TextBlockType,
+} from "../lib/document";
 import {
   commentOnSelection,
   setBlockType,
@@ -72,9 +79,8 @@ const FORMATS: readonly {
   { format: "code", flag: "code", label: "Code", icon: icons.code },
 ];
 
-type TextBlockType = Exclude<BlockType, "divider">;
-
-const BLOCKS: readonly { type: TextBlockType; icon: Glyph }[] = [
+/** The kinds of block a text block can turn into, each with its icon. */
+export const TEXT_BLOCKS: readonly { type: TextBlockType; icon: Glyph }[] = [
   { type: "paragraph", icon: icons.text },
   { type: "h1", icon: icons.h1 },
   { type: "h2", icon: icons.h2 },
@@ -298,7 +304,25 @@ export function SelectionToolbar() {
     next.focus();
   };
 
-  const current = BLOCKS.find(({ type }) => type === format.block);
+  const askAssistant = () => {
+    const quote = editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      return $isRangeSelection(selection)
+        ? selection.getTextContent().trim()
+        : "";
+    });
+    if (!quote) return;
+    quiet.current = true;
+    hide();
+    documentActions.askAssistant({
+      kind: "selection",
+      pageId: page.id,
+      text: quote,
+    });
+  };
+
+  // Text in a table cell stays in its table, so it has no block type to pick.
+  const current = TEXT_BLOCKS.find(({ type }) => type === format.block);
 
   return createPortal(
     <Pill
@@ -317,6 +341,16 @@ export function SelectionToolbar() {
         }
       }}
     >
+      <button
+        type="button"
+        aria-label="Ask AI"
+        className={cn(textButtonClass, "ps-2")}
+        onClick={askAssistant}
+      >
+        <Icon {...icons.askAi} />
+        <span className="max-sm:hidden">Ask AI</span>
+      </button>
+      <Separator />
       {FORMATS.map(({ format: type, flag, label, icon }) => (
         <IconButton
           key={type}
@@ -328,48 +362,51 @@ export function SelectionToolbar() {
         />
       ))}
       <Separator />
-      <Menu open={menuOpen} onOpenChange={onMenuOpenChange}>
-        <MenuTrigger
-          render={
-            <button
-              type="button"
-              aria-label={`Block type: ${BLOCK_LABELS[format.block]}`}
-              className={cn(textButtonClass, "gap-1 ps-2 pe-1.5")}
-            />
-          }
-        >
-          <Icon
-            {...(current?.icon ?? icons.text)}
-            className="text-muted-foreground"
-          />
-          <span className="max-sm:hidden">{BLOCK_LABELS[format.block]}</span>
-          <Icon
-            {...icons.chevronDown}
-            className="text-muted-foreground size-3.5"
-          />
-        </MenuTrigger>
-        <MenuContent
-          align="start"
-          className="min-w-48"
-          finalFocus={() => {
-            editor.focus();
-            return false;
-          }}
-        >
-          {BLOCKS.map(({ type, icon }) => (
-            <MenuCheckboxItem
-              key={type}
-              checked={format.block === type}
-              closeOnClick
-              onCheckedChange={() => setBlockType(editor, type)}
+      {current ? (
+        <>
+          <Menu open={menuOpen} onOpenChange={onMenuOpenChange}>
+            <MenuTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`Block type: ${BLOCK_LABELS[current.type]}`}
+                  className={cn(textButtonClass, "gap-1 ps-2 pe-1.5")}
+                />
+              }
             >
-              <Icon {...icon} />
-              {BLOCK_LABELS[type]}
-            </MenuCheckboxItem>
-          ))}
-        </MenuContent>
-      </Menu>
-      <Separator />
+              <Icon {...current.icon} className="text-muted-foreground" />
+              <span className="max-sm:hidden">
+                {BLOCK_LABELS[current.type]}
+              </span>
+              <Icon
+                {...icons.chevronDown}
+                className="text-muted-foreground size-3.5"
+              />
+            </MenuTrigger>
+            <MenuContent
+              align="start"
+              className="min-w-48"
+              finalFocus={() => {
+                editor.focus();
+                return false;
+              }}
+            >
+              {TEXT_BLOCKS.map(({ type, icon }) => (
+                <MenuCheckboxItem
+                  key={type}
+                  checked={current.type === type}
+                  closeOnClick
+                  onCheckedChange={() => setBlockType(editor, type)}
+                >
+                  <Icon {...icon} />
+                  {BLOCK_LABELS[type]}
+                </MenuCheckboxItem>
+              ))}
+            </MenuContent>
+          </Menu>
+          <Separator />
+        </>
+      ) : null}
       <button
         type="button"
         aria-label="Comment"

@@ -43,16 +43,17 @@ import {
   MenuLabel,
   MenuSeparator,
   MenuTrigger,
+  PageGlyph,
   Pill,
   SubMenu,
   SubMenuContent,
   SubMenuTrigger,
   Tooltip,
-  glyphFor,
   iconButtonClass,
   icons,
   text,
   textButtonClass,
+  topPill,
   weight,
 } from "./ui";
 
@@ -66,9 +67,10 @@ const BLOCK_ICONS: Record<BlockType, Glyph> = {
   numbered: icons.numbered,
   quote: icons.quote,
   divider: icons.divider,
+  table: icons.table,
 };
 
-const QUICK_INSERTS = ["paragraph", "check", "divider"] as const;
+const QUICK_INSERTS = ["paragraph", "check", "table"] as const;
 
 const INSERT_MENU: readonly BlockType[] = [
   "paragraph",
@@ -79,6 +81,7 @@ const INSERT_MENU: readonly BlockType[] = [
   "bullet",
   "numbered",
   "quote",
+  "table",
   "divider",
 ];
 
@@ -147,8 +150,8 @@ function RenameField({
   };
 
   return (
-    <span className="bg-foreground/4 focus-within:border-ring dark:bg-foreground/6 flex h-7 min-w-0 items-center gap-1.5 rounded-full border border-transparent ps-2.5 pe-3 pointer-coarse:h-9">
-      <Icon {...glyphFor(page.icon)} className="text-muted-foreground" />
+    <span className="bg-foreground/4 focus-within:border-ring dark:bg-foreground/6 flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-transparent px-3 pointer-coarse:h-9">
+      <PageGlyph icon={page.icon} className="text-muted-foreground" />
       <input
         ref={field}
         value={draft}
@@ -195,7 +198,7 @@ function Breadcrumbs({ ancestors }: { ancestors: readonly Page[] }) {
     >
       {shown.length < ancestors.length ? (
         <>
-          <span aria-hidden className="text-muted-foreground ps-2.5 pe-1">
+          <span aria-hidden className="text-muted-foreground ps-3 pe-1">
             …
           </span>
           {separator}
@@ -207,7 +210,8 @@ function Breadcrumbs({ ancestors }: { ancestors: readonly Page[] }) {
             type="button"
             className={cn(
               textButtonClass,
-              "text-muted-foreground hover:text-foreground max-w-32 min-w-0 shrink px-2",
+              topPill.text,
+              "text-muted-foreground hover:text-foreground max-w-32 min-w-0 shrink px-2.5",
             )}
             onClick={() => documentActions.selectPage(ancestor.id)}
           >
@@ -252,7 +256,7 @@ function PagePill() {
   const title = page.title || "Untitled";
 
   return (
-    <Pill className="pointer-events-auto min-w-0">
+    <Pill variant="top" className="pointer-events-auto min-w-0">
       <Breadcrumbs ancestors={ancestors} />
       {renaming ? (
         <RenameField
@@ -285,11 +289,15 @@ function PagePill() {
                 ref={trigger}
                 type="button"
                 aria-label={`${title}, page menu`}
-                className={cn(textButtonClass, "max-w-72 min-w-0 shrink")}
+                className={cn(
+                  textButtonClass,
+                  topPill.text,
+                  "max-w-72 min-w-0 shrink",
+                )}
               />
             }
           >
-            <Icon {...glyphFor(page.icon)} className="text-muted-foreground" />
+            <PageGlyph icon={page.icon} className="text-muted-foreground" />
             <span
               className={cn("truncate", !page.title && "text-muted-foreground")}
             >
@@ -384,6 +392,7 @@ function InsertPill() {
 
   return (
     <Pill
+      variant="top"
       role="group"
       aria-label="Insert"
       className="pointer-events-auto shrink-0"
@@ -393,6 +402,7 @@ function InsertPill() {
           key={type}
           label={BLOCK_LABELS[type]}
           icon={BLOCK_ICONS[type]}
+          size="md"
           disabled={!editable}
           className="hidden sm:flex"
           onMouseDown={keepCaret}
@@ -410,7 +420,7 @@ function InsertPill() {
       >
         <MenuTrigger
           disabled={!editable}
-          render={<IconButton label="Insert" icon={icons.add} />}
+          render={<IconButton label="Insert" icon={icons.add} size="md" />}
         />
         <MenuContent className="min-w-48">
           <MenuLabel>Insert</MenuLabel>
@@ -447,7 +457,7 @@ function CommentsPill() {
   );
 
   return (
-    <Pill className="pointer-events-auto shrink-0">
+    <Pill variant="top" className="pointer-events-auto shrink-0">
       <Tooltip label={visible ? "Hide comments" : "Show comments"}>
         <button
           type="button"
@@ -459,9 +469,10 @@ function CommentsPill() {
             open > 0
               ? cn(
                   textButtonClass,
+                  topPill.text,
                   "text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground gap-1 px-2",
                 )
-              : iconButtonClass
+              : cn(iconButtonClass, topPill.icon)
           }
           onClick={() => documentActions.toggleCommentsVisible()}
         >

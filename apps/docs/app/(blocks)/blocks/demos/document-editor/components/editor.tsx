@@ -30,6 +30,7 @@ import {
 } from "@lexical/react/LexicalHorizontalRuleNode";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import {
   $createHeadingNode,
   $createQuoteNode,
@@ -38,6 +39,19 @@ import {
   HeadingNode,
   QuoteNode,
 } from "@lexical/rich-text";
+import {
+  $createTableCellNode,
+  $createTableNode,
+  $createTableNodeWithDimensions,
+  $createTableRowNode,
+  $isTableCellNode,
+  $isTableNode,
+  $isTableRowNode,
+  TableCellHeaderStates,
+  TableCellNode,
+  TableNode,
+  TableRowNode,
+} from "@lexical/table";
 import {
   $createLineBreakNode,
   $createParagraphNode,
@@ -55,30 +69,38 @@ import {
   $nodesOfType,
   $setSelection,
   COMMAND_PRIORITY_LOW,
+  DecoratorNode,
   HISTORY_MERGE_TAG,
   HISTORY_PUSH_TAG,
   KEY_ARROW_UP_COMMAND,
   SKIP_DOM_SELECTION_TAG,
   SKIP_SCROLL_INTO_VIEW_TAG,
   TextNode,
+  type EditorState,
   type EditorThemeClasses,
+  type EditorUpdateOptions,
   type ElementNode,
   type LexicalEditor,
   type LexicalNode,
   type NodeKey,
   type RangeSelection,
+  type SerializedLexicalNode,
+  type Spread,
 } from "lexical";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type ReactElement,
   type RefObject,
 } from "react";
 import {
   advance,
+  classifyEdit,
   commentChanges,
   commentsDescription,
   commentsSchema,
@@ -89,12 +111,14 @@ import {
   documentSchema,
   documentStore,
   DOCUMENT_NAME,
+  findPage,
   isListType,
   mintId,
   normalizeBlock,
   parseInline,
   receive,
   remaining,
+  sameBlock,
   serializeInline,
   settled,
   STREAMING_ID,
@@ -105,7 +129,9 @@ import {
   useCurrentPage,
   useDocumentStore,
   useHydrated,
+  writingBlockId,
   type Block,
+  type PendingReview,
   type BlockType,
   type DocumentComment,
   type DocumentState,
@@ -114,18 +140,124 @@ import {
   type Stream,
   type StreamMarks,
   type Template,
+  type TextBlockType,
 } from "../lib/document";
 import { BlockHandle } from "./block-handle";
 import { CommentMarks } from "./comments";
+import { AssistantFlag, EditReview } from "./edit-review";
+import { PageIcon } from "./icon-picker";
 import { SelectionToolbar } from "./selection-toolbar";
 import { SlashMenu } from "./slash-menu";
-import { chipClass, glyphFor, Icon } from "./ui";
+import { TableControls } from "./table";
+import { chipClass, glyphFor, Icon, PageGlyph } from "./ui";
 
 /* -------------------------------------------------------------------------- */
 /* Lexical setup.                                                             */
 /* -------------------------------------------------------------------------- */
 
-/** Every node class the editor registers. `MarkNode` anchors comments. */
+type SerializedPageLinkNode = Spread<
+  { pageId: string; title: string },
+  SerializedLexicalNode
+>;
+
+function PageLinkChip({ pageId, title }: { pageId: string; title: string }) {
+  const page = useDocumentStore((state) => findPage(state.pages, pageId));
+  // The page a link points at can be deleted. What is left is its name.
+  if (!page) {
+    return (
+      <span data-missing className="doc-page-link-chip">
+        {title}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="doc-page-link-chip"
+      onClick={() => documentActions.selectPage(page.id)}
+    >
+      <PageGlyph icon={page.icon} className="size-[0.9em] text-[0.8em]" />
+      {page.title || "Untitled"}
+    </button>
+  );
+}
+
+/**
+ * A link to another page, inline in the text. It shows the page's icon and
+ * its title as they are now, and opens the page. In a block's text it is
+ * written `[[page:<page id>|<title>]]`, with the title it was inserted with.
+ */
+export class PageLinkNode extends DecoratorNode<ReactElement> {
+  __pageId: string;
+  __title: string;
+
+  static override getType() {
+    return "page-link";
+  }
+
+  static override clone(node: PageLinkNode) {
+    return new PageLinkNode(node.__pageId, node.__title, node.__key);
+  }
+
+  static override importJSON(serialized: SerializedPageLinkNode) {
+    return $createPageLinkNode(serialized.pageId, serialized.title);
+  }
+
+  constructor(pageId: string, title: string, key?: NodeKey) {
+    super(key);
+    this.__pageId = pageId;
+    this.__title = title;
+  }
+
+  override exportJSON(): SerializedPageLinkNode {
+    return {
+      ...super.exportJSON(),
+      pageId: this.__pageId,
+      title: this.__title,
+    };
+  }
+
+  override createDOM() {
+    return document.createElement("span");
+  }
+
+  override updateDOM() {
+    return false;
+  }
+
+  override isInline() {
+    return true;
+  }
+
+  override getTextContent() {
+    return this.__title;
+  }
+
+  getPageId() {
+    return this.__pageId;
+  }
+
+  getTitle() {
+    return this.__title;
+  }
+
+  override decorate() {
+    return <PageLinkChip pageId={this.__pageId} title={this.__title} />;
+  }
+}
+
+/** A link to the page with that id. `title` is what it reads as in plain text. */
+export const $createPageLinkNode = (pageId: string, title: string) =>
+  new PageLinkNode(pageId, title || "Untitled");
+
+export const $isPageLinkNode = (
+  node: LexicalNode | null | undefined,
+): node is PageLinkNode => node instanceof PageLinkNode;
+
+/**
+ * Every node class the editor registers. `MarkNode` anchors comments, and
+ * `PageLinkNode` is the chip the "@" menu inserts.
+ */
 export const EDITOR_NODES = [
   HeadingNode,
   QuoteNode,
@@ -133,6 +265,10 @@ export const EDITOR_NODES = [
   ListItemNode,
   HorizontalRuleNode,
   MarkNode,
+  TableNode,
+  TableRowNode,
+  TableCellNode,
+  PageLinkNode,
 ];
 
 /** Class names the editor puts on its nodes; document-editor.css styles them. */
@@ -151,6 +287,13 @@ export const editorTheme: EditorThemeClasses = {
   },
   hr: "doc-hr",
   hrSelected: "doc-hr-selected",
+  table: "doc-table",
+  tableRow: "doc-tr",
+  tableCell: "doc-td",
+  tableCellHeader: "doc-th",
+  tableCellSelected: "doc-cell-selected",
+  tableSelection: "doc-table-selecting",
+  tableScrollableWrapper: "doc-table-wrap",
   mark: "doc-mark",
   markOverlap: "doc-mark-overlap",
   text: {
@@ -172,6 +315,10 @@ const SAVED_NODE_TYPES = new Set([
   "listitem",
   "horizontalrule",
   "mark",
+  "table",
+  "tablerow",
+  "tablecell",
+  "page-link",
   "text",
   "linebreak",
   "tab",
@@ -256,6 +403,8 @@ export function $collectBlockNodes(): BlockNode[] {
       visitList(child);
     } else if ($isHorizontalRuleNode(child)) {
       found.push({ node: child, type: "divider" });
+    } else if ($isTableNode(child)) {
+      found.push({ node: child, type: "table" });
     } else if ($isHeadingNode(child)) {
       const tag = child.getTag();
       found.push({
@@ -271,7 +420,10 @@ export function $collectBlockNodes(): BlockNode[] {
   return found;
 }
 
-/** The key of the block a node sits in: its list item, or its top-level node. */
+/**
+ * The key of the block a node sits in: its list item, or its top-level node,
+ * which for a table cell is the table.
+ */
 export function $blockKeyOf(node: LexicalNode): NodeKey | undefined {
   let current: LexicalNode | null = node;
   while (current) {
@@ -293,6 +445,7 @@ export function $blockTypeOf(node: LexicalNode): BlockType {
     }
     if ($isQuoteNode(current)) return "quote";
     if ($isHorizontalRuleNode(current)) return "divider";
+    if ($isTableNode(current)) return "table";
     current = current.getParent();
   }
   return "paragraph";
@@ -311,6 +464,8 @@ function $readRuns(node: ElementNode, runs: InlineRun[]) {
       });
     } else if ($isLineBreakNode(child)) {
       runs.push({ text: "\n" });
+    } else if ($isPageLinkNode(child)) {
+      runs.push({ text: child.getTitle(), page: child.getPageId() });
     } else if ($isElementNode(child) && !$isListNode(child)) {
       $readRuns(child, runs);
     }
@@ -323,6 +478,8 @@ const mergeRuns = (runs: readonly InlineRun[]) => {
     const last = merged[merged.length - 1];
     if (
       last &&
+      !last.page &&
+      !run.page &&
       !!last.bold === !!run.bold &&
       !!last.italic === !!run.italic &&
       !!last.underline === !!run.underline &&
@@ -338,6 +495,7 @@ const mergeRuns = (runs: readonly InlineRun[]) => {
 };
 
 function $textNodes(run: InlineRun): LexicalNode[] {
+  if (run.page) return [$createPageLinkNode(run.page, run.text)];
   const nodes: LexicalNode[] = [];
   run.text.split("\n").forEach((line, index) => {
     if (index > 0) nodes.push($createLineBreakNode());
@@ -365,6 +523,66 @@ const $blockText = (node: LexicalNode) => {
   return serializeInline(mergeRuns(runs));
 };
 
+// A cell reads as one text. The paragraphs a person makes in it are its lines.
+const $readRows = (table: TableNode): string[][] =>
+  table
+    .getChildren()
+    .filter($isTableRowNode)
+    .map((row) =>
+      row
+        .getChildren()
+        .filter($isTableCellNode)
+        .map((cell) => cell.getChildren().map($blockText).join("\n")),
+    );
+
+const $writeCell = (cell: TableCellNode, text: string) => {
+  const paragraph = $createParagraphNode();
+  $writeRuns(paragraph, parseInline(text));
+  cell.clear();
+  cell.append(paragraph);
+};
+
+/**
+ * Fills a table from rows of cell text, the first row as its header. While
+ * the table keeps its shape only the cells that changed are rewritten, which
+ * keeps the comment anchors in the others.
+ */
+function $writeRows(table: TableNode, rows: readonly (readonly string[])[]) {
+  const grid = rows.some((row) => row.length > 0) ? rows : [[""]];
+  const current = $readRows(table);
+  const sameShape =
+    current.length === grid.length &&
+    current.every((row, index) => row.length === grid[index]!.length);
+
+  if (sameShape) {
+    table.getChildren().forEach((row, rowIndex) => {
+      if (!$isTableRowNode(row)) return;
+      row.getChildren().forEach((cell, cellIndex) => {
+        const text = grid[rowIndex]![cellIndex]!;
+        if ($isTableCellNode(cell) && current[rowIndex]![cellIndex] !== text) {
+          $writeCell(cell, text);
+        }
+      });
+    });
+    return;
+  }
+
+  table.clear();
+  grid.forEach((cells, rowIndex) => {
+    const row = $createTableRowNode();
+    for (const text of cells) {
+      const cell = $createTableCellNode(
+        rowIndex === 0
+          ? TableCellHeaderStates.ROW
+          : TableCellHeaderStates.NO_STATUS,
+      );
+      $writeCell(cell, text);
+      row.append(cell);
+    }
+    table.append(row);
+  });
+}
+
 const $createBlockElement = (type: BlockType): ElementNode => {
   if (type === "h1" || type === "h2" || type === "h3") {
     return $createHeadingNode(type);
@@ -384,6 +602,9 @@ export function $readBlocks(ids: BlockIds, mint = mintBlockId): Block[] {
       ids.set(key, id);
     }
     seen.add(id);
+    if ($isTableNode(node)) {
+      return { id, type: "table", text: "", rows: $readRows(node) };
+    }
     return {
       id,
       type,
@@ -394,9 +615,10 @@ export function $readBlocks(ids: BlockIds, mint = mintBlockId): Block[] {
   });
 }
 
-// A list item and a divider cannot turn into another kind of block in place.
+// A list item, a divider and a table cannot turn into another kind of block
+// in place.
 const keepsItsNode = (type: BlockType) =>
-  isListType(type) || type === "divider";
+  isListType(type) || type === "divider" || type === "table";
 
 const $setChecked = (node: LexicalNode, block: Block) => {
   if (block.type !== "check" || !$isListItemNode(node)) return;
@@ -438,6 +660,11 @@ export function $writeBlocks(
       const existing = current[index]!;
       if (existing.type === "divider") {
         ids.set(existing.node.getKey(), block.id);
+        return;
+      }
+      if ($isTableNode(existing.node)) {
+        ids.set(existing.node.getKey(), block.id);
+        $writeRows(existing.node, block.rows ?? []);
         return;
       }
       let element = existing.node;
@@ -494,6 +721,13 @@ export function $writeBlocks(
       const rule = kept ?? $createHorizontalRuleNode();
       next.push(rule);
       ids.set(rule.getKey(), block.id);
+      continue;
+    }
+    if (block.type === "table") {
+      const table = $isTableNode(kept) ? kept : $createTableNode();
+      $writeRows(table, block.rows ?? []);
+      next.push(table);
+      ids.set(table.getKey(), block.id);
       continue;
     }
     const element = $isElementNode(kept)
@@ -590,6 +824,15 @@ const $createBlock = (
   }
   if (type === "divider")
     return { top: $createHorizontalRuleNode(), focus: null };
+  if (type === "table") {
+    const table = $createTableNodeWithDimensions(3, 3, {
+      rows: true,
+      columns: false,
+    });
+    const row = table.getFirstChild();
+    const cell = $isTableRowNode(row) ? row.getFirstChild() : null;
+    return { top: table, focus: $isTableCellNode(cell) ? cell : null };
+  }
   const element = $createBlockElement(type);
   return { top: element, focus: element };
 };
@@ -649,6 +892,7 @@ export function insertBlock(
       top !== null &&
       top === target &&
       $isElementNode(top) &&
+      !$isTableNode(top) &&
       top.getTextContentSize() === 0;
 
     if (replaces && type === "divider") {
@@ -659,6 +903,11 @@ export function insertBlock(
     if (replaces) top.replace(created);
     else if (top) top.insertAfter(created);
     else $getRoot().append(created);
+
+    // A table at the end of the page would leave nowhere to write after it.
+    if (type === "table" && !created.getNextSibling()) {
+      created.insertAfter($createParagraphNode());
+    }
 
     if (focus) {
       $caretIn(focus);
@@ -674,41 +923,57 @@ export function insertBlock(
   editor.focus();
 }
 
+// Turns one block into another kind, keeping its text and its id. A list is
+// split around an item that leaves it. A table stays a table.
+function $turnInto(node: ElementNode, type: TextBlockType, ids: BlockIds) {
+  if ($isTableNode(node) || $blockTypeOf(node) === type) return;
+  const id = ids.get(node.getKey());
+  const { top, focus } = $createBlock(type);
+  if (!focus) return;
+  focus.append(...node.getChildren());
+
+  const list = node.getParent();
+  if ($isListItemNode(node) && $isListNode(list)) {
+    const after = node.getNextSiblings();
+    if (after.length > 0) {
+      const rest = $createListNode(list.getListType());
+      rest.append(...after);
+      list.insertAfter(rest);
+    }
+    list.insertAfter(top);
+    node.remove();
+    if (list.isAttached() && list.getChildrenSize() === 0) list.remove();
+  } else {
+    node.replace(top);
+  }
+  if (id) ids.set(focus.getKey(), id);
+}
+
 /**
  * Turns the selected blocks into another kind of block, keeping their text.
- * Only those blocks change: a list is split around an item that leaves it.
+ * Only those blocks change.
  */
-export function setBlockType(
-  editor: LexicalEditor,
-  type: Exclude<BlockType, "divider">,
-) {
+export function setBlockType(editor: LexicalEditor, type: TextBlockType) {
   const ids = idsOf(editor);
   editor.update(() => {
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return;
-    for (const node of $selectedBlocks(selection)) {
-      if ($blockTypeOf(node) === type) continue;
-      const id = ids.get(node.getKey());
-      const { top, focus } = $createBlock(type);
-      if (!focus) continue;
-      focus.append(...node.getChildren());
+    for (const node of $selectedBlocks(selection)) $turnInto(node, type, ids);
+    $joinLists();
+  });
+}
 
-      const list = node.getParent();
-      if ($isListItemNode(node) && $isListNode(list)) {
-        const after = node.getNextSiblings();
-        if (after.length > 0) {
-          const rest = $createListNode(list.getListType());
-          rest.append(...after);
-          list.insertAfter(rest);
-        }
-        list.insertAfter(top);
-        node.remove();
-        if (list.isAttached() && list.getChildrenSize() === 0) list.remove();
-      } else {
-        node.replace(top);
-      }
-      if (id) ids.set(focus.getKey(), id);
-    }
+/** Turns one block into another kind, by the key of its list item or top-level node. */
+export function turnBlockInto(
+  editor: LexicalEditor,
+  key: NodeKey,
+  type: TextBlockType,
+) {
+  const ids = idsOf(editor);
+  editor.update(() => {
+    const node = $getNodeByKey(key);
+    if (!$isElementNode(node)) return;
+    $turnInto(node, type, ids);
     $joinLists();
   });
 }
@@ -749,6 +1014,7 @@ export function moveBlock(
   key: NodeKey,
   targetKey: NodeKey,
   position: "before" | "after",
+  options?: EditorUpdateOptions,
 ) {
   if (key === targetKey) return;
   editor.update(() => {
@@ -793,7 +1059,7 @@ export function moveBlock(
       oldParent.remove();
     }
     $joinLists();
-  });
+  }, options);
 }
 
 export type SelectionFormat = {
@@ -893,6 +1159,7 @@ export function markQuote(
   editor: LexicalEditor,
   quote: string,
   markId: string,
+  options?: EditorUpdateOptions,
 ) {
   let marked = false;
   const wanted = quote.trim();
@@ -925,7 +1192,7 @@ export function markQuote(
         offset += size;
       }
     }
-  });
+  }, options);
   return marked;
 }
 
@@ -1063,6 +1330,206 @@ export function replaceBlocks(editor: LexicalEditor, blocks: readonly Block[]) {
   );
 }
 
+/**
+ * The editor's own state from before the edit that waits for review. Blocks
+ * cannot say where a comment is anchored, so this is what brings the anchors
+ * back. It lasts as long as the editor, which a reload replaces.
+ */
+const reviewOrigins = new WeakMap<LexicalEditor, EditorState>();
+
+const $markIds = () =>
+  new Set($nodesOfType(MarkNode).flatMap((mark) => mark.getIDs()));
+
+/**
+ * Puts back the editor state held from before the edit, when it reads as the
+ * review says the page did. A comment made since the edit is anchored again.
+ */
+function restoreOrigin(editor: LexicalEditor, review: PendingReview) {
+  const origin = reviewOrigins.get(editor);
+  if (!origin) return false;
+  const keys: BlockIds = new Map();
+  const blocks = origin.read(() => $readBlocks(keys));
+  if (
+    blocks.length !== review.before.length ||
+    !blocks.every((block, index) => sameBlock(block, review.before[index]!))
+  ) {
+    return false;
+  }
+  const ids = idsOf(editor);
+  [...keys.keys()].forEach((key, index) =>
+    ids.set(key, review.before[index]!.id),
+  );
+  const since = editor.getEditorState().read($markIds);
+  editor.setEditorState(origin.clone(null), { tag: HISTORY_PUSH_TAG });
+  const held = editor.getEditorState().read($markIds);
+  for (const thread of documentStore.getState().threads) {
+    if (
+      thread.pageId === review.pageId &&
+      since.has(thread.markId) &&
+      !held.has(thread.markId)
+    ) {
+      markQuote(editor, thread.quote, thread.markId, {
+        tag: HISTORY_MERGE_TAG,
+      });
+    }
+  }
+  return true;
+}
+
+/**
+ * Takes back the edit that waits for review, which is what the Undo button of
+ * the review does: the page goes back to what it was before the assistant's
+ * edit, as one step that undo in the page takes back. Returns false when
+ * there is nothing to take back, or while the assistant is writing.
+ */
+export function undoPendingReview() {
+  const review = documentStore.getState().pendingReview;
+  if (!review) return false;
+  const { editor, pageId } = mounted;
+  if (!editor || pageId !== review.pageId) {
+    documentActions.undoReview();
+    return true;
+  }
+  if (!editor.isEditable()) return false;
+  if (!restoreOrigin(editor, review)) replaceBlocks(editor, review.before);
+  documentActions.acceptReview();
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Blocks in the page's DOM. Each block's element has the block's id as its   */
+/* `id`, which is what a link to a block points at.                           */
+/* -------------------------------------------------------------------------- */
+
+const REVIEW_ATTRIBUTE = "data-doc-review";
+const TARGET_ATTRIBUTE = "data-doc-target";
+
+/** How long the block a link points at stays marked. */
+const TARGET_MARKED = 1600;
+
+export const prefersReducedMotion = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** The element of a block of the open page, by block id. Null when the page has no such block. */
+export function getBlockElement(blockId: string): HTMLElement | null {
+  const { editor } = mounted;
+  if (!editor) return null;
+  const key = editor
+    .getEditorState()
+    .read(() => $blockKeys(idsOf(editor)))
+    .get(blockId);
+  return key ? editor.getElementByKey(key) : null;
+}
+
+/**
+ * Scrolls the open page to a block. `mark` tints the block for a moment, to
+ * show where a link landed. Returns false when the page has no such block.
+ */
+export function scrollToBlock(
+  blockId: string,
+  options: { mark?: boolean } = {},
+) {
+  const element = getBlockElement(blockId);
+  if (!element) return false;
+  element.scrollIntoView({
+    block: "start",
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+  });
+  if (options.mark) {
+    element.setAttribute(TARGET_ATTRIBUTE, "");
+    window.setTimeout(
+      () => element.removeAttribute(TARGET_ATTRIBUTE),
+      TARGET_MARKED,
+    );
+  }
+  return true;
+}
+
+/** The address of a block: this page's address with `#<block id>`. */
+export function getBlockLink(blockId: string) {
+  const url = new URL(window.location.href);
+  url.hash = blockId;
+  return url.toString();
+}
+
+const linkedBlockId = () => {
+  try {
+    return decodeURIComponent(window.location.hash.slice(1));
+  } catch {
+    return "";
+  }
+};
+
+// The block the address pointed at when it was last followed, so that coming
+// back to its page does not scroll there again.
+let followedLink: string | null = null;
+
+/**
+ * Follows the `#<block id>` in the address: opens the page that holds the
+ * block, and scrolls to it once that page's editor is mounted.
+ */
+function followBlockLink(again = false) {
+  const blockId = linkedBlockId();
+  if (!blockId || (!again && followedLink === blockId)) return;
+  const state = documentStore.getState();
+  const page = state.pages.find((item) =>
+    item.content.blocks.some((block) => block.id === blockId),
+  );
+  if (!page) return;
+  if (page.id !== state.currentPageId) {
+    documentActions.selectPage(page.id);
+    return;
+  }
+  if (scrollToBlock(blockId, { mark: true })) followedLink = blockId;
+}
+
+export type Heading = { id: string; level: 1 | 2 | 3; text: string };
+
+const NO_HEADINGS: readonly Heading[] = [];
+
+const HEADING_LEVELS = { h1: 1, h2: 2, h3: 3 } as const;
+
+function $readHeadings(ids: BlockIds): Heading[] {
+  const headings: Heading[] = [];
+  for (const { node, type } of $collectBlockNodes()) {
+    if (type !== "h1" && type !== "h2" && type !== "h3") continue;
+    const id = ids.get(node.getKey());
+    const text = node.getTextContent().trim();
+    if (id && text) headings.push({ id, level: HEADING_LEVELS[type], text });
+  }
+  return headings;
+}
+
+/**
+ * The headings of the open page, in order, for the outline. Each `id` is the
+ * block's id: pass it to `scrollToBlock` or `getBlockElement`. The list is
+ * the same object until a heading changes.
+ */
+export function useHeadings(): readonly Heading[] {
+  const editor = useActiveEditor();
+  const [headings, setHeadings] = useState(NO_HEADINGS);
+
+  useEffect(() => {
+    if (!editor) return;
+    const read = () => {
+      const next = editor
+        .getEditorState()
+        .read(() => $readHeadings(idsOf(editor)));
+      setHeadings((previous) =>
+        JSON.stringify(previous) === JSON.stringify(next) ? previous : next,
+      );
+    };
+    read();
+    const unregister = editor.registerUpdateListener(read);
+    return () => {
+      unregister();
+      setHeadings(NO_HEADINGS);
+    };
+  }, [editor]);
+
+  return headings;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Painting the assistant's edit over the page while it streams.              */
 /* -------------------------------------------------------------------------- */
@@ -1150,8 +1617,9 @@ const highlight = (name: string, range: Range | null) => {
 /**
  * Draws the assistant's activity over the page without changing it: the
  * blocks it is working on dimmed, the live color on the words it has just
- * typed, the old text it has not overwritten yet faded, and a caret where it
- * is typing.
+ * typed, the old text it has not overwritten yet faded, and a caret with the
+ * assistant's name where it is writing. `writing` is the block it is writing
+ * in, which is where the caret waits while nothing is being typed.
  */
 function createStreamPainter(
   editor: LexicalEditor,
@@ -1161,7 +1629,7 @@ function createStreamPainter(
   let marked = new Map<HTMLElement, string>();
   let typingId: string | undefined;
 
-  const paint = (marks: StreamMarks) => {
+  const paint = (marks: StreamMarks, writing: string | null = null) => {
     const keys = editor.getEditorState().read(() => $blockKeys(ids));
     const elementOf = (id: string) => {
       const key = keys.get(id);
@@ -1187,48 +1655,66 @@ function createStreamPainter(
     }
     marked = wanted;
 
-    const caret = getCaret();
-    const element = marks.typing ? elementOf(marks.typing.id) : null;
-    if (!marks.typing || !element) {
+    const typing = marks.typing;
+    const typedIn = typing ? elementOf(typing.id) : null;
+    let letter: DOMRect | undefined;
+    if (typing && typedIn) {
+      const { typed } = typing;
+      if (typingId !== typing.id) {
+        typingId = typing.id;
+        typedIn.scrollIntoView({
+          block: "nearest",
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+        });
+      }
+      if (supportsHighlights()) {
+        const text = textOf(typedIn);
+        const fresh = wordsBack(text, typed, 2);
+        const fading = wordsBack(text, fresh, 3);
+        highlight(LIVE, textRange(typedIn, fresh, typed));
+        highlight(LIVE_SOFT, textRange(typedIn, fading, fresh));
+        highlight(GHOST, textRange(typedIn, typed, text.length));
+      }
+      const rects =
+        typed > 0
+          ? textRange(typedIn, typed - 1, typed)?.getClientRects()
+          : undefined;
+      letter = rects?.length ? rects[rects.length - 1] : undefined;
+    } else {
       if (supportsHighlights()) {
         highlight(LIVE, null);
         highlight(LIVE_SOFT, null);
         highlight(GHOST, null);
       }
-      if (caret) caret.hidden = true;
       typingId = undefined;
+    }
+
+    const caret = getCaret();
+    if (!caret) return;
+    const element = typedIn ?? (writing ? elementOf(writing) : null);
+    const paper = caret.parentElement?.getBoundingClientRect();
+    if (!element || !paper) {
+      caret.hidden = true;
       return;
     }
-
-    const { typed } = marks.typing;
-    const text = textOf(element);
-    if (supportsHighlights()) {
-      const fresh = wordsBack(text, typed, 2);
-      const fading = wordsBack(text, fresh, 3);
-      highlight(LIVE, textRange(element, fresh, typed));
-      highlight(LIVE_SOFT, textRange(element, fading, fresh));
-      highlight(GHOST, textRange(element, typed, text.length));
-    }
-
-    const paper = caret?.parentElement?.getBoundingClientRect();
-    if (caret && paper) {
-      const last = typed > 0 ? textRange(element, typed - 1, typed) : null;
-      const rects = last?.getClientRects();
-      const letter = rects?.length ? rects[rects.length - 1]! : undefined;
-      const fallback = element.getBoundingClientRect();
-      const lineHeight =
-        Number.parseFloat(getComputedStyle(element).lineHeight) ||
-        fallback.height;
-      caret.hidden = false;
-      caret.style.left = `${(letter ? letter.right : fallback.left) - paper.left}px`;
-      caret.style.top = `${(letter ? letter.top : fallback.top) - paper.top}px`;
-      caret.style.height = `${letter ? letter.height : lineHeight}px`;
-    }
-
-    if (typingId !== marks.typing.id) {
-      typingId = marks.typing.id;
-      element.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
+    // A block that is arriving has the caret at its start, and a table, which
+    // grows row by row, at its last row.
+    const box = (
+      element.querySelector(".doc-tr:last-child") ?? element
+    ).getBoundingClientRect();
+    const lineHeight =
+      Number.parseFloat(getComputedStyle(element).lineHeight) || box.height;
+    const left = letter ? letter.right : box.left;
+    caret.hidden = false;
+    caret.style.left = `${left - paper.left}px`;
+    caret.style.top = `${(letter ? letter.top : box.top) - paper.top}px`;
+    caret.style.height = `${letter ? letter.height : Math.min(lineHeight, box.height)}px`;
+    // The name flag opens toward the side of the column that has room for it.
+    const flag = caret.firstElementChild;
+    caret.dataset["side"] =
+      flag instanceof HTMLElement && left + flag.offsetWidth > paper.right
+        ? "end"
+        : "start";
   };
 
   const clear = () => paint({ working: [], empty: [] });
@@ -1250,9 +1736,6 @@ const SYNC_TAG = "document-sync";
 const TYPING_SPEED = 150;
 /** Seconds any amount of waiting text may take; longer edits type faster. */
 const LONGEST_TYPING = 2;
-
-const prefersReducedMotion = () =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * What an edit that ended without a result leaves on the page: the blocks the
@@ -1332,6 +1815,11 @@ function DocumentBridge({
   const wasRunning = useRef(isRunning);
   const wasInFlight = useRef(false);
   const beforeEdit = useRef<readonly Block[]>(initialBlocks);
+  // The page as it was when the assistant's run began, or when its last edit
+  // landed, to tell what the next edit changes.
+  const landing = useRef<readonly Block[] | null>(null);
+  const runStart = useRef<EditorState | null>(null);
+  const reviewOpen = useRef(false);
   const frame = useRef(0);
   const [painter] = useState(() =>
     createStreamPainter(editor, ids, () => caret.current),
@@ -1340,7 +1828,13 @@ function DocumentBridge({
   const show = useCallback(
     (atOnce = false) => {
       const display = displayBlocks(stream.current);
-      const paint = () => painter.paint(streamMarks(stream.current));
+      const paint = () => {
+        const blockId = writingBlockId(stream.current);
+        painter.paint(streamMarks(stream.current), blockId);
+        documentActions.setPresence(
+          blockId ? { pageId: page.id, blockId } : null,
+        );
+      };
       const serialized = JSON.stringify(display);
       if (serialized === inEditor.current) {
         paint();
@@ -1360,8 +1854,42 @@ function DocumentBridge({
       });
       sameUndoStep.current = true;
     },
-    [editor, ids, painter],
+    [editor, ids, page.id, painter],
   );
+
+  // One review holds the edits of one run. The first edit of a later run
+  // keeps the edit still waiting on this page, so Undo only ever takes back
+  // what the assistant has just done.
+  const openReview = useCallback(() => {
+    if (reviewOpen.current) return;
+    reviewOpen.current = true;
+    if (runStart.current) reviewOrigins.set(editor, runStart.current);
+    if (documentStore.getState().pendingReview?.pageId === page.id) {
+      documentActions.acceptReview();
+    }
+  }, [editor, page.id]);
+
+  // Once an edit by the assistant is whole on the page, the store is told
+  // what the page was before it and what it is now. New blocks get their
+  // lasting ids here, so a review can name them.
+  const land = useCallback(() => {
+    const before = landing.current;
+    if (!before || stream.current.active) return;
+    // The last frame of typing may still be waiting to be committed, and
+    // `editor.read` commits it first.
+    const after = editor.read(() => $readBlocks(ids));
+    const serialized = JSON.stringify(after);
+    landing.current = wasRunning.current ? after : null;
+    if (serialized === JSON.stringify(before)) return;
+    if (serialized !== inEditor.current) {
+      inEditor.current = serialized;
+      stream.current = settled(after);
+      setState((previous) => ({ ...previous, blocks: after }));
+    }
+    if (!classifyEdit(before, after)) return;
+    openReview();
+    documentActions.recordEdit({ pageId: page.id, before, after });
+  }, [editor, ids, openReview, page.id, setState]);
 
   const stopTyping = useCallback(() => {
     cancelAnimationFrame(frame.current);
@@ -1397,9 +1925,10 @@ function DocumentBridge({
         return;
       }
       stopTyping();
+      land();
     };
     frame.current = requestAnimationFrame(step);
-  }, [show, stopTyping]);
+  }, [land, show, stopTyping]);
 
   // Leaving the page ends the writing at once, so that what is saved is never
   // half-written: an edit that has arrived is typed to its end, and one still
@@ -1412,8 +1941,9 @@ function DocumentBridge({
         : advance(stream.current, remaining(stream.current));
       show(true);
       stopTyping();
+      land();
     };
-  }, [settle, show, stopTyping]);
+  }, [land, settle, show, stopTyping]);
 
   useEffect(() => {
     // Opening a page again would bring back the state the interactable kept
@@ -1423,8 +1953,15 @@ function DocumentBridge({
       adopted.current = true;
       setState({ title: page.title, blocks: initialBlocks });
     }
-    if (!wasRunning.current && isRunning && !stream.current.active) {
-      sameUndoStep.current = false;
+    if (!wasRunning.current && isRunning) {
+      reviewOpen.current = false;
+      runStart.current = editor.getEditorState();
+      if (!stream.current.active) sameUndoStep.current = false;
+    }
+    if (isRunning && !landing.current) {
+      landing.current = stream.current.entries.map(
+        (item) => item.next ?? item.page,
+      );
     }
     wasRunning.current = isRunning;
 
@@ -1433,6 +1970,7 @@ function DocumentBridge({
       beforeEdit.current = stream.current.entries.map(
         (item) => item.next ?? item.page,
       );
+      openReview();
     } else if (wasInFlight.current && !inFlight && failed) {
       // The interactable holds the list as far as the call got, which lacks
       // every block the call had yet to repeat.
@@ -1445,12 +1983,16 @@ function DocumentBridge({
     stream.current = receive(stream.current, incoming, inFlight);
     show();
     if (remaining(stream.current) > 0) type();
+    else land();
   }, [
     blocks,
+    editor,
     failed,
     inFlight,
     initialBlocks,
     isRunning,
+    land,
+    openReview,
     page.title,
     setState,
     show,
@@ -1469,9 +2011,14 @@ function DocumentBridge({
         stream.current = settled(read);
         sameUndoStep.current = false;
         setState((previous) => ({ ...previous, blocks: read }));
+        // A change by hand keeps the edit that waits for review. Undo would
+        // otherwise take the person's own change back along with it.
+        if (documentStore.getState().pendingReview?.pageId === page.id) {
+          documentActions.acceptReview();
+        }
       },
     );
-  }, [editor, ids, setState]);
+  }, [editor, ids, page.id, setState]);
 
   // The title lives in the page list and in the interactable. Whichever one
   // changed last is copied to the other.
@@ -1502,6 +2049,7 @@ function DocumentBridge({
       cancelAnimationFrame(frame.current);
       frame.current = 0;
       painter.clear();
+      documentActions.setPresence(null);
     };
   }, [painter]);
 
@@ -1541,11 +2089,13 @@ function CommentsBridge({ pageId }: { pageId: string }) {
     const store = documentStore.getState();
     const changes = commentChanges(store.threads, pageId, comments);
     let rejected = false;
+    let left = false;
     for (const comment of changes.started) {
       if (!markQuote(editor, comment.quote, comment.id)) {
         rejected = true;
         continue;
       }
+      left ||= comment.author === "assistant";
       documentActions.addThread({
         id: comment.id,
         markId: comment.id,
@@ -1562,7 +2112,9 @@ function CommentsBridge({ pageId }: { pageId: string }) {
         author: comment.author,
         text: comment.text,
       });
+      left ||= comment.author === "assistant";
     }
+    if (left) documentActions.recordComment(pageId);
     for (const change of changes.resolved) {
       documentActions.resolveThread(change.threadId, change.resolved);
     }
@@ -1716,6 +2268,7 @@ function ShortcutsPlugin({
         const anchor = selection.anchor;
         if (
           !first ||
+          $isTableNode(first) ||
           anchor.offset !== 0 ||
           $blockKeyOf(anchor.getNode()) !== first.getKey() ||
           ($isTextNode(anchor.getNode()) &&
@@ -1785,6 +2338,94 @@ function MountPlugin({ pageId }: { pageId: string }) {
       if (mounted.editor === editor) setMounted({ editor: null, pageId: null });
     };
   }, [editor, pageId]);
+  return null;
+}
+
+// A table's first row is its header, wherever a row is inserted or moved to.
+function HeaderRowPlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerNodeTransform(TableNode, (table) => {
+      table.getChildren().forEach((row, index) => {
+        if (!$isTableRowNode(row)) return;
+        const state =
+          index === 0
+            ? TableCellHeaderStates.ROW
+            : TableCellHeaderStates.NO_STATUS;
+        for (const cell of row.getChildren()) {
+          if ($isTableCellNode(cell) && cell.getHeaderStyles() !== state) {
+            cell.setHeaderStyles(state);
+          }
+        }
+      });
+    });
+  }, [editor]);
+
+  return null;
+}
+
+// Gives each block's element the block's id, and marks the blocks an edit
+// that waits for review changed. It registers after the bridge, which is
+// what gives a new block its id.
+function BlockDomPlugin({ pageId }: { pageId: string }) {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    const ids = idsOf(editor);
+    const stamp = () => {
+      const review = documentStore.getState().pendingReview;
+      const changed = new Set(review?.pageId === pageId ? review.changed : []);
+      editor.getEditorState().read(() => {
+        for (const { node } of $collectBlockNodes()) {
+          const id = ids.get(node.getKey());
+          const element = editor.getElementByKey(node.getKey());
+          if (!id || !element) continue;
+          if (!id.startsWith(STREAMING_ID) && element.id !== id) {
+            element.id = id;
+          }
+          if (changed.has(id))
+            element.setAttribute(REVIEW_ATTRIBUTE, "changed");
+          else element.removeAttribute(REVIEW_ATTRIBUTE);
+        }
+      });
+    };
+    stamp();
+    let review = documentStore.getState().pendingReview;
+    const unsubscribe = documentStore.subscribe(() => {
+      const next = documentStore.getState().pendingReview;
+      if (next === review) return;
+      review = next;
+      stamp();
+    });
+    const unregister = editor.registerUpdateListener(
+      ({ dirtyElements, dirtyLeaves }) => {
+        if (dirtyElements.size > 0 || dirtyLeaves.size > 0) stamp();
+      },
+    );
+    return () => {
+      unsubscribe();
+      unregister();
+    };
+  }, [editor, pageId]);
+
+  return null;
+}
+
+// Follows a link to a block: when the page opens, and when the address changes.
+function BlockLinkPlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => followBlockLink());
+    const onHashChange = () => followBlockLink(true);
+    window.addEventListener("hashchange", onHashChange);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", onHashChange);
+    };
+  }, [editor]);
+
   return null;
 }
 
@@ -1926,7 +2567,9 @@ function PageBody({
           }
           ErrorBoundary={LexicalErrorBoundary}
         />
-        <span ref={caret} aria-hidden hidden className="doc-stream-caret" />
+        <span ref={caret} aria-hidden hidden className="doc-stream-caret">
+          <AssistantFlag />
+        </span>
       </div>
     </>
   );
@@ -1956,21 +2599,32 @@ function EditorSurface({ page }: { page: Page }) {
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
+      <PageIcon />
       <TitleField page={page} titleRef={titleRef} />
       <PageBody page={page} caret={caret} />
       <HistoryPlugin />
       <ListPlugin />
       <CheckListPlugin />
+      <TablePlugin
+        hasCellMerge={false}
+        hasCellBackgroundColor={false}
+        hasHorizontalScroll
+      />
+      <HeaderRowPlugin />
       <ShortcutsPlugin titleRef={titleRef} />
       <MountPlugin pageId={page.id} />
       <CaretRoomPlugin />
       <DocumentBridge page={page} caret={caret} busy={busy} settle={settle} />
       <CommentsBridge pageId={page.id} />
       <SavePlugin pageId={page.id} busy={busy} settle={settle} />
+      <BlockDomPlugin pageId={page.id} />
+      <BlockLinkPlugin />
       <SelectionToolbar />
       <SlashMenu />
       <BlockHandle />
+      <TableControls />
       <CommentMarks />
+      <EditReview />
     </LexicalComposer>
   );
 }
@@ -1990,6 +2644,11 @@ export function Editor() {
     setMounted({ anchor: element });
   }, []);
 
+  // A page opens at its top, not where the page before it was left.
+  useLayoutEffect(() => {
+    mounted.scroller?.scrollTo({ top: 0 });
+  }, [page.id]);
+
   return (
     <div
       ref={setScroller}
@@ -1997,7 +2656,7 @@ export function Editor() {
     >
       <div
         ref={setAnchor}
-        className="relative mx-auto w-full max-w-[calc(720px+7rem)] px-5 pt-24 pb-72 sm:px-14 sm:pt-32"
+        className="relative mx-auto w-full max-w-[calc(720px+7rem)] px-5 pt-24 pb-[max(18rem,calc(var(--assistant-bar-height,0px)+6rem))] sm:px-14 sm:pt-32"
       >
         {hydrated ? <EditorSurface key={page.id} page={page} /> : null}
       </div>

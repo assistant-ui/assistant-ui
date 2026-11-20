@@ -1,10 +1,20 @@
 {
+  "profile": {
+    "you": {
+      "name": "You",
+      "avatar": "https://avatar.aiellie.dev/ellie.svg?style=critters"
+    },
+    "assistant": {
+      "name": "Assistant",
+      "avatar": "https://images.aiellie.app/s2_AgEAAgA7gvb_2-r-_x1O2P8AIwBkACAAZAAAAAAAegAeALAApQBtAAAAAAABAAE.png"
+    }
+  },
   "pages": [
     {
       "id": "to-do-list",
       "parentId": null,
       "title": "To-do list",
-      "icon": "check",
+      "icon": { "kind": "icon", "value": "check" },
       "blocks": [
         { "type": "h2", "text": "Today" },
         { "type": "h3", "text": "Top priorities" },
@@ -22,10 +32,18 @@
       ]
     },
     {
+      "id": "welcome",
+      "parentId": "to-do-list",
+      "title": "Welcome",
+      "icon": { "kind": "emoji", "value": "👋" },
+      "template": "welcome",
+      "blocks": []
+    },
+    {
       "id": "meeting-notes",
       "parentId": "to-do-list",
       "title": "Meeting notes",
-      "icon": "page",
+      "icon": { "kind": "icon", "value": "page" },
       "blocks": [
         { "type": "h2", "text": "Weekly sync" },
         {
@@ -48,6 +66,160 @@
     }
   ],
   "templates": [
+    {
+      "id": "welcome",
+      "label": "Welcome",
+      "icon": "welcome",
+      "color": "ink",
+      "title": "Welcome",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "This page walks through what the editor can do. Each section is a short list of things to try, so tick them off as you go. Everything you change is saved in this browser."
+        },
+        { "type": "h2", "text": "Write" },
+        {
+          "type": "check",
+          "text": "Click anywhere and type. Enter in the title moves into the page."
+        },
+        {
+          "type": "check",
+          "text": "Type `/` on a line to pick a block: text, a heading, a list, a checklist, a quote, a divider or a table."
+        },
+        {
+          "type": "check",
+          "text": "Start a line with `#`, `-`, `[]`, `>` or `---` and a space to make that block as you type."
+        },
+        {
+          "type": "check",
+          "text": "Select some text to make it **bold**, *italic*, <u>underlined</u>, ~~struck through~~ or `code`."
+        },
+        {
+          "type": "check",
+          "text": "Hover a block and drag the grip on its left to move it. Click the grip for a menu: Turn into changes the kind of block, and Copy link copies an address that opens the page at that block."
+        },
+        {
+          "type": "check",
+          "text": "Use the pill at the top to insert text, a checklist or a table without the keyboard."
+        },
+        { "type": "h2", "text": "Tables" },
+        {
+          "type": "paragraph",
+          "text": "Click a cell to type in it, and press Tab to move to the next one. Hover the table for a handle on each row and each column. Its menu inserts, moves and deletes. From the keyboard, Alt+Shift+R opens the row menu and Alt+Shift+C the column menu."
+        },
+        {
+          "type": "table",
+          "text": "",
+          "rows": [
+            ["To do this", "Go here"],
+            ["Insert a block", "Type `/` in the page"],
+            ["Format text", "Select it"],
+            ["Move a block", "Drag its grip"],
+            ["Ask the assistant", "The bar at the bottom"]
+          ]
+        },
+        { "type": "h2", "text": "Pages" },
+        {
+          "type": "check",
+          "text": "Open the page menu at the top left to switch pages, add a page or a subpage, rename, duplicate, delete, or download the page as Markdown."
+        },
+        {
+          "type": "check",
+          "text": "Type `@` to link to another page, like [[page:to-do-list|To-do list]]. Click the link to open that page."
+        },
+        {
+          "type": "check",
+          "text": "Click the icon above the title to pick an emoji or an icon for the page, or to remove it. A page without one shows Add icon when you point at its title."
+        },
+        {
+          "type": "check",
+          "text": "On a wide window, hover the short lines at the left edge to see the outline of this page, and click a heading to jump to it."
+        },
+        {
+          "type": "check",
+          "text": "A new page starts empty and offers templates. This page is the first of them."
+        },
+        { "type": "h2", "text": "Comments" },
+        {
+          "type": "check",
+          "text": "Select a passage and choose Comment to start a thread beside it."
+        },
+        {
+          "type": "check",
+          "text": "Reply in the thread, react to a comment with an emoji, and resolve the thread when it is dealt with."
+        },
+        {
+          "type": "check",
+          "text": "Write @Assistant in a comment to ask the assistant to shorten, reword or clarify the passage."
+        },
+        {
+          "type": "check",
+          "text": "Hide and show every comment with the button at the top right."
+        },
+        { "type": "h2", "text": "The assistant" },
+        {
+          "type": "paragraph",
+          "text": "The assistant lives in the bar at the bottom of the page. It edits the page itself, and a small flag with its name shows where it is writing."
+        },
+        {
+          "type": "check",
+          "text": "Ask it for a change, such as: Add three tasks under the first heading."
+        },
+        {
+          "type": "check",
+          "text": "Select some text and choose Ask AI to ask about that passage."
+        },
+        {
+          "type": "check",
+          "text": "Ask it to leave comments on the page. Its comments carry its picture."
+        },
+        {
+          "type": "check",
+          "text": "After an edit, pick one of the follow-ups it suggests."
+        },
+        {
+          "type": "check",
+          "text": "Attach a file or an image with the paperclip. Where the browser can turn speech into text, dictate with the microphone."
+        },
+        {
+          "type": "check",
+          "text": "Open History to go back to an earlier chat of this visit, start a new one or delete one."
+        },
+        {
+          "type": "check",
+          "text": "Drag the grip to move the bar, and drag its edges or corners to resize it. Both also work from the keyboard."
+        },
+        {
+          "type": "check",
+          "text": "Minimise it to a round button. A blue dot on the button means there is something you have not seen."
+        },
+        { "type": "h2", "text": "Review an edit" },
+        {
+          "type": "paragraph",
+          "text": "The menu in the composer sets how edits land. In Manual, each edit is highlighted in blue and waits for you. In Auto, edits land straight away."
+        },
+        {
+          "type": "check",
+          "text": "Accept keeps the edit. So does Cmd+Enter, or Ctrl+Enter on Windows and Linux."
+        },
+        {
+          "type": "check",
+          "text": "Undo puts the page back as it was. So does Cmd+Backspace, or Ctrl+Backspace, while the caret is outside the page."
+        },
+        {
+          "type": "check",
+          "text": "Ask for change takes you back to the assistant with that edit attached."
+        },
+        {
+          "type": "check",
+          "text": "Editing the page yourself also keeps the edit, so Undo never takes your own changes with it."
+        },
+        {
+          "type": "quote",
+          "text": "This preview answers from a script, with no model behind it, so the assistant knows a handful of requests. Its suggestions are the ones it can do."
+        }
+      ]
+    },
     {
       "id": "to-do-list",
       "label": "To-do list",
@@ -132,14 +304,65 @@
     "suggestions": [
       "Turn this into a launch to-do list",
       "Add three tasks under the first heading",
+      "Make a table from the checklist",
+      "Leave comments on the page",
       "Summarise this page at the top",
       "Move finished tasks to a Done section",
       "Add a section for next week",
       "Check off everything",
       "Review this page and leave a comment"
     ],
+    "followUps": {
+      "tasks": [
+        "Check off everything",
+        "Make a table from the checklist",
+        "Move finished tasks to a Done section"
+      ],
+      "table": ["Summarise this page at the top", "Leave comments on the page"],
+      "summary": [
+        "Add a section for next week",
+        "Review this page and leave a comment"
+      ],
+      "rewrite": [
+        "Summarise this page at the top",
+        "Add three tasks under the first heading",
+        "Leave comments on the page"
+      ],
+      "comment": [
+        "Add three tasks under the first heading",
+        "Summarise this page at the top"
+      ],
+      "edit": [
+        "Summarise this page at the top",
+        "Review this page and leave a comment"
+      ]
+    },
     "fallback": "This preview runs on a script, with no model behind it, so it only knows a few requests. Try one of these:",
+    "quoted": "This preview runs on a script, with no model behind it, so it cannot rewrite what you quoted. It can leave a comment on it, or do one of these to the page:",
+    "attached": "I can see {files}, but this preview runs on a script and does not read what is in a file.",
     "replies": [
+      {
+        "id": "table",
+        "match": ["table"],
+        "action": "table",
+        "header": ["Task", "Status"],
+        "done": "Done",
+        "open": "To do",
+        "text": "I put the checklist into a table at the end of the page, with a column for what is done.",
+        "empty": "There is no checklist on this page to make a table from."
+      },
+      {
+        "id": "comments",
+        "match": ["leave comments", "comments on", "comment on each"],
+        "action": "comments",
+        "comments": [
+          "Could this say who owns it and when it is due?",
+          "This reads as two things to do. Would it be clearer split in two?",
+          "Is this still needed? If not, it could come off the page."
+        ],
+        "text": "I left comments on the page, each beside the passage it is about.",
+        "empty": "There is no text on this page to comment on yet."
+      },
       {
         "id": "add-tasks",
         "match": ["three tasks", "add tasks", "more tasks", "tasks under"],

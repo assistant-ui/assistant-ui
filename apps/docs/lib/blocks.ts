@@ -48,7 +48,7 @@ export const BLOCKS: readonly Block[] = [
     slug: "document-editor",
     title: "Document editor",
     description:
-      "A pages app with a floating assistant that reads and edits the page you are on.",
+      "A pages app with a floating assistant that edits the page you are on and waits for you to accept each change.",
     image: {
       light: "/screenshot/blocks/document-editor-light.webp",
       dark: "/screenshot/blocks/document-editor-dark.webp",
@@ -73,36 +73,41 @@ export const BLOCKS: readonly Block[] = [
       entry: "document-editor.tsx",
     },
     useCases: [
-      "A notes or docs product where an assistant drafts and restructures the page in place.",
+      "A notes or docs product where an assistant drafts and restructures the page in place, and each edit waits for a yes.",
       "To-do lists, trackers and weekly updates that start from a template and stay editable.",
-      "Review by comment, with threads on a passage that people and the assistant both answer.",
+      "Review by comment, with threads on a passage that people and the assistant both answer and react to.",
       "A starting point for any page the model edits through interactables, with the document swapped for your own state.",
     ],
     capabilities: [
       {
         title: "A floating assistant",
         description:
-          "A bar at the bottom of the page opens into a thread. Ask for a change and the assistant edits the page itself, typed in as it writes and undone like any other edit.",
+          "A bar at the bottom of the page that you can move, resize and minimise to a round button, which shows a dot when there is something new. It keeps a history of chats, takes files and dictation, and suggests what to ask next.",
       },
       {
-        title: "Rich text blocks",
+        title: "Edits you review",
         description:
-          "Headings, checklists, bulleted and numbered lists, quotes and dividers, inserted from a / menu or the buttons at the top, with a format bar over selected text.",
+          "The assistant types its edit into the page under a flag with its name. In Manual mode the change is highlighted and waits for Undo, Ask for change or Accept. In Auto mode it lands at once.",
+      },
+      {
+        title: "Rich text blocks and tables",
+        description:
+          "Headings, checklists, lists, quotes, dividers and tables with row and column menus, inserted from a / menu or the buttons at the top, with a format bar and Ask AI over selected text.",
       },
       {
         title: "Pages and subpages",
         description:
-          "Add, rename, duplicate and delete pages, nest one under another, start from a template, and download a page as Markdown.",
+          "Add, rename, duplicate and delete pages, nest one under another, give each an emoji or an icon, link to a page with @, start from a template, and download a page as Markdown.",
       },
       {
-        title: "Comments",
+        title: "Comments and reactions",
         description:
-          "Select a passage to comment on it. The passage is highlighted, its thread floats beside it, and mentioning the assistant gets a reply in the thread.",
+          "Select a passage to comment on it. Its thread floats beside it with replies, emoji reactions and resolve. Mention the assistant for a reply in the thread, or ask it to leave comments of its own.",
       },
       {
-        title: "Blocks you can move",
+        title: "Blocks you can move and link to",
         description:
-          "A grip beside each block drags it to a new place and opens a menu to insert below or delete.",
+          "A grip beside each block drags it to a new place, turns it into another kind of block, and copies a link that opens the page at that block. An outline on the left edge jumps between headings.",
       },
     ],
     requirements: [

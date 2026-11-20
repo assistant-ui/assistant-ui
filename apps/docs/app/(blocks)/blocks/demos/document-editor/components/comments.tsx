@@ -22,12 +22,16 @@ import {
   type CommentAuthor,
   type CommentMessage,
   type CommentThread,
+  PROFILE,
+  REACTION_EMOJI,
   documentActions,
   documentStore,
+  reactionCounts,
   useCurrentPage,
   useDocumentStore,
 } from "../lib/document";
 import {
+  getBlockLink,
   getMarkElements,
   markIdsAt,
   removeCommentMark,
@@ -37,16 +41,22 @@ import {
   useIsEditable,
 } from "./editor";
 import {
+  Avatar,
   Icon,
   IconButton,
   Menu,
   MenuContent,
   MenuItem,
+  MenuSeparator,
   MenuTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Tooltip,
   field,
   denseGlass,
   floating,
+  iconButtonClass,
   icons,
   menuRowClass,
   menuSurfaceClass,
@@ -195,7 +205,7 @@ const useNow = () =>
 
 function relativeTime(now: number, then: number) {
   const minutes = Math.floor((now - then) / 60_000);
-  if (minutes < 1) return "now";
+  if (minutes < 1) return "just now";
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
@@ -227,36 +237,37 @@ const useIsWide = () =>
 const shorten = (value: string, length = 60) =>
   value.length > length ? `${value.slice(0, length - 1).trimEnd()}…` : value;
 
-const authorName = (author: CommentAuthor) =>
-  author === "assistant" ? ASSISTANT_NAME : "You";
+const authorName = (author: CommentAuthor) => PROFILE[author].name;
 
-function Avatar({
+/** An author's picture where the name is already written or read out beside it. */
+function AuthorAvatar({
   author,
-  className,
+  size,
 }: {
   author: CommentAuthor;
-  className?: string;
+  size?: "xs" | "sm";
 }) {
+  const { name, avatar } = PROFILE[author];
   return (
-    <span
-      aria-hidden
-      className={cn(
-        "flex size-6 shrink-0 items-center justify-center rounded-full text-[0.6875rem] leading-none",
-        weight.strong,
-        author === "assistant"
-          ? "bg-accent text-foreground"
-          : "bg-foreground text-background",
-        className,
-      )}
-    >
-      {author === "assistant" ? (
-        <Icon {...icons.assistant} className="size-3.5" />
-      ) : (
-        "Y"
-      )}
-    </span>
+    <Avatar src={avatar} name={name} decorative {...(size ? { size } : {})} />
   );
 }
+
+const REACTION_NAMES: Record<(typeof REACTION_EMOJI)[number], string> = {
+  "👍": "Thumbs up",
+  "❤️": "Heart",
+  "😄": "Smile",
+  "🎉": "Party",
+  "👀": "Eyes",
+  "🙏": "Thanks",
+  "🔥": "Fire",
+  "✅": "Done",
+};
+
+const reactionName = (emoji: string) =>
+  (REACTION_NAMES as Record<string, string>)[emoji] ?? emoji;
+
+const COPIED_SHOWN = 1200;
 
 /* -------------------------------------------------------------------------- */
 /* Inside the composer: the highlights follow their threads.                  */
@@ -566,23 +577,228 @@ function MessageText({ value }: { value: string }) {
   );
 }
 
-function Message({ message, now }: { message: CommentMessage; now: number }) {
+function stepFocus(event: ReactKeyboardEvent<HTMLElement>) {
+  const step =
+    event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  if (step === 0) return;
+  const buttons = [...event.currentTarget.querySelectorAll("button")];
+  const index = buttons.findIndex((item) => item === document.activeElement);
+  if (index < 0) return;
+  event.preventDefault();
+  buttons[(index + step + buttons.length) % buttons.length]?.focus();
+}
+
+function ReactionPicker({
+  threadId,
+  message,
+}: {
+  threadId: string;
+  message: CommentMessage;
+}) {
+  const [open, setOpen] = useState(false);
+  const given = reactionCounts(message.reactions);
+
   return (
-    <li className="flex gap-2.5">
-      <Avatar author={message.author} />
-      <div className="min-w-0 flex-1 pt-0.5">
-        <div className="flex items-baseline gap-2">
-          <span className={weight.strong}>{authorName(message.author)}</span>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <IconButton
+            label="React"
+            icon={icons.smile}
+            side="top"
+            data-comment-react=""
+          />
+        }
+      />
+      <PopoverContent
+        side="top"
+        align="end"
+        sideOffset={6}
+        aria-label="React with an emoji"
+        className="flex-row gap-0.5 rounded-full p-1"
+        onKeyDown={stepFocus}
+        data-comment-popup=""
+      >
+        {REACTION_EMOJI.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            aria-label={reactionName(emoji)}
+            aria-pressed={given.some(
+              (item) => item.emoji === emoji && item.mine,
+            )}
+            className={cn(
+              iconButtonClass,
+              "text-base leading-none aria-pressed:bg-(--reaction-active)",
+            )}
+            onClick={() => {
+              documentActions.toggleReaction(threadId, message.id, emoji);
+              setOpen(false);
+            }}
+          >
+            <span aria-hidden>{emoji}</span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function Reactions({
+  threadId,
+  message,
+}: {
+  threadId: string;
+  message: CommentMessage;
+}) {
+  const counts = reactionCounts(message.reactions);
+  if (counts.length === 0) return null;
+
+  return (
+    <ul aria-label="Reactions" className="mt-1.5 flex flex-wrap gap-1">
+      {counts.map(({ emoji, count, mine }) => (
+        <li key={emoji}>
+          <button
+            type="button"
+            aria-pressed={mine}
+            aria-label={`${reactionName(emoji)}, ${count}`}
+            className={cn(
+              "focus-visible:border-ring flex h-6 items-center gap-1 rounded-full border border-transparent bg-(--reaction) px-2 tabular-nums transition-[background-color,border-color,scale] duration-150 outline-none active:scale-[0.96] aria-pressed:border-(--reaction-active-line) aria-pressed:bg-(--reaction-active) motion-reduce:transition-none motion-reduce:active:scale-100 pointer-coarse:h-8",
+              text.small,
+            )}
+            onClick={(event) => {
+              // The chip goes when its last reaction does, so focus moves on first.
+              if (mine && count === 1) {
+                event.currentTarget
+                  .closest("[data-comment-message]")
+                  ?.querySelector<HTMLElement>("[data-comment-react]")
+                  ?.focus({ preventScroll: true });
+              }
+              documentActions.toggleReaction(threadId, message.id, emoji);
+            }}
+          >
+            <span aria-hidden className="text-sm leading-none">
+              {emoji}
+            </span>
+            <span aria-hidden>{count}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Message({
+  thread,
+  message,
+  editor,
+  now,
+  onResolve,
+  onDelete,
+  announce,
+}: {
+  thread: CommentThread;
+  message: CommentMessage;
+  editor: LexicalEditor;
+  now: number;
+  onResolve: () => void;
+  onDelete: (messageId: string) => void;
+  announce: (message: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const first = thread.messages[0]?.id === message.id;
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), COPIED_SHOWN);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  const copy = (value: string, done: string) => {
+    navigator.clipboard.writeText(value).then(
+      () => {
+        setCopied(true);
+        announce(done);
+      },
+      () => announce("Could not copy. The browser blocked the clipboard."),
+    );
+  };
+
+  const copyLink = () => {
+    const blockId = getMarkElements(editor, thread.markId)[0]?.closest(
+      "[id]",
+    )?.id;
+    copy(blockId ? getBlockLink(blockId) : window.location.href, "Link copied");
+  };
+
+  return (
+    <li data-comment-message="" className="group/message flex gap-2.5">
+      <span className="flex h-7 items-center pointer-coarse:h-9">
+        <AuthorAvatar author={message.author} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex h-7 items-center gap-2 pointer-coarse:h-9">
+          <span className={cn("truncate", weight.strong)}>
+            {authorName(message.author)}
+          </span>
           {now > 0 ? (
             <time
               dateTime={new Date(message.createdAt).toISOString()}
-              className={cn("text-muted-foreground", text.small)}
+              className={cn("text-muted-foreground shrink-0", text.small)}
             >
               {relativeTime(now, message.createdAt)}
             </time>
           ) : null}
+          <div
+            className={cn(
+              "ms-auto flex shrink-0 items-center transition-opacity duration-150 motion-reduce:transition-none",
+              first ||
+                "opacity-0 group-focus-within/message:opacity-100 group-hover/message:opacity-100 has-[[data-popup-open]]:opacity-100 pointer-coarse:opacity-100",
+            )}
+          >
+            {first ? (
+              <IconButton
+                label="Resolve"
+                icon={icons.tick}
+                side="top"
+                onClick={onResolve}
+              />
+            ) : null}
+            <ReactionPicker threadId={thread.id} message={message} />
+            <Menu>
+              <MenuTrigger
+                render={
+                  <IconButton
+                    label={copied ? "Copied" : "More"}
+                    icon={copied ? icons.tick : icons.more}
+                    side="top"
+                  />
+                }
+              />
+              <MenuContent align="end" sideOffset={6}>
+                <MenuItem onClick={() => copy(message.text, "Comment copied")}>
+                  <Icon {...icons.duplicate} />
+                  Copy text
+                </MenuItem>
+                <MenuItem onClick={copyLink}>
+                  <Icon {...icons.link} />
+                  Copy link
+                </MenuItem>
+                {first ? null : (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem destructive onClick={() => onDelete(message.id)}>
+                      <Icon {...icons.delete} />
+                      Delete
+                    </MenuItem>
+                  </>
+                )}
+              </MenuContent>
+            </Menu>
+          </div>
         </div>
         <MessageText value={message.text} />
+        <Reactions threadId={thread.id} message={message} />
       </div>
     </li>
   );
@@ -686,7 +902,7 @@ function ReplyField({
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => accept(mention)}
           >
-            <Icon {...icons.assistant} />
+            <AuthorAvatar author="assistant" size="xs" />
             {ASSISTANT_NAME}
             <kbd
               className={cn("text-muted-foreground ms-auto ps-3", text.small)}
@@ -751,6 +967,7 @@ function ThreadCard({
   scroller,
   spot,
   beside = false,
+  announce,
   className,
   style,
 }: {
@@ -758,6 +975,7 @@ function ThreadCard({
   editor: LexicalEditor;
   now: number;
   scroller: HTMLElement | null;
+  announce: (message: string) => void;
   /** Where the highlight sits, for a card placed by it. */
   spot?: Spot;
   beside?: boolean;
@@ -836,7 +1054,13 @@ function ThreadCard({
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (cardRef.current?.contains(target)) return;
-      if (target.closest('[role="menu"], [data-thread-marker]')) return;
+      if (
+        target.closest(
+          '[role="menu"], [data-comment-popup], [data-thread-marker]',
+        )
+      ) {
+        return;
+      }
       if (markIdsAt(editor, target).includes(markId)) return;
       close(false);
     };
@@ -872,9 +1096,18 @@ function ThreadCard({
     };
   }, [editor, threadId, markId]);
 
-  const leave = () => {
+  const resolve = () => {
+    documentActions.deleteThread(threadId);
     removeCommentMark(editor, markId);
     editor.focus();
+  };
+
+  // The reply takes its menu button with it, which the closing menu hands
+  // the focus back to, so the focus moves on once both are gone.
+  const deleteReply = (messageId: string) => {
+    documentActions.deleteThreadMessage(threadId, messageId);
+    announce("Reply deleted");
+    requestAnimationFrame(() => fieldRef.current?.focus());
   };
 
   return (
@@ -905,30 +1138,6 @@ function ThreadCard({
         >
           {thread.quote}
         </p>
-        {draft ? null : (
-          <Menu>
-            <MenuTrigger
-              render={
-                <IconButton
-                  label="Comment options"
-                  icon={icons.more}
-                  side="top"
-                />
-              }
-            />
-            <MenuContent align="end" sideOffset={6}>
-              <MenuItem
-                onClick={() => {
-                  documentActions.deleteThread(threadId);
-                  leave();
-                }}
-              >
-                <Icon {...icons.tick} />
-                Resolve
-              </MenuItem>
-            </MenuContent>
-          </Menu>
-        )}
         <IconButton
           label={draft ? "Discard comment" : "Close"}
           icon={icons.close}
@@ -947,16 +1156,25 @@ function ThreadCard({
           className="flex max-h-72 min-h-0 flex-col gap-3 overflow-y-auto px-1.5 py-1"
         >
           {thread.messages.map((message) => (
-            <Message key={message.id} message={message} now={now} />
+            <Message
+              key={message.id}
+              thread={thread}
+              message={message}
+              editor={editor}
+              now={now}
+              onResolve={resolve}
+              onDelete={deleteReply}
+              announce={announce}
+            />
           ))}
           {waiting ? (
             <li
               role="status"
-              className="text-muted-foreground flex items-center gap-2.5"
+              className="text-muted-foreground flex h-7 items-center gap-2.5 pointer-coarse:h-9"
             >
-              <Avatar author="assistant" />
+              <AuthorAvatar author="assistant" />
               <span className="shimmer motion-reduce:animate-none">
-                {ASSISTANT_NAME} is replying
+                {authorName("assistant")} is replying
               </span>
             </li>
           ) : null}
@@ -971,11 +1189,31 @@ function ThreadCard({
 /* The margin markers and the open card.                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * What the live region says. A comment by the assistant on the open page is
+ * announced, and comments that land together are announced as one count. If
+ * comments are hidden, they are shown, so what was announced can be seen.
+ */
 function useAnnouncement() {
   const [announcement, setAnnouncement] = useState("");
 
   useEffect(() => {
     const seen = new Set<string>();
+    let fresh: { quote: string; text: string }[] = [];
+    let timer = 0;
+    const tell = () => {
+      const [first] = fresh;
+      const count = fresh.length;
+      fresh = [];
+      if (!first) return;
+      const name = authorName("assistant");
+      setAnnouncement(
+        count > 1
+          ? `${name} left ${count} comments on this page.`
+          : `${name} commented on “${shorten(first.quote)}”: ${first.text}`,
+      );
+      documentActions.setCommentsVisible(true);
+    };
     const scan = (announce: boolean) => {
       const state = documentStore.getState();
       for (const thread of state.threads) {
@@ -983,18 +1221,23 @@ function useAnnouncement() {
           if (message.author !== "assistant" || seen.has(message.id)) continue;
           seen.add(message.id);
           if (announce && thread.pageId === state.currentPageId) {
-            setAnnouncement(
-              `${ASSISTANT_NAME} commented on “${shorten(thread.quote)}”: ${message.text}`,
-            );
+            fresh.push({ quote: thread.quote, text: message.text });
           }
         }
       }
+      if (fresh.length === 0) return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(tell, 0);
     };
     scan(false);
-    return documentStore.subscribe(() => scan(true));
+    const unsubscribe = documentStore.subscribe(() => scan(true));
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
-  return announcement;
+  return [announcement, setAnnouncement] as const;
 }
 
 /** The margin markers and the floating thread cards. Renders over the page. */
@@ -1008,7 +1251,7 @@ export function CommentThreads() {
   const commentsVisible = useDocumentStore((state) => state.commentsVisible);
   const wide = useIsWide();
   const now = useNow();
-  const announcement = useAnnouncement();
+  const [announcement, announce] = useAnnouncement();
 
   const open = useMemo(
     () =>
@@ -1061,6 +1304,7 @@ export function CommentThreads() {
                 ? markers.map(({ thread, top }) => {
                     const expanded = thread.id === activeThreadId;
                     const count = thread.messages.length;
+                    const author = thread.messages[0]?.author ?? "you";
                     return (
                       <Tooltip
                         key={thread.id}
@@ -1070,7 +1314,7 @@ export function CommentThreads() {
                         <button
                           type="button"
                           data-thread-marker={thread.id}
-                          aria-label={`Comment on “${shorten(thread.quote)}”`}
+                          aria-label={`Comment by ${authorName(author)} on “${shorten(thread.quote)}”`}
                           aria-expanded={expanded}
                           style={{ top }}
                           className={cn(
@@ -1088,14 +1332,7 @@ export function CommentThreads() {
                             documentActions.setActiveThread(thread.id);
                           }}
                         >
-                          <Avatar
-                            author={thread.messages[0]?.author ?? "you"}
-                            className={
-                              thread.messages[0]?.author === "assistant"
-                                ? "bg-background dark:bg-popover border-border/60 border"
-                                : ""
-                            }
-                          />
+                          <AuthorAvatar author={author} />
                         </button>
                       </Tooltip>
                     );
@@ -1110,6 +1347,7 @@ export function CommentThreads() {
                   scroller={scroller}
                   spot={placed.spot}
                   beside={placed.beside}
+                  announce={announce}
                   style={placed.style}
                   className="absolute z-45"
                 />
@@ -1125,6 +1363,7 @@ export function CommentThreads() {
           editor={editor}
           now={now}
           scroller={scroller}
+          announce={announce}
           style={{ backgroundColor: "var(--popover)" }}
           className="absolute inset-x-2 bottom-2 z-45 max-h-[70%]"
         />

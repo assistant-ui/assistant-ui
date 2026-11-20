@@ -16,9 +16,13 @@ export const BLOCK_TYPES = [
   "numbered",
   "quote",
   "divider",
+  "table",
 ] as const;
 
 export type BlockType = (typeof BLOCK_TYPES)[number];
+
+/** The kinds of block that hold one run of text, which can turn into each other. */
+export type TextBlockType = Exclude<BlockType, "divider" | "table">;
 
 export const isBlockType = (value: unknown): value is BlockType =>
   BLOCK_TYPES.includes(value as BlockType);
@@ -33,6 +37,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   numbered: "Numbered list",
   quote: "Quote",
   divider: "Divider",
+  table: "Table",
 };
 
 export const blockSchema = z.object({
@@ -40,17 +45,23 @@ export const blockSchema = z.object({
   type: z
     .enum(BLOCK_TYPES)
     .describe(
-      "h1, h2 and h3 are headings. check, bullet and numbered are one list item each; neighbouring items of the same type form one list. divider is a horizontal rule and its text is empty.",
+      "h1, h2 and h3 are headings. check, bullet and numbered are one list item each; neighbouring items of the same type form one list. divider is a horizontal rule and its text is empty. table keeps its cells in rows and its text is empty.",
     ),
   text: z
     .string()
     .describe(
-      "The block's text. Inline formatting only: **bold**, *italic*, ~~strikethrough~~, `code` and <u>underline</u>. Never block syntax such as #, - or >.",
+      "The block's text. Inline formatting only: **bold**, *italic*, ~~strikethrough~~, `code` and <u>underline</u>. [[page:<page id>|<page title>]] links to another page. Never block syntax such as #, - or >.",
     ),
   checked: z
     .boolean()
     .optional()
     .describe("Whether a check block is ticked. Leave it out on other types."),
+  rows: z
+    .array(z.array(z.string()))
+    .optional()
+    .describe(
+      "The cells of a table block, row by row, each cell with the same inline formatting as text. The first row is the header, and every row has the same number of cells. Leave it out on other types.",
+    ),
 });
 
 export type Block = z.infer<typeof blockSchema>;
@@ -71,6 +82,7 @@ export const documentDescription = [
   "blocks.update takes [{ id, text }], [{ id, type }] or [{ id, checked }] and rewrites those blocks in place; prefer it for any change to existing blocks.",
   "blocks.add appends new blocks at the end. blocks.remove takes block ids.",
   "blocks.set replaces the whole list and is the only way to insert a block between others or to reorder: repeat every block you keep with its id, and give each new block a new unique id.",
+  'A table is one block: { id, type: "table", text: "", rows }, with text before rows.',
   "Edits appear in the editor as you write them, so do not repeat the new text in your reply.",
 ].join(" ");
 
@@ -109,17 +121,35 @@ export const commentsDescription = [
 /** A block the assistant is still writing is known by its place in the list. */
 export const STREAMING_ID = "streaming-";
 
+/**
+ * A table's cells as a full grid: every row as wide as the widest. A table
+ * the assistant is still writing arrives with rows and cells missing.
+ */
+export function normalizeRows(rows: unknown): string[][] {
+  if (!Array.isArray(rows)) return [];
+  const grid = rows
+    .filter((row): row is unknown[] => Array.isArray(row))
+    .map((row) => row.map((cell) => (typeof cell === "string" ? cell : "")));
+  const width = Math.max(0, ...grid.map((row) => row.length));
+  return grid.map((row) => [
+    ...row,
+    ...Array.from({ length: width - row.length }, () => ""),
+  ]);
+}
+
 export const normalizeBlock = (
   block: Partial<Block> | undefined,
   index: number,
 ): Block => {
-  const type = block?.type;
+  const given = block?.type;
+  const type = isBlockType(given) ? given : "paragraph";
   const checked = block?.checked;
   return {
     id: block?.id ?? `${STREAMING_ID}${index}`,
-    type: isBlockType(type) ? type : "paragraph",
-    text: block?.text ?? "",
+    type,
+    text: type === "table" ? "" : (block?.text ?? ""),
     ...(typeof checked === "boolean" && { checked }),
+    ...(type === "table" && { rows: normalizeRows(block?.rows) }),
   };
 };
 
@@ -137,9 +167,21 @@ export type InlineRun = {
   underline?: boolean;
   strike?: boolean;
   code?: boolean;
+  /** The id of the page this run links to. Its text is that page's title. */
+  page?: string;
 };
 
-type Marks = Omit<InlineRun, "text" | "code">;
+type Marks = Omit<InlineRun, "text" | "code" | "page">;
+
+/**
+ * A link to another page is written `[[page:<page id>|<page title>]]`. The
+ * title is what reads in plain text and in Markdown.
+ */
+const PAGE_LINK_OPEN = "[[page:";
+const PAGE_LINK_CLOSE = "]]";
+
+export const pageLinkText = (pageId: string, title: string) =>
+  `${PAGE_LINK_OPEN}${pageId}|${(title || "Untitled").replaceAll(PAGE_LINK_CLOSE, "] ]")}${PAGE_LINK_CLOSE}`;
 
 const FLAGS = ["bold", "italic", "underline", "strike", "code"] as const;
 
@@ -149,7 +191,7 @@ const WRAPPERS = [
   { open: "<u>", close: "</u>", mark: "underline" },
 ] as const;
 
-const ESCAPABLE = new Set(["\\", "*", "`", "~", "<"]);
+const ESCAPABLE = new Set(["\\", "*", "`", "~", "<", "["]);
 
 const isSpace = (char: string | undefined) =>
   char === undefined || /\s/.test(char);
@@ -218,7 +260,12 @@ const findUnescaped = (source: string, marker: string, from: number) => {
 
 const pushRun = (runs: InlineRun[], run: InlineRun) => {
   const last = runs[runs.length - 1];
-  if (last && FLAGS.every((flag) => !!last[flag] === !!run[flag])) {
+  if (
+    last &&
+    !last.page &&
+    !run.page &&
+    FLAGS.every((flag) => !!last[flag] === !!run[flag])
+  ) {
     last.text += run.text;
     return;
   }
@@ -254,6 +301,20 @@ const parseInto = (source: string, marks: Marks, runs: InlineRun[]) => {
           text: source.slice(i + 1, end),
         });
         i = end + 1;
+        continue;
+      }
+    }
+
+    if (char === "[" && source.startsWith(PAGE_LINK_OPEN, i)) {
+      const bar = source.indexOf("|", i + PAGE_LINK_OPEN.length);
+      const end = source.indexOf(PAGE_LINK_CLOSE, i);
+      if (bar !== -1 && end > bar) {
+        flush();
+        runs.push({
+          text: source.slice(bar + 1, end) || "Untitled",
+          page: source.slice(i + PAGE_LINK_OPEN.length, bar),
+        });
+        i = end + PAGE_LINK_CLOSE.length;
         continue;
       }
     }
@@ -314,9 +375,10 @@ export function parseInline(source: string): InlineRun[] {
 }
 
 const escapeText = (text: string) =>
-  text.replace(/[\\*`]|~(?=~)|<(?=\/?u>)/g, "\\$&");
+  text.replace(/[\\*`]|~(?=~)|<(?=\/?u>)|\[(?=\[page:)/g, "\\$&");
 
 const serializeRun = (run: InlineRun) => {
+  if (run.page) return pageLinkText(run.page, run.text);
   const [, lead = "", core = "", trail = ""] =
     /^(\s*)([\s\S]*?)(\s*)$/.exec(run.text) ?? [];
   if (!core) return run.text;
@@ -364,26 +426,48 @@ export const plainText = (source: string) =>
 /* Markdown export.                                                           */
 /* -------------------------------------------------------------------------- */
 
+// Markdown has no link between pages, so a page link exports as its title.
+const withoutPageLinks = (source: string) =>
+  source.includes(PAGE_LINK_OPEN)
+    ? serializeInline(parseInline(source).map(({ page: _page, ...run }) => run))
+    : source;
+
+const tableToMarkdown = (rows: readonly (readonly string[])[]) => {
+  const line = (cells: readonly string[]) =>
+    `| ${cells
+      .map((cell) =>
+        withoutPageLinks(cell).replaceAll("|", "\\|").replaceAll("\n", "<br>"),
+      )
+      .join(" | ")} |`;
+  const [header = [], ...body] = rows;
+  return [line(header), line(header.map(() => "---")), ...body.map(line)].join(
+    "\n",
+  );
+};
+
 export function blockToMarkdown(block: Block, number = 1) {
+  const text = withoutPageLinks(block.text);
   switch (block.type) {
     case "h1":
-      return `# ${block.text}`;
+      return `# ${text}`;
     case "h2":
-      return `## ${block.text}`;
+      return `## ${text}`;
     case "h3":
-      return `### ${block.text}`;
+      return `### ${text}`;
     case "check":
-      return `- [${block.checked ? "x" : " "}] ${block.text}`;
+      return `- [${block.checked ? "x" : " "}] ${text}`;
     case "bullet":
-      return `- ${block.text}`;
+      return `- ${text}`;
     case "numbered":
-      return `${number}. ${block.text}`;
+      return `${number}. ${text}`;
     case "quote":
-      return `> ${block.text}`;
+      return `> ${text}`;
     case "divider":
       return "---";
+    case "table":
+      return tableToMarkdown(block.rows ?? []);
     case "paragraph":
-      return block.text;
+      return text;
   }
 }
 
@@ -420,7 +504,9 @@ export const markdownFileName = (title: string) =>
 /*                                                                            */
 /* A block being rewritten keeps its old text while the new text arrives, so  */
 /* nothing half-written reaches the page. Once the new text is whole it is    */
-/* typed in over the old. Blocks are typed one at a time, in order.           */
+/* typed in over the old. Blocks are typed one at a time, in order. A table   */
+/* is not typed: a new one shows as far as it has arrived and grows row by    */
+/* row, and one the page holds keeps its rows until the new ones are whole.   */
 /* -------------------------------------------------------------------------- */
 
 export type StreamEntry = {
@@ -437,11 +523,13 @@ export type StreamEntry = {
   arriving: boolean;
   /** What has arrived so far already differs from what the page shows. */
   changing: boolean;
+  /** A table the edit adds, which shows as far as it has arrived. */
+  growing?: true;
 };
 
 export type Stream = {
   entries: readonly StreamEntry[];
-  /** Each block's text as last received, to tell which block is still arriving. */
+  /** Each block's content as last received, to tell which block is still arriving. */
   received: ReadonlyMap<string, string>;
   /** An edit is arriving from the assistant. */
   inFlight: boolean;
@@ -466,6 +554,39 @@ export const settled = (
   inFlight: false,
   active: false,
 });
+
+const sameRows = (a: Block, b: Block) =>
+  JSON.stringify(a.rows ?? null) === JSON.stringify(b.rows ?? null);
+
+/** Whether two blocks read the same, whatever their ids. */
+export const sameBlock = (a: Block, b: Block) =>
+  a.type === b.type &&
+  a.text === b.text &&
+  !!a.checked === !!b.checked &&
+  sameRows(a, b);
+
+// Rows that have arrived in part are, so far, the start of the rows a table
+// holds: whole rows the same, and the last one cut short in any cell.
+const rowsSoFar = (held: Block, arriving: Block) => {
+  const old = held.rows ?? [];
+  const rows = arriving.rows ?? [];
+  return (
+    rows.length <= old.length &&
+    rows.every((row, index) => {
+      const was = old[index]!;
+      const last = index === rows.length - 1;
+      return (
+        (last ? row.length <= was.length : row.length === was.length) &&
+        row.every((cell, at) =>
+          last ? was[at]!.startsWith(cell) : was[at] === cell,
+        )
+      );
+    })
+  );
+};
+
+const contentOf = (block: Block) =>
+  block.type === "table" ? JSON.stringify(block.rows) : block.text;
 
 const commonPrefix = (a: string, b: string) => {
   const length = Math.min(a.length, b.length);
@@ -531,11 +652,32 @@ export function receive(
     }
 
     const block = normalizeBlock(raw, index);
-    received.set(block.id, block.text);
+    const content = contentOf(block);
+    received.set(block.id, content);
     const last =
       stream.received.get(block.id) ??
       (found ? stream.received.get(found.id) : undefined);
-    const moved = last !== block.text;
+    const moved = last !== content;
+
+    if (block.type === "table") {
+      if (found) reached.add(found.id);
+      const held =
+        previous?.page.type === "table" && !previous.growing
+          ? previous
+          : undefined;
+      if (held && sameRows(held.page, block)) {
+        entries.push({ ...held, arriving: false });
+      } else if (held && inFlight && (moved || rowsSoFar(held.page, block))) {
+        entries.push({ ...held, arriving: true });
+      } else {
+        entries.push({
+          ...entry(block),
+          arriving: inFlight && moved,
+          ...(inFlight && !held && { growing: true as const }),
+        });
+      }
+      return;
+    }
 
     if (!found || !previous) {
       const arriving = inFlight && moved;
@@ -638,10 +780,124 @@ export function streamMarks(stream: Stream): StreamMarks {
   for (const item of stream.entries) {
     if (item === current) marks.typing = { id: item.id, typed: item.typed };
     else if (item.next) marks.working.push(item.id);
+    else if (item.page.type === "table") continue;
     else if (item.arriving && !item.page.text) marks.empty.push(item.id);
     else if (item.arriving && item.changing) marks.working.push(item.id);
   }
   return marks;
+}
+
+/** The block the assistant is writing right now, or null when it is not. */
+export const writingBlockId = (stream: Stream): string | null =>
+  (typing(stream) ?? stream.entries.find((item) => item.arriving))?.id ?? null;
+
+/* -------------------------------------------------------------------------- */
+/* Reviewing an edit: what the assistant changed, and what it was before.     */
+/* -------------------------------------------------------------------------- */
+
+export type EditMode = "auto" | "manual";
+
+export const EDIT_MODES: readonly EditMode[] = ["auto", "manual"];
+
+/** An edit by the assistant that waits for Accept or Undo. */
+export type PendingReview = {
+  pageId: string;
+  /** The page's blocks before the edit, which Undo puts back. */
+  before: Block[];
+  /** Ids of the blocks the edit added, rewrote or moved, in page order. */
+  changed: string[];
+  /** How many blocks the edit took out. */
+  removed: number;
+};
+
+// The ids both lists hold in the same order, as the longest such run.
+const keptInOrder = (before: readonly string[], after: readonly string[]) => {
+  const width = after.length + 1;
+  const lengths = new Uint32Array((before.length + 1) * width);
+  for (let i = before.length - 1; i >= 0; i--) {
+    for (let j = after.length - 1; j >= 0; j--) {
+      lengths[i * width + j] =
+        before[i] === after[j]
+          ? lengths[(i + 1) * width + j + 1]! + 1
+          : Math.max(
+              lengths[(i + 1) * width + j]!,
+              lengths[i * width + j + 1]!,
+            );
+    }
+  }
+  const kept = new Set<string>();
+  let i = 0;
+  let j = 0;
+  while (i < before.length && j < after.length) {
+    if (before[i] === after[j]) {
+      kept.add(after[j]!);
+      i++;
+      j++;
+    } else if (lengths[(i + 1) * width + j]! >= lengths[i * width + j + 1]!) {
+      i++;
+    } else {
+      j++;
+    }
+  }
+  return kept;
+};
+
+/**
+ * What an edit changed, or null when the two lists read the same. A block
+ * counts as changed when it is new, reads differently, or sits in another
+ * place among the blocks that stayed.
+ */
+export function reviewOf(
+  pageId: string,
+  before: readonly Block[],
+  after: readonly Block[],
+): PendingReview | null {
+  const old = new Map(before.map((block) => [block.id, block]));
+  const now = new Set(after.map((block) => block.id));
+  const kept = keptInOrder(
+    before.map((block) => block.id),
+    after.map((block) => block.id),
+  );
+  const changed = after
+    .filter((block) => {
+      const was = old.get(block.id);
+      return !was || !kept.has(block.id) || !sameBlock(was, block);
+    })
+    .map((block) => block.id);
+  const removed = before.filter((block) => !now.has(block.id)).length;
+  if (changed.length === 0 && removed === 0) return null;
+  return { pageId, before: [...before], changed, removed };
+}
+
+/** What kind of change an edit was, which picks the follow-ups offered after it. */
+export type EditKind =
+  | "tasks"
+  | "table"
+  | "summary"
+  | "rewrite"
+  | "comment"
+  | "edit";
+
+/** Names an edit by what it did to the page, or null when it did nothing. */
+export function classifyEdit(
+  before: readonly Block[],
+  after: readonly Block[],
+): Exclude<EditKind, "comment"> | null {
+  const review = reviewOf("", before, after);
+  if (!review) return null;
+  const old = new Set(before.map((block) => block.id));
+  const added = after.filter((block) => !old.has(block.id));
+  if (added.some((block) => block.type === "table")) return "table";
+  if (added.length > 0 && added.every((block) => block.type === "check"))
+    return "tasks";
+  if (
+    review.removed === 0 &&
+    review.changed.length === 1 &&
+    review.changed[0] === after[0]?.id
+  )
+    return "summary";
+  if (review.changed.length * 2 > after.length) return "rewrite";
+  return "edit";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -657,11 +913,14 @@ export type PageContent = {
   state: string | null;
 };
 
+/** A page's icon: an emoji character, or the name of an icon in ui.tsx. */
+export type PageIcon = { kind: "emoji" | "icon"; value: string };
+
 export type Page = {
   id: string;
   parentId: string | null;
   title: string;
-  icon?: string;
+  icon?: PageIcon;
   content: PageContent;
 };
 
@@ -776,12 +1035,68 @@ export function duplicatePageIn(
 
 export type CommentAuthor = "you" | "assistant";
 
+export type Reaction = { emoji: string; by: CommentAuthor };
+
+/** The reactions a comment can get, in the order the picker shows them. */
+export const REACTION_EMOJI = [
+  "👍",
+  "❤️",
+  "😄",
+  "🎉",
+  "👀",
+  "🙏",
+  "🔥",
+  "✅",
+] as const;
+
 export type CommentMessage = {
   id: string;
   author: CommentAuthor;
   text: string;
   createdAt: number;
+  reactions?: Reaction[];
 };
+
+/** Adds one person's reaction, or takes it back when they already gave it. */
+export function toggleReactionIn(
+  reactions: readonly Reaction[],
+  emoji: string,
+  by: CommentAuthor,
+): Reaction[] {
+  const given = reactions.some(
+    (reaction) => reaction.emoji === emoji && reaction.by === by,
+  );
+  return given
+    ? reactions.filter(
+        (reaction) => reaction.emoji !== emoji || reaction.by !== by,
+      )
+    : [...reactions, { emoji, by }];
+}
+
+export type ReactionCount = {
+  emoji: string;
+  count: number;
+  /** Whether `by` is one of the people who gave it. */
+  mine: boolean;
+};
+
+/** Reactions grouped by emoji, in the order each was first given. */
+export function reactionCounts(
+  reactions: readonly Reaction[] = [],
+  by: CommentAuthor = "you",
+): ReactionCount[] {
+  const counts: ReactionCount[] = [];
+  for (const reaction of reactions) {
+    let count = counts.find((item) => item.emoji === reaction.emoji);
+    if (!count) {
+      count = { emoji: reaction.emoji, count: 0, mine: false };
+      counts.push(count);
+    }
+    count.count++;
+    if (reaction.by === by) count.mine = true;
+  }
+  return counts;
+}
 
 export type CommentThread = {
   id: string;
@@ -874,7 +1189,12 @@ export function commentChanges(
 /* Starter content, from data.json.                                           */
 /* -------------------------------------------------------------------------- */
 
-type SeedBlock = { type: string; text: string; checked?: boolean | undefined };
+type SeedBlock = {
+  type: string;
+  text: string;
+  checked?: boolean | undefined;
+  rows?: string[][] | undefined;
+};
 
 export const seedBlocks = (
   blocks: readonly SeedBlock[],
@@ -886,6 +1206,7 @@ export const seedBlocks = (
         id: `${idPrefix}-${index}`,
         text: block.text,
         checked: block.checked,
+        rows: block.rows,
         ...(isBlockType(block.type) && { type: block.type }),
       },
       index,
@@ -908,12 +1229,34 @@ export const TEMPLATES: readonly Template[] = data.templates.map(
   }),
 );
 
+export type Profile = { name: string; avatar: string };
+
+/** The two people in the block: who writes the page, and the assistant. */
+export const PROFILE: Record<CommentAuthor, Profile> = data.profile;
+
+/** Prompts to offer after an edit, by the kind of edit it was. */
+export const FOLLOW_UPS: Record<EditKind, readonly string[]> =
+  data.assistant.followUps;
+
+/** Something on the page the next message to the assistant is about. */
+export type AssistantReference =
+  | { kind: "selection"; pageId: string; text: string }
+  | { kind: "edit"; pageId: string; blockIds: string[]; text: string };
+
+export type AssistantPresence = { pageId: string; blockId: string };
+
+export type LastEdit = { kind: EditKind; pageId: string };
+
 export type DocumentStoreState = {
   pages: Page[];
   currentPageId: string;
   threads: CommentThread[];
   /** Whether comment highlights and their floating threads are shown. */
   commentsVisible: boolean;
+  /** Manual keeps each edit by the assistant for review; auto lets it land. */
+  editMode: EditMode;
+  /** The edit by the assistant that waits for Accept or Undo. */
+  pendingReview: PendingReview | null;
   /** The thread whose card is open. Not saved. */
   activeThreadId: string | null;
   /**
@@ -921,23 +1264,57 @@ export type DocumentStoreState = {
    * The assistant bar opens and focuses its composer when it goes up. Not saved.
    */
   assistantRequests: number;
+  /** What the next message is about, shown in the composer. Not saved. */
+  assistantReference: AssistantReference | null;
+  /** The assistant did something the person has not opened it to see. Not saved. */
+  assistantUnseen: boolean;
+  /** The block the assistant is writing in right now. Not saved. */
+  assistantPresence: AssistantPresence | null;
+  /** The last thing the assistant did to a page, for the follow-ups. Not saved. */
+  lastEdit: LastEdit | null;
 };
 
+const pageIconOf = (
+  icon: { kind: string; value: string } | undefined,
+): PageIcon | undefined =>
+  icon && (icon.kind === "emoji" || icon.kind === "icon")
+    ? { kind: icon.kind, value: icon.value }
+    : undefined;
+
+/** What a visit starts with, apart from what is saved. */
+const unsaved = {
+  activeThreadId: null,
+  assistantRequests: 0,
+  assistantReference: null,
+  assistantUnseen: false,
+  assistantPresence: null,
+  lastEdit: null,
+} satisfies Partial<DocumentStoreState>;
+
 export const seedState = (): DocumentStoreState => {
-  const pages: Page[] = data.pages.map((page) => ({
-    id: page.id,
-    parentId: page.parentId,
-    title: page.title,
-    icon: page.icon,
-    content: { blocks: seedBlocks(page.blocks, page.id), state: null },
-  }));
+  const pages: Page[] = data.pages.map((page) => {
+    const icon = pageIconOf(page.icon);
+    // A page can start from a template instead of listing its own blocks.
+    const blocks =
+      TEMPLATES.find((template) => template.id === page.template)?.blocks.map(
+        (block, index) => ({ ...block, id: `${page.id}-${index}` }),
+      ) ?? seedBlocks(page.blocks, page.id);
+    return {
+      id: page.id,
+      parentId: page.parentId,
+      title: page.title,
+      ...(icon && { icon }),
+      content: { blocks, state: null },
+    };
+  });
   return {
     pages,
     currentPageId: pages[0]?.id ?? "",
     threads: [],
     commentsVisible: true,
-    activeThreadId: null,
-    assistantRequests: 0,
+    editMode: "manual",
+    pendingReview: null,
+    ...unsaved,
   };
 };
 
@@ -946,7 +1323,7 @@ export const seedState = (): DocumentStoreState => {
 /* -------------------------------------------------------------------------- */
 
 /** Bump the version when the saved shape changes; older saves are ignored. */
-export const STORAGE_KEY = "aui-blocks:document-editor:v1";
+export const STORAGE_KEY = "aui-blocks:document-editor:v2";
 
 const storedSchema = z.object({
   pages: z
@@ -955,7 +1332,9 @@ const storedSchema = z.object({
         id: z.string(),
         parentId: z.string().nullable(),
         title: z.string(),
-        icon: z.string().optional(),
+        icon: z
+          .object({ kind: z.enum(["emoji", "icon"]), value: z.string() })
+          .optional(),
         content: z.object({
           blocks: z.array(blockSchema),
           state: z.string().nullable(),
@@ -976,12 +1355,29 @@ const storedSchema = z.object({
           author: z.enum(["you", "assistant"]),
           text: z.string(),
           createdAt: z.number(),
+          reactions: z
+            .array(
+              z.object({
+                emoji: z.string(),
+                by: z.enum(["you", "assistant"]),
+              }),
+            )
+            .optional(),
         }),
       ),
       resolved: z.boolean(),
     }),
   ),
   commentsVisible: z.boolean(),
+  editMode: z.enum(["auto", "manual"]),
+  pendingReview: z
+    .object({
+      pageId: z.string(),
+      before: z.array(blockSchema),
+      changed: z.array(z.string()),
+      removed: z.number(),
+    })
+    .nullable(),
 });
 
 /** What was saved, or `undefined` when nothing usable was. */
@@ -997,10 +1393,18 @@ export function readStored(
   }
   const result = storedSchema.safeParse(parsed);
   if (!result.success) return undefined;
-  const { currentPageId, threads, commentsVisible } = result.data;
+  const { currentPageId, commentsVisible, editMode, pendingReview } =
+    result.data;
   const pages: Page[] = result.data.pages.map(({ icon, ...page }) => ({
     ...page,
     ...(icon !== undefined && { icon }),
+  }));
+  const threads: CommentThread[] = result.data.threads.map((thread) => ({
+    ...thread,
+    messages: thread.messages.map(({ reactions, ...message }) => ({
+      ...message,
+      ...(reactions !== undefined && { reactions }),
+    })),
   }));
   return {
     pages,
@@ -1009,8 +1413,12 @@ export function readStored(
       : pages[0]!.id,
     threads,
     commentsVisible,
-    activeThreadId: null,
-    assistantRequests: 0,
+    editMode,
+    pendingReview:
+      pendingReview && findPage(pages, pendingReview.pageId)
+        ? pendingReview
+        : null,
+    ...unsaved,
   };
 }
 
@@ -1021,7 +1429,9 @@ const persistedChanged = (
   next.pages !== previous.pages ||
   next.currentPageId !== previous.currentPageId ||
   next.threads !== previous.threads ||
-  next.commentsVisible !== previous.commentsVisible;
+  next.commentsVisible !== previous.commentsVisible ||
+  next.editMode !== previous.editMode ||
+  next.pendingReview !== previous.pendingReview;
 
 const sameValue = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
@@ -1092,9 +1502,9 @@ const pageChanged = (
 
 /**
  * This tab's state after another tab saved `stored`. The open page keeps its
- * content and its threads, which the mounted editor holds and would otherwise
- * contradict; the page that is open and the fields that are not saved stay
- * too. Returns `current` itself when the save changes nothing here.
+ * content, its threads and its review, which the mounted editor holds and
+ * would otherwise contradict; the page that is open and the fields that are
+ * not saved stay too. Returns `current` itself when the save changes nothing here.
  */
 export function adoptStored(
   current: DocumentStoreState,
@@ -1103,7 +1513,21 @@ export function adoptStored(
   const merged = withPageFrom(stored, current, current.currentPageId);
   const pages = keepUnchanged(current.pages, merged.pages);
   const threads = keepUnchanged(current.threads, merged.threads);
-  const { commentsVisible } = stored;
+  const { commentsVisible, editMode } = stored;
+  // A review of the open page belongs to the editor that shows it, like the
+  // page's content does.
+  const open = current.currentPageId;
+  const review =
+    current.pendingReview?.pageId === open ||
+    stored.pendingReview?.pageId === open
+      ? current.pendingReview
+      : stored.pendingReview;
+  const pendingReview =
+    review && findPage(pages, review.pageId)
+      ? sameValue(review, current.pendingReview)
+        ? current.pendingReview
+        : review
+      : null;
   const activeThreadId =
     commentsVisible &&
     threads.some((thread) => thread.id === current.activeThreadId)
@@ -1117,6 +1541,8 @@ export function adoptStored(
       : stored.currentPageId,
     threads,
     commentsVisible,
+    editMode,
+    pendingReview,
     activeThreadId,
   };
   return persistedChanged(current, next) ||
@@ -1194,12 +1620,21 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
   };
 
   const save = (saving: DocumentStoreState) => {
-    const { pages, currentPageId, threads, commentsVisible } = saving;
+    const {
+      pages,
+      currentPageId,
+      threads,
+      commentsVisible,
+      editMode,
+      pendingReview,
+    } = saving;
     const saved = JSON.stringify({
       pages,
       currentPageId,
       threads,
       commentsVisible,
+      editMode,
+      pendingReview,
     });
     try {
       storage()?.setItem(STORAGE_KEY, saved);
@@ -1306,6 +1741,15 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
       );
     },
 
+    /** Gives a page an emoji or an icon, or takes it away with `null`. */
+    setPageIcon(id: string, icon: PageIcon | null) {
+      patchPage(id, (page) => {
+        if (sameValue(page.icon ?? null, icon)) return page;
+        const { icon: _icon, ...rest } = page;
+        return icon ? { ...rest, icon } : rest;
+      });
+    },
+
     /** Copies a page next to itself and opens the copy. */
     duplicatePage(id: string): string | undefined {
       if (!findPage(getState().pages, id)) return undefined;
@@ -1334,6 +1778,11 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
         threads: previous.threads.filter(
           (thread) => !removed.includes(thread.pageId),
         ),
+        pendingReview:
+          previous.pendingReview &&
+          removed.includes(previous.pendingReview.pageId)
+            ? null
+            : previous.pendingReview,
         currentPageId: removed.includes(previous.currentPageId)
           ? (findPage(pages, deleted?.parentId ?? null)?.id ?? pages[0]!.id)
           : previous.currentPageId,
@@ -1413,6 +1862,36 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
       return id;
     },
 
+    /** Takes one reply out of a thread. The first comment goes with its thread. */
+    deleteThreadMessage(threadId: string, messageId: string) {
+      patchThread(threadId, (thread) => ({
+        ...thread,
+        messages: thread.messages.filter(
+          (message, index) => index === 0 || message.id !== messageId,
+        ),
+      }));
+    },
+
+    /** Gives a comment a reaction, or takes it back when `by` already gave it. */
+    toggleReaction(
+      threadId: string,
+      messageId: string,
+      emoji: string,
+      by: CommentAuthor = "you",
+    ) {
+      patchThread(threadId, (thread) => ({
+        ...thread,
+        messages: thread.messages.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                reactions: toggleReactionIn(message.reactions ?? [], emoji, by),
+              }
+            : message,
+        ),
+      }));
+    },
+
     resolveThread(threadId: string, resolved = true) {
       patchThread(threadId, (thread) => ({ ...thread, resolved }));
       if (resolved) actions.setActiveThread(null, threadId);
@@ -1453,12 +1932,143 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
       actions.setCommentsVisible(!getState().commentsVisible);
     },
 
-    /** Opens the assistant bar and puts the caret in its composer. */
-    askAssistant() {
+    /**
+     * Opens the assistant bar and puts the caret in its composer. With a
+     * `reference`, the next message is about that passage or that edit.
+     */
+    askAssistant(reference?: AssistantReference) {
       setState((previous) => ({
         ...previous,
         assistantRequests: previous.assistantRequests + 1,
+        assistantReference: reference ?? previous.assistantReference,
       }));
+    },
+
+    clearAssistantReference() {
+      setState((previous) =>
+        previous.assistantReference
+          ? { ...previous, assistantReference: null }
+          : previous,
+      );
+    },
+
+    /** Auto lets edits land; manual keeps each for review. Auto accepts the one waiting. */
+    setEditMode(editMode: EditMode) {
+      setState((previous) =>
+        previous.editMode === editMode
+          ? previous
+          : {
+              ...previous,
+              editMode,
+              pendingReview:
+                editMode === "auto" ? null : previous.pendingReview,
+            },
+      );
+    },
+
+    /**
+     * Notes an edit by the assistant that has landed on a page: what kind it
+     * was, and that the person has not seen it. In manual mode it also waits
+     * for review; an edit on top of one still waiting joins it, so Undo goes
+     * back to the page as it was before the first.
+     */
+    recordEdit(input: {
+      pageId: string;
+      before: readonly Block[];
+      after: readonly Block[];
+    }) {
+      setState((previous) => {
+        const kind = classifyEdit(input.before, input.after);
+        if (!kind) return previous;
+        const waiting =
+          previous.pendingReview?.pageId === input.pageId
+            ? previous.pendingReview
+            : null;
+        return {
+          ...previous,
+          lastEdit: { kind, pageId: input.pageId },
+          assistantUnseen: true,
+          pendingReview:
+            previous.editMode === "manual"
+              ? reviewOf(
+                  input.pageId,
+                  waiting?.before ?? input.before,
+                  input.after,
+                )
+              : previous.pendingReview,
+        };
+      });
+    },
+
+    /** Notes that the assistant left a comment on a page. */
+    recordComment(pageId: string) {
+      setState((previous) => ({
+        ...previous,
+        lastEdit: { kind: "comment", pageId },
+        assistantUnseen: true,
+      }));
+    },
+
+    clearLastEdit() {
+      setState((previous) =>
+        previous.lastEdit ? { ...previous, lastEdit: null } : previous,
+      );
+    },
+
+    /** Keeps the edit that waits for review. */
+    acceptReview() {
+      setState((previous) =>
+        previous.pendingReview
+          ? { ...previous, pendingReview: null }
+          : previous,
+      );
+    },
+
+    /**
+     * Takes back the edit that waits for review: the page's saved blocks go
+     * back to what they were. A mounted editor shows its own copy of the open
+     * page, so the interface calls `undoPendingReview` in editor.tsx, which
+     * also puts the blocks back in the editor.
+     */
+    undoReview(): PendingReview | null {
+      const review = getState().pendingReview;
+      if (!review) return null;
+      setState((previous) => ({
+        ...previous,
+        pendingReview: null,
+        pages: previous.pages.map((page) =>
+          page.id === review.pageId
+            ? { ...page, content: { blocks: review.before, state: null } }
+            : page,
+        ),
+      }));
+      return review;
+    },
+
+    /** The assistant did something while its bar was closed. */
+    markUnseen() {
+      setState((previous) =>
+        previous.assistantUnseen
+          ? previous
+          : { ...previous, assistantUnseen: true },
+      );
+    },
+
+    markSeen() {
+      setState((previous) =>
+        previous.assistantUnseen
+          ? { ...previous, assistantUnseen: false }
+          : previous,
+      );
+    },
+
+    /** Where the assistant is writing, or null once it stops. */
+    setPresence(presence: AssistantPresence | null) {
+      setState((previous) =>
+        sameValue(previous.assistantPresence, presence)
+          ? previous
+          : { ...previous, assistantPresence: presence },
+      );
     },
 
     /** Puts back the starter pages and drops every comment. */

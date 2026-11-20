@@ -3,9 +3,15 @@
 import {
   AssistantRuntimeProvider,
   AuiConfig,
+  CompositeAttachmentAdapter,
+  InMemoryThreadListAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
   Suggestions,
   unstable_Interactables,
   useLocalRuntime,
+  useRemoteThreadListRuntime,
+  WebSpeechDictationAdapter,
   type ChatModelAdapter,
   type ThreadMessage,
 } from "@assistant-ui/react";
@@ -15,6 +21,7 @@ import {
   unstable_toolResultStream,
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
+import { useMemo, useSyncExternalStore } from "react";
 import { getEditorBridge, type EditorBridge } from "./components/editor";
 import data from "./data.json";
 import { DocumentEditor } from "./document-editor";
@@ -32,7 +39,7 @@ import {
 /*                                                                            */
 /* It answers from data.json and makes the same tool calls a real model       */
 /* would, so the page really changes. To talk to a model instead, replace     */
-/* `useLocalRuntime(scriptedModel)` below with `useChatRuntime` (see README). */
+/* `useScriptedRuntime()` below with `useChatRuntime` (see README).           */
 /* -------------------------------------------------------------------------- */
 
 /** One thing a reply does: a tool call, as a model would make it, or text. */
@@ -44,11 +51,23 @@ const script = data.assistant;
 
 const say = (text: string): ScriptStep => ({ type: "text", text });
 
-function lastUserText(messages: readonly ThreadMessage[]) {
-  const message = messages.findLast((entry) => entry.role === "user");
-  return (message?.content ?? [])
+const lastUser = (messages: readonly ThreadMessage[]) =>
+  messages.findLast((entry) => entry.role === "user");
+
+const textIn = (message: ThreadMessage | undefined) =>
+  (message?.content ?? [])
     .map((part) => (part.type === "text" ? part.text : ""))
     .join(" ");
+
+/** The passage of the page a message quotes: a selection, or an edit. */
+function quoteIn(message: ThreadMessage | undefined) {
+  const quote = message?.metadata.custom["quote"];
+  return typeof quote === "object" &&
+    quote !== null &&
+    "text" in quote &&
+    typeof quote.text === "string"
+    ? quote.text
+    : "";
 }
 
 // A passage short enough to quote, cut at a word.
@@ -117,7 +136,11 @@ function summarise(blocks: readonly Block[]) {
  * Picks the scripted reply for a prompt and turns it into steps. Add a reply
  * in data.json under `assistant.replies`; a new `action` needs a case here.
  */
-function planReply(prompt: string, bridge: EditorBridge | null): ScriptStep[] {
+function planReply(
+  prompt: string,
+  quoted: string,
+  bridge: EditorBridge | null,
+): ScriptStep[] {
   const asked = prompt.toLowerCase();
   const reply = script.replies.find((entry) =>
     entry.match.some((keyword) => asked.includes(keyword)),
@@ -125,7 +148,7 @@ function planReply(prompt: string, bridge: EditorBridge | null): ScriptStep[] {
   if (!reply) {
     return [
       say(
-        `${script.fallback}\n\n${script.suggestions
+        `${quoted ? script.quoted : script.fallback}\n\n${script.suggestions
           .map((suggestion) => `- ${suggestion}`)
           .join("\n")}`,
       ),
@@ -139,6 +162,18 @@ function planReply(prompt: string, bridge: EditorBridge | null): ScriptStep[] {
     type: "tool",
     toolName: UPDATE_DOCUMENT_TOOL,
     args: { id: bridge.documentId, blocks },
+  });
+  const comment = (quote: string, text: string): ScriptStep => ({
+    type: "tool",
+    toolName: UPDATE_COMMENTS_TOOL,
+    args: {
+      id: bridge.commentsId,
+      comments: {
+        add: [
+          { quote, author: "assistant", text, resolved: false, replyTo: null },
+        ],
+      },
+    },
   });
 
   switch (reply.action) {
@@ -259,30 +294,56 @@ function planReply(prompt: string, bridge: EditorBridge | null): ScriptStep[] {
         say(reply.text),
       ];
     }
-    case "comment": {
-      const target =
-        page.blocks.find((block) => block.type === "check" && block.text) ??
-        page.blocks.find((block) => plainText(block.text).trim());
-      if (!target) return [say(reply.empty ?? reply.text)];
+    case "table": {
+      const tasks = page.blocks.filter(
+        (block) => block.type === "check" && textOf(block),
+      );
+      if (tasks.length === 0) return [say(reply.empty ?? reply.text)];
+      const rows = [
+        reply.header ?? [],
+        ...tasks.map((task) => [
+          task.text,
+          (task.checked ? reply.done : reply.open) ?? "",
+        ]),
+      ];
       return [
-        {
-          type: "tool",
-          toolName: UPDATE_COMMENTS_TOOL,
-          args: {
-            id: bridge.commentsId,
-            comments: {
-              add: [
-                {
-                  quote: quoteFrom(target.text),
-                  author: "assistant",
-                  text: reply.comment ?? "",
-                  resolved: false,
-                  replyTo: null,
-                },
-              ],
-            },
-          },
-        },
+        edit({ add: [{ type: "table", text: "", rows }] }),
+        say(reply.text),
+      ];
+    }
+    case "comment": {
+      // A quoted passage that one block holds is what the comment is about.
+      const passage = quoteFrom(quoted.trim().split("\n")[0] ?? "");
+      const onPage =
+        passage !== "" &&
+        page.blocks.some((block) => plainText(block.text).includes(passage));
+      const block =
+        page.blocks.find((entry) => entry.type === "check" && entry.text) ??
+        page.blocks.find(textOf);
+      const target = onPage ? passage : quoteFrom(block?.text ?? "");
+      if (!target) return [say(reply.empty ?? reply.text)];
+      return [comment(target, reply.comment ?? ""), say(reply.text)];
+    }
+    case "comments": {
+      const notes = reply.comments ?? [];
+      const body = page.blocks.filter(
+        (block) => !isHeading(block) && textOf(block),
+      );
+      const pool =
+        body.length >= notes.length ? body : page.blocks.filter(textOf);
+      if (pool.length === 0) return [say(reply.empty ?? reply.text)];
+      // Spread over the page, one comment to a block.
+      const targets =
+        pool.length <= notes.length
+          ? pool
+          : notes.map(
+              (_, index) =>
+                pool[Math.floor((index * pool.length) / notes.length)]!,
+            );
+      return [
+        ...targets.map((target, index) =>
+          comment(quoteFrom(target.text), notes[index] ?? ""),
+        ),
         say(reply.text),
       ];
     }
@@ -307,15 +368,24 @@ const chunks = (text: string, size: number) =>
 const scriptedModel: ChatModelAdapter = {
   async *run({ messages, abortSignal, context }) {
     const bridge = getEditorBridge();
-    const steps = planReply(lastUserText(messages), bridge);
+    const message = lastUser(messages);
+    const files = (message?.attachments ?? []).map((file) => file.name);
+    const steps = [
+      ...(files.length > 0
+        ? [say(script.attached.replace("{files}", listed(files)))]
+        : []),
+      ...planReply(textIn(message), quoteIn(message), bridge),
+    ];
 
     const stream = createAssistantStream(async (controller) => {
       let rejected = false;
+      let said = false;
       await wait(350);
       for (const step of steps) {
         if (abortSignal.aborted) return;
         if (step.type === "text") {
-          const text = rejected ? LEFT_PAGE : step.text;
+          const text = `${said ? "\n\n" : ""}${rejected ? LEFT_PAGE : step.text}`;
+          said = true;
           for (const word of text.split(/(?<=\s)/)) {
             if (abortSignal.aborted) return;
             controller.appendText(word);
@@ -323,6 +393,7 @@ const scriptedModel: ChatModelAdapter = {
           }
           continue;
         }
+        said = false;
         const call = controller.addToolCallPart({
           toolCallId: `call-${mintId()}`,
           toolName: step.toolName,
@@ -352,11 +423,61 @@ const scriptedModel: ChatModelAdapter = {
   },
 };
 
+/* -------------------------------------------------------------------------- */
+/* The runtime: a list of chats, each answered by the scripted model.         */
+/* -------------------------------------------------------------------------- */
+
+/** The chats of one visit, kept in memory and named after their first message. */
+class ChatList extends InMemoryThreadListAdapter {
+  override async generateTitle(
+    _remoteId?: string,
+    messages: readonly ThreadMessage[] = [],
+  ) {
+    const title = textIn(messages.find((entry) => entry.role === "user"));
+    return createAssistantStream((controller) => {
+      controller.appendText(title.trim().slice(0, 60) || "New chat");
+    });
+  }
+}
+
+const attachments = new CompositeAttachmentAdapter([
+  new SimpleImageAttachmentAdapter(),
+  new SimpleTextAttachmentAdapter(),
+]);
+
+const subscribeToNothing = () => () => {};
+
+/** Speech recognition is a browser feature, so the server answers no. */
+function useDictationAdapter() {
+  const supported = useSyncExternalStore(
+    subscribeToNothing,
+    WebSpeechDictationAdapter.isSupported,
+    () => false,
+  );
+  return useMemo(
+    () => (supported ? new WebSpeechDictationAdapter() : undefined),
+    [supported],
+  );
+}
+
+function useScriptedRuntime() {
+  const adapter = useMemo(() => new ChatList(), []);
+  return useRemoteThreadListRuntime({
+    adapter,
+    runtimeHook: function RuntimeHook() {
+      const dictation = useDictationAdapter();
+      return useLocalRuntime(scriptedModel, {
+        adapters: { attachments, ...(dictation && { dictation }) },
+      });
+    },
+  });
+}
+
 export default function Page() {
-  const runtime = useLocalRuntime(scriptedModel);
+  const runtime = useScriptedRuntime();
   const config = AuiConfig({
     unstable_interactables: unstable_Interactables(),
-    suggestions: Suggestions(script.suggestions.slice(0, 3)),
+    suggestions: Suggestions(script.suggestions.slice(0, 4)),
   });
 
   return (
