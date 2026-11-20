@@ -246,6 +246,7 @@ test("CODEOWNERS is rendered exactly from the real policy", () => {
 /scripts/sync-review-policy.mjs @assistant-ui/owners
 /scripts/review-health.mjs @assistant-ui/owners
 /scripts/lib/review-*.mjs @assistant-ui/owners
+/apps/docs/public/downloads/*.tgz @assistant-ui/owners
 `,
   );
 });
@@ -329,6 +330,7 @@ test("ruleset updates replace only review floors and required checks", () => {
                     "/scripts/sync-review-policy.mjs",
                     "/scripts/review-health.mjs",
                     "/scripts/lib/review-*.mjs",
+                    "/apps/docs/public/downloads/*.tgz",
                   ],
                   minimum_approvals: 1,
                   reviewer: { id: teamIds.owners, type: "Team" },
@@ -383,6 +385,7 @@ test("contract review floors group each owner team's paths and contract docs", (
         "/scripts/sync-review-policy.mjs",
         "/scripts/review-health.mjs",
         "/scripts/lib/review-*.mjs",
+        "/apps/docs/public/downloads/*.tgz",
       ],
       minimum_approvals: 1,
       reviewer: { id: teamIds.owners, type: "Team" },

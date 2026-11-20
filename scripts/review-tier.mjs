@@ -508,6 +508,7 @@ const signalLabels = {
   "contract-area": "contract area",
   "contract-docs": "contract docs",
   "low-risk-path": "low risk path",
+  "unowned-archive": "archive outside any area",
   "test-addition": "new test",
   "test-change": "test change",
   source: "package source",

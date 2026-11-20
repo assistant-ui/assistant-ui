@@ -65,6 +65,18 @@ for (const [path, deletions, tier, code, areas] of [
   ["packages/react/src/index.test.ts", 1, 1, "test-change", []],
   ["packages/tap/src/index.test.ts", 0, 2, "contract-area", ["reactivity"]],
   ["apps/demo/index.test.ts", 1, 0, "low-risk-path", []],
+  [
+    "apps/docs/public/downloads/assistant-ui-wizard-login-ea9aae48e.tgz",
+    0,
+    2,
+    "contract-area",
+    ["ci-policy"],
+  ],
+  ["packages/tap/vendor/harness.tar", 0, 2, "contract-area", ["reactivity"]],
+  ["templates/minimal/vendor/sdk-1.0.0.tgz", 0, 3, "unowned-archive", []],
+  ["examples/demo/assets/bundle.tar", 0, 3, "unowned-archive", []],
+  ["unowned/vendor/archive.TAR.GZ", 0, 3, "unowned-archive", []],
+  ["packages/react/vendor/lib.tgz", 0, 3, "unowned-archive", []],
 ]) {
   test(`${path} with ${deletions} deletions uses ${code}`, () => {
     const result = computeTier(
