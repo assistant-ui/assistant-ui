@@ -292,6 +292,7 @@ export const createThreadViewportAutoScroll = (input: {
       if (entry.measure) entry.height = entry.measure();
     }
     const insetGrew = recalculateContentInset();
+    if (insetGrew === false) handleScroll({ insetShrank: true });
     const { scrollHeight, clientHeight } = element;
     if (
       scrollHeight === lastObservedScrollHeight &&
@@ -412,6 +413,7 @@ export const createThreadViewportAutoScroll = (input: {
   const updateContentInset = () => {
     const grew = recalculateContentInset();
     if (grew === null) return;
+    if (!grew) handleScroll({ insetShrank: true });
     const dimensionsChanged =
       element !== null &&
       (element.scrollHeight !== lastObservedScrollHeight ||
