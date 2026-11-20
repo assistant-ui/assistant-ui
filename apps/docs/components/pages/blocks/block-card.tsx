@@ -1,6 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { PackageIcon } from "@/components/pages/blocks/package-icon";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { Block, UpcomingBlock } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 
@@ -9,13 +16,38 @@ const FRAME =
 
 const IMAGE_SIZES = "(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw";
 
+function BlockStack({ stack }: Pick<Block, "stack">) {
+  return (
+    <span className="text-muted-foreground ms-auto -me-1 flex shrink-0 items-center self-center">
+      <span className="sr-only">
+        Built with {stack.map((item) => item.name).join(", ")}
+      </span>
+      <TooltipProvider>
+        {stack.map((item) => (
+          <Tooltip key={item.package}>
+            <TooltipTrigger
+              render={
+                <span className="hover:text-foreground p-1 transition-colors" />
+              }
+            >
+              <PackageIcon name={item.package} className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>{item.name}</TooltipContent>
+          </Tooltip>
+        ))}
+      </TooltipProvider>
+    </span>
+  );
+}
+
 export function BlockCard({
   slug,
   title,
   description,
   image,
+  stack,
   index,
-}: Pick<Block, "slug" | "title" | "description" | "image"> & {
+}: Pick<Block, "slug" | "title" | "description" | "image" | "stack"> & {
   index: number;
 }) {
   return (
@@ -40,10 +72,11 @@ export function BlockCard({
         <span className="text-muted-foreground text-xs tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h3 className="text-sm font-medium">
+        <h3 className="min-w-0 text-sm font-medium">
           {title}
           <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
         </h3>
+        {stack.length > 0 && <BlockStack stack={stack} />}
       </div>
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {description}

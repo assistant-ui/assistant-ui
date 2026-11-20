@@ -9,6 +9,12 @@ export type BlockEnvVar = {
   description: string;
 };
 
+export type BlockStackItem = {
+  name: string;
+  /** Package whose mark stands for it on the card. */
+  package: string;
+};
+
 export type BlockSource = {
   /** Folder of the block, relative to the repository root. */
   directory: string;
@@ -34,6 +40,8 @@ export type Block = {
   /** Port the docs dev server starts the block on when it has no address. */
   devPort?: number;
   source: BlockSource;
+  /** What the block connects to, past the React, Tailwind CSS and assistant-ui every block has. */
+  stack: readonly BlockStackItem[];
   useCases: readonly string[];
   capabilities: readonly BlockCapability[];
   requirements: readonly string[];
@@ -72,6 +80,11 @@ export const BLOCKS: readonly Block[] = [
       ],
       entry: "document-editor.tsx",
     },
+    stack: [
+      { name: "Lexical", package: "lexical" },
+      { name: "AI SDK", package: "ai" },
+      { name: "OpenAI", package: "@ai-sdk/openai" },
+    ],
     useCases: [
       "A notes or docs product where an assistant drafts and restructures the page in place, and each edit waits for a yes.",
       "To-do lists, trackers and weekly updates that start from a template and stay editable.",
@@ -150,6 +163,7 @@ export const BLOCKS: readonly Block[] = [
       include: ["components", "block.css", "layout.tsx", "page.tsx"],
       entry: "components/chat.tsx",
     },
+    stack: [{ name: "shadcn/ui", package: "shadcn" }],
     useCases: [
       "A starting point for a chat whose markup and styles are all yours.",
       "A reference for how each primitive is composed, with every one in a single file.",
