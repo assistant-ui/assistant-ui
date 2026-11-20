@@ -2129,7 +2129,10 @@ test("no review workflow runs privileged code on pull_request_target", () => {
 });
 
 test("the pull request relays hold no permissions or secrets", () => {
-  for (const file of ["review-tier-relay.yaml", "claude-code-review-relay.yaml"]) {
+  for (const file of [
+    "review-tier-relay.yaml",
+    "claude-code-review-relay.yaml",
+  ]) {
     const workflow = readFileSync(
       new URL(`../.github/workflows/${file}`, import.meta.url),
       "utf8",
@@ -2155,18 +2158,23 @@ for (const [event, expected] of [
   test(`Claude review relay ${expected ? "runs" : "skips"} for ${JSON.stringify(event)}`, () => {
     const { draft = false, sameRepo = false, bot = false, ...rest } = event;
     assert.equal(
-      workflowJobRuns("claude-code-review-relay.yaml", "relay", "pull_request", {
-        ...rest,
-        sender: { type: bot ? "Bot" : "User" },
-        pull_request: {
-          draft,
-          head: {
-            repo: {
-              full_name: sameRepo ? "assistant-ui/assistant-ui" : "fork/x",
+      workflowJobRuns(
+        "claude-code-review-relay.yaml",
+        "relay",
+        "pull_request",
+        {
+          ...rest,
+          sender: { type: bot ? "Bot" : "User" },
+          pull_request: {
+            draft,
+            head: {
+              repo: {
+                full_name: sameRepo ? "assistant-ui/assistant-ui" : "fork/x",
+              },
             },
           },
         },
-      }),
+      ),
       expected,
     );
   });
@@ -2183,8 +2191,14 @@ test("Claude fork review validates the relay before the review job and rechecks 
   assert.match(validate, /\.head\.sha == \$sha/);
   assert.doesNotMatch(validate, /concurrency:|secrets\.|: write/);
   const review = job("claude-fork-review");
-  assert.match(review, /needs: \[claude-fork-review-validate, claude-fork-review-budget\]/);
-  assert.match(review, /group: claude-code-review-fork-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}/);
+  assert.match(
+    review,
+    /needs: \[claude-fork-review-validate, claude-fork-review-budget\]/,
+  );
+  assert.match(
+    review,
+    /group: claude-code-review-fork-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}/,
+  );
   assert.doesNotMatch(review, /: write|download-artifact/);
   const publish = job("claude-fork-review-publish");
   assert.match(publish, /permissions:\n      pull-requests: write\n    steps:/);
