@@ -43,7 +43,8 @@
         "scripts/review-coverage-advice.mjs",
         "scripts/sync-review-policy.mjs",
         "scripts/review-health.mjs",
-        "scripts/lib/review-*.mjs"
+        "scripts/lib/review-*.mjs",
+        "apps/docs/public/downloads/*.tgz"
       ],
       "contractDocs": []
     }

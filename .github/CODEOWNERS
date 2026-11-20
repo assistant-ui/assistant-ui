@@ -24,3 +24,4 @@
 /scripts/sync-review-policy.mjs @assistant-ui/owners
 /scripts/review-health.mjs @assistant-ui/owners
 /scripts/lib/review-*.mjs @assistant-ui/owners
+/apps/docs/public/downloads/*.tgz @assistant-ui/owners
