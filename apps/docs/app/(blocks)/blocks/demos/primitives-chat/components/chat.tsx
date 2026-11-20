@@ -6,8 +6,10 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type PropsWithChildren,
   type ReactElement,
+  type RefObject,
 } from "react";
 import {
   ActionBarMorePrimitive,
@@ -18,6 +20,7 @@ import {
   AuiConfig,
   AuiIf,
   BranchPickerPrimitive,
+  ChainOfThoughtByIndicesProvider,
   ChainOfThoughtPrimitive,
   ComposerPrimitive,
   CompositeAttachmentAdapter,
@@ -35,18 +38,30 @@ import {
   ThreadListItemPrimitive,
   ThreadListPrimitive,
   ThreadPrimitive,
+  WebSpeechDictationAdapter,
   WebSpeechSynthesisAdapter,
+  groupPartByType,
+  unstable_useTriggerPopoverScopeContext,
+  unstable_useTriggerPopoverTriggers,
   useAui,
   useAuiState,
   useLocalRuntime,
   useRemoteThreadListRuntime,
   type ChatModelAdapter,
   type ChatModelRunResult,
+  type DirectiveFormatter,
+  type DirectiveSegment,
+  type GenerativeUIComponentRegistry,
+  type GenerativeUINode,
   type LocalRuntimeOptions,
+  type RemoteThreadListAdapter,
   type SuggestionAdapter,
   type ThreadAssistantMessagePart,
+  type ThreadHistoryAdapter,
   type ThreadMessage,
   type ToolCallMessagePartProps,
+  type TriggerAdapter,
+  type TriggerItem,
 } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
 import {
@@ -69,12 +84,16 @@ import {
   Idea01Icon,
   Image01Icon,
   LayoutAlignLeftIcon,
+  Mic01Icon,
+  MicOff01Icon,
   MoreHorizontalIcon,
   PencilEdit02Icon,
   PictureInPictureExitIcon,
   PictureInPictureOnIcon,
+  PlayIcon,
   QuoteDownIcon,
   RefreshIcon,
+  Search01Icon,
   SidebarLeftIcon,
   SunCloud01Icon,
   StopIcon,
@@ -113,11 +132,179 @@ const SAMPLE_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const words = (text: string) => text.split(/(?<=\s)/);
+
 function lastUserText(messages: readonly ThreadMessage[]) {
   const message = messages.findLast((entry) => entry.role === "user");
   return (message?.content ?? [])
     .map((part) => (part.type === "text" ? part.text : ""))
     .join(" ");
+}
+
+type MentionGroup = {
+  id: string;
+  label: string;
+  items: readonly TriggerItem[];
+};
+
+/** What the @ popover offers, in two groups. */
+const MENTION_GROUPS: readonly MentionGroup[] = [
+  {
+    id: "people",
+    label: "People",
+    items: [
+      {
+        id: "ada",
+        type: "person",
+        label: "Ada Lovelace",
+        description: "Mathematician",
+      },
+      {
+        id: "alan",
+        type: "person",
+        label: "Alan Turing",
+        description: "Computer scientist",
+      },
+    ],
+  },
+  {
+    id: "files",
+    label: "Files",
+    items: [
+      {
+        id: "chat.tsx",
+        type: "file",
+        label: "chat.tsx",
+        description: "This block",
+      },
+      {
+        id: "block.css",
+        type: "file",
+        label: "block.css",
+        description: "Its theme",
+      },
+    ],
+  },
+];
+
+const MENTIONS = new Map(
+  MENTION_GROUPS.flatMap((group) => group.items).map((item) => [item.id, item]),
+);
+
+/** A mention travels in the message text as "@" and the item's id. */
+const mentionFormat: DirectiveFormatter = {
+  serialize: (item) => `@${item.id}`,
+  parse(text) {
+    const segments: DirectiveSegment[] = [];
+    let end = 0;
+    for (const match of text.matchAll(/(?<!\S)@([\w-]+(?:\.[\w-]+)*)/g)) {
+      const item = MENTIONS.get(match[1] ?? "");
+      if (!item) continue;
+      if (match.index > end)
+        segments.push({ kind: "text", text: text.slice(end, match.index) });
+      segments.push({
+        kind: "mention",
+        type: item.type,
+        label: item.label,
+        id: item.id,
+      });
+      end = match.index + match[0].length;
+    }
+    if (end < text.length)
+      segments.push({ kind: "text", text: text.slice(end) });
+    return segments;
+  },
+};
+
+const mentionAdapter: TriggerAdapter = {
+  categories: () => MENTION_GROUPS,
+  categoryItems: (id) =>
+    MENTION_GROUPS.find((group) => group.id === id)?.items ?? [],
+};
+
+/** What the / popover offers. A command with a prompt sends that message. */
+const COMMANDS: readonly TriggerItem[] = [
+  {
+    id: "weather",
+    type: "command",
+    label: "/weather",
+    description: "Reasoning and a tool call",
+    metadata: { prompt: "What is the weather in Tokyo?" },
+  },
+  {
+    id: "image",
+    type: "command",
+    label: "/image",
+    description: "An image in the reply",
+    metadata: { prompt: "Draw me a picture." },
+  },
+  {
+    id: "card",
+    type: "command",
+    label: "/card",
+    description: "A card built from data",
+    metadata: { prompt: "Show the forecast as a card." },
+  },
+  {
+    id: "research",
+    type: "command",
+    label: "/research",
+    description: "A sub-agent's messages",
+    metadata: { prompt: "Hand the research to a sub-agent." },
+  },
+  {
+    id: "drop",
+    type: "command",
+    label: "/drop",
+    description: "A reply you can resume",
+    metadata: { prompt: "Drop the connection." },
+  },
+  {
+    id: "new",
+    type: "command",
+    label: "/new",
+    description: "Start a new chat",
+  },
+];
+
+const commandAdapter: TriggerAdapter = {
+  categories: () => [],
+  categoryItems: () => [],
+  search: (query) =>
+    COMMANDS.filter((command) => command.id.startsWith(query.toLowerCase())),
+};
+
+/** A stored message, with every field the runtime keeps on one. */
+function storedMessage(
+  id: string,
+  role: "user" | "assistant",
+  text: string,
+  createdAt = new Date(),
+): ThreadMessage {
+  const content = [{ type: "text", text }] as const;
+  if (role === "user")
+    return {
+      id,
+      createdAt,
+      role,
+      content,
+      attachments: [],
+      metadata: { custom: {} },
+    };
+  return {
+    id,
+    createdAt,
+    role,
+    content,
+    status: { type: "complete", reason: "stop" },
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
 }
 
 async function* write(
@@ -128,7 +315,7 @@ async function* write(
 ): AsyncGenerator<ChatModelRunResult, void> {
   const index = parts.length;
   let shown = "";
-  for (const word of text.split(/(?<=\s)/)) {
+  for (const word of words(text)) {
     if (signal.aborted) return;
     shown += word;
     parts[index] = { type, text: shown };
@@ -137,9 +324,40 @@ async function* write(
   }
 }
 
+/**
+ * How a run ends when it stops before it writes anything. Assistant Cloud
+ * reports this for a lost run; here the script reports it.
+ */
+const INTERRUPTED: ChatModelRunResult = {
+  status: {
+    type: "incomplete",
+    reason: "error",
+    error: {
+      code: "run_stale",
+      message: "The connection dropped before the reply started.",
+    },
+  },
+};
+
+/* A resumed run looks like any other run, so the script remembers which messages it already dropped. */
+const dropped = new Set<string>();
+
+const FORECAST = [
+  ["Monday", "22°C"],
+  ["Tuesday", "19°C"],
+  ["Wednesday", "24°C"],
+] as const;
+
 const scriptedModel: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
-    const prompt = lastUserText(messages).toLowerCase();
+    const segments = mentionFormat.parse(lastUserText(messages));
+    const prompt = segments
+      .map((segment) => (segment.kind === "text" ? segment.text : ""))
+      .join("")
+      .toLowerCase();
+    const mentioned = segments.flatMap((segment) =>
+      segment.kind === "mention" ? [segment.label] : [],
+    );
     const parts: ThreadAssistantMessagePart[] = [];
     await wait(400);
 
@@ -147,6 +365,95 @@ const scriptedModel: ChatModelAdapter = {
       throw new Error(
         "The scripted model fails when a message mentions an error. Edit the message to get a reply.",
       );
+    }
+
+    if (/connection|interrupt/.test(prompt)) {
+      const turn = messages.at(-1)?.id;
+      if (turn !== undefined && !dropped.has(turn)) {
+        dropped.add(turn);
+        await wait(800);
+        if (abortSignal.aborted) return;
+        yield INTERRUPTED;
+        return;
+      }
+      yield* write(
+        parts,
+        "text",
+        "The run started again from your message, and the empty reply it replaced is gone.",
+        abortSignal,
+      );
+      return;
+    }
+
+    if (/card|forecast/.test(prompt)) {
+      yield* write(parts, "text", "Here is the week in Tokyo.", abortSignal);
+      const index = parts.length;
+      const rows: GenerativeUINode[] = [];
+      for (const [label, value] of FORECAST) {
+        if (abortSignal.aborted) return;
+        rows.push({ component: "Row", key: label, props: { label, value } });
+        parts[index] = {
+          type: "generative-ui",
+          spec: {
+            root: {
+              component: "Card",
+              props: { title: "Tokyo this week" },
+              children: [...rows],
+            },
+          },
+        };
+        yield { content: [...parts] };
+        await wait(300);
+      }
+      return;
+    }
+
+    if (/research|sub-agent/.test(prompt)) {
+      const call = {
+        type: "tool-call",
+        toolCallId: crypto.randomUUID(),
+        toolName: "research_agent",
+        args: { topic: "Tokyo in spring" },
+        argsText: '{ "topic": "Tokyo in spring" }',
+      } as const;
+      const brief = storedMessage(
+        `${call.toolCallId}-brief`,
+        "user",
+        "Find two things to do in Tokyo in spring.",
+      );
+      const startedAt = new Date();
+      const index = parts.length;
+      let messages: ThreadMessage[] = [brief];
+      parts[index] = { ...call, messages };
+      yield { content: [...parts] };
+      await wait(500);
+      let answer = "";
+      for (const word of words(
+        "Ueno Park for the blossom, and the Meguro River after dark.",
+      )) {
+        if (abortSignal.aborted) return;
+        answer += word;
+        messages = [
+          brief,
+          storedMessage(
+            `${call.toolCallId}-answer`,
+            "assistant",
+            answer,
+            startedAt,
+          ),
+        ];
+        parts[index] = { ...call, messages };
+        yield { content: [...parts] };
+        await wait(40);
+      }
+      parts[index] = { ...call, messages, result: { places: 2 } };
+      yield* write(
+        parts,
+        "text",
+        "The research agent suggests Ueno Park and the Meguro River. Its messages are under the line above.",
+        abortSignal,
+      );
+      return;
     }
 
     if (/weather|tool|think/.test(prompt)) {
@@ -190,16 +497,76 @@ const scriptedModel: ChatModelAdapter = {
       return;
     }
 
+    if (mentioned.length > 0) {
+      yield* write(
+        parts,
+        "text",
+        `You mentioned ${mentioned.join(" and ")}. A mention is sent as part of the message text, and the script reads it from there.`,
+        abortSignal,
+      );
+      return;
+    }
+
     yield* write(
       parts,
       "text",
-      "This reply comes from a script inside the file. Select part of it to quote it, press Regenerate to add a branch, or send another message while this one is still being written to see the queue.",
+      "This reply comes from a script inside the file. Select part of it to quote it, press Regenerate to add a branch, or send another message while this one is still being written to see the queue. Type / to see what else the script can do.",
       abortSignal,
     );
   },
 };
 
+/** Chats saved before the page opened. The sidebar loads them a page at a time. */
+const OLDER_CHATS = [
+  "Plan a weekend in Kyoto",
+  "Name ideas for a bakery",
+  "Explain binary search",
+  "Draft a thank-you note",
+  "Compare two laptops",
+  "Fix a flaky test",
+].map((title, index) => ({ remoteId: `older-${index + 1}`, title }));
+
+const OLDER_PAGE = 3;
+
+type ListParams = Parameters<RemoteThreadListAdapter["list"]>[0];
+type ListPage = Awaited<ReturnType<RemoteThreadListAdapter["list"]>>;
+
 class ScriptedThreadList extends InMemoryThreadListAdapter {
+  private olderShown = 0;
+
+  constructor() {
+    super();
+    for (const chat of OLDER_CHATS) {
+      void this.initialize(chat.remoteId);
+      void this.rename(chat.remoteId, chat.title);
+    }
+  }
+
+  /** This session's chats first, then as many older chats as were asked for. */
+  override async list(params?: ListParams): Promise<ListPage> {
+    const { threads } = await super.list();
+    const first = params?.after === undefined;
+    const from = first ? 0 : this.olderShown;
+    if (!first) {
+      await wait(400);
+      this.olderShown += OLDER_PAGE;
+    }
+    const older = OLDER_CHATS.slice(from, this.olderShown).flatMap(
+      (chat) =>
+        threads.find((thread) => thread.remoteId === chat.remoteId) ?? [],
+    );
+    const recent = threads.filter(
+      (thread) =>
+        !OLDER_CHATS.some((chat) => chat.remoteId === thread.remoteId),
+    );
+    return {
+      threads: first ? [...recent, ...older] : older,
+      ...(this.olderShown < OLDER_CHATS.length
+        ? { nextCursor: String(this.olderShown) }
+        : {}),
+    };
+  }
+
   override async generateTitle(
     _remoteId?: string,
     messages: readonly ThreadMessage[] = [],
@@ -251,27 +618,66 @@ const followUps: SuggestionAdapter = {
   },
 };
 
-const runtimeOptions: LocalRuntimeOptions = {
-  unstable_enableMessageQueue: true,
-  adapters: {
-    attachments: new CompositeAttachmentAdapter([
-      new SimpleImageAttachmentAdapter(),
-      new SimpleTextAttachmentAdapter(),
-    ]),
-    feedback: { submit: () => {} },
-    speech: new WebSpeechSynthesisAdapter(),
-    suggestion: followUps,
-  },
-};
+const adapters = {
+  attachments: new CompositeAttachmentAdapter([
+    new SimpleImageAttachmentAdapter(),
+    new SimpleTextAttachmentAdapter(),
+  ]),
+  dictation: new WebSpeechDictationAdapter(),
+  feedback: { submit: () => {} },
+  speech: new WebSpeechSynthesisAdapter(),
+  suggestion: followUps,
+} satisfies LocalRuntimeOptions["adapters"];
 
 const config = AuiConfig({ suggestions: Suggestions(PROMPTS) });
+
+/**
+ * The history of one chat. An older chat loads its saved messages; nothing
+ * is written back, because a chat lives in its runtime while the page is
+ * open. The delete method is what lets Resume remove an interrupted reply.
+ */
+function useSavedHistory(): ThreadHistoryAdapter {
+  const aui = useAui();
+  return useMemo(
+    () => ({
+      async load() {
+        const id = aui.threadListItem.getState().remoteId;
+        const chat = OLDER_CHATS.find((entry) => entry.remoteId === id);
+        if (!chat) return { messages: [] };
+        const question = storedMessage(
+          `${chat.remoteId}-q`,
+          "user",
+          chat.title,
+        );
+        const answer = storedMessage(
+          `${chat.remoteId}-a`,
+          "assistant",
+          "This chat was saved before the page opened. The sidebar loads saved chats three at a time.",
+        );
+        return {
+          messages: [
+            { message: question, parentId: null },
+            { message: answer, parentId: question.id },
+          ],
+        };
+      },
+      append: async () => {},
+      delete: async () => {},
+    }),
+    [aui],
+  );
+}
 
 function useScriptedRuntime() {
   const adapter = useMemo(() => new ScriptedThreadList(), []);
   return useRemoteThreadListRuntime({
     adapter,
     runtimeHook: function RuntimeHook() {
-      return useLocalRuntime(scriptedModel, runtimeOptions);
+      const history = useSavedHistory();
+      return useLocalRuntime(scriptedModel, {
+        unstable_enableMessageQueue: true,
+        adapters: { ...adapters, history },
+      });
     },
   });
 }
@@ -676,7 +1082,18 @@ function ThreadList() {
       <ThreadListPrimitive.Items>
         {() => <ThreadListItem />}
       </ThreadListPrimitive.Items>
-      <AuiIf condition={(s: any) => s.threads.archivedThreadIds.length > 0}>
+      <AuiIf condition={(s) => s.threads.hasMore}>
+        <ThreadListPrimitive.LoadMore
+          className={cn(
+            listRow,
+            "text-muted-foreground hover:text-foreground disabled:opacity-50",
+          )}
+        >
+          <Icon icon={ArrowDown02Icon} className="size-4" />
+          Show older chats
+        </ThreadListPrimitive.LoadMore>
+      </AuiIf>
+      <AuiIf condition={(s) => s.threads.archivedThreadIds.length > 0}>
         <p className={cn("text-muted-foreground mt-4 px-2 pb-1", textControl)}>
           Archived
         </p>
@@ -801,7 +1218,7 @@ function Thread() {
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
         <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col pt-6">
-          <AuiIf condition={(s: any) => s.thread.isEmpty}>
+          <AuiIf condition={(s) => s.thread.isEmpty}>
             <Welcome />
           </AuiIf>
           <div className="flex flex-col gap-8 pb-10 empty:hidden">
@@ -914,99 +1331,339 @@ function Welcome() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Composer, Attachment, QueueItem                                            */
+/* Composer, QueueItem                                                        */
 /* -------------------------------------------------------------------------- */
 
 function Composer() {
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
   return (
-    <ComposerPrimitive.Root className="flex flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="bg-background data-[dragging=true]:border-ring border-border/60 flex flex-col gap-2 rounded-3xl border p-2 shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-colors data-[dragging=true]:border-dashed motion-reduce:transition-none">
-        <ComposerPrimitive.Queue>
-          {() => (
-            <div
-              className={cn(
-                field,
-                "flex h-9 items-center gap-1 ps-3 pe-1.5",
-                rItem,
-                textControl,
-              )}
-            >
-              <QueueItemPrimitive.Text className="min-w-0 flex-1 truncate" />
-              <QueueItemPrimitive.Steer
+    <ComposerPrimitive.TriggerPopoverRoot>
+      <ComposerPrimitive.Root className="relative flex flex-col">
+        <MentionPopover />
+        <CommandPopover />
+        <ComposerPrimitive.AttachmentDropzone className="bg-background data-[dragging=true]:border-ring border-border/60 flex flex-col gap-2 rounded-3xl border p-2 shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-colors data-[dragging=true]:border-dashed motion-reduce:transition-none">
+          <ComposerPrimitive.Queue>
+            {() => (
+              <div
                 className={cn(
-                  textButton,
-                  "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground h-7 px-2.5",
+                  field,
+                  "flex h-9 items-center gap-1 ps-3 pe-1.5",
+                  rItem,
+                  textControl,
                 )}
               >
-                Send now
-              </QueueItemPrimitive.Steer>
-              <Tip label="Remove from the queue">
-                <QueueItemPrimitive.Remove className={cn(iconButton, "size-6")}>
-                  <Icon icon={Cancel01Icon} />
-                </QueueItemPrimitive.Remove>
+                <QueueItemPrimitive.Text className="min-w-0 flex-1 truncate" />
+                <QueueItemPrimitive.Steer
+                  className={cn(
+                    textButton,
+                    "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground h-7 px-2.5",
+                  )}
+                >
+                  Send now
+                </QueueItemPrimitive.Steer>
+                <Tip label="Remove from the queue">
+                  <QueueItemPrimitive.Remove
+                    className={cn(iconButton, "size-6")}
+                  >
+                    <Icon icon={Cancel01Icon} />
+                  </QueueItemPrimitive.Remove>
+                </Tip>
+              </div>
+            )}
+          </ComposerPrimitive.Queue>
+
+          <ComposerPrimitive.Quote className="flex items-start gap-2 px-2 pt-1.5">
+            <ComposerPrimitive.QuoteText
+              className={cn(quote, "line-clamp-2 flex-1")}
+            />
+            <Tip label="Remove the quote">
+              <ComposerPrimitive.QuoteDismiss
+                className={cn(iconButton, "-me-1 -mt-0.5 size-6")}
+              >
+                <Icon icon={Cancel01Icon} />
+              </ComposerPrimitive.QuoteDismiss>
+            </Tip>
+          </ComposerPrimitive.Quote>
+
+          <div className="flex flex-wrap gap-2 empty:hidden">
+            <ComposerPrimitive.Attachments>
+              {() => <Attachment removable />}
+            </ComposerPrimitive.Attachments>
+          </div>
+
+          <AuiIf condition={(s) => s.composer.dictation != null}>
+            <DictationStatus />
+          </AuiIf>
+
+          <ComposerPrimitive.Input
+            ref={inputRef}
+            rows={1}
+            placeholder="Send a message"
+            aria-label="Message"
+            className="placeholder:text-muted-foreground/50 max-h-40 min-h-9 w-full resize-none bg-transparent px-2 py-1.5 text-base outline-none"
+          />
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-0.5">
+              <Tip label="Add a file">
+                <ComposerPrimitive.AddAttachment className={iconButton}>
+                  <Icon icon={Attachment01Icon} />
+                </ComposerPrimitive.AddAttachment>
+              </Tip>
+              <TriggerButtons inputRef={inputRef} />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <DictationButton />
+              <AuiIf condition={(s) => s.thread.isRunning}>
+                <Tip label="Stop the reply">
+                  <ComposerPrimitive.Cancel
+                    className={cn(iconButton, "border-border/60 border")}
+                  >
+                    <Icon icon={StopIcon} className="size-3! fill-current" />
+                  </ComposerPrimitive.Cancel>
+                </Tip>
+              </AuiIf>
+              <Tip label="Send the message">
+                <ComposerPrimitive.Send
+                  className={cn(
+                    "bg-primary text-primary-foreground inline-flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-30 motion-reduce:transition-none",
+                    focusRing,
+                  )}
+                >
+                  <Icon icon={ArrowUp02Icon} className="size-4" />
+                </ComposerPrimitive.Send>
               </Tip>
             </div>
-          )}
-        </ComposerPrimitive.Queue>
-
-        <ComposerPrimitive.Quote className="flex items-start gap-2 px-2 pt-1.5">
-          <ComposerPrimitive.QuoteText
-            className={cn(quote, "line-clamp-2 flex-1")}
-          />
-          <Tip label="Remove the quote">
-            <ComposerPrimitive.QuoteDismiss
-              className={cn(iconButton, "-me-1 -mt-0.5 size-6")}
-            >
-              <Icon icon={Cancel01Icon} />
-            </ComposerPrimitive.QuoteDismiss>
-          </Tip>
-        </ComposerPrimitive.Quote>
-
-        <div className="flex flex-wrap gap-2 empty:hidden">
-          <ComposerPrimitive.Attachments>
-            {() => <Attachment removable />}
-          </ComposerPrimitive.Attachments>
-        </div>
-
-        <ComposerPrimitive.Input
-          rows={1}
-          placeholder="Send a message"
-          aria-label="Message"
-          className="placeholder:text-muted-foreground/50 max-h-40 min-h-9 w-full resize-none bg-transparent px-2 py-1.5 text-base outline-none"
-        />
-
-        <div className="flex items-center justify-between">
-          <Tip label="Add a file">
-            <ComposerPrimitive.AddAttachment className={iconButton}>
-              <Icon icon={Attachment01Icon} />
-            </ComposerPrimitive.AddAttachment>
-          </Tip>
-          <div className="flex items-center gap-1.5">
-            <AuiIf condition={(s: any) => s.thread.isRunning}>
-              <Tip label="Stop the reply">
-                <ComposerPrimitive.Cancel
-                  className={cn(iconButton, "border-border/60 border")}
-                >
-                  <Icon icon={StopIcon} className="size-3! fill-current" />
-                </ComposerPrimitive.Cancel>
-              </Tip>
-            </AuiIf>
-            <Tip label="Send the message">
-              <ComposerPrimitive.Send
-                className={cn(
-                  "bg-primary text-primary-foreground inline-flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-30 motion-reduce:transition-none",
-                  focusRing,
-                )}
-              >
-                <Icon icon={ArrowUp02Icon} className="size-4" />
-              </ComposerPrimitive.Send>
-            </Tip>
           </div>
-        </div>
-      </ComposerPrimitive.AttachmentDropzone>
-    </ComposerPrimitive.Root>
+        </ComposerPrimitive.AttachmentDropzone>
+      </ComposerPrimitive.Root>
+    </ComposerPrimitive.TriggerPopoverRoot>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Composer trigger popovers: @ to mention, / for a command                   */
+/* -------------------------------------------------------------------------- */
+
+/* A menu that opens above the composer while a trigger is being typed. */
+const triggerPopover = cn(
+  menu,
+  "absolute start-0 bottom-full mb-2 w-64 origin-bottom-left",
+);
+
+/* Keeps the caret in the message while a row is clicked. */
+const keepFocus = (event: { preventDefault: () => void }) =>
+  event.preventDefault();
+
+function MentionPopover() {
+  return (
+    <ComposerPrimitive.TriggerPopover
+      char="@"
+      adapter={mentionAdapter}
+      aria-label="Mention"
+      onMouseDown={keepFocus}
+      className={triggerPopover}
+    >
+      <ComposerPrimitive.TriggerPopover.Directive formatter={mentionFormat} />
+      <ComposerPrimitive.TriggerPopoverCategories className="flex flex-col">
+        {(categories) =>
+          categories.map((category) => (
+            <ComposerPrimitive.TriggerPopoverCategoryItem
+              key={category.id}
+              categoryId={category.id}
+              className={cn(menuItem, "w-full justify-between")}
+            >
+              {category.label}
+              <Icon
+                icon={ArrowRight01Icon}
+                className="text-muted-foreground rtl:rotate-180"
+              />
+            </ComposerPrimitive.TriggerPopoverCategoryItem>
+          ))
+        }
+      </ComposerPrimitive.TriggerPopoverCategories>
+      <TriggerItems />
+    </ComposerPrimitive.TriggerPopover>
+  );
+}
+
+function CommandPopover() {
+  const aui = useAui();
+
+  return (
+    <ComposerPrimitive.TriggerPopover
+      char="/"
+      adapter={commandAdapter}
+      aria-label="Commands"
+      onMouseDown={keepFocus}
+      className={triggerPopover}
+    >
+      <ComposerPrimitive.TriggerPopover.Action
+        removeOnExecute
+        onExecute={(item) => {
+          const prompt = item.metadata?.["prompt"];
+          if (typeof prompt === "string") aui.thread().append(prompt);
+          else aui.threads().switchToNewThread();
+        }}
+      />
+      <TriggerItems />
+    </ComposerPrimitive.TriggerPopover>
+  );
+}
+
+/* The rows of either popover: a way back out of a group, then its items. */
+function TriggerItems() {
+  return (
+    <ComposerPrimitive.TriggerPopoverItems className="flex flex-col">
+      {(items) => (
+        <>
+          <ComposerPrimitive.TriggerPopoverBack
+            className={cn(
+              menuItem,
+              "text-muted-foreground hover:bg-accent hover:text-accent-foreground w-full",
+            )}
+          >
+            <Icon icon={ArrowLeft01Icon} className="rtl:rotate-180" />
+            Back
+          </ComposerPrimitive.TriggerPopoverBack>
+          {items.map((item, index) => (
+            <ComposerPrimitive.TriggerPopoverItem
+              key={item.id}
+              item={item}
+              index={index}
+              className={cn(menuItem, "w-full justify-between gap-3")}
+            >
+              <span className="shrink-0">{item.label}</span>
+              <span className="text-muted-foreground truncate">
+                {item.description}
+              </span>
+            </ComposerPrimitive.TriggerPopoverItem>
+          ))}
+          <NoMatches />
+        </>
+      )}
+    </ComposerPrimitive.TriggerPopoverItems>
+  );
+}
+
+function NoMatches() {
+  const { query, items } = unstable_useTriggerPopoverScopeContext();
+  if (items.length > 0) return null;
+
+  return (
+    <p className="text-muted-foreground flex h-6.5 items-center px-2 pointer-coarse:h-9">
+      {query ? `Nothing matches "${query}"` : "Nothing here"}
+    </p>
+  );
+}
+
+const TRIGGER_BUTTONS = [
+  { char: "@", label: "Mention a person or a file" },
+  { char: "/", label: "Run a command" },
+];
+
+/* One button per popover, for anyone who does not know the character. */
+function TriggerButtons({
+  inputRef,
+}: {
+  inputRef: RefObject<HTMLTextAreaElement | null>;
+}) {
+  const aui = useAui();
+  const triggers = unstable_useTriggerPopoverTriggers();
+
+  return TRIGGER_BUTTONS.map(({ char, label }) => (
+    <Tip key={char} label={label}>
+      <button
+        type="button"
+        disabled={!triggers.has(char)}
+        onClick={() => {
+          const text = aui.composer().getState().text;
+          const next = /(^|\s)$/.test(text) ? text + char : `${text} ${char}`;
+          aui.composer().setText(next);
+          triggers.get(char)?.resource.setCursorPosition(next.length);
+          const input = inputRef.current;
+          input?.focus();
+          // The caret moves once the new text is in the field.
+          requestAnimationFrame(() =>
+            input?.setSelectionRange(next.length, next.length),
+          );
+        }}
+        className={cn(iconButton, "font-mono text-sm")}
+      >
+        {char}
+      </button>
+    </Tip>
+  ));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dictation                                                                  */
+/* -------------------------------------------------------------------------- */
+
+const subscribeNever = () => () => {};
+
+/* Speech recognition is a browser feature, so the server answers no. */
+function useCanDictate() {
+  return useSyncExternalStore(
+    subscribeNever,
+    WebSpeechDictationAdapter.isSupported,
+    () => false,
+  );
+}
+
+function DictationButton() {
+  const canDictate = useCanDictate();
+  const dictating = useAuiState((s) => s.composer.dictation != null);
+  if (!canDictate) return null;
+
+  return dictating ? (
+    <Tip label="Stop dictating">
+      <ComposerPrimitive.StopDictation
+        className={cn(
+          iconButton,
+          "bg-foreground/[0.06] text-foreground/90 dark:bg-foreground/[0.09]",
+        )}
+      >
+        <Icon icon={MicOff01Icon} />
+      </ComposerPrimitive.StopDictation>
+    </Tip>
+  ) : (
+    <Tip label="Dictate">
+      <ComposerPrimitive.Dictate className={iconButton}>
+        <Icon icon={Mic01Icon} />
+      </ComposerPrimitive.Dictate>
+    </Tip>
+  );
+}
+
+/* While dictating: the words being heard, or a note that it is listening. */
+function DictationStatus() {
+  const hearing = useAuiState((s) => Boolean(s.composer.dictation?.transcript));
+
+  return (
+    <div
+      className={cn(
+        "text-muted-foreground flex items-center gap-2 px-2 pt-1.5",
+        textControl,
+      )}
+    >
+      <span
+        aria-hidden
+        className="bg-destructive size-1.5 shrink-0 animate-pulse rounded-full motion-reduce:animate-none"
+      />
+      {hearing ? (
+        <ComposerPrimitive.DictationTranscript className="min-w-0 truncate" />
+      ) : (
+        <span role="status">Listening</span>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Attachment                                                                 */
+/* -------------------------------------------------------------------------- */
 
 function Attachment({ removable = false }: { removable?: boolean }) {
   return (
@@ -1041,7 +1698,7 @@ function Attachment({ removable = false }: { removable?: boolean }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Message, MessagePart, ChainOfThought, Error                                */
+/* Message, MessagePart, ChainOfThought, Error, ActionBar.Resume              */
 /* -------------------------------------------------------------------------- */
 
 function Message() {
@@ -1066,13 +1723,14 @@ function UserMessage() {
         </MessagePrimitive.Attachments>
       </div>
       <MessagePrimitive.Quote>
-        {({ text }: { text: string }) => (
+        {({ text }) => (
           <blockquote className={cn(quote, "line-clamp-3 max-w-[80%]")}>
             {text}
           </blockquote>
         )}
       </MessagePrimitive.Quote>
       <div
+        data-aui-quote-selectable=""
         className={cn(
           "bg-muted max-w-[80%] wrap-break-word whitespace-pre-wrap",
           "px-3 py-1.5",
@@ -1080,7 +1738,11 @@ function UserMessage() {
           rSurface,
         )}
       >
-        <MessagePrimitive.Parts />
+        <MessagePrimitive.Parts>
+          {({ part }) =>
+            part.type === "text" ? <UserText text={part.text} /> : null
+          }
+        </MessagePrimitive.Parts>
       </div>
       <div
         className={cn("flex items-center", "absolute end-0 top-full pt-0.5")}
@@ -1099,9 +1761,25 @@ function UserMessage() {
   );
 }
 
+/* The text of a user message, with each mention shown by its name. */
+function UserText({ text }: { text: string }) {
+  return mentionFormat.parse(text).map((segment, index) =>
+    segment.kind === "text" ? (
+      segment.text
+    ) : (
+      <span key={index} className="font-semibold">
+        @{segment.label}
+      </span>
+    ),
+  );
+}
+
 function EditComposer() {
   return (
-    <MessagePrimitive.Root className="flex justify-end">
+    <MessagePrimitive.Root
+      data-aui-quote-selectable="false"
+      className="flex justify-end"
+    >
       <ComposerPrimitive.Root
         className={cn(
           paper,
@@ -1140,28 +1818,67 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="group relative flex flex-col items-start gap-1.5">
       <div
+        data-aui-quote-selectable=""
         className={cn(
           "flex max-w-full flex-col gap-2 wrap-break-word",
           textReading,
         )}
       >
-        <MessagePrimitive.Parts
-          components={{
-            Text: TextPart,
-            Image: ImagePart,
-            Empty: WorkingDot,
-            ChainOfThought,
+        <MessagePrimitive.GroupedParts groupBy={groupParts}>
+          {({ part }) => {
+            switch (part.type) {
+              case "group-thought":
+                return (
+                  <ChainOfThoughtByIndicesProvider
+                    startIndex={part.indices[0] ?? 0}
+                    endIndex={part.indices.at(-1) ?? 0}
+                  >
+                    <ChainOfThought />
+                  </ChainOfThoughtByIndicesProvider>
+                );
+              case "text":
+                return <TextPart />;
+              case "image":
+                return <ImagePart />;
+              case "tool-call":
+                return part.messages ? (
+                  <SubAgentPart {...part} />
+                ) : (
+                  <ToolCallPart {...part} />
+                );
+              case "generative-ui":
+                return (
+                  <MessagePrimitive.GenerativeUI
+                    components={cardComponents}
+                    Fallback={UnknownComponent}
+                  />
+                );
+              case "indicator":
+                return <WorkingDot />;
+              default:
+                return null;
+            }
           }}
-        />
+        </MessagePrimitive.GroupedParts>
         <MessagePrimitive.Error>
           <ErrorPrimitive.Root
+            data-aui-quote-selectable="false"
             className={cn(
-              "border-destructive/20 text-destructive bg-destructive/5 border px-3 py-2",
+              "border-destructive/20 text-destructive bg-destructive/5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border px-3 py-2",
               rItem,
               textControl,
             )}
           >
-            <ErrorPrimitive.Message />
+            <ErrorPrimitive.Message className="min-w-0 flex-1" />
+            <ActionBarPrimitive.Resume
+              className={cn(
+                textButton,
+                "hover:bg-destructive/10 -my-1 -me-1.5 h-7 gap-1.5 px-2.5 font-medium disabled:hidden",
+              )}
+            >
+              <Icon icon={PlayIcon} className="size-3.5" />
+              Resume
+            </ActionBarPrimitive.Resume>
           </ErrorPrimitive.Root>
         </MessagePrimitive.Error>
       </div>
@@ -1174,14 +1891,7 @@ function AssistantMessage() {
         <BranchPicker />
         <ActionBarPrimitive.Root hideWhenRunning className={actionBar}>
           <CopyButton />
-          <AuiIf condition={(s: any) => s.message.speech == null}>
-            <Tip label="Read aloud">
-              <ActionBarPrimitive.Speak className={iconButton}>
-                <Icon icon={VolumeHighIcon} />
-              </ActionBarPrimitive.Speak>
-            </Tip>
-          </AuiIf>
-          <AuiIf condition={(s: any) => s.message.speech != null}>
+          <AuiIf condition={(s) => s.message.speech != null}>
             <Tip label="Stop reading">
               <ActionBarPrimitive.StopSpeaking className={iconButton}>
                 <Icon icon={VolumeMute02Icon} />
@@ -1230,6 +1940,13 @@ function AssistantMessage() {
               sideOffset={4}
               className={menu}
             >
+              <ActionBarPrimitive.Speak asChild>
+                <ActionBarMorePrimitive.Item className={menuItem}>
+                  <Icon icon={VolumeHighIcon} />
+                  Read aloud
+                </ActionBarMorePrimitive.Item>
+              </ActionBarPrimitive.Speak>
+              <ActionBarMorePrimitive.Separator className={menuSeparator} />
               <ActionBarPrimitive.ExportMarkdown asChild>
                 <ActionBarMorePrimitive.Item className={menuItem}>
                   <Icon icon={Download01Icon} />
@@ -1270,9 +1987,6 @@ function ImagePart() {
 }
 
 function WorkingDot() {
-  const running = useAuiState((s) => s.message.status?.type === "running");
-  if (!running) return null;
-
   return (
     <span
       role="status"
@@ -1283,6 +1997,16 @@ function WorkingDot() {
     </span>
   );
 }
+
+/*
+ * Reasoning and tool calls that follow one another form one group, shown as
+ * a single line that opens. The research agent's call stays outside it.
+ */
+const groupParts = groupPartByType({
+  reasoning: ["group-thought"],
+  "tool-call": ["group-thought"],
+  "tool-call:research_agent": [],
+});
 
 /*
  * Trace lines: reasoning and tool calls as plain muted rows, each an icon, a
@@ -1304,6 +2028,29 @@ function TraceChevron({ open }: { open: boolean }) {
   );
 }
 
+function TraceTitle({
+  running,
+  icon,
+  children,
+}: PropsWithChildren<{ running: boolean; icon: IconSvgElement }>) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <Icon
+        icon={running ? icon : CheckmarkCircle02Icon}
+        className="size-4 shrink-0"
+      />
+      <span
+        className={cn(
+          "min-w-0 truncate",
+          running ? "shimmer motion-reduce:animate-none" : "",
+        )}
+      >
+        {children}
+      </span>
+    </span>
+  );
+}
+
 function ChainOfThought() {
   const open = useAuiState((s) => !s.chainOfThought.collapsed);
   const running = useAuiState(
@@ -1311,41 +2058,30 @@ function ChainOfThought() {
   );
 
   return (
-    <ChainOfThoughtPrimitive.Root className="flex flex-col gap-2">
+    <ChainOfThoughtPrimitive.Root
+      data-aui-quote-selectable="false"
+      className="flex flex-col gap-2"
+    >
       <ChainOfThoughtPrimitive.AccordionTrigger className={traceTrigger}>
-        <span className="flex min-w-0 items-center gap-2">
-          <Icon
-            icon={running ? Idea01Icon : CheckmarkCircle02Icon}
-            className="size-4 shrink-0"
-          />
-          <span
-            className={cn(
-              "min-w-0 truncate",
-              running ? "shimmer motion-reduce:animate-none" : "",
-            )}
-          >
-            {running ? "Thinking" : "Thought it through"}
-          </span>
-        </span>
+        <TraceTitle running={running} icon={Idea01Icon}>
+          {running ? "Thinking" : "Thought it through"}
+        </TraceTitle>
         <TraceChevron open={open} />
       </ChainOfThoughtPrimitive.AccordionTrigger>
       {open && (
         <div className={traceDetail}>
-          <ChainOfThoughtPrimitive.Parts
-            components={{
-              Reasoning: ReasoningPart,
-              tools: { Fallback: ToolCallPart },
-              Layout: PartLayout,
+          <ChainOfThoughtPrimitive.Parts>
+            {({ part }) => {
+              if (part.type === "reasoning")
+                return <ReasoningPart text={part.text} />;
+              if (part.type === "tool-call") return <ToolCallPart {...part} />;
+              return null;
             }}
-          />
+          </ChainOfThoughtPrimitive.Parts>
         </div>
       )}
     </ChainOfThoughtPrimitive.Root>
   );
-}
-
-function PartLayout({ children }: PropsWithChildren) {
-  return <div>{children}</div>;
 }
 
 function ReasoningPart({ text }: { text: string }) {
@@ -1356,13 +2092,14 @@ function ReasoningPart({ text }: { text: string }) {
   );
 }
 
-function ToolCallPart({
-  toolName,
-  argsText,
-  result,
-}: ToolCallMessagePartProps) {
+type ToolCallProps = Pick<
+  ToolCallMessagePartProps,
+  "toolName" | "args" | "argsText" | "result" | "status"
+>;
+
+function ToolCallPart({ toolName, argsText, result, status }: ToolCallProps) {
   const [open, setOpen] = useState(false);
-  const running = result === undefined;
+  const running = status.type === "running";
 
   return (
     <div className="flex flex-col gap-2">
@@ -1372,21 +2109,10 @@ function ToolCallPart({
         onClick={() => setOpen((value) => !value)}
         className={traceTrigger}
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <Icon
-            icon={running ? Wrench01Icon : CheckmarkCircle02Icon}
-            className="size-4 shrink-0"
-          />
-          <span
-            className={cn(
-              "min-w-0 truncate",
-              running ? "shimmer motion-reduce:animate-none" : "",
-            )}
-          >
-            {running ? "Running" : "Ran"}{" "}
-            <span className="font-mono text-xs">{toolName}</span>
-          </span>
-        </span>
+        <TraceTitle running={running} icon={Wrench01Icon}>
+          {running ? "Running" : "Ran"}{" "}
+          <span className="font-mono text-xs">{toolName}</span>
+        </TraceTitle>
         <TraceChevron open={open} />
       </button>
       {open && (
@@ -1398,10 +2124,101 @@ function ToolCallPart({
           )}
         >
           {argsText}
-          {running ? "" : `\n${JSON.stringify(result)}`}
+          {result === undefined ? "" : `\n${JSON.stringify(result)}`}
         </pre>
       )}
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* MessagePart.Messages: the messages of a sub-agent, under its tool call     */
+/* -------------------------------------------------------------------------- */
+
+function SubAgentPart({ args, status }: ToolCallProps) {
+  const [open, setOpen] = useState(true);
+  const running = status.type === "running";
+
+  return (
+    <div data-aui-quote-selectable="false" className="flex flex-col gap-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className={traceTrigger}
+      >
+        <TraceTitle running={running} icon={Search01Icon}>
+          {running ? "Researching" : "Researched"} {String(args["topic"])}
+        </TraceTitle>
+        <TraceChevron open={open} />
+      </button>
+      {open && (
+        <div className={traceDetail}>
+          <MessagePartPrimitive.Messages>
+            {() => <SubAgentMessage />}
+          </MessagePartPrimitive.Messages>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SubAgentMessage() {
+  const fromAgent = useAuiState((s) => s.message.role === "assistant");
+
+  return (
+    <MessagePrimitive.Root className={cn("flex flex-col", textControl)}>
+      <span className="text-muted-foreground text-xs">
+        {fromAgent ? "Research agent" : "Brief"}
+      </span>
+      <MessagePrimitive.Parts>
+        {({ part }) =>
+          part.type === "text" ? (
+            <p className="whitespace-pre-wrap">
+              <MessagePartPrimitive.Text />
+            </p>
+          ) : null
+        }
+      </MessagePrimitive.Parts>
+    </MessagePrimitive.Root>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Message.GenerativeUI: a card the reply describes as data                   */
+/* -------------------------------------------------------------------------- */
+
+function Card({ title, children }: PropsWithChildren<{ title?: string }>) {
+  return (
+    <div
+      className={cn(paper, "flex w-64 max-w-full flex-col gap-2 p-3", rItem)}
+    >
+      <p className="font-medium">{title}</p>
+      <dl className="flex flex-col gap-1">{children}</dl>
+    </div>
+  );
+}
+
+function CardRow({ label, value }: { label?: string; value?: string }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+/* The reply may only name the components listed here. */
+const cardComponents: GenerativeUIComponentRegistry = {
+  Card,
+  Row: CardRow,
+};
+
+function UnknownComponent({ component }: { component: string }) {
+  return (
+    <span className={cn("text-muted-foreground font-mono text-xs")}>
+      {component}
+    </span>
   );
 }
 
