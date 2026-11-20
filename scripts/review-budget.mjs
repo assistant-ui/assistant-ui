@@ -21,7 +21,7 @@ export async function countReviews(
   for (let page = 1; ; page++) {
     const { data } = await github.rest(
       "GET",
-      `repos/${repo}/actions/workflows/claude-code-review.yml/runs?event=${event}&created=${encodeURIComponent(`>=${since}`)}&per_page=100&page=${page}`,
+      `repos/${repo}/actions/workflows/claude-code-review-fork.yml/runs?event=${event}&created=${encodeURIComponent(`>=${since}`)}&per_page=100&page=${page}`,
     );
     // The API returns at most 1000 filtered runs; past that, fail closed.
     if (data.total_count > 1000) return { author: Infinity, repo: Infinity };

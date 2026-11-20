@@ -1,9 +1,9 @@
 name: Claude Code Review Relay
 
 # Runs in the fork PR's own context with no secrets and no token permissions,
-# and records only the PR number. Claude Code Review's workflow_run jobs run
-# from the default branch, validate the number against the API and the commit
-# this run used, and do the review. A PR can edit this file, so nothing it
+# and records only the PR number. claude-code-review-fork.yml then runs from
+# the default branch, validates the number against the API and the commit this
+# run used, and does the review. A PR can edit this file, so nothing it
 # uploads is trusted beyond being a candidate PR number.
 on:
   pull_request:

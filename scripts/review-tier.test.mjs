@@ -2118,6 +2118,7 @@ test("no review workflow runs privileged code on pull_request_target", () => {
     "review-tier.yaml",
     "review-tier-relay.yaml",
     "claude-code-review.yml",
+    "claude-code-review-fork.yml",
     "claude-code-review-relay.yaml",
   ]) {
     const workflow = readFileSync(
@@ -2126,6 +2127,29 @@ test("no review workflow runs privileged code on pull_request_target", () => {
     );
     assert.doesNotMatch(workflow, /^\s*pull_request_target:/m, file);
   }
+});
+
+const workflowFile = (file) =>
+  readFileSync(
+    new URL(`../.github/workflows/${file}`, import.meta.url),
+    "utf8",
+  );
+
+test("the workflow that checks out PR code has no privileged trigger", () => {
+  const workflow = workflowFile("claude-code-review.yml");
+  assert.match(workflow, /refs\/pull\//);
+  assert.doesNotMatch(workflow, /^\s*(workflow_run|pull_request_target):/m);
+});
+
+test("both Claude review workflows share the review instructions", () => {
+  const instructions = (file) =>
+    workflowFile(file)
+      .split("\n  REVIEW_INSTRUCTIONS: |\n")[1]
+      .split("\n    When the diff is too large")[0];
+  assert.equal(
+    instructions("claude-code-review-fork.yml"),
+    instructions("claude-code-review.yml"),
+  );
 });
 
 test("the pull request relays hold no permissions or secrets", () => {
@@ -2182,7 +2206,10 @@ for (const [event, expected] of [
 
 test("Claude fork review validates the relay before the review job and rechecks the head before publishing", () => {
   const workflow = readFileSync(
-    new URL("../.github/workflows/claude-code-review.yml", import.meta.url),
+    new URL(
+      "../.github/workflows/claude-code-review-fork.yml",
+      import.meta.url,
+    ),
     "utf8",
   );
   const job = (name) =>
