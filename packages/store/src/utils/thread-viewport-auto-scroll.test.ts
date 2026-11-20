@@ -1448,6 +1448,45 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it.each(["inset update", "resize observer remeasurement"] as const)(
+    "keeps a reader's scroll-up when the footer shrinks through %s",
+    (path) => {
+      const view = geometry(7, 3);
+      let footerHeight = 2;
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({
+          ...options(),
+          scrollToBottomOnInitialize: false,
+        }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      const footer = controller.registerContentInset(
+        path === "resize observer remeasurement"
+          ? () => footerHeight
+          : undefined,
+      );
+      footer.setHeight(2);
+      observers[0]!.trigger();
+      expect(view.element.scrollTop).toBe(4);
+
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+      view.grow(5);
+      view.setTop(0);
+      if (path === "inset update") {
+        footer.setHeight(0);
+        observers[0]!.trigger();
+      } else {
+        footerHeight = 0;
+        observers[0]!.trigger();
+      }
+
+      expect(view.element.scrollTop).toBe(0);
+      expect(controller.isAtBottom).toBe(false);
+      controller.dispose();
+    },
+  );
+
   it("rechecks at-bottom after footer growth and a compensating content shrink", () => {
     const view = geometry(5, 3);
     view.setTop(2);
