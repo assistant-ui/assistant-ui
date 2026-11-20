@@ -4,6 +4,7 @@ import {
   generateId,
   fromThreadMessageLike,
   isMcpAppUri,
+  bindExternalStoreMessage,
 } from "@assistant-ui/core";
 import type {
   AddToolResultOptions,
@@ -3479,19 +3480,19 @@ export class AgUiThreadController {
       this.publishUpdate(deferNotification);
       return wireId;
     } else {
-      this.session.updateMessage(
-        localId,
-        () =>
-          ({
-            ...item.message,
-            metadata: {
-              ...metadata,
-              custom: mergeAgUiNamespace(metadata.custom, {
-                [AG_UI_METADATA_NAMESPACE]: { messageId: wireId },
-              }),
-            },
-          }) as ThreadMessage,
-      );
+      this.session.updateMessage(localId, () => {
+        const named = {
+          ...item.message,
+          metadata: {
+            ...metadata,
+            custom: mergeAgUiNamespace(metadata.custom, {
+              [AG_UI_METADATA_NAMESPACE]: { messageId: wireId },
+            }),
+          },
+        } as ThreadMessage;
+        bindExternalStoreMessage(named, { ...named, id: wireId });
+        return named;
+      });
       this.wireMessageIds.set(wireId, localId);
     }
     this.publishUpdate(deferNotification);

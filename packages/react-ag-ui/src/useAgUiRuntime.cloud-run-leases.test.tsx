@@ -2,7 +2,12 @@ import { agUiWireMessageId } from "./runtime/adapter/conversions";
 // @vitest-environment jsdom
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
-import { HttpAgent, type RunAgentInput } from "@ag-ui/client";
+import {
+  HttpAgent,
+  runHttpRequest,
+  transformHttpEventStream,
+  type RunAgentInput,
+} from "@ag-ui/client";
 import {
   AssistantRuntimeProvider,
   MessageByIndexProvider,
@@ -40,6 +45,7 @@ const createServer = (
   const calls: Call[] = [];
   let created = 0;
   let leases = 0;
+  const heldLeases = new Map<string, string>();
   const at = new Date(0).toISOString();
   const json = (value: unknown, status = 200) =>
     new Response(JSON.stringify(value), {
@@ -87,22 +93,33 @@ const createServer = (
         });
       }
       if (method === "POST" && path === "/threads/remote-1/messages") {
-        const id = `msg_${++created}`;
-        rows.push({
-          id,
-          parent_id: body.parent_id,
-          format: body.format,
-          content: body.content,
-          external_id: body.external_id ?? null,
-          ...(body.open_run
-            ? { run: { status: "running", last_heartbeat_ms_ago: 0 } }
-            : undefined),
-        });
+        let row = body.external_id
+          ? rows.find((row) => row.external_id === body.external_id)
+          : undefined;
+        if (row?.run?.status === "running") {
+          return json({ error: "run_in_progress" }, 409);
+        }
+        if (row) row.content = body.content;
+        else {
+          row = {
+            id: `msg_${++created}`,
+            parent_id: body.parent_id,
+            format: body.format,
+            content: body.content,
+            external_id: body.external_id ?? null,
+          };
+          rows.push(row);
+        }
+        const leaseId = body.open_run ? `lease_${++leases}` : undefined;
+        if (leaseId) {
+          row.run = { status: "running", last_heartbeat_ms_ago: 0 };
+          heldLeases.set(row.id, leaseId);
+        }
         return json({
-          message_id: id,
-          ...(body.open_run
+          message_id: row.id,
+          ...(leaseId
             ? {
-                lease_id: `lease_${++leases}`,
+                lease_id: leaseId,
                 heartbeat_interval_ms: heartbeatIntervalMs,
               }
             : undefined),
@@ -111,6 +128,14 @@ const createServer = (
       const write = path.match(/^\/threads\/remote-1\/messages\/([^/]+)$/);
       if (method === "PUT" && write) {
         const row = rows.find((r) => r.id === write[1]);
+        if (
+          row?.run?.status === "running" &&
+          (!body.lease_id || body.lease_id !== heldLeases.get(row.id))
+        )
+          return json(
+            { error: body.lease_id ? "lease_mismatch" : "run_in_progress" },
+            409,
+          );
         if (row) row.content = body.content;
         return json({});
       }
@@ -121,9 +146,20 @@ const createServer = (
         }
         return json({});
       }
-      if (/^\/threads\/remote-1\/runs\/[^/]+\/heartbeat$/.test(path))
-        return json({ heartbeat_interval_ms: heartbeatIntervalMs });
-      if (/^\/threads\/remote-1\/runs\/[^/]+\/end$/.test(path)) return json({});
+      const run = path.match(
+        /^\/threads\/remote-1\/runs\/([^/]+)\/(heartbeat|end)$/,
+      );
+      if (run) {
+        const row = rows.find((row) => heldLeases.get(row.id) === run[1]);
+        if (!row?.run) return json({ error: "run_ended" }, 409);
+        if (run[2] === "heartbeat") {
+          row.run.last_heartbeat_ms_ago = 0;
+          return json({ heartbeat_interval_ms: heartbeatIntervalMs });
+        }
+        row.run.status = "ended";
+        heldLeases.delete(row.id);
+        return json({});
+      }
       return json({});
     },
   );
@@ -191,7 +227,63 @@ class ScriptedAgent extends HttpAgent {
   override abortRun() {}
 }
 
-const renderApp = async (staleAfter?: number) => {
+const createDurableRun = () => {
+  const encoder = new TextEncoder();
+  const events: object[] = [
+    { type: "RUN_STARTED", threadId: "remote-1", runId: "durable-run" },
+  ];
+  const connections = new Set<ReadableStreamDefaultController<Uint8Array>>();
+  const frame = (event: object) =>
+    encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
+  return {
+    connect(signal: AbortSignal) {
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            connections.add(controller);
+            for (const event of events) controller.enqueue(frame(event));
+            signal.addEventListener(
+              "abort",
+              () => {
+                if (connections.delete(controller)) controller.close();
+              },
+              { once: true },
+            );
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    },
+    emit(...next: object[]) {
+      events.push(...next);
+      for (const connection of connections)
+        for (const event of next) connection.enqueue(frame(event));
+    },
+    close() {
+      for (const connection of connections) connection.close();
+      connections.clear();
+    },
+  };
+};
+
+class FollowingAgent extends ScriptedAgent {
+  joined = 0;
+  private readonly durableRun: ReturnType<typeof createDurableRun>;
+  constructor(durableRun: ReturnType<typeof createDurableRun>) {
+    super();
+    this.durableRun = durableRun;
+  }
+  protected override connect() {
+    this.joined++;
+    return transformHttpEventStream(
+      runHttpRequest(() =>
+        Promise.resolve(this.durableRun.connect(this.abortController.signal)),
+      ),
+    );
+  }
+}
+
+const renderApp = async (staleAfter?: number, agent = new ScriptedAgent()) => {
   const cloud = new AssistantCloud({
     baseUrl: "http://cloud.test",
     apiKey: "key",
@@ -199,7 +291,6 @@ const renderApp = async (staleAfter?: number) => {
     workspaceId: "workspace",
     telemetry: false,
   });
-  const agent = new ScriptedAgent();
   let aui!: AssistantClient;
   let runtime!: AssistantRuntime;
   const Capture = () => {
@@ -238,11 +329,12 @@ const renderApp = async (staleAfter?: number) => {
       </AssistantRuntimeProvider>
     );
   };
-  render(<App />);
+  const view = render(<App />);
   await act(async () => {
     await aui.threads.getLoadThreadsPromise();
   });
   return {
+    unmount: view.unmount,
     agent,
     getAui: () => aui,
     getRuntime: () => runtime,
@@ -290,6 +382,143 @@ afterEach(() => {
 });
 
 describe("useAgUiRuntime with Assistant Cloud run leases", () => {
+  it.each([
+    { scenario: "the agent names it first", reasoningFirst: false },
+    { scenario: "reasoning streams before the name", reasoningFirst: true },
+  ])(
+    "stores one answer for two clients following one run when $scenario",
+    async ({ reasoningFirst }) => {
+      useServer([userRow]);
+      const durableRun = createDurableRun();
+      const mount = async () => {
+        const agent = new FollowingAgent(durableRun);
+        const app = await renderApp(undefined, agent);
+        await settleOutsideAct(() =>
+          app.getRuntime().threads.switchToThread("remote-1"),
+        );
+        return { ...app, followingAgent: agent };
+      };
+      const join = async (app: Awaited<ReturnType<typeof mount>>) => {
+        await act(async () => {
+          app.getRuntime().thread.resumeRun({ parentId: "u1" });
+        });
+        await waitFor(() => expect(app.followingAgent.joined).toBe(1));
+        await waitFor(() =>
+          expect(app.getAui().thread.getState().isRunning).toBe(true),
+        );
+        expect(app.followingAgent.runs).toHaveLength(0);
+      };
+      const first = await mount();
+      const follower = await mount();
+      await join(first);
+      await join(follower);
+      if (reasoningFirst) {
+        await act(async () => {
+          durableRun.emit(
+            {
+              type: "REASONING_MESSAGE_START",
+              messageId: "reasoning",
+              role: "reasoning",
+            },
+            {
+              type: "REASONING_MESSAGE_CONTENT",
+              messageId: "reasoning",
+              delta: "thinking",
+            },
+            { type: "REASONING_MESSAGE_END", messageId: "reasoning" },
+          );
+        });
+        await waitFor(() =>
+          expect(
+            first.getAui().thread.getState().messages.at(-1)?.content,
+          ).toEqual([
+            expect.objectContaining({ type: "reasoning", text: "thinking" }),
+          ]),
+        );
+      }
+      if (reasoningFirst) {
+        await waitFor(() =>
+          expect(
+            follower.getAui().thread.getState().messages.at(-1)?.content,
+          ).toEqual([
+            expect.objectContaining({ type: "reasoning", text: "thinking" }),
+          ]),
+        );
+      }
+      const active = [first, follower];
+      const localIds = active.map(
+        (app) => app.getAui().thread.getState().messages.at(-1)!.id,
+      );
+      await act(async () => {
+        durableRun.emit(
+          {
+            type: "TEXT_MESSAGE_START",
+            messageId: "durable-answer",
+            role: "assistant",
+          },
+          {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "durable-answer",
+            delta: "partial",
+          },
+        );
+      });
+      for (const [index, app] of active.entries()) {
+        await waitFor(() =>
+          expect(app.getAui().thread.getState().messages.at(-1)).toMatchObject({
+            id: reasoningFirst ? localIds[index] : "durable-answer",
+            content: expect.arrayContaining([
+              { type: "text", text: "partial" },
+            ]),
+          }),
+        );
+        expect(
+          agUiWireMessageId(app.getAui().thread.getState().messages.at(-1)!),
+        ).toBe("durable-answer");
+      }
+      await act(async () => {
+        durableRun.emit(
+          {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "durable-answer",
+            delta: " answer",
+          },
+          { type: "TEXT_MESSAGE_END", messageId: "durable-answer" },
+          { type: "RUN_FINISHED", threadId: "remote-1", runId: "durable-run" },
+        );
+        durableRun.close();
+      });
+      for (const app of active) {
+        await waitFor(() =>
+          expect(app.getAui().thread.getState().isRunning).toBe(false),
+        );
+      }
+      const assistantRows = () =>
+        server.rows.filter(
+          (row) => (row.content as { role?: string }).role === "assistant",
+        );
+      await waitFor(() =>
+        expect(
+          assistantRows().some((row) =>
+            JSON.stringify(row.content).includes("partial answer"),
+          ),
+        ).toBe(true),
+      );
+      expect(assistantRows()).toHaveLength(1);
+      expect(assistantRows()[0]).toMatchObject({
+        parent_id: "u1",
+        external_id: "durable-answer",
+        content: {
+          content: expect.arrayContaining([
+            { type: "text", text: "partial answer" },
+          ]),
+          status: { type: "complete" },
+        },
+        run: { status: "ended" },
+      });
+    },
+  );
+
   it("opens a lease when the run starts, heartbeats on the server's interval, writes as its holder and ends it when the run finishes", async () => {
     useServer([], 30);
     const { agent, getAui } = await renderApp();

@@ -654,6 +654,14 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const { remoteId } = await threadListItem.initialize();
     this.assertCurrentScope(context);
     const run = runPhaseOf(message, context.persistence);
+    const externalMessages = getExternalStoreMessages<{ id?: unknown }>(
+      message,
+    );
+    const externalId =
+      externalMessages.length === 1 &&
+      typeof externalMessages[0]?.id === "string"
+        ? externalMessages[0].id
+        : undefined;
     await this._writeMessage(context, remoteId, message, (encoded) =>
       context.persistence.append(
         remoteId,
@@ -662,6 +670,7 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         "aui/v0",
         encoded,
         run,
+        externalId,
       ),
     );
   }
@@ -708,7 +717,8 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
   }
 
   private threadMessageRunWriter: CloudRunWriter = {
-    keyOf: (message) => message.id,
+    keyOf: (message) =>
+      message.metadata.isOptimistic ? undefined : message.id,
     write: (message, parent) =>
       this.update({ parentId: parent?.id ?? null, message }),
     hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),

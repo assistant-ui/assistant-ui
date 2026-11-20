@@ -542,7 +542,7 @@ declare class CloudMessagePersistence {
   constructor(cloud: AssistantCloud, options?: CloudMessagePersistenceOptions);
   constructor(getCloud: () => AssistantCloud, options?: CloudMessagePersistenceOptions);
   runStateOf(run: CloudMessageRun | undefined, sinceReadMs?: number): CloudRunState | undefined;
-  append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
+  append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase, externalId?: string): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   hasOpenRun(messageId: string): boolean;

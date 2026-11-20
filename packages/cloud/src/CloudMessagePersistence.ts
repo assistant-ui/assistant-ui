@@ -88,6 +88,7 @@ type FailedAppend = {
   parentId: string | null;
   format: string;
   content: ReadonlyJSONObject;
+  externalId: string | undefined;
 };
 
 /**
@@ -166,6 +167,7 @@ export class CloudMessagePersistence {
     format: string,
     content: ReadonlyJSONObject,
     run?: CloudMessageRunPhase,
+    externalId?: string,
   ): Promise<void> {
     if (this.runs.get(messageId) === "lost") return;
     const cloud = this.getCloud();
@@ -193,6 +195,7 @@ export class CloudMessagePersistence {
               format,
               content,
               run,
+              externalId,
             );
           }
         });
@@ -218,10 +221,11 @@ export class CloudMessagePersistence {
       const resolvedParentId = parentId
         ? await this.resolveParentId(parentId)
         : null;
+      const externalMessageId = externalId ?? messageId;
       const body = {
         parent_id: resolvedParentId,
-        ...(messageId.length > 0 && messageId.length <= 255
-          ? { external_id: messageId }
+        ...(externalMessageId.length > 0 && externalMessageId.length <= 255
+          ? { external_id: externalMessageId }
           : undefined),
         format,
         content,
@@ -259,6 +263,7 @@ export class CloudMessagePersistence {
           parentId,
           format,
           content,
+          externalId,
         });
       }
       throw err;
@@ -276,6 +281,8 @@ export class CloudMessagePersistence {
           failedParent.parentId,
           failedParent.format,
           failedParent.content,
+          undefined,
+          failedParent.externalId,
         );
       }
       return (await this.idMapping.get(parentId)) ?? parentId;
