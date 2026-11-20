@@ -18,19 +18,21 @@ const IMAGE_SIZES = "(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw";
 
 function BlockStack({ stack }: Pick<Block, "stack">) {
   return (
-    <span className="text-muted-foreground ms-auto -me-1 flex shrink-0 items-center self-center">
+    <span className="-my-0.5 ms-auto flex shrink-0 items-center self-center ps-1.5">
       <span className="sr-only">
         Built with {stack.map((item) => item.name).join(", ")}
       </span>
       <TooltipProvider>
         {stack.map((item) => (
-          <Tooltip key={item.package}>
+          <Tooltip key={item.name}>
             <TooltipTrigger
               render={
-                <span className="hover:text-foreground p-1 transition-colors" />
+                <span className="group/mark relative -ms-1.5 transition-[translate] duration-200 ease-out hover:z-10 motion-reduce:transition-none [&:has(~_:hover)]:-translate-x-1 [:hover~&]:translate-x-1" />
               }
             >
-              <PackageIcon name={item.package} className="size-3.5" />
+              <span className="border-foreground/10 bg-background text-muted-foreground group-hover/mark:border-foreground/25 group-hover/mark:text-foreground grid size-6 place-items-center rounded-full border transition duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover/mark:-translate-y-0.5 group-hover/mark:scale-110 motion-reduce:transition-none">
+                <PackageIcon name={item.package} className="size-3" />
+              </span>
             </TooltipTrigger>
             <TooltipContent>{item.name}</TooltipContent>
           </Tooltip>
@@ -88,6 +90,7 @@ export function BlockCard({
 export function UpcomingBlockCard({
   title,
   description,
+  stack,
   index,
 }: Omit<UpcomingBlock, "slug"> & { index: number }) {
   return (
@@ -101,7 +104,8 @@ export function UpcomingBlockCard({
         <span className="text-muted-foreground text-xs tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h3 className="text-sm font-medium">{title}</h3>
+        <h3 className="min-w-0 text-sm font-medium">{title}</h3>
+        {stack.length > 0 && <BlockStack stack={stack} />}
       </div>
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {description}

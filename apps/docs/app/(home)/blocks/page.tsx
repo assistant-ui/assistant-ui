@@ -40,6 +40,7 @@ export default function BlocksPage() {
             index={BLOCKS.length + index + 1}
             title={block.title}
             description={block.description}
+            stack={block.stack}
           />
         ))}
       </div>

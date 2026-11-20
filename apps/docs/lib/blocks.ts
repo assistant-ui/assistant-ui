@@ -40,7 +40,7 @@ export type Block = {
   /** Port the docs dev server starts the block on when it has no address. */
   devPort?: number;
   source: BlockSource;
-  /** What the block connects to, past the React, Tailwind CSS and assistant-ui every block has. */
+  /** The main things the block is built with, the most particular first, four at most. */
   stack: readonly BlockStackItem[];
   useCases: readonly string[];
   capabilities: readonly BlockCapability[];
@@ -82,6 +82,7 @@ export const BLOCKS: readonly Block[] = [
     },
     stack: [
       { name: "Lexical", package: "lexical" },
+      { name: "Base UI", package: "@base-ui/react" },
       { name: "AI SDK", package: "ai" },
       { name: "OpenAI", package: "@ai-sdk/openai" },
     ],
@@ -163,7 +164,11 @@ export const BLOCKS: readonly Block[] = [
       include: ["components", "block.css", "layout.tsx", "page.tsx"],
       entry: "components/chat.tsx",
     },
-    stack: [{ name: "shadcn/ui", package: "shadcn" }],
+    stack: [
+      { name: "shadcn/ui", package: "shadcn" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+      { name: "React", package: "react" },
+    ],
     useCases: [
       "A starting point for a chat whose markup and styles are all yours.",
       "A reference for how each primitive is composed, with every one in a single file.",
@@ -224,7 +229,10 @@ export const BLOCKS: readonly Block[] = [
   },
 ];
 
-export type UpcomingBlock = Pick<Block, "slug" | "title" | "description">;
+export type UpcomingBlock = Pick<
+  Block,
+  "slug" | "title" | "description" | "stack"
+>;
 
 /** Blocks with an outline and no build yet. They show as cards with no page. */
 export const UPCOMING_BLOCKS: readonly UpcomingBlock[] = [
@@ -233,6 +241,12 @@ export const UPCOMING_BLOCKS: readonly UpcomingBlock[] = [
     title: "Generative frame chat",
     description:
       "A chat where the assistant answers with live widgets it writes as it streams, each in a sandboxed frame you can use and ask it to change.",
+    stack: [
+      { name: "generative-frame", package: "generative-frame" },
+      { name: "Base UI", package: "@base-ui/react" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+      { name: "React", package: "react" },
+    ],
   },
 ];
 
