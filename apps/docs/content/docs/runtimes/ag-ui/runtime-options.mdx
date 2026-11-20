@@ -22,7 +22,7 @@ A message created locally keeps its local `id` when the agent later names it, so
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `resumeTranscript` | `"full" \| "appended"` | What `messages` carries on a run that also carries `resume`. Defaults to `"full"`. See [below](#the-transcript-on-a-resume-run). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors, and when `getRunContext` throws; that run still goes ahead without the host entries (see [Run context](#run-context)). |
-| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
+| `onCancel` | `() => void` | Callback fired when a run is cancelled or the runtime stops following it during a thread switch or teardown. |
 | `unstable_enableMessageQueue` | `boolean` | Buffer a message sent while a run is in flight and send it once the run settles. Pending messages are exposed on `composer.queue`. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 

@@ -86,15 +86,14 @@ const transcript = (core: AgUiThreadController) =>
     status: message.role === "assistant" ? message.status?.type : undefined,
   }));
 
-const openStream = (init?: RequestInit) =>
+const openStream = (init?: RequestInit, events: object[] = [inFlightRun[0]!]) =>
   new Response(
     new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(
-          new TextEncoder().encode(
-            `data: ${JSON.stringify(inFlightRun[0])}\n\n`,
-          ),
-        );
+        for (const event of events)
+          controller.enqueue(
+            new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
+          );
         init?.signal?.addEventListener("abort", () => controller.close(), {
           once: true,
         });
@@ -328,6 +327,69 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
   });
 
   describe("leaving a thread mid-run", () => {
+    it.each(["connect", "history"] as const)(
+      "keeps a reasoning-only durable reply resumable when leaving through %s",
+      async (source) => {
+        const history = historyOf(true);
+        const writes: ThreadMessage[] = [];
+        history.append = async ({ message }) => {
+          writes.push(message);
+        };
+        history.update = history.append;
+        if (source === "history") {
+          history.resume = async function* ({ abortSignal }) {
+            yield { content: [{ type: "reasoning", text: "thinking" }] };
+            await new Promise<void>((resolve) =>
+              abortSignal.addEventListener("abort", () => resolve(), {
+                once: true,
+              }),
+            );
+          };
+        }
+        const agent = new ReconnectingAgent({
+          url: "https://agent.test",
+          fetch: async (_url: string, init?: RequestInit) =>
+            openStream(init, [
+              inFlightRun[0]!,
+              {
+                type: "REASONING_MESSAGE_START",
+                messageId: "reasoning",
+                role: "reasoning",
+              },
+              {
+                type: "REASONING_MESSAGE_CONTENT",
+                messageId: "reasoning",
+                delta: "thinking",
+              },
+            ]),
+        });
+        const onCancel = vi.fn();
+        const core = new AgUiThreadController({
+          agent,
+          logger: makeLogger(),
+          showThinking: true,
+          history,
+          onCancel,
+        });
+        const following = core.__internal_load();
+        await vi.waitFor(() =>
+          expect(core.getMessages().at(-1)?.content).toMatchObject([
+            { type: "reasoning", text: "thinking" },
+          ]),
+        );
+
+        core.leave();
+        await following;
+
+        expect(
+          writes.filter((message) => message.role === "assistant"),
+        ).toEqual([]);
+        expect(core.getMessages().at(-1)?.status).toEqual({ type: "running" });
+        expect(core.isRunning()).toBe(false);
+        expect(onCancel).toHaveBeenCalledOnce();
+      },
+    );
+
     const startOpenRun = async () => {
       const agent = new ReconnectingAgent({
         url: "https://agent.test",

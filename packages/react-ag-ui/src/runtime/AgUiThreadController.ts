@@ -219,6 +219,8 @@ type ResumeStream = (
 /** A run already in flight on the agent, joined through `agent.connectAgent()`. */
 type ResumeSource = ResumeStream | "connect";
 
+const detachReason = Symbol("agui-detach");
+
 // connectAgent() swallows the base class's not-implemented error and resolves
 // with no events, so only an agent that overrides connect() can rejoin a run.
 // AbstractAgent extends nothing, so the prototype owning connect() is the base
@@ -827,21 +829,26 @@ export class AgUiThreadController {
   private abortActiveRun(leaveRunning = false): void {
     const controller = this.abortController;
     if (!controller) return;
+    let reason: typeof detachReason | undefined;
     try {
-      this.stopAgent(this.activeRunAgent ?? this.agent, leaveRunning);
+      reason = this.stopAgent(this.activeRunAgent ?? this.agent, leaveRunning);
     } finally {
-      controller.abort();
+      controller.abort(reason);
     }
   }
 
-  private stopAgent(agent: AbstractAgent, leaveRunning: boolean): void {
+  private stopAgent(
+    agent: AbstractAgent,
+    leaveRunning: boolean,
+  ): typeof detachReason | undefined {
     if (leaveRunning && implementsConnect(agent)) {
       void agent.detachActiveRun().catch((error: unknown) => {
         this.logger.error?.("[agui] agent detachActiveRun failed", error);
       });
-      return;
+      return detachReason;
     }
     agent.abortRun();
+    return undefined;
   }
 
   // Starting a run supersedes the active one, and reports whether the caller
@@ -1899,12 +1906,13 @@ export class AgUiThreadController {
       this.abortController = null;
       this.activeRunAgent = null;
       this.setRunning(false);
+      let reason: typeof detachReason | undefined;
       try {
-        this.stopAgent(activeRunAgent ?? this.agent, true);
+        reason = this.stopAgent(activeRunAgent ?? this.agent, true);
       } catch (error) {
         this.logger.error?.("[agui] agent abortRun failed", error);
       } finally {
-        controller.abort();
+        controller.abort(reason);
       }
     } else {
       this.publishUpdate();
@@ -2957,7 +2965,7 @@ export class AgUiThreadController {
           this.drainingRun = null;
           closeDrain();
         }
-        cancelRun();
+        if (abortSignal.reason !== detachReason) cancelRun();
         this.finishRun(abortController);
         invokeRuntimeCallback("onCancel", this.onCancel);
       },
@@ -3085,7 +3093,7 @@ export class AgUiThreadController {
       }
       // Stop may have finished this run already; a newer run owns its own
       // writes.
-      if (this.runCount === runNumber) {
+      if (this.runCount === runNumber && abortSignal.reason !== detachReason) {
         persistRunAssistants(true);
         if (assistantMessageId)
           this.persistAssistantHistory(assistantMessageId);

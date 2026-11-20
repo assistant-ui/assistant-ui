@@ -196,11 +196,25 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
     state.frames.push(frame);
     for (const listener of state.listeners) listener.enqueue(frame);
   };
-  const begin = (input: {
-    messages: unknown[];
-    runId: string;
-    threadId?: string;
-  }) => {
+  const begin = (
+    input: {
+      messages: unknown[];
+      runId: string;
+      threadId?: string;
+    },
+    events: object[] = [
+      {
+        type: "TEXT_MESSAGE_START",
+        messageId: "stream-a1",
+        role: "assistant",
+      },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "stream-a1",
+        delta: "partial",
+      },
+    ],
+  ) => {
     state.record = { messages: input.messages, running: true };
     state.frames = [];
     state.ended = false;
@@ -209,16 +223,7 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
       threadId: input.threadId ?? threadId,
       runId: input.runId,
     });
-    push({
-      type: "TEXT_MESSAGE_START",
-      messageId: "stream-a1",
-      role: "assistant",
-    });
-    push({
-      type: "TEXT_MESSAGE_CONTENT",
-      messageId: "stream-a1",
-      delta: "partial",
-    });
+    for (const event of events) push(event);
   };
   const finish = () => {
     push({
@@ -291,7 +296,7 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
     }
     return json({ error: "not found" }, 404);
   };
-  return { state, begin, finish, handle };
+  return { state, begin, finish, handle, push };
 };
 
 let cloud: ReturnType<typeof createCloud>;
@@ -487,6 +492,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -550,6 +556,83 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     expect(assistantRows()).toHaveLength(1);
     expect(shown(tab)).toEqual(["user: hello", "assistant: partial answer"]);
     // The takeover followed the run; it never started another.
+    expect(durable.state.starts).toEqual([]);
+  }, 15_000);
+
+  it("(a) takes over a reasoning-only run after its tab unmounts and the reply's lease goes stale", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      shouldAdvanceTime: true,
+    });
+    useServers([userRow], null);
+    durable.begin(runInput, [
+      {
+        type: "REASONING_MESSAGE_START",
+        messageId: "reasoning-1",
+        role: "reasoning",
+      },
+      {
+        type: "REASONING_MESSAGE_CONTENT",
+        messageId: "reasoning-1",
+        delta: "thinking",
+      },
+    ]);
+    const first = await openTab("tab-a");
+    await openThread(first);
+    await waitFor(() =>
+      expect(
+        first.getAui().thread.getState().messages[1]?.content,
+      ).toMatchObject([{ type: "reasoning", text: "thinking" }]),
+    );
+    await waitFor(() => expect(assistantRows()).toHaveLength(1));
+    const interruptedId = assistantRows()[0]!.id;
+
+    await act(async () => {
+      cleanup();
+    });
+    // Closing the tab also destroys its JavaScript timers, including lease heartbeats.
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    const second = await openTab("tab-b", 1_000);
+    await openThread(second);
+    await waitFor(() =>
+      expect(second.getAui().thread.getState().messages).toHaveLength(2),
+    );
+    expect(Date.now() - assistantRows()[0]!.lease!.beatAt).toBeLessThan(1_000);
+    expect(durable.state.connects).toEqual(["durable-1"]);
+    expect(writesBy("tab-b")).toEqual([]);
+
+    await waitFor(
+      () => expect(durable.state.connects).toEqual(["durable-1", "durable-1"]),
+      { timeout: 8_000 },
+    );
+    expect(cloud.rows.some((row) => row.id === interruptedId)).toBe(false);
+    await act(async () => {
+      durable.push({
+        type: "REASONING_MESSAGE_END",
+        messageId: "reasoning-1",
+      });
+      durable.push({
+        type: "TEXT_MESSAGE_START",
+        messageId: "stream-a1",
+        role: "assistant",
+      });
+      durable.push({
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "stream-a1",
+        delta: "partial",
+      });
+      durable.finish();
+    });
+    await waitFor(() =>
+      expect(rowText(assistantRows()[0])).toBe("partial answer"),
+    );
+    expect(assistantRows()).toHaveLength(1);
+    expect(assistantRows()[0]!.parent_id).toBe("u1");
+    expect(shown(second)).toEqual(["user: hello", "assistant: partial answer"]);
+    await waitFor(() =>
+      expect(assistantRows()[0]!.lease?.status).toBe("ended"),
+    );
     expect(durable.state.starts).toEqual([]);
   }, 15_000);
 
