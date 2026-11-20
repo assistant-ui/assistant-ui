@@ -306,6 +306,7 @@ export const createThreadViewportAutoScroll = (input: {
     lastObservedScrollHeight = scrollHeight;
     lastObservedClientHeight = clientHeight;
 
+    if (insetGrew === false) handleScroll({ insetShrank: true });
     followGrowth();
     handleScroll({ insetShrank: insetGrew === false });
   };
@@ -417,6 +418,7 @@ export const createThreadViewportAutoScroll = (input: {
       (element.scrollHeight !== lastObservedScrollHeight ||
         element.clientHeight !== lastObservedClientHeight);
     // A growing inset or changed dimensions follow like a resize; a shrinking inset alone reveals content without moving the viewport.
+    if (!grew && dimensionsChanged) handleScroll({ insetShrank: true });
     if (grew || dimensionsChanged) followGrowth();
     handleScroll({ insetShrank: !grew });
     if (!element) return;
