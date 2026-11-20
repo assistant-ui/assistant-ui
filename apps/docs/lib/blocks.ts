@@ -45,6 +45,90 @@ export type Block = {
 
 export const BLOCKS: readonly Block[] = [
   {
+    slug: "document-editor",
+    title: "Document editor",
+    description:
+      "A pages app with a floating assistant that reads and edits the page you are on.",
+    image: {
+      light: "/screenshot/blocks/document-editor-light.webp",
+      dark: "/screenshot/blocks/document-editor-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/document-editor",
+    previewUrl: "/blocks/demos/document-editor",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/document-editor",
+      include: [
+        "api",
+        "components",
+        "lib",
+        ".env.example",
+        "README.md",
+        "data.json",
+        "document-editor.css",
+        "document-editor.tsx",
+        "layout.tsx",
+        "page.tsx",
+      ],
+      entry: "document-editor.tsx",
+    },
+    useCases: [
+      "A notes or docs product where an assistant drafts and restructures the page in place.",
+      "To-do lists, trackers and weekly updates that start from a template and stay editable.",
+      "Review by comment, with threads on a passage that people and the assistant both answer.",
+      "A starting point for any page the model edits through interactables, with the document swapped for your own state.",
+    ],
+    capabilities: [
+      {
+        title: "A floating assistant",
+        description:
+          "A bar at the bottom of the page opens into a thread. Ask for a change and the assistant edits the page itself, typed in as it writes and undone like any other edit.",
+      },
+      {
+        title: "Rich text blocks",
+        description:
+          "Headings, checklists, bulleted and numbered lists, quotes and dividers, inserted from a / menu or the buttons at the top, with a format bar over selected text.",
+      },
+      {
+        title: "Pages and subpages",
+        description:
+          "Add, rename, duplicate and delete pages, nest one under another, start from a template, and download a page as Markdown.",
+      },
+      {
+        title: "Comments",
+        description:
+          "Select a passage to comment on it. The passage is highlighted, its thread floats beside it, and mentioning the assistant gets a reply in the thread.",
+      },
+      {
+        title: "Blocks you can move",
+        description:
+          "A grip beside each block drags it to a new place and opens a menu to insert below or delete.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the colors, fonts, weights and corners the classes use.",
+      "Lexical for the editor, Base UI for menus and tooltips, and Hugeicons or Lucide for icons.",
+      "A model of your own. The preview answers from a script in page.tsx, so swap it for useChatRuntime and the chat route to talk to a model.",
+      "The page is saved in the browser's local storage. Replace the store in lib/document.ts to save it anywhere else.",
+    ],
+    env: {
+      note: "Only needed to talk to a real model; the preview is scripted. Copy .env.example to .env.local. The chat route has no sign-in, so add authentication and rate limiting before deploying it with a key.",
+      variables: [
+        {
+          name: "OPENAI_API_KEY",
+          required: false,
+          description: "Server key for the model the chat route calls.",
+        },
+        {
+          name: "BLOCKS_LIVE_API",
+          required: false,
+          description:
+            'Set to "true" to switch the chat route on. It answers 404 otherwise.',
+        },
+      ],
+    },
+  },
+  {
     slug: "agent-document-editor",
     title: "Agent document editor",
     description:

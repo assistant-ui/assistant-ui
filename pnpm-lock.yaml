@@ -499,12 +499,21 @@ importers:
       '@lexical/history':
         specifier: ^0.53.0
         version: 0.53.0(typescript@7.0.2)
+      '@lexical/list':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      '@lexical/mark':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
       '@lexical/plain-text':
         specifier: ^0.53.0
         version: 0.53.0(typescript@7.0.2)
       '@lexical/react':
         specifier: ^0.53.0
         version: 0.53.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)(yjs@13.6.33)
+      '@lexical/rich-text':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
       '@lexical/utils':
         specifier: ^0.53.0
         version: 0.53.0(typescript@7.0.2)

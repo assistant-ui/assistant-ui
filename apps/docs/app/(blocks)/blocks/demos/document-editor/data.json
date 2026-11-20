@@ -1,0 +1,302 @@
+{
+  "pages": [
+    {
+      "id": "to-do-list",
+      "parentId": null,
+      "title": "To-do list",
+      "icon": "check",
+      "blocks": [
+        { "type": "h2", "text": "Today" },
+        { "type": "h3", "text": "Top priorities" },
+        {
+          "type": "check",
+          "text": "Send the design review notes",
+          "checked": true
+        },
+        { "type": "check", "text": "Draft the launch announcement" },
+        { "type": "check", "text": "Reply to the pricing questions" },
+        { "type": "h3", "text": "If time allows" },
+        { "type": "check", "text": "Tidy up the onboarding copy" },
+        { "type": "check", "text": "Book a room for the team offsite" },
+        { "type": "check", "text": "Read the research summary" }
+      ]
+    },
+    {
+      "id": "meeting-notes",
+      "parentId": "to-do-list",
+      "title": "Meeting notes",
+      "icon": "page",
+      "blocks": [
+        { "type": "h2", "text": "Weekly sync" },
+        {
+          "type": "paragraph",
+          "text": "Notes from the last sync. Select any text to format it or leave a comment."
+        },
+        {
+          "type": "bullet",
+          "text": "The launch date holds, with the announcement going out on **Thursday**."
+        },
+        {
+          "type": "bullet",
+          "text": "Pricing questions go to one thread so nothing is answered twice."
+        },
+        {
+          "type": "bullet",
+          "text": "Onboarding copy is next once the announcement is out."
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "id": "to-do-list",
+      "label": "To-do list",
+      "icon": "check",
+      "color": "green",
+      "title": "To-do list",
+      "blocks": [
+        { "type": "h2", "text": "Today" },
+        { "type": "h3", "text": "Top priorities" },
+        { "type": "check", "text": "The one thing that has to happen" },
+        { "type": "check", "text": "A second task" },
+        { "type": "check", "text": "A third task" },
+        { "type": "h3", "text": "If time allows" },
+        { "type": "check", "text": "Something that can wait" }
+      ]
+    },
+    {
+      "id": "project-tracker",
+      "label": "Project tracker",
+      "icon": "tracker",
+      "color": "blue",
+      "title": "Project tracker",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "One line on what this project is for and when it is due."
+        },
+        { "type": "h2", "text": "In progress" },
+        { "type": "check", "text": "A task someone is working on" },
+        { "type": "check", "text": "Another task in flight" },
+        { "type": "h2", "text": "Up next" },
+        { "type": "check", "text": "A task that is ready to start" },
+        { "type": "h2", "text": "Done" },
+        { "type": "check", "text": "A finished task", "checked": true }
+      ]
+    },
+    {
+      "id": "weekly-update",
+      "label": "Weekly update",
+      "icon": "calendar",
+      "color": "amber",
+      "title": "Weekly update",
+      "blocks": [
+        { "type": "h2", "text": "Highlights" },
+        { "type": "bullet", "text": "What shipped this week" },
+        { "type": "bullet", "text": "A number worth sharing" },
+        { "type": "h2", "text": "Lowlights" },
+        { "type": "bullet", "text": "What slipped, and why" },
+        { "type": "h2", "text": "Next week" },
+        { "type": "numbered", "text": "The first priority" },
+        { "type": "numbered", "text": "The second priority" }
+      ]
+    },
+    {
+      "id": "feedback-tracker",
+      "label": "Feedback tracker",
+      "icon": "feedback",
+      "color": "rose",
+      "title": "Feedback tracker",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "Feedback as it comes in, grouped by what to do with it."
+        },
+        { "type": "h2", "text": "To review" },
+        {
+          "type": "bullet",
+          "text": "A piece of feedback, in the person's own words"
+        },
+        { "type": "h2", "text": "Planned" },
+        { "type": "check", "text": "Feedback that is turning into work" },
+        { "type": "h2", "text": "Shipped" },
+        {
+          "type": "check",
+          "text": "Feedback that has been answered",
+          "checked": true
+        }
+      ]
+    }
+  ],
+  "assistant": {
+    "suggestions": [
+      "Turn this into a launch to-do list",
+      "Add three tasks under the first heading",
+      "Summarise this page at the top",
+      "Move finished tasks to a Done section",
+      "Add a section for next week",
+      "Check off everything",
+      "Review this page and leave a comment"
+    ],
+    "fallback": "This preview runs on a script, with no model behind it, so it only knows a few requests. Try one of these:",
+    "replies": [
+      {
+        "id": "add-tasks",
+        "match": ["three tasks", "add tasks", "more tasks", "tasks under"],
+        "action": "insert",
+        "blocks": [
+          { "type": "check", "text": "Agree on who owns each item" },
+          { "type": "check", "text": "Set a date for the first check-in" },
+          { "type": "check", "text": "Share the list with the team" }
+        ],
+        "text": "I added three tasks under {heading}.",
+        "empty": "This page has no heading yet, so I added the three tasks at the end."
+      },
+      {
+        "id": "summary",
+        "match": ["summar", "tl;dr", "overview"],
+        "action": "summary",
+        "text": "I put a short summary at the top of the page.",
+        "empty": "There is nothing on this page to summarise yet."
+      },
+      {
+        "id": "tidy",
+        "match": [
+          "tidy",
+          "done section",
+          "finished",
+          "group",
+          "organi",
+          "clean up"
+        ],
+        "action": "tidy",
+        "heading": "Done",
+        "text": "I moved the finished tasks into a Done section at the end of the page.",
+        "empty": "No task outside the Done section is checked off, so there is nothing to move."
+      },
+      {
+        "id": "next-week",
+        "match": ["next week", "add a section", "add section"],
+        "action": "append",
+        "blocks": [
+          { "type": "h2", "text": "Next week" },
+          { "type": "check", "text": "Plan the first task of the week" },
+          { "type": "check", "text": "Follow up on what is still open" },
+          { "type": "check", "text": "Leave room for what comes up" }
+        ],
+        "text": "I added a Next week section with three items at the end of the page."
+      },
+      {
+        "id": "check-all",
+        "match": [
+          "check off",
+          "check everything",
+          "mark everything",
+          "all done",
+          "complete everything"
+        ],
+        "action": "complete",
+        "text": "Every checklist item on this page is checked off.",
+        "empty": "There is no unchecked checklist item on this page."
+      },
+      {
+        "id": "review",
+        "match": ["review", "comment", "feedback"],
+        "action": "comment",
+        "comment": "Could this say who owns it and when it is due? That makes it easier to pick up.",
+        "text": "I left a comment on the page.",
+        "empty": "There is no text on this page to comment on yet."
+      },
+      {
+        "id": "launch-list",
+        "match": ["launch"],
+        "action": "replace",
+        "blocks": [
+          { "type": "h2", "text": "Before launch" },
+          { "type": "check", "text": "Freeze the feature list" },
+          {
+            "type": "check",
+            "text": "Write the announcement and the changelog"
+          },
+          { "type": "check", "text": "Record a two-minute demo" },
+          { "type": "check", "text": "Brief support on what is new" },
+          { "type": "h2", "text": "Launch day" },
+          { "type": "check", "text": "Publish the announcement" },
+          { "type": "check", "text": "Post in the community channels" },
+          { "type": "check", "text": "Watch error rates for the first hour" },
+          { "type": "h2", "text": "The week after" },
+          { "type": "check", "text": "Collect feedback in one place" },
+          { "type": "check", "text": "Share the numbers with the team" }
+        ],
+        "text": "I turned the page into a launch checklist in three stages. Undo in the page brings the old list back."
+      }
+    ],
+    "commentReplies": {
+      "rewrites": [
+        {
+          "id": "shorten",
+          "match": [
+            "shorten",
+            "shorter",
+            "too long",
+            "trim",
+            "tighten",
+            "concise",
+            "condense",
+            "cut down"
+          ],
+          "text": "A shorter version: “{rewrite}”",
+          "empty": "I see no filler word or second clause to cut from “{quote}”, so I would keep it as it is."
+        },
+        {
+          "id": "reword",
+          "match": [
+            "reword",
+            "rephrase",
+            "rewrite",
+            "paraphrase",
+            "wording",
+            "word it",
+            "another way"
+          ],
+          "text": "Another way to word it: “{rewrite}”",
+          "empty": "This preview is scripted and knows no other wording for “{quote}”. Ask me to shorten or clarify it instead."
+        },
+        {
+          "id": "clarify",
+          "match": [
+            "clarif",
+            "clearer",
+            "unclear",
+            "vague",
+            "confusing",
+            "specific"
+          ],
+          "text": "A clearer version says who does it and by when: “{rewrite}”"
+        }
+      ],
+      "question": {
+        "text": "This preview is scripted, so I can only go by the passage and cannot answer in full. “{quote}” makes more than one point. I would move the rest to its own line and keep “{rewrite}”",
+        "empty": "This preview is scripted, so I can only go by the passage and cannot answer in full. “{quote}” makes one point. The one change I would make is to add who owns it and when it is due."
+      },
+      "fallback": "This preview runs on a script, with no model behind it. A mention can ask me to shorten, reword or clarify the passage, or ask a question about it.",
+      "blanks": " (owner: [name], due: [day])",
+      "swaps": [
+        { "from": "in order to", "to": "to" },
+        { "from": "make sure", "to": "check that" },
+        { "from": "a lot of", "to": "many" },
+        { "from": "prior to", "to": "before" },
+        { "from": "follow up on", "to": "check back on" },
+        { "from": "tidy up", "to": "clean up" },
+        { "from": "reply to", "to": "answer" },
+        { "from": "send", "to": "share" },
+        { "from": "draft the", "to": "write the" },
+        { "from": "book a", "to": "reserve a" },
+        { "from": "read the", "to": "go through the" },
+        { "from": "date holds", "to": "date stands" },
+        { "from": "is next", "to": "comes next" },
+        { "from": "answered twice", "to": "answered more than once" }
+      ]
+    }
+  }
+}

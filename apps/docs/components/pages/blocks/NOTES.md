@@ -12,13 +12,19 @@ Things ellie wants to change or do on the Blocks pages, kept in one place.
 - **The picked theme in the Code tab.** The picker restyles the preview only; the code shown is the block's own.
 - **A link to Blocks in the site header, and a sitemap entry.** The pages are reached only by typing `/blocks` for now.
 
+- **The viewer rebuild.** Planned and answered, then parked for the first block: shadcn's layout (Preview / Code, description, desktop / tablet / mobile, open in a new tab, reload, file tree, path and copy, line numbers) in the docs site's colours, fonts and corners; a live switch between the aiellie and assistant-ui themes; one shared `aiellie.css` beside the blocks; four restyled sections (Use cases, Capabilities, Dependencies, Requirements with env vars inside); `primitives-chat` kept until then; the Base and agent document editor blocks removed with their screenshots, the three example lines in `next.config.mts` and the theme script in `examples/with-agent-document-editor/app/layout.tsx`.
+- **Block API routes that really run.** For now a preview uses scripted replies and the block's `route.ts` answers 404 on the site unless `BLOCKS_LIVE_API` is `true`. ellie may want the real route later.
+- **Two icon sets in one file.** Each block picks Lucide or Hugeicons through its own `Icon` helper. Look at this again now that the first block exists.
+- **Document editor, round two.** Image block with Generate and Attach, the outline rail, an icon picker for the page title. Also open: links, nested lists, undo for a title change, and trying `api/chat/route.ts` with a real key.
+
 ## Adding a demo block
 
 A demo block is a small app inside the docs, in its own folder under `app/(blocks)/blocks/demos/`. The folder sits beside `(home)` so the block's page has no site header, and its address is `/blocks/demos/<slug>`.
 
-1. Make the folder with `page.tsx`, `layout.tsx` (fonts and the block's root element), `block.css` (styles scoped to that root) and `components/`.
-2. Add the block to `lib/blocks.ts` with `previewUrl: "/blocks/demos/<slug>"` and the folder as `source.directory`.
+1. Make the folder in the block format: `page.tsx`, `layout.tsx` (fonts and the block's root element), `<slug>.tsx` (the main component), `<slug>.css` (styles scoped to that root), `data.json` (sample content), `api/<route>/route.ts`, `README.md`, `.env.example`. Add `components/` and `lib/` only when one file would be too long, and say so.
+2. Add the block to `lib/blocks.ts` with `previewUrl: "/blocks/demos/<slug>"` and the folder as `source.directory`. Name `.env.example` in `include`; the folder walk skips dotfiles.
 3. Add `public/screenshot/blocks/<slug>-light.webp` and `-dark.webp`.
+4. Add the preview address to `BLOCK_PREVIEW_PATHS` in `lib/embedded-paths.ts`, so the site's cookie banner and Ask AI ball stay out of the preview.
 
 ## Done
 
@@ -38,4 +44,6 @@ A demo block is a small app inside the docs, in its own folder under `app/(block
 - Primitives chat icon buttons: round ghost buttons with a press effect, a copy icon that swaps to a green tick, and a tooltip on every icon button.
 - Primitives chat: composer on the background color with a light border and shadow, and a sidebar you can resize or hide (button and ⌘B).
 - Primitives chat uses every primitive part that works with its scripted runtime: dictation, the @ and / popovers, grouped parts, a card built from data, a sub-agent's messages, Resume on an interrupted reply, older chats loaded a page at a time, and a second group in the More menu. Left out because they need another runtime or Assistant Cloud: `ActionBarPrimitive.RefreshRun`, `ComposerPrimitive.Resume`, `ThreadPrimitive.LoadEarlier`. Left out because they are deprecated names for parts already used: the `If` parts, `ThreadPrimitive.Empty`, `MessagePrimitive.Content`, the `Unstable_` aliases. Not added yet because each needs a new area on screen: `ThreadPrimitive.Row` and `ViewportProvider`, the `ByIndex` parts, `Unstable_MessageById`, `Unstable_PartsGrouped`.
+- Document editor, the first block in the block format: a page editor on Lexical with the Assistant Modal as a bar at the bottom that opens into a thread and edits the page. It has checklists, headings, lists, quotes and dividers; a toolbar on selected text; a `/` menu; a grip on each block to drag it or open its menu; comments on highlighted text with assistant replies; pages and subpages; template chips on an empty page; Markdown download. Replies are scripted from `data.json`.
+- Block previews no longer show the site's cookie banner or Ask AI ball.
 - Base, the second demo block: the docs Base example rebuilt in its own folder with the block design (Geist, the one scale, Hugeicons, trace lines, quote bar). It keeps the assistant-ui components for markdown, attachments, the thread list, the model picker and the @ and / popovers, and runs on the docs chat runtime.

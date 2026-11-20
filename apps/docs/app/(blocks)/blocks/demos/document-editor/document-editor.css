@@ -1,0 +1,513 @@
+/*
+ * The block's own styles. Menus, tooltips and popovers render in the body,
+ * outside the block's root element, so the theme is set on the page that
+ * holds the block.
+ */
+
+/* Theme: zinc neutrals, with hue only on small marks. */
+:root:has(.document-editor) {
+  --radius: 16px;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-subtle: oklch(0.577 0.245 27.325 / 4%);
+  --success: oklch(0.527 0.154 150.069);
+  --pending: oklch(0.555 0.163 48.998);
+  --brand: #5170ff;
+  --live: var(--brand);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.83 0.009 286.2);
+
+  /* Glass: the translucent, blurred surface of anything that floats. */
+  --glass: oklch(1 0 0 / 60%);
+  --glass-hover: oklch(0.141 0.005 285.823 / 6%);
+  --glass-muted-foreground: oklch(0.442 0.017 285.786);
+  --glass-blur: 4px;
+  --float-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+
+  /* The only four weights. */
+  --weight-regular: 350;
+  --weight-label: 380;
+  --weight-strong: 430;
+  --weight-heading: 450;
+
+  /* Marks in the document. */
+  --selection: oklch(0.141 0.005 285.823 / 12%);
+  --comment: oklch(0.87 0.15 88 / 38%);
+  --comment-active: oklch(0.85 0.17 86 / 68%);
+  --comment-ink: oklch(0.555 0.163 48.998);
+
+  /* The small colored icons on the template chips. */
+  --tint-green: oklch(0.6 0.15 150);
+  --tint-blue: oklch(0.58 0.19 262);
+  --tint-amber: oklch(0.7 0.16 70);
+  --tint-rose: oklch(0.63 0.2 12);
+}
+
+:root.dark:has(.document-editor) {
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.92 0.004 286.32);
+  --primary-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-subtle: oklch(0.704 0.191 22.216 / 10%);
+  --success: oklch(0.792 0.209 151.711);
+  --pending: oklch(0.828 0.189 84.429);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.552 0.016 285.938);
+  --glass: oklch(0.141 0.005 285.823 / 70%);
+  --glass-hover: oklch(0.985 0 0 / 9%);
+  --glass-muted-foreground: oklch(0.871 0.006 286.286);
+  --selection: oklch(0.985 0 0 / 20%);
+  --comment: oklch(0.828 0.189 84.429 / 24%);
+  --comment-active: oklch(0.828 0.189 84.429 / 46%);
+  --comment-ink: oklch(0.828 0.189 84.429);
+  --tint-green: oklch(0.76 0.17 152);
+  --tint-blue: oklch(0.72 0.15 262);
+  --tint-amber: oklch(0.82 0.16 82);
+  --tint-rose: oklch(0.74 0.16 12);
+}
+
+/*
+ * Tailwind's weight names, capped, so `font-medium` or `font-semibold` on any
+ * class string comes out as one of the four weights.
+ */
+:root:has(.document-editor) {
+  --font-weight-normal: var(--weight-regular);
+  --font-weight-medium: var(--weight-strong);
+  --font-weight-semibold: var(--weight-heading);
+  --font-weight-bold: var(--weight-heading);
+}
+
+/*
+ * Fonts: Geist and Geist Mono, loaded in layout.tsx. They are named here as
+ * well because menus and tooltips render in the body, outside the block's
+ * root element where layout.tsx sets them.
+ */
+:root:has(.document-editor),
+body:has(.document-editor) {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* The docs site's `font-sans` and `font-mono` classes read these names. */
+  --font-public-sans: var(--font-sans);
+  --font-jetbrains-mono: var(--font-mono);
+  --font-geist-sans: var(--font-sans);
+}
+
+body:has(.document-editor) {
+  font-family: var(--font-sans);
+  font-weight: var(--weight-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Anything that can be clicked shows the hand. */
+:root:has(.document-editor)
+  :where(
+    button,
+    [role="button"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="option"],
+    a[href]
+  ):not(:disabled, [aria-disabled="true"], [data-disabled]) {
+  cursor: pointer;
+}
+
+.document-editor {
+  height: 100%;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: var(--weight-regular);
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.document-editor ::selection {
+  background: var(--selection);
+}
+
+/* The page scrolls inside the block, with a thin scrollbar. */
+.document-editor .doc-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The document. Its text is larger than the 14px interface around it.        */
+/* -------------------------------------------------------------------------- */
+
+.document-editor .doc-title {
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  outline: none;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 2.5rem;
+  line-height: 3rem;
+  font-weight: var(--weight-heading);
+  letter-spacing: -0.02em;
+  field-sizing: content;
+}
+
+.document-editor .doc-title::placeholder {
+  color: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+}
+
+.document-editor .doc-body {
+  position: relative;
+  outline: none;
+  font-size: 1.0625rem;
+  line-height: 1.75rem;
+  color: var(--foreground);
+  caret-color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.document-editor .doc-body > * {
+  margin: 0;
+}
+
+.document-editor .doc-p {
+  padding-block: 3px;
+}
+
+.document-editor .doc-h1,
+.document-editor .doc-h2,
+.document-editor .doc-h3 {
+  font-weight: var(--weight-heading);
+  letter-spacing: -0.015em;
+}
+
+.document-editor .doc-h1 {
+  padding-top: 1.75rem;
+  padding-bottom: 0.25rem;
+  font-size: 2rem;
+  line-height: 2.5rem;
+}
+
+.document-editor .doc-h2 {
+  padding-top: 1.5rem;
+  padding-bottom: 0.25rem;
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+}
+
+.document-editor .doc-h3 {
+  padding-top: 1.125rem;
+  padding-bottom: 0.125rem;
+  font-size: 1.375rem;
+  line-height: 1.875rem;
+}
+
+.document-editor .doc-body > :first-child {
+  padding-top: 0;
+}
+
+.document-editor .doc-quote {
+  margin-block: 6px;
+  border-inline-start: 2px solid
+    color-mix(in oklab, var(--foreground) 16%, transparent);
+  padding-inline-start: 1rem;
+  color: var(--muted-foreground);
+}
+
+.document-editor .doc-ul,
+.document-editor .doc-ol,
+.document-editor .doc-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.document-editor .doc-ul {
+  padding-inline-start: 1.5rem;
+  list-style: disc;
+}
+
+.document-editor .doc-ol {
+  padding-inline-start: 1.5rem;
+  list-style: decimal;
+}
+
+.document-editor .doc-ul.doc-checklist {
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.document-editor .doc-li {
+  padding-block: 3px;
+}
+
+.document-editor .doc-li::marker {
+  color: var(--muted-foreground);
+}
+
+.document-editor .doc-li-nested {
+  list-style: none;
+  padding-block: 0;
+}
+
+/*
+ * Checklist rows: an 18px rounded-square box and a 12px gap. The box is the
+ * row's `::before`, inside its own left edge, which is where the checklist
+ * plugin listens for the click.
+ */
+.document-editor .doc-li-checked,
+.document-editor .doc-li-unchecked {
+  position: relative;
+  list-style: none;
+  padding-inline-start: 30px;
+  outline: none;
+}
+
+.document-editor .doc-li-checked::before,
+.document-editor .doc-li-unchecked::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1.5px solid color-mix(in oklab, var(--foreground) 28%, transparent);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+
+.document-editor .doc-li-unchecked:hover::before {
+  border-color: color-mix(in oklab, var(--foreground) 50%, transparent);
+}
+
+.document-editor .doc-li-checked::before {
+  border-color: var(--foreground);
+  background: var(--foreground);
+}
+
+.document-editor .doc-li-checked::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 6.5px;
+  top: 11.5px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--background);
+  border-width: 0 1.75px 1.75px 0;
+  rotate: 45deg;
+  pointer-events: none;
+}
+
+.document-editor .doc-li-checked {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(
+    in oklab,
+    var(--muted-foreground) 50%,
+    transparent
+  );
+}
+
+.document-editor .doc-li-checked:focus-visible::before,
+.document-editor .doc-li-unchecked:focus-visible::before {
+  border-color: var(--ring);
+}
+
+.document-editor .doc-hr {
+  margin-block: 14px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  padding-block: 0;
+  cursor: default;
+}
+
+.document-editor .doc-hr.doc-hr-selected {
+  border-top-color: var(--foreground);
+}
+
+.document-editor .doc-bold {
+  font-weight: 600;
+}
+
+.document-editor .doc-italic {
+  font-style: italic;
+}
+
+.document-editor .doc-underline {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.document-editor .doc-strike {
+  text-decoration: line-through;
+}
+
+.document-editor .doc-underline-strike {
+  text-decoration: underline line-through;
+  text-underline-offset: 3px;
+}
+
+.document-editor .doc-code {
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  padding: 0.1em 0.3em;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.document-editor .doc-placeholder {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  padding-block: 3px;
+  font-size: 1.0625rem;
+  line-height: 1.75rem;
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+  user-select: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Comments: a soft amber highlight on the passage.                           */
+/* -------------------------------------------------------------------------- */
+
+.document-editor .doc-mark {
+  border-radius: 3px;
+  background: var(--comment);
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.document-editor .doc-mark-overlap,
+.document-editor .doc-mark[data-active="true"],
+.document-editor .doc-mark.doc-mark-active {
+  background: var(--comment-active);
+}
+
+.document-editor [data-comments="hidden"] .doc-mark {
+  background: transparent;
+  cursor: text;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The assistant writing in the page.                                         */
+/* -------------------------------------------------------------------------- */
+
+::highlight(doc-live) {
+  color: var(--live);
+}
+
+::highlight(doc-live-soft) {
+  color: color-mix(in oklab, var(--live) 55%, var(--foreground));
+}
+
+::highlight(doc-ghost) {
+  color: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+}
+
+.document-editor [data-doc-stream="working"] {
+  opacity: 0.55;
+}
+
+.document-editor [data-doc-stream="empty"] {
+  min-height: 1lh;
+  width: 66%;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  animation: doc-pulse 1.2s ease-in-out infinite;
+}
+
+.document-editor .doc-stream-caret {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+  width: 2px;
+  margin-inline-start: -1px;
+  border-radius: 1px;
+  background: var(--live);
+}
+
+@keyframes doc-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* The small colored icon on a template chip. */
+.document-editor [data-tint="green"] {
+  color: var(--tint-green);
+}
+
+.document-editor [data-tint="blue"] {
+  color: var(--tint-blue);
+}
+
+.document-editor [data-tint="amber"] {
+  color: var(--tint-amber);
+}
+
+.document-editor [data-tint="rose"] {
+  color: var(--tint-rose);
+}
+
+@media (max-width: 639px) {
+  .document-editor .doc-title {
+    font-size: 2rem;
+    line-height: 2.5rem;
+  }
+
+  .document-editor .doc-h2 {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .document-editor .doc-h3 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .document-editor [data-doc-stream="empty"] {
+    animation: none;
+  }
+
+  .document-editor .doc-li-checked::before,
+  .document-editor .doc-li-unchecked::before,
+  .document-editor .doc-mark {
+    transition: none;
+  }
+}
