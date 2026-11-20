@@ -3,7 +3,12 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build", "generate:type-docs", "//#docs-source-inputs"],
+      "dependsOn": [
+        "^build",
+        "generate:type-docs",
+        "//#docs-source-inputs",
+        "with-appos#build"
+      ],
       "inputs": [
         "$TURBO_EXTENDS$",
         ".env*",
@@ -18,6 +23,7 @@
         "!.next/dev/**",
         "generated/**",
         "public/rc/**",
+        "public/appos/**",
         ".output/**",
         "build/**"
       ],
@@ -50,7 +56,7 @@
       "passThroughEnv": ["CHROME_PATH"]
     },
     "dev": {
-      "dependsOn": ["^build", "generate:type-docs"],
+      "dependsOn": ["^build", "generate:type-docs", "with-appos#build"],
       "cache": false,
       "persistent": true,
       "passThroughEnv": ["DOCS_FULL", "DOCS_LITE"]
