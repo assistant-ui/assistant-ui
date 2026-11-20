@@ -227,6 +227,75 @@ export const BLOCKS: readonly Block[] = [
       "A browser with speech synthesis for reading a reply aloud.",
     ],
   },
+  {
+    slug: "base",
+    title: "Base",
+    description:
+      "A full chat on the assistant-ui components, with markdown, mentions, slash commands and a model picker.",
+    image: {
+      light: "/screenshot/blocks/base-light.webp",
+      dark: "/screenshot/blocks/base-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/base",
+    previewUrl: "/blocks/demos/base",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/base",
+      include: ["components", "block.css", "layout.tsx", "page.tsx"],
+      entry: "components/base.tsx",
+    },
+    useCases: [
+      "A starting point for a product chat that needs more than plain text: markdown, tools and files.",
+      "A chat where people reach tools and commands from the keyboard, with @ and /.",
+      "A reference for theming the assistant-ui components without rewriting them.",
+    ],
+    capabilities: [
+      {
+        title: "Markdown replies",
+        description:
+          "Replies render headings, lists, tables and code, written as they stream.",
+      },
+      {
+        title: "Mentions and commands",
+        description:
+          "Typing @ lists the tools to mention and / lists the commands, each inserted as a chip.",
+      },
+      {
+        title: "Model picker",
+        description: "Choose the model for the next message from the composer.",
+      },
+      {
+        title: "Reasoning and tool calls",
+        description:
+          "Thinking and tool calls show as short lines that expand into their steps, with how long they took.",
+      },
+      {
+        title: "Grouped suggestions",
+        description:
+          "Topics under the composer open into ready prompts on an empty chat.",
+      },
+      {
+        title: "Files, quotes and dictation",
+        description:
+          "Attach files by button or drop, quote a passage from a reply, and speak a message where the browser supports it.",
+      },
+      {
+        title: "Chat list",
+        description:
+          "A sidebar of chats that narrows to an icon rail, and a sheet with the same list on a phone.",
+      },
+      {
+        title: "Message actions",
+        description:
+          "Copy, edit, regenerate, step between versions and export as Markdown, shown on hover.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the colors, fonts and corners the classes use.",
+      "The assistant-ui components it imports, added with the shadcn CLI: thread list, attachments, markdown text, model selector, trigger popover, tool fallback and message timing.",
+      "A runtime of your own. Here it runs on the docs site's chat runtime in page.tsx, so swap DocsRuntimeProvider for your model and replace the docs model list in the model picker.",
+    ],
+  },
 ];
 
 export function getBlock(slug: string): Block | undefined {

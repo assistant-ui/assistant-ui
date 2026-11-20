@@ -37,3 +37,4 @@ A demo block is a small app inside the docs, in its own folder under `app/(block
 - Primitives chat styling: shadcn neutral theme, hand cursor on anything clickable, and Hugeicons in place of lucide.
 - Primitives chat icon buttons: round ghost buttons with a press effect, a copy icon that swaps to a green tick, and a tooltip on every icon button.
 - Primitives chat: composer on the background color with a light border and shadow, and a sidebar you can resize or hide (button and ⌘B).
+- Base, the second demo block: the docs Base example rebuilt in its own folder with the block design (Geist, the one scale, Hugeicons, trace lines, quote bar). It keeps the assistant-ui components for markdown, attachments, the thread list, the model picker and the @ and / popovers, and runs on the docs chat runtime.
