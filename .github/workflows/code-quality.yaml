@@ -78,6 +78,7 @@ on:
       - ".github/workflows/deploy-examples.yaml"
       - ".github/workflows/expo-native-bundle.yaml"
       - ".github/workflows/durable-example-tests.yaml"
+      - ".github/workflows/ag-ui-example-tests.yaml"
       - "scripts/typecheck.sh"
       - "scripts/react18-weekly.test.mjs"
       - ".github/workflows/react18-weekly.yaml"
