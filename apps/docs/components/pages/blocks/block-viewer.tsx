@@ -64,7 +64,7 @@ const control = "size-7";
 const IMAGE_SIZES = "(min-width: 1280px) 1248px, 100vw";
 
 const treeRow =
-  "hover:bg-foreground/[0.04] focus-visible:outline-ring flex w-full items-center gap-1.5 rounded-sm py-1.5 pe-2 text-left font-mono text-xs [font-variant-ligatures:none] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none [@media(pointer:coarse)]:py-2";
+  "hover:bg-foreground/[0.04] focus-visible:outline-ring flex w-full items-center gap-1.5 rounded-sm py-1.5 pe-2 text-left font-sans text-xs [font-variant-ligatures:none] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none [@media(pointer:coarse)]:py-2";
 
 function languageOf(filePath: string) {
   return (
@@ -228,7 +228,7 @@ function BlockCode({
   return (
     <div className="border-foreground/10 grid overflow-hidden rounded-2xl border [--code-height:min(70vh,600px)] md:grid-cols-[15rem_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col">
-        <div className="border-foreground/10 text-muted-foreground flex h-9 shrink-0 items-center border-b px-3.5 font-mono text-[11px] font-medium tracking-wide [font-variant-ligatures:none]">
+        <div className="border-foreground/10 text-muted-foreground flex h-9 shrink-0 items-center border-b px-3.5 text-[11px] font-medium tracking-wide [font-variant-ligatures:none]">
           <span className="truncate">{name}</span>
         </div>
         <nav
@@ -248,7 +248,7 @@ function BlockCode({
       {file && (
         <CodeBlock
           key={file.path}
-          className="my-0 rounded-none border-0"
+          className="bg-background my-0 rounded-none border-0 border-l"
           title={file.path}
           copyText={file.code}
           lineNumbers
