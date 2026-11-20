@@ -1,0 +1,309 @@
+{
+  "assistant": {
+    "name": "Assistant",
+    "avatar": "https://avatar.aiellie.dev/assistant.svg"
+  },
+  "person": {
+    "name": "ellie",
+    "avatar": "https://avatar.aiellie.dev/ellie.svg?style=critters"
+  },
+  "welcome": {
+    "title": "What should we build?",
+    "note": "Replies in this preview are scripted."
+  },
+  "suggestions": [
+    {
+      "icon": "receipt",
+      "label": "Split a dinner bill",
+      "prompt": "Build a tip splitter for a dinner bill"
+    },
+    {
+      "icon": "chart",
+      "label": "Chart how savings grow",
+      "prompt": "Chart how $10,000 grows with compound interest"
+    },
+    {
+      "icon": "quiz",
+      "label": "Quiz me on the solar system",
+      "prompt": "Quiz me on the solar system"
+    },
+    {
+      "icon": "timer",
+      "label": "Start a focus timer",
+      "prompt": "Make me a focus timer"
+    }
+  ],
+  "widgets": {
+    "tip_splitter": {
+      "label": "Tip splitter",
+      "icon": "receipt",
+      "prompt": "Build a tip splitter for a dinner bill",
+      "changes": ["Add a 25% option", "Round up each share"]
+    },
+    "savings_growth": {
+      "label": "Savings chart",
+      "icon": "chart",
+      "prompt": "Chart how $10,000 grows with compound interest",
+      "changes": ["Add monthly deposits"]
+    },
+    "solar_system_quiz": {
+      "label": "Solar system quiz",
+      "icon": "quiz",
+      "prompt": "Quiz me on the solar system",
+      "changes": []
+    },
+    "focus_timer": {
+      "label": "Focus timer",
+      "icon": "timer",
+      "prompt": "Make me a focus timer",
+      "changes": ["Add a 50 minute session"]
+    }
+  },
+  "script": {
+    "fallback": "This preview is scripted, so I can only answer a few requests: a tip splitter, a savings chart, a solar system quiz and a focus timer.",
+    "missing": "There is no {widget} in this chat yet, so there is nothing to change. Ask for one first.",
+    "applied": "The {widget} already has that change.",
+    "stopped": "The {widget} was stopped before it was finished. Ask for it again.",
+    "unknownChange": "This preview is scripted, so I can only make the changes it has recorded for the {widget}.",
+    "noChanges": "This preview is scripted and has no recorded change for the {widget}.",
+    "failed": "That did not work: {error}"
+  },
+  "replies": [
+    {
+      "id": "tip-25",
+      "marker": "data-tip=\"25\"",
+      "match": [["25%"], ["25", "option"], ["25", "tip"]],
+      "text": "Adding 25% to the tip options.",
+      "tool": {
+        "name": "edit_widget",
+        "args": {
+          "title": "tip_splitter",
+          "edits": [
+            {
+              "old_string": "<button type=\"button\" data-tip=\"20\" aria-pressed=\"false\">20%</button>",
+              "new_string": "<button type=\"button\" data-tip=\"20\" aria-pressed=\"false\">20%</button>\n      <button type=\"button\" data-tip=\"25\" aria-pressed=\"false\">25%</button>"
+            }
+          ]
+        }
+      },
+      "after": "Done. The splitter has a 25% option next to 20%.",
+      "followUps": [
+        "Round up each share",
+        "Chart how $10,000 grows with compound interest"
+      ]
+    },
+    {
+      "id": "tip-round",
+      "marker": "id=\"round\"",
+      "match": [["round", "share"], ["round up"], ["rounding"]],
+      "text": "Adding a checkbox that rounds each share up.",
+      "tool": {
+        "name": "edit_widget",
+        "args": {
+          "title": "tip_splitter",
+          "edits": [
+            {
+              "old_string": "@media (max-width:380px){.tip .row{grid-template-columns:1fr}}",
+              "new_string": ".tip .check{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:var(--color-text)}\n@media (max-width:380px){.tip .row{grid-template-columns:1fr}}"
+            },
+            {
+              "old_string": "</fieldset>",
+              "new_string": "</fieldset>\n  <label class=\"check\"><input type=\"checkbox\" id=\"round\"> Round each share up to a whole dollar</label>"
+            },
+            {
+              "old_string": "people: 4 }",
+              "new_string": "people: 4, round: false }"
+            },
+            {
+              "old_string": "const each = total / state.people;",
+              "new_string": "const each = state.round ? Math.ceil(total / state.people) : total / state.people;\n  $(\"round\").checked = state.round;"
+            },
+            {
+              "old_string": "render();\n</script>",
+              "new_string": "$(\"round\").addEventListener(\"change\", (event) => change({ round: event.target.checked }));\nrender();\n</script>"
+            }
+          ]
+        }
+      },
+      "after": "Done. Tick the box and every share rounds up to the next whole dollar.",
+      "followUps": ["Add a 25% option", "Make me a focus timer"]
+    },
+    {
+      "id": "savings-monthly",
+      "marker": "id=\"monthly\"",
+      "match": [["monthly"], ["deposit"]],
+      "text": "Adding a monthly deposit to the chart.",
+      "tool": {
+        "name": "edit_widget",
+        "args": {
+          "title": "savings_growth",
+          "edits": [
+            {
+              "old_string": ".grow .axis{",
+              "new_string": ".grow .paid{fill:none;stroke:var(--chart-2);stroke-width:1.5;stroke-dasharray:4 4}\n.grow .legend{display:flex;gap:14px;margin:0 0 6px;font-size:12px;color:var(--color-text-muted)}\n.grow .legend span{display:inline-flex;align-items:center;gap:6px}\n.grow .legend i{width:14px;border-top:2px solid var(--chart-1)}\n.grow .legend i.dash{border-top:2px dashed var(--chart-2)}\n.grow .axis{"
+            },
+            {
+              "old_string": "<div class=\"chart\" id=\"chart\">",
+              "new_string": "<p class=\"legend\"><span><i></i>Balance</span><span><i class=\"dash\"></i>Deposits</span></p>\n    <div class=\"chart\" id=\"chart\">"
+            },
+            {
+              "old_string": "<output id=\"rate-out\" for=\"rate\">6%</output></div>",
+              "new_string": "<output id=\"rate-out\" for=\"rate\">6%</output></div>\n  <div class=\"ctl\"><label for=\"monthly\">Monthly deposit</label><input id=\"monthly\" type=\"range\" min=\"0\" max=\"1000\" step=\"50\" value=\"200\"><output id=\"monthly-out\" for=\"monthly\">$200</output></div>"
+            },
+            {
+              "old_string": "rate: 6 }",
+              "new_string": "rate: 6, monthly: 200 }"
+            },
+            {
+              "old_string": "return state.start * Math.pow(1 + m, n);",
+              "new_string": "const growth = Math.pow(1 + m, n);\n  return state.start * growth + (state.monthly * (growth - 1)) / m;"
+            },
+            {
+              "old_string": "const paidIn = state.start;",
+              "new_string": "const paidIn = state.start + state.monthly * 12 * state.years;\n  $(\"monthly-out\").textContent = money.format(state.monthly);"
+            },
+            {
+              "old_string": "+ `<path class=\"line\" d=\"${path}\"/>`",
+              "new_string": "+ `<path class=\"line\" d=\"${path}\"/>`\n    + `<path class=\"paid\" d=\"M${x(0)} ${y(state.start)}L${x(state.years)} ${y(paidIn)}\"/>`"
+            },
+            {
+              "old_string": "[\"start\", \"years\", \"rate\"]",
+              "new_string": "[\"start\", \"years\", \"rate\", \"monthly\"]"
+            }
+          ]
+        }
+      },
+      "after": "Done. There is a new slider, and the dashed line shows what you put in, so the gap above it is the interest.",
+      "followUps": ["Quiz me on the solar system", "Make me a focus timer"]
+    },
+    {
+      "id": "timer-50",
+      "marker": "data-min=\"50\"",
+      "match": [["50", "session"], ["50 min"]],
+      "text": "Adding a 50 minute session.",
+      "tool": {
+        "name": "edit_widget",
+        "args": {
+          "title": "focus_timer",
+          "edits": [
+            {
+              "old_string": "<button type=\"button\" data-min=\"5\" data-kind=\"break\" aria-pressed=\"false\">Break 5</button>",
+              "new_string": "<button type=\"button\" data-min=\"50\" data-kind=\"focus\" aria-pressed=\"false\">Deep 50</button>\n    <button type=\"button\" data-min=\"5\" data-kind=\"break\" aria-pressed=\"false\">Break 5</button>"
+            }
+          ]
+        }
+      },
+      "after": "Done. Deep 50 sits between Focus 25 and Break 5.",
+      "followUps": [
+        "Build a tip splitter for a dinner bill",
+        "How do these widgets work?"
+      ]
+    },
+    {
+      "id": "quiz-venus",
+      "match": [["venus"]],
+      "text": "Venus is hotter because of its atmosphere, not its distance from the Sun.\n\n- **Venus** has a dense carbon dioxide atmosphere, about 90 times the pressure of Earth's. It traps heat, so the surface stays near 465 °C day and night.\n- **Mercury** is closer to the Sun but has almost no atmosphere. Its day side reaches about 430 °C and its night side falls to about -180 °C.",
+      "followUps": [
+        "How long does sunlight take to reach each planet?",
+        "Why does Saturn have so many moons?"
+      ]
+    },
+    {
+      "id": "quiz-sunlight",
+      "match": [["sunlight"]],
+      "text": "At each planet's average distance from the Sun:\n\n| Planet | Light travel time |\n| --- | --- |\n| Mercury | 3.2 min |\n| Venus | 6.0 min |\n| Earth | 8.3 min |\n| Mars | 12.7 min |\n| Jupiter | 43.3 min |\n| Saturn | 1 h 19 min |\n| Uranus | 2 h 40 min |\n| Neptune | 4 h 10 min |",
+      "followUps": [
+        "Why is Venus hotter than Mercury?",
+        "Why does Saturn have so many moons?"
+      ]
+    },
+    {
+      "id": "quiz-saturn",
+      "match": [["saturn"]],
+      "text": "Most of Saturn's moons are small, irregular ones.\n\n- Saturn has more than 270 confirmed moons, far more than any other planet.\n- Most are only a few kilometres across and orbit far out, many of them backwards. They are thought to be pieces of captured bodies that broke apart in collisions.\n- The count keeps rising as surveys find fainter moons.",
+      "followUps": [
+        "Why is Venus hotter than Mercury?",
+        "Make me a focus timer"
+      ]
+    },
+    {
+      "id": "how",
+      "match": [["how", "widget"]],
+      "text": "Each widget is a small piece of HTML that I write as a tool call.\n\n- **It streams.** The code goes into a sandboxed frame as it arrives, so the widget builds up on screen.\n- **It is isolated.** The frame runs on its own site. It cannot reach this page or call a server. All it can load is a library from a short list of script CDNs, and it reads the page's theme as CSS variables.\n- **It can be edited.** A change is a set of exact find and replace edits on the earlier code.\n- **It can talk back.** A button in a widget can put a question in the composer.\n\nIn this preview the replies are scripted, so the code is recorded, not written live.",
+      "followUps": [
+        "Build a tip splitter for a dinner bill",
+        "Quiz me on the solar system"
+      ]
+    },
+    {
+      "id": "tip",
+      "match": [["tip"], ["split"], ["bill"]],
+      "text": "Here is a tip splitter for the table. Change the bill, the tip or the head count and the shares follow.",
+      "tool": {
+        "name": "show_widget",
+        "args": {
+          "title": "tip_splitter",
+          "loading_messages": ["Laying out the bill", "Wiring up the split"],
+          "widget_code": "<style>\n.tip{display:grid;gap:16px;font-size:14px;color:var(--color-text)}\n.tip label,.tip legend{display:block;margin:0 0 6px;padding:0;font-size:13px;color:var(--color-text-muted)}\n.tip fieldset{min-width:0;margin:0;padding:0;border:0}\n.tip .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}\n.tip .money{position:relative}\n.tip .money span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--color-text-subtle)}\n.tip #bill{width:100%;padding-left:26px;font-variant-numeric:tabular-nums}\n.tip .seg{display:flex;flex-wrap:wrap;gap:6px}\n.tip .seg button{flex:1;min-width:52px;padding:6px 0;font-variant-numeric:tabular-nums}\n.tip .seg button[aria-pressed=true]{border-color:var(--color-accent);background:var(--color-accent);color:var(--color-accent-text)}\n.tip .step{display:flex;align-items:center;gap:8px}\n.tip .step button{width:36px;height:36px;padding:0}\n.tip .step output{min-width:28px;text-align:center;font-variant-numeric:tabular-nums}\n.tip .sum{display:grid;gap:8px;padding:14px 16px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-surface)}\n.tip .line{display:flex;justify-content:space-between;gap:12px;color:var(--color-text-muted);font-variant-numeric:tabular-nums}\n.tip .each{padding-top:10px;border-top:1px solid var(--color-border);color:var(--color-text);font-size:20px;font-weight:600}\n@media (max-width:380px){.tip .row{grid-template-columns:1fr}}\n</style>\n<h2 class=\"sr-only\">Tip splitter</h2>\n<div class=\"tip\">\n  <div class=\"row\">\n    <div>\n      <label for=\"bill\">Bill</label>\n      <div class=\"money\"><span aria-hidden=\"true\">$</span><input id=\"bill\" type=\"number\" inputmode=\"decimal\" min=\"0\" step=\"0.01\" value=\"86.40\"></div>\n    </div>\n    <div>\n      <label id=\"people-label\">People</label>\n      <div class=\"step\" role=\"group\" aria-labelledby=\"people-label\">\n        <button type=\"button\" id=\"fewer\" aria-label=\"One person fewer\">&minus;</button>\n        <output id=\"people\">4</output>\n        <button type=\"button\" id=\"more\" aria-label=\"One person more\">+</button>\n      </div>\n    </div>\n  </div>\n  <fieldset>\n    <legend>Tip</legend>\n    <div class=\"seg\" id=\"tips\">\n      <button type=\"button\" data-tip=\"10\" aria-pressed=\"false\">10%</button>\n      <button type=\"button\" data-tip=\"15\" aria-pressed=\"false\">15%</button>\n      <button type=\"button\" data-tip=\"18\" aria-pressed=\"true\">18%</button>\n      <button type=\"button\" data-tip=\"20\" aria-pressed=\"false\">20%</button>\n    </div>\n  </fieldset>\n  <div class=\"sum\" aria-live=\"polite\">\n    <div class=\"line\"><span>Tip</span><span id=\"tip-out\">$15.55</span></div>\n    <div class=\"line\"><span>Total</span><span id=\"total-out\">$101.95</span></div>\n    <div class=\"line each\"><span>Each pays</span><span id=\"each-out\">$25.49</span></div>\n  </div>\n</div>\n<script>\nconst money = new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency: \"USD\" });\nconst kept = (() => { try { return JSON.parse(localStorage.getItem(\"state\")); } catch { return null; } })();\nconst state = Object.assign({ bill: 86.4, tip: 18, people: 4 }, kept, genframe.state);\nconst $ = (id) => document.getElementById(id);\n\nfunction render() {\n  const tip = (state.bill * state.tip) / 100;\n  const total = state.bill + tip;\n  const each = total / state.people;\n  $(\"people\").textContent = state.people;\n  $(\"fewer\").disabled = state.people <= 1;\n  $(\"more\").disabled = state.people >= 20;\n  for (const button of $(\"tips\").children) {\n    button.setAttribute(\"aria-pressed\", String(Number(button.dataset.tip) === state.tip));\n  }\n  $(\"tip-out\").textContent = money.format(tip);\n  $(\"total-out\").textContent = money.format(total);\n  $(\"each-out\").textContent = money.format(each);\n}\n\nfunction keep() {\n  genframe.setState(state);\n  try { localStorage.setItem(\"state\", JSON.stringify(state)); } catch {}\n}\n\nfunction change(patch) {\n  Object.assign(state, patch);\n  keep();\n  render();\n}\n\n$(\"bill\").value = state.bill.toFixed(2);\n$(\"bill\").addEventListener(\"input\", (event) => change({ bill: Math.max(0, Number(event.target.value) || 0) }));\n$(\"tips\").addEventListener(\"click\", (event) => {\n  const button = event.target.closest(\"button\");\n  if (button) change({ tip: Number(button.dataset.tip) });\n});\n$(\"fewer\").addEventListener(\"click\", () => change({ people: Math.max(1, state.people - 1) }));\n$(\"more\").addEventListener(\"click\", () => change({ people: Math.min(20, state.people + 1) }));\nrender();\n</script>"
+        }
+      },
+      "after": "It starts from a sample bill. Ask for a change and I will edit this widget instead of writing a new one.",
+      "followUps": [
+        "Add a 25% option",
+        "Round up each share",
+        "How do these widgets work?"
+      ]
+    },
+    {
+      "id": "savings",
+      "match": [["saving"], ["compound"], ["interest"], ["grow"]],
+      "text": "Here is how $10,000 grows with interest that compounds every month.",
+      "tool": {
+        "name": "show_widget",
+        "args": {
+          "title": "savings_growth",
+          "loading_messages": ["Setting up the sliders", "Drawing the chart"],
+          "widget_code": "<style>\n.grow{display:grid;gap:16px;font-size:14px;color:var(--color-text)}\n.grow .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}\n.grow .tile{min-width:0;padding:10px 12px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface)}\n.grow .tile span{display:block;font-size:12px;color:var(--color-text-muted)}\n.grow .tile strong{display:block;font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}\n.grow .chart{height:200px}\n.grow svg{display:block;width:100%;height:200px}\n.grow .grid{stroke:var(--color-border);stroke-width:1}\n.grow .tick{fill:var(--color-text-subtle);font:12px var(--font-sans)}\n.grow .area{fill:var(--chart-1);opacity:.12}\n.grow .line{fill:none;stroke:var(--chart-1);stroke-width:2;stroke-linejoin:round}\n.grow .dot{fill:var(--chart-1);stroke:var(--color-background);stroke-width:2}\n.grow .axis{display:flex;justify-content:space-between;margin:-10px 0 0;padding-left:52px;font-size:12px;color:var(--color-text-subtle)}\n.grow .ctl{display:grid;grid-template-columns:120px 1fr 56px;align-items:center;gap:10px}\n.grow .ctl label{color:var(--color-text-muted)}\n.grow .ctl input{width:100%;min-width:0}\n.grow .ctl input[type=number]{grid-column:2 / 4;font-variant-numeric:tabular-nums}\n.grow .ctl output{text-align:right;font-variant-numeric:tabular-nums}\n@media (max-width:420px){.grow .tiles{grid-template-columns:1fr;gap:6px}.grow .tile{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 12px}.grow .tile span,.grow .tile strong{display:inline}.grow .ctl{grid-template-columns:1fr 56px}.grow .ctl label{grid-column:1 / 3}.grow .ctl input[type=number]{grid-column:1 / 3}}\n</style>\n<h2 class=\"sr-only\">Savings growth with compound interest</h2>\n<div class=\"grow\">\n  <div class=\"tiles\" aria-live=\"polite\">\n    <div class=\"tile\"><span id=\"end-label\">After 20 years</span><strong id=\"end-out\">$33,102</strong></div>\n    <div class=\"tile\"><span>You put in</span><strong id=\"paid-out\">$10,000</strong></div>\n    <div class=\"tile\"><span>Interest earned</span><strong id=\"gain-out\">$23,102</strong></div>\n  </div>\n  <div>\n    <div class=\"chart\" id=\"chart\"><svg id=\"plot\" role=\"img\" aria-label=\"Balance by year\"></svg></div>\n    <p class=\"axis\"><span>Today</span><span id=\"mid-label\">10 years</span><span id=\"last-label\">20 years</span></p>\n  </div>\n  <div class=\"ctl\"><label for=\"start\">Starting amount</label><input id=\"start\" type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"500\" value=\"10000\"></div>\n  <div class=\"ctl\"><label for=\"years\">Years</label><input id=\"years\" type=\"range\" min=\"1\" max=\"40\" step=\"1\" value=\"20\"><output id=\"years-out\" for=\"years\">20</output></div>\n  <div class=\"ctl\"><label for=\"rate\">Interest rate</label><input id=\"rate\" type=\"range\" min=\"1\" max=\"12\" step=\"0.5\" value=\"6\"><output id=\"rate-out\" for=\"rate\">6%</output></div>\n</div>\n<script>\nconst money = new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency: \"USD\", maximumFractionDigits: 0 });\nconst compact = new Intl.NumberFormat(\"en-US\", { style: \"currency\", currency: \"USD\", notation: \"compact\", maximumFractionDigits: 1 });\nconst kept = (() => { try { return JSON.parse(localStorage.getItem(\"state\")); } catch { return null; } })();\nconst state = Object.assign({ start: 10000, years: 20, rate: 6 }, kept, genframe.state);\nconst $ = (id) => document.getElementById(id);\nconst plural = (count, word) => count + \" \" + word + (count === 1 ? \"\" : \"s\");\n\nfunction balanceAt(year) {\n  const m = state.rate / 100 / 12;\n  const n = year * 12;\n  return state.start * Math.pow(1 + m, n);\n}\n\nfunction niceCeil(value) {\n  const power = Math.pow(10, Math.floor(Math.log10(value)));\n  return [1, 2, 2.5, 5, 10].map((step) => step * power).find((step) => step >= value);\n}\n\nfunction render() {\n  const end = balanceAt(state.years);\n  const paidIn = state.start;\n  $(\"end-label\").textContent = \"After \" + plural(state.years, \"year\");\n  $(\"end-out\").textContent = money.format(end);\n  $(\"paid-out\").textContent = money.format(paidIn);\n  $(\"gain-out\").textContent = money.format(end - paidIn);\n  $(\"years-out\").textContent = state.years;\n  $(\"rate-out\").textContent = state.rate + \"%\";\n  $(\"mid-label\").textContent = state.years > 1 ? plural(Math.round(state.years / 2), \"year\") : \"\";\n  $(\"last-label\").textContent = plural(state.years, \"year\");\n\n  const width = $(\"chart\").clientWidth || 320;\n  const height = 200;\n  const pad = { top: 10, right: 8, bottom: 22, left: 52 };\n  const plotW = width - pad.left - pad.right;\n  const plotH = height - pad.top - pad.bottom;\n  const top = niceCeil(Math.max(end, 1));\n  const x = (year) => pad.left + (year / state.years) * plotW;\n  const y = (value) => pad.top + plotH - (value / top) * plotH;\n  let grid = \"\";\n  for (let i = 0; i <= 4; i++) {\n    const value = (top / 4) * i;\n    grid += `<line class=\"grid\" x1=\"${pad.left}\" x2=\"${width - pad.right}\" y1=\"${y(value)}\" y2=\"${y(value)}\"/>`;\n    if (i > 0) grid += `<text class=\"tick\" x=\"${pad.left - 6}\" y=\"${y(value) + 4}\" text-anchor=\"end\">${compact.format(value)}</text>`;\n  }\n  let path = \"\";\n  for (let year = 0; year <= state.years; year++) {\n    path += `${year ? \"L\" : \"M\"}${x(year).toFixed(1)} ${y(balanceAt(year)).toFixed(1)}`;\n  }\n  const plot = $(\"plot\");\n  plot.setAttribute(\"viewBox\", `0 0 ${width} ${height}`);\n  plot.setAttribute(\"aria-label\", `Balance grows from ${money.format(state.start)} to ${money.format(end)} over ${plural(state.years, \"year\")}`);\n  plot.innerHTML = grid\n    + `<path class=\"area\" d=\"${path}L${x(state.years)} ${y(0)}L${x(0)} ${y(0)}Z\"/>`\n    + `<path class=\"line\" d=\"${path}\"/>`\n    + `<circle class=\"dot\" cx=\"${x(state.years)}\" cy=\"${y(end)}\" r=\"4\"/>`;\n}\n\nfor (const id of [\"start\", \"years\", \"rate\"]) {\n  $(id).value = state[id];\n  $(id).addEventListener(\"input\", (event) => {\n    state[id] = Math.max(0, Number(event.target.value) || 0);\n    genframe.setState(state);\n    try { localStorage.setItem(\"state\", JSON.stringify(state)); } catch {}\n    render();\n  });\n}\nwindow.addEventListener(\"resize\", render);\nrender();\n</script>"
+        }
+      },
+      "after": "Drag the sliders to change the years and the rate. The chart is plain SVG, redrawn on every change.",
+      "followUps": ["Add monthly deposits", "Quiz me on the solar system"]
+    },
+    {
+      "id": "quiz",
+      "match": [["quiz"]],
+      "text": "Three quick questions about the solar system.",
+      "tool": {
+        "name": "show_widget",
+        "args": {
+          "title": "solar_system_quiz",
+          "loading_messages": [
+            "Writing three questions",
+            "Adding the follow-ups"
+          ],
+          "widget_code": "<style>\n.quiz{display:grid;gap:14px;font-size:14px;color:var(--color-text)}\n.quiz .head{display:flex;justify-content:space-between;gap:12px;margin:0;color:var(--color-text-muted)}\n.quiz .head strong{color:var(--color-text);font-weight:600}\n.quiz ol{display:grid;gap:10px;margin:0;padding:0;list-style:none}\n.quiz li{display:grid;gap:10px;padding:14px 16px;border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-surface)}\n.quiz .ask{margin:0;font-weight:600}\n.quiz .opts{display:flex;flex-wrap:wrap;gap:6px}\n.quiz .opts button{flex:1;min-width:88px}\n.quiz .opts button:disabled{opacity:1;cursor:default}\n.quiz .opts button[data-mark=right]{border-color:var(--color-success);color:var(--color-success)}\n.quiz .opts button[data-mark=wrong]{border-color:var(--color-danger);color:var(--color-danger)}\n.quiz .foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}\n.quiz .why{flex:1;min-width:160px;margin:0;font-size:13px;color:var(--color-text-muted)}\n.quiz .more{font-size:13px}\n</style>\n<h2 class=\"sr-only\">Solar system quiz</h2>\n<div class=\"quiz\">\n  <p class=\"head\"><strong>Solar system quiz</strong><span id=\"score\" aria-live=\"polite\">0 of 3 answered</span></p>\n  <ol>\n    <li>\n      <p class=\"ask\">1. Which planet has the hottest surface?</p>\n      <div class=\"opts\" role=\"group\" aria-label=\"Answers to question 1\">\n        <button type=\"button\">Mercury</button>\n        <button type=\"button\">Venus</button>\n        <button type=\"button\">Mars</button>\n      </div>\n      <div class=\"foot\"><p class=\"why\" aria-live=\"polite\">Pick an answer.</p><button type=\"button\" class=\"more\" disabled>Ask a follow-up</button></div>\n    </li>\n    <li>\n      <p class=\"ask\">2. How long does sunlight take to reach Earth?</p>\n      <div class=\"opts\" role=\"group\" aria-label=\"Answers to question 2\">\n        <button type=\"button\">8 hours</button>\n        <button type=\"button\">8 seconds</button>\n        <button type=\"button\">8 minutes</button>\n      </div>\n      <div class=\"foot\"><p class=\"why\" aria-live=\"polite\">Pick an answer.</p><button type=\"button\" class=\"more\" disabled>Ask a follow-up</button></div>\n    </li>\n    <li>\n      <p class=\"ask\">3. Which planet has the most known moons?</p>\n      <div class=\"opts\" role=\"group\" aria-label=\"Answers to question 3\">\n        <button type=\"button\">Saturn</button>\n        <button type=\"button\">Jupiter</button>\n        <button type=\"button\">Uranus</button>\n      </div>\n      <div class=\"foot\"><p class=\"why\" aria-live=\"polite\">Pick an answer.</p><button type=\"button\" class=\"more\" disabled>Ask a follow-up</button></div>\n    </li>\n  </ol>\n</div>\n<script>\nconst questions = [\n  { answer: 1, why: \"Venus. Its thick carbon dioxide air traps heat at about 465 °C.\", prompt: \"Why is Venus hotter than Mercury?\" },\n  { answer: 2, why: \"About 8 minutes and 20 seconds, across 150 million km.\", prompt: \"How long does sunlight take to reach each planet?\" },\n  { answer: 0, why: \"Saturn, with more than 270 confirmed moons.\", prompt: \"Why does Saturn have so many moons?\" },\n];\nconst state = Object.assign({ picked: [null, null, null] }, genframe.state);\nconst items = [...document.querySelectorAll(\".quiz li\")];\n\nfunction render() {\n  let answered = 0;\n  let right = 0;\n  items.forEach((item, index) => {\n    const picked = state.picked[index];\n    const question = questions[index];\n    const done = picked !== null;\n    if (done) answered++;\n    if (picked === question.answer) right++;\n    [...item.querySelectorAll(\".opts button\")].forEach((button, option) => {\n      const label = button.textContent.replace(/^[✓✕] /, \"\");\n      const mark = !done ? \"\" : option === question.answer ? \"right\" : option === picked ? \"wrong\" : \"\";\n      button.disabled = done;\n      button.dataset.mark = mark;\n      button.textContent = (mark === \"right\" ? \"✓ \" : mark === \"wrong\" ? \"✕ \" : \"\") + label;\n    });\n    item.querySelector(\".why\").textContent = done ? question.why : \"Pick an answer.\";\n    item.querySelector(\".more\").disabled = !done;\n  });\n  document.getElementById(\"score\").textContent =\n    answered < questions.length ? answered + \" of 3 answered\" : right + \" of 3 correct\";\n}\n\nitems.forEach((item, index) => {\n  item.querySelector(\".opts\").addEventListener(\"click\", (event) => {\n    const button = event.target.closest(\"button\");\n    if (!button || state.picked[index] !== null) return;\n    state.picked[index] = [...button.parentElement.children].indexOf(button);\n    genframe.setState(state);\n    render();\n  });\n  item.querySelector(\".more\").addEventListener(\"click\", () => sendPrompt(questions[index].prompt));\n});\nrender();\n</script>"
+        }
+      },
+      "after": "Answer a question and its follow-up button wakes up. It puts a question in the composer for you to send.",
+      "followUps": ["Make me a focus timer", "How do these widgets work?"]
+    },
+    {
+      "id": "timer",
+      "match": [["timer"], ["focus"], ["pomodoro"]],
+      "text": "Here is a focus timer with a 25 minute session and a 5 minute break.",
+      "tool": {
+        "name": "show_widget",
+        "args": {
+          "title": "focus_timer",
+          "loading_messages": ["Drawing the dial", "Wiring start and pause"],
+          "widget_code": "<style>\n.timer{display:grid;justify-items:center;gap:14px;font-size:14px;color:var(--color-text)}\n.timer .seg{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}\n.timer .seg button[aria-pressed=true]{border-color:var(--color-accent);background:var(--color-accent);color:var(--color-accent-text)}\n.timer .dial{position:relative;width:176px;height:176px}\n.timer svg{display:block;width:176px;height:176px;transform:rotate(-90deg)}\n.timer .track{fill:none;stroke:var(--color-surface-muted);stroke-width:8}\n.timer .ring{fill:none;stroke:var(--color-text);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .3s linear}\n.timer[data-running=true] .ring{stroke:var(--chart-1)}\n.timer .time{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:2px}\n.timer .time output{font-size:34px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}\n.timer .time span{font-size:12px;color:var(--color-text-muted)}\n.timer .acts{display:flex;gap:8px}\n.timer .acts button{min-width:88px}\n.timer #toggle{border-color:var(--color-accent);background:var(--color-accent);color:var(--color-accent-text)}\n.timer #toggle:hover{opacity:.88}\n.timer .done{margin:0;font-size:13px;color:var(--color-text-muted)}\n</style>\n<h2 class=\"sr-only\">Focus timer</h2>\n<div class=\"timer\" id=\"timer\" data-running=\"false\">\n  <div class=\"seg\" id=\"modes\" role=\"group\" aria-label=\"Session length\">\n    <button type=\"button\" data-min=\"25\" data-kind=\"focus\" aria-pressed=\"true\">Focus 25</button>\n    <button type=\"button\" data-min=\"5\" data-kind=\"break\" aria-pressed=\"false\">Break 5</button>\n  </div>\n  <div class=\"dial\">\n    <svg viewBox=\"0 0 176 176\" aria-hidden=\"true\">\n      <circle class=\"track\" cx=\"88\" cy=\"88\" r=\"80\"></circle>\n      <circle class=\"ring\" id=\"ring\" cx=\"88\" cy=\"88\" r=\"80\" stroke-dasharray=\"502.65\" stroke-dashoffset=\"0\"></circle>\n    </svg>\n    <div class=\"time\"><output id=\"time\" role=\"timer\" aria-label=\"Time left\">25:00</output><span id=\"status\">Ready</span></div>\n  </div>\n  <div class=\"acts\">\n    <button type=\"button\" id=\"toggle\">Start</button>\n    <button type=\"button\" id=\"reset\">Reset</button>\n  </div>\n  <p class=\"done\" id=\"done\" aria-live=\"polite\">No focus sessions finished yet</p>\n</div>\n<script>\nconst CIRCLE = 2 * Math.PI * 80;\nconst kept = (() => { try { return JSON.parse(localStorage.getItem(\"state\")); } catch { return null; } })();\nconst state = Object.assign({ minutes: 25, kind: \"focus\", left: 25 * 60, finished: 0 }, kept, genframe.state);\nlet endsAt = 0;\nlet ticking = 0;\nconst $ = (id) => document.getElementById(id);\nconst save = () => {\n  genframe.setState(state);\n  try { localStorage.setItem(\"state\", JSON.stringify(state)); } catch {}\n};\n\nfunction render() {\n  const running = ticking !== 0;\n  $(\"timer\").dataset.running = String(running);\n  const minutes = String(Math.floor(state.left / 60)).padStart(2, \"0\");\n  const seconds = String(state.left % 60).padStart(2, \"0\");\n  $(\"time\").textContent = minutes + \":\" + seconds;\n  $(\"ring\").setAttribute(\"stroke-dashoffset\", (CIRCLE * (1 - state.left / (state.minutes * 60))).toFixed(2));\n  $(\"status\").textContent = running ? (state.kind === \"focus\" ? \"Focusing\" : \"On a break\") : state.left === 0 ? \"Time is up\" : state.left < state.minutes * 60 ? \"Paused\" : \"Ready\";\n  $(\"toggle\").textContent = running ? \"Pause\" : state.left === 0 ? \"Again\" : \"Start\";\n  for (const button of $(\"modes\").children) {\n    button.setAttribute(\"aria-pressed\", String(Number(button.dataset.min) === state.minutes));\n  }\n  $(\"done\").textContent = state.finished === 0\n    ? \"No focus sessions finished yet\"\n    : state.finished + (state.finished === 1 ? \" focus session finished\" : \" focus sessions finished\");\n}\n\nfunction stop() {\n  clearInterval(ticking);\n  ticking = 0;\n}\n\nfunction tick() {\n  state.left = Math.max(0, Math.round((endsAt - Date.now()) / 1000));\n  if (state.left === 0) {\n    stop();\n    if (state.kind === \"focus\") state.finished++;\n    save();\n  }\n  render();\n}\n\n$(\"toggle\").addEventListener(\"click\", () => {\n  if (ticking) {\n    stop();\n    save();\n  } else {\n    if (state.left === 0) state.left = state.minutes * 60;\n    endsAt = Date.now() + state.left * 1000;\n    ticking = setInterval(tick, 250);\n  }\n  render();\n});\n$(\"reset\").addEventListener(\"click\", () => {\n  stop();\n  state.left = state.minutes * 60;\n  save();\n  render();\n});\n$(\"modes\").addEventListener(\"click\", (event) => {\n  const button = event.target.closest(\"button\");\n  if (!button) return;\n  stop();\n  state.minutes = Number(button.dataset.min);\n  state.kind = button.dataset.kind;\n  state.left = state.minutes * 60;\n  save();\n  render();\n});\nrender();\n</script>"
+        }
+      },
+      "after": "Start, pause and reset work in place, and it counts the focus sessions you finish.",
+      "followUps": [
+        "Add a 50 minute session",
+        "Build a tip splitter for a dinner bill"
+      ]
+    }
+  ]
+}

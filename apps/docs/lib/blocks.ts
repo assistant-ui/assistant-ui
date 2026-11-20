@@ -210,6 +210,18 @@ export const BLOCKS: readonly Block[] = [
   },
 ];
 
+export type UpcomingBlock = Pick<Block, "slug" | "title" | "description">;
+
+/** Blocks with an outline and no build yet. They show as cards with no page. */
+export const UPCOMING_BLOCKS: readonly UpcomingBlock[] = [
+  {
+    slug: "generative-frame-chat",
+    title: "Generative frame chat",
+    description:
+      "A chat where the assistant answers with live widgets it writes as it streams, each in a sandboxed frame you can use and ask it to change.",
+  },
+];
+
 export function getBlock(slug: string): Block | undefined {
   return BLOCKS.find((block) => block.slug === slug);
 }

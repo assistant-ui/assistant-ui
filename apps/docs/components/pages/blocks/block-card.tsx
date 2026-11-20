@@ -1,7 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import type { Block } from "@/lib/blocks";
+import type { Block, UpcomingBlock } from "@/lib/blocks";
+import { cn } from "@/lib/utils";
+
+const FRAME =
+  "border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden rounded-lg border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px] transition-colors";
 
 const IMAGE_SIZES = "(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw";
 
@@ -16,7 +20,7 @@ export function BlockCard({
 }) {
   return (
     <Link href={`/blocks/${slug}`} className="group flex flex-col">
-      <div className="border-foreground/10 group-hover:border-foreground/25 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden rounded-lg border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px] transition-colors">
+      <div className={cn(FRAME, "group-hover:border-foreground/25")}>
         <Image
           src={image.light}
           alt={title}
@@ -45,5 +49,30 @@ export function BlockCard({
         {description}
       </p>
     </Link>
+  );
+}
+
+export function UpcomingBlockCard({
+  title,
+  description,
+  index,
+}: Omit<UpcomingBlock, "slug"> & { index: number }) {
+  return (
+    <div className="flex flex-col">
+      <div className={cn(FRAME, "grid place-items-center")}>
+        <span className="border-foreground/10 bg-background text-muted-foreground rounded-full border px-2.5 py-0.5 text-xs">
+          Upcoming
+        </span>
+      </div>
+      <div className="mt-4 flex items-baseline gap-2.5">
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {String(index).padStart(2, "0")}
+        </span>
+        <h3 className="text-sm font-medium">{title}</h3>
+      </div>
+      <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
+        {description}
+      </p>
+    </div>
   );
 }
