@@ -9,19 +9,10 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
   pull_request_target:
     branches: [main]
-    # labeled: a maintainer adds REVIEW_BUDGET_LABEL to request a review past
-    # the daily budget.
+    # labeled: a maintainer adds claude-review to bypass the review budget.
     types: [opened, synchronize, ready_for_review, reopened, labeled]
 
 env:
-  # Daily budget for automatic fork reviews, enforced by scripts/review-budget.mjs
-  # from this workflow's own run history. A PR carrying REVIEW_BUDGET_LABEL is
-  # exempt; only users with triage access can add labels.
-  REVIEW_BUDGET_PER_AUTHOR: '3'
-  REVIEW_BUDGET_REPO: '30'
-  REVIEW_BUDGET_WINDOW_HOURS: '24'
-  REVIEW_BUDGET_LABEL: claude-review
-
   # Shared action configuration
   TRACK_PROGRESS: 'true'
   USE_STICKY_COMMENT: 'true'
@@ -188,14 +179,10 @@ jobs:
           gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
             --input "$RUNNER_TEMP/claude-review-final.json" >/dev/null
 
-  # Counts this workflow's recent fork reviews before starting another one. It
-  # has no Claude secret, and its token can only read Actions history and
-  # comment on the PR. The label name in `if` repeats REVIEW_BUDGET_LABEL because
-  # job-level conditions cannot read env. The job name records the PR author
-  # for later counts; the script reads it back, so keep the format.
+  # Caps fork reviews per author and per day (scripts/review-budget.mjs). No
+  # Claude secret. The script reads the author back from the job name.
   claude-fork-review-budget:
     name: claude-fork-review-budget (${{ github.event.pull_request.user.login }})
-    # Queue per PR so two over-budget runs never both post the limit comment.
     concurrency:
       group: claude-review-budget-${{ github.event.pull_request.number }}
       cancel-in-progress: false
@@ -215,27 +202,22 @@ jobs:
       review: ${{ steps.budget.outputs.review }}
 
     steps:
-      - name: Checkout trusted base branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 1
           persist-credentials: false
-
-      - name: Setup node.js
-        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
         with:
           cache: false
           install: false
-
-      - name: Check the review budget
-        id: budget
+      - id: budget
         env:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-          REVIEW_BUDGET_WORKFLOW: claude-code-review.yml
-          REVIEW_BUDGET_JOB: claude-fork-review
+          REVIEW_BUDGET_PER_AUTHOR: 3
+          REVIEW_BUDGET_REPO: 30
+          REVIEW_BUDGET_LABEL: claude-review
         run: node scripts/review-budget.mjs
 
   claude-fork-review:
