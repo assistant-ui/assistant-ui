@@ -16,6 +16,14 @@ A vulnerability is a way for untrusted input (model output, tool results, MCP se
 
 The affected package, component or service, its version or deployment if you know it, a minimal reproduction or proof of concept, and the impact you expect.
 
+## Pull request security review
+
+The DeepSec check reviews changed files when a same-repository pull request to `main` is ready for review and on subsequent pushes. Fork and Dependabot pull requests skip the check. It runs on GitHub's PR merge commit with read-only repository access. The Pi reviewer can read source for context using a model through Vercel AI Gateway.
+
+To enable the check, a repository administrator adds a dedicated AI Gateway key as the Actions secret `DEEPSEC_GATEWAY_KEY`. Use a spending limit on the key. To turn the check off, disable the DeepSec workflow and revoke the key.
+
+A finding fails the check. The security team can download the `deepsec-review` artifact from the workflow run and open it with `gpg --decrypt review.md.gpg`. CI encrypts the report to the security team's PGP key from the base commit. Confirmed findings follow the private reporting process above.
+
 ## What happens next
 
 Our team will send a response indicating the next steps in handling your report. After the initial reply to your report, the security team will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
