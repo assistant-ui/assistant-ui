@@ -1,4 +1,5 @@
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, realpathSync, rmSync } from "node:fs";
+import { relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { withDocs } from "@farming-labs/next/config";
 import docsConfig from "./docs.config.ts";
@@ -153,7 +154,31 @@ if (skipBuildCache)
     force: true,
   });
 
+// appos-host (the Examples page's appOS embed) is a `link:` to an appOS
+// checkout until it is published, and Turbopack reads only files under its
+// root, so the root widens to the folder that holds both checkouts.
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+const linkedRoot = (() => {
+  let linked: string;
+  try {
+    linked = realpathSync(
+      new URL("./node_modules/appos-host", import.meta.url),
+    );
+  } catch {
+    return undefined;
+  }
+  if (!relative(repoRoot, linked).startsWith("..")) return undefined;
+  const a = repoRoot.split(sep);
+  const b = linked.split(sep);
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  return a.slice(0, i).join(sep) || sep;
+})();
+
 const config: NextConfig = {
+  ...(linkedRoot
+    ? { turbopack: { root: linkedRoot }, outputFileTracingRoot: linkedRoot }
+    : {}),
   cacheComponents: true,
   ...(buildCpus || skipBuildCache
     ? {
@@ -183,7 +208,7 @@ const config: NextConfig = {
   compiler: {
     define: sdkVersion ? { __AUI_PACKAGE_VERSION__: sdkVersion } : {},
   },
-  transpilePackages: ["@assistant-ui/ui", "shiki"],
+  transpilePackages: ["@assistant-ui/ui", "shiki", "appos-host"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {

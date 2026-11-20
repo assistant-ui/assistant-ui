@@ -116,6 +116,15 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui",
   },
   {
+    title: "appOS App",
+    image: "/screenshot/examples/appos.png",
+    description:
+      "An assistant-ui app packed as an appOS bundle and embedded in the page, with the model behind the site's gateway.",
+    link: "/examples/appos",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-appos",
+  },
+  {
     title: "Interactables",
     image: "/screenshot/examples/interactables.png",
     description:

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AppOSExample } from "@/components/pages/examples/appos";
 import { Artifacts } from "@/components/pages/examples/artifacts";
 import { Base } from "@/components/pages/examples/base";
 import { ChatGPT } from "@/components/pages/examples/chatgpt";
@@ -10,6 +11,7 @@ import { Perplexity } from "@/components/pages/examples/perplexity";
 import { DemoIframe } from "@/components/pages/docs/demo-iframe";
 import { ArtifactsRuntimeProvider } from "@/runtimes/artifacts";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
+import { getAppOSExampleSrc } from "@/lib/appos-examples";
 
 function ThreadPreview({ children }: { children: ReactNode }) {
   return <DocsRuntimeProvider>{children}</DocsRuntimeProvider>;
@@ -28,6 +30,7 @@ export function hasExamplePreview(slug: string): boolean {
     case "mem0":
     case "stockbroker":
     case "artifacts":
+    case "appos":
       return true;
     default:
       return false;
@@ -108,6 +111,17 @@ export function ExamplePreview({ slug }: { slug: string }): ReactNode {
           <Artifacts />
         </ArtifactsRuntimeProvider>
       );
+    case "appos": {
+      const src = getAppOSExampleSrc("with-appos");
+      if (!src)
+        return (
+          <p className="text-muted-foreground p-6 text-sm">
+            The app isn&apos;t packed. Run{" "}
+            <code>pnpm build:appos-examples</code> in apps/docs.
+          </p>
+        );
+      return <AppOSExample src={src} />;
+    }
     default:
       return null;
   }
