@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ComponentProps,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
@@ -16,6 +17,8 @@ import {
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import {
+  type IconColor,
+  ICON_COLORS,
   type PageIcon as PageIconValue,
   STORAGE_KEY,
   documentActions,
@@ -220,7 +223,11 @@ const RECENT_KEY = `${STORAGE_KEY}:recent-icons`;
 const RECENT_KEPT = 24;
 
 const recentSchema = z.array(
-  z.object({ kind: z.enum(["emoji", "icon"]), value: z.string() }),
+  z.object({
+    kind: z.enum(["emoji", "icon"]),
+    value: z.string(),
+    color: z.enum(ICON_COLORS).optional(),
+  }),
 );
 
 function readRecent(): PageIconValue[] {
@@ -228,7 +235,12 @@ function readRecent(): PageIconValue[] {
     const saved = recentSchema.safeParse(
       JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]"),
     );
-    return saved.success ? saved.data : [];
+    if (!saved.success) return [];
+    return saved.data.map((icon) =>
+      icon.color
+        ? { kind: icon.kind, value: icon.value, color: icon.color }
+        : { kind: icon.kind, value: icon.value },
+    );
   } catch {
     return [];
   }
@@ -331,16 +343,39 @@ const tabClass = cn(
   "text-muted-foreground hover:text-foreground data-active:bg-accent data-active:text-foreground flex h-7 items-center px-2.5 transition-colors duration-150 motion-reduce:transition-none pointer-coarse:h-9",
 );
 
+/** `ink` is the icon's own color. The rest are Tailwind's hues. */
+const COLORS: readonly { id: IconColor | "ink"; label: string }[] = [
+  { id: "ink", label: "Default" },
+  ...ICON_COLORS.map((id) => ({
+    id,
+    label: id.charAt(0).toUpperCase() + id.slice(1),
+  })),
+];
+
+const withColor = (
+  icon: PageIconValue,
+  color: IconColor | "ink",
+): PageIconValue =>
+  icon.kind === "icon" && color !== "ink"
+    ? { kind: "icon", value: icon.value, color }
+    : { kind: icon.kind, value: icon.value };
+
 function IconPanel({
   value,
   searchRef,
   onChoose,
+  onPaint,
 }: {
   value: PageIconValue | undefined;
   searchRef: RefObject<HTMLInputElement | null>;
   onChoose: (icon: PageIconValue | null) => void;
+  /** Sets the color of the current icon and leaves the picker open. */
+  onPaint: (icon: PageIconValue) => void;
 }) {
   const [kind, setKind] = useState<Kind>(value?.kind ?? "emoji");
+  const [color, setColor] = useState<IconColor | "ink">(
+    value?.kind === "icon" ? (value.color ?? "ink") : "ink",
+  );
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [category, setCategory] = useState<string | null>(null);
@@ -365,8 +400,17 @@ function IconPanel({
   };
 
   const choose = (icon: PageIconValue) => {
+    const next = withColor(icon, color);
+    remember(next);
+    onChoose(next);
+  };
+
+  const paint = (next: IconColor | "ink") => {
+    setColor(next);
+    if (value?.kind !== "icon") return;
+    const icon = withColor(value, next);
     remember(icon);
-    onChoose(icon);
+    onPaint(icon);
   };
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -487,6 +531,37 @@ function IconPanel({
           onKeyDown={onKeyDown}
         />
       </label>
+      {kind === "icon" ? (
+        <div
+          role="group"
+          aria-label="Icon color"
+          className="grid shrink-0 grid-cols-9 justify-items-center gap-y-1.5"
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          {COLORS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              aria-pressed={color === entry.id}
+              aria-label={entry.label}
+              style={
+                entry.id === "ink"
+                  ? undefined
+                  : ({
+                      "--swatch": `var(--icon-${entry.id})`,
+                    } as CSSProperties)
+              }
+              className={cn(
+                focusBorder,
+                "size-4 rounded-full pointer-coarse:size-5",
+                entry.id === "ink" ? "bg-foreground" : "bg-(--swatch)",
+                "aria-pressed:outline-ring aria-pressed:outline-2 aria-pressed:outline-offset-2",
+              )}
+              onClick={() => paint(entry.id)}
+            />
+          ))}
+        </div>
+      ) : null}
       {browsing ? (
         <div
           role="group"
@@ -570,7 +645,7 @@ function IconPanel({
                         onClick={() => choose(entry.icon)}
                       >
                         <PageGlyph
-                          icon={entry.icon}
+                          icon={withColor(entry.icon, color)}
                           className={
                             entry.icon.kind === "emoji"
                               ? "text-foreground size-6 text-xl"
@@ -630,6 +705,7 @@ export function IconPicker({
             onValueChange(icon);
             setOpen(false);
           }}
+          onPaint={onValueChange}
         />
       </PopoverContent>
     </Popover>
@@ -672,7 +748,12 @@ function IconTrigger({
             {icon.value}
           </span>
         ) : (
-          <Icon {...glyphFor(icon)} strokeWidth={1.25} className="size-9" />
+          <Icon
+            {...glyphFor(icon)}
+            strokeWidth={1.25}
+            className="size-9"
+            {...(icon.color ? { tint: icon.color } : {})}
+          />
         )}
       </button>
     </Tooltip>

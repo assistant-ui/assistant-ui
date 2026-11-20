@@ -419,6 +419,17 @@ describe("document store", () => {
       value: "👋",
     });
 
+    store.actions.setPageIcon("home", {
+      kind: "icon",
+      value: "rocket",
+      color: "green",
+    });
+    expect(testStore(storage).getState().pages[0]?.icon).toEqual({
+      kind: "icon",
+      value: "rocket",
+      color: "green",
+    });
+
     store.actions.setPageIcon("home", null);
     expect(testStore(storage).getState().pages[0]).not.toHaveProperty("icon");
   });

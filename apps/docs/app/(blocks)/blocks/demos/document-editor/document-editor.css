@@ -71,6 +71,25 @@
   --tick: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
   --tick-active: var(--foreground);
 
+  /* Page icon colors: Tailwind's 500, so a swatch matches its icon. */
+  --icon-red: var(--color-red-500);
+  --icon-orange: var(--color-orange-500);
+  --icon-amber: var(--color-amber-500);
+  --icon-yellow: var(--color-yellow-500);
+  --icon-lime: var(--color-lime-500);
+  --icon-green: var(--color-green-500);
+  --icon-emerald: var(--color-emerald-500);
+  --icon-teal: var(--color-teal-500);
+  --icon-cyan: var(--color-cyan-500);
+  --icon-sky: var(--color-sky-500);
+  --icon-blue: var(--color-blue-500);
+  --icon-indigo: var(--color-indigo-500);
+  --icon-violet: var(--color-violet-500);
+  --icon-purple: var(--color-purple-500);
+  --icon-fuchsia: var(--color-fuchsia-500);
+  --icon-pink: var(--color-pink-500);
+  --icon-rose: var(--color-rose-500);
+
   /* The small colored icons on the template chips. */
   --tint-green: oklch(0.6 0.15 150);
   --tint-blue: oklch(0.58 0.19 262);
@@ -113,6 +132,23 @@
   --reaction: color-mix(in oklab, var(--foreground) 8%, transparent);
   --reaction-active: color-mix(in oklab, var(--brand) 22%, transparent);
   --reaction-active-line: color-mix(in oklab, var(--brand) 50%, transparent);
+  --icon-red: var(--color-red-400);
+  --icon-orange: var(--color-orange-400);
+  --icon-amber: var(--color-amber-400);
+  --icon-yellow: var(--color-yellow-400);
+  --icon-lime: var(--color-lime-400);
+  --icon-green: var(--color-green-400);
+  --icon-emerald: var(--color-emerald-400);
+  --icon-teal: var(--color-teal-400);
+  --icon-cyan: var(--color-cyan-400);
+  --icon-sky: var(--color-sky-400);
+  --icon-blue: var(--color-blue-400);
+  --icon-indigo: var(--color-indigo-400);
+  --icon-violet: var(--color-violet-400);
+  --icon-purple: var(--color-purple-400);
+  --icon-fuchsia: var(--color-fuchsia-400);
+  --icon-pink: var(--color-pink-400);
+  --icon-rose: var(--color-rose-400);
   --tint-green: oklch(0.76 0.17 152);
   --tint-blue: oklch(0.72 0.15 262);
   --tint-amber: oklch(0.82 0.16 82);
@@ -734,24 +770,24 @@ body:has(.document-editor) {
   }
 }
 
-/* The small colored icon on a template chip. */
-.document-editor [data-tint="green"] {
+/* The small colored icon on a template chip, and a page icon in a menu. */
+:root:has(.document-editor) [data-tint="green"] {
   color: var(--tint-green);
 }
 
-.document-editor [data-tint="blue"] {
+:root:has(.document-editor) [data-tint="blue"] {
   color: var(--tint-blue);
 }
 
-.document-editor [data-tint="amber"] {
+:root:has(.document-editor) [data-tint="amber"] {
   color: var(--tint-amber);
 }
 
-.document-editor [data-tint="rose"] {
+:root:has(.document-editor) [data-tint="rose"] {
   color: var(--tint-rose);
 }
 
-.document-editor [data-tint="ink"] {
+:root:has(.document-editor) [data-tint="ink"] {
   color: var(--foreground);
 }
 

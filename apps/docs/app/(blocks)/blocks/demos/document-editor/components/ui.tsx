@@ -17,6 +17,7 @@ import {
   Award01Icon,
   BookOpen01Icon,
   Bookmark01Icon,
+  BotIcon,
   Briefcase01Icon,
   Building01Icon,
   Calendar03Icon,
@@ -116,6 +117,7 @@ import {
   BoldIcon,
   BookOpenIcon,
   BookmarkIcon,
+  BotIcon as LucideBotIcon,
   BriefcaseIcon,
   Building2Icon,
   CalendarIcon,
@@ -321,18 +323,26 @@ export function Icon({
   lucide: Lucide,
   className,
   strokeWidth = 1.5,
-}: Glyph & { className?: string; strokeWidth?: number }) {
+  tint,
+}: Glyph & { className?: string; strokeWidth?: number; tint?: string }) {
   const theme = useContext(ThemeContext);
   const classes = cn("size-4 shrink-0", className);
+  const marked = tint ? { style: { color: `var(--icon-${tint})` } } : {};
   return theme === "aiellie" ? (
     <HugeiconsIcon
       icon={huge}
       strokeWidth={strokeWidth}
       aria-hidden
       className={classes}
+      {...marked}
     />
   ) : (
-    <Lucide strokeWidth={strokeWidth} aria-hidden className={classes} />
+    <Lucide
+      strokeWidth={strokeWidth}
+      aria-hidden
+      className={classes}
+      {...marked}
+    />
   );
 }
 
@@ -354,6 +364,7 @@ export const icons = {
   attach: glyph(Attachment01Icon, PaperclipIcon),
   auto: glyph(FlashIcon, ZapIcon),
   bold: glyph(TextBoldIcon, BoldIcon),
+  bot: glyph(BotIcon, LucideBotIcon),
   bullet: glyph(LeftToRightListBulletIcon, ListIcon),
   calendar: glyph(Calendar03Icon, CalendarIcon),
   check: glyph(CheckListIcon, ListTodoIcon),
@@ -538,7 +549,14 @@ export function PageGlyph({
       </span>
     );
   }
-  return <Icon {...glyphFor(icon)} {...(className ? { className } : {})} />;
+  const tint = icon?.kind === "icon" ? icon.color : undefined;
+  return (
+    <Icon
+      {...glyphFor(icon)}
+      {...(className ? { className } : {})}
+      {...(tint ? { tint } : {})}
+    />
+  );
 }
 
 /* -------------------------------------------------------------------------- */

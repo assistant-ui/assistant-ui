@@ -913,8 +913,36 @@ export type PageContent = {
   state: string | null;
 };
 
+/** Tailwind hues an icon can wear. Absent means the default ink. */
+export const ICON_COLORS = [
+  "red",
+  "orange",
+  "amber",
+  "yellow",
+  "lime",
+  "green",
+  "emerald",
+  "teal",
+  "cyan",
+  "sky",
+  "blue",
+  "indigo",
+  "violet",
+  "purple",
+  "fuchsia",
+  "pink",
+  "rose",
+] as const;
+
+export type IconColor = (typeof ICON_COLORS)[number];
+
 /** A page's icon: an emoji character, or the name of an icon in ui.tsx. */
-export type PageIcon = { kind: "emoji" | "icon"; value: string };
+export type PageIcon = {
+  kind: "emoji" | "icon";
+  value: string;
+  /** Set on an icon. An emoji leaves it out. */
+  color?: IconColor;
+};
 
 export type Page = {
   id: string;
@@ -1275,11 +1303,17 @@ export type DocumentStoreState = {
 };
 
 const pageIconOf = (
-  icon: { kind: string; value: string } | undefined,
-): PageIcon | undefined =>
-  icon && (icon.kind === "emoji" || icon.kind === "icon")
-    ? { kind: icon.kind, value: icon.value }
-    : undefined;
+  icon: { kind: string; value: string; color?: string } | undefined,
+): PageIcon | undefined => {
+  if (!icon || (icon.kind !== "emoji" && icon.kind !== "icon"))
+    return undefined;
+  const color = ICON_COLORS.find((entry) => entry === icon.color);
+  return {
+    kind: icon.kind,
+    value: icon.value,
+    ...(color && { color }),
+  };
+};
 
 /** What a visit starts with, apart from what is saved. */
 const unsaved = {
@@ -1333,7 +1367,11 @@ const storedSchema = z.object({
         parentId: z.string().nullable(),
         title: z.string(),
         icon: z
-          .object({ kind: z.enum(["emoji", "icon"]), value: z.string() })
+          .object({
+            kind: z.enum(["emoji", "icon"]),
+            value: z.string(),
+            color: z.enum(ICON_COLORS).optional(),
+          })
           .optional(),
         content: z.object({
           blocks: z.array(blockSchema),
@@ -1397,7 +1435,11 @@ export function readStored(
     result.data;
   const pages: Page[] = result.data.pages.map(({ icon, ...page }) => ({
     ...page,
-    ...(icon !== undefined && { icon }),
+    ...(icon !== undefined && {
+      icon: icon.color
+        ? { kind: icon.kind, value: icon.value, color: icon.color }
+        : { kind: icon.kind, value: icon.value },
+    }),
   }));
   const threads: CommentThread[] = result.data.threads.map((thread) => ({
     ...thread,

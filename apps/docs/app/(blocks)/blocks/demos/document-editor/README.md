@@ -8,7 +8,7 @@ It is built on [assistant-ui](https://www.assistant-ui.com) and [Lexical](https:
 
 - **The page.** Headings, checklists, lists, quotes, dividers and tables, inserted from the `/` menu or the pill at the top. A format bar sits over selected text. A grip beside each block drags it, turns it into another kind of block, and copies a link that opens the page at that block.
 - **Tables.** A header row, cells you type in, and a handle on each row and column that inserts, moves and deletes. `Alt+Shift+R` and `Alt+Shift+C` open the two menus from the keyboard.
-- **Pages.** Subpages, templates, an emoji or an icon for each page, links to other pages from the `@` menu, an outline of the headings on the left edge of a wide window, and Markdown download.
+- **Pages.** Subpages, templates, an emoji or a colored icon for each page, links to other pages from the `@` menu, an outline of the headings on the left edge of a wide window, and Markdown download.
 - **Comments.** Threads on a passage, with replies, emoji reactions and resolve. Mention `@Assistant` in a thread and it answers there. The assistant can also leave comments of its own.
 - **The assistant.** A bar you can move, resize and minimise to a round button, which shows a dot when there is something new. It keeps the chats of the visit under History, takes files and pictures, takes dictation where the browser supports it, and offers follow-ups after an edit. Ask AI on selected text, or Ask for change on an edit, quotes that passage in the next message.
 
@@ -28,7 +28,7 @@ It is built on [assistant-ui](https://www.assistant-ui.com) and [Lexical](https:
 | `components/edit-review.tsx` | The Undo, Ask for change and Accept pill under an edit, and the assistant's name flag where it writes. |
 | `components/top-bar.tsx` | The floating pills: the page menu, the insert buttons and the comments toggle. |
 | `components/pages-menu.tsx` | The page tree inside the page menu: switch pages, add a page or a subpage. |
-| `components/icon-picker.tsx` | The page icon above the title and its emoji and icon picker. |
+| `components/icon-picker.tsx` | The page icon above the title and its emoji and icon picker, with a color for an icon. |
 | `components/outline.tsx` | The outline rail on the left edge. |
 | `components/selection-toolbar.tsx` | The format bar over selected text, with Ask AI and Comment. |
 | `components/slash-menu.tsx` | The menu that typing `/` opens, and the page menu that typing `@` opens. |

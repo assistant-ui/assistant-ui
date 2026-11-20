@@ -239,7 +239,7 @@ const shorten = (value: string, length = 60) =>
 
 const authorName = (author: CommentAuthor) => PROFILE[author].name;
 
-/** An author's picture where the name is already written or read out beside it. */
+/** An author's picture, or the assistant's icon, beside a name that is already written. */
 function AuthorAvatar({
   author,
   size,
@@ -247,10 +247,13 @@ function AuthorAvatar({
   author: CommentAuthor;
   size?: "xs" | "sm";
 }) {
+  if (author === "assistant") {
+    return (
+      <Icon {...icons.bot} className={size === "xs" ? "size-3" : "size-3.5"} />
+    );
+  }
   const { name, avatar } = PROFILE[author];
-  return (
-    <Avatar src={avatar} name={name} decorative {...(size ? { size } : {})} />
-  );
+  return <Avatar src={avatar} name={name} size={size ?? "xs"} decorative />;
 }
 
 const REACTION_NAMES: Record<(typeof REACTION_EMOJI)[number], string> = {

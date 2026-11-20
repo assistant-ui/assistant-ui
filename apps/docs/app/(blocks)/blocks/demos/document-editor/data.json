@@ -129,7 +129,7 @@
         },
         {
           "type": "check",
-          "text": "Click the icon above the title to pick an emoji or an icon for the page, or to remove it. A page without one shows Add icon when you point at its title."
+          "text": "Click the icon above the title to pick an emoji or an icon for the page. The Icons tab also sets its color. Remove takes it away. A page without one shows Add icon when you point at its title."
         },
         {
           "type": "check",
@@ -171,7 +171,7 @@
         },
         {
           "type": "check",
-          "text": "Ask it to leave comments on the page. Its comments carry its picture."
+          "text": "Ask it to leave comments on the page. Its comments carry its icon."
         },
         {
           "type": "check",

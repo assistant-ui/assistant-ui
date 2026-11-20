@@ -506,13 +506,13 @@ function useStopDictation() {
 }
 
 /**
- * The assistant at the bottom centre of the page. Open, it is a bar with a
- * header, the thread and a composer; minimised, it is one round button.
+ * The assistant. Open, it is a bar at the bottom centre, with a header, the
+ * thread and a composer. Minimised, it is a round button at the bottom end.
  */
 export function AssistantModal() {
   const aui = useAui();
   const stopDictation = useStopDictation();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const bar = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -583,8 +583,10 @@ export function AssistantModal() {
 
   const style: CSSProperties & Record<"--bar-width", string> = {
     "--bar-width": `${size.width ?? DEFAULT_WIDTH}px`,
-    translate: `${offset.x}px ${open ? offset.y : 0}px`,
-    ...(open && { maxHeight: `calc(100dvh - ${ROOM_AROUND}px)` }),
+    ...(open && {
+      translate: `${offset.x}px ${offset.y}px`,
+      maxHeight: `calc(100dvh - ${ROOM_AROUND}px)`,
+    }),
   };
 
   return (
@@ -600,7 +602,12 @@ export function AssistantModal() {
         setOpen(next);
       }}
     >
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-3 sm:pb-5">
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 z-40 flex px-3 pb-3 sm:pb-5",
+          open ? "justify-center" : "justify-end",
+        )}
+      >
         <AssistantModalPrimitive.Anchor
           ref={bar}
           role="region"
@@ -609,12 +616,14 @@ export function AssistantModal() {
           style={style}
           className={cn(
             "pointer-events-auto relative flex flex-col",
-            open && [
-              floating,
-              denseGlass,
-              text.body,
-              "text-popover-foreground w-full rounded-[calc(var(--radius)+10px)] p-1.5 sm:max-w-(--bar-width)",
-            ],
+            open
+              ? [
+                  floating,
+                  denseGlass,
+                  text.body,
+                  "text-popover-foreground w-full rounded-[calc(var(--radius)+10px)] p-1.5 sm:max-w-(--bar-width)",
+                ]
+              : "items-end",
           )}
         >
           {open && <Header grip={geometry.grip} input={input} />}
@@ -687,12 +696,7 @@ function Launcher({
           "focus-visible:border-ring relative flex size-10 items-center justify-center rounded-full transition-[border-color,scale] duration-150 outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 pointer-coarse:size-11",
         )}
       >
-        <Avatar
-          src={PROFILE.assistant.avatar}
-          name={PROFILE.assistant.name}
-          size="md"
-          decorative
-        />
+        <Icon {...icons.bot} className="size-5" />
         {unseen && <Badge className="absolute end-0 top-0" />}
       </AssistantModalPrimitive.Trigger>
     </Tooltip>
@@ -976,13 +980,8 @@ function AssistantMessage() {
   const last = useAuiState((s) => s.message.isLast);
 
   return (
-    <MessagePrimitive.Root className="group flex gap-2 px-1">
-      <Avatar
-        src={PROFILE.assistant.avatar}
-        name={PROFILE.assistant.name}
-        className="-mt-0.5"
-      />
-      <div className="relative flex min-w-0 flex-1 flex-col gap-1.5">
+    <MessagePrimitive.Root className="group px-1">
+      <div className="relative flex min-w-0 flex-col gap-1.5">
         <AuiIf
           condition={(s) =>
             s.message.status?.type === "running" &&
