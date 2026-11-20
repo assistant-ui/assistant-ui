@@ -1972,6 +1972,16 @@ test("a package's source change stays T1 with no package authority", () => {
   assert.deepEqual(result.ownedPackages, []);
 });
 
+test("an archive under a package owner's path moves its decision to that owner", () => {
+  const result = computeTier(
+    input({ files: [file("packages/docs-theme/vendor/theme.tgz")] }),
+    policy,
+  );
+  assert.equal(result.tier, 3);
+  assert.deepEqual(result.areas, []);
+  assert.deepEqual(result.ownedPackages, ["docs-theme"]);
+});
+
 test("a package's API change keeps its tier and moves to the package owner", () => {
   const unchangedSurface = computeTier(
     input({ files: [file(ownedSurface)] }),

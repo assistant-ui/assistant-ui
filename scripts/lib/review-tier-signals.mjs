@@ -213,7 +213,7 @@ export function computeTier(input, policy) {
           : "contract-docs";
         addReason(2, code, path, path);
       } else if (/\.(?:tgz|tar\.gz|tar)$/i.test(path)) {
-        addReason(3, "unowned-archive", path);
+        addReason(3, "unowned-archive", path, path);
       } else if (isLowRiskPath(policy, path)) {
         addReason(0, "low-risk-path", path);
       } else if (isTestPath(policy, path)) {
