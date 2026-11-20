@@ -89,11 +89,11 @@ failed is created again before its child, and a child whose parent still
 cannot be created is stored as a root.
 
 A message appended as running holds a run lease, renewed by heartbeats on
-the server's interval until a write with an end reason ends it. Heartbeats
+the server's interval until a write with an end reason ends it or the runtime releases it. Heartbeats
 keep running while the page is in the background. The server never
 expires a lease; readers show a run as stale once it has gone `staleAfter`
 without a beat, and a late run keeps writing its own message. A lease that
-is lost (ended elsewhere or refused) is final: the message gets no further
+is lost or released is final: the message gets no further
 writes from this persistence.
 
 <ParametersTable {...assistantCloud_CloudMessagePersistence} />
