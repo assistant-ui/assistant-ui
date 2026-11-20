@@ -432,10 +432,24 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
         core.leave();
         await following;
 
-        expect(
-          writes.filter((message) => message.role === "assistant"),
-        ).toEqual([]);
-        expect(core.getMessages().at(-1)?.status).toEqual({ type: "running" });
+        await vi.waitFor(() =>
+          expect(
+            writes.filter((message) => message.role === "assistant"),
+          ).toEqual([
+            expect.objectContaining({
+              status: {
+                type: "incomplete",
+                reason: "error",
+                error: "The connection ended before the answer finished.",
+              },
+            }),
+          ]),
+        );
+        expect(core.getMessages().at(-1)?.status).toEqual({
+          type: "incomplete",
+          reason: "error",
+          error: "The connection ended before the answer finished.",
+        });
         expect(core.isRunning()).toBe(false);
         expect(onCancel).toHaveBeenCalledOnce();
       },

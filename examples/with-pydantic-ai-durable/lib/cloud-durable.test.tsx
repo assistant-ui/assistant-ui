@@ -502,8 +502,8 @@ const runInput = {
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
-afterEach(() => {
-  cleanup();
+afterEach(async () => {
+  await act(async () => cleanup());
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -571,7 +571,7 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     expect(durable.state.starts).toEqual([]);
   }, 15_000);
 
-  it("(a) takes over a reasoning-only run after its tab unmounts and the reply's lease goes stale", async () => {
+  it("(a) immediately rejoins a reasoning-only run in another tab after unmount ends its lease and stores one answer", async () => {
     vi.useFakeTimers({
       toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
       shouldAdvanceTime: true,
@@ -597,12 +597,19 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
       ).toMatchObject([{ type: "reasoning", text: "thinking" }]),
     );
     await waitFor(() => expect(assistantRows()).toHaveLength(1));
-    const interruptedId = assistantRows()[0]!.id;
+    const interrupted = assistantRows()[0]!;
+    const leaseId = interrupted.lease!.id;
+    expect(durable.state.connects).toEqual(["durable-1"]);
 
     await act(async () => {
-      cleanup();
+      first.unmount();
     });
-    const leaseId = assistantRows()[0]!.lease!.id;
+    expect(interrupted.content.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "The connection ended before the answer finished.",
+    });
+    expect(interrupted.lease?.status).toBe("ended");
     const beats = () =>
       cloud.calls.filter(
         (call) =>
@@ -614,23 +621,19 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
       await vi.advanceTimersByTimeAsync(250);
     });
     expect(beats()).toBe(before);
-    // Closing the tab also destroys its JavaScript timers, including lease heartbeats.
-    vi.clearAllTimers();
-    vi.useRealTimers();
-    const second = await openTab("tab-b", 1_000);
+    const second = await openTab("tab-b");
     await openThread(second);
     await waitFor(() =>
       expect(second.getAui().thread.getState().messages).toHaveLength(2),
     );
-    expect(Date.now() - assistantRows()[0]!.lease!.beatAt).toBeLessThan(1_000);
-    expect(durable.state.connects).toEqual(["durable-1"]);
-    expect(writesBy("tab-b")).toEqual([]);
-
-    await waitFor(
-      () => expect(durable.state.connects).toEqual(["durable-1", "durable-1"]),
-      { timeout: 8_000 },
+    expect(Date.now() - interrupted.lease!.beatAt).toBeLessThan(30_000);
+    expect(durable.state.connects).toEqual(["durable-1", "durable-1"]);
+    expect(cloud.rows.some((row) => row.id === interrupted.id)).toBe(false);
+    await waitFor(() =>
+      expect(
+        second.getAui().thread.getState().messages[1]?.content,
+      ).toMatchObject([{ type: "reasoning", text: "thinking" }]),
     );
-    expect(cloud.rows.some((row) => row.id === interruptedId)).toBe(false);
     await act(async () => {
       durable.push({
         type: "REASONING_MESSAGE_END",
@@ -654,23 +657,29 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     expect(assistantRows()).toHaveLength(1);
     expect(assistantRows()[0]!.parent_id).toBe("u1");
     expect(shown(second)).toEqual(["user: hello", "assistant: partial answer"]);
+    expect(second.getAui().thread.getState().isRunning).toBe(false);
     await waitFor(() =>
       expect(assistantRows()[0]!.lease?.status).toBe("ended"),
     );
     expect(durable.state.starts).toEqual([]);
   }, 15_000);
 
-  it("(a) takes over a run when the same page remounts after an in-app unmount and stores one answer", async () => {
+  it("(a) immediately rejoins a run when the same page remounts after unmount ends its lease and stores one answer", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      shouldAdvanceTime: true,
+    });
     useServers([userRow], null);
     durable.begin(runInput);
-    const tab = await openTab("tab-a", 1_000);
+    const tab = await openTab("tab-a");
     await openThread(tab);
     await waitFor(() =>
       expect(shown(tab)).toEqual(["user: hello", "assistant: partial"]),
     );
     await waitFor(() => expect(assistantRows()).toHaveLength(1));
-    const interruptedId = assistantRows()[0]!.id;
-    const leaseId = assistantRows()[0]!.lease!.id;
+    const interrupted = assistantRows()[0]!;
+    const leaseId = interrupted.lease!.id;
+    expect(durable.state.connects).toEqual(["durable-1"]);
     const beats = () =>
       cloud.calls.filter(
         (call) =>
@@ -679,18 +688,26 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
       ).length;
 
     await act(async () => tab.unmount());
+    expect(interrupted.content.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "The connection ended before the answer finished.",
+    });
+    expect(interrupted.lease?.status).toBe("ended");
     const beatsAtUnmount = beats();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(beats()).toBe(beatsAtUnmount);
     await tab.remount();
     await openThread(tab);
     await waitFor(() =>
       expect(tab.getAui().thread.getState().messages).toHaveLength(2),
     );
-    await waitFor(
-      () => expect(durable.state.connects).toEqual(["durable-1", "durable-1"]),
-      { timeout: 8_000 },
-    );
+    expect(Date.now() - interrupted.lease!.beatAt).toBeLessThan(30_000);
+    expect(durable.state.connects).toEqual(["durable-1", "durable-1"]);
     expect(beats()).toBe(beatsAtUnmount);
-    expect(cloud.rows.some((row) => row.id === interruptedId)).toBe(false);
+    expect(cloud.rows.some((row) => row.id === interrupted.id)).toBe(false);
 
     await act(async () => durable.finish());
     await waitFor(() =>
@@ -701,6 +718,7 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     );
     expect(assistantRows()).toHaveLength(1);
     expect(assistantRows()[0]!.parent_id).toBe("u1");
+    expect(tab.getAui().thread.getState().isRunning).toBe(false);
     await waitFor(() =>
       expect(assistantRows()[0]!.lease?.status).toBe("ended"),
     );

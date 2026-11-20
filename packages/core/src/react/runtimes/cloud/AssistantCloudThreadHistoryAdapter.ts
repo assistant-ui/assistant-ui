@@ -1,4 +1,4 @@
-import { type RefObject, useInsertionEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
@@ -41,7 +41,6 @@ import {
   withPersistenceFailure,
 } from "./runTelemetry";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
-import { createClientFacade } from "@assistant-ui/store/client";
 import {
   type KeyedThreadListItem as CloudThreadListItem,
   tryGetKeyedThreadListItem,
@@ -156,7 +155,6 @@ export type CloudRunWriter = {
     parent: ThreadMessage | undefined,
   ): Promise<void>;
   hasOpenRun(key: string): boolean;
-  release?(key: string): void;
   rename(from: string, to: string): Promise<void>;
   /** Records how a settled message ends its run, for a runtime whose own settled write cannot say. */
   noteSettled?(message: ThreadMessage): void;
@@ -521,7 +519,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         }
       },
       hasOpenRun: (key) => !!pinnedPersistence()?.hasOpenRun(key),
-      release: (key) => pinnedPersistence()?.release(key),
       rename: (from, to) =>
         pinnedPersistence()?.rename(from, to) ?? Promise.resolve(),
       noteSettled(message) {
@@ -715,7 +712,6 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     write: (message, parent) =>
       this.update({ parentId: parent?.id ?? null, message }),
     hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),
-    release: (key) => this.getPersistence().release(key),
     rename: (from, to) => this.getPersistence().rename(from, to),
   };
 
@@ -1154,15 +1150,9 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);
-  useInsertionEffect(() => {
+  useEffect(() => {
     auiRef.current = aui;
-  }, [aui]);
-  const [stableAui] = useState(() =>
-    createClientFacade({
-      getClient: () => auiRef.current,
-      subscribe: (listener) => auiRef.current.subscribe(listener),
-    }),
-  );
+  });
   const [adapter] = useState(
     () =>
       new AssistantCloudThreadHistoryAdapter(
@@ -1173,7 +1163,7 @@ export function useScopedAssistantCloudThreadHistoryAdapter(
       ),
   );
   useAssistantCloudEngagementEvents(adapter, aui);
-  useCloudRunLeases(adapter, stableAui);
+  useCloudRunLeases(adapter, aui);
   return adapter;
 }
 

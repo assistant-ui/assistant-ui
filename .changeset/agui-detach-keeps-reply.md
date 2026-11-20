@@ -1,7 +1,5 @@
 ---
 "@assistant-ui/react-ag-ui": patch
-"assistant-cloud": patch
-"@assistant-ui/core": patch
 ---
 
-A durable reply keeps running after a thread switch or unmount and can be recovered when its lease goes stale, including when the app remounts on the same page.
+Leaving a durable run midway stores its reply as interrupted by the connection instead of cancelled, so another tab or a remount takes the run over.

@@ -220,6 +220,11 @@ type ResumeStream = (
 type ResumeSource = ResumeStream | "connect";
 
 const detachReason = Symbol("agui-detach");
+const connectionEndedStatus: MessageStatus = {
+  type: "incomplete",
+  reason: "error",
+  error: "The connection ended before the answer finished.",
+};
 
 // connectAgent() swallows the base class's not-implemented error and resolves
 // with no events, so only an agent that overrides connect() can rejoin a run.
@@ -2771,6 +2776,38 @@ export class AgUiThreadController {
       }
     };
     let runFinished = false;
+    const settleInterruptedRun = () => {
+      const item = assistantMessageId
+        ? this.session.tryGetMessage(assistantMessageId)
+        : undefined;
+      const current = item?.message;
+      const currentRunning =
+        current?.role === "assistant" && current.status?.type === "running";
+      if (currentRunning || heldMessages.size > 0) {
+        persistRunAssistants(true);
+        settleHeldMessages(connectionEndedStatus);
+        if (currentRunning) {
+          this.markPendingAssistantHistory(current.id, item!.parentId);
+          applyUpdate({
+            status: connectionEndedStatus,
+            content: settleNestedContent(
+              current.content,
+              connectionEndedStatus,
+            ),
+          });
+        }
+      }
+      if (!runFinished) {
+        const settled = assistantMessageId
+          ? this.session.tryGetMessage(assistantMessageId)?.message
+          : undefined;
+        settleRunSubagents(
+          settled?.status?.type === "incomplete"
+            ? settled.status
+            : connectionEndedStatus,
+        );
+      }
+    };
     let superseded = false;
     let closeDrain!: () => void;
     const drainClosed = new Promise<void>((resolve) => {
@@ -2965,7 +3002,8 @@ export class AgUiThreadController {
           this.drainingRun = null;
           closeDrain();
         }
-        if (abortSignal.reason !== detachReason) cancelRun();
+        if (abortSignal.reason === detachReason) settleInterruptedRun();
+        else cancelRun();
         this.finishRun(abortController);
         invokeRuntimeCallback("onCancel", this.onCancel);
       },
@@ -3052,45 +3090,7 @@ export class AgUiThreadController {
         pendingError = err;
       }
     } finally {
-      const current = assistantMessageId
-        ? this.session.tryGetMessage(assistantMessageId)?.message
-        : undefined;
-      const currentRunning =
-        current?.role === "assistant" && current.status?.type === "running";
-      if (
-        this.abortController === abortController &&
-        (currentRunning || heldMessages.size > 0)
-      ) {
-        persistRunAssistants(true);
-        // Finalization is transport cleanup, not proof of a terminal event.
-        const status: MessageStatus = {
-          type: "incomplete",
-          reason: "error",
-          error: "The connection ended before the answer finished.",
-        };
-        settleHeldMessages(status);
-        if (currentRunning)
-          applyUpdate({
-            status,
-            content: settleNestedContent(current.content, status),
-          });
-      }
-      if (this.abortController === abortController && !runFinished) {
-        // The run ended without RUN_FINISHED, so no sub-agent call it left
-        // open can still be answered.
-        const settled = assistantMessageId
-          ? this.session.tryGetMessage(assistantMessageId)?.message
-          : undefined;
-        settleRunSubagents(
-          settled?.status?.type === "incomplete"
-            ? settled.status
-            : {
-                type: "incomplete",
-                reason: "error",
-                error: "The connection ended before the answer finished.",
-              },
-        );
-      }
+      if (this.abortController === abortController) settleInterruptedRun();
       // Stop may have finished this run already; a newer run owns its own
       // writes.
       if (this.runCount === runNumber) {

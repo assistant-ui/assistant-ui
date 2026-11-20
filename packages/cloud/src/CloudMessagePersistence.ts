@@ -42,7 +42,7 @@ type OpenRun = {
 
 /**
  * A message's run lease as this persistence knows it: held, ended by our own
- * final write, or lost (released, ended elsewhere or refused). A lost run's message gets no
+ * final write, or lost (ended elsewhere or refused). A lost run's message gets no
  * further writes; an ended one only plain writes.
  */
 type Run = OpenRun | "ended" | "lost";
@@ -98,11 +98,11 @@ type FailedAppend = {
  * cannot be created is stored as a root.
  *
  * A message appended as running holds a run lease, renewed by heartbeats on
- * the server's interval until a write with an end reason ends it or the runtime releases it. Heartbeats
+ * the server's interval until a write with an end reason ends it. Heartbeats
  * keep running while the page is in the background. The server never
  * expires a lease; readers show a run as stale once it has gone `staleAfter`
  * without a beat, and a late run keeps writing its own message. A lease that
- * is lost or released is final: the message gets no further
+ * is lost (ended elsewhere or refused) is final: the message gets no further
  * writes from this persistence.
  */
 export class CloudMessagePersistence {
@@ -387,11 +387,6 @@ export class CloudMessagePersistence {
   /** Whether a run lease this persistence opened for the message is still held. */
   hasOpenRun(messageId: string): boolean {
     return isOpen(this.runs.get(messageId));
-  }
-
-  /** Stops heartbeating a held message's lease without ending it on the server, so readers see it as stale after `staleAfter`. */
-  release(messageId: string): void {
-    if (isOpen(this.runs.get(messageId))) this.closeRun(messageId, "lost");
   }
 
   private openRun(threadId: string, messageId: string, lease: CloudRunLease) {
