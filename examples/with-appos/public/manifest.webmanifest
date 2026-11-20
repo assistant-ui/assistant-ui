@@ -1,9 +1,9 @@
 {
   "name": "Article Assistant",
   "short_name": "Article",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "start_url": "/",
   "display": "standalone",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }],
-  "appos": { "build": 2 }
+  "appos": { "build": 3 }
 }

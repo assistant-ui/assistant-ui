@@ -1,6 +1,6 @@
 # appOS App
 
-An assistant-ui chat that runs as an appOS app: the Article Assistant, a made-up news feature (`src/article.ts`) with a chat beside it that answers questions about it.
+An assistant-ui chat that runs as an appOS app: the Article Assistant, a made-up news feature (`src/article.ts`) with an AssistantModal launcher on top that answers questions about it.
 
 - **Runtime:** `useChatRuntime` from `@assistant-ui/react-ai-sdk` with the AI SDK's `DirectChatTransport` (`src/appos-runtime.ts`). The agent loop runs in the app's frame.
 - **Model:** `apposModel()` from `appos-client/ai-sdk`. The shell that runs the app serves each model call and holds the key, so the app has no key and no backend.

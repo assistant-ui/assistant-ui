@@ -3,13 +3,13 @@ import {
   AuiConfig,
   Suggestions,
 } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAppOSRuntime } from "./appos-runtime";
 import { Article } from "./ArticleView";
-import { article, articleText } from "./article";
+import { articleText } from "./article";
 
-const INSTRUCTIONS = `You are the reading assistant for one article, shown beside this chat. Answer questions about that article only.
+const INSTRUCTIONS = `You are the reading assistant for one article, shown behind this chat. Answer questions about that article only.
 
 Rules:
 - Base every answer on the article text below. Quote or paraphrase it, and name who said what.
@@ -44,29 +44,16 @@ const SUGGESTIONS = [
   },
 ];
 
-const Welcome = () => (
-  <div className="mb-6 flex flex-col gap-1 px-2">
-    <p className="text-2xl font-medium tracking-tight">Ask about the article</p>
-    <p className="text-muted-foreground text-sm">
-      Answers come only from “{article.title}”.
-    </p>
-  </div>
-);
-
 export function App() {
   const runtime = useAppOSRuntime({ instructions: INSTRUCTIONS });
   const config = AuiConfig({ suggestions: Suggestions(SUGGESTIONS) });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <TooltipProvider>
-        <main className="flex h-dvh flex-col overflow-y-auto md:flex-row md:overflow-hidden">
-          <div className="border-border md:w-[55%] md:overflow-y-auto md:border-r">
-            <Article />
-          </div>
-          <aside className="border-border flex h-[85dvh] shrink-0 flex-col border-t md:h-auto md:flex-1 md:border-t-0">
-            <Thread components={{ Welcome }} autoFocus={false} />
-          </aside>
+        <main className="h-dvh overflow-y-auto">
+          <Article />
         </main>
+        <AssistantModal />
       </TooltipProvider>
     </AssistantRuntimeProvider>
   );
