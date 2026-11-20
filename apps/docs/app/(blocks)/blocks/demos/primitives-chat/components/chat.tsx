@@ -53,7 +53,6 @@ import {
   Add01Icon,
   Alert02Icon,
   Archive02Icon,
-  ArrowDown01Icon,
   ArrowDown02Icon,
   ArrowLeft01Icon,
   ArrowLeft02Icon,
@@ -62,10 +61,12 @@ import {
   ArrowUp02Icon,
   Attachment01Icon,
   BubbleChatIcon,
+  CheckmarkCircle02Icon,
   Cancel01Icon,
   Copy01Icon,
   Delete01Icon,
   Download01Icon,
+  Idea01Icon,
   Image01Icon,
   LayoutAlignLeftIcon,
   MoreHorizontalIcon,
@@ -99,6 +100,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
 /* Runtime: a scripted model, so the chat runs without a key or a server.     */
@@ -175,7 +177,7 @@ const scriptedModel: ChatModelAdapter = {
       yield* write(
         parts,
         "text",
-        "It is 22°C and clear in Tokyo. Open Thinking above to see the reasoning and the tool call.",
+        "It is 22°C and clear in Tokyo. Open the line above to see the reasoning and the tool call.",
         abortSignal,
       );
       return;
@@ -298,6 +300,22 @@ function Icon({
 const focusRing =
   "outline-hidden focus-visible:ring-1 focus-visible:ring-foreground/20";
 
+/*
+ * One scale for the whole chat.
+ * Corners: 16px for a surface on the page, 12px for anything inside one, and
+ * a full pill for buttons and chips. The composer alone is rounder, at 24px.
+ * Text: 14px for messages and the interface, 16px for what you type, 13px
+ * inside menus, 12px for counts and code.
+ * Chips, text buttons and list rows are 32px tall; icon buttons are 28px.
+ */
+const rSurface = "rounded-(--radius)";
+const rItem = "rounded-[calc(var(--radius)-4px)]";
+const textReading = "text-sm leading-[1.375rem]";
+const textControl = "text-sm leading-5";
+
+/* A row in a list: 32px tall, 12px corners, 8px side padding. */
+const listRow = `hover:bg-accent flex h-8 items-center gap-2 px-2 transition-colors motion-reduce:transition-none ${rItem} ${focusRing}`;
+
 const iconButton = `text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 dark:hover:bg-foreground/[0.09] flex size-7 shrink-0 items-center justify-center rounded-full transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none [&_svg]:size-3.5 ${focusRing}`;
 
 const iconSwap =
@@ -325,8 +343,24 @@ function Tip({
 /* A filled area with no border. */
 const field = "bg-foreground/4 dark:bg-foreground/6";
 
-/* A suggestion chip: white with a light border and the composer's shadow. */
-const chip = `bg-background border-border/60 hover:bg-accent flex h-8 items-center gap-1.5 rounded-full border px-3 shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-colors motion-reduce:transition-none ${focusRing}`;
+/*
+ * Paper: a quiet raised surface on the page, background fill and a 60%
+ * border. Only layers that float (menus, popovers) carry a shadow.
+ */
+const paper = "bg-background border-border/60 border";
+
+/* A suggestion chip: paper, 32px tall. */
+const chip = `${paper} hover:bg-accent flex h-8 items-center rounded-full px-3.5 transition-colors motion-reduce:transition-none ${textControl} ${focusRing}`;
+
+/* A small text button, the same height as a chip. */
+const textButton = `flex h-8 items-center rounded-full px-3.5 transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none ${textControl} ${focusRing}`;
+
+/* Floating: glass with the one shadow, for layers above the page. */
+const floating =
+  "border-border/60 border bg-(--glass) shadow-(--float-shadow) backdrop-blur-(--glass-blur) not-supports-[backdrop-filter:blur(1px)]:bg-popover [@media(prefers-reduced-transparency:reduce)]:bg-popover [@media(prefers-reduced-transparency:reduce)]:backdrop-blur-none";
+
+/* A quote: muted 14px text behind a short rounded bar. */
+const quote = `text-muted-foreground before:bg-foreground/20 relative min-w-0 ps-3 before:absolute before:inset-y-0.5 before:start-0 before:w-0.5 before:rounded-full ${textControl}`;
 
 /*
  * A menu: a 16px glass popup with the float shadow, 13px text and 26px rows
@@ -489,7 +523,7 @@ function Header({
           <button
             type="button"
             onClick={onSidebarToggle}
-            className={`${iconButton} -ms-1`}
+            className={cn(iconButton, "-ms-1")}
           >
             <Icon icon={LayoutAlignLeftIcon} />
           </button>
@@ -499,7 +533,7 @@ function Header({
         {title || "New chat"}
       </h1>
       <Tip label="New chat">
-        <ThreadListPrimitive.New className={`${iconButton} md:hidden`}>
+        <ThreadListPrimitive.New className={cn(iconButton, "md:hidden")}>
           <Icon icon={Add01Icon} />
         </ThreadListPrimitive.New>
       </Tip>
@@ -614,7 +648,7 @@ function SidebarBar({ onSidebarToggle }: { onSidebarToggle: () => void }) {
         <button
           type="button"
           onClick={onSidebarToggle}
-          className={`${iconButton} ms-auto`}
+          className={cn(iconButton, "ms-auto")}
         >
           <Icon icon={SidebarLeftIcon} />
         </button>
@@ -634,7 +668,7 @@ function ThreadList() {
         Chats
       </span>
       <ThreadListPrimitive.New
-        className={`hover:bg-accent data-active:bg-accent mb-1 flex h-8 items-center gap-2 rounded-lg px-2.5 font-medium transition-colors motion-reduce:transition-none ${focusRing}`}
+        className={cn(listRow, "data-active:bg-accent mb-1 font-medium")}
       >
         <Icon icon={Add01Icon} className="size-4" />
         New chat
@@ -643,7 +677,7 @@ function ThreadList() {
         {() => <ThreadListItem />}
       </ThreadListPrimitive.Items>
       <AuiIf condition={(s: any) => s.threads.archivedThreadIds.length > 0}>
-        <p className="text-muted-foreground mt-4 px-2.5 pb-1 text-xs">
+        <p className={cn("text-muted-foreground mt-4 px-2 pb-1", textControl)}>
           Archived
         </p>
         <ThreadListPrimitive.Items archived>
@@ -658,16 +692,28 @@ function ThreadListItem() {
   const archived = useAuiState((s) => s.threadListItem.status === "archived");
 
   return (
-    <ThreadListItemPrimitive.Root className="group hover:bg-accent data-active:bg-accent has-data-[state=open]:bg-accent relative flex h-8 items-center rounded-lg transition-colors motion-reduce:transition-none">
+    <ThreadListItemPrimitive.Root
+      className={cn(
+        "group hover:bg-accent data-active:bg-accent has-data-[state=open]:bg-accent relative flex h-8 items-center transition-colors motion-reduce:transition-none",
+        rItem,
+      )}
+    >
       <ThreadListItemPrimitive.Trigger
-        className={`h-full min-w-0 flex-1 truncate rounded-lg ps-2.5 pe-9 text-start ${focusRing}`}
+        className={cn(
+          "h-full min-w-0 flex-1 truncate ps-2 pe-8 text-start",
+          rItem,
+          focusRing,
+        )}
       >
         <ThreadListItemPrimitive.Title fallback="New chat" />
       </ThreadListItemPrimitive.Trigger>
       <ThreadListItemMorePrimitive.Root>
         <Tip label="Chat options">
           <ThreadListItemMorePrimitive.Trigger
-            className={`${iconButton} absolute end-1 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100`}
+            className={cn(
+              iconButton,
+              "absolute end-1 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
+            )}
           >
             <Icon icon={MoreHorizontalIcon} />
           </ThreadListItemMorePrimitive.Trigger>
@@ -696,7 +742,7 @@ function ThreadListItem() {
           <ThreadListItemMorePrimitive.Separator className={menuSeparator} />
           <ThreadListItemPrimitive.Delete asChild>
             <ThreadListItemMorePrimitive.Item
-              className={`${menuItem} ${menuItemDestructive}`}
+              className={cn(menuItem, menuItemDestructive)}
             >
               <Icon icon={Delete01Icon} />
               Delete
@@ -722,7 +768,10 @@ function FloatingChat() {
         <AssistantModalPrimitive.Anchor className="absolute end-4 bottom-4 size-11">
           <Tip label="Toggle the chat">
             <AssistantModalPrimitive.Trigger
-              className={`bg-primary text-primary-foreground flex size-full items-center justify-center rounded-full transition-transform active:scale-95 motion-reduce:transition-none ${focusRing}`}
+              className={cn(
+                "bg-primary text-primary-foreground flex size-full items-center justify-center rounded-full transition-transform active:scale-95 motion-reduce:transition-none",
+                focusRing,
+              )}
             >
               <Icon icon={BubbleChatIcon} className="size-5" />
             </AssistantModalPrimitive.Trigger>
@@ -731,7 +780,10 @@ function FloatingChat() {
         <AssistantModalPrimitive.Content
           sideOffset={12}
           aria-label="Chat"
-          className="bg-background z-50 flex h-[30rem] max-h-(--radix-popover-content-available-height) w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-clip rounded-xl border shadow-lg outline-none"
+          className={cn(
+            "bg-background border-border/60 z-50 flex h-[30rem] max-h-(--radix-popover-content-available-height) w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-clip border shadow-(--float-shadow) outline-none",
+            rSurface,
+          )}
         >
           <Thread />
         </AssistantModalPrimitive.Content>
@@ -752,7 +804,7 @@ function Thread() {
           <AuiIf condition={(s: any) => s.thread.isEmpty}>
             <Welcome />
           </AuiIf>
-          <div className="flex flex-col gap-6 pb-10 empty:hidden">
+          <div className="flex flex-col gap-8 pb-10 empty:hidden">
             <ThreadPrimitive.Messages>
               {() => <Message />}
             </ThreadPrimitive.Messages>
@@ -760,7 +812,11 @@ function Thread() {
           <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col pb-4">
             <Tip label="Scroll to the newest message">
               <ThreadPrimitive.ScrollToBottom
-                className={`${iconButton} bg-background absolute -top-10 self-center rounded-full border disabled:invisible`}
+                className={cn(
+                  iconButton,
+                  paper,
+                  "absolute -top-10 self-center disabled:invisible",
+                )}
               >
                 <Icon icon={ArrowDown02Icon} />
               </ThreadPrimitive.ScrollToBottom>
@@ -771,9 +827,14 @@ function Thread() {
         </div>
       </ThreadPrimitive.Viewport>
 
-      <SelectionToolbarPrimitive.Root className="bg-popover text-popover-foreground z-50 rounded-lg border p-1 shadow-md">
+      <SelectionToolbarPrimitive.Root
+        className={cn(
+          floating,
+          "text-popover-foreground z-50 rounded-full p-0.5",
+        )}
+      >
         <SelectionToolbarPrimitive.Quote
-          className={`hover:bg-accent flex items-center gap-1.5 rounded-md px-2 py-1 text-sm ${focusRing}`}
+          className={cn(textButton, "gap-1.5 px-2.5 hover:bg-(--glass-hover)")}
         >
           <Icon icon={QuoteDownIcon} className="size-3.5" />
           Quote
@@ -796,20 +857,16 @@ function FollowUps() {
 
   return (
     <div className="flex flex-wrap gap-1.5 pb-2">
-      {suggestions.map((suggestion) => {
-        const icon = PROMPT_ICONS[suggestion.prompt];
-        return (
-          <ThreadPrimitive.Suggestion
-            key={suggestion.prompt}
-            prompt={suggestion.prompt}
-            send
-            className={chip}
-          >
-            {icon && <Icon icon={icon} className="size-3.5" />}
-            {suggestion.title ?? suggestion.prompt}
-          </ThreadPrimitive.Suggestion>
-        );
-      })}
+      {suggestions.map((suggestion) => (
+        <ThreadPrimitive.Suggestion
+          key={suggestion.prompt}
+          prompt={suggestion.prompt}
+          send
+          className={chip}
+        >
+          {suggestion.title ?? suggestion.prompt}
+        </ThreadPrimitive.Suggestion>
+      ))}
     </div>
   );
 }
@@ -834,10 +891,13 @@ function Welcome() {
           {() => (
             <SuggestionPrimitive.Trigger
               send
-              className={`hover:bg-accent flex h-11 items-center gap-3 rounded-xl px-2 text-start transition-colors motion-reduce:transition-none ${focusRing}`}
+              className={cn(listRow, "h-9 gap-2.5 text-start")}
             >
               <span
-                className={`${field} flex size-7 shrink-0 items-center justify-center rounded-full`}
+                className={cn(
+                  field,
+                  "flex size-6 shrink-0 items-center justify-center rounded-full",
+                )}
               >
                 <SuggestionIcon className="size-3.5" />
               </span>
@@ -863,15 +923,25 @@ function Composer() {
       <ComposerPrimitive.AttachmentDropzone className="bg-background data-[dragging=true]:border-ring border-border/60 flex flex-col gap-2 rounded-3xl border p-2 shadow-[0_1px_2px_rgb(0_0_0/0.05)] transition-colors data-[dragging=true]:border-dashed motion-reduce:transition-none">
         <ComposerPrimitive.Queue>
           {() => (
-            <div className="bg-background flex items-center gap-1 rounded-lg border py-1 ps-2.5 pe-1">
+            <div
+              className={cn(
+                field,
+                "flex h-9 items-center gap-1 ps-3 pe-1.5",
+                rItem,
+                textControl,
+              )}
+            >
               <QueueItemPrimitive.Text className="min-w-0 flex-1 truncate" />
               <QueueItemPrimitive.Steer
-                className={`hover:bg-accent text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-xs ${focusRing}`}
+                className={cn(
+                  textButton,
+                  "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground h-7 px-2.5",
+                )}
               >
                 Send now
               </QueueItemPrimitive.Steer>
               <Tip label="Remove from the queue">
-                <QueueItemPrimitive.Remove className={iconButton}>
+                <QueueItemPrimitive.Remove className={cn(iconButton, "size-6")}>
                   <Icon icon={Cancel01Icon} />
                 </QueueItemPrimitive.Remove>
               </Tip>
@@ -879,14 +949,14 @@ function Composer() {
           )}
         </ComposerPrimitive.Queue>
 
-        <ComposerPrimitive.Quote className="bg-background flex items-start gap-2 rounded-lg border py-1.5 ps-2.5 pe-1">
-          <Icon
-            icon={QuoteDownIcon}
-            className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+        <ComposerPrimitive.Quote className="flex items-start gap-2 px-2 pt-1.5">
+          <ComposerPrimitive.QuoteText
+            className={cn(quote, "line-clamp-2 flex-1")}
           />
-          <ComposerPrimitive.QuoteText className="text-muted-foreground line-clamp-2 min-w-0 flex-1" />
           <Tip label="Remove the quote">
-            <ComposerPrimitive.QuoteDismiss className={iconButton}>
+            <ComposerPrimitive.QuoteDismiss
+              className={cn(iconButton, "-me-1 -mt-0.5 size-6")}
+            >
               <Icon icon={Cancel01Icon} />
             </ComposerPrimitive.QuoteDismiss>
           </Tip>
@@ -914,14 +984,19 @@ function Composer() {
           <div className="flex items-center gap-1.5">
             <AuiIf condition={(s: any) => s.thread.isRunning}>
               <Tip label="Stop the reply">
-                <ComposerPrimitive.Cancel className={`${iconButton} border`}>
+                <ComposerPrimitive.Cancel
+                  className={cn(iconButton, "border-border/60 border")}
+                >
                   <Icon icon={StopIcon} className="size-3! fill-current" />
                 </ComposerPrimitive.Cancel>
               </Tip>
             </AuiIf>
             <Tip label="Send the message">
               <ComposerPrimitive.Send
-                className={`bg-primary text-primary-foreground inline-flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-30 motion-reduce:transition-none ${focusRing}`}
+                className={cn(
+                  "bg-primary text-primary-foreground inline-flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-30 motion-reduce:transition-none",
+                  focusRing,
+                )}
               >
                 <Icon icon={ArrowUp02Icon} className="size-4" />
               </ComposerPrimitive.Send>
@@ -935,15 +1010,27 @@ function Composer() {
 
 function Attachment({ removable = false }: { removable?: boolean }) {
   return (
-    <AttachmentPrimitive.Root className="bg-background flex h-9 max-w-52 items-center gap-2 rounded-lg border ps-1 pe-2">
-      <AttachmentPrimitive.unstable_Thumb className="bg-muted text-muted-foreground flex h-7 min-w-7 items-center justify-center rounded-md px-1 font-mono text-[10px]" />
+    <AttachmentPrimitive.Root
+      className={cn(
+        paper,
+        "flex h-9 max-w-56 items-center gap-2 ps-1.5 pe-2.5",
+        rItem,
+        textControl,
+      )}
+    >
+      <AttachmentPrimitive.unstable_Thumb
+        className={cn(
+          field,
+          "text-muted-foreground flex h-6 min-w-6 items-center justify-center rounded-[calc(var(--radius)-8px)] px-1 font-mono text-[10px]",
+        )}
+      />
       <span className="min-w-0 flex-1 truncate">
         <AttachmentPrimitive.Name />
       </span>
       {removable && (
         <Tip label="Remove the file">
           <AttachmentPrimitive.Remove
-            className={`${iconButton} -me-1.5 size-6`}
+            className={cn(iconButton, "-me-2 size-6")}
           >
             <Icon icon={Cancel01Icon} />
           </AttachmentPrimitive.Remove>
@@ -966,9 +1053,13 @@ function Message() {
   return <AssistantMessage />;
 }
 
+/* Shown only while the pointer is over the message, or focus is inside it. */
+const actionBar =
+  "flex gap-0.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-data-[state=open]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100";
+
 function UserMessage() {
   return (
-    <MessagePrimitive.Root className="group flex flex-col items-end gap-1.5">
+    <MessagePrimitive.Root className="group relative flex flex-col items-end gap-1.5">
       <div className="flex flex-wrap justify-end gap-2 empty:hidden">
         <MessagePrimitive.Attachments>
           {() => <Attachment />}
@@ -976,21 +1067,26 @@ function UserMessage() {
       </div>
       <MessagePrimitive.Quote>
         {({ text }: { text: string }) => (
-          <blockquote className="text-muted-foreground line-clamp-3 max-w-[80%] border-s-2 ps-3">
+          <blockquote className={cn(quote, "line-clamp-3 max-w-[80%]")}>
             {text}
           </blockquote>
         )}
       </MessagePrimitive.Quote>
-      <div className="bg-muted max-w-[80%] rounded-2xl px-4 py-2 wrap-break-word whitespace-pre-wrap">
+      <div
+        className={cn(
+          "bg-muted max-w-[80%] wrap-break-word whitespace-pre-wrap",
+          "px-3 py-1.5",
+          textReading,
+          rSurface,
+        )}
+      >
         <MessagePrimitive.Parts />
       </div>
-      <div className="flex min-h-7 items-center">
+      <div
+        className={cn("flex items-center", "absolute end-0 top-full pt-0.5")}
+      >
         <BranchPicker />
-        <ActionBarPrimitive.Root
-          hideWhenRunning
-          autohide="not-last"
-          className="flex gap-0.5 group-focus-within:opacity-100 group-hover:opacity-100 data-floating:opacity-0"
-        >
+        <ActionBarPrimitive.Root hideWhenRunning className={actionBar}>
           <Tip label="Edit">
             <ActionBarPrimitive.Edit className={iconButton}>
               <Icon icon={PencilEdit02Icon} />
@@ -1007,21 +1103,30 @@ function EditComposer() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
       <ComposerPrimitive.Root
-        className={`${field} flex w-full max-w-[80%] flex-col gap-2 rounded-2xl p-2`}
+        className={cn(
+          paper,
+          "flex w-full max-w-[80%] flex-col gap-2 rounded-3xl p-2",
+        )}
       >
         <ComposerPrimitive.Input
           autoFocus
           aria-label="Edit the message"
           className="min-h-9 w-full resize-none bg-transparent px-2 py-1.5 text-base outline-none"
         />
-        <div className="flex justify-end gap-1.5">
+        <div className="flex justify-end gap-1">
           <ComposerPrimitive.Cancel
-            className={`hover:bg-accent h-8 rounded-lg px-3 ${focusRing}`}
+            className={cn(
+              textButton,
+              "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
           >
             Cancel
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send
-            className={`bg-primary text-primary-foreground h-8 rounded-lg px-3 disabled:opacity-40 ${focusRing}`}
+            className={cn(
+              textButton,
+              "bg-primary text-primary-foreground hover:bg-primary/90 font-medium",
+            )}
           >
             Send
           </ComposerPrimitive.Send>
@@ -1033,8 +1138,13 @@ function EditComposer() {
 
 function AssistantMessage() {
   return (
-    <MessagePrimitive.Root className="group flex flex-col gap-1.5">
-      <div className="flex flex-col gap-2 leading-relaxed wrap-break-word">
+    <MessagePrimitive.Root className="group relative flex flex-col items-start gap-1.5">
+      <div
+        className={cn(
+          "flex max-w-full flex-col gap-2 wrap-break-word",
+          textReading,
+        )}
+      >
         <MessagePrimitive.Parts
           components={{
             Text: TextPart,
@@ -1044,18 +1154,25 @@ function AssistantMessage() {
           }}
         />
         <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="border-destructive/20 text-destructive bg-destructive/5 flex items-start gap-2.5 rounded-2xl border px-3 py-2.5 font-normal">
+          <ErrorPrimitive.Root
+            className={cn(
+              "border-destructive/20 text-destructive bg-destructive/5 border px-3 py-2",
+              rItem,
+              textControl,
+            )}
+          >
             <ErrorPrimitive.Message />
           </ErrorPrimitive.Root>
         </MessagePrimitive.Error>
       </div>
-      <div className="-ms-1.5 flex min-h-7 items-center">
+      <div
+        className={cn(
+          "-ms-1.5 flex items-center",
+          "absolute start-0 top-full pt-0.5",
+        )}
+      >
         <BranchPicker />
-        <ActionBarPrimitive.Root
-          hideWhenRunning
-          autohide="not-last"
-          className="flex gap-0.5 group-focus-within:opacity-100 group-hover:opacity-100 data-floating:opacity-0"
-        >
+        <ActionBarPrimitive.Root hideWhenRunning className={actionBar}>
           <CopyButton />
           <AuiIf condition={(s: any) => s.message.speech == null}>
             <Tip label="Read aloud">
@@ -1073,14 +1190,20 @@ function AssistantMessage() {
           </AuiIf>
           <Tip label="Good reply">
             <ActionBarPrimitive.FeedbackPositive
-              className={`${iconButton} data-submitted:bg-foreground/[0.06] data-submitted:text-foreground/90 dark:data-submitted:bg-foreground/[0.09]`}
+              className={cn(
+                iconButton,
+                "data-submitted:bg-foreground/[0.06] data-submitted:text-foreground/90 dark:data-submitted:bg-foreground/[0.09]",
+              )}
             >
               <Icon icon={ThumbsUpIcon} />
             </ActionBarPrimitive.FeedbackPositive>
           </Tip>
           <Tip label="Bad reply">
             <ActionBarPrimitive.FeedbackNegative
-              className={`${iconButton} data-submitted:bg-foreground/[0.06] data-submitted:text-foreground/90 dark:data-submitted:bg-foreground/[0.09]`}
+              className={cn(
+                iconButton,
+                "data-submitted:bg-foreground/[0.06] data-submitted:text-foreground/90 dark:data-submitted:bg-foreground/[0.09]",
+              )}
             >
               <Icon icon={ThumbsDownIcon} />
             </ActionBarPrimitive.FeedbackNegative>
@@ -1093,7 +1216,10 @@ function AssistantMessage() {
           <ActionBarMorePrimitive.Root>
             <Tip label="More">
               <ActionBarMorePrimitive.Trigger
-                className={`${iconButton} data-[state=open]:bg-foreground/[0.06] data-[state=open]:text-foreground/90`}
+                className={cn(
+                  iconButton,
+                  "data-[state=open]:bg-foreground/[0.06] data-[state=open]:text-foreground/90",
+                )}
               >
                 <Icon icon={MoreHorizontalIcon} />
               </ActionBarMorePrimitive.Trigger>
@@ -1138,7 +1264,7 @@ function ImagePart() {
   return (
     <MessagePartPrimitive.Image
       alt="A sun over two hills"
-      className="w-64 max-w-full rounded-lg border"
+      className={cn("border-border/60 w-64 max-w-full border", rItem)}
     />
   );
 }
@@ -1158,22 +1284,53 @@ function WorkingDot() {
   );
 }
 
-function ChainOfThought() {
+/*
+ * Trace lines: reasoning and tool calls as plain muted rows, each an icon, a
+ * one-line title and a chevron when it expands. A running row shimmers and
+ * says what it is doing in the present tense.
+ */
+const traceTrigger = `${textControl} text-muted-foreground hover:text-foreground flex w-fit max-w-full min-w-0 items-center gap-1 rounded-full text-start transition-colors motion-reduce:transition-none ${focusRing}`;
+const traceDetail = "border-border/60 ms-2 flex flex-col gap-2 border-s ps-4";
+
+function TraceChevron({ open }: { open: boolean }) {
   return (
-    <ChainOfThoughtPrimitive.Root className="rounded-lg border">
-      <ChainOfThoughtPrimitive.AccordionTrigger
-        className={`text-muted-foreground hover:text-foreground flex w-full items-center gap-1.5 rounded-lg px-3 py-2 transition-colors motion-reduce:transition-none ${focusRing}`}
-      >
-        <AuiIf condition={(s: any) => s.chainOfThought.collapsed}>
-          <Icon icon={ArrowRight01Icon} className="size-4 rtl:rotate-180" />
-        </AuiIf>
-        <AuiIf condition={(s: any) => !s.chainOfThought.collapsed}>
-          <Icon icon={ArrowDown01Icon} className="size-4" />
-        </AuiIf>
-        Thinking
+    <Icon
+      icon={ArrowRight01Icon}
+      className={cn(
+        "size-3.5 shrink-0 transition-transform duration-150 motion-reduce:transition-none",
+        open ? "rotate-90" : "rtl:rotate-180",
+      )}
+    />
+  );
+}
+
+function ChainOfThought() {
+  const open = useAuiState((s) => !s.chainOfThought.collapsed);
+  const running = useAuiState(
+    (s) => s.chainOfThought.status.type === "running",
+  );
+
+  return (
+    <ChainOfThoughtPrimitive.Root className="flex flex-col gap-2">
+      <ChainOfThoughtPrimitive.AccordionTrigger className={traceTrigger}>
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon
+            icon={running ? Idea01Icon : CheckmarkCircle02Icon}
+            className="size-4 shrink-0"
+          />
+          <span
+            className={cn(
+              "min-w-0 truncate",
+              running ? "shimmer motion-reduce:animate-none" : "",
+            )}
+          >
+            {running ? "Thinking" : "Thought it through"}
+          </span>
+        </span>
+        <TraceChevron open={open} />
       </ChainOfThoughtPrimitive.AccordionTrigger>
-      <AuiIf condition={(s: any) => !s.chainOfThought.collapsed}>
-        <div className="flex flex-col gap-2 px-3 pb-3">
+      {open && (
+        <div className={traceDetail}>
           <ChainOfThoughtPrimitive.Parts
             components={{
               Reasoning: ReasoningPart,
@@ -1182,7 +1339,7 @@ function ChainOfThought() {
             }}
           />
         </div>
-      </AuiIf>
+      )}
     </ChainOfThoughtPrimitive.Root>
   );
 }
@@ -1192,7 +1349,11 @@ function PartLayout({ children }: PropsWithChildren) {
 }
 
 function ReasoningPart({ text }: { text: string }) {
-  return <p className="text-muted-foreground whitespace-pre-wrap">{text}</p>;
+  return (
+    <p className={cn("text-muted-foreground whitespace-pre-wrap", textControl)}>
+      {text}
+    </p>
+  );
 }
 
 function ToolCallPart({
@@ -1200,16 +1361,46 @@ function ToolCallPart({
   argsText,
   result,
 }: ToolCallMessagePartProps) {
+  const [open, setOpen] = useState(false);
+  const running = result === undefined;
+
   return (
-    <div className="bg-muted/40 rounded-md border px-2.5 py-2 font-mono text-xs">
-      <p className="flex items-center gap-1.5">
-        <Icon icon={Wrench01Icon} className="text-muted-foreground size-3.5" />
-        {toolName}
-        <span className="text-muted-foreground">{argsText}</span>
-      </p>
-      <p className="text-muted-foreground mt-1" role="status">
-        {result === undefined ? "Running" : JSON.stringify(result)}
-      </p>
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className={traceTrigger}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon
+            icon={running ? Wrench01Icon : CheckmarkCircle02Icon}
+            className="size-4 shrink-0"
+          />
+          <span
+            className={cn(
+              "min-w-0 truncate",
+              running ? "shimmer motion-reduce:animate-none" : "",
+            )}
+          >
+            {running ? "Running" : "Ran"}{" "}
+            <span className="font-mono text-xs">{toolName}</span>
+          </span>
+        </span>
+        <TraceChevron open={open} />
+      </button>
+      {open && (
+        <pre
+          className={cn(
+            field,
+            "text-foreground overflow-x-auto px-3 py-2 font-mono text-xs leading-5",
+            rItem,
+          )}
+        >
+          {argsText}
+          {running ? "" : `\n${JSON.stringify(result)}`}
+        </pre>
+      )}
     </div>
   );
 }
@@ -1224,15 +1415,19 @@ function CopyButton() {
   return (
     <Tip label={copied ? "Copied" : "Copy"}>
       <ActionBarPrimitive.Copy
-        className={`${iconButton} grid place-items-center ${copied ? "text-emerald-500" : ""}`}
+        className={cn(
+          iconButton,
+          "grid place-items-center",
+          copied ? "text-emerald-500" : "",
+        )}
       >
         <Icon
           icon={Copy01Icon}
-          className={`${iconSwap} ${copied ? iconSwapOut : iconSwapIn}`}
+          className={cn(iconSwap, copied ? iconSwapOut : iconSwapIn)}
         />
         <Icon
           icon={Tick02Icon}
-          className={`${iconSwap} ${copied ? iconSwapIn : iconSwapOut}`}
+          className={cn(iconSwap, copied ? iconSwapIn : iconSwapOut)}
         />
       </ActionBarPrimitive.Copy>
     </Tip>

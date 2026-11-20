@@ -63,9 +63,26 @@
   --font-weight-normal: 400;
 }
 
-/* Font: Geist, loaded in layout.tsx. */
+/*
+ * Fonts: Geist and Geist Mono, loaded in layout.tsx. They are named here as
+ * well because menus and tooltips render in the body, outside the block's
+ * root element where layout.tsx sets them.
+ */
+:root:has(.primitives-chat),
 body:has(.primitives-chat) {
-  font-family: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* The docs site's `font-sans` and `font-mono` classes read these names. */
+  --font-public-sans: var(--font-sans);
+  --font-jetbrains-mono: var(--font-mono);
+  --font-geist-sans: var(--font-sans);
+}
+
+body:has(.primitives-chat) {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Anything that can be clicked shows the hand. */

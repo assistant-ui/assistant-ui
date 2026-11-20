@@ -1,12 +1,24 @@
 import type { ReactNode } from "react";
-import { Geist } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import { cn } from "@/lib/utils";
 import "./block.css";
 
-const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <div className={`primitives-chat ${geist.className} ${geist.variable}`}>
+    <div
+      className={cn(
+        "primitives-chat font-sans antialiased",
+        geist.variable,
+        geistMono.variable,
+      )}
+    >
       {children}
     </div>
   );
