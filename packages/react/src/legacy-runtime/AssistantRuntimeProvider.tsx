@@ -40,7 +40,11 @@ export namespace AssistantRuntimeProvider {
 const DevToolsRegistration: FC = () => {
   const aui = useAui();
   useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
+    try {
+      if (process.env.NODE_ENV === "production") return;
+    } catch {
+      return;
+    }
     return DevToolsProviderApi.register(aui);
   }, [aui]);
   return null;
