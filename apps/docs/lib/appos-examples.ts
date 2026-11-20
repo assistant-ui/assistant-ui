@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * The URL of an appOS example's packed bundle, e.g. "/appos/with-appos.<hash>.wbn".
+ * The URL of an appOS example's packed bundle, e.g. "/appos/with-article-assistant.<hash>.wbn".
  * scripts/build-appos-examples.mjs writes the names before `next dev` and
  * `next build`; undefined if it hasn't run.
  */

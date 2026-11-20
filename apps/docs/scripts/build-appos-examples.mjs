@@ -14,7 +14,9 @@ const repo = join(docs, "../..");
 const publicDir = join(docs, "public/appos");
 
 /** Each example: its workspace package, and the folder it builds into. */
-const EXAMPLES = [{ name: "with-appos", dir: "examples/with-appos" }];
+const EXAMPLES = [
+  { name: "with-article-assistant", dir: "examples/with-article-assistant" },
+];
 
 await mkdir(publicDir, { recursive: true });
 const existing = await readdir(publicDir);

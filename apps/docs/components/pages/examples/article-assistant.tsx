@@ -23,10 +23,12 @@ const ai: AiService = async function* (request) {
 /** A local appOS sandbox for development, e.g. http://{key}.localhost:10032; default the hosted one. */
 const sandbox = process.env.NEXT_PUBLIC_APPOS_SANDBOX;
 
-export function AppOSExample({ src }: { src: string }) {
+/** The Article Assistant example, embedded with appos-host. */
+export function ArticleAssistantExample({ src }: { src: string }) {
   return (
     <AppOSApp
       src={src}
+      title="Article Assistant example"
       services={{ ai }}
       permissions={{ ai: "granted" }}
       {...(sandbox ? { sandbox } : {})}

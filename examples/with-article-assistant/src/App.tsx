@@ -5,7 +5,7 @@ import {
 } from "@assistant-ui/react";
 import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAppOSRuntime } from "./appos-runtime";
+import { useAgentRuntime } from "./runtime";
 import { Article } from "./ArticleView";
 import { articleText } from "./article";
 
@@ -45,7 +45,7 @@ const SUGGESTIONS = [
 ];
 
 export function App() {
-  const runtime = useAppOSRuntime({ instructions: INSTRUCTIONS });
+  const runtime = useAgentRuntime({ instructions: INSTRUCTIONS });
   const config = AuiConfig({ suggestions: Suggestions(SUGGESTIONS) });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>

@@ -1458,7 +1458,7 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  examples/with-appos:
+  examples/with-article-assistant:
     dependencies:
       '@assistant-ui/react':
         specifier: workspace:*

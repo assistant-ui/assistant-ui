@@ -7,7 +7,7 @@
         "^build",
         "generate:type-docs",
         "//#docs-source-inputs",
-        "with-appos#build"
+        "with-article-assistant#build"
       ],
       "inputs": [
         "$TURBO_EXTENDS$",
@@ -56,7 +56,11 @@
       "passThroughEnv": ["CHROME_PATH"]
     },
     "dev": {
-      "dependsOn": ["^build", "generate:type-docs", "with-appos#build"],
+      "dependsOn": [
+        "^build",
+        "generate:type-docs",
+        "with-article-assistant#build"
+      ],
       "cache": false,
       "persistent": true,
       "passThroughEnv": ["DOCS_FULL", "DOCS_LITE"]
