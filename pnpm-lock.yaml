@@ -540,8 +540,8 @@ importers:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
       appos-host:
-        specifier: link:../../../appos-wt-embed/packages/appos-host
-        version: link:../../../appos-wt-embed/packages/appos-host
+        specifier: link:../../../appos/packages/appos-host
+        version: link:../../../appos/packages/appos-host
       assistant-cloud:
         specifier: workspace:*
         version: link:../../packages/cloud
@@ -1473,8 +1473,8 @@ importers:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
       appos-client:
-        specifier: link:../../../appos-wt-embed/packages/appos-client
-        version: link:../../../appos-wt-embed/packages/appos-client
+        specifier: link:../../../appos/packages/appos-client
+        version: link:../../../appos/packages/appos-client
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
