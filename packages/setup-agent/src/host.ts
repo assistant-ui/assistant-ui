@@ -29,7 +29,7 @@ const reject = (reason: Checkout.RejectionReason, message: string) =>
  */
 const MAX_STATE_BYTES = 512 * 1024;
 
-/** Commands that still run on a full setup: they replace or end it, or keep a connection alive. */
+/** Commands that still run on a full setup: they end it or keep a connection alive, and a create still answers `already-created`. */
 const RUNS_WHEN_FULL = new Set<string>([
   "checkout/create",
   "agent/hello",

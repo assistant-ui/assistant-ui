@@ -1277,9 +1277,9 @@ describe("limits", () => {
     await host.commands["agent/hello"]({ cwd: "/app" });
     await host.commands["checkout/cancel"]();
     expect(host.state.status).toBe("cancelled");
-    // The same link can start over with a fresh setup.
-    await host.commands["checkout/create"]({ ...seed, id: "c2" });
-    expect(host.state.log).toEqual([]);
-    await host.commands["agent/log"]({ text: "fresh" });
+    // A full setup still holds its link; another setup takes a new link.
+    expect(
+      await reason(host.commands["checkout/create"]({ ...seed, id: "c2" })),
+    ).toEqual({ reason: "already-created" });
   });
 });

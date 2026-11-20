@@ -1,6 +1,6 @@
 # setup-agent
 
-One setup, shared live between the browser that opened it and the coding agent installing its products. The state is a Statewire host (`setup-agent/host`) served from a Cloudflare Durable Object (`apps/checkout-worker`); the CLI (`npx setup-agent <url>`) is a thin Statewire client the agent drives from its shell. A setup with no request and no open connection for 24 hours is deleted, with any key deposited in it; requests are recorded at most hourly, so deletion can come up to an hour later than that. Once its state passes 512 KiB, commands that add content are refused with `setup-full`; `checkout/create` can still replace it.
+One setup, shared live between the browser that opened it and the coding agent installing its products. The state is a Statewire host (`setup-agent/host`) served from a Cloudflare Durable Object (`apps/checkout-worker`); the CLI (`npx setup-agent <url>`) is a thin Statewire client the agent drives from its shell. A setup with no request and no open connection for 24 hours is deleted, with any key deposited in it; requests are recorded at most hourly, so deletion can come up to an hour later than that. Once its state passes 512 KiB, commands that add content are refused with `setup-full`; another setup takes a new link.
 
 ```sh
 npx setup-agent <url>              # instructions plus the current setup
