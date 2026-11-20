@@ -444,7 +444,7 @@ const previewTemplateInputSchema = z
           .optional()
           .describe(
             "Color tokens shared by the page and the chat, as hex colors such as #14b8a6. " +
-              "Token names differ per template; base-assistant-ui also takes a preset (assistantDark, assistantLight, neutralDark or neutralLight) and requires 6-digit hex. Shape: read_template configRoots.brandTheme.",
+              "Token names differ per template. base-assistant-ui takes a preset (assistantDark, assistantLight, neutralDark or neutralLight) plus optional 6-digit hex overrides. Shape: read_template configRoots.brandTheme.",
           ),
       })
       .strict()
