@@ -56,12 +56,28 @@ export function readConfig(env) {
   };
 }
 
-const ranAuthor = (run, author) =>
-  [
+// The Actions API caps a filtered run search at this many results; later pages
+// come back empty, so a larger total cannot be counted.
+const searchCeiling = 1000;
+
+// The budget job's name carries the PR author, `<job>-budget (<login>)`, since
+// fork runs have no pull_requests entry and the run's actor need not be the
+// author. Runs from before that name existed fall back to the run's actors.
+const runAuthors = (run, jobs, config) => {
+  const prefix = `${config.job}-budget (`;
+  const budget = jobs.find(
+    ({ name }) => name?.startsWith(prefix) && name.endsWith(")"),
+  );
+  if (budget) return [budget.name.slice(prefix.length, -1)];
+  return [
     run.actor?.login,
     run.triggering_actor?.login,
     run.head_repository?.owner?.login,
-  ].some((login) => login?.toLowerCase() === author.toLowerCase());
+  ];
+};
+
+const ranAuthor = (logins, author) =>
+  logins.some((login) => login?.toLowerCase() === author.toLowerCase());
 
 // A review counts once its job was scheduled and not skipped: queued, running,
 // or finished in any way, cancelled included, since a cancelled review may
@@ -79,6 +95,10 @@ export async function countRecentReviews(github, config, now = new Date()) {
       "GET",
       `repos/${config.repository}/actions/workflows/${encodeURIComponent(config.workflow)}/runs?event=${encodeURIComponent(config.event)}&created=${created}&per_page=100&page=${page}`,
     );
+    if (data.total_count > searchCeiling) {
+      counts.truncated = true;
+      return counts;
+    }
     const runs = data.workflow_runs ?? [];
     for (const run of runs) {
       if (run.id === config.currentRunId) continue;
@@ -100,10 +120,13 @@ export async function countRecentReviews(github, config, now = new Date()) {
         "GET",
         `repos/${config.repository}/actions/runs/${run.id}/jobs?filter=latest&per_page=100`,
       );
-      const job = (jobs.jobs ?? []).find(({ name }) => name === config.job);
+      const runJobs = jobs.jobs ?? [];
+      const job = runJobs.find(({ name }) => name === config.job);
       if (!job || !reviewRan(job)) continue;
       counts.repo++;
-      if (ranAuthor(run, config.author)) counts.author++;
+      if (ranAuthor(runAuthors(run, runJobs, config), config.author)) {
+        counts.author++;
+      }
       if (counts.author >= config.perAuthor || counts.repo >= config.repoWide) {
         return counts;
       }
@@ -122,7 +145,7 @@ export async function decide(github, config, now = new Date()) {
     return {
       review: false,
       counts,
-      reason: `more than ${config.maxRuns} fork runs in the last ${window}`,
+      reason: `too many runs in the last ${window} to count (over ${config.maxRuns} fork runs or ${searchCeiling} runs)`,
     };
   }
   if (counts.author >= config.perAuthor) {

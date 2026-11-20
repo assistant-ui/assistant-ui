@@ -77,7 +77,7 @@ const sameRepoRun = () => ({
 
 // Serves the GitHub REST endpoints the script reads through the real client,
 // so request paths, pagination and the POST body are all exercised.
-function mockGitHub({ runs = [], comments = [] } = {}) {
+function mockGitHub({ runs = [], comments = [], totalCount } = {}) {
   const requests = [];
   const posted = [];
   const json = (body, headers = {}) =>
@@ -94,7 +94,7 @@ function mockGitHub({ runs = [], comments = [] } = {}) {
       const page = Number(searchParams.get("page"));
       const slice = runs.slice((page - 1) * 100, page * 100);
       return json({
-        total_count: runs.length,
+        total_count: totalCount ?? runs.length,
         workflow_runs: slice.map((r) => r.run),
       });
     }
@@ -276,7 +276,33 @@ test("fails closed when the scan cap is hit", async () => {
   const mock = mockGitHub({ runs });
   const { decision } = await runWith({ REVIEW_BUDGET_MAX_RUNS: "4" }, mock);
   assert.equal(decision.review, false);
-  assert.match(decision.reason, /more than 4 fork runs/);
+  assert.match(decision.reason, /over 4 fork runs/);
+});
+
+test("fails closed past the Actions search result ceiling", async () => {
+  const mock = mockGitHub({ runs: [forkRun()], totalCount: 1001 });
+  const { decision } = await runWith({}, mock);
+  assert.equal(decision.review, false);
+  assert.match(decision.reason, /too many runs/);
+  assert.ok(!mock.requests.some((r) => r.includes("/jobs")));
+});
+
+test("attributes reviews to the author named by the budget job", async () => {
+  // A collaborator pushing to someone else's PR from an org fork: no run
+  // actor or fork owner is the PR author.
+  const pushed = () => {
+    const entry = forkRun({ author: "collaborator" });
+    entry.run.head_repository.owner.login = "some-org";
+    entry.jobs[1].name = "claude-fork-review-budget (contributor)";
+    return entry;
+  };
+  const other = forkRun();
+  other.jobs[1].name = "claude-fork-review-budget (someone-else)";
+  const mock = mockGitHub({ runs: [pushed(), pushed(), other, pushed()] });
+  const { decision } = await runWith({}, mock);
+  assert.equal(decision.review, false);
+  assert.equal(decision.counts.author, 3);
+  assert.equal(decision.counts.repo, 4);
 });
 
 test("an API failure throws instead of reviewing", async () => {

@@ -191,8 +191,14 @@ jobs:
   # Counts this workflow's recent fork reviews before starting another one. It
   # has no Claude secret, and its token can only read Actions history and
   # comment on the PR. The label name in `if` repeats REVIEW_BUDGET_LABEL because
-  # job-level conditions cannot read env.
+  # job-level conditions cannot read env. The job name records the PR author
+  # for later counts; the script reads it back, so keep the format.
   claude-fork-review-budget:
+    name: claude-fork-review-budget (${{ github.event.pull_request.user.login }})
+    # Queue per PR so two over-budget runs never both post the limit comment.
+    concurrency:
+      group: claude-review-budget-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     if: >-
       github.event_name == 'pull_request_target'
       && github.event.pull_request.draft == false
