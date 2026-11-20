@@ -221,11 +221,7 @@ const resolveToolCallArgs = ({
 
 const warnedDevelopmentMessages = new Set<string>();
 const warnOnceInDevelopment = (message: string) => {
-  if (
-    typeof process === "undefined" ||
-    process?.env?.NODE_ENV !== "development"
-  )
-    return;
+  if (process.env.NODE_ENV !== "development") return;
   if (warnedDevelopmentMessages.has(message)) return;
   warnedDevelopmentMessages.add(message);
   console.warn(message);
