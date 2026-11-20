@@ -18,6 +18,7 @@
 /CONTRIBUTING.md @assistant-ui/owners
 /AGENTS.md @assistant-ui/owners
 /scripts/review-tier.mjs @assistant-ui/owners
+/scripts/review-budget.mjs @assistant-ui/owners
 /scripts/diff-api-surface.mjs @assistant-ui/owners
 /scripts/review-coverage-advice.mjs @assistant-ui/owners
 /scripts/sync-review-policy.mjs @assistant-ui/owners
