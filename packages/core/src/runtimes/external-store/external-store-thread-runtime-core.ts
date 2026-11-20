@@ -289,10 +289,13 @@ export class ExternalStoreThreadRuntimeCore
     }
   }
 
-  // Placeholder id for the upcoming assistant message, reused across snapshot
+  // Placeholder for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
   // keeps one identity per response.
-  private _optimistic: { id: string; parentId: string | null } | null = null;
+  private _optimistic: {
+    message: ThreadMessage;
+    parentId: string | null;
+  } | null = null;
 
   // Synthesized error messages (`__error__` ids) added from the host's
   // messages array, per repository so a thread switched away from and back
@@ -541,11 +544,11 @@ export class ExternalStoreThreadRuntimeCore
   private _evictPlaceholder() {
     if (!this._optimistic) return;
     try {
-      this.repository.getMessage(this._optimistic.id);
+      this.repository.getMessage(this._optimistic.message.id);
     } catch {
       return;
     }
-    this.repository.deleteMessage(this._optimistic.id);
+    this.repository.deleteMessage(this._optimistic.message.id);
   }
 
   private _updateStoreSnapshot(
@@ -579,7 +582,10 @@ export class ExternalStoreThreadRuntimeCore
       const head = this.repository.getMessages();
       const tail = head.at(-1);
       this._optimistic = tail?.metadata.isOptimistic
-        ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
+        ? {
+            message: tail,
+            parentId: head.at(-2)?.id ?? null,
+          }
         : null;
     }
     if (oldStore?.queue !== store.queue) {
@@ -915,17 +921,21 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.resetHead(parentId);
       }
       if (this._optimistic?.parentId !== parentId) {
-        this._optimistic = { id: generateId(), parentId };
+        this._optimistic = {
+          parentId,
+          message: fromThreadMessageLike(
+            {
+              role: "assistant",
+              content: [],
+              metadata: { isOptimistic: true },
+            },
+            generateId(),
+            { type: "running" },
+          ),
+        };
       }
-      optimisticId = this._optimistic.id;
-      this.repository.addOrUpdateMessage(
-        parentId,
-        fromThreadMessageLike(
-          { role: "assistant", content: [], metadata: { isOptimistic: true } },
-          optimisticId,
-          { type: "running" },
-        ),
-      );
+      optimisticId = this._optimistic.message.id;
+      this.repository.addOrUpdateMessage(parentId, this._optimistic.message);
     }
 
     if (optimisticId === null) this._optimistic = null;
@@ -1701,7 +1711,9 @@ export class ExternalStoreThreadRuntimeCore
       // setMessages replaces the whole array, and the host may hold updates
       // this runtime has not received yet, so it is called only when the
       // rollback left something the host does not already hold.
-      const view = this._messages.filter((m) => m.id !== this._optimistic?.id);
+      const view = this._messages.filter(
+        (m) => m.id !== this._optimistic?.message.id,
+      );
       if (!shallowArrayEqual(view, this._storeMessages))
         this.updateMessages(view);
     };
