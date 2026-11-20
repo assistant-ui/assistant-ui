@@ -20,7 +20,6 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import {
-  Avatar,
   ChatList,
   chipClass,
   composerGlass,
@@ -501,12 +500,7 @@ function Caption({ solo }: { solo: boolean }) {
 
   return (
     <div className="flex max-w-[40rem] gap-2">
-      <Avatar
-        src={ASSISTANT.avatar}
-        name={ASSISTANT.name}
-        size="xs"
-        className="mt-0.5"
-      />
+      <span className="sr-only">{ASSISTANT.name}</span>
       {reply === "thinking" || reply === "stopped" ? (
         <p
           role="status"

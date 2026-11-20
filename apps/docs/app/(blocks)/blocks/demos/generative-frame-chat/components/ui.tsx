@@ -322,7 +322,7 @@ export function Tooltip({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Buttons, the avatar and the live dot.                                      */
+/* Buttons and the live dot.                                                  */
 /* -------------------------------------------------------------------------- */
 
 type IconButtonProps = Omit<ComponentProps<"button">, "children"> & {
@@ -363,59 +363,6 @@ export function IconButton({
         <Icon {...icon} />
       </button>
     </Tooltip>
-  );
-}
-
-const avatarSizes = {
-  xs: "size-5 text-[0.625rem]",
-  sm: "size-6 text-xs",
-  md: "size-8 text-sm",
-} as const;
-
-/**
- * A picture of a person or of the assistant: round, with a hairline edge. It
- * shows the first letter of the name when the picture cannot load.
- */
-export function Avatar({
-  src,
-  name,
-  size = "sm",
-  decorative = false,
-  className,
-}: {
-  src: string;
-  name: string;
-  size?: keyof typeof avatarSizes;
-  /** The name is written or read out beside the picture, so it is not named twice. */
-  decorative?: boolean;
-  className?: string;
-}) {
-  const [failed, setFailed] = useState<string | null>(null);
-
-  return (
-    <span
-      {...(decorative ? { "aria-hidden": true } : {})}
-      className={cn(
-        "bg-muted text-muted-foreground after:border-border relative flex shrink-0 items-center justify-center overflow-hidden rounded-full select-none after:pointer-events-none after:absolute after:inset-0 after:rounded-full after:border after:mix-blend-darken dark:after:mix-blend-lighten",
-        avatarSizes[size],
-        weight.label,
-        className,
-      )}
-    >
-      {failed === src ? (
-        <span role="img" aria-label={name}>
-          {name.slice(0, 1).toUpperCase()}
-        </span>
-      ) : (
-        <img
-          src={src}
-          alt={decorative ? "" : name}
-          draggable={false}
-          className="size-full object-cover text-transparent"
-          onError={() => setFailed(src)}
-        />
-      )}
-    </span>
   );
 }
 

@@ -19,7 +19,6 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import {
-  Avatar,
   ChatList,
   chipClass,
   Composer,
@@ -635,38 +634,27 @@ function ReplyStrip({
         floating,
         denseGlass,
         radius.lg,
-        "flex flex-col gap-1 p-2 ps-3",
+        "flex items-start gap-1 p-2 ps-3",
       )}
     >
-      <div className="flex items-center gap-2">
-        <Avatar
-          src={ASSISTANT.avatar}
-          name={ASSISTANT.name}
-          size="xs"
-          decorative
-        />
-        <span className={cn("min-w-0 flex-1 truncate", weight.strong)}>
-          {ASSISTANT.name}
-        </span>
-        <button type="button" className={textButtonClass} onClick={onOpen}>
-          Open chat
-        </button>
-        <IconButton
-          label="Hide this reply"
-          icon={icons.close}
-          side="top"
-          onClick={onDismiss}
-        />
-      </div>
       <div
         className={cn(
           focusBorder,
           radius.sm,
-          "gfc-scroll flex max-h-27 flex-col gap-2 overflow-y-auto overscroll-contain pe-1 pb-1",
+          "gfc-scroll flex max-h-27 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-1 pe-1",
         )}
       >
         <ThreadPrimitive.Messages>{renderNewest}</ThreadPrimitive.Messages>
       </div>
+      <button type="button" className={textButtonClass} onClick={onOpen}>
+        Open chat
+      </button>
+      <IconButton
+        label="Hide this reply"
+        icon={icons.close}
+        side="top"
+        onClick={onDismiss}
+      />
     </section>
   );
 }
@@ -751,10 +739,7 @@ function AssistantMessage() {
 
   return (
     <MessagePrimitive.Root className="group flex min-w-0 flex-col gap-2">
-      <p className={cn("flex items-center gap-2", weight.strong)}>
-        <Avatar src={ASSISTANT.avatar} name={ASSISTANT.name} decorative />
-        {ASSISTANT.name}
-      </p>
+      <span className="sr-only">{ASSISTANT.name}</span>
       <Thinking />
       <MessagePrimitive.Parts>
         {({ part }) => {

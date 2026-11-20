@@ -1,7 +1,6 @@
 {
   "assistant": {
-    "name": "Assistant",
-    "avatar": "https://avatar.aiellie.dev/assistant.svg"
+    "name": "Assistant"
   },
   "person": {
     "name": "ellie",

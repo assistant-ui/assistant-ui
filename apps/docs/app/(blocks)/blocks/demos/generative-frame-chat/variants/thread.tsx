@@ -10,7 +10,6 @@ import {
 import { useState, type MouseEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
-  Avatar,
   chipClass,
   Composer,
   CopyButton,
@@ -227,10 +226,7 @@ function AssistantMessage() {
 
   return (
     <MessagePrimitive.Root className="group flex min-w-0 flex-col gap-2">
-      <p className={cn("flex items-center gap-2", weight.strong)}>
-        <Avatar src={ASSISTANT.avatar} name={ASSISTANT.name} decorative />
-        {ASSISTANT.name}
-      </p>
+      <span className="sr-only">{ASSISTANT.name}</span>
       <AuiIf
         condition={(s) =>
           s.message.status?.type === "running" && s.message.content.length === 0
