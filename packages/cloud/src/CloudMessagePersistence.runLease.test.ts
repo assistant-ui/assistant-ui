@@ -82,6 +82,32 @@ describe("CloudMessagePersistence run leases", () => {
     expect(runs.heartbeat).toHaveBeenCalledTimes(2);
   });
 
+  it("releases a running message without a server call or further heartbeats", async () => {
+    const { cloud, messages, runs } = createCloud();
+    const persistence = new CloudMessagePersistence(cloud);
+    await persistence.append(
+      "t1",
+      "local-a",
+      null,
+      "aui/v0",
+      running,
+      "running",
+    );
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(runs.heartbeat).toHaveBeenCalledTimes(1);
+
+    persistence.release("local-a");
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(runs.heartbeat).toHaveBeenCalledTimes(1);
+    expect(persistence.hasOpenRun("local-a")).toBe(false);
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.update).not.toHaveBeenCalled();
+    expect(messages.delete).not.toHaveBeenCalled();
+    expect(runs.open).not.toHaveBeenCalled();
+    expect(runs.end).not.toHaveBeenCalled();
+  });
+
   it("routes the runtime's final append of a leased message to a lease write and an end", async () => {
     const { cloud, messages, runs } = createCloud();
     const persistence = new CloudMessagePersistence(cloud);

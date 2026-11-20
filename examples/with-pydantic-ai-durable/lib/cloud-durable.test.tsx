@@ -364,6 +364,8 @@ class DurableTestAgent extends HttpAgent {
 type Tab = {
   getAui: () => AssistantClient;
   getRuntime: () => AssistantRuntime;
+  unmount: () => void;
+  remount: () => Promise<void>;
 };
 
 // `tab` rides in the Aui-User-Id header so calls can be told apart; the in-memory cloud ignores ownership.
@@ -417,12 +419,22 @@ const openTab = async (tab: string, staleAfter = 30_000): Promise<Tab> => {
       </AssistantRuntimeProvider>
     );
   };
-  render(<App />);
-  await waitFor(() => expect(aui).toBeDefined());
-  await act(async () => {
-    await aui!.threads.getLoadThreadsPromise();
-  });
-  return { getAui: () => aui!, getRuntime: () => runtime };
+  let view: ReturnType<typeof render>;
+  const mount = async () => {
+    aui = undefined;
+    view = render(<App />);
+    await waitFor(() => expect(aui).toBeDefined());
+    await act(async () => {
+      await aui!.threads.getLoadThreadsPromise();
+    });
+  };
+  await mount();
+  return {
+    getAui: () => aui!,
+    getRuntime: () => runtime,
+    unmount: () => view.unmount(),
+    remount: mount,
+  };
 };
 
 const openThread = async (...tabs: Tab[]) => {
@@ -590,6 +602,18 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     await act(async () => {
       cleanup();
     });
+    const leaseId = assistantRows()[0]!.lease!.id;
+    const beats = () =>
+      cloud.calls.filter(
+        (call) =>
+          call.tab === "tab-a" &&
+          call.path === `/threads/remote-1/runs/${leaseId}/heartbeat`,
+      ).length;
+    const before = beats();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(beats()).toBe(before);
     // Closing the tab also destroys its JavaScript timers, including lease heartbeats.
     vi.clearAllTimers();
     vi.useRealTimers();
@@ -634,6 +658,54 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
       expect(assistantRows()[0]!.lease?.status).toBe("ended"),
     );
     expect(durable.state.starts).toEqual([]);
+  }, 15_000);
+
+  it("(a) takes over a run when the same page remounts after an in-app unmount and stores one answer", async () => {
+    useServers([userRow], null);
+    durable.begin(runInput);
+    const tab = await openTab("tab-a", 1_000);
+    await openThread(tab);
+    await waitFor(() =>
+      expect(shown(tab)).toEqual(["user: hello", "assistant: partial"]),
+    );
+    await waitFor(() => expect(assistantRows()).toHaveLength(1));
+    const interruptedId = assistantRows()[0]!.id;
+    const leaseId = assistantRows()[0]!.lease!.id;
+    const beats = () =>
+      cloud.calls.filter(
+        (call) =>
+          call.tab === "tab-a" &&
+          call.path === `/threads/remote-1/runs/${leaseId}/heartbeat`,
+      ).length;
+
+    await act(async () => tab.unmount());
+    const beatsAtUnmount = beats();
+    await tab.remount();
+    await openThread(tab);
+    await waitFor(() =>
+      expect(tab.getAui().thread.getState().messages).toHaveLength(2),
+    );
+    await waitFor(
+      () => expect(durable.state.connects).toEqual(["durable-1", "durable-1"]),
+      { timeout: 8_000 },
+    );
+    expect(beats()).toBe(beatsAtUnmount);
+    expect(cloud.rows.some((row) => row.id === interruptedId)).toBe(false);
+
+    await act(async () => durable.finish());
+    await waitFor(() =>
+      expect(shown(tab)).toEqual(["user: hello", "assistant: partial answer"]),
+    );
+    await waitFor(() =>
+      expect(rowText(assistantRows()[0])).toBe("partial answer"),
+    );
+    expect(assistantRows()).toHaveLength(1);
+    expect(assistantRows()[0]!.parent_id).toBe("u1");
+    await waitFor(() =>
+      expect(assistantRows()[0]!.lease?.status).toBe("ended"),
+    );
+    expect(durable.state.starts).toEqual([]);
+    expect(cloud.calls.every((call) => call.tab === "tab-a")).toBe(true);
   }, 15_000);
 
   it("(b) stores the server's answer for a run that finished with no tab open, in place of the interrupted reply", async () => {

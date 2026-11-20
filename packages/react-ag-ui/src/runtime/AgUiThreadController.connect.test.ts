@@ -172,6 +172,57 @@ describe("AgUiThreadController reconnect through agent.connect()", () => {
     expect(core.isRunning()).toBe(false);
   });
 
+  it("persists a completed reply after detaching before the transport resolves when its first write failed", async () => {
+    let resolveTransport!: () => void;
+    const transport = new Promise<void>((resolve) => {
+      resolveTransport = resolve;
+    });
+    class DrainingAgent extends ReconnectingAgent {
+      override async connectAgent(
+        ...args: Parameters<HttpAgent["connectAgent"]>
+      ) {
+        const result = await super.connectAgent(...args);
+        await transport;
+        return result;
+      }
+    }
+    const agent = new DrainingAgent({
+      url: "https://agent.test",
+      fetch: fetchFor({ "https://agent.test/stream": inFlightRun }),
+    });
+    const stored: ThreadMessage[] = [];
+    const append = vi
+      .fn<ThreadHistoryAdapter["append"]>()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockImplementation(async ({ message }) => {
+        stored.push(message);
+      });
+    const error = vi.fn();
+    const logger = makeLogger({ error });
+    const core = new AgUiThreadController({
+      agent,
+      logger,
+      showThinking: false,
+      history: { ...historyOf(true), append },
+    });
+    const loading = core.__internal_load();
+    await vi.waitFor(() => expect(error).toHaveBeenCalled());
+    expect(core.getMessages().at(-1)?.status?.type).toBe("complete");
+    expect(stored).toEqual([]);
+
+    core.detachRuntime();
+    resolveTransport();
+    await loading;
+
+    await vi.waitFor(() => expect(stored).toHaveLength(1));
+    expect(stored[0]).toMatchObject({
+      id: "answer",
+      content: [{ type: "text", text: "Hello again" }],
+      status: { type: "complete" },
+    });
+    expect(append).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps starting a run for an agent without connect()", async () => {
     const fetch = fetchFor({ "https://agent.test": inFlightRun });
     const agent = new HttpAgent({ url: "https://agent.test", fetch });

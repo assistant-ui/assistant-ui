@@ -254,6 +254,13 @@ export const useCloudRunLeases = (
       unsubscribe();
       clearInterval(checkpoint);
       if (tracked?.settleTimer !== undefined) clearTimeout(tracked.settleTimer);
+      if (
+        tracked &&
+        findMessage(aui, tracked.messageId)?.status?.type === "running"
+      ) {
+        const run = tracked;
+        void run.stored.then(() => run.writer.release?.(run.key));
+      }
     };
   }, [adapter, aui]);
 };

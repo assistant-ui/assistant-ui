@@ -136,13 +136,14 @@ const renderRuntime = async (
       </AssistantRuntimeProvider>
     );
   };
-  render(<Harness />);
+  const { unmount } = render(<Harness />);
   await actSettled(() => aui.threads.getLoadThreadsPromise());
   return {
     runs,
     getRuntime: () => runtime,
     getAui: () => aui,
     getResume: () => resume.current,
+    unmount,
   };
 };
 
@@ -254,6 +255,38 @@ describe("cloud run leases", () => {
     expect(messages.update).not.toHaveBeenCalled();
     expect(threadRuns.end).not.toHaveBeenCalled();
     expect(threadRuns.heartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases a running tracked message on unmount without an end write", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      shouldAdvanceTime: true,
+    });
+    const { cloud, messages, threadRuns } = makeCloud();
+    const { runs, getAui, unmount } = await renderRuntime(cloud);
+    await act(async () => {
+      getAui().thread.append("hello");
+    });
+    await waitFor(() => expect(runs).toHaveLength(1));
+    await waitFor(() =>
+      expect(createCalls(messages).some((body) => body.open_run)).toBe(true),
+    );
+    expect(getAui().thread.getState().messages.at(-1)?.status).toEqual({
+      type: "running",
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    expect(threadRuns.heartbeat).toHaveBeenCalledTimes(1);
+
+    await act(async () => unmount());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    expect(threadRuns.heartbeat).toHaveBeenCalledTimes(1);
+    expect(threadRuns.end).not.toHaveBeenCalled();
+    expect(messages.update).not.toHaveBeenCalled();
   });
 
   it("keeps a held run open when the page hides or unloads", async () => {

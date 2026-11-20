@@ -546,6 +546,7 @@ declare class CloudMessagePersistence {
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject, run?: CloudMessageRunPhase): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   hasOpenRun(messageId: string): boolean;
+  release(messageId: string): void;
   delete(threadId: string, messageIds: string[]): Promise<void>;
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;

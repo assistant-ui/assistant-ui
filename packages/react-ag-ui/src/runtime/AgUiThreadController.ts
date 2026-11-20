@@ -3093,7 +3093,7 @@ export class AgUiThreadController {
       }
       // Stop may have finished this run already; a newer run owns its own
       // writes.
-      if (this.runCount === runNumber && abortSignal.reason !== detachReason) {
+      if (this.runCount === runNumber) {
         persistRunAssistants(true);
         if (assistantMessageId)
           this.persistAssistantHistory(assistantMessageId);
