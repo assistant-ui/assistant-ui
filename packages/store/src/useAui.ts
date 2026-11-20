@@ -387,6 +387,18 @@ const useHostedAssistantClient = ({
   return { client, effects };
 };
 
+let warnedDeprecatedUseAuiOverload = false;
+const warnDeprecatedUseAuiOverload = () => {
+  if (warnedDeprecatedUseAuiOverload) return;
+  warnedDeprecatedUseAuiOverload = true;
+  console.warn(
+    "[assistant-ui] useAui({ ... }) is deprecated. Build the scopes with " +
+      "AuiConfig({ ... }) and pass them as <AssistantRuntimeProvider config={config}> " +
+      "or <AuiProvider extends={useAui()} config={config}>. " +
+      "See https://www.assistant-ui.com/docs/migrations/v0-15",
+  );
+};
+
 // Host for the deprecated useAui({...}) overload: the client tree runs under
 // a self-scheduled tap root instead of riding React's scheduler
 const useTapRootAssistantClient = ({
@@ -674,7 +686,9 @@ export function useAui(): AssistantClient;
  *
  * @example
  * ```tsx
- * const aui = useAui({
+ * // Replacement: build a config and provide it with AuiProvider.
+ * const aui = useAui();
+ * const config = AuiConfig({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
@@ -682,18 +696,36 @@ export function useAui(): AssistantClient;
  *   }),
  * });
  *
- * const role = useAuiState((s) => s.message.role);
+ * return (
+ *   <AuiProvider extends={aui} config={config}>
+ *     {children}
+ *   </AuiProvider>
+ * );
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Replacement under AssistantRuntimeProvider: pass the config directly.
+ * const config = AuiConfig({ suggestions: Suggestions(["Hello"]) });
+ *
+ * return (
+ *   <AssistantRuntimeProvider runtime={runtime} config={config}>
+ *     {children}
+ *   </AssistantRuntimeProvider>
+ * );
  * ```
  *
  * @deprecated Build a config in the component body (`const aui = useAui();
  * const config = AuiConfig({ ... })`) and render `<AuiProvider extends={aui}
  * config={config}>` instead; it creates the client and provides it to the
- * subtree in one step.
+ * subtree in one step. Under `AssistantRuntimeProvider`, pass the config as
+ * its `config` prop instead of passing the extended client as `aui`.
  */
 export function useAui(clients: useAui.Props): AssistantClient;
 export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
+    if (isDevelopment) warnDeprecatedUseAuiOverload();
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
     const destroySignal = useHostDestroySignal();
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
