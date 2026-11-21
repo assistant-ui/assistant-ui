@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { posixPath, readWorkspaceManifestEntries } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -25,11 +26,7 @@ const pushPaths = (() => {
 })();
 
 const triggers = (file) =>
-  pushPaths.some(
-    (entry) =>
-      entry === file ||
-      (entry.endsWith("/**") && file.startsWith(entry.slice(0, -2))),
-  );
+  pushPaths.some((pattern) => path.posix.matchesGlob(file, pattern));
 
 const suiteTargets = (script) =>
   [...(packageJson.scripts[script] ?? "").matchAll(/node --test ([^&|;\n]+)/g)]
@@ -66,4 +63,29 @@ test("a change to a file those suites run re-runs Code Quality on main", () => {
     [],
     "add these to `on.push.paths` in .github/workflows/code-quality.yaml",
   );
+});
+
+test("main pushes cover the manifest and source of every typechecked workspace", () => {
+  const { manifests } = readWorkspaceManifestEntries(repoRoot);
+  const inputs = manifests
+    .filter(({ pkg }) => pkg.scripts?.typecheck)
+    .flatMap(({ manifest }) => {
+      const file = posixPath(manifest);
+      return [file, path.posix.join(path.posix.dirname(file), "src/index.ts")];
+    });
+  assert.ok(inputs.length > 0, "expected workspaces with a typecheck script");
+  assert.deepEqual(
+    inputs.filter((file) => !triggers(file)),
+    [],
+  );
+});
+
+for (const file of [".oxlintrc.json", ".oxfmtrc.json"]) {
+  test(`a main push changing only ${file} runs Code Quality`, () => {
+    assert.equal(triggers(file), true);
+  });
+}
+
+test("unrelated root Markdown stays outside the main push filter", () => {
+  assert.equal(triggers("README.md"), false);
 });
