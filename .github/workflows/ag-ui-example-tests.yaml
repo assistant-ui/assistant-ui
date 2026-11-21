@@ -1,0 +1,45 @@
+name: AG-UI Example Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ag-ui-example-tests.yaml"
+      - "examples/with-ag-ui/server/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/ag-ui-example-tests.yaml"
+      - "examples/with-ag-ui/server/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: AG-UI Python server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv and Python
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      # test_origin_guard.py imports only the standard library and origin_guard,
+      # so there is nothing to install yet. A test that starts importing agent.py
+      # brings its requirements step with it.
+      - name: Run server unit tests
+        working-directory: examples/with-ag-ui/server
+        run: uv run --no-project python -m unittest
