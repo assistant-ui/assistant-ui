@@ -540,8 +540,8 @@ importers:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
       appos-host:
-        specifier: github:assistant-ui/appOS#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host
-        version: git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host(react@19.3.1)
+        specifier: github:assistant-ui/appOS#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host
+        version: git+https://github.com/assistant-ui/appOS.git#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host(react@19.3.1)
       assistant-cloud:
         specifier: workspace:*
         version: link:../../packages/cloud
@@ -16050,8 +16050,8 @@ packages:
   anynum@1.0.1:
     resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
 
-  appos-host@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host:
-    resolution: {commit: c4da971445063e97a63c8ca899145b36be41d9e9, path: packages/appos-host, repo: https://github.com/assistant-ui/appOS.git, type: git}
+  appos-host@git+https://github.com/assistant-ui/appOS.git#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host:
+    resolution: {commit: ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652, path: packages/appos-host, repo: https://github.com/assistant-ui/appOS.git, type: git}
     version: 0.0.1
     peerDependencies:
       react: ^19.0.0
@@ -34259,8 +34259,9 @@ snapshots:
 
   anynum@1.0.1: {}
 
-  appos-host@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host(react@19.3.1):
+  appos-host@git+https://github.com/assistant-ui/appOS.git#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host(react@19.3.1):
     dependencies:
+      esbuild: 0.28.2
       wbn: 0.0.10
     optionalDependencies:
       react: 19.3.1
