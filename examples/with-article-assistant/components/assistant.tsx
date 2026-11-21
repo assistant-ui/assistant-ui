@@ -1,25 +1,14 @@
+"use client";
+
+import type { ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
   Suggestions,
 } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAgentRuntime } from "./runtime";
-import { Article } from "./ArticleView";
-import { articleText } from "./article";
-
-const INSTRUCTIONS = `You are the reading assistant for one article, shown behind this chat. Answer questions about that article only.
-
-Rules:
-- Base every answer on the article text below. Quote or paraphrase it, and name who said what.
-- If the answer is not in the article, say so plainly ("The article doesn't say."). Do not guess, invent details or use outside knowledge to fill gaps. You may then point to the closest thing the article does say.
-- The article is fiction. If asked, say it is a made-up story; otherwise just answer within it.
-- Keep answers short: a few sentences or a short list.
-
-<article>
-${articleText}
-</article>`;
 
 const SUGGESTIONS = [
   {
@@ -44,15 +33,16 @@ const SUGGESTIONS = [
   },
 ];
 
-export function App() {
-  const runtime = useAgentRuntime({ instructions: INSTRUCTIONS });
+/** The chat runtime and the modal launcher, over the page's content. */
+export function Assistant({ children }: { children: ReactNode }) {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
   const config = AuiConfig({ suggestions: Suggestions(SUGGESTIONS) });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <TooltipProvider>
-        <main className="h-dvh overflow-y-auto">
-          <Article />
-        </main>
+        {children}
         <AssistantModal />
       </TooltipProvider>
     </AssistantRuntimeProvider>

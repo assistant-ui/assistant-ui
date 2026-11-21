@@ -1,4 +1,4 @@
-import { article } from "./article";
+import { article } from "@/lib/article";
 
 // The body uses a tiny markdown subset: blank-line paragraphs and "## " headings.
 const blocks = article.body.split(/\n{2,}/);

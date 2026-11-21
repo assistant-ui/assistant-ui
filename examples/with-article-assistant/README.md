@@ -1,6 +1,6 @@
 # Article Assistant
 
-An assistant-ui example: a news article with an `AssistantModal` launcher that answers questions about the page you're reading. The article (`src/article.ts`) is made up.
+An assistant-ui example: a news article with an `AssistantModal` launcher that answers questions about the page you're reading. The article (`lib/article.ts`) is made up.
 
 Live at [assistant-ui.com/examples/article-assistant](https://www.assistant-ui.com/examples/article-assistant).
 
@@ -8,23 +8,30 @@ Live at [assistant-ui.com/examples/article-assistant](https://www.assistant-ui.c
 
 - **AssistantModal**: a floating button opens the chat over the article, so the page stays readable
 - **Suggestions**: `AuiConfig({ suggestions: Suggestions([...]) })` shows four starter questions in the empty thread
-- **Grounded system prompt**: the agent's instructions hold the full article text and tell it to answer only from it, and to say so when the article doesn't cover a question
-- **AI SDK runtime**: `useChatRuntime` from `@assistant-ui/react-ai-sdk` with the AI SDK's `DirectChatTransport` and a `ToolLoopAgent` (`src/runtime.ts`)
+- **Grounded system prompt**: the route's system prompt holds the full article text and tells the model to answer only from it, and to say so when the article doesn't cover a question
+- **AI SDK runtime**: `useChatRuntime` from `@assistant-ui/ai-sdk` with `AssistantChatTransport`, and a route handler (`app/api/chat/route.ts`) that calls `streamText` with a plain model string, `"openai/gpt-5"`
 
 ## Files
 
-- `src/App.tsx`: the system prompt, suggestions, runtime provider and modal
-- `src/ArticleView.tsx`: renders the article
-- `src/components/assistant-ui/`: the registry components (`assistant-modal`, `thread` and their dependencies)
+- `app/page.tsx`: the article (a server component) inside the assistant
+- `components/assistant.tsx`: the runtime, suggestions and modal
+- `app/api/chat/route.ts`: the system prompt and the model call
+- `components/article-view.tsx`, `lib/article.ts`: the article
+- `components/assistant-ui/`: the registry components (`assistant-modal`, `thread` and their dependencies)
 
-## Build
+## Run
 
 ```bash
-pnpm build   # dist/
+pnpm dev     # needs AI_GATEWAY_API_KEY (Vercel AI Gateway), or deploy to Vercel
+pnpm build
 ```
 
 ## How this demo is hosted
 
-The docs page runs this app as an appOS app. Its model is `apposModel()` from `appos-client/ai-sdk`, so the app holds no key and has no backend: the page that embeds it serves each model call. `apps/docs/scripts/build-appos-examples.mjs` packs `dist/` into a `.wbn` bundle, `<AppOSApp>` from `appos-host` embeds it, and `apps/docs/app/api/appos/ai` answers the model calls. `public/manifest.webmanifest` is the app's manifest. Dark mode is shadcn's class-based `.dark`: the page passes the docs theme as `colorScheme`, and appOS's sandbox puts the `dark` class on `<html>` before the app's first paint, so the app sets nothing for it. `appos-client` and `appos-host` install from the [appOS repo](https://github.com/assistant-ui/appOS) by commit (`github:assistant-ui/appOS#<sha>&path:packages/…` in `package.json`).
+The docs page runs this same app as an appOS app, with no changes to its code. appOS's Next.js build adapter (`appos-host/next`, set through `NEXT_ADAPTER_PATH`) writes the build as an appOS app folder:
 
-To run it elsewhere, replace `useAgentRuntime` in `src/runtime.ts` with `useChatRuntime` pointed at your own chat route.
+- the prerendered page and its assets go in the bundle;
+- the route handler runs in the app's own sandboxed origin;
+- the model string goes to appOS's AI gateway in place of Vercel's, so the app holds no key.
+
+`apps/docs/scripts/build-appos-examples.mjs` builds and packs the app into a `.wbn` bundle. `<AppOSApp>` from `appos-host` embeds it, and `apps/docs/app/api/appos/ai` serves its model calls. `app/manifest.ts` is the app's manifest. Dark mode uses shadcn's class-based `.dark`: the page passes the docs theme as `colorScheme`, and appOS's sandbox puts the `dark` class on `<html>` before the app's first paint. `appos-host` installs from the [appOS repo](https://github.com/assistant-ui/appOS) by commit.

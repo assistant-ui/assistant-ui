@@ -1,6 +1,6 @@
 ---
 title: Article Assistant Example
-description: An AssistantModal that answers questions about the page you're reading. A React example with suggested questions and a system prompt grounded in the article, built on assistant-ui.
+description: An AssistantModal that answers questions about the page you're reading. A Next.js example with suggested questions and a system prompt grounded in the article, built on assistant-ui.
 ---
 
 ## Overview
@@ -13,7 +13,7 @@ The Article Assistant puts a chat on top of a news article. A floating button op
 - **Suggestions**: `AuiConfig` with `Suggestions` shows starter questions in the empty thread
 - **Grounded Answers**: the system prompt holds the full article and tells the agent to answer only from it
 - **Honest Gaps**: questions the article doesn't answer get "The article doesn't say."
-- **AI SDK Runtime**: `useChatRuntime` with the AI SDK's `DirectChatTransport` and a `ToolLoopAgent`
+- **AI SDK Runtime**: `useChatRuntime` with `AssistantChatTransport`, and a route handler that calls `streamText` with a plain model string
 
 ## Quick Start
 
@@ -23,18 +23,47 @@ npx assistant-ui add assistant-modal
 
 ## Code
 
-The system prompt embeds the article, the suggestions go into `AuiConfig`, and the modal sits next to the page content inside the runtime provider:
+The page renders the article on the server. A client component puts the runtime, the suggestions and the modal around it:
 
-```tsx title="src/App.tsx"
+```tsx title="components/assistant.tsx"
+"use client";
+
 import {
   AssistantRuntimeProvider,
   AuiConfig,
   Suggestions,
 } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
-import { Article } from "./ArticleView";
-import { articleText } from "./article";
-import { useAgentRuntime } from "./runtime";
+
+const SUGGESTIONS = [
+  {
+    title: "How did Gerald end up",
+    label: "on the electoral roll?",
+    prompt: "How did Gerald end up on the electoral roll?",
+  },
+  // ...
+];
+
+export function Assistant({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
+  const config = AuiConfig({ suggestions: Suggestions(SUGGESTIONS) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+      <AssistantModal />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The route handler holds the system prompt, with the article in it. The model is a plain string, which the AI SDK's default provider resolves:
+
+```ts title="app/api/chat/route.ts"
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { articleText } from "@/lib/article";
 
 const INSTRUCTIONS = `You are the reading assistant for one article, shown behind this chat. Answer questions about that article only.
 
@@ -47,40 +76,16 @@ Rules:
 ${articleText}
 </article>`;
 
-const SUGGESTIONS = [
-  {
-    title: "How did Gerald end up",
-    label: "on the electoral roll?",
-    prompt: "How did Gerald end up on the electoral roll?",
-  },
-  // ...
-];
-
-export function App() {
-  const runtime = useAgentRuntime({ instructions: INSTRUCTIONS });
-  const config = AuiConfig({ suggestions: Suggestions(SUGGESTIONS) });
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <main className="h-dvh overflow-y-auto">
-        <Article />
-      </main>
-      <AssistantModal />
-    </AssistantRuntimeProvider>
-  );
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    abortSignal: req.signal,
+    model: "openai/gpt-5",
+    system: INSTRUCTIONS,
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
 }
-```
-
-`useAgentRuntime` wraps `useChatRuntime` from `@assistant-ui/react-ai-sdk`. The agent loop runs in the browser through `DirectChatTransport`:
-
-```ts title="src/runtime.ts"
-const transport = useMemo(
-  () =>
-    new DirectChatTransport({
-      agent: new ToolLoopAgent({ model, instructions }),
-    }),
-  [instructions, model],
-);
-return useChatRuntime({ transport });
 ```
 
 ### Key Concepts
@@ -90,7 +95,7 @@ return useChatRuntime({ transport });
 | `AssistantModal` | Floating launcher and chat window over the page |
 | `AuiConfig` | Config for the runtime provider, here holding the suggestions |
 | `Suggestions` | Starter prompts shown in the empty thread |
-| `instructions` | The agent's system prompt, holding the article it answers from |
+| `system` | The route's system prompt, holding the article it answers from |
 | `useChatRuntime` | assistant-ui runtime for an AI SDK chat transport |
 
 ### Customization Tips
@@ -98,6 +103,7 @@ return useChatRuntime({ transport });
 - Replace `articleText` with the content of your own page, or build it from the DOM
 - Change `SUGGESTIONS` to questions your readers ask
 - Loosen the rules in `INSTRUCTIONS` if the assistant may use outside knowledge
+- Name any model the AI Gateway serves in `model`
 
 ## Source
 

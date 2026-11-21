@@ -1460,21 +1460,18 @@ importers:
 
   examples/with-article-assistant:
     dependencies:
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
       ai:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
-      appos-client:
-        specifier: github:assistant-ui/appOS#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client
-        version: git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client(@ai-sdk/provider@4.0.34)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1484,6 +1481,9 @@ importers:
       lucide-react:
         specifier: ^1.76.0
         version: 1.76.0(@types/react@19.3.0)(react@19.3.1)
+      next:
+        specifier: ^16.4.5
+        version: 16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       radix-ui:
         specifier: ^1.8.1
         version: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -1503,12 +1503,12 @@ importers:
         specifier: ^5.1.0
         version: 5.1.0(@types/react@19.3.0)(immer@11.2.9)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))
     devDependencies:
-      '@ai-sdk/provider':
-        specifier: ^4.0.34
-        version: 4.0.34
-      '@tailwindcss/vite':
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../../packages/x-buildutils
+      '@tailwindcss/postcss':
         specifier: ^4.3.3
-        version: 4.3.3(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
+        version: 4.3.3
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -1518,18 +1518,12 @@ importers:
       '@types/react-dom':
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
-      '@vitejs/plugin-react':
-        specifier: ^6.1.2
-        version: 6.1.2(@rolldown/plugin-babel@0.2.4(@babel/core@8.0.9)(@babel/runtime@8.0.8)(rolldown@1.2.15)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
-      vite:
-        specifier: ^8.3.5
-        version: 8.3.5(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
 
   examples/with-artifacts:
     dependencies:
@@ -16055,15 +16049,6 @@ packages:
 
   anynum@1.0.1:
     resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
-
-  appos-client@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client:
-    resolution: {commit: c4da971445063e97a63c8ca899145b36be41d9e9, path: packages/appos-client, repo: https://github.com/assistant-ui/appOS.git, type: git}
-    version: 0.0.1
-    peerDependencies:
-      '@ai-sdk/provider': ^4.0.0
-    peerDependenciesMeta:
-      '@ai-sdk/provider':
-        optional: true
 
   appos-host@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host:
     resolution: {commit: c4da971445063e97a63c8ca899145b36be41d9e9, path: packages/appos-host, repo: https://github.com/assistant-ui/appOS.git, type: git}
@@ -34273,10 +34258,6 @@ snapshots:
       picomatch: 2.3.2
 
   anynum@1.0.1: {}
-
-  appos-client@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client(@ai-sdk/provider@4.0.34):
-    optionalDependencies:
-      '@ai-sdk/provider': 4.0.34
 
   appos-host@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host(react@19.3.1):
     dependencies:
