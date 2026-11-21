@@ -1298,6 +1298,106 @@ describe("projectOpenCodeThreadMessages", () => {
     });
   });
 
+  it("marks an assistant message stopped by the user as cancelled, keeping its partial text", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            agent: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1, completed: 2 },
+            error: {
+              name: "MessageAbortedError",
+              data: { message: "Aborted" },
+            },
+          } as never,
+          parts: [
+            {
+              id: "text-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "text",
+              text: "Partial answer",
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+
+    expect(messages[0]?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(messages[0]?.content).toMatchObject([
+      { type: "text", text: "Partial answer" },
+    ]);
+  });
+
+  it("reports the message of a provider error on an assistant message", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            agent: "build",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1, completed: 2 },
+            error: {
+              name: "APIError",
+              data: { message: "Rate limit exceeded", isRetryable: false },
+            },
+          } as never,
+          parts: [],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+
+    expect(messages[0]?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "Rate limit exceeded",
+    });
+  });
+
   it("reuses the projected child transcript while the child state is unchanged", () => {
     const childState: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_child"),
