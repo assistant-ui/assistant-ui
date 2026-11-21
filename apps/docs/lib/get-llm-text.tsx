@@ -226,6 +226,14 @@ async function renderClientFallback(
   children: ReactNode,
   ctx: LLMRenderContext,
 ): Promise<ReactNode> {
+  // Links become real anchors so they survive as markdown links, not a dumped
+  // `href` entry. next/link reaches here as a client reference, Farm's Link as
+  // a component whose hooks throw outside a render.
+  const href = props.href;
+  if (typeof href === "string" && href) {
+    return <a href={href}>{children}</a>;
+  }
+
   const data = await renderDescriptionList(getStaticEntries(props), ctx);
 
   if (!isEmptyNode(children) && !isEmptyNode(data)) {
@@ -289,12 +297,6 @@ async function resolveStaticReactNode(
       children as ReactNode,
       ctx,
     );
-    // Turn links (e.g. next/link) into real anchors so they survive as markdown
-    // links, not a dumped `href` entry.
-    const href = props.href;
-    if (typeof href === "string" && href) {
-      return <a href={href}>{resolvedChildren}</a>;
-    }
     const fallback = await renderClientFallback(props, resolvedChildren, ctx);
     if (!isEmptyNode(fallback)) return fallback;
     const name = componentDisplayName(element.type);
