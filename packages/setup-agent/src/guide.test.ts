@@ -13,7 +13,7 @@ vi.mock("./client", async (importOriginal) => ({
   connectCheckout: connectCheckoutMock,
 }));
 
-const URL = "https://checkout.test/link";
+const URL = "https://checkout.assistant-ui.com/link";
 const CONTEXT = { started: "user", opened: true } as const;
 const serve = (response: () => Response | Promise<Response>) => {
   const fetch = vi.fn(async () => response());

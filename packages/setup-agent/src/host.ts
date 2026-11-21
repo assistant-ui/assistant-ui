@@ -29,7 +29,7 @@ const reject = (reason: Checkout.RejectionReason, message: string) =>
  */
 const MAX_STATE_BYTES = 512 * 1024;
 
-/** Commands that still run on a full setup: they replace or end it, or keep a connection alive. */
+/** Commands that still run on a full setup: they end it or keep a connection alive, and a create still answers `already-created`. */
 const RUNS_WHEN_FULL = new Set<string>([
   "checkout/create",
   "agent/hello",
@@ -61,6 +61,18 @@ const capStateSize = <T extends object>(state: object, handlers: T): T =>
       },
     ]),
   ) as T;
+
+const guideOrigin = (guide: string | undefined) => {
+  if (!guide) return undefined;
+  try {
+    const url = new URL(guide);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.origin
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 const useCheckoutHost = (restored: unknown) => {
   const [state] = useStatewireState<Checkout.State>(() => {
@@ -118,6 +130,22 @@ const useCheckoutHost = (restored: unknown) => {
       throw reject("input-closed", `input "${inputId}" is ${input.status}`);
     }
     return input;
+  };
+
+  /**
+   * A guide the browser proposes with a product, kept only when it is served
+   * from the origin of a guide the agent's CLI created the setup with. Any
+   * link holder can send `checkout/add-product`, and the agent fetches every
+   * guide while planning.
+   */
+  const trustedGuide = (guide: string | undefined) => {
+    const origin = guideOrigin(guide);
+    if (origin === undefined) return undefined;
+    return state.products.some(
+      (product) => product.guide && guideOrigin(product.guide) === origin,
+    )
+      ? guide
+      : undefined;
   };
 
   const touchAgent = () => {
@@ -268,8 +296,20 @@ const useCheckoutHost = (restored: unknown) => {
 
   const handlers: Checkout.Commands = {
     "checkout/create": ({ id, products, instructions }) => {
-      if (state.id === id) {
-        throw reject("already-created", "the setup already exists");
+      // The agent's CLI creates the setup the moment it opens a new link,
+      // before anyone else knows the link. A later create would let any
+      // link holder rewrite the products, guides and instructions the agent
+      // reads, so a link holds one setup; another setup takes a new link.
+      if (typeof id !== "string" || id === "") {
+        throw reject("invalid-input", "a setup needs an id");
+      }
+      if (state.createdAt !== null || state.id !== null) {
+        throw reject(
+          "already-created",
+          state.id === id
+            ? "the setup already exists"
+            : "this link already holds a setup; open a new link for another",
+        );
       }
       const fresh = initialCheckoutState();
       if (!isAgentPresent(state)) state.agent = fresh.agent;
@@ -342,10 +382,11 @@ const useCheckoutHost = (restored: unknown) => {
         );
       }
       if (!state.products.some((entry) => entry.slug === product.slug)) {
+        const guide = trustedGuide(product.guide);
         state.products.push({
           slug: product.slug,
           name: product.name,
-          ...(product.guide !== undefined && { guide: product.guide }),
+          ...(guide !== undefined && { guide }),
         });
       }
       input.status = "answered";

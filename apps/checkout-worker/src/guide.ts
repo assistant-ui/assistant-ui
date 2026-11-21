@@ -26,16 +26,16 @@ const EVENT_LIST = `"planning.started", "input.answered" ({inputId, answer, note
 
 const beginPlanHandoff = `Before planning, check the current setup status. If it is "waiting", tell the user in your own conversation: "I'm connected. Keep the setup page open in your browser: it starts the plan on its own, and you can watch my progress, answer questions, and steer me there." Then run:
   {{cmd}} {{url}} wait start
-Keep the stream running while you wait. Do not inspect the project, fetch guides, ask setup questions, or propose a plan until this command returns {"ok":true}. If it returns {"ok":false,"status":"cancelled"}, the user ended this setup before planning: do not plan, tell the user you are connected and waiting for their next setup, and run "wait start" again. Only the setup page starts planning; never invoke its start command yourself. "planning.started" also arrives on the stream. If the status is already "planning" or "installing", resume that phase without asking the user to begin again. If it is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
+Keep the stream running while you wait. Do not inspect the project, fetch guides, ask setup questions, or propose a plan until this command returns {"ok":true}. If it returns {"ok":false,"status":"cancelled"}, the user ended this setup before planning: do not plan, tell the user, and stop the stream. Only the setup page starts planning; never invoke its start command yourself. "planning.started" also arrives on the stream. If the status is already "planning" or "installing", resume that phase without asking the user to begin again. If it is "done" or "cancelled", that setup is over: tell the user and stop the stream. A link holds one setup; another setup starts with a new link.`;
 
 const agentStartedHandoff = ({ started, opened }: GuideContext) =>
   started === "agent-stream"
-    ? `You started this setup, and it is already planning: there is no Begin plan click to wait for. Check "status" before planning: if it is "planning" or "installing", go on with that phase. If the status is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`
+    ? `You started this setup, and it is already planning: there is no Begin plan click to wait for. Check "status" before planning: if it is "planning" or "installing", go on with that phase. If the status is "done" or "cancelled", that setup is over: tell the user and stop the stream. A link holds one setup; another setup starts with a new link.`
     : `You started this setup, and it is already planning: there is no Begin plan click to wait for. The browser asks the user to connect to you first; it shows your working directory once your stream is running. Check "status" before planning: if it is "planning" or "installing", go on with that phase. Tell the user in your own conversation, once: ${
         opened
           ? `"I opened the assistant-ui setup in your browser. I'll ask my questions there, and you can watch my progress and steer me from that page. If it didn't open, go to {{browserUrl}} ."`
           : `"Open {{browserUrl}} to follow the assistant-ui setup. I'll ask my questions there, and you can watch my progress and steer me from that page."`
-      } If the status is "done" or "cancelled", that setup is over: tell the user you are connected and waiting for their next setup, and run "wait start", which returns once the next one begins.`;
+      } If the status is "done" or "cancelled", that setup is over: tell the user and stop the stream. A link holds one setup; another setup starts with a new link.`;
 
 const streamSection = (streaming: boolean, noOpen: boolean) =>
   streaming
@@ -44,10 +44,10 @@ const streamSection = (streaming: boolean, noOpen: boolean) =>
 - "input.needed" ({id, message, question, options?, answer}): the user may not see the browser right now. Do what its message says: run "wait <id>" for their answer in the browser, or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
 If this command stops, start it again in the background with
   {{cmd}} {{url}} stream${noOpen ? " --no-open" : ""}
-The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream.`
+The URL is the user's link to you from their browser for this one setup; another setup starts with a new link.`
     : `First, start a persistent Monitor on
   {{cmd}} {{url}} stream${noOpen ? " --no-open" : ""}
-and keep it running: the browser shows you as connected only while it runs, and it is how answers reach you. The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream. Each line is a JSON array of events: ${EVENT_LIST}.`;
+and keep it running: the browser shows you as connected only while it runs, and it is how answers reach you. The URL is the user's link to you from their browser for this one setup; another setup starts with a new link. Each line is a JSON array of events: ${EVENT_LIST}.`;
 
 /** Why the agent must not end its turn mid-setup, and how it waits instead. */
 const keepGoing = `Run the setup to the end in one go. Do not count on the stream or the browser to wake you: if you end your turn before the install is done, the setup can stay paused until the user types to you, even after they answer in the browser. So never end your turn to wait for an answer, and do not stop after telling the user something. To get an answer, block on it:
@@ -97,9 +97,7 @@ which writes ENV_VAR=<key> into that file. Use the answer's model in the chat ro
 
 When every product is installed and verified, run
   {{cmd}} {{url}} done --summary "<one or two lines on what you installed and how to try it>" --preview http://localhost:<port>
-Before that, start the project's dev server in the background when the project has one, check that the page you changed loads, and pass the address as --preview (the page itself when it is not the root); leave the server running so the user can try the result. Omit --preview when there is nothing to open. This proposes closing the setup; only the user closes it. Do not stop the stream or exit: stay idle on it, because the user may follow up with a "message.created" event. Handle it, then run "done" again. The stream prints "finished" once the user closes the setup, and "cancelled" if they end it early. Keep the stream running after either: the user's next setup starts on this same URL and arrives as "setup.created" with its products. Run
-  {{cmd}} {{url}} wait start
-which returns once that setup begins, then run "status" for its products, guides and instructions and go through plan and install again. A "setup.created" event while you are still working means the user replaced this setup: drop what you were doing and start over the same way.
+Before that, start the project's dev server in the background when the project has one, check that the page you changed loads, and pass the address as --preview (the page itself when it is not the root); leave the server running so the user can try the result. Omit --preview when there is nothing to open. This proposes closing the setup; only the user closes it. Do not stop the stream or exit: stay idle on it, because the user may follow up with a "message.created" event. Handle it, then run "done" again. The stream prints "finished" once the user closes the setup, and "cancelled" if they end it early. After either, the setup is over: stop the stream and tell the user. This link holds no other setup; another one starts with a new link and a new command.
 `;
 };
 
@@ -139,7 +137,7 @@ export const buildGuide = (context: GuideContext): Guide => {
       "stream.briefing-footer":
         "Setup page, if the user asks for it: {{browserUrl}}\n\nCurrent setup:\n",
       "stream.stay-connected":
-        "This setup is over, not your connection. Keep the stream running, tell the user you are connected and waiting for their next setup, and run wait start.",
+        "This setup is over. Stop the stream and tell the user; another setup starts with a new link.",
       "stream.opened.input": `Opened the setup in the user's browser for "{{prompt}}". Tell the user once that it is waiting there, and give them {{url}} in case it did not open. ${KEEP_WORKING}`,
       "stream.opened.plan": `Opened the setup in the user's browser for the plan review. Tell the user once that it is waiting there, and give them {{url}} in case it did not open. ${KEEP_WORKING}`,
       "stream.opened.finish":

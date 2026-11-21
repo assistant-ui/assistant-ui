@@ -4,8 +4,11 @@ import * as p from "@clack/prompts";
 import {
   CODING_AGENTS,
   findCommand,
+  OFFICIAL_SETUP_APPS,
+  parseTrustedSetupUrl,
   runCodingAgent,
   runSetupCommand,
+  stopWhenClosed,
 } from "setup-agent/cli";
 import { runAgentSetup } from "setup-agent/sdk";
 import type { CodingAgent } from "setup-agent/cli";
@@ -129,9 +132,20 @@ const runForPerson = async (options: SetupOptions) => {
 /** `setup <url> <command> ...`: one setup command, run as `npx setup-agent <url> <command>` would. */
 const runSetupStep = async (args: string[], options: SetupOptions) => {
   const endpoints = resolveEndpoints(options);
+  // Step commands are what a briefing or a pasted prompt tells an agent to
+  // run, so they reach only the official setup server and page or this
+  // machine. --setup-server and its env variable apply to the setup this CLI
+  // creates itself.
   await runSetupCommand(args, {
     command: SETUP_COMMAND,
-    browser: { setupAppUrl: endpoints.setupAppUrl, canOpen: options.open },
+    browser: {
+      setupAppUrl: parseTrustedSetupUrl(
+        endpoints.setupAppUrl,
+        OFFICIAL_SETUP_APPS,
+        "setup page",
+      ),
+      canOpen: options.open,
+    },
   });
 };
 
@@ -187,7 +201,9 @@ const runForAgent = async (options: SetupOptions) => {
     write: (text) =>
       process.stdout.write(`${text}\n${gateNote(marker !== undefined)}\n`),
   });
-  // The stream's heartbeat keeps the process alive until a signal stops it.
+  // The stream's heartbeat keeps the process alive until a signal stops it,
+  // or until the setup closes: the link holds no other setup.
+  stopWhenClosed(running.client, stop);
 };
 
 export const setup = new Command()
