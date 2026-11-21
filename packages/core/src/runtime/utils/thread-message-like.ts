@@ -228,7 +228,7 @@ export const fromThreadMessageLike = (
                 return keepWellFormed(part);
 
               case "generative-ui":
-                return part;
+                return keepWellFormed(part);
 
               case "tool-call": {
                 const {

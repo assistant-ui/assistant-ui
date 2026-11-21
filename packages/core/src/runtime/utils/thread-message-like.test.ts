@@ -550,4 +550,18 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
       { type: "reasoning", text: "visible" },
     ]);
   });
+
+  it("drops malformed assistant generative-ui parts while retaining valid ones", () => {
+    const ui = { type: "generative-ui", spec: { root: "hi" } };
+
+    expect(
+      convert("assistant", [
+        { type: "generative-ui" },
+        { type: "generative-ui", spec: null },
+        { type: "generative-ui", spec: "not-a-record" },
+        { type: "generative-ui", spec: ["array"] },
+        ui,
+      ]),
+    ).toEqual([ui]);
+  });
 });
