@@ -8,6 +8,7 @@ From the monorepo root:
 
 ```bash
 pnpm install
+pnpm exec turbo build --filter='with-agent-document-editor^...'
 pnpm --filter with-agent-document-editor dev
 ```
 
