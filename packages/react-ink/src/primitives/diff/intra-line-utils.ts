@@ -10,9 +10,10 @@ const getRunEnd = (
   lines: ParsedLine[],
   startIndex: number,
   type: "add" | "del",
+  hunkIndex: ParsedLine["hunkIndex"],
 ) => {
   let index = startIndex;
-  while (lines[index]?.type === type) {
+  while (lines[index]?.type === type && lines[index].hunkIndex === hunkIndex) {
     index++;
   }
   return index;
@@ -22,12 +23,14 @@ export const buildLinePairMap = (lines: ParsedLine[]) => {
   const pairMap = new Map<ParsedLine, ParsedLine>();
 
   for (let index = 0; index < lines.length; index++) {
-    if (lines[index]?.type !== "del") {
+    const line = lines[index];
+    if (line?.type !== "del") {
       continue;
     }
 
-    const delRunEnd = getRunEnd(lines, index, "del");
-    const addRunEnd = getRunEnd(lines, delRunEnd, "add");
+    const { hunkIndex } = line;
+    const delRunEnd = getRunEnd(lines, index, "del", hunkIndex);
+    const addRunEnd = getRunEnd(lines, delRunEnd, "add", hunkIndex);
     const runLength = delRunEnd - index;
 
     if (runLength > 0 && runLength === addRunEnd - delRunEnd) {
