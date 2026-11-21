@@ -59,6 +59,9 @@ on:
       - "scripts/app-build-inputs.test.mjs"
       - "scripts/vscode-test-bed.test.mjs"
       - ".github/workflows/vscode-test-bed.yaml"
+      - ".github/workflows/deepsec.yaml"
+      - "scripts/deepsec_review.py"
+      - "scripts/tests/test_deepsec_review.py"
       - "scripts/root-install-selection.test.mjs"
       - "scripts/setup-git-hooks.mjs"
       - "scripts/setup-git-hooks.test.mjs"
@@ -172,6 +175,9 @@ jobs:
 
       - name: Test the shared script helpers
         run: node --test scripts/lib/*.test.mjs
+
+      - name: Test DeepSec review inputs and outcomes
+        run: python3 -B -m unittest scripts.tests.test_deepsec_review
 
       - name: Test VS Code workflow input coverage
         run: node --test scripts/vscode-test-bed.test.mjs

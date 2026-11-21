@@ -16,6 +16,20 @@ A vulnerability is a way for untrusted input (model output, tool results, MCP se
 
 The affected package, component or service, its version or deployment if you know it, a minimal reproduction or proof of concept, and the impact you expect.
 
+## Pull request security review
+
+DeepSec reviews changed files on ready, same-repository PRs to `main`, including PRs retargeted there. Forks and Dependabot PRs skip it. The workflow runs from the default branch. It gives the read-only Pi reviewer a copy of regular files from the event's head commit and compares that commit with its merge base. Vercel AI Gateway handles model calls.
+
+Before enabling the check, a repository administrator configures these GitHub Actions settings:
+
+1. Create the `deepsec` environment and restrict deployments to the selected branch `main`. Add a budgeted AI Gateway key as its **environment secret** `DEEPSEC_GATEWAY_KEY`. Remove any repository-level copy and rotate the key if it was previously available to PR workflows.
+2. Create the `deepsec-triage` environment with the security team as required reviewers and the same branch restriction.
+3. Set the **repository variable** `DEEPSEC_ENABLED` to `true`. To disable scanning, remove the variable and revoke the key.
+
+A clean scan passes. A scanner error fails the job and attaches encrypted diagnostics and findings from completed batches when available. A finding requests a review from the security team. Contributors can send the workflow run URL to security@assistant-ui.com. The team downloads the artifact from that run and decrypts it with `gpg --decrypt review.md.gpg` or `gpg --decrypt diagnostics.log.gpg`. CI uses the public key from the trusted checkout.
+
+For a false positive, the security reviewer approves the pending `deepsec-triage` deployment, entering the artifact ID from the upload step as the approval comment. This clears only that report. Rerun the entire workflow to produce a fresh report if its artifact has expired. For a confirmed finding, reject the deployment and use the private reporting process above.
+
 ## What happens next
 
 Our team will send a response indicating the next steps in handling your report. After the initial reply to your report, the security team will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
