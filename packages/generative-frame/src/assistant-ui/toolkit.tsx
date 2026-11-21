@@ -38,6 +38,7 @@ import {
   type MessageLike,
   type ToolCall,
 } from "./tool-calls";
+import { fillComposer } from "./fillComposer";
 import { toolkitEntry } from "./entry";
 import type { ToolkitDisplay, WidgetToolkitExtension } from "./extension";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
@@ -314,15 +315,7 @@ export function createWidgetToolkit(
       ...options.widget,
       tokens,
       onPrompt:
-        options.widget?.onPrompt ??
-        ((text: string) => {
-          const composer = aui.thread.composer();
-          composer.setText(
-            [composer.getState().text, text]
-              .filter((part) => part.trim())
-              .join(" "),
-          );
-        }),
+        options.widget?.onPrompt ?? ((text: string) => fillComposer(aui, text)),
     };
   }
 

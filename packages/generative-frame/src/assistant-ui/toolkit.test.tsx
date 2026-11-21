@@ -22,6 +22,7 @@ import { createWidgetToolkit, useWidgetInstructions } from "./toolkit";
 const mocks = vi.hoisted(() => ({
   append: vi.fn(),
   setText: vi.fn(),
+  composerText: "",
   register: vi.fn(),
   messages: [] as unknown[],
   remoteId: undefined as string | undefined,
@@ -88,7 +89,7 @@ vi.mock("@assistant-ui/react", () => ({
       append: mocks.append,
       composer: () => ({
         setText: mocks.setText,
-        getState: () => ({ text: "" }),
+        getState: () => ({ text: mocks.composerText }),
       }),
     },
     modelContext: {
@@ -138,6 +139,7 @@ vi.mock("../preview", async (importOriginal) => ({
 afterEach(() => {
   cleanup();
   mocks.messages = [];
+  mocks.composerText = "";
   mocks.remoteId = undefined;
   mocks.argsStatus = "complete";
   mocks.propStatus = {};
@@ -2248,10 +2250,11 @@ describe("sharing with the model", () => {
       })}}`,
     ].join("\n");
 
-  it("lets sendMessage see what updateModelContext shared in the same event, and saves it", async () => {
+  it("puts sendMessage text in the composer after updateModelContext shared in the same event, and saves it", async () => {
     const record = vi.fn(async (_input: unknown) => {});
     let seen: string | undefined;
-    mocks.append.mockImplementationOnce(() => {
+    mocks.composerText = "Draft";
+    mocks.setText.mockImplementationOnce(() => {
       seen = shared();
     });
     const RenderSpec = entries(specToolkit())["render_spec"]!.render;
@@ -2274,7 +2277,8 @@ describe("sharing with the model", () => {
     await act(async () => {
       fireEvent.click(screen.getByText("Go"));
     });
-    expect(mocks.append).toHaveBeenCalledExactlyOnceWith("Book it");
+    expect(mocks.setText).toHaveBeenCalledExactlyOnceWith("Draft Book it");
+    expect(mocks.append).not.toHaveBeenCalled();
     expect(seen).toBe(flights);
     view.unmount();
     expect(record).toHaveBeenLastCalledWith({

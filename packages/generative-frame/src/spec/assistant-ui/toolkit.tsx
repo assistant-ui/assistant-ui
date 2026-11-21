@@ -79,7 +79,7 @@ export type SpecToolkitPlatform = {
     streaming: boolean;
     children: ReactNode;
   }>;
-  /** Appends a user message to the thread, for the `sendMessage` action. */
+  /** Adds text to the thread composer for the user to send, for the `sendMessage` action. */
   useSendMessage(): (text: string) => void;
   /** Registers what `updateModelContext` shares as model context, read when each request starts. */
   useModelContext(source: ModelContextSource): void;

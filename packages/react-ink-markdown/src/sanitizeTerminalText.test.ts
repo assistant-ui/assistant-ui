@@ -28,6 +28,8 @@ describe("sanitizeTerminalText", () => {
       "a\tb\nc",
     ],
     ["unfinished OSC", "a\x1b]8;;https://wrong.example", "a"],
+    ["a terminated DCS across lines", "a\x1bPignored\npayload\x1b\\b", "ab"],
+    ["a terminated OSC across lines", "a\x1b]0;x\ny\x07b", "ab"],
     ["unfinished CSI", "a\x1b[12;", "a"],
   ])("removes %s", (_name, input, expected) => {
     expect(sanitizeTerminalText(input)).toBe(expected);
@@ -37,7 +39,24 @@ describe("sanitizeTerminalText", () => {
     ["a newline after a malformed CSI", "a\x1b[\nb", "a\nb"],
     ["CJK text after a malformed CSI", "a\x1b[12你好", "a你好"],
     ["CJK text after a malformed C1 CSI", "a\u009b你好", "a你好"],
+    [
+      "the lines after an unterminated OSC",
+      "a\x1b]8;;https://wrong.example\nb\nc",
+      "a\nb\nc",
+    ],
+    ["the lines after an unterminated DCS", "a\x1bPignored\nb", "a\nb"],
+    ["the lines after an unterminated C1 OSC", "a\u009dhidden\nb", "a\nb"],
   ])("keeps %s", (_name, input, expected) => {
     expect(sanitizeTerminalText(input)).toBe(expected);
+  });
+
+  it("stays linear on many unterminated strings", () => {
+    // One unterminated DCS per line, then an OSC that does terminate.
+    const lines = "\x1bPx\n".repeat(100_000);
+    const started = performance.now();
+    expect(sanitizeTerminalText(`${lines}\x1b]0;t\x07end`)).toBe(
+      `${"\n".repeat(100_000)}end`,
+    );
+    expect(performance.now() - started).toBeLessThan(1_000);
   });
 });
