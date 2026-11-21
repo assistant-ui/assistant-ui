@@ -18,11 +18,17 @@ The affected package, component or service, its version or deployment if you kno
 
 ## Pull request security review
 
-The DeepSec check reviews changed files when a same-repository pull request to `main` is ready for review and on subsequent pushes. Fork and Dependabot pull requests skip the check. It runs on GitHub's PR merge commit with read-only repository access. The Pi reviewer can read source for context using a model through Vercel AI Gateway.
+DeepSec reviews changed files on ready, same-repository PRs to `main`, including PRs retargeted there. Forks and Dependabot PRs skip it. The workflow runs from the default branch. It gives the read-only Pi reviewer a copy of regular files from the event's head commit and compares that commit with its merge base. Vercel AI Gateway handles model calls.
 
-To enable the check, a repository administrator adds a dedicated AI Gateway key as the Actions secret `DEEPSEC_GATEWAY_KEY`. Use a spending limit on the key. To turn the check off, disable the DeepSec workflow and revoke the key.
+Before enabling the check, a repository administrator configures these GitHub Actions settings:
 
-A finding fails the check. The security team can download the `deepsec-review` artifact from the workflow run and open it with `gpg --decrypt review.md.gpg`. CI encrypts the report to the security team's PGP key from the base commit. Confirmed findings follow the private reporting process above.
+1. Create the `deepsec` environment and restrict deployments to the selected branch `main`. Add a budgeted AI Gateway key as its **environment secret** `DEEPSEC_GATEWAY_KEY`. Remove any repository-level copy and rotate the key if it was previously available to PR workflows.
+2. Create the `deepsec-triage` environment with the security team as required reviewers and the same branch restriction.
+3. Set the **repository variable** `DEEPSEC_ENABLED` to `true`. To disable scanning, remove the variable and revoke the key.
+
+A clean scan passes. A scanner error fails the job and attaches encrypted diagnostics and findings from completed batches when available. A finding requests a review from the security team. Contributors can send the workflow run URL to security@assistant-ui.com. The team downloads the artifact from that run and decrypts it with `gpg --decrypt review.md.gpg` or `gpg --decrypt diagnostics.log.gpg`. CI uses the public key from the trusted checkout.
+
+For a false positive, the security reviewer approves the pending `deepsec-triage` deployment, entering the artifact ID from the upload step as the approval comment. This clears only that report. Rerun the entire workflow to produce a fresh report if its artifact has expired. For a confirmed finding, reject the deployment and use the private reporting process above.
 
 ## What happens next
 
