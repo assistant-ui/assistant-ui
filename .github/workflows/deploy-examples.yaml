@@ -84,6 +84,8 @@ jobs:
     name: Deploy Production (${{ matrix.example }})
     needs: changes
     if: needs.changes.outputs.any == 'true'
+    # Holds the Vercel token; see registry.yaml.
+    environment: vercel-deploy
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
