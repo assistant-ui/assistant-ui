@@ -687,22 +687,48 @@ test("required labels cover every label the policy names", () => {
   }
 });
 
-test("the review tier workflow runs for the labels the policy names", () => {
-  const workflow = readFileSync(
-    path.join(repoRoot, ".github/workflows/review-tier.yaml"),
-    "utf8",
-  );
-  const condition = /^ {4}if: >-\n((?: {6}.*\n)+)/m.exec(workflow)?.[1] ?? "";
-  for (const expected of [
-    `github.event.label.name == '${policy.labels.behaviorChange}'`,
-    `startsWith(github.event.label.name, '${policy.labels.overridePrefix}')`,
-    `startsWith(github.event.label.name, '${policy.labels.tierPrefix}')`,
-    `contains(github.event.pull_request.labels.*.name, '${tierLabel(policy, 3)}')`,
-    `github.event.label.name == '${policy.labels.decisionAccepted}'`,
+test("the review tier workflows run for the labels the policy names", () => {
+  const condition = (file) =>
+    /^ {4}if: >-\n((?: {6}.*\n)+)/m.exec(
+      readFileSync(path.join(repoRoot, `.github/workflows/${file}`), "utf8"),
+    )?.[1] ?? "";
+  const relay =
+    readFileSync(
+      path.join(repoRoot, ".github/workflows/review-tier-relay.yaml"),
+      "utf8",
+    )
+      .split("\n  relay-pull-request:\n")[1]
+      .match(/^ {4}if: >-\n((?: {6}.*\n)+)/m)?.[1] ?? "";
+  for (const [file, text, expected] of [
+    [
+      "review-tier-relay.yaml",
+      relay,
+      `github.event.label.name == '${policy.labels.behaviorChange}'`,
+    ],
+    [
+      "review-tier-relay.yaml",
+      relay,
+      `startsWith(github.event.label.name, '${policy.labels.overridePrefix}')`,
+    ],
+    [
+      "review-tier-relay.yaml",
+      relay,
+      `startsWith(github.event.label.name, '${policy.labels.tierPrefix}')`,
+    ],
+    [
+      "review-tier-relay.yaml",
+      relay,
+      `contains(github.event.pull_request.labels.*.name, '${tierLabel(policy, 3)}')`,
+    ],
+    [
+      "review-tier.yaml",
+      condition("review-tier.yaml"),
+      `github.event.label.name == '${policy.labels.decisionAccepted}'`,
+    ],
   ]) {
     assert.ok(
-      condition.includes(expected),
-      `the job condition lacks ${expected}`,
+      text.includes(expected),
+      `${file} job condition lacks ${expected}`,
     );
   }
 });
