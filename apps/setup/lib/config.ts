@@ -17,4 +17,4 @@ export const DOCS_URL =
 export const CLOUD_URL = "https://cloud.assistant-ui.com";
 
 /** What a person tells their coding agent to start a setup. */
-export const AGENT_SETUP_PROMPT = "set up assistant-ui";
+export const AGENT_SETUP_PROMPT = "install and set up assistant-ui";

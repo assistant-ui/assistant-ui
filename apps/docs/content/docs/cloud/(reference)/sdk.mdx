@@ -105,12 +105,12 @@ Unless a row says otherwise, a data response can throw `CloudAPIError` for an HT
 | `cloud.threads.update` | `(threadId: string, body: { title?: string; last_message_at?: Date; metadata?: unknown; is_archived?: boolean }) => Promise<void>` | `PUT /threads/{threadId}` | `CloudAPIError`. |
 | `cloud.threads.claim` | `(body: { refresh_token: string }) => Promise<{ moved: number }>` | `POST /threads/claim` | Both. |
 | `cloud.threads.delete` | `(threadId: string) => Promise<void>` | `DELETE /threads/{threadId}` | `CloudAPIError`. |
-| `cloud.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /threads/{threadId}/messages` | Both. |
+| `cloud.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[]; has_more?: boolean; next_cursor?: string \| null }>` | `GET /threads/{threadId}/messages` | Both. |
 | `cloud.threads.messages.create` | `(threadId: string, body: { parent_id: string \| null; format: "aui/v0" \| string; content: ReadonlyJSONObject; external_id?: string; parent_external_id?: string }) => Promise<{ message_id: string }>` | `POST /threads/{threadId}/messages` | Both. |
 | `cloud.threads.messages.update` | `(threadId: string, messageId: string, body: { content: ReadonlyJSONObject }) => Promise<void>` | `PUT /threads/{threadId}/messages/{messageId}` | `CloudAPIError`. |
 | `cloud.threads.messages.feedback` | `(threadId: string, messageId: string, body: { type: "positive" \| "negative"; comment?: string }) => Promise<{ feedback_id: string; type: "positive" \| "negative"; comment?: string \| null }>` | `POST /threads/{threadId}/messages/{messageId}/feedback` | Both. |
 
-`CloudThread` has `id`, `project_id`, `workspace_id`, `created_at`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, and `metadata`. The client converts a null thread title to `""` and reads workspace and project IDs from the response. `CloudMessage` has `id`, `parent_id`, `height`, `created_at`, `updated_at`, `format`, `content`, and `external_id`.
+`CloudThread` has `id`, `project_id`, `workspace_id`, `created_at`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, and `metadata`. The client converts a null thread title to `""` and reads workspace and project IDs from the response. `CloudMessage` has `id`, `parent_id`, `height`, `created_at`, `updated_at`, `format`, `content`, and `external_id`. A message list response also has `has_more` and `next_cursor` when the server sends them; page on while `has_more` is true, passing `next_cursor` as `after`.
 
 ```ts title="Threads and messages"
 const { thread_id } = await cloud.threads.create({
@@ -188,7 +188,7 @@ await cloud.scores.create({
 | `cloud.auth.tokens.create` | `() => Promise<{ token: string }>` | `POST /auth/tokens` | Both. |
 | `cloud.auth.invalidate` | `() => void` | None | Clears cached authentication and pending engagement events. |
 | `cloud.projects.threads.list` | `(query?: { is_archived?: boolean; limit?: number; after?: string }) => Promise<{ threads: CloudThread[] }>` | `GET /projects/threads` | Both. |
-| `cloud.projects.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /projects/threads/{threadId}/messages` | Both. |
+| `cloud.projects.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[]; has_more?: boolean; next_cursor?: string \| null }>` | `GET /projects/threads/{threadId}/messages` | Both. |
 
 `track` does nothing when events are disabled. Otherwise it normalizes an event, flushes at 20 buffered events, and otherwise waits 2,000 milliseconds. Failed scheduled and 20-event flushes retry after 250 milliseconds and then 1,000 milliseconds. `pagehide`, a hidden document, and `dispose()` make one best-effort flush and end a pending retry. Each request contains at most 50 events and uses `keepalive`. Setting `cloud.telemetry.enabled` or `cloud.telemetry.events` to `false` at runtime drops buffered events and cancels pending retries. Empty or overlength IDs are dropped, and invalid or oversize props are dropped as a whole. The project namespace is read only.
 

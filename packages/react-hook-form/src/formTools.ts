@@ -1,12 +1,14 @@
 import { z } from "zod";
 
+const formFieldValue = z.union([z.string(), z.number(), z.boolean()]);
+
 export const formTools = {
   set_form_field: {
     description:
       "Sets a form field. Call this function as soon as the user provides the data for each field.",
     parameters: z.object({
       name: z.string(),
-      value: z.string(),
+      value: formFieldValue,
     }),
   },
   submit_form: {

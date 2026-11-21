@@ -1,0 +1,337 @@
+---
+title: Durable threads
+description: Keep AG-UI runs going when the browser closes, and rejoin them when the thread is opened again, with a Pydantic AI backend.
+---
+
+By default an AG-UI run lives inside its HTTP response. If the browser closes or crashes mid-answer, the server cancels the run and the answer is lost. A durable thread moves the run and the transcript to the server:
+
+- The run keeps going after the browser disconnects.
+- Opening the thread again shows everything so far, then follows the run to the end.
+- Every message appears once.
+
+The Python `assistant-stream` package ships the server side for Pydantic AI as `DurableAGUI`. [`examples/with-pydantic-ai-durable`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-pydantic-ai-durable) is a complete app: the server, a Next.js frontend, and tests that close the client mid-run and reopen the thread.
+
+## Install
+
+```sh
+pip install "assistant-stream[pydantic-ai]>=0.0.37" uvicorn
+```
+
+Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs `assistant-stream` 0.0.37 or later and Python 3.11 or later.
+
+## Server
+
+```python title="main.py"
+from pydantic_ai import Agent
+from starlette.applications import Starlette
+from assistant_stream.pydantic_ai import DurableAGUI, SqliteThreadStore
+
+agent = Agent("openai:gpt-5.4-mini", instructions="You are a helpful assistant.")
+durable = DurableAGUI(agent, threads=SqliteThreadStore("threads.db"))
+
+app = Starlette(routes=durable.routes())
+```
+
+Run it with `uvicorn main:app --port 8000`. When the frontend is on another origin, wrap the app in Starlette's `CORSMiddleware` with that origin and the `Authorization` and `Content-Type` headers allowed. In a FastAPI app, add the routes to the existing router with `app.router.routes.extend(durable.routes(prefix="/api"))`.
+
+`DurableAGUI` serves five routes:
+
+| Route | Does |
+| --- | --- |
+| `POST /agent` | Starts a run from an AG-UI `RunAgentInput` and streams its frames. |
+| `GET /threads` | Lists threads, newest first. |
+| `GET /threads/{id}` | Returns `{ id, messages, running, runId }`. `runId` is the latest run, so Stop can cancel exactly that run. |
+| `GET /threads/{id}/stream` | Replays the latest run from its first frame, then follows it live. |
+| `POST /threads/{id}/cancel?run=` | Cancels the run. The partial answer is kept. |
+
+### Users and dependencies
+
+Without `owner`, every client can see every thread. Pass `owner` to scope threads to the signed-in user. It gets the request and returns a user id, or `None` to answer 401. A thread that belongs to someone else answers 404.
+
+`run_options` returns extra arguments for the run, such as `deps`. Both can be sync or async.
+
+```python
+async def current_user(request):
+    user = await verify_session(request.headers.get("authorization"))
+    request.state.user = user
+    return user.id if user else None
+
+durable = DurableAGUI(
+    agent,
+    threads=threads,
+    owner=current_user,
+    run_options=lambda request, run_input: {"deps": Deps(user=request.state.user)},
+)
+```
+
+### Custom adapter and per-run resources
+
+`adapter_factory` builds the `AGUIAdapter` for each run, so you can pass a subclass. It gets the request and the `RunAgentInput` and can be sync or async. Use it in place of `adapter_options`.
+
+```python
+from pydantic_ai.ui.ag_ui import AGUIAdapter
+
+
+class MyAdapter(AGUIAdapter):
+    ...  # override what you need
+
+
+durable = DurableAGUI(
+    agent,
+    adapter_factory=lambda request, run_input: MyAdapter(
+        agent=agent, run_input=run_input, accept="text/event-stream"
+    ),
+)
+```
+
+`run_context` opens a resource for exactly one run, such as an MCP session. It returns an async context manager. The run enters it when it starts and exits it when the run finishes or is cancelled, in the task that runs it, so it stays open after the browser disconnects. It can yield a dict of extra `run_stream` arguments, which override `run_options`.
+
+```python
+from contextlib import asynccontextmanager
+
+from pydantic_ai.mcp import MCPToolset
+
+
+@asynccontextmanager
+async def mcp_session(request, run_input):
+    async with MCPToolset(MCP_URL) as mcp:
+        yield {"toolsets": [mcp]}
+
+
+durable = DurableAGUI(agent, threads=threads, run_context=mcp_session)
+```
+
+### Custom routes
+
+`routes()` is a shortcut. To use other paths, auth dependencies or middleware, call the same building blocks from your own routes:
+
+| Method | Returns |
+| --- | --- |
+| `await start_run(request)` | A streaming response for a new run. It reads the `RunAgentInput` body and calls `owner` itself. |
+| `await get_thread(thread_id, owner=)` | `{ id, messages, running, runId }`, or `None`. |
+| `await list_threads(owner=, limit=)` | `[{ id, title, running, updatedAt }]`, newest first. |
+| `await resume_stream(thread_id, owner=)` | The latest run's SSE bytes from its first frame, or `None`. |
+| `await cancel(thread_id, run_id, owner=)` | Whether the cancel reached the run. |
+
+```python
+from assistant_stream.pydantic_ai import SSEResponse
+from fastapi import FastAPI, HTTPException, Request
+
+app = FastAPI()
+
+
+async def require_user(request: Request) -> str:
+    user_id = await current_user(request)
+    if user_id is None:
+        raise HTTPException(401)
+    return user_id
+
+
+@app.post("/chat/runs")
+async def start(request: Request):
+    return await durable.start_run(request)  # calls `owner` itself
+
+
+@app.get("/chat/threads/{thread_id}")
+async def thread(thread_id: str, request: Request):
+    found = await durable.get_thread(thread_id, owner=await require_user(request))
+    if found is None:
+        raise HTTPException(404)
+    return found
+
+
+@app.get("/chat/threads/{thread_id}/stream")
+async def stream(thread_id: str, request: Request):
+    body = await durable.resume_stream(thread_id, owner=await require_user(request))
+    if body is None:
+        raise HTTPException(404)
+    return SSEResponse(body)
+```
+
+`SSEResponse` closes the stream when the client goes away. A plain `StreamingResponse` can leave a keepalive read open until garbage collection.
+
+Refuse a request without a user before calling these methods. `owner=None` means the threads that have no owner, so passing it for a signed-out request would expose them. Pass the same id the `owner` callable returns.
+
+## Frontend
+
+Copy `lib/durable-agent.ts` from the example. It has two pieces:
+
+- `DurableHttpAgent` extends `HttpAgent`. Its `connect()` reads `GET /threads/{id}/stream`, and its `abortRun()` posts the cancel. Every request carries the agent's `headers`, so put the auth header there.
+- `durableThreadHistory(agent)` loads the thread and returns `unstable_resume: true` while a run is active. Its `append` does nothing, because the server stores every message.
+
+```tsx
+const [agent] = useState(
+  () =>
+    new DurableHttpAgent({
+      baseUrl: "https://api.example.com/api",
+      threadId,
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+);
+const history = useMemo(() => durableThreadHistory(agent), [agent]);
+
+const runtime = useAgUiRuntime({ agent, adapters: { history } });
+```
+
+Keep one agent instance and set its `threadId` when switching threads, because the runtime rejoins through the agent it already holds. A thread list's `onSwitchToThread` returns `unstable_resume: true` for a running thread the same way the history adapter does; the example's `MyRuntimeProvider.tsx` shows both.
+
+## With Assistant Cloud
+
+Assistant Cloud can keep the thread list and the messages while the durable server keeps the runs. Copy `lib/cloud-durable.ts` from the example next to `lib/durable-agent.ts`. It has two pieces, built on public APIs only:
+
+- `withDurableRuns(history, agent)` wraps the Cloud history adapter's `load()`. A thread that opens with an unfinished reply asks the server for the thread. If the run is still going, it deletes the stored partial reply and returns `unstable_resume: true`, so the runtime rejoins through `connect()`. If the run ended with no tab open, it stores the server's answer in place of the interrupted reply.
+- `useDurableTakeover(runtime, history)` covers a reply another tab was writing. When that reply goes stale, it reads the thread again and calls `resumeRun`, which follows the run through `connect()`.
+
+Make the AG-UI runtime the `runtimeHook` of `useCloudThreadListRuntime`:
+
+```tsx title="app/CloudRuntimeProvider.tsx"
+"use client";
+
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
+  useAuiState,
+  useCloudThreadListRuntime,
+  useRuntimeAdapters,
+} from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { DurableHttpAgent } from "@/lib/durable-agent";
+import { useDurableTakeover, withDurableRuns } from "@/lib/cloud-durable";
+
+const baseUrl = "https://api.example.com";
+const cloud = new AssistantCloud({
+  baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+  authToken: () => getCloudToken(),
+});
+
+function useDurableThreadRuntime() {
+  // The durable server keys threads by the cloud thread's external id.
+  const threadId = useAuiState(
+    (s) => s.threadListItem.externalId ?? s.threadListItem.id,
+  );
+  const [agent] = useState(() => new DurableHttpAgent({ baseUrl, threadId }));
+  useEffect(() => {
+    agent.threadId = threadId;
+  }, [agent, threadId]);
+  const cloudHistory = useRuntimeAdapters()?.history;
+  const history = useMemo(
+    () => cloudHistory && withDurableRuns(cloudHistory, agent),
+    [cloudHistory, agent],
+  );
+  const runtime = useAgUiRuntime({
+    agent,
+    ...(history ? { adapters: { history } } : undefined),
+  });
+  useDurableTakeover(runtime, history);
+  return runtime;
+}
+
+export function CloudRuntimeProvider({ children }: { children: ReactNode }) {
+  const runtime = useCloudThreadListRuntime({
+    cloud,
+    runtimeHook: useDurableThreadRuntime,
+    create: async (threadId) => ({ externalId: threadId }),
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
+  );
+}
+```
+
+`getCloudToken` stands for your app's Assistant Cloud sign-in. Put the same user's credentials in the agent's `headers` so the durable server's `owner` can scope threads.
+
+`create` saves the thread's first id as the cloud thread's `external_id`, so the agent sends the same thread id to the durable server before and after a reload. Threads created without it fall back to the cloud thread id.
+
+The server and the cloud give messages different ids, so the turn is matched by position: the cloud's last user message is the server's user message with the same index. When the two disagree on how many turns there are, or on that message's text, the thread loads from the cloud as stored.
+
+| When the thread opens | What happens |
+| --- | --- |
+| The run is still going, and the tab that wrote the reply closed | The stored partial reply is deleted, and the runtime rejoins the run through `connect()`. The answer streams once and is stored once. |
+| The run ended while no tab was open | The stored partial reply is replaced with the server's answer, stored under the user message with the server's ids. |
+| Another tab is still writing the reply | This tab shows the reply as in progress and writes nothing. If the other tab stops beating its run lease (it was closed or reloaded), the reply goes stale after `staleAfter`, and this tab rejoins the run through `resumeRun`. |
+| The reply is stored in full | Nothing changes. The durable server isn't asked. |
+
+Two tabs that rejoin the same run at once store one reply: both store it under the run's message id, and the cloud keeps one message per id. A reloaded tab sees its own lease as another tab's until the lease goes stale, so it waits up to `staleAfter` (30 seconds by default) before it rejoins. To shorten that wait, build the list with `useCloudThreadListAdapter({ cloud, staleAfter })` and `useRemoteThreadListRuntime`.
+
+The example runs this way when `NEXT_PUBLIC_ASSISTANT_BASE_URL` is set. It uses anonymous Cloud access to stay self-contained. In production, sign users in to Assistant Cloud, send the same identity to the durable server in the agent's `headers`, and scope its threads with `owner`.
+
+## Production
+
+| Piece | Keeps | Development | Production |
+| --- | --- | --- | --- |
+| `threads` | the transcript, and whether a run is active, in one record | `InMemoryThreadStore` (default) or `SqliteThreadStore` | `PostgresThreadStore` |
+| `streams` | every AG-UI frame of the active run | in memory (default) | Redis |
+
+```python title="main.py"
+from contextlib import asynccontextmanager
+
+from redis.asyncio import Redis
+from starlette.applications import Starlette
+from assistant_stream.pydantic_ai import DurableAGUI, PostgresThreadStore
+from assistant_stream.resumable import (
+    create_redis_resumable_stream_store,
+    create_resumable_stream_context,
+)
+
+
+@asynccontextmanager
+async def lifespan(app):
+    threads = await PostgresThreadStore.connect(DATABASE_URL)  # creates aui_threads
+    redis = Redis.from_url(REDIS_URL)
+    streams = create_resumable_stream_context(
+        store=create_redis_resumable_stream_store(redis),
+        ttl_ms=60 * 60 * 1000,
+    )
+    durable = DurableAGUI(agent, threads=threads, streams=streams, owner=current_user)
+    app.router.routes.extend(durable.routes())
+    try:
+        yield
+    finally:
+        await redis.aclose()
+        await threads.close()
+
+
+app = Starlette(lifespan=lifespan)
+```
+
+To use your own pool, pass it to `PostgresThreadStore(pool)` and call `await threads.setup()` once. Any other database works through the `ThreadStore` protocol: `get`, `put`, `list(owner=, limit=)`, and `put_if_current`, which writes a record only if the stored record has the same `stream_id` and must do so atomically (a conditional `UPDATE`). It's how a run that was replaced leaves its replacement's transcript alone. The protocol also requires `put_if_stream(thread_id, record, expected=)`, which atomically writes a record only when the stored `stream_id` matches `expected`, with `None` matching a missing record or an unset stream, so concurrent starts can claim the thread.
+
+A store can also implement `CancellableThreadStore`, which every built-in store does. It has two methods. `request_cancel(thread_id, stream_id)` atomically sets `cancel_requested` on the record, only while that stream's run is still running, and returns whether it did. `run_state(thread_id)` returns `(stream_id, cancel_requested)` and should read only those two fields, because each running run polls it. Without these methods, a cancel reaches only the worker that received it.
+
+Use Redis and Postgres as soon as more than one worker serves the app. Any worker can then replay a run, whichever worker started it.
+
+### More than one worker
+
+With a `CancellableThreadStore` and polling on (the default):
+
+- A cancel sent to any worker stops the run. The worker that runs it checks the run's state every `cancel_poll_interval` seconds (1 by default) and stops when a cancel was requested.
+- A new run on a thread stops the thread's previous run, on whichever worker it runs.
+
+`cancel_poll_interval=None` turns the check off. Cancel then reaches only the worker that received it, and a replaced run on another worker keeps running, though it can't overwrite its replacement.
+
+### Load balancer idle timeouts
+
+A long tool call can leave the stream silent for longer than a proxy's idle timeout, for example 60 seconds on an AWS ALB. Set `keepalive_interval` to send an SSE comment (`: ping`) after that many seconds of silence, on both the run stream and resumed streams. AG-UI clients ignore comments.
+
+```python
+durable = DurableAGUI(agent, threads=threads, streams=streams, keepalive_interval=15)
+```
+
+## Closing and reopening the tab
+
+1. `POST /agent` writes the run's input to the thread record, starts the run in a background task, and streams frames out of the resumable stream.
+2. The tab closes. Only the read stops. The run keeps going and keeps writing frames.
+3. When the run finishes or is cancelled, the full transcript and `running: false` are written in one record.
+4. The tab opens the thread again. While the run is still going, `GET /threads/{id}` returns only the run's input, and the runtime rejoins through `agent.connectAgent()`. That replays the run from its first frame and follows it live, so the answer shows up once and finishes in place.
+5. If the run already finished, the transcript has the whole answer and nothing is replayed.
+
+Stop in the UI calls `abortRun()`, which cancels the run on the server. Switching threads or unmounting calls `detachActiveRun()`, so the run keeps going and can be rejoined.
+
+## Limits
+
+- The run executes in the worker that received `POST /agent`. A cancel sent to another worker takes up to `cancel_poll_interval` to stop it, and needs a `CancellableThreadStore`.
+- A cancel that arrives while `run_context` is still opening its resource takes effect once the resource is open.
+- A run whose worker dies stops, and its answer is not saved. The thread is reported as not running once the resumable store drops the stream. Pydantic AI's `DBOSAgent` or `TemporalAgent` alone doesn't change this, because the frames and the final transcript are written by the worker that took the request.
+- Assistant messages get server-generated ids when the run ends, so their ids change once between the live stream and the first reload.
+- Each `POST /agent` replaces the stored transcript with the one the client sent, the same trust model as `AGUIAdapter`.

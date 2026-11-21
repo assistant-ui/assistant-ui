@@ -92,6 +92,25 @@ Follow this template-first workflow for any assistant-ui app-building request:
 </important_constraints>`,
 } as const;
 
+const serverInstructions = `assistant-ui docs server: read the assistant-ui documentation (docs, examples, design components, elements, Tap and the other assistant-ui project sites) and preview hosted assistant-ui app templates.
+
+Docs tools:
+- search_docs: find pages for a topic or API name. Start here for most questions.
+- read_page: read one page as markdown by the url from search_docs, list_pages or get_navigation.
+- list_pages: list page titles and urls, optionally under a prefix such as /docs/tools.
+- get_navigation: the sidebar tree for every docs section.
+The same pages are resources: assistant-ui://navigation and assistant-ui://{path}.
+
+Template tools, for building an assistant-ui app:
+- list_templates: every hosted template and fixed demo. An empty customizable list means a fixed demo.
+- read_template: one template's configRoots schemas, rules, built-in tools and exampleConfig.
+- preview_template: preview and download URLs, optionally for a custom config.
+
+Typical flows:
+- Docs question: search_docs, then read_page on the best results.
+- App request: list_templates, read_template on a candidate, then preview_template with no config or with a config written against configRoots. If no template fits, skip preview_template and answer from the docs.
+Only share URLs copied from tool results. The ${templateWorkflowPrompt.name} prompt has the full template workflow.`;
+
 function pageSummary(page: {
   url: string;
   data: { title: string; description?: string | undefined };
@@ -404,9 +423,28 @@ const previewTemplateInputSchema = z
       .describe("Version id to use. Uses the template default if omitted."),
     config: z
       .object({
-        hostUi: z.unknown().optional(),
-        assistant: z.unknown().optional(),
-        brandTheme: z.unknown().optional(),
+        hostUi: z
+          .unknown()
+          .optional()
+          .describe(
+            "The host page the assistant sits in: product name, navigation and page content. " +
+              "Supported by webpage-assistant (deep-merged with defaults) and product-page-assistant (replaces the whole dashboard tree, so pass it complete). " +
+              "base-assistant-ui has no hostUi. Shape: read_template configRoots.hostUi.",
+          ),
+        assistant: z
+          .unknown()
+          .optional()
+          .describe(
+            "The chat experience: names, welcome copy, labels, suggested prompts, tools and no-key demo flows. " +
+              "Deep-merged with the template defaults, so include only the fields to change. Shape: read_template configRoots.assistant.",
+          ),
+        brandTheme: z
+          .unknown()
+          .optional()
+          .describe(
+            "Color tokens shared by the page and the chat, as hex colors such as #14b8a6. " +
+              "Token names differ per template. base-assistant-ui takes a preset (assistantDark, assistantLight, neutralDark or neutralLight) plus optional 6-digit hex overrides. Shape: read_template configRoots.brandTheme.",
+          ),
       })
       .strict()
       .optional()
@@ -507,7 +545,7 @@ async function requireDocsToolBudget(request: Request) {
 function buildMcpServer(request: Request) {
   const server = new McpServer(
     { name: "assistant-ui-docs", version: "1.0.0" },
-    { maxToolInputElements: 10_000 },
+    { maxToolInputElements: 10_000, instructions: serverInstructions },
   );
   const requestUrl = request.url;
   const requestOrigin = new URL(requestUrl).origin;

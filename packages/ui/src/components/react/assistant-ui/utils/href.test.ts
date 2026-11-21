@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hostOf, safeHref } from "./href";
+import { canPreload, hostOf, safeBackgroundImage, safeHref } from "./href";
 
 describe("safeHref", () => {
   it("keeps http, https, and mailto URLs as given", () => {
@@ -45,5 +45,113 @@ describe("hostOf", () => {
     expect(hostOf("/docs")).toBeUndefined();
     expect(hostOf("mailto:a@example.com")).toBeUndefined();
     expect(hostOf("javascript:alert(1)")).toBeUndefined();
+  });
+});
+
+describe("canPreload", () => {
+  it("allows local URLs without an allowlist", () => {
+    for (const url of [
+      "/media/clip.mp4",
+      "./thumb.png",
+      "thumb.png",
+      "?v=1",
+      "data:image/png;base64,AAAA",
+      "data:audio/mpeg;base64,AAAA",
+      "blob:https://app.example/1234",
+    ]) {
+      expect(canPreload(url, undefined)).toBe(true);
+    }
+  });
+
+  it("refuses remote and unusual URLs without an allowlist", () => {
+    for (const url of [
+      "https://tracker.example/pixel.png",
+      "http://tracker.example/a.mp3",
+      "//tracker.example/a.png",
+      "/\\tracker.example/a.png",
+      "\\\\tracker.example/a.png",
+      "/\t/tracker.example/a.png",
+      "\n//tracker.example/a.png",
+      "h\tttps:tracker.example/a.png",
+      "\u0001https:tracker.example/a.png",
+      "data:text/html,<b>x</b>",
+      "javascript:alert(1)",
+      "ftp://files.example/a.mp3",
+      "",
+      "   ",
+      undefined,
+    ]) {
+      expect(canPreload(url, undefined)).toBe(false);
+    }
+  });
+
+  it("allows remote URLs whose origin is listed", () => {
+    const origins = ["https://cdn.example"];
+    expect(canPreload("https://cdn.example/a.mp4", origins)).toBe(true);
+    expect(canPreload("https://cdn.example:8443/a.mp4", origins)).toBe(false);
+    expect(canPreload("http://cdn.example/a.mp4", origins)).toBe(false);
+    expect(canPreload("https://cdn.example.evil/a.mp4", origins)).toBe(false);
+    expect(canPreload("https://other.example/a.mp4", ["not a url"])).toBe(
+      false,
+    );
+  });
+
+  it("allows a scheme-relative URL only when both of its origins are listed", () => {
+    expect(canPreload("//cdn.example/a.png", ["https://cdn.example"])).toBe(
+      false,
+    );
+    expect(
+      canPreload("//cdn.example/a.png", [
+        "http://cdn.example",
+        "https://cdn.example",
+      ]),
+    ).toBe(true);
+  });
+
+  it('allows every http and https origin with "*"', () => {
+    expect(canPreload("https://any.example/a.png", ["*"])).toBe(true);
+    expect(canPreload("//any.example/a.png", ["*"])).toBe(true);
+    expect(canPreload("javascript:alert(1)", ["*"])).toBe(false);
+  });
+});
+
+describe("safeBackgroundImage", () => {
+  it("keeps gradients and local images", () => {
+    const gradient = "linear-gradient(135deg, #111, #333)";
+    expect(safeBackgroundImage(gradient, undefined)).toBe(gradient);
+    expect(safeBackgroundImage("url(/diagram-thumb.png)", undefined)).toBe(
+      "url(/diagram-thumb.png)",
+    );
+    expect(
+      safeBackgroundImage(`url("data:image/png;base64,AAAA"), ${gradient}`, []),
+    ).toBe(`url("data:image/png;base64,AAAA"), ${gradient}`);
+  });
+
+  it("drops values that load a remote image", () => {
+    for (const value of [
+      "url(https://tracker.example/p.png)",
+      "url( 'https://tracker.example/p.png' )",
+      'linear-gradient(red, blue), url("//tracker.example/p.png")',
+      "image-set('https://tracker.example/p.png' 1x)",
+      "url(\\68 ttps://tracker.example/p.png)",
+      'url("/\t/tracker.example/p.png")',
+      "var(--swatch)",
+      "linear-gradient(red, var(--c))",
+      "src('https://tracker.example/p.png')",
+      "url(https://tracker.example/p.png",
+      'url("https://tracker.example/p.png)',
+      "url('https://tracker.example/p.png)",
+      "url(/ok.png), url(https://tracker.example/p.png",
+    ]) {
+      expect(safeBackgroundImage(value, undefined)).toBeUndefined();
+    }
+  });
+
+  it("allows listed origins", () => {
+    expect(
+      safeBackgroundImage("url(https://cdn.example/t.png)", [
+        "https://cdn.example",
+      ]),
+    ).toBe("url(https://cdn.example/t.png)");
   });
 });

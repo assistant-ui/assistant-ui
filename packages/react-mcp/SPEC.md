@@ -407,7 +407,7 @@ Reads `window.location` (override with `url` prop), extracts `state` to resolve 
 
 ## 8. Tool integration
 
-Connected tools auto-register as **frontend tools** in `modelContext`. With names prefixed `serverId__toolName` (collisions across servers). When a chat runtime is mounted (anywhere in the tree), the model sees them and can call them — no manual wiring.
+Connected tools auto-register as **frontend tools** in `modelContext`. With names prefixed `serverId__toolName` (or a hashed alias; see `getMcpToolName`). When different tools map to the same registered name, none of them is registered and a console warning names it. When a chat runtime is mounted (anywhere in the tree), the model sees them and can call them — no manual wiring.
 
 For manual invocation outside a chat, use the standard tap pattern:
 

@@ -13,6 +13,8 @@ const wire = vi.hoisted(() => ({
   beginPlan: vi.fn().mockResolvedValue(undefined),
   addProduct: vi.fn().mockResolvedValue(undefined),
   dismiss: vi.fn().mockResolvedValue(undefined),
+  heartbeat: vi.fn().mockResolvedValue(undefined),
+  bye: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mocks = vi.hoisted(() => ({
@@ -41,6 +43,8 @@ vi.mock("statewire", async (importOriginal) => ({
         "checkout/begin-plan": wire.beginPlan,
         "checkout/add-product": wire.addProduct,
         "checkout/dismiss": wire.dismiss,
+        "browser/heartbeat": wire.heartbeat,
+        "browser/bye": wire.bye,
       },
     };
   },
@@ -107,6 +111,8 @@ afterEach(() => {
   wire.state = undefined;
   wire.addProduct.mockClear();
   wire.dismiss.mockClear();
+  wire.heartbeat.mockClear();
+  wire.bye.mockClear();
   mocks.toastError.mockClear();
   delete window.posthog;
 });
@@ -132,6 +138,29 @@ const proposal = (id: string, product: string): Checkout.Input => ({
 });
 
 describe("CheckoutSessionBridge", () => {
+  it("tells the setup this page is open while it is mounted and says goodbye when it closes", async () => {
+    vi.useFakeTimers();
+    const view = render(
+      <CheckoutSessionBridge session={session} onChange={() => {}} />,
+    );
+    expect(wire.heartbeat).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(wire.heartbeat).toHaveBeenCalledTimes(2);
+    // State arriving between ticks does not beat more often than the interval.
+    setWire({ ...initialCheckoutState(), id: "s2", createdAt: 1 });
+    expect(wire.heartbeat).toHaveBeenCalledTimes(2);
+    window.dispatchEvent(
+      new PageTransitionEvent("pagehide", { persisted: true }),
+    );
+    expect(wire.bye).not.toHaveBeenCalled();
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    expect(wire.bye).toHaveBeenCalledTimes(1);
+    view.unmount();
+    expect(wire.bye).toHaveBeenCalledTimes(2);
+  });
+
   it("follows a setup the agent started instead of creating one, and begins its plan", () => {
     wire.create.mockClear();
     mocks.adoptAgentSetup.mockClear();

@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { HttpAgent } from "@ag-ui/client";
@@ -138,7 +139,9 @@ async function run(end: End, withSnapshot = true, history?: unknown) {
 }
 
 function nested(core: AgUiThreadController) {
-  const answer = core.getMessages().find((m: any) => m.id === "answer") as any;
+  const answer = core
+    .getMessages()
+    .find((m: any) => agUiWireMessageId(m) === "answer") as any;
   const call = answer?.content.find(
     (p: any) => p.type === "tool-call" && p.toolCallId === "task",
   );
@@ -185,7 +188,7 @@ describe("ag-ui: a nested message waiting on its own call after the run ends", (
     const history = {
       load: async () => ({ headId: null, messages: [] }),
       append: async (item: any) => {
-        const id = item.message.id;
+        const id = agUiWireMessageId(item.message);
         writes.push(`append ${id}`);
         if (id === "answer" && !failed) {
           failed = true;
@@ -197,8 +200,8 @@ describe("ag-ui: a nested message waiting on its own call after the run ends", (
       },
       // Follows the ThreadHistoryAdapter contract: update does not move the head.
       update: async (item: any) => {
-        writes.push(`update ${item.message.id}`);
-        rows.add(item.message.id);
+        writes.push(`update ${agUiWireMessageId(item.message)}`);
+        rows.add(agUiWireMessageId(item.message));
       },
     };
     const { after } = await run("error", true, history);

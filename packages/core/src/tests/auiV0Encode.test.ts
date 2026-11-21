@@ -574,7 +574,14 @@ describe("auiV0Encode", () => {
 });
 
 describe("auiV0DecodeSafely", () => {
-  it("round-trips a reasoning summary", () => {
+  it("round-trips an empty redacted reasoning part in order alongside a summary", () => {
+    const parts = [
+      { type: "text", text: "Before" },
+      { type: "reasoning", text: "", unstable_redacted: true },
+      { type: "text", text: "After" },
+      { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
+      { type: "reasoning", text: "visible", unstable_redacted: false },
+    ] as const;
     const encoded = auiV0Encode({
       id: "local",
       createdAt: new Date("2026-03-15T00:00:00.000Z"),
@@ -587,9 +594,7 @@ describe("auiV0DecodeSafely", () => {
         steps: [],
         custom: {},
       },
-      content: [
-        { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
-      ],
+      content: parts,
     });
 
     const decoded = auiV0DecodeSafely({
@@ -600,9 +605,8 @@ describe("auiV0DecodeSafely", () => {
       created_at: new Date("2026-03-15T00:00:00.000Z"),
     } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
 
-    expect(decoded?.message.content).toEqual([
-      { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
-    ]);
+    expect(decoded?.message.content).toStrictEqual(parts);
+    expect(encoded.content).toStrictEqual(parts);
   });
 
   it("round-trips reasoning timing", () => {

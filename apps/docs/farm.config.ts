@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { defineConfig } from "@farm.js/core";
+import { type AuiJson, resolveEnvironment } from "aui-auth";
 import { withDocs } from "@farming-labs/farmjs/config";
 import tailwindcss from "@tailwindcss/vite";
 import { aui } from "@assistant-ui/vite";
@@ -25,8 +28,36 @@ const sdkVersion = process.env.VERCEL_GIT_COMMIT_SHA
   : undefined;
 
 // Chrome applies form-action to the redirects that follow a submit, and the
-// sign-out form lands on the accounts end-session endpoint.
-const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
+// sign-out form lands on the accounts end-session endpoint. The issuer follows
+// from aui.json; a build outside Vercel without AUI_ENV signs nobody in.
+const authOrigin = (() => {
+  try {
+    const aui = JSON.parse(
+      readFileSync(path.join(process.cwd(), "aui.json"), "utf8"),
+    ) as AuiJson;
+    return resolveEnvironment(aui).issuer;
+  } catch {
+    return process.env.NEXT_PUBLIC_AUTH_URL ?? "";
+  }
+})();
+
+// lib/docs-code.tsx keeps highlighted code blocks in .farm/cache and keys
+// them on these versions, so an upgrade drops the old highlights. Farm loads
+// this file from a bundled copy, so paths start at the app root, not at
+// `import.meta.url`.
+function codeHighlightVersions() {
+  return ["@shikijs/transformers", "fumadocs-core", "shiki"]
+    .map((name) => {
+      const file = path.join(
+        process.cwd(),
+        "node_modules",
+        name,
+        "package.json",
+      );
+      return `${name}@${JSON.parse(readFileSync(file, "utf8")).version}`;
+    })
+    .join(" ");
+}
 
 // The playground AI Builder renders same-origin preview routes inside an iframe.
 // Keep frame ancestors self-only so external sites still cannot embed docs pages;
@@ -73,6 +104,9 @@ const publicEnv = {
     process.env.VERCEL_GIT_COMMIT_SHA,
   // A prerender cannot read the clock, so the copyright year is fixed at build time.
   COPYRIGHT_YEAR: String(new Date().getFullYear()),
+  DOCS_CODE_VERSIONS: codeHighlightVersions(),
+  // The account menu links to accounts; the issuer follows from aui.json.
+  NEXT_PUBLIC_AUTH_URL: authOrigin,
 };
 
 const permanent = (source: string, destination: string) => ({
@@ -215,15 +249,6 @@ export default withDocs(
       { source: "/mcp", destination: "/api/mcp" },
       { source: "/.well-known/mcp", destination: "/api/mcp" },
       { source: "/pricing.mdx", destination: "/pricing.md" },
-      {
-        source: "/umami/:path*",
-        destination: "https://assistant-ui-umami.vercel.app/:path*",
-      },
-      {
-        source: "/ph/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      { source: "/ph/:path*", destination: "https://us.i.posthog.com/:path*" },
       {
         source: "/registry/:path*",
         destination: "https://ui.shadcn.com/registry/:path*",

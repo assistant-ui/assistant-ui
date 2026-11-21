@@ -1,7 +1,9 @@
 import { accountCloud } from "@/lib/account-cloud";
-import { getSession } from "@/lib/accounts-auth";
+import { getSession, withDocsSession } from "@/lib/accounts-auth";
 
-export async function GET(request: Request) {
+export const GET = withDocsSession(mintAssistantToken);
+
+async function mintAssistantToken(request: Request) {
   const headers = { "Cache-Control": "no-store" };
   const fetchSite = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");

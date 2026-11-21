@@ -22,13 +22,13 @@ import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { renderSlot } from "../../utils/Primitive";
-import { isCompositionKey } from "../../utils/isCompositionKey";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
-import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
+import { useComposerRunStartFocusGuard } from "./useComposerRunStartFocusGuard";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -140,9 +140,9 @@ export namespace ComposerPrimitiveInput {
  *
  * When rendered inside `TriggerPopoverRoot` and a popover is open, the
  * underlying `<textarea>` automatically receives `aria-controls`,
- * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
- * combobox relationship. These computed attributes override user-provided
- * values for those four ARIA props while the popover is open.
+ * `aria-haspopup`, and `aria-activedescendant` for the active popover.
+ * These computed attributes override user-provided values for those three
+ * ARIA props while the popover is open.
  *
  * @example
  * ```tsx
@@ -193,7 +193,7 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
-    const threadRootRef = useThreadRootElementRef();
+    const canTakeFocusOnRunStart = useComposerRunStartFocusGuard();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     const compactContext = useComposerCompactContextOptional();
 
@@ -350,24 +350,10 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const focusOnRunStart = useCallback(() => {
       const textarea = textareaRef.current;
-      if (!textarea) return;
-      const doc = textarea.ownerDocument;
-      const active = doc.activeElement;
-      if (active === textarea) return;
-
-      const root = threadRootRef?.current;
-      const composerRoot = textarea.closest("[data-aui-composer-type]");
-      if (
-        active &&
-        active !== doc.body &&
-        !composerRoot?.contains(active) &&
-        (!root?.contains(active) ||
-          active.closest("[data-aui-thread-root]") !== root)
-      )
-        return;
+      if (!textarea || !canTakeFocusOnRunStart(textarea)) return;
 
       focus();
-    }, [focus, threadRootRef]);
+    }, [focus, canTakeFocusOnRunStart]);
 
     useEffect(() => focus(), [focus]);
 
@@ -405,13 +391,13 @@ export const ComposerPrimitiveInput = forwardRef<
       if (value === "") compactContext?.setMultiline(false);
     }, [value, compactContext]);
 
-    const ariaComboboxProps = useTriggerPopoverAriaProps();
+    const ariaProps = useTriggerPopoverAriaProps();
 
     const inputProps = {
       name: "input" as const,
       value,
       ...rest,
-      ...ariaComboboxProps,
+      ...ariaProps,
       ref: ref as React.ForwardedRef<HTMLTextAreaElement>,
       disabled: isDisabled,
       onChange: composeEventHandlers(

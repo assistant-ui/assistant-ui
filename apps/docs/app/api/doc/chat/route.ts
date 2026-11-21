@@ -9,7 +9,7 @@ import {
 import { source, examples as examplesSource } from "@/lib/source";
 import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
-import { getSession } from "@/lib/accounts-auth";
+import { getSession, withDocsSession } from "@/lib/accounts-auth";
 import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createRepoSandbox } from "@/lib/repo-sandbox";
@@ -279,7 +279,9 @@ Use inline code (\`backticks\`) for:
 </formatting>
 `;
 
-export async function POST(req: Request): Promise<Response> {
+export const POST = withDocsSession(docChat);
+
+async function docChat(req: Request): Promise<Response> {
   try {
     const session = requirePublicAssistantSession(req);
     if (session instanceof Response) return session;

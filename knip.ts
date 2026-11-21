@@ -82,6 +82,8 @@ const config: KnipConfig = {
     "templates/**",
     "evals",
     "api-surface",
+    // Holds only the Vercel CLI pin, which the registry deploy workflow runs as a binary.
+    "packages/x-deploy",
   ],
   ignore: [
     "api-surface/**",
@@ -97,6 +99,9 @@ const config: KnipConfig = {
         "scripts/lib/turbo-build-cache-fixture.mjs",
         "scripts/package-cloud-harness-template.mjs",
       ],
+      // Git hooks live in .husky (core.hooksPath) without the husky package,
+      // so enable the plugin explicitly to parse them (e.g. lint-staged).
+      husky: true,
     },
     ...packageWorkspaces,
   },

@@ -21,6 +21,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+tsconfig.aui-build.*.json
 next-env.d.ts
 
 # vercel
@@ -86,9 +87,6 @@ htmlcov/
 
 # Cursor
 .cursor
-
-# Husky
-.husky/_
 
 # Claude
 **/.claude/scheduled_tasks.lock

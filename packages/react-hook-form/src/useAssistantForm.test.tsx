@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import type { ModelContext } from "@assistant-ui/core";
 import type { FormEvent, ReactNode } from "react";
+import { Controller } from "react-hook-form";
 import type { Resolver, ResolverResult } from "react-hook-form";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,6 +33,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 import { useAssistantForm } from "./useAssistantForm";
+import { formTools } from "./formTools";
 
 let provider: { getModelContext: () => ModelContext };
 
@@ -256,6 +258,426 @@ describe("useAssistantForm", () => {
       message: "The form is already submitting.",
     });
     expect(onValid).toHaveBeenCalledOnce();
+  });
+
+  describe("set_form_field", () => {
+    const setField = (name: string, value: string | number | boolean) => {
+      const formTool = provider.getModelContext().tools?.["set_form_field"];
+      if (!formTool?.execute) throw new Error("set_form_field is missing");
+      return formTool.execute(
+        formTools.set_form_field.parameters.parse({ name, value }),
+        {} as never,
+      );
+    };
+
+    it("sets a rendered field, including array paths in bracket form", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ name: string; items: { label: string }[] }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { name: "", items: [{ label: "" }] },
+        });
+        return (
+          <>
+            <input {...form.register("name")} />
+            <input {...form.register("items.0.label")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("name", "Grace")).resolves.toEqual({
+        success: true,
+      });
+      await expect(setField("items[0].label", "First")).resolves.toEqual({
+        success: true,
+      });
+      expect(form.getValues()).toEqual({
+        name: "Grace",
+        items: [{ label: "First" }],
+      });
+    });
+
+    it("refuses fields the form does not render", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ name: string; role: string }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({ defaultValues: { name: "", role: "user" } });
+        return <input {...form.register("name")} />;
+      };
+      render(<Form />);
+
+      for (const name of ["role", "isAdmin", "__proto__.polluted"]) {
+        await expect(setField(name, "x")).resolves.toEqual({
+          success: false,
+          message: `The form has no field named "${name}" that can be set.`,
+        });
+      }
+      expect(form.getValues()).toEqual({ name: "", role: "user" });
+      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    });
+
+    it("sets a field registered with bracket paths", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ items: { label: string }[] }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({ defaultValues: { items: [{ label: "" }] } });
+        return (
+          <input {...form.register("items[0].label" as "items.0.label")} />
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("items.0.label", "First")).resolves.toEqual({
+        success: true,
+      });
+      expect(form.getValues("items.0.label")).toBe("First");
+    });
+
+    it("refuses a field that was unmounted", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ name: string; nickname: string }>
+      >;
+      const Form = ({ showNickname }: { showNickname: boolean }) => {
+        form = useAssistantForm({
+          defaultValues: { name: "", nickname: "Ada" },
+        });
+        return (
+          <>
+            <input {...form.register("name")} />
+            {showNickname && <input {...form.register("nickname")} />}
+          </>
+        );
+      };
+      const { rerender } = render(<Form showNickname />);
+      rerender(<Form showNickname={false} />);
+
+      await expect(setField("nickname", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues("nickname")).toBe("Ada");
+    });
+
+    it("refuses fields under a sensitive parent", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ billing: { iban: string } }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { billing: { iban: "" } },
+          assistant: { sensitiveFields: ["billing"] },
+        });
+        return <input {...form.register("billing.iban")} />;
+      };
+      render(<Form />);
+
+      await expect(setField("billing.iban", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues("billing.iban")).toBe("");
+    });
+
+    it("refuses a controlled password field", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ password: string }>>;
+      const Form = () => {
+        form = useAssistantForm({ defaultValues: { password: "secret" } });
+        return (
+          <Controller
+            control={form.control}
+            name="password"
+            render={({ field }) => <input type="password" {...field} />}
+          />
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("password", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues("password")).toBe("secret");
+      expect(provider.getModelContext().system).toBe("Form State:\n{}");
+    });
+
+    it("refuses a nameless controlled password field listed in sensitiveFields", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ password: string }>>;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { password: "secret" },
+          assistant: { sensitiveFields: ["password"] },
+        });
+        return (
+          <Controller
+            control={form.control}
+            name="password"
+            render={({ field: { name: _name, ...field } }) => (
+              <input type="password" {...field} />
+            )}
+          />
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("password", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues("password")).toBe("secret");
+      expect(provider.getModelContext().system).toBe("Form State:\n{}");
+    });
+
+    it("refuses sensitive fields", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ password: string; email: string }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({
+          defaultValues: { password: "", email: "" },
+          assistant: { sensitiveFields: ["email"] },
+        });
+        return (
+          <>
+            <input type="password" {...form.register("password")} />
+            <input {...form.register("email")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await expect(setField("password", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      await expect(setField("email", "x")).resolves.toMatchObject({
+        success: false,
+      });
+      expect(form.getValues()).toEqual({ password: "", email: "" });
+    });
+
+    it("writes values with the type the field already holds", async () => {
+      type FormValues = { name: string; age: number; newsletter: boolean };
+      const typedResolver: Resolver<FormValues> = (values) => {
+        const errors: Record<string, { type: string; message: string }> = {};
+        if (typeof values.name !== "string")
+          errors.name = { type: "type", message: "" };
+        if (typeof values.age !== "number")
+          errors.age = { type: "type", message: "" };
+        if (typeof values.newsletter !== "boolean")
+          errors.newsletter = { type: "type", message: "" };
+        if (Object.keys(errors).length > 0)
+          return {
+            values: {} as FormValues,
+            errors,
+          } as ResolverResult<FormValues>;
+        return { values, errors: {} } as ResolverResult<FormValues>;
+      };
+      let form!: ReturnType<typeof useAssistantForm<FormValues>>;
+      const Form = () => {
+        form = useAssistantForm<FormValues>({
+          defaultValues: { name: "", age: 0, newsletter: false },
+          resolver: typedResolver,
+        });
+        return (
+          <>
+            <input {...form.register("name")} />
+            <input
+              type="number"
+              {...form.register("age", { valueAsNumber: true })}
+            />
+            <input type="checkbox" {...form.register("newsletter")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await setField("name", "Ada");
+      await setField("age", 42);
+      await setField("newsletter", true);
+
+      expect(form.getValues()).toEqual({
+        name: "Ada",
+        age: 42,
+        newsletter: true,
+      });
+      await waitFor(async () => expect(await form.trigger()).toBe(true));
+
+      await setField("age", "42");
+      expect(form.getValues("age")).toBe(42);
+    });
+
+    it("writes a number input without valueAsNumber as a string", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ age: string }>>;
+      const Form = () => {
+        form = useAssistantForm<{ age: string }>();
+        return <input type="number" {...form.register("age")} />;
+      };
+      const { getByRole } = render(<Form />);
+      const input = getByRole("spinbutton") as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: "5" } });
+      expect(form.getValues("age")).toBe("5");
+      fireEvent.change(input, { target: { value: "" } });
+
+      await setField("age", 5);
+
+      expect(form.getValues("age")).toBe("5");
+      expect(input.value).toBe("5");
+    });
+
+    it("writes a Controller text input without a default as a string", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ nickname: string }>>;
+      const Form = () => {
+        form = useAssistantForm<{ nickname: string }>();
+        return (
+          <Controller
+            control={form.control}
+            name="nickname"
+            render={({ field }) => (
+              <input {...field} value={field.value ?? ""} />
+            )}
+          />
+        );
+      };
+      const { getByRole } = render(<Form />);
+      expect(form.getValues("nickname")).toBeUndefined();
+
+      await act(async () => {
+        await setField("nickname", 7);
+      });
+
+      expect(form.getValues("nickname")).toBe("7");
+      expect((getByRole("textbox") as HTMLInputElement).value).toBe("7");
+    });
+
+    it("checks and unchecks a checkbox with boolean tool arguments", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ newsletter: boolean }>>;
+      const Form = () => {
+        form = useAssistantForm<{ newsletter: boolean }>({
+          defaultValues: { newsletter: false },
+        });
+        return <input type="checkbox" {...form.register("newsletter")} />;
+      };
+      const { getByRole } = render(<Form />);
+      const checkbox = getByRole("checkbox") as HTMLInputElement;
+
+      await setField("newsletter", true);
+      expect(form.getValues("newsletter")).toBe(true);
+      expect(checkbox.checked).toBe(true);
+
+      await setField("newsletter", false);
+      expect(form.getValues("newsletter")).toBe(false);
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it("writes a number to a checkbox group as text", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ size: string }>>;
+      const Form = () => {
+        form = useAssistantForm<{ size: string }>({
+          defaultValues: { size: "" },
+        });
+        return (
+          <>
+            <input type="checkbox" value="2" {...form.register("size")} />
+            <input type="checkbox" value="3" {...form.register("size")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await setField("size", 3);
+      expect(form.getValues("size")).toBe("3");
+    });
+
+    it("preserves number and boolean values in Controller fields", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ age: number; newsletter: boolean }>
+      >;
+      const Form = () => {
+        form = useAssistantForm<{ age: number; newsletter: boolean }>({
+          defaultValues: { age: 0, newsletter: false },
+        });
+        return (
+          <>
+            <Controller
+              control={form.control}
+              name="age"
+              render={({ field }) => <input type="number" {...field} />}
+            />
+            <Controller
+              control={form.control}
+              name="newsletter"
+              render={({ field: { value, ...field } }) => (
+                <input type="checkbox" {...field} checked={value} />
+              )}
+            />
+          </>
+        );
+      };
+      const { getByRole } = render(<Form />);
+
+      await act(async () => {
+        await setField("age", 42);
+        await setField("newsletter", true);
+      });
+      expect(form.getValues()).toEqual({ age: 42, newsletter: true });
+      expect((getByRole("spinbutton") as HTMLInputElement).value).toBe("42");
+      expect((getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+
+      await act(async () => {
+        await setField("newsletter", false);
+      });
+      expect(form.getValues("newsletter")).toBe(false);
+      expect((getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+    });
+
+    it("writes a number into a string field as a string", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ zip: string }>>;
+      const Form = () => {
+        form = useAssistantForm<{ zip: string }>({
+          defaultValues: { zip: "" },
+        });
+        return <input {...form.register("zip")} />;
+      };
+      render(<Form />);
+
+      await setField("zip", 12345);
+
+      expect(form.getValues("zip")).toBe("12345");
+    });
+
+    it("writes text into a field that has no value yet", async () => {
+      let form!: ReturnType<
+        typeof useAssistantForm<{ nickname: string; size: string }>
+      >;
+      const Form = () => {
+        form = useAssistantForm({});
+        return (
+          <>
+            <input {...form.register("nickname")} />
+            <input type="radio" value="3" {...form.register("size")} />
+          </>
+        );
+      };
+      render(<Form />);
+
+      await setField("nickname", 7);
+      await setField("size", 3);
+
+      expect(form.getValues()).toEqual({ nickname: "7", size: "3" });
+    });
+
+    it("keeps a number out of a textarea", async () => {
+      let form!: ReturnType<typeof useAssistantForm<{ note: string }>>;
+      const Form = () => {
+        form = useAssistantForm({});
+        return <textarea {...form.register("note")} />;
+      };
+      render(<Form />);
+
+      await setField("note", 12);
+
+      expect(form.getValues("note")).toBe("12");
+    });
   });
 
   it("omits sensitive fields from the model context", () => {

@@ -3,17 +3,33 @@
 import { BotIcon } from "lucide-react";
 import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { getCatalogItem } from "@/lib/catalog";
+import { pageSetupPrompt } from "@/lib/agent-setup-prompt";
 
 /** Docs banner that hands the page's setup to the reader's coding agent; prominent where the agent is the main way to install. */
 export function AgentSetup({
   product: slug,
   prominent = false,
+  section = false,
 }: {
   product: string;
   prominent?: boolean;
+  /** Body of the page's own Setup section: the prompt names this page, whose manual steps follow in `ManualSteps`. */
+  section?: boolean;
 }) {
   const product = getCatalogItem(slug);
   if (product === undefined) return null;
+  if (section)
+    return (
+      <div className="not-prose my-4 flex flex-col items-start gap-3">
+        <p className="text-muted-foreground text-sm">Ask your coding agent:</p>
+        <SetupCommandPrompt
+          page="docs"
+          section="guide_setup"
+          products={[product.slug]}
+          prompt={pageSetupPrompt(product.docs)}
+        />
+      </div>
+    );
   const prompt = (
     <SetupCommandPrompt
       page="docs"

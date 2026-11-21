@@ -1,5 +1,59 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.11
+
+### Patch Changes
+
+- [#10595](https://github.com/assistant-ui/assistant-ui/pull/10595) [`4e3eecb`](https://github.com/assistant-ui/assistant-ui/commit/4e3eecb04602a735f629b58c1bc6d639ab5a3676) - fix: never run a frontend tool's `execute` for a tool call that an interrupt names, including when the approval UI cannot show that interrupt, and project nothing when two gates share one interrupt id so one decision answers one call ([@Yonom](https://github.com/Yonom))
+
+- [#10680](https://github.com/assistant-ui/assistant-ui/pull/10680) [`a318fd4`](https://github.com/assistant-ui/assistant-ui/commit/a318fd4c729ad36b0af41c42a867260d825c552b) - Set `isRunning` to false at `RUN_FINISHED` while the response stays open for server cleanup, unless a continuation is already owed. A send, tool result continuation, interrupt response, or `steerAway` submitted during cleanup waits for the finished response to close on its own before starting another request, with `isRunning` true while waiting. Only the latest waiting send starts a request, carrying all queued user messages. Stop still aborts the response. Unmount and a thread switch abort it too, except for an agent that implements `connect()`, which is detached while its run continues on the server. Stop leaves an interrupt whose answer was waiting on cleanup answerable. ([@gentil93](https://github.com/gentil93))
+  
+  Record tool approvals that leave other gates undecided immediately during cleanup, and wait for the response to close only when an approval completes the batch. Reject displaced interrupt responses, completing tool approvals, and `steerAway` calls with the busy error before changing the thread. Name the submitted method in a displaced tool approval's busy error. Carry a deferred A2UI action exactly once in a user request already waiting for cleanup. If no action is waiting and the finished run leaves an interrupt pending, drop the deferred A2UI action.
+  
+  Handle sequential runs in one response independently, stopping `isRunning` at each `RUN_FINISHED` unless a continuation is already owed, and settling the current run's subagent calls when the response ends without a finish event. Ignore a sequential run in full if its `RUN_STARTED` arrives after an action begins waiting for cleanup, while allowing an already accepted run to finish streaming. Clear `isRunning` when a deferred replay continuation cannot resume because its stored approval is invalid.
+- Updated dependencies [[`528bfe9`](https://github.com/assistant-ui/assistant-ui/commit/528bfe964f1306f7070fd4efe034873b5f1cfe45), [`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804), [`8f30cfc`](https://github.com/assistant-ui/assistant-ui/commit/8f30cfc76b6e1483cc390a293eafc4d8fffb2bcd), [`11afc02`](https://github.com/assistant-ui/assistant-ui/commit/11afc0276e87cc0834342d6fdeeaaf0595fccdbe), [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e), [`d9a7f68`](https://github.com/assistant-ui/assistant-ui/commit/d9a7f68b5a38fcc3f68b5acf127f71dd5b8a6837), [`cba4061`](https://github.com/assistant-ui/assistant-ui/commit/cba406112b09de49e99764b51a9d90a8ca952cc7), [`51b4613`](https://github.com/assistant-ui/assistant-ui/commit/51b46137424e8b1041bf7f5b27ab6a9e6fe87d26), [`8c67589`](https://github.com/assistant-ui/assistant-ui/commit/8c67589ca1b3ffac888c19e9a2759ee7c052ce4b), [`48b920e`](https://github.com/assistant-ui/assistant-ui/commit/48b920eebdfbbe169bd408782fd7f364e84e9621), [`b43be24`](https://github.com/assistant-ui/assistant-ui/commit/b43be2420a395ec193a01a8e85bf818c76a7cc90), [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524), [`72080a9`](https://github.com/assistant-ui/assistant-ui/commit/72080a9af34364a2a13d61ddda3623b9893c5b13), [`334bf5c`](https://github.com/assistant-ui/assistant-ui/commit/334bf5cfc2e86756bf1d6cb2001d11926c73dba4), [`0f49172`](https://github.com/assistant-ui/assistant-ui/commit/0f49172e1d7d7152e0665ddedb10f3b7f73e2425)]:
+  - @assistant-ui/core@0.3.37
+  - assistant-stream@0.3.58
+  - @assistant-ui/store@0.3.24
+  - @assistant-ui/generative-ui@0.0.12
+
+## 0.1.10
+
+### Patch Changes
+
+- [#10556](https://github.com/assistant-ui/assistant-ui/pull/10556) [`8b3bbd4`](https://github.com/assistant-ui/assistant-ui/commit/8b3bbd4b335ab814366230ac8dc86a5e46fb102f) - Send a message that joins several steps back as one step at a time: each step's reasoning, then its assistant record, then its tool results. Signed reasoning with empty text is kept, and redacted blocks go back to the step they arrived in. Backends that rebuild history from the request, like pydantic-ai on Claude with extended thinking, no longer reject follow-ups and tool continuations after `joinStrategy: "concat-content"`. ([@Yonom](https://github.com/Yonom))
+
+- [#10559](https://github.com/assistant-ui/assistant-ui/pull/10559) [`b2311ec`](https://github.com/assistant-ui/assistant-ui/commit/b2311ec7a8a15533a20e3ff206653dd0f020ef8e) - `resumeRun` without a `stream` follows the run in flight through the history adapter's `resume()` or the agent's `connect()`, instead of starting the agent again. It starts a new run only when the agent has no `connect()` and the adapter has no `resume()`. ([@Yonom](https://github.com/Yonom))
+
+- [#10520](https://github.com/assistant-ui/assistant-ui/pull/10520) [`53ab9cb`](https://github.com/assistant-ui/assistant-ui/commit/53ab9cbae076b569b37189795b93b71af0a40117) - Persist the answer selected by a snapshot to history when the stream ends without a terminal event. ([@okisdev](https://github.com/okisdev))
+
+- [#10521](https://github.com/assistant-ui/assistant-ui/pull/10521) [`606035d`](https://github.com/assistant-ui/assistant-ui/commit/606035d3cb1d9367742029b874ab226837805c61) - Keep a tool call on one message when `joinAdjacentAssistantMessages` folds the active assistant during a snapshot head move. ([@okisdev](https://github.com/okisdev))
+
+- [#10464](https://github.com/assistant-ui/assistant-ui/pull/10464) [`dd278e5`](https://github.com/assistant-ui/assistant-ui/commit/dd278e5098773ebe2d9b7dfb6ebcff4263b2b751) - Preserve event ownership across snapshot head moves and retain tool approval gates on their calls. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`7854908`](https://github.com/assistant-ui/assistant-ui/commit/7854908de003619397e9e30c578eb926246d2068), [`a62f296`](https://github.com/assistant-ui/assistant-ui/commit/a62f2969ce2d24efd405548e80c486f8409f407d)]:
+  - @assistant-ui/core@0.3.36
+
+## 0.1.9
+
+### Patch Changes
+
+- [#10301](https://github.com/assistant-ui/assistant-ui/pull/10301) [`49ad838`](https://github.com/assistant-ui/assistant-ui/commit/49ad838fe664d854ebff97e43ec5caeef17af216) - Add an opt-in `joinAdjacentAssistantMessages` option to `fromAgUiMessages` and `useAgUiRuntime`. It joins adjacent assistant records into one message, with a user message as the only turn boundary, for backends whose history gives each record of a turn an id of its own. ([@gentil93](https://github.com/gentil93))
+
+- [#10465](https://github.com/assistant-ui/assistant-ui/pull/10465) [`9efb741`](https://github.com/assistant-ui/assistant-ui/commit/9efb741c79a3cc3d4250bad4b3e5572d64409998) - Batch AG-UI streaming delta notifications within a task while keeping lifecycle updates synchronous. ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.1.8
+
+### Patch Changes
+
+- [#10422](https://github.com/assistant-ui/assistant-ui/pull/10422) [`75c0162`](https://github.com/assistant-ui/assistant-ui/commit/75c0162c3426fa930a7b70b43c22a7d94796b7b1) - feat: rejoin an in-flight run through `agent.connect()` when a thread loads or is switched to with `unstable_resume` and the history adapter has no `resume()`; leaving such a thread detaches from the run instead of aborting it ([@Yonom](https://github.com/Yonom))
+
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [[`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2)]:
+  - @assistant-ui/generative-ui@0.0.11
+
 ## 0.1.6
 
 ### Patch Changes

@@ -1,5 +1,7 @@
 "use client";
 
+import { agUiWireMessageId } from "../src/runtime/adapter/conversions";
+
 import { describe, expect, it, vi } from "vitest";
 import { ExportedMessageRepository } from "@assistant-ui/core";
 import type {
@@ -13,6 +15,14 @@ import type { HttpAgent } from "@ag-ui/client";
 import { iterateToolCallParts } from "@assistant-ui/core/internal";
 import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
 import { makeLogger } from "../src/runtime/logger";
+
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
+    .getMessageRepository()
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -251,17 +261,20 @@ describe("AgUiThreadController branch flows", () => {
     await core.reload(userId);
 
     expect
-      .soft(core.getMessages().map(({ id }) => id))
+      .soft(core.getMessages().map((message) => agUiWireMessageId(message)))
       .toEqual([userId, regeneratedAssistantId]);
     expect.soft(append.mock.calls.at(-1)?.[0]).toMatchObject({
       parentId: userId,
-      message: { id: regeneratedAssistantId, role: "assistant" },
+      message: { id: localId(core, regeneratedAssistantId), role: "assistant" },
     });
 
     await core.reload(userId);
 
     const messages = core.getMessages();
-    expect(messages.map(({ id }) => id)).toEqual([userId, snapshotAssistantId]);
+    expect(messages.map((message) => agUiWireMessageId(message))).toEqual([
+      userId,
+      snapshotAssistantId,
+    ]);
     expect((messages[1] as ThreadAssistantMessage).content[0]).toMatchObject({
       type: "text",
       text: "snapshotcontinued",
@@ -339,21 +352,23 @@ describe("AgUiThreadController branch flows", () => {
 
     await core.append(createAppendMessage());
     userId = core.getMessages()[0]!.id;
-    await core.reload("a1");
+    await core.reload(localId(core, "a1"));
 
     const repository = core.getMessageRepository();
     const answerBranches = repository.messages
-      .filter(({ message }) => message.id === "b1" || message.id === "b2")
+      .filter(
+        ({ message }) =>
+          agUiWireMessageId(message) === "b1" ||
+          agUiWireMessageId(message) === "b2",
+      )
       .map(({ message, parentId }) => [message.id, parentId]);
     expect(answerBranches).toEqual([
-      ["b1", "a1"],
-      ["b2", "a1"],
+      [localId(core, "b1"), localId(core, "a1")],
+      [localId(core, "b2"), localId(core, "a1")],
     ]);
-    expect(core.getMessages().map(({ id }) => id)).toEqual([
-      userId,
-      "a1",
-      "b2",
-    ]);
+    expect(
+      core.getMessages().map((message) => agUiWireMessageId(message)),
+    ).toEqual([userId, "a1", "b2"]);
   });
 
   it("reload: follows a snapshot head introduced during a branch run", async () => {
@@ -396,15 +411,15 @@ describe("AgUiThreadController branch flows", () => {
 
     await core.reload(userId);
 
-    expect(core.getMessages().map(({ id }) => id)).toEqual([
-      userId,
-      snapshotStepId,
-      followupAssistantId,
-    ]);
+    expect(
+      core.getMessages().map((message) => agUiWireMessageId(message)),
+    ).toEqual([userId, snapshotStepId, followupAssistantId]);
     expect(
       core
         .getMessageRepository()
-        .messages.find(({ message }) => message.id === followupAssistantId),
+        .messages.find(
+          ({ message }) => agUiWireMessageId(message) === followupAssistantId,
+        ),
     ).toMatchObject({ parentId: snapshotStepId });
   });
 
@@ -451,11 +466,9 @@ describe("AgUiThreadController branch flows", () => {
       userId = core.getMessages()[0]!.id;
       await core.reload(userId);
 
-      expect(core.getMessages().map(({ id }) => id)).toEqual([
-        userId,
-        "assistant-a",
-        "assistant-b",
-      ]);
+      expect(
+        core.getMessages().map((message) => agUiWireMessageId(message)),
+      ).toEqual([userId, "assistant-a", "assistant-b"]);
       expect(core.getMessages()[1]).toMatchObject({
         content: [{ type: "text", text: "snapshot A" }],
         status: { type: "complete" },
@@ -530,12 +543,12 @@ describe("AgUiThreadController branch flows", () => {
     const messages = core.getMessages();
     const assistant = messages[1] as ThreadAssistantMessage;
     const writes = append.mock.calls.filter(
-      ([item]) => item.message.id === serverAssistantId,
+      ([item]) => agUiWireMessageId(item.message) === serverAssistantId,
     );
     expect(writes).toHaveLength(1);
     expect(writes[0]?.[0]).toMatchObject({
       parentId: messages[0]!.id,
-      message: { id: serverAssistantId, role: "assistant" },
+      message: { id: localId(core, serverAssistantId), role: "assistant" },
     });
     expect(writes[0]?.[0].message.content).toEqual(assistant.content);
     expect(update).not.toHaveBeenCalled();
@@ -664,7 +677,7 @@ describe("AgUiThreadController branch flows", () => {
 
     expect(
       append.mock.calls.filter(
-        ([item]) => item.message.id === serverAssistantId,
+        ([item]) => agUiWireMessageId(item.message) === serverAssistantId,
       ),
     ).toHaveLength(1);
   });
@@ -673,7 +686,10 @@ describe("AgUiThreadController branch flows", () => {
     const serverAssistantId = "assistant-server";
     let assistantAppends = 0;
     const append = vi.fn().mockImplementation(({ message }: any) => {
-      if (message.id === serverAssistantId && ++assistantAppends === 1) {
+      if (
+        agUiWireMessageId(message) === serverAssistantId &&
+        ++assistantAppends === 1
+      ) {
         return Promise.reject(new Error("write failed"));
       }
       return Promise.resolve(undefined);
@@ -692,10 +708,18 @@ describe("AgUiThreadController branch flows", () => {
 
     await core.append(createAppendMessage());
     await vi.waitFor(() => expect(assistantAppends).toBe(1));
+    const persistedId = core.getMessages().at(-1)!.id;
 
     core.applyExternalMessages([]);
     await core.reload(null);
     await vi.waitFor(() => expect(assistantAppends).toBe(2));
+    expect(
+      append.mock.calls
+        .filter(
+          ([item]) => agUiWireMessageId(item.message) === serverAssistantId,
+        )
+        .map(([item]) => item.message.id),
+    ).toEqual([persistedId, persistedId]);
 
     core.applyExternalMessages([]);
     await core.reload(null);
@@ -709,7 +733,7 @@ describe("AgUiThreadController branch flows", () => {
       resolveAppend = resolve;
     });
     const append = vi.fn().mockImplementation(({ message }: any) => {
-      if (message.id === serverAssistantId) return gate;
+      if (agUiWireMessageId(message) === serverAssistantId) return gate;
       return Promise.resolve(undefined);
     });
     const agent = {
@@ -726,7 +750,8 @@ describe("AgUiThreadController branch flows", () => {
 
     const assistantAppends = () =>
       append.mock.calls.filter(
-        ([item]: any[]) => item.message.id === serverAssistantId,
+        ([item]: any[]) =>
+          agUiWireMessageId(item.message) === serverAssistantId,
       ).length;
 
     await core.append(createAppendMessage());
@@ -803,6 +828,7 @@ describe("AgUiThreadController branch flows", () => {
 
   it("keeps a recreated stable assistant after switching branches", async () => {
     const serverAssistantId = "server-assistant";
+    let assistantLocalId!: string;
     let core: AgUiThreadController;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
@@ -823,6 +849,7 @@ describe("AgUiThreadController branch flows", () => {
         const userMessage = core
           .getMessages()
           .find(({ role }) => role === "user");
+        assistantLocalId = core.getMessages().at(-1)!.id;
         core.applyExternalMessages([userMessage!]);
 
         subscriber.onTextMessageContentEvent?.({
@@ -846,11 +873,14 @@ describe("AgUiThreadController branch flows", () => {
     await core.append(createAppendMessage());
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
-    expect(assistant.id).toBe(serverAssistantId);
+    expect(assistant.id).toBe(assistantLocalId);
+    expect(agUiWireMessageId(assistant)).toBe(serverAssistantId);
     expect(assistant.metadata.isOptimistic).not.toBe(true);
     await core.append(createAppendMessage({ parentId: null, startRun: false }));
     expect(
-      core.getMessageRepository().messages.map(({ message }) => message.id),
+      core
+        .getMessageRepository()
+        .messages.map(({ message }) => agUiWireMessageId(message)),
     ).toContain(serverAssistantId);
   });
 
@@ -1045,7 +1075,7 @@ describe("AgUiThreadController branch flows", () => {
       type: "text",
       text: "resumed content",
     });
-    expect(tail.metadata.isOptimistic).toBeUndefined();
+    expect(tail.metadata.isOptimistic).toBe(false);
     expect(tail.id.startsWith("__optimistic__")).toBe(false);
   });
 
@@ -1136,7 +1166,9 @@ describe("AgUiThreadController branch flows", () => {
 
       const first = core
         .getMessages()
-        .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+        .find(
+          (message) => agUiWireMessageId(message) === "assistant-1",
+        ) as ThreadAssistantMessage;
       expect(first.content.map((part) => part.type)).toEqual(expected);
       expect(first.content.at(-1)).toMatchObject({
         type: "text",
@@ -1200,7 +1232,9 @@ describe("AgUiThreadController branch flows", () => {
 
     const first = core
       .getMessages()
-      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+      .find(
+        (message) => agUiWireMessageId(message) === "assistant-1",
+      ) as ThreadAssistantMessage;
     expect(first.content).toMatchObject([
       { type: "text", text: "Hello." },
       { type: "data", name: "agui-activity/progress", data: { step: 1 } },
@@ -1274,7 +1308,9 @@ describe("AgUiThreadController branch flows", () => {
 
     const first = core
       .getMessages()
-      .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+      .find(
+        (message) => agUiWireMessageId(message) === "assistant-1",
+      ) as ThreadAssistantMessage;
     expect(first.content).toMatchObject([
       { type: "reasoning", text: "A" },
       { type: "tool-call", toolCallId: "tool-x" },
@@ -1426,7 +1462,9 @@ describe("AgUiThreadController branch flows", () => {
     const parent = () =>
       core
         .getMessages()
-        .find(({ id }) => id === "assistant-1") as ThreadAssistantMessage;
+        .find(
+          (message) => agUiWireMessageId(message) === "assistant-1",
+        ) as ThreadAssistantMessage;
     expect(
       [...iterateToolCallParts(parent().content)].filter(
         ({ toolCallId }) => toolCallId === "tool-2",

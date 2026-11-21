@@ -23,6 +23,7 @@ import { XuluxShell } from "./shell/XuluxShell";
 import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
 import { createXuluxChatFetch } from "./runtime/xulux-chat-fetch";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
+import { useEngagementConsent } from "@/runtimes/chat-runtime";
 import { XuluxThreadStatusObserver } from "./runtime/XuluxThreadStatusObserver";
 import {
   parseXuluxLimitBlock,
@@ -229,6 +230,8 @@ function XuluxRuntimeProviderInner({
         baseUrl: cloudBaseUrl,
         anonymous: true,
         telemetry: {
+          // Engagement events are analytics and follow the consent banner.
+          events: false,
           beforeReport: (report) => ({
             ...report,
             metadata: {
@@ -240,6 +243,8 @@ function XuluxRuntimeProviderInner({
       }),
     [cloudBaseUrl],
   );
+
+  useEngagementConsent(assistantCloud);
 
   const adapter = useMemo(
     () =>

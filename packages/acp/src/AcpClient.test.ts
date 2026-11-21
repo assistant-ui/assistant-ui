@@ -5,7 +5,7 @@ import {
   autoAllowPermissionHandler,
   cancelPermissionHandler,
 } from "./AcpClient";
-import type { AcpSessionUpdate } from "./types";
+import type { AcpMcpServer, AcpSessionUpdate } from "./types";
 
 type JsonRpcFrame = {
   jsonrpc: "2.0";
@@ -1210,7 +1210,14 @@ describe("AcpClient", () => {
 
   it("never sends ACP-transport MCP servers", async () => {
     const client = mockClient({
-      mcpServers: [{ type: "acp", name: "bridge", serverId: "srv-1" }],
+      // SDK 2 types the ACP transport only in its unstable schema.
+      mcpServers: [
+        {
+          type: "acp",
+          name: "bridge",
+          serverId: "srv-1",
+        } as unknown as AcpMcpServer,
+      ],
     });
     const session = expect(client.ensureSession()).rejects.toThrow("bridge");
     await completeHandshake(lastWs(), { mcpCapabilities: { acp: true } });

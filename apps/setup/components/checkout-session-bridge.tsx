@@ -9,11 +9,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import { StatewireWebsocket, useStatewire } from "statewire";
+import type { Statewire } from "statewire";
 import { toast } from "sonner";
 import type { CheckoutContextValue } from "@/components/checkout-provider";
 import { analytics } from "@/lib/analytics";
 import { installGuideUrl, useCatalog } from "@/lib/catalog";
 import {
+  BROWSER_HEARTBEAT_MS,
   currentPlan,
   isAgentPresent,
   isClosed,
@@ -72,6 +74,59 @@ const useDegradedAfterGrace = (degraded: boolean) => {
     return () => clearTimeout(timer);
   }, [remaining]);
   return degraded && since !== null && remaining <= 0;
+};
+
+/**
+ * Tells the setup this page is open, so the agent's setup command knows not
+ * to open another tab. Heartbeats ride on incoming state as well as a timer,
+ * because a background tab's timers slow down while its socket keeps
+ * delivering. Hosts older than browser presence refuse the command; that is
+ * fine.
+ */
+export const useBrowserPresence = (
+  commands: Statewire.CommandsProxy<Checkout.Commands>,
+  state: unknown,
+) => {
+  const latest = useRef(commands);
+  latest.current = commands;
+  const beat = useRef<(force?: boolean) => void>(undefined);
+  useEffect(() => {
+    let last = 0;
+    const send = (name: "browser/heartbeat" | "browser/bye") => {
+      try {
+        latest.current[name]().catch(() => {});
+      } catch {
+        // A host without the command; presence is optional.
+      }
+    };
+    beat.current = (force = false) => {
+      if (!force && Date.now() - last < BROWSER_HEARTBEAT_MS - 500) return;
+      last = Date.now();
+      send("browser/heartbeat");
+    };
+    beat.current(true);
+    const timer = setInterval(() => beat.current?.(), BROWSER_HEARTBEAT_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") beat.current?.(true);
+    };
+    const bye = () => send("browser/bye");
+    // A page kept in the back/forward cache has not closed; it beats again when shown.
+    const onHide = (event: PageTransitionEvent) => {
+      if (!event.persisted) bye();
+    };
+    const onShow = () => beat.current?.(true);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pageshow", onShow);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("pageshow", onShow);
+      bye();
+    };
+  }, []);
+  useEffect(() => beat.current?.(), [state]);
 };
 
 /** Holds the browser's agent link for one session and reports what it knows. The link outlives the session, so the wire may still carry the previous checkout until this session's create lands; only this session's checkout is reported. */
@@ -210,6 +265,7 @@ function CheckoutSessionBridge({
   }, [wanted]);
 
   useWakeReconnect(connection);
+  useBrowserPresence(commands, wire.state);
 
   const agentPresent = state ? isAgentPresent(state) : false;
   const value = useMemo<CheckoutContextValue>(() => {

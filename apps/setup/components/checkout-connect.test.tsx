@@ -143,11 +143,11 @@ describe("agent link sequence", () => {
       screen.getByRole("button", {
         name: "Copy the setup prompt for your coding agent",
       }).textContent,
-    ).toContain("set up assistant-ui");
+    ).toBe("install and set up assistant-ui");
     expect(
       screen
         .getByRole("link", { name: "Install manually" })
         .getAttribute("href"),
-    ).toBe("https://www.assistant-ui.com/docs/installation");
+    ).toBe("https://www.assistant-ui.com/docs/manual-installation");
   });
 });

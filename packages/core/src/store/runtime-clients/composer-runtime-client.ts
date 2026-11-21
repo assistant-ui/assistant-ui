@@ -53,6 +53,7 @@ const toComposerState = (
   isEmpty: runtimeState.isEmpty,
   type: runtimeState.type ?? "thread",
   dictation: runtimeState.dictation,
+  lastDictationEnd: runtimeState.lastDictationEnd,
   quote: runtimeState.quote,
   queue,
   submission: runtimeState.submission,

@@ -1,5 +1,52 @@
 # assistant-ui
 
+## 0.0.136
+
+### Patch Changes
+
+- [#10691](https://github.com/assistant-ui/assistant-ui/pull/10691) [`076de9e`](https://github.com/assistant-ui/assistant-ui/commit/076de9eaf1b5f0f1fb6fb359c5e5d68770cae65c) - Upgrade `aui-auth` to 0.2.3 for `assistant-ui cloud` sign-in. The CLI keeps its credentials file and device login, now names the login with the machine's host name on the accounts Sessions page, and reads organizations from the accounts organization API itself, since aui-auth no longer ships that client. ([@Yonom](https://github.com/Yonom))
+
+- [#10579](https://github.com/assistant-ui/assistant-ui/pull/10579) [`688fd30`](https://github.com/assistant-ui/assistant-ui/commit/688fd30d87309876105bd2ac6eafd18aa8f9f4fe) - Run a fixed shadcn version (`shadcn@4.23.0`) and `skills@1.7.4` instead of the latest release, so a new upstream release cannot change what `create`, `init`, `add` and the skills install do. `--preset` URLs must now use https (http only on localhost, 127.x and [::1]) and carry no credentials; the CLI checks this before it scaffolds anything. ([@Yonom](https://github.com/Yonom))
+
+- [#10580](https://github.com/assistant-ui/assistant-ui/pull/10580) [`bf9b1e2`](https://github.com/assistant-ui/assistant-ui/commit/bf9b1e21049863a7ec28ee0ccd5bed7918991871) - the cloud-harness starter's chat route refuses cross-site requests ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`a0af48b`](https://github.com/assistant-ui/assistant-ui/commit/a0af48b44d85ce31dcad66e1a65d44767e1553a5)]:
+  - setup-agent@0.2.1
+
+## 0.0.135
+
+### Patch Changes
+
+- Updated dependencies [[`4254c59`](https://github.com/assistant-ui/assistant-ui/commit/4254c59e520629b51f4278b9e93315fab40a30da)]:
+  - setup-agent@0.2.0
+
+## 0.0.134
+
+### Patch Changes
+
+- [#10506](https://github.com/assistant-ui/assistant-ui/pull/10506) [`637f1e1`](https://github.com/assistant-ui/assistant-ui/commit/637f1e1a1b803047edc9a664ddc871b54596b0e8) - fix(cli): scope the agent gate's setup session to the folder a command acts on (`--cwd` and the project directory), key it per project, end it when setup exits or two hours after it starts, and tell the agent to pass `--force` when setup cannot record it ([@Yonom](https://github.com/Yonom))
+
+- [#10329](https://github.com/assistant-ui/assistant-ui/pull/10329) [`ec8321b`](https://github.com/assistant-ui/assistant-ui/commit/ec8321b0f16aa40d03ee51195bace46e43075a27) - Publish `@assistant-ui/vscode` to npm. It runs assistant-ui in a VS Code extension webview: `vscodeFetch` tunnels `fetch` to route handlers in the extension host, and the package also opens links in the browser, stores threads in a Memento, writes the webview HTML with a nonce-based Content Security Policy, and maps the components' theme tokens to VS Code's. `assistant-ui create -t vscode` scaffolds an extension that uses it. ([@bnb](https://github.com/bnb))
+
+## 0.0.133
+
+### Patch Changes
+
+- [#10490](https://github.com/assistant-ui/assistant-ui/pull/10490) [`9e537e3`](https://github.com/assistant-ui/assistant-ui/commit/9e537e3c54014fb17d38adc84edd78b9a91376d0) - `init`, `create` and `add` now stop when a coding agent runs them outside a setup session, and point it to `npx assistant-ui@latest setup` with exit code 2. `setup` marks its session for the folder it runs in, so the `init`, `create` and `add` steps it gives the agent still run. Pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1` to run them under an agent anyway. People in a terminal and CI without agent markers see no change. Run by an agent, `--help` now ends with the pointer to `setup`, and `init` and `create` print it after they finish instead of before, so it survives `| tail`. ([@Yonom](https://github.com/Yonom))
+
+- [#10455](https://github.com/assistant-ui/assistant-ui/pull/10455) [`acbfff1`](https://github.com/assistant-ui/assistant-ui/commit/acbfff1d70caf9a64d5b776df7fd4867371cfb2a) - `cloud setup` accepts a plain HTTP `--backend-url` on any 127.0.0.0/8 address, the same local addresses `--api-url` accepts. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#10489](https://github.com/assistant-ui/assistant-ui/pull/10489) [`d7bac9e`](https://github.com/assistant-ui/assistant-ui/commit/d7bac9e32c9195dd5a414524fb684b450f90faa7) - `setup` now suggests the prompt "install and set up assistant-ui", the agent hint says to run `npx -y --prefer-online assistant-ui@latest setup` when `setup` is unknown, and the framework help links to the manual installation guide. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`d7bac9e`](https://github.com/assistant-ui/assistant-ui/commit/d7bac9e32c9195dd5a414524fb684b450f90faa7)]:
+  - setup-agent@0.1.1
+
+## 0.0.132
+
+### Patch Changes
+
+- [#10492](https://github.com/assistant-ui/assistant-ui/pull/10492) [`7442ba1`](https://github.com/assistant-ui/assistant-ui/commit/7442ba18351d111572d8565093d9e6caaae292fa) - `assistant-ui setup` now runs the setup's stream itself, so agents run one long-running command in the background instead of a separate `npx setup-agent … stream`. It opens the browser only when the setup needs the user (a question, the plan, the finish), opens it again for the next question if the user closed it, and never opens two tabs within 30 seconds; the agent can then ask in its own chat and answer with `npx assistant-ui@latest setup <url> answer …`. The other setup commands run as `npx assistant-ui@latest setup <url> <command>`. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`7442ba1`](https://github.com/assistant-ui/assistant-ui/commit/7442ba18351d111572d8565093d9e6caaae292fa)]:
+  - setup-agent@0.1.0
+
 ## 0.0.131
 
 ### Patch Changes

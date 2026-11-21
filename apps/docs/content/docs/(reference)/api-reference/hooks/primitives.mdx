@@ -118,7 +118,7 @@ custom composer input without `ComposerPrimitive.Input`. It is a thin bridge,
 not a second input: it does not own keyboard behavior, autosize, IME or
 contentEditable sync, paste/drop attachments, focus management, or rich-text
 state. Spread `unstable_useTriggerPopoverAriaProps()` onto your element for
-trigger-popover combobox semantics.
+trigger-popover ARIA semantics.
 
 ```tsx
 const { value, setText, send, isDisabled, canSend } = unstable_useComposerInput();
@@ -165,6 +165,22 @@ const history = unstable_useComposerInputHistory();
 function unstable_useComposerInputHistory(): Unstable_ComposerInputHistory;
 ```
 
+### unstable_useComposerRunStartFocusGuard
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-11-12; it may change in any release.
+</Callout>
+
+The decision `ComposerPrimitive.Input` makes when a run starts: whether the
+run may move focus into this composer. Alternative composer implementations
+(`@assistant-ui/react-lexical`) have to make the same call, and can only make
+it correctly with the thread root from context: a composer portaled outside
+`ThreadPrimitive.Root` has no `data-aui-thread-root` ancestor.
+
+```ts
+const unstable_useComposerRunStartFocusGuard: () => Unstable_ComposerRunStartFocusGuard;
+```
+
 ### unstable_useMessageStallDetection
 
 <Callout type="tip">
@@ -204,11 +220,11 @@ const unstable_useThreadMessageIds: () => readonly string[];
 <strong>Experimental.</strong> Shipped 2026-06-23; it may change in any release.
 </Callout>
 
-ARIA combobox attributes for the focused element (typically the composer
-input) describing the open trigger popover, per the WAI-ARIA editable
-combobox pattern. Returns an empty object outside a `TriggerPopoverRoot` or
-when no popover is open. Spread these last so they take precedence over any
-matching ARIA props you set yourself, mirroring `ComposerPrimitive.Input`.
+ARIA attributes for the focused `textbox` element (typically the composer
+input) describing the open trigger popover. Returns an empty object outside
+a `TriggerPopoverRoot` or when no popover is open. Spread these last so
+they take precedence over any matching ARIA props you set yourself,
+mirroring `ComposerPrimitive.Input`.
 
 ```tsx
 const aria = unstable_useTriggerPopoverAriaProps();

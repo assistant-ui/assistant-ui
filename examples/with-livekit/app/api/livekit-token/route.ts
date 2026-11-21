@@ -1,23 +1,8 @@
+import { isAllowedRequestContext } from "../request-context";
 import { AccessToken } from "livekit-server-sdk";
 import { NextResponse } from "next/server";
 
 const TOKEN_TTL = "10m";
-
-function isAllowedRequestContext(req: Request) {
-  const fetchSite = req.headers.get("sec-fetch-site");
-  if (fetchSite !== null) {
-    return fetchSite === "same-origin" || fetchSite === "none";
-  }
-
-  const origin = req.headers.get("origin");
-  if (origin === null) return true;
-
-  try {
-    return new URL(origin).origin === new URL(req.url).origin;
-  } catch {
-    return false;
-  }
-}
 
 export async function POST(req: Request) {
   if (!isAllowedRequestContext(req)) {

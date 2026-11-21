@@ -4,18 +4,19 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { demoFrameClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
-import { getElement } from "./registry";
+import { ElementDemo } from "./element-demos";
+import type { ElementVariant } from "./registry";
 
 export function DemoVariants({
   slug,
+  variants,
   replay,
 }: {
   slug: string;
+  variants: ElementVariant[];
   replay: boolean;
 }) {
-  const variants = getElement(slug)?.variants;
-  const [key, setKey] = useState<string>();
-  if (!variants?.length) return null;
+  const [key, setKey] = useState(variants[0]!.key);
   const active =
     variants.find((variant) => variant.key === key) ?? variants[0]!;
 
@@ -23,7 +24,7 @@ export function DemoVariants({
     <div className={cn(demoFrameClass, "h-[360px] flex-col items-stretch")}>
       <div className="flex min-h-0 flex-1 items-center justify-center p-5 md:p-6">
         <DemoStage key={active.key} replay={replay}>
-          <active.Component />
+          <ElementDemo demo={`${slug}/${active.key}`} />
         </DemoStage>
       </div>
       <div

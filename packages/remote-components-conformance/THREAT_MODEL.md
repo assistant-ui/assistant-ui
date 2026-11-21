@@ -153,6 +153,12 @@ remote's point of view (any page can frame a public remote URL).
   `Allow-CSP-From: *`). On other engines a URL remote's network is what
   its own server sends: use the serving layer's `network` option, SCF, or
   the `html` prop for untrusted code there.
+- The off switch covers `connect-src`, `img-src` and `media-src`. It is not
+  a data boundary: a page can still put data in the URL of a script,
+  stylesheet, font, frame, worker or form it adds, use WebRTC, or navigate.
+  Those stay open so model-written pages keep loading from CDNs. Residual
+  risk; a host that needs a hard boundary passes no data the page must not
+  leak.
 - Private networks: CSP cannot exclude address ranges, so `https:` also
   matches loopback, RFC 1918, link-local and cloud metadata addresses,
   and the host's own origin. Mitigations: no credentials are attached;

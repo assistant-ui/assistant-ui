@@ -3,7 +3,7 @@ title: Zoom
 description: Pan and scale a figure that holds more detail than its frame.
 ---
 
-import { ZoomWorld } from "@/components/diagrammatic/samples-client";
+import { ZoomWorld } from "@/components/diagrammatic/samples-client.lazy";
 
 `Zoom` from `diagrammatic/interactive` pans and scales a figure. The wheel scales about the pointer, a drag pans, and a double click or `Escape` resets. The transform lives on the wrapper, so the chart inside stays a server component and is not redrawn by the wrapper itself.
 

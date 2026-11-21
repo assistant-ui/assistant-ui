@@ -7,7 +7,7 @@ import {
   type BridgeMessage,
   type FetchRequestMessage,
 } from "../protocol";
-import { createInMemoryBridge } from "../testUtils";
+import { createInMemoryBridge, failsAfter } from "../testUtils";
 import { createVSCodeFetch, type VSCodeBridgePort } from "./fetch";
 
 const encoder = new TextEncoder();
@@ -30,15 +30,18 @@ const setup = (
 const kinds = (messages: unknown[], kind: BridgeMessage["kind"]) =>
   (messages as BridgeMessage[]).filter((m) => m.kind === kind);
 
+/** Enqueues one part per read, so each part reaches the host as its own read. */
 const streamOf = (parts: Uint8Array[]) =>
-  new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      const part = parts.shift();
-      if (!part) return controller.close();
-      await new Promise((resolve) => setTimeout(resolve, 1));
-      controller.enqueue(part);
+  new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        const part = parts.shift();
+        if (part) controller.enqueue(part);
+        else controller.close();
+      },
     },
-  });
+    { highWaterMark: 0 },
+  );
 
 const waitFor = async (predicate: () => boolean) => {
   await vi.waitFor(
@@ -235,15 +238,7 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
     const { fetch, bridge } = setup(
       {
         "/api/broken": {
-          GET: () =>
-            new Response(
-              new ReadableStream({
-                start(controller) {
-                  controller.enqueue(encoder.encode("partial"));
-                  setTimeout(() => controller.error(new Error("lost")), 20);
-                },
-              }),
-            ),
+          GET: () => new Response(failsAfter("partial", new Error("lost"))),
         },
       },
       { onError },
@@ -506,23 +501,28 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
   });
 
   it("keeps concurrent requests apart by id", async () => {
+    const release = new Map<string, () => void>();
     const { fetch, bridge } = setup({
-      "/api/delay": {
+      "/api/wait": {
         GET: async (req) => {
-          const ms = Number(new URL(req.url).searchParams.get("ms"));
-          await new Promise((resolve) => setTimeout(resolve, ms));
-          return new Response(`waited ${ms}`);
+          const name = new URL(req.url).searchParams.get("name")!;
+          await new Promise<void>((resolve) => release.set(name, resolve));
+          return new Response(`released ${name}`);
         },
       },
     });
 
-    const results = await Promise.all(
-      [30, 1, 15].map(async (ms) =>
-        (await fetch(`/api/delay?ms=${ms}`)).text(),
-      ),
+    const pending = ["a", "b", "c"].map(async (name) =>
+      (await fetch(`/api/wait?name=${name}`)).text(),
     );
+    await waitFor(() => release.size === 3);
+    for (const name of ["b", "c", "a"]) release.get(name)!();
 
-    expect(results).toEqual(["waited 30", "waited 1", "waited 15"]);
+    expect(await Promise.all(pending)).toEqual([
+      "released a",
+      "released b",
+      "released c",
+    ]);
     const ids = kinds(bridge.webviewToHost, "fetch:request").map((m) => m.id);
     expect(new Set(ids).size).toBe(3);
   });
@@ -599,16 +599,24 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
   it("frees the id of an aborted request whose response never finishes cancelling", async () => {
     let release!: () => void;
     let calls = 0;
+    let firstSignal: AbortSignal | undefined;
+    let cancelled = false;
     const { bridge } = setup({
       "/api/late": {
-        GET: async () => {
+        GET: async (req) => {
           calls += 1;
           if (calls > 1) return new Response("second");
+          firstSignal = req.signal;
           await new Promise<void>((resolve) => {
             release = resolve;
           });
           return new Response(
-            new ReadableStream({ cancel: () => new Promise(() => undefined) }),
+            new ReadableStream({
+              cancel: () => {
+                cancelled = true;
+                return new Promise(() => undefined);
+              },
+            }),
           );
         },
       },
@@ -630,9 +638,9 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
       kind: "fetch:abort",
       id: "reused",
     });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => firstSignal?.aborted === true);
     release();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => cancelled);
     bridge.port.postMessage(request);
 
     await waitFor(() => kinds(bridge.hostToWebview, "fetch:end").length === 1);

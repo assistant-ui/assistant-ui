@@ -118,3 +118,63 @@ describe("vercel analytics gate", () => {
     expect(send.speedInsights(speedEvent)).toBeNull();
   });
 });
+
+describe("vercel custom events gate", () => {
+  const customEvent = {
+    type: "event",
+    url: "https://www.assistant-ui.com",
+  } as const;
+  const regionRequires = (required: boolean) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ required }),
+        }),
+      ),
+    );
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("holds custom events in a consent region until the visitor accepts", async () => {
+    stubBrowser();
+    regionRequires(true);
+
+    const send = await renderGate();
+    await flush();
+    expect(send.analytics(customEvent)).toBeNull();
+    expect(send.analytics(analyticsEvent)).toBe(analyticsEvent);
+
+    const { setStoredConsent } = await import("../lib/consent");
+    setStoredConsent("granted");
+    expect(send.analytics(customEvent)).toBe(customEvent);
+  });
+
+  it("sends custom events without a choice where the region needs no consent", async () => {
+    stubBrowser();
+    regionRequires(false);
+
+    const send = await renderGate();
+    await flush();
+
+    expect(send.analytics(customEvent)).toBe(customEvent);
+  });
+
+  it("drops custom events after a decline", async () => {
+    stubBrowser({ consent: "denied" });
+    regionRequires(false);
+
+    const send = await renderGate();
+    await flush();
+    expect(send.analytics(customEvent)).toBeNull();
+  });
+
+  it("drops custom events under GPC even after an accept", async () => {
+    stubBrowser({ consent: "granted", gpc: true });
+    regionRequires(false);
+
+    const send = await renderGate();
+    await flush();
+    expect(send.analytics(customEvent)).toBeNull();
+  });
+});

@@ -29,8 +29,11 @@ import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { isCompositionKey } from "@assistant-ui/core/internal";
 import {
   INTERNAL,
+  type Unstable_TriggerPopoverAriaProps,
+  unstable_useComposerRunStartFocusGuard,
   unstable_useTriggerPopoverAriaProps,
 } from "@assistant-ui/react";
 import {
@@ -72,8 +75,8 @@ export type LexicalComposerInputProps = Omit<
   directivePluginProps?: DirectivePluginProps | undefined;
   /** Custom component for rendering directive chips inline. */
   directiveChip?: FC<DirectiveChipProps> | undefined;
-  /** Custom formatter for serializing/parsing directives. */
-  formatter?: Unstable_DirectiveFormatter | undefined;
+  /** Custom formatter for serializing/parsing directives. `null` disables prop and default parsing; registered trigger formatters still apply. `undefined` uses the default formatter. */
+  formatter?: Unstable_DirectiveFormatter | null | undefined;
   /** Custom Lexical plugins rendered inside the composer context, after the built-in plugins. */
   children?: ReactNode | undefined;
 };
@@ -103,7 +106,7 @@ function KeyboardPlugin({
         KEY_ENTER_COMMAND,
         (event) => {
           if (!event) return false;
-          if (event.isComposing || event.keyCode === 229) return false;
+          if (isCompositionKey(event)) return false;
           if (event.shiftKey) return false;
 
           // Let registered plugins (mention, slash command, etc.) handle Enter first
@@ -239,6 +242,7 @@ function CursorPlugin() {
 function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
+  const canTakeFocusOnRunStart = unstable_useComposerRunStartFocusGuard();
 
   useEffect(() => {
     if (autoFocus) editor.focus();
@@ -247,33 +251,11 @@ function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
   useEffect(() => {
     if (aui.composer.getState().type !== "thread") return undefined;
     return aui.on("thread.runStart", () => {
-      if (shouldFocusOnRunStart(editor.getRootElement())) editor.focus();
+      if (canTakeFocusOnRunStart(editor.getRootElement())) editor.focus();
     });
-  }, [editor, aui]);
+  }, [editor, aui, canTakeFocusOnRunStart]);
 
   return null;
-}
-
-/**
- * Mirrors `ComposerPrimitive.Input`: a run start does not take focus from an
- * element outside this composer and outside this composer's thread.
- */
-function shouldFocusOnRunStart(rootElement: HTMLElement | null): boolean {
-  if (!rootElement) return false;
-  const doc = rootElement.ownerDocument;
-  const active = doc.activeElement;
-  if (!active || active === doc.body) return true;
-  if (active === rootElement) return false;
-
-  const composerRoot = rootElement.closest("[data-aui-composer-type]");
-  if (composerRoot?.contains(active)) return true;
-
-  const threadRoot = rootElement.closest("[data-aui-thread-root]");
-  return (
-    threadRoot !== null &&
-    threadRoot.contains(active) &&
-    active.closest("[data-aui-thread-root]") === threadRoot
-  );
 }
 
 /** Lexical-based composer input with inline directive chips and runtime sync. */
@@ -303,9 +285,14 @@ export const LexicalComposerInput = forwardRef<
       (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
     );
     const resolvedFormatter =
-      formatterProp ?? unstable_defaultDirectiveFormatter;
-    const { "aria-expanded": _, ...popoverAria } =
-      unstable_useTriggerPopoverAriaProps();
+      formatterProp === undefined
+        ? unstable_defaultDirectiveFormatter
+        : formatterProp;
+    // Older @assistant-ui/react peers may still emit aria-expanded.
+    const { "aria-expanded": _, ...ariaProps } =
+      unstable_useTriggerPopoverAriaProps() as Unstable_TriggerPopoverAriaProps & {
+        "aria-expanded"?: boolean;
+      };
 
     // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
@@ -341,7 +328,7 @@ export const LexicalComposerInput = forwardRef<
                     "aria-placeholder": placeholder,
                   }
                 : {})}
-              {...popoverAria}
+              {...ariaProps}
             />
             <SyncPlugin formatter={resolvedFormatter} />
             <DirectivePlugin {...directivePluginProps} />

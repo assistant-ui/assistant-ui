@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import worker, { CheckoutDO } from "./index";
+import worker, { CheckoutDO, MAX_MESSAGE_BYTES, ROOM_IDLE_MS } from "./index";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
 
@@ -20,21 +20,34 @@ const createInstance = (snapshot?: Checkout.State) => {
   );
   const pending: Promise<unknown>[] = [];
   const alarm = { at: null as number | null };
+  const sockets: unknown[] = [];
   let gate: Promise<unknown> = Promise.resolve();
   const context = {
     waitUntil: (promise: Promise<unknown>) => {
       pending.push(promise);
     },
     acceptWebSocket: vi.fn(),
-    getWebSockets: () => [],
+    getWebSockets: () => sockets,
+    abort: vi.fn(),
     storage: {
       get: async (key: string) => stored.get(key),
       put: async (key: string, value: unknown) => {
         stored.set(key, value);
       },
       delete: async (key: string) => stored.delete(key),
-      list: async ({ prefix }: { prefix: string }) =>
-        new Map([...stored].filter(([key]) => key.startsWith(prefix))),
+      deleteAll: async () => {
+        stored.clear();
+      },
+      list: async ({
+        prefix = "",
+        limit,
+      }: {
+        prefix?: string;
+        limit?: number;
+      }) =>
+        new Map(
+          [...stored].filter(([key]) => key.startsWith(prefix)).slice(0, limit),
+        ),
       getAlarm: async () => alarm.at,
       setAlarm: async (at: number) => {
         alarm.at = at;
@@ -60,15 +73,25 @@ const createInstance = (snapshot?: Checkout.State) => {
     },
   );
   instances.push(instance);
-  return { instance, stored, alarm, ready: () => Promise.all(pending) };
+  return {
+    instance,
+    context,
+    stored,
+    alarm,
+    sockets,
+    ready: () => Promise.all(pending),
+  };
 };
 
 const request = (path: string, method = "GET", body?: string) =>
-  new Request(`https://checkout.test/session/${path}`, {
+  new Request(`https://checkout.test/session1/${path}`, {
     method,
     ...(body === undefined ? {} : { body }),
   });
 
+/** SHA-256 of "redeem-key". */
+const REDEEM_KEY_HASH =
+  "3389fd9e8dac282ba9df440375f67fbe84dcd70f157d4adabbdd2fd56c7a8f08";
 const modelAnswer = JSON.stringify({ provider: "openai", model: "gpt-5" });
 const modelState = (id = "setup-a"): Checkout.State => ({
   ...initialCheckoutState(),
@@ -85,6 +108,7 @@ const modelState = (id = "setup-a"): Checkout.State => ({
       optional: false,
       status: "open",
       createdAt: 2,
+      redeemKeyHash: REDEEM_KEY_HASH,
     },
   ],
 });
@@ -111,14 +135,43 @@ const secretRequest = (
   method = "GET",
   secret?: string,
   answer = modelAnswer,
-) =>
-  request(
+) => {
+  const req = request(
     `secret/q1?setup=${encodeURIComponent(setup)}${secret === undefined ? "" : `&answer=${encodeURIComponent(answer)}`}`,
     method,
     secret,
   );
+  if (method === "GET") req.headers.set("Setup-Agent-Redeem-Key", "redeem-key");
+  return req;
+};
 
 describe("secret lifecycle", () => {
+  it("tracks the setup page's presence and keeps a snapshot from before it working", async () => {
+    // A snapshot an older worker stored has no browser field.
+    const { browser: _, ...old } = modelState();
+    const fixture = createInstance(old as Checkout.State);
+    const client = await connect(fixture);
+    expect(client.state?.browser).toEqual({
+      lastSeenAt: null,
+      connected: false,
+    });
+    await client.commands["browser/heartbeat"]();
+    await vi.waitFor(() =>
+      expect(client.state?.browser).toEqual({
+        connected: true,
+        lastSeenAt: expect.any(Number),
+      }),
+    );
+    // Commands every released CLI sends keep working beside it.
+    await client.commands["agent/hello"]({ cwd: "/app" });
+    await client.commands["agent/heartbeat"]();
+    await client.commands["browser/bye"]();
+    await vi.waitFor(() =>
+      expect(client.state?.browser?.connected).toBe(false),
+    );
+    expect(client.state?.agent.connected).toBe(true);
+  });
+
   it("does not reuse an unclaimed key after replacing a setup and reusing q1", async () => {
     const fixture = createInstance(modelState());
     const client = await connect(fixture);
@@ -132,6 +185,7 @@ describe("secret lifecycle", () => {
       kind: "model",
       prompt: "Provider?",
       options: [{ id: "openai", label: "OpenAI" }],
+      redeemKeyHash: REDEEM_KEY_HASH,
     });
     expect(inputId).toBe("q1");
     await client.commands["checkout/answer"]({ inputId, answer: modelAnswer });
@@ -152,10 +206,7 @@ describe("secret lifecycle", () => {
 
 describe("CheckoutDO", () => {
   it("requires the model input's redeem key without consuming a deposit on failure", async () => {
-    const snapshot = modelState();
-    snapshot.inputs[0]!.redeemKeyHash =
-      "3389fd9e8dac282ba9df440375f67fbe84dcd70f157d4adabbdd2fd56c7a8f08";
-    const fixture = createInstance(snapshot);
+    const fixture = createInstance(modelState());
     const client = await connect(fixture);
     expect(
       (
@@ -168,7 +219,9 @@ describe("CheckoutDO", () => {
       inputId: "q1",
       answer: modelAnswer,
     });
-    expect((await fixture.instance.fetch(secretRequest())).status).toBe(403);
+    const withoutKey = secretRequest();
+    withoutKey.headers.delete("Setup-Agent-Redeem-Key");
+    expect((await fixture.instance.fetch(withoutKey)).status).toBe(403);
     expect(
       (
         await fixture.instance.fetch(
@@ -394,7 +447,11 @@ describe("CheckoutDO", () => {
     });
     expect(
       await (
-        await fixture.instance.fetch(request("secret/q%201?setup=setup-a"))
+        await fixture.instance.fetch(
+          new Request(request("secret/q%201?setup=setup-a"), {
+            headers: { "Setup-Agent-Redeem-Key": "redeem-key" },
+          }),
+        )
       ).text(),
     ).toBe("key");
     expect(
@@ -467,6 +524,42 @@ describe("deposits", () => {
     expect(put.status).toBe(413);
   });
 
+  it("keeps a deposit's expiry alarm when an activity write overlaps it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    // A setup with no alarm pending, whose activity is due to be rewritten.
+    fixture.alarm.at = null;
+    vi.setSystemTime(Date.now() + 2 * 60 * 60 * 1000);
+    const { getAlarm } = fixture.context.storage;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    fixture.context.storage.getAlarm = async () => {
+      const at = await getAlarm();
+      if (calls++ === 0) await held;
+      return at;
+    };
+
+    const deposit = fixture.instance.fetch(
+      secretRequest("setup-a", "PUT", "key"),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    release();
+    expect((await deposit).status).toBe(204);
+    await fixture.ready();
+    const { expiresAt } = fixture.stored.get('secret:["setup-a","q1"]') as {
+      expiresAt: number;
+    };
+    expect(fixture.alarm.at).toBe(expiresAt);
+  });
+
   it("refuses an oversized key", async () => {
     const fixture = createInstance(modelState());
     await connect(fixture);
@@ -502,7 +595,10 @@ describe("deposits", () => {
     fixture.alarm.at = null;
     await fixture.instance.alarm();
     expect(fixture.stored.has(key)).toBe(false);
-    expect(fixture.alarm.at).toBeNull();
+    // Only the setup's idle deadline is left.
+    expect(fixture.alarm.at).toBe(
+      (fixture.stored.get("room:lastActiveAt") as number) + ROOM_IDLE_MS,
+    );
   });
 });
 
@@ -533,15 +629,213 @@ describe("worker routing", () => {
     const response = await worker.fetch(request("stream"), {
       CHECKOUT: { idFromName, get },
     });
-    expect(idFromName).toHaveBeenCalledWith("session");
-    expect(get).toHaveBeenCalledWith("session");
+    expect(idFromName).toHaveBeenCalledWith("session1");
+    expect(get).toHaveBeenCalledWith("session1");
     expect(fetch.mock.calls[0]?.[0]?.url).toBe(
-      "https://checkout.test/checkout/session/stream",
+      "https://checkout.test/checkout/session1/stream",
     );
     expect(await response.text()).toBe("state");
     expect(response.headers.get("Statewire-Lease")).toBe("lease-1");
     expect(response.headers.get("Access-Control-Expose-Headers")).toBe(
       "Statewire-Lease",
     );
+  });
+});
+
+describe("limits", () => {
+  it("refuses deposits and redemption for a model input without a redeem key", async () => {
+    const snapshot = modelState();
+    delete snapshot.inputs[0]!.redeemKeyHash;
+    const fixture = createInstance(snapshot);
+    const client = await connect(fixture);
+    expect(
+      (await fixture.instance.fetch(secretRequest("setup-a", "PUT", "key")))
+        .status,
+    ).toBe(409);
+    await client.commands["checkout/answer"]({
+      inputId: "q1",
+      answer: modelAnswer,
+    });
+    // A deposit an older worker accepted is not served either.
+    fixture.stored.set('secret:["setup-a","q1"]', {
+      setupId: "setup-a",
+      setupCreatedAt: 1,
+      inputId: "q1",
+      inputCreatedAt: 2,
+      answer: modelAnswer,
+      secret: "old-key",
+      expiresAt: Date.now() + 60_000,
+    });
+    const response = await fixture.instance.fetch(secretRequest());
+    expect(response.status).toBe(403);
+    expect(await response.text()).not.toContain("old-key");
+  });
+
+  it("deletes a setup once it has been idle for a day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const lastActiveAt = fixture.stored.get("room:lastActiveAt") as number;
+    expect(fixture.alarm.at).toBe(lastActiveAt + ROOM_IDLE_MS);
+
+    vi.setSystemTime(lastActiveAt + ROOM_IDLE_MS - 1);
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBeGreaterThan(0);
+    expect(fixture.alarm.at).toBe(lastActiveAt + ROOM_IDLE_MS);
+
+    vi.setSystemTime(lastActiveAt + ROOM_IDLE_MS);
+    fixture.sockets.push({});
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBeGreaterThan(0);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+
+    fixture.sockets.length = 0;
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.alarm.at).toBeNull();
+    expect(fixture.context.abort).toHaveBeenCalledExactlyOnceWith(
+      "idle setup deleted",
+      { retryAlarm: false },
+    );
+
+    // Alarms run at least once, so the deleted setup's alarm can run again.
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.alarm.at).toBeNull();
+  });
+
+  it("starts the idle clock when the last socket closes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+    const ws = {};
+    fixture.sockets.push(ws);
+
+    vi.setSystemTime(start + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.alarm.at).toBe(start + 2 * ROOM_IDLE_MS);
+
+    const closedAt = start + 2 * ROOM_IDLE_MS - 60_000;
+    vi.setSystemTime(closedAt);
+    fixture.sockets.length = 0;
+    fixture.instance.webSocketClose(ws as WebSocket);
+    await fixture.ready();
+
+    vi.setSystemTime(start + 2 * ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+    expect(fixture.alarm.at).toBe(closedAt + ROOM_IDLE_MS);
+  });
+
+  it("keeps a setup for a full day after a request the throttle did not record", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+
+    const lastRequestAt = start + 59 * 60 * 1000;
+    vi.setSystemTime(lastRequestAt);
+    await fixture.instance.fetch(request("stream"));
+    await fixture.ready();
+    expect(fixture.stored.get("room:lastActiveAt")).toBe(start);
+
+    vi.setSystemTime(lastRequestAt + 24 * 60 * 60 * 1000 - 1);
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+
+    vi.setSystemTime(start + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+  });
+
+  it("starts the idle clock when the last socket errors", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+    const ws = {};
+    fixture.sockets.push(ws);
+
+    const erroredAt = start + 30 * 60 * 1000;
+    vi.setSystemTime(erroredAt);
+    fixture.sockets.length = 0;
+    fixture.instance.webSocketError(ws as WebSocket);
+    await fixture.ready();
+    expect(fixture.stored.get("room:lastActiveAt")).toBe(erroredAt);
+
+    vi.setSystemTime(start + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.alarm.at).toBe(erroredAt + ROOM_IDLE_MS);
+  });
+
+  it("starts the idle clock of a setup stored before activity was recorded", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance(modelState());
+    await fixture.ready();
+    expect(fixture.stored.has("room:lastActiveAt")).toBe(false);
+
+    const now = Date.now();
+    await fixture.instance.alarm();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+    expect(fixture.stored.get("room:lastActiveAt")).toBe(now);
+    expect(fixture.alarm.at).toBe(now + ROOM_IDLE_MS);
+
+    vi.setSystemTime(now + ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.context.abort).toHaveBeenCalledOnce();
+  });
+
+  it("refuses oversized statewire requests and socket messages", async () => {
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    const big = "x".repeat(MAX_MESSAGE_BYTES + 1);
+    expect(
+      (await fixture.instance.fetch(request("frames", "POST", big))).status,
+    ).toBe(413);
+    const ws = { close: vi.fn() };
+    fixture.instance.webSocketMessage(ws as unknown as WebSocket, big);
+    expect(ws.close).toHaveBeenCalledWith(1009, "message too large");
+  });
+
+  it.each([
+    "/",
+    "/short",
+    "/short/guide",
+    "/has-dash-link",
+    `/${"a".repeat(65)}`,
+    "/../x",
+  ])("answers 404 for %s without addressing a durable object", async (path) => {
+    const idFromName = vi.fn((name: string) => name);
+    const response = await worker.fetch(
+      new Request(`https://checkout.test${path}`),
+      { CHECKOUT: { idFromName, get: vi.fn() } },
+    );
+    expect(response.status).toBe(404);
+    expect(idFromName).not.toHaveBeenCalled();
   });
 });

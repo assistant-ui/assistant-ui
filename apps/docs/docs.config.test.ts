@@ -3,16 +3,26 @@ import { loadFarmDocsMdxCompileOptions } from "@farming-labs/farmjs/vite";
 import { compile, evaluate } from "@mdx-js/mdx";
 import * as runtime from "react/jsx-runtime";
 import { createElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { prerender } from "react-dom/static";
 import type { TableOfContents } from "fumadocs-core/toc";
 import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
 import docsConfig from "./docs.config";
+import { withDocsCodeBlock } from "./lib/docs-code";
 
 const options = await loadFarmDocsMdxCompileOptions(
   import.meta.dirname,
   docsConfig.mdx,
 );
+
+// Code blocks render through an async server component, which only the
+// streaming renderers can wait for.
+async function renderToHtml(element: ReactElement): Promise<string> {
+  const { prelude } = await prerender(element);
+  return new Response(prelude).text();
+}
 
 describe("docs MDX pipeline", () => {
   it("compiles navigation anchors, highlighted code, tables and Mermaid through Farming Labs", async () => {
@@ -48,12 +58,12 @@ graph LR; A-->B;
         title: renderToStaticMarkup(entry.title),
       })),
     ).toEqual([{ title: "Install", url: "#setup", depth: 2 }]);
-    const html = renderToStaticMarkup(
+    const html = await renderToHtml(
       createElement(compiled.default, {
-        components: {
-          MermaidDiagram: ({ children }) =>
+        components: withDocsCodeBlock({
+          MermaidDiagram: ({ children }: { children?: ReactNode }) =>
             createElement("figure", null, children),
-        },
+        }),
       }),
     );
     expect(html).toContain('id="setup"');
@@ -63,14 +73,22 @@ graph LR; A-->B;
     expect(html).toContain("--shiki-dark");
     expect(html).toContain("<figure>graph LR; A--&gt;B;</figure>");
     expect(javascriptHighlighter).not.toHaveBeenCalled();
+    // The page module carries the code as data, not highlighted spans.
+    const module = String(
+      await compile("```tsx\nconst enabled = true;\n```", options),
+    );
+    expect(module).toContain("DocsCodeBlock");
+    expect(module).not.toContain("--shiki");
   });
 
   it("keeps provider code tabs selectable and local images imported for optimization", async () => {
     const source =
       '<Tabs items={["OpenAI", "Anthropic"]}>\n\n```ts tab="OpenAI"\nconst provider = "openai";\n```\n\n```ts tab="Anthropic"\nconst provider = "anthropic";\n```\n\n</Tabs>';
     const compiled = await evaluate(source, { ...runtime, ...options });
-    const html = renderToStaticMarkup(
-      createElement(compiled.default, { components: { Tabs, Tab } }),
+    const html = await renderToHtml(
+      createElement(compiled.default, {
+        components: withDocsCodeBlock({ Tabs, Tab }),
+      }),
     );
     expect(html).toContain('role="tab" aria-selected="true"');
     expect(html).toContain('role="tabpanel" data-state="active"');

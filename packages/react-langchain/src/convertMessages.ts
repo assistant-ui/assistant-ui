@@ -77,11 +77,11 @@ export const createLangChainMetadataKey =
 
 const warnedMalformedMessages = new Set<string>();
 const warnOnceInDevelopment = (message: string) => {
-  if (
-    typeof process === "undefined" ||
-    process?.env?.NODE_ENV !== "development"
-  )
+  try {
+    if (process.env.NODE_ENV !== "development") return;
+  } catch {
     return;
+  }
   if (warnedMalformedMessages.has(message)) return;
   warnedMalformedMessages.add(message);
   console.warn(message);

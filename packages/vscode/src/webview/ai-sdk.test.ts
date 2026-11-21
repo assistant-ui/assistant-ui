@@ -47,12 +47,11 @@ describe("AI SDK route handler over the bridge", () => {
       body = (await req.json()) as typeof body;
       return createUIMessageStreamResponse({
         stream: createUIMessageStream({
-          execute: async ({ writer }) => {
+          execute: ({ writer }) => {
             writer.write({ type: "start" });
             writer.write({ type: "text-start", id: "t" });
             for (const delta of ["Hel", "lo ", "wörld 🌍"]) {
               writer.write({ type: "text-delta", id: "t", delta });
-              await new Promise((resolve) => setTimeout(resolve, 5));
             }
             writer.write({ type: "text-end", id: "t" });
             writer.write({ type: "finish" });

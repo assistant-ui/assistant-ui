@@ -4,5 +4,6 @@
 .turbo
 dist
 .docs
+.lighthouseci
 /public/rc/
 .farm

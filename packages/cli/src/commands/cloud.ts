@@ -1,6 +1,6 @@
 import { Command, Option } from "commander";
 import * as p from "@clack/prompts";
-import { fetchOrganizations, fetchProjects } from "aui-auth/accounts";
+import { fetchProjects } from "aui-auth/accounts";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,7 @@ import {
   savedCloudAccessToken,
   validateCloudUrl,
 } from "../lib/cloud-auth";
+import { fetchOrganizations } from "../lib/cloud-organizations";
 import { runCloudCommand, sendCloudCommand } from "../lib/cloud-remote";
 import {
   findCloudProjectDefaults,
@@ -25,6 +26,7 @@ import {
   provisionCloudHarness,
   resolveProvisionRequest,
 } from "../lib/cloud-provision";
+import { isLoopbackHostname } from "../lib/cloud-url";
 import { logger } from "../lib/utils/logger";
 import { create } from "./create";
 
@@ -292,10 +294,7 @@ export const setupCloud = async (
     );
   if (
     backend.protocol !== "https:" &&
-    !(
-      backend.protocol === "http:" &&
-      ["localhost", "127.0.0.1", "[::1]"].includes(backend.hostname)
-    )
+    !(backend.protocol === "http:" && isLoopbackHostname(backend.hostname))
   ) {
     throw new Error(
       "Use an HTTPS backend URL or an HTTP localhost URL for development.",

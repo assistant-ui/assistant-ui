@@ -7,6 +7,8 @@ import { AguiIcon } from "@/components/icons/agui";
 
 Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/ag-ui/quickstart) if you have not already.
 
+A message created locally keeps its local `id` when the agent later names it, so its row stays mounted. In that case, the agent's id is stored at `metadata.custom.agui.messageId` and is used when sending history back to the agent. A message created directly under the agent's id keeps that value as `message.id` without a `metadata.custom.agui.messageId` override. In a run rejoined in flight through `connect()`, a message that has no content and has not been stored yet when the agent names it takes the agent's id as its `id`, so clients following that run store it under the same id.
+
 ## useAgUiRuntime options
 
 | Option | Type | Description |
@@ -14,12 +16,13 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `agent` | `AbstractAgent` | An AG-UI client agent from `@ag-ui/client`, such as `HttpAgent`. Required. |
 | `logger` | `Partial<Logger>` | Optional logger overrides. The runtime logs event-parser warnings and run lifecycle events. |
 | `showThinking` | `boolean` | Whether to render `REASONING_*` events as visible reasoning. Defaults to `true`. |
+| `joinAdjacentAssistantMessages` | `boolean` | Join adjacent assistant records of an imported `MESSAGES_SNAPSHOT` into one message, as `fromAgUiMessages` does with the same option. Defaults to `false`. See [below](#joining-adjacent-assistant-records). |
 | `joinStrategy` | `"concat-content" \| "none"` | With `"concat-content"`, join assistant content from one run into a single message, including across `MESSAGES_SNAPSHOT` events. Defaults to `"none"`, which starts a new message for each new `TEXT_MESSAGE_START` id. |
 | `getRunContext` | `(input: { messages: readonly Message[]; runConfig: RunConfig \| undefined }) => readonly Context[]` | Return AG-UI context entries for each run using the messages and run config sent with that run. On resumes, `messages` follows `resumeTranscript`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `resumeTranscript` | `"full" \| "appended"` | What `messages` carries on a run that also carries `resume`. Defaults to `"full"`. See [below](#the-transcript-on-a-resume-run). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors, and when `getRunContext` throws; that run still goes ahead without the host entries (see [Run context](#run-context)). |
-| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
+| `onCancel` | `() => void` | Callback fired when a run is cancelled or the runtime stops following it during a thread switch or teardown. |
 | `unstable_enableMessageQueue` | `boolean` | Buffer a message sent while a run is in flight and send it once the run settles. Pending messages are exposed on `composer.queue`. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 
@@ -53,6 +56,7 @@ If the getter throws, the error is reported and the run continues without host e
 | Feedback | `adapters.feedback` | Thumbs up / down. See [feedback adapter](/docs/runtimes/concepts/adapters#feedback-adapter). |
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
+
 
 ## Activity snapshots
 
@@ -88,6 +92,14 @@ const runtime = useAgUiRuntime({
   },
 });
 ```
+
+When `load()` also returns `unstable_resume: true`, the thread has a run in
+flight. The runtime replays it through the adapter's `resume()` method, or, when
+the adapter has none and the agent implements AG-UI's `connect()`, rejoins it
+with `agent.connectAgent()`. With neither, it starts a new run, so the agent runs
+again. See [durable threads](/docs/runtimes/ag-ui/durable-threads).
+
+`thread.resumeRun({ parentId })` follows the run in flight the same way. Without a `stream`, it uses the history adapter's `resume()`, or else the agent's `connect()`. It starts the agent again only when the agent has no `connect()` and the adapter has no `resume()`. A `stream` passed to `resumeRun` is used as given.
 
 Messages sent during the session are always forwarded to the agent through the
 run input, independent of `append`. A no-op `append` is therefore only safe when
@@ -146,6 +158,12 @@ An assistant message whose tool call has no matching tool result is reconstructe
 
 Interrupts are restored when your backend persists them on the assistant message. The AG-UI message body has no interrupt field, so persist the runtime's own `metadata.custom.agui.interrupts` array alongside the message; `fromAgUiMessages` reads it back, reconstructs `requires-action` / `interrupt` status, and re-attaches the metadata, so `useAgUiInterrupts` and `useAgUiSubmitInterruptResponses` work on reload. When both a pending tool call and an interrupt are present on the same message, interrupt status wins. Without the persisted array, interrupt state cannot be reconstructed.
 
+### Joining adjacent assistant records
+
+A backend that rebuilds history from its own storage can give the record carrying a turn's tool call an id of its own. That record is not a container the client opened, so the turn comes back as one message with the tool step and another with the answer. An app that knows its backend splits a turn this way can pass `{ joinAdjacentAssistantMessages: true }` to `fromAgUiMessages`. The option of the same name on `useAgUiRuntime` applies it to a `MESSAGES_SNAPSHOT` the agent sends. History that a history adapter loads does not pass through it, so convert that history with the `fromAgUiMessages` option instead. With the option on, every assistant record that follows one holding prose or tool calls joins it. That includes a text record after a turn that already carries text, which the fold above keeps as a message of its own. The records keep their wire order, while each record's own text still comes ahead of its tool calls. Metadata and pending tool calls are merged. Each joining record that carries text hands its id to the merged message, so the message ends up with the id of the last text record in the run, or the first record's id when no later record has text. A user message ends the turn.
+
+The option is off by default, because nothing on the wire carries run identity. With it on, two runs whose assistant records sit next to each other with no user message between them come back as one message. On the next run, the joined message exports as one assistant record containing the answer and tool calls followed by the tool results, so the answer appears before the results it depends on. A backend that ignores the transcript it receives on the next run is unaffected. With `joinStrategy: "concat-content"`, snapshot reconciliation can prepend the active streamed assistant and keep its id instead of the id of the last record carrying text.
+
 ## Building AG-UI run input
 
 `toAgUiMessages` is the converter the runtime uses to build `runAgent` input. Use it when you own the transport, for example an AG-UI WebSocket, and need the same conversion from `onNew`'s `AppendMessage`:
@@ -170,9 +188,9 @@ The thread list adapter is currently experimental and may change without notice.
 | --- | --- | --- |
 | `threadId` | `string` | The currently active thread ID. |
 | `onSwitchToNewThread` | `() => Promise<void>` | Called when the user creates a new thread. Reset your thread state here. |
-| `onSwitchToThread` | `(threadId: string) => Promise<{ messages, state?, unstable_resume? }>` | Called when the user switches threads. Return the persisted messages and, optionally, the opaque state. Set `unstable_resume: true` when the thread has a run in flight; the runtime then resumes it through the history adapter's `resume()` method. |
+| `onSwitchToThread` | `(threadId: string) => Promise<{ messages, state?, unstable_resume? }>` | Called when the user switches threads. Return the persisted messages and, optionally, the opaque state. Set `unstable_resume: true` when the thread has a run in flight; the runtime then resumes it through the history adapter's `resume()` method, or, without one, rejoins it through `agent.connectAgent()` when the agent implements `connect()`. |
 
-Switching threads cancels the active run and discards messages queued for the previous thread. No run starts until the switch finishes, including one that `onCancel` would start; once a newer switch finishes, its thread accepts sends even while an older load is still pending.
+Switching threads stops the active run with `abortRun()` and discards messages queued for the previous thread. An agent that implements `connect()` is detached with `detachActiveRun()` instead: the client stops listening, the run keeps going on the server, and the thread can rejoin it later. Stop still calls `abortRun()`; see [durable threads](/docs/runtimes/ag-ui/durable-threads). No run starts until the switch finishes, including one that `onCancel` would start; once a newer switch finishes, its thread accepts sends even while an older load is still pending.
 
 ```tsx
 const runtime = useAgUiRuntime({
@@ -206,7 +224,7 @@ The interrupt API is experimental and may change without notice.
 
 When the agent emits `RUN_FINISHED` with `outcome = { type: "interrupt", interrupts: [...] }`, the active assistant message is marked `requires-action` with `reason: "interrupt"` and the `Interrupt[]` payload is written to `metadata.custom.agui.interrupts`. Render an approval / input UI from there.
 
-Because the protocol carries the outcome only on `RUN_FINISHED`, a registered frontend tool does not run while the run is still open: its `execute` fires once the run's outcome is known, so a gate can never land on a call the client has already executed.
+Because the protocol carries the outcome only on `RUN_FINISHED`, a registered frontend tool does not run while the run is still open: its `execute` fires once the run's outcome is known, so a gate can never land on a call the client has already executed. A call that an interrupt names through `toolCallId` never runs its `execute`, whatever the interrupt's `reason`, and it stays held after the interrupt is answered, the same as a call carrying an approval.
 
 `useAgUiRuntime` returns an `AgUiAssistantRuntime` with two extra methods:
 
@@ -283,13 +301,13 @@ A subagent that names no reachable spawning call has nowhere to nest, so its out
 
 A repeated `SUBAGENT_STARTED` for an id the run has already seen is treated as a continuation, since a suspended subagent is re-announced on resume. It refreshes the descriptive fields and reopens the status, but never re-parents an established run, which would move already-rendered output to a different tool call.
 
-A subagent's frontend-executed tool calls behave the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record. Approval gates cover nested calls too, so a gate naming a subagent-scoped call projects onto the nested part, the frontend tool stays unexecuted while the gate is open, and an undecided gate's result is never exported to the backend.
+A subagent's frontend-executed tool calls behave the same way the root agent's do: a call nested on `ToolCallMessagePart.messages` is reachable by `getPendingToolCalls()`, resolves through `addToolResult`, and its result rides the resume as a `tool` record on the spawning assistant record. Approval gates cover nested calls too, so a gate naming a subagent-scoped call projects onto the nested part, the frontend tool never runs its `execute`, and an undecided gate's result is never exported to the backend.
 
-Two limitations apply:
+A suspended subagent's interrupts are answered the same way the root agent's are. The protocol carries their full records on the run's `RUN_FINISHED` interrupt outcome, each naming its subagent in `subagentRunId`, while the `suspended` outcome's `interruptIds` only reference them. `useAgUiInterrupts` returns them beside any root interrupts, and `useAgUiSubmitInterruptResponses` answers them on the parent run's `resume`, which continues the suspended subagent.
+
+One limitation applies:
 
 - **Nested structure does not survive a reload.** Thread restore reads the flattened wire shape, so a restored subagent tool call comes back as a root-level part rather than nested under its spawning call. Results and decisions are preserved; only the nesting is not.
-
-- **Nested human-in-the-loop has no resume path.** A `SUBAGENT_FINISHED` carrying a `suspended` outcome marks the nested message `requires-action` and preserves its `interruptIds` on the message metadata, but nothing answers them yet.
 
 ### Compared to LangChain
 
@@ -299,9 +317,11 @@ Two limitations apply:
 
 The runtime parses the AG-UI event stream and maps each event type to assistant-ui state.
 
+During server cleanup, a tool approval that leaves other gates undecided is recorded immediately, while the approval that completes the batch waits for the response to close. Only the latest waiting action proceeds. Displaced plain sends resolve quietly because their messages travel with that request. A displaced interrupt response, completing tool approval, or `steerAway` rejects with "a run is already in progress" before recording a decision or changing the thread. A displaced approval reaches `onError` without recording a decision, so its gate remains answerable unless the displacing action was `steerAway`, which cancels the gate. An A2UI action deferred during cleanup travels exactly once in a user request already waiting for the response to close, in `forwardedProps.a2uiAction`. If no action is waiting and the finished run leaves an interrupt pending, the deferred A2UI action is dropped.
+
 | Event | Effect |
 | --- | --- |
-| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. A cancelled `RUN_FINISHED.outcome` leaves the message incomplete with reason `cancelled` and no answerable interrupts. An interrupt outcome leaves it requiring a response. On success, a non-empty `pendingToolCallIds` list makes the run require tool calls only when a listed call is still unresolved, and `getPendingToolCalls` then returns only the listed calls, so the run resumes once those are answered; with no list or an empty list, any unresolved call counts. |
+| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. `RUN_FINISHED` sets `isRunning` to false while the response stays open for server cleanup, unless the run already owes a continuation. A send, tool result continuation, interrupt response, or `steerAway` submitted during cleanup waits for the finished response to close on its own before starting another request. A sequential run whose `RUN_STARTED` arrives after an action begins waiting for cleanup is ignored in full, while an already accepted run continues streaming. Waiting work keeps `isRunning` true. Stop still aborts the response. Unmount and a thread switch abort it too, except for an agent that implements `connect()`, which is detached while its run continues on the server. A cancelled `RUN_FINISHED.outcome` leaves the message incomplete with reason `cancelled` and no answerable interrupts. An interrupt outcome leaves it requiring a response. On success, a non-empty `pendingToolCallIds` list makes the run require tool calls only when a listed call is still unresolved, and `getPendingToolCalls` then returns only the listed calls, so the run resumes once those are answered; with no list or an empty list, any unresolved call counts. |
 | `RUN_CANCELLED` | Marks the in-flight assistant message as cancelled. |
 | `RUN_ERROR` | Marks the message as errored; fires `onError`. |
 | `TEXT_MESSAGE_START` / `_CONTENT` / `_END` | Streams text content into an assistant message. |
@@ -345,7 +365,7 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
 | Thinking / reasoning blocks | Yes |
 | Tool calls and results | Yes |
 | Tool result handoff (client-side execution) | Yes |
-| Subagents (nested `ToolCallMessagePart.messages`) | Yes, with [two limitations](#subagents) |
+| Subagents (nested `ToolCallMessagePart.messages`) | Yes, with [one limitation](#subagents) |
 | State snapshots and deltas | Yes |
 | Custom events (as `data` parts) | Yes |
 | Cancellation | Yes |

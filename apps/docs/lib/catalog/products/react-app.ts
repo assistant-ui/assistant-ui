@@ -8,6 +8,6 @@ export const reactApp: CatalogItem = {
     "Point the setup at one of your React apps, or start a new one with the framework you pick.",
   href: "/docs/installation",
   glyph: "react",
-  docs: "/docs/installation",
+  docs: "/docs/manual-installation",
   agentMinutes: [2, 5],
 };

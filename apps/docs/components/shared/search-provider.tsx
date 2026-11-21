@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { SearchDialog } from "@/components/shared/search-dialog";
+import { SearchDialog } from "@/components/shared/lazy-search-dialog";
 import { analytics } from "@/lib/analytics";
 
 const subscribeToNothing = () => () => {};

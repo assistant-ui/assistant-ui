@@ -7,10 +7,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/accounts-auth", () => ({
-  get accountsOptions() {
-    return mocks.accountsOptions;
-  },
+  accountsIssuer: () => mocks.accountsOptions?.issuer ?? null,
   getAccessToken: mocks.getAccessToken,
+  // The session refresh in front of the route is aui-auth's, tested in lib/auth-origin.test.ts.
+  withDocsSession: <T>(route: T) => route,
 }));
 
 vi.mock("@/lib/cloud-projects", () => ({

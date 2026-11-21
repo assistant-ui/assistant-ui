@@ -192,16 +192,21 @@ const normalizedList = (
   return node.flatMap((child) => normalizedList(child));
 };
 
-function textBlock(
-  text: string,
-  extra?: Partial<Omit<TeamsTextBlock, "type" | "text" | "wrap">>,
-): TeamsTextBlock {
+// Teams reads a TextBlock (and a fact) as markdown, so model text such as `[text](url)` would become a link whose label need not match its target; a zero-width space between `]` and `(` keeps it plain text.
+const unlinked = (text: string): string =>
+  text.replaceAll("](", `]${String.fromCharCode(0x200b)}(`);
+
+type TextBlockExtra = Partial<Omit<TeamsTextBlock, "type" | "text" | "wrap">>;
+
+/** A TextBlock for markdown the converter built itself, or the Markdown component's own value. */
+function markdownBlock(text: string, extra?: TextBlockExtra): TeamsTextBlock {
   return { type: "TextBlock", text, wrap: true, ...extra };
 }
 
-// Teams reads a TextBlock as markdown, so a quoted `[text](url)` would become a second link next to the citation's own; a zero-width space between `]` and `(` keeps it plain text.
-const unlinked = (text: string): string =>
-  text.replaceAll("](", `]${String.fromCharCode(0x200b)}(`);
+/** A TextBlock for plain model text: markdown links are kept as literal text. */
+function textBlock(text: string, extra?: TextBlockExtra): TeamsTextBlock {
+  return markdownBlock(unlinked(text), extra);
+}
 
 const escapeLinkText = (text: string): string =>
   text.replace(/[\\[\]]/g, "\\$&");
@@ -280,8 +285,10 @@ function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
         ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
         : undefined;
     return {
-      title: asTextValue(fact.props["label"]),
-      value: deltaText === undefined ? value : `${value} (${deltaText})`,
+      title: unlinked(asTextValue(fact.props["label"])),
+      value: unlinked(
+        deltaText === undefined ? value : `${value} (${deltaText})`,
+      ),
     };
   });
   return { type: "FactSet", facts: set };
@@ -533,7 +540,7 @@ export function convertElement(
     case "Markdown":
       // Teams renders a strict subset of markdown (no headings, tables, images,
       // preformatted blocks, or blockquotes); unsupported syntax renders literally.
-      return [textBlock(asString(props["value"]))];
+      return [markdownBlock(asString(props["value"]))];
     case "Fact":
       return [convertFacts([element])];
     case "Image": {
@@ -1051,19 +1058,19 @@ export function convertElement(
           items: [
             ...(source !== undefined
               ? [
-                  textBlock(unlinked(source), {
+                  textBlock(source, {
                     size: "small",
                     isSubtle: true,
                   }),
                 ]
               : []),
-            textBlock(
-              href
-                ? `[${escapeLinkText(title)}](${markdownHref(href)})`
-                : title,
-            ),
+            href
+              ? markdownBlock(
+                  `[${escapeLinkText(title)}](${markdownHref(href)})`,
+                )
+              : textBlock(title),
             ...(snippet !== "" || props["snippet"] === ""
-              ? [textBlock(unlinked(snippet), { isSubtle: true })]
+              ? [textBlock(snippet, { isSubtle: true })]
               : []),
           ],
         },
@@ -1094,9 +1101,8 @@ export function convertElement(
           // Teams breaks a TextBlock's line only inside a list and trims leading spaces, so each source line gets a block of its own and keeps its indent as non-breaking spaces.
           items: lines.slice(0, DIAGRAM_LINE_CAP).map((line, index) =>
             textBlock(
-              unlinked(line).replace(/^ +/, (indent) =>
-                space.repeat(indent.length),
-              ) || space,
+              line.replace(/^ +/, (indent) => space.repeat(indent.length)) ||
+                space,
               {
                 fontType: "Monospace",
                 ...(index > 0 ? { spacing: "none" as const } : {}),
@@ -1104,9 +1110,7 @@ export function convertElement(
             ),
           ),
         },
-        ...(title
-          ? [textBlock(unlinked(title), { size: "small", isSubtle: true })]
-          : []),
+        ...(title ? [textBlock(title, { size: "small", isSubtle: true })] : []),
       ];
     }
     case "Map": {
@@ -1135,12 +1139,10 @@ export function convertElement(
         return {
           type: "Container",
           items: [
-            textBlock(
+            markdownBlock(
               `[${escapeLinkText(place.label)}](${markdownHref(href)})`,
             ),
-            ...(place.detail !== undefined
-              ? [textBlock(unlinked(place.detail))]
-              : []),
+            ...(place.detail !== undefined ? [textBlock(place.detail)] : []),
           ],
         };
       });

@@ -8,15 +8,14 @@
 import type { GET as GET_anonymous_session } from "../app/api/anonymous-session/route";
 import type { OPTIONS as OPTIONS_anonymous_session } from "../app/api/anonymous-session/route";
 import type { GET as GET_assistant_token } from "../app/api/assistant-token/route";
-import type { GET as GET_auth_callback } from "../app/api/auth/callback/route";
-import type { GET as GET_auth_login } from "../app/api/auth/login/route";
-import type { POST as POST_auth_logout } from "../app/api/auth/logout/route";
-import type { GET as GET_auth_logout_complete } from "../app/api/auth/logout-complete/route";
+import type { GET as GET_auth_____aui_ } from "../app/api/auth/[...aui]/route";
+import type { POST as POST_auth_____aui_ } from "../app/api/auth/[...aui]/route";
 import type { GET as GET_auth_session } from "../app/api/auth/session/route";
 import type { POST as POST_chat } from "../app/api/chat/route";
 import type { OPTIONS as OPTIONS_chat } from "../app/api/chat/route";
 import type { GET as GET_cloud_projects } from "../app/api/cloud/projects/route";
 import type { GET as GET_consent } from "../app/api/consent/route";
+import type { POST as POST_contact_sales } from "../app/api/contact-sales/route";
 import type { POST as POST_demo_claim } from "../app/api/demo/claim/route";
 import type { GET as GET_demo_usage } from "../app/api/demo/usage/route";
 import type { POST as POST_doc_chat } from "../app/api/doc/chat/route";
@@ -50,17 +49,9 @@ export type APIRouter = {
     get: typeof GET_assistant_token;
   };
   auth: {
-    callback: {
-      get: typeof GET_auth_callback;
-    };
-    login: {
-      get: typeof GET_auth_login;
-    };
-    logout: {
-      post: typeof POST_auth_logout;
-    };
-    "logout-complete": {
-      get: typeof GET_auth_logout_complete;
+    "[...aui]": {
+      get: typeof GET_auth_____aui_;
+      post: typeof POST_auth_____aui_;
     };
     session: {
       get: typeof GET_auth_session;
@@ -77,6 +68,9 @@ export type APIRouter = {
   };
   consent: {
     get: typeof GET_consent;
+  };
+  "contact-sales": {
+    post: typeof POST_contact_sales;
   };
   demo: {
     claim: {
@@ -165,20 +159,8 @@ export const apiRoutes = [
     methods: ["GET"],
   },
   {
-    path: "/api/auth/callback",
-    methods: ["GET"],
-  },
-  {
-    path: "/api/auth/login",
-    methods: ["GET"],
-  },
-  {
-    path: "/api/auth/logout",
-    methods: ["POST"],
-  },
-  {
-    path: "/api/auth/logout-complete",
-    methods: ["GET"],
+    path: "/api/auth/[...aui]",
+    methods: ["GET", "POST"],
   },
   {
     path: "/api/auth/session",
@@ -195,6 +177,10 @@ export const apiRoutes = [
   {
     path: "/api/consent",
     methods: ["GET"],
+  },
+  {
+    path: "/api/contact-sales",
+    methods: ["POST"],
   },
   {
     path: "/api/demo/claim",

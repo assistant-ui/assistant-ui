@@ -21,7 +21,7 @@ import {
   validateGeneralChatInput,
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
-import { getSession } from "@/lib/accounts-auth";
+import { getSession, withDocsSession } from "@/lib/accounts-auth";
 import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
 import { searchImagesTool } from "@/lib/ai/search-images";
@@ -63,7 +63,9 @@ export async function OPTIONS(req: Request) {
   return new Response(null, { status: 204, headers: corsHeaders(req) });
 }
 
-export async function POST(req: Request) {
+export const POST = withDocsSession(chat);
+
+async function chat(req: Request) {
   try {
     const session = requirePublicAssistantSession(req);
     if (session instanceof Response) return withCors(req, session);

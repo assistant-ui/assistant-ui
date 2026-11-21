@@ -4,7 +4,6 @@ import {
   type BuilderConfig,
 } from "@/components/pages/playground/types";
 import { decodeConfig } from "@/lib/playground-config-codec";
-import { registryConfigSchema } from "@/lib/playground-config-schema";
 import { generateRegistryJson } from "@/lib/playground-registry";
 
 export function GET(request: Request) {
@@ -26,9 +25,6 @@ export function GET(request: Request) {
   } else if (configEncoded) {
     try {
       config = decodeConfig(configEncoded);
-      if (!registryConfigSchema.safeParse(config).success) {
-        throw new Error("Invalid configuration");
-      }
     } catch {
       return Response.json(
         { error: "Invalid configuration encoding" },

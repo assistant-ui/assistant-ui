@@ -6,7 +6,6 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { getRepo } from "@/lib/github";
 import { highlightElementSource } from "@/lib/element-source";
 import { getWeeklyDownloads } from "@/lib/npm";
-import reactPackage from "../../../../packages/react/package.json";
 
 export const ppr = true;
 export const revalidate = 3600;
@@ -166,7 +165,7 @@ export default async function HomePage() {
         <Hero stars={repo?.stars ?? null} downloads={downloads} />
         <HomeDemo />
       </div>
-      <LibraryBody setupTabs={setupTabs} reactVersion={reactPackage.version} />
+      <LibraryBody setupTabs={setupTabs} />
     </PageFrame>
   );
 }

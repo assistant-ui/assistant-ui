@@ -22,8 +22,13 @@ import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
 import { ElementStatesPreview } from "@/components/pages/elements/element-states";
-import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
-import { AgentSetup } from "@/components/shared/shop-entry";
+import {
+  ELEMENTS,
+  elementRegistryName,
+  getElement,
+} from "@/components/pages/elements/registry";
+import { ElementDemo } from "@/components/pages/elements/element-demos";
+import { AgentSetup } from "@/components/shared/lazy-agent-setup";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { elementProductSlug } from "@/lib/catalog/products/elements";
 import { getGenerativeElement } from "@/lib/generative-elements";
@@ -116,8 +121,7 @@ export default async function ElementPage({
   const generativeEntry = element.generative
     ? getGenerativeElement(slug)
     : undefined;
-  const registryName =
-    element.registryName ?? `elements-${element.installName ?? element.slug}`;
+  const registryName = elementRegistryName(element);
   const source = element.file ? await readElementSource(element.file) : null;
   const highlightedUsage =
     doc && !mdxPage ? await highlightElementSource(doc.usage) : null;
@@ -277,7 +281,11 @@ export default async function ElementPage({
               }
             >
               {element.variants ? (
-                <DemoVariants slug={element.slug} replay={replayable} />
+                <DemoVariants
+                  slug={element.slug}
+                  variants={element.variants}
+                  replay={replayable}
+                />
               ) : (
                 <div
                   className={cn(
@@ -286,7 +294,7 @@ export default async function ElementPage({
                   )}
                 >
                   <DemoStage replay={replayable}>
-                    <element.Component />
+                    <ElementDemo demo={element.slug} />
                   </DemoStage>
                 </div>
               )}

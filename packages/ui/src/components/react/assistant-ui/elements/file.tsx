@@ -67,7 +67,8 @@ function getFileDataKind(
   sourceType?: "url" | "id",
 ): FileDataKind {
   if (sourceType === "url" && /^data:/i.test(data)) return "data-uri";
-  if (sourceType) return sourceType;
+  // A stored part can carry any value here; only the two literals count.
+  if (sourceType === "url" || sourceType === "id") return sourceType;
   if (/^data:/i.test(data)) return "data-uri";
   if (/^(https?:\/\/|blob:)/i.test(data)) return "url";
   return "base64";
@@ -314,21 +315,38 @@ function FilePlayer({
   );
 }
 
-const FileImpl: FileMessagePartComponent = ({
-  filename,
-  data,
-  mimeType,
-  sourceType,
-}) => {
-  const kind = getFileDataKind(data, sourceType);
-  const showSize =
-    typeof data === "string" && (kind === "base64" || kind === "data-uri");
-  const mediaSource = getFileHref(data, mimeType, sourceType);
+const FileImpl: FileMessagePartComponent = (part) => {
+  // History from storage can carry fields of the wrong type; render a generic
+  // file instead of throwing. Without string data there is nothing to play,
+  // size or download.
+  const data = typeof part.data === "string" ? part.data : undefined;
+  const mimeType =
+    typeof part.mimeType === "string"
+      ? part.mimeType
+      : "application/octet-stream";
+  const filename =
+    typeof part.filename === "string" ? part.filename : undefined;
+  const sourceType =
+    part.sourceType === "url" || part.sourceType === "id"
+      ? part.sourceType
+      : undefined;
+  const kind =
+    data === undefined ? undefined : getFileDataKind(data, sourceType);
+  const bytes =
+    data === undefined
+      ? undefined
+      : kind === "data-uri"
+        ? getDataUrlSize(data)
+        : kind === "base64"
+          ? getBase64Size(data)
+          : undefined;
+  const mediaSource =
+    data === undefined ? null : getFileHref(data, mimeType, sourceType);
   const isMedia =
     mimeType.toLowerCase().startsWith("audio/") ||
     mimeType.toLowerCase().startsWith("video/");
 
-  if (mediaSource && isMedia) {
+  if (data !== undefined && mediaSource && isMedia) {
     return (
       <div className="flex w-full max-w-xl flex-col gap-2">
         <FilePlayer
@@ -338,11 +356,9 @@ const FileImpl: FileMessagePartComponent = ({
           {...(sourceType !== undefined && { sourceType })}
         />
         <div className="flex min-w-0 items-center justify-end gap-2 px-1">
-          {showSize && (
+          {bytes !== undefined && (
             <FileSize
-              bytes={
-                kind === "data-uri" ? getDataUrlSize(data) : getBase64Size(data)
-              }
+              bytes={bytes}
               className="text-muted-foreground text-[11px]"
             />
           )}
@@ -362,21 +378,16 @@ const FileImpl: FileMessagePartComponent = ({
       <FileIconDisplay mimeType={mimeType} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <FileName>{filename || getFileLabel(mimeType)}</FileName>
-        {showSize && (
-          <FileSize
-            bytes={
-              kind === "data-uri" ? getDataUrlSize(data) : getBase64Size(data)
-            }
-            className="text-xs"
-          />
-        )}
+        {bytes !== undefined && <FileSize bytes={bytes} className="text-xs" />}
       </div>
-      <FileDownload
-        data={data}
-        mimeType={mimeType}
-        {...(filename !== undefined && { filename })}
-        {...(sourceType !== undefined && { sourceType })}
-      />
+      {data !== undefined && (
+        <FileDownload
+          data={data}
+          mimeType={mimeType}
+          {...(filename !== undefined && { filename })}
+          {...(sourceType !== undefined && { sourceType })}
+        />
+      )}
     </FileRoot>
   );
 };

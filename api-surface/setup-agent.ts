@@ -6,12 +6,9 @@ declare const AGENT_HEARTBEAT_MS = 5000;
 
 declare const AGENT_PRESENCE_MS = 15000;
 
-type AgentInstructionsOptions = {
-  startedByAgent?: {
-    browserUrl: string;
-    opened?: boolean;
-  };
-};
+type AskReason = "browser-closed" | "no-browser" | "recently-opened";
+
+declare const BROWSER_HEARTBEAT_MS = 5000;
 
 declare const CODING_AGENTS: readonly CodingAgent[];
 
@@ -125,6 +122,10 @@ declare namespace Checkout {
       kind: string | null;
       introducedAt: number | null;
     };
+    browser?: {
+      lastSeenAt: number | null;
+      connected: boolean;
+    };
     plans: Plan[];
     steps: Step[];
     inputs: Input[];
@@ -196,6 +197,8 @@ declare namespace Checkout {
     }) => void;
     "agent/heartbeat": () => void;
     "agent/bye": () => void;
+    "browser/heartbeat": () => void;
+    "browser/bye": () => void;
     "agent/plan": (params: {
       markdown: string;
     }) => {
@@ -227,7 +230,7 @@ declare namespace Checkout {
       preview?: string;
     }) => void;
   };
-  type RejectionReason = "already-created" | "closed" | "empty-message" | "empty-plan" | "feedback-required" | "finish-not-proposed" | "input-closed" | "invalid-answer" | "invalid-input" | "invalid-preview" | "no-plan" | "not-created" | "plan-decided" | "plan-required" | "planning-not-started" | "stale-plan" | "unknown-input" | "unknown-message" | "unknown-product" | "unknown-step";
+  type RejectionReason = "already-created" | "closed" | "empty-message" | "empty-plan" | "feedback-required" | "finish-not-proposed" | "input-closed" | "invalid-answer" | "invalid-input" | "invalid-preview" | "no-plan" | "not-created" | "plan-decided" | "plan-required" | "planning-not-started" | "setup-full" | "stale-plan" | "unknown-input" | "unknown-message" | "unknown-product" | "unknown-step";
 }
 
 type CheckoutClient = StatewireClient<Checkout.State | undefined, Checkout.Commands>;
@@ -251,11 +254,91 @@ type CodingAgent = {
   };
 };
 
+type FollowSetupOptions = {
+  guide: Pick<Guide, "texts">;
+  print?: (events: StreamEvent[]) => void;
+  agent?: {
+    cwd?: string;
+    kind?: string;
+  };
+  browser?: {
+    setupAppUrl: string;
+    linkId: string;
+    answerCommand: string;
+    open?: (url: string) => void;
+    canOpen?: boolean;
+    now?: () => number;
+  };
+};
+
+declare const GUIDE_PROTOCOL = 1;
+
+declare const GUIDE_TEXT_KEYS: readonly [
+  "briefing",
+  "intro.status-heading",
+  "stream.briefing",
+  "stream.briefing-footer",
+  "stream.stay-connected",
+  "stream.opened.input",
+  "stream.opened.plan",
+  "stream.opened.finish",
+  "stream.ask.recently-opened",
+  "stream.ask.browser-closed",
+  "stream.ask.no-browser",
+  "wait.waiting",
+  "done.next",
+  "need.plan.question",
+  "need.plan.approve",
+  "need.plan.revise",
+  "need.plan.format",
+  "need.finish.question",
+  "need.finish.question-preview",
+  "need.finish.close",
+  "need.finish.format",
+  "need.input.empty-prompt",
+  "need.input.optional",
+  "need.input.model",
+  "need.product.add",
+  "need.product.decline",
+  "need.format.text",
+  "need.format.product",
+  "need.format.model",
+  "need.format.entry-point",
+  "need.format.choice",
+  "need.format.multiple"
+];
+
+type Guide = {
+  protocol: typeof GUIDE_PROTOCOL;
+  texts: Record<GuideTextKey, string>;
+  intro: GuideStep[];
+};
+
+type GuideContext = {
+  started: "agent" | "agent-stream" | "user";
+  opened: boolean;
+};
+
+type GuideStep = {
+  action: "print";
+  text: GuideTextKey;
+} | {
+  action: "print-status";
+} | {
+  action: "announce-agent";
+};
+
+type GuideTextKey = (typeof GUIDE_TEXT_KEYS)[number];
+
 declare const HELP: string;
 
 declare const INPUT_PRESETS: Record<PresetId, Preset>;
 
-declare const INSTRUCTIONS: (setupUrl: string, options?: AgentInstructionsOptions) => string;
+type NeedOption = {
+  id: string;
+  label: string;
+  description?: string;
+};
 
 declare const OPTION_ICONS: readonly [
   "code",
@@ -338,6 +421,37 @@ type ResourceElement<V> = {
   readonly deps?: readonly unknown[];
 };
 
+type RunAgentSetupOptions = {
+  server: string;
+  setupAppUrl: string;
+  products: Checkout.ProductSeed[];
+  command: string;
+  name?: string;
+  canOpen?: boolean;
+  open?: (url: string) => void;
+  onSession?: (session: SetupSession) => void;
+  write?: (text: string) => void;
+  env?: NodeJS.ProcessEnv;
+  connect?: (url: string) => Promise<CheckoutClient>;
+  stream?: Pick<FollowSetupOptions, "agent" | "print">;
+};
+
+type RunSetupCommandOptions = {
+  command?: string;
+  browser?: {
+    setupAppUrl: string;
+    canOpen?: boolean;
+  };
+};
+
+type SetupSession = {
+  linkId: string;
+  setupId: string;
+  agentUrl: string;
+  browserUrl: string;
+  products: Checkout.ProductSeed[];
+};
+
 type StreamEvent = {
   event: "planning.started";
 } | {
@@ -371,9 +485,25 @@ type StreamEvent = {
 } | {
   event: "setup.created";
   products: string[];
-};
+} | {
+  event: "browser.opened";
+  id: string;
+  url: string;
+  message: string;
+} | ({
+  event: "input.needed";
+  id: string;
+  reason: AskReason;
+  message: string;
+  answer: string;
+} & TerminalQuestion);
 
-declare const agentInstructions: (setupUrl: string, options?: AgentInstructionsOptions) => string;
+type TerminalQuestion = {
+  question: string;
+  options?: NeedOption[];
+  multiple?: true;
+  answerFormat: string;
+};
 
 declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Checkout.InputSeed & {
   stepId?: string;
@@ -382,7 +512,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { AgentInstructionsOptions, CODING_AGENTS, CodingAgent, HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, runCodingAgent, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { CODING_AGENTS, CodingAgent, HELP, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -391,7 +521,7 @@ declare const currentPlan: (state: Checkout.State) => Checkout.Plan | undefined;
 
 declare const detectAgentKind: (env?: NodeJS.ProcessEnv) => string | undefined;
 
-declare const diffEvents: (before: Checkout.State, after: Checkout.State) => StreamEvent[];
+declare const diffEvents: (before: Checkout.State, after: Checkout.State, guide: Pick<Guide, "texts">) => StreamEvent[];
 
 declare const findCommand: (commands: readonly string[], env?: NodeJS.ProcessEnv) => string | undefined;
 
@@ -404,7 +534,7 @@ declare namespace entry_host_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, Checkout, CheckoutClient, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isClosed, isOptionIcon, isPresetId, isValidEntryPointAnswer, isValidEntryPointInput, isValidModelAnswer, openInputs, parseChoiceAnswer, parseEntryPointOptions, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, stepProgress };
+  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, BROWSER_HEARTBEAT_MS, Checkout, CheckoutClient, GUIDE_PROTOCOL, Guide, GuideContext, GuideStep, GuideTextKey, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isClosed, isOptionIcon, isPresetId, isValidEntryPointAnswer, isValidEntryPointInput, isValidModelAnswer, openInputs, parseChoiceAnswer, parseEntryPointOptions, parseGuide, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, stepProgress };
 }
 
 declare const initialCheckoutState: () => Checkout.State;
@@ -434,11 +564,13 @@ declare const main: (argv: readonly string[]) => Promise<void>;
 declare const openInputs: (state: Checkout.State) => Checkout.Input[];
 
 declare const parseChoiceAnswer: (answer: string) => {
-  variant?: string;
   option: string;
+  variant?: string;
 };
 
 declare const parseEntryPointOptions: (value: unknown) => Checkout.EntryPointOption[] | undefined;
+
+declare const parseGuide: (value: unknown) => Guide;
 
 declare const parseModelAnswer: (answer: string) => Checkout.ModelAnswer | undefined;
 
@@ -454,7 +586,21 @@ declare const presetInput: (id: PresetId, overrides?: PresetOverrides) => Checko
   stepId?: string;
 };
 
+declare const runAgentSetup: (options: RunAgentSetupOptions) => Promise<{
+  session: SetupSession;
+  stream: {
+    stop: () => Promise<void>;
+  };
+  client: CheckoutClient;
+}>;
+
 declare const runCodingAgent: (agent: CodingAgent, prompt: string) => Promise<number | undefined>;
+
+declare const runSetupCommand: (argv: readonly string[], options?: RunSetupCommandOptions) => Promise<void>;
+
+declare namespace entry_sdk_exports {
+  export { RunAgentSetupOptions, SetupSession, runAgentSetup };
+}
 
 declare const stepProgress: (state: Checkout.State) => {
   total: number;
@@ -467,4 +613,4 @@ declare const waitForStart: (client: Pick<CheckoutClient, "state" | "subscribe">
 
 declare const writeEnvSecret: (file: string, key: string, take: () => Promise<string>, projectRoot?: string) => Promise<void>;
 
-export { entry_cli_exports as entry_cli, entry_host_exports as entry_host, entry_root_exports as entry_root };
+export { entry_cli_exports as entry_cli, entry_host_exports as entry_host, entry_root_exports as entry_root, entry_sdk_exports as entry_sdk };

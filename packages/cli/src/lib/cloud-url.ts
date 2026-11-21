@@ -1,4 +1,4 @@
-const isLoopbackHostname = (hostname: string): boolean =>
+export const isLoopbackHostname = (hostname: string): boolean =>
   hostname === "localhost" ||
   hostname === "[::1]" ||
   /^127(?:\.\d{1,3}){3}$/.test(hostname);

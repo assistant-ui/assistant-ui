@@ -167,6 +167,8 @@ export class AssistantFrameProvider {
 
     if (!tool) {
       error = `Tool "${message.toolName}" not found`;
+    } else if (tool.disabled) {
+      error = `Tool "${message.toolName}" is disabled`;
     } else {
       try {
         result = tool.execute

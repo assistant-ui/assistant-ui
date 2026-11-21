@@ -29,11 +29,9 @@ export async function GET(req: Request) {
       bytes: zip,
     });
   } catch (error) {
+    console.error("[api/xulux/demo-download]", error);
     return Response.json(
-      {
-        error: "Failed to generate demo download.",
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to generate demo download." },
       { status: 500 },
     );
   }

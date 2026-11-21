@@ -8,7 +8,7 @@ export type ViewportContentInsetHandle = {
 export type ViewportContext = {
   isAtBottom: ShallowRef<boolean>;
   scrollToBottom: (behavior?: ScrollBehavior) => void;
-  registerContentInset: () => ViewportContentInsetHandle;
+  registerContentInset: (measure?: () => number) => ViewportContentInsetHandle;
 };
 
 export const viewportInjectionKey: InjectionKey<ViewportContext> = Symbol(

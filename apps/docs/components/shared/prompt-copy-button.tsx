@@ -9,6 +9,7 @@ export function PromptCopyButton({
   text,
   label,
   onCopy,
+  bare,
   children,
 }: {
   /** What lands on the clipboard. */
@@ -16,6 +17,8 @@ export function PromptCopyButton({
   /** The button's accessible name. */
   label: string;
   onCopy?: () => void;
+  /** No border or fill of its own, for use inside a split control. */
+  bare?: boolean;
   /** The prompt as shown. */
   children: ReactNode;
 }) {
@@ -31,7 +34,11 @@ export function PromptCopyButton({
         copyToClipboard(text);
         onCopy?.();
       }}
-      className="group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 rounded-control focus-visible:ring-ring inline-flex max-w-full items-center gap-3 border py-2 pr-2.5 pl-3.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className={
+        bare
+          ? "group hover:bg-muted/50 focus-visible:ring-ring inline-flex min-w-0 items-center gap-3 py-2 pr-2.5 pl-3.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+          : "group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 rounded-control focus-visible:ring-ring inline-flex max-w-full items-center gap-3 border py-2 pr-2.5 pl-3.5 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      }
     >
       <span className="text-muted-foreground group-hover:text-foreground min-w-0 transition-colors">
         {children}

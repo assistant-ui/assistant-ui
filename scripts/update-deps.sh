@@ -10,8 +10,34 @@ cd "$REPO_ROOT"
 EXPO_MANIFEST="examples/with-expo/package.json"
 expo_manifest_backup="$(mktemp)"
 expo_matrix_backup="$(mktemp)"
+install_log="$(mktemp)"
 expo_repin_skipped=0
 run_completed=0
+
+# Copies a step's stderr into the install log on its way to the terminal. stdout is
+# left alone so the Expo CLI still sees a TTY.
+run_logged() {
+  { "$@" 2>&1 1>&3 3>&- | tee -a "$install_log" >&2; } 3>&1
+}
+
+# pnpm refuses a release that lost the trusted publishing or provenance an earlier
+# release had (`trustPolicy` in pnpm-workspace.yaml). Its message wraps wherever the
+# terminal width falls, so the two words match with anything between them. grep reads
+# to the end rather than quitting early, which would fail `tr` under pipefail.
+trust_downgraded() {
+  tr '\n' ' ' <"$install_log" | grep -Ei 'trust[^[:alpha:]]+downgrade' >/dev/null
+}
+
+# Waiting never clears a trust downgrade, so it gets its own remedy instead of the
+# release-age advice below.
+report_trust_downgrade() {
+  trust_downgraded || return 0
+  echo "" >&2
+  echo "pnpm refused a release that lost the trusted publishing or provenance an earlier" >&2
+  echo "release had. Check the release named above on the registry, add its exact" >&2
+  echo "name@version to trustPolicyExclude in pnpm-workspace.yaml, and rerun." >&2
+  return 0
+}
 
 # The restore fires on any pre-install failure, including one an unrelated package
 # caused, and whatever failed usually kills the run again at the final install. The
@@ -26,7 +52,7 @@ report_expo_repin() {
   fi
   return 0
 }
-trap 'report_expo_repin; rm -f "$expo_manifest_backup" "$expo_matrix_backup"' EXIT
+trap 'report_trust_downgrade; report_expo_repin; rm -f "$expo_manifest_backup" "$expo_matrix_backup" "$install_log"' EXIT
 cp "$EXPO_MANIFEST" "$expo_manifest_backup"
 
 # The wipe below removes the installed SDK matrix, and the restore runs on the path
@@ -61,8 +87,13 @@ rm -f pnpm-lock.yaml
 # Expo bumps are unsanctioned without the repin, so restoring just those entries
 # drops them until the release ages, while taze's other bumps in the same manifest
 # stand.
-if ! pnpm install --no-frozen-lockfile ||
-  ! (cd examples/with-expo && npx expo install --fix); then
+if ! run_logged pnpm install --no-frozen-lockfile ||
+  ! (cd examples/with-expo && run_logged npx expo install --fix); then
+  # Restoring the Expo entries only gets past a release-age block. The final install
+  # would hit a trust downgrade again, so stop here and report it.
+  if trust_downgraded; then
+    exit 1
+  fi
   expo_repin_skipped=1
   # shellcheck disable=SC2016 # the JS body must not be expanded by the shell
   node -e '
@@ -109,8 +140,8 @@ node -e '
   }
 ' "$EXPO_MANIFEST"
 
-pnpm install
-pnpm dedupe
+run_logged pnpm install
+run_logged pnpm dedupe
 bash scripts/generate-deps-changeset.sh
 
 run_completed=1

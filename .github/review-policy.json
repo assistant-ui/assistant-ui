@@ -38,11 +38,13 @@
         "CONTRIBUTING.md",
         "AGENTS.md",
         "scripts/review-tier.mjs",
+        "scripts/review-budget.mjs",
         "scripts/diff-api-surface.mjs",
         "scripts/review-coverage-advice.mjs",
         "scripts/sync-review-policy.mjs",
         "scripts/review-health.mjs",
-        "scripts/lib/review-*.mjs"
+        "scripts/lib/review-*.mjs",
+        "apps/docs/public/downloads/*.tgz"
       ],
       "contractDocs": []
     }
@@ -67,7 +69,10 @@
     ".github/workflows/npm-publish.yaml",
     ".github/workflows/changeset.yaml",
     ".github/workflows/pypi-publish.yaml",
+    ".pnpmfile.*",
+    "**/.npmrc",
     "scripts/review-tier.mjs",
+    "scripts/review-budget.mjs",
     "scripts/diff-api-surface.mjs",
     "scripts/review-coverage-advice.mjs",
     "scripts/sync-review-policy.mjs",

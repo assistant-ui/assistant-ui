@@ -12,7 +12,7 @@ export function autofixInstallArgs(changedFiles, base) {
 
   return [
     ...args,
-    "--filter=.",
+    "--filter={.}...",
     "--filter=@assistant-ui/x-buildutils...",
     `--filter=...[${base}]...`,
     "--filter=!./apps/*",

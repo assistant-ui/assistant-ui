@@ -312,6 +312,30 @@ describe("cloud login through the setup wizard", () => {
     interval: 5,
   };
 
+  it.each([
+    ["  build-box.local  ", "build-box.local"],
+    [`${"h".repeat(70)}`, "h".repeat(64)],
+    ["   ", undefined],
+  ])("names the device login after host %j", async (host, expected) => {
+    const config = await fixture();
+    bridge();
+    const hostname = vi.spyOn(os, "hostname").mockReturnValue(host);
+    login.start.mockResolvedValue(authorization);
+    login.wait.mockResolvedValue(credentials);
+    try {
+      await loginToCloud(config, {
+        setupUrl: "https://checkout.test/session",
+        print: () => {},
+      });
+    } finally {
+      hostname.mockRestore();
+    }
+    const options = createDeviceLogin.mock.lastCall![0];
+    if (expected === undefined)
+      expect(options).not.toHaveProperty("deviceName");
+    else expect(options.deviceName).toBe(expected);
+  });
+
   it("keeps device polling and tokens in the CLI and reports only public approval and status", async () => {
     const config = await fixture();
     const { setup } = bridge();
@@ -323,6 +347,11 @@ describe("cloud login through the setup wizard", () => {
       print,
     });
     expect(setup.publish).toHaveBeenCalledWith(authorization, config.issuer);
+    expect(createDeviceLogin.mock.lastCall![0]).toMatchObject({
+      issuer: config.issuer,
+      clientId: config.clientId,
+    });
+    expect(createDeviceLogin.mock.lastCall![0]).not.toHaveProperty("audience");
     expect(login.wait).toHaveBeenLastCalledWith(authorization, {
       signal: expect.any(AbortSignal),
     });

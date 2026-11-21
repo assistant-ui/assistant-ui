@@ -7,11 +7,35 @@ import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import type { UIMessage } from "ai";
 import toolkit from "../../toolkit";
 
+// Refuses cross-origin browser requests so another origin cannot spend this app's model key or drive its tools. This is not authentication: add your own before you deploy the app publicly.
+function isAllowedRequestContext(req: Request) {
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === new URL(req.url).origin;
+  } catch {
+    return false;
+  }
+}
+
 export const maxDuration = 30;
 
 const aiToolkit = new AISDKToolkit({ toolkit });
 
 export async function POST(req: Request) {
+  if (!isAllowedRequestContext(req)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   const {
     messages,
     system,

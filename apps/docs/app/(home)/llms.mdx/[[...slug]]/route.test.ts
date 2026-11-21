@@ -10,7 +10,7 @@ vi.mock("@/lib/docs-markdown", async (importOriginal) => ({
   getDocsMarkdown,
 }));
 
-import { GET } from "./route";
+import { GET, generateStaticParams } from "./route";
 
 describe("GET", () => {
   it("returns cache validators with default React markdown", async () => {
@@ -33,5 +33,11 @@ describe("GET", () => {
       /^"sha256-[a-f0-9]{64}"$/,
     );
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
+  });
+});
+
+describe("generateStaticParams", () => {
+  it("prerenders one page so the rest are cached after their first request", () => {
+    expect(generateStaticParams()).toEqual([{ slug: [] }]);
   });
 });

@@ -1,0 +1,65 @@
+# Durable Pydantic AI threads
+
+A Pydantic AI agent served over AG-UI whose threads survive a closed or crashed browser. Close the tab mid-answer, open the thread again, and the answer picks up where the stream is now and finishes. Every message shows up once.
+
+## Run it
+
+Server (Python 3.11+, [uv](https://docs.astral.sh/uv/)):
+
+```sh
+cd server
+uv sync
+uv run uvicorn main:app --port 8000
+```
+
+Without `OPENAI_API_KEY` the server uses a demo model that streams a canned answer slowly, so there is time to close the tab. Set `OPENAI_API_KEY` (and optionally `MODEL`) to use OpenAI.
+
+Frontend:
+
+```sh
+cp .env.example .env.local
+pnpm dev
+```
+
+Open http://localhost:3000, send a message, and reload the page or close the tab while the answer is streaming. Reopen the URL; it carries `?thread=<id>`.
+
+## How it works
+
+The server is `DurableAGUI` from `assistant_stream.pydantic_ai` (`pip install "assistant-stream[pydantic-ai]>=0.0.37"`; in this repo the server uses the package source); `server/main.py` only picks the agent and the stores. See the [durable threads guide](https://www.assistant-ui.com/docs/runtimes/ag-ui/durable-threads).
+
+| Piece | Keeps | Default here | Production |
+| --- | --- | --- | --- |
+| `ThreadStore` | the thread transcript and whether a run is active | SQLite (`threads.db`) | Postgres: set `DATABASE_URL` and `uv sync --extra postgres` |
+| Resumable stream (`assistant_stream.resumable`) | every AG-UI frame of the active run | in memory | Redis: set `REDIS_URL` |
+| Pydantic AI | the agent run | in-process task | in-process task; a run stops if its server process dies |
+
+- `POST /agent` stores the run's input, starts the run in a background task, and streams its frames from the resumable stream. A closed browser only stops the read; the run keeps going.
+- When the run ends, the transcript and "not running" are written in one record.
+- `GET /threads/{id}` returns the transcript and `running`. While a run is active the transcript holds only its input, so the run's output arrives once, from the stream.
+- `GET /threads/{id}/stream` replays the active run from its first frame, then follows it live.
+- `POST /threads/{id}/cancel` stops the run. The partial answer is kept.
+
+On the client, `DurableHttpAgent` (`lib/durable-agent.ts`) implements AG-UI's `connect()`. When the history adapter reports a running thread, `useAgUiRuntime` rejoins the run through `agent.connectAgent()` instead of starting a new one. Stop calls `abortRun()`, which cancels the run on the server. Switching threads or unmounting only drops the connection.
+
+## With Assistant Cloud
+
+Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` in `.env.local` to an Assistant Cloud frontend API URL. Assistant Cloud then keeps the thread list and the messages, and the server keeps the runs (`app/CloudRuntimeProvider.tsx`). Each cloud thread's external id is the durable server's thread id.
+
+`lib/cloud-durable.ts` wraps the Cloud history: a thread opened mid-run rejoins the run in place of the stored partial reply, and a run that finished with no tab open has its answer stored. A second tab leaves the reply to the tab writing it, and rejoins through `resumeRun` once that tab's run lease goes stale.
+
+Cloud access here is anonymous, which suits a local prototype only. In production, sign users in, pass the same identity to the durable server in the agent's `headers`, and scope threads with `DurableAGUI`'s `owner`.
+
+## Tests
+
+```sh
+pnpm test
+pnpm test:coverage
+pnpm test:e2e
+cd server && uv run --locked python -m unittest
+```
+
+`test` and `test:coverage` run the unit and in-memory Cloud suites. `test:e2e` starts the real Python server with its demo model and requires uv and Python 3.11+. It fails when uv is missing. The last command runs the server's Python unit tests. From the repository root, first build the workspace dependencies with `pnpm turbo build --filter='with-pydantic-ai-durable^...'`.
+
+The normal coverage workflow runs the unit and Cloud suites. The Durable Example Tests workflow provisions Python 3.12 and uv, installs the locked server dependencies, and runs the server unit tests and the server-backed suite on changes to the example, its workspace dependencies, `python/assistant-stream`, or the root install files (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`).
+
+The adapter's own tests (disconnect, reopen, cancel, owners) live in `python/assistant-stream/tests/test_pydantic_ai_durable.py` and also run against Postgres and Redis when `DATABASE_URL` and `REDIS_URL` are set.

@@ -34,13 +34,28 @@ export type AgUiOpaqueReasoning = {
   id: string;
   encryptedValue: string;
   metadata?: Record<string, unknown>;
+  /** Replays after the message and its tool results. */
   after?: boolean;
+  /**
+   * Content index the block arrived ahead of, so a message joining several
+   * steps replays it inside the step it came from. Without it, the block
+   * replays ahead of the whole message.
+   */
+  index?: number;
+  /**
+   * The block arrived after a tool result, so it opens a new step even when
+   * no visible part marks the boundary.
+   */
+  opensStep?: boolean;
 };
 
 export type AgUiCustomMetadata = {
   /** Wire role restored on export for messages the internal model cannot
    * represent (a developer record rides as a system message). */
   role?: "developer";
+  /** The agent's id for this assistant record when it named the record after
+   * the message was created; `message.id` stays the local id the UI keys on. */
+  messageId?: string;
   interrupts?: AgUiInterrupt[];
   pendingToolCallIds?: string[];
   opaqueReasoning?: AgUiOpaqueReasoning[];
@@ -94,6 +109,12 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   logger?: Partial<Logger>;
   showThinking?: boolean;
   joinStrategy?: JoinStrategy;
+  /**
+   * Join adjacent assistant records of an imported snapshot into one message.
+   * See `FromAgUiMessagesOptions.joinAdjacentAssistantMessages`. Defaults to
+   * `false`.
+   */
+  joinAdjacentAssistantMessages?: boolean;
   /**
    * Return context entries for each run. `messages` is the exact AG-UI
    * transcript sent in the run input, after transcript selection and message
@@ -169,6 +190,7 @@ export type AgUiInterrupt = {
   reason: AgUiInterruptReason;
   message?: string;
   toolCallId?: string;
+  subagentRunId?: string;
   responseSchema?: Record<string, unknown>;
   expiresAt?: string;
   metadata?: Record<string, unknown>;

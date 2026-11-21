@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
 import { getMDXComponents } from "@/mdx-components";
+import { withDocsCodeBlock } from "@/lib/docs-code";
 import { TabLLM, TabsLLM } from "@/components/pages/docs/fumadocs/tabs.llm";
 import {
   PlatformOnlyLLM,
@@ -18,6 +19,9 @@ import { FlowLLM } from "@/components/assistant-ui/elements/flow";
 import { ThemeImageLLM } from "@/components/pages/docs/theme-image";
 import { TapTutorialSlideshowLLM } from "@/components/pages/docs/tap/tutorial-slideshow.llm";
 import {
+  AgentSetupLLM,
+  AgentSetupPromptLLM,
+  ManualStepsLLM,
   QuickLinksLLM,
   QuickstartLLM,
   RuntimeGridLLM,
@@ -68,7 +72,7 @@ const Heading =
  * directly in MDX (it's a `node:fs` server component), so it bypasses this map
  * and carries its variant as a `.llm` marker the resolver picks up instead.
  */
-export const LLM_COMPONENTS: MDXComponents = {
+export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
   ...getMDXComponents({}),
   h1: Heading("h1"),
   h2: Heading("h2"),
@@ -95,6 +99,10 @@ export const LLM_COMPONENTS: MDXComponents = {
     <blockquote>{children}</blockquote>
   ),
   Quickstart: QuickstartLLM,
+  AgentSetupPrompt: AgentSetupPromptLLM,
+  AgentSetup: AgentSetupLLM,
+  ManualSteps: ManualStepsLLM,
+  AnchorAlias: () => null,
   ThemeImage: ThemeImageLLM,
   SurfaceGrid: SurfaceGridLLM,
   RuntimeGrid: RuntimeGridLLM,
@@ -116,4 +124,4 @@ export const LLM_COMPONENTS: MDXComponents = {
   PrimitivesTypeTable: PrimitivesTypeTableLLM,
   Flow: FlowLLM,
   TapTutorialSlideshow: TapTutorialSlideshowLLM,
-};
+});

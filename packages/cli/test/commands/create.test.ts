@@ -268,6 +268,71 @@ describe("create failure cleanup", () => {
   });
 });
 
+describe("create next steps", () => {
+  let target: string;
+
+  beforeEach(() => {
+    const root = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    target = path.join(root, "my-extension");
+  });
+
+  afterEach(() => {
+    fs.rmSync(path.dirname(target), { recursive: true, force: true });
+  });
+
+  const nextSteps = async (pkg: object) => {
+    let templatePath: string | undefined;
+    mocks.scaffoldProject.mockImplementationOnce(async (repoPath, destDir) => {
+      templatePath = repoPath;
+      fs.mkdirSync(destDir, { recursive: true });
+      fs.writeFileSync(path.join(destDir, "package.json"), JSON.stringify(pkg));
+    });
+    const info = vi.spyOn(logger, "info").mockImplementation(() => {});
+    try {
+      await create.parseAsync(
+        [
+          target,
+          "--template",
+          "vscode",
+          "--use-npm",
+          "--skip-install",
+          "--no-skills",
+        ],
+        { from: "user" },
+      );
+      return {
+        templatePath,
+        lines: info.mock.calls.map(([line]) => line),
+      };
+    } finally {
+      info.mockRestore();
+    }
+  };
+
+  it("scaffolds templates/vscode and tells it to open the folder and press F5", async () => {
+    const { templatePath, lines } = await nextSteps({
+      engines: { vscode: "^1.110.0" },
+    });
+
+    expect(templatePath).toBe("templates/vscode");
+    expect(lines).toContain("  code .");
+    expect(lines).toContain("  # Press F5 to run the extension");
+    expect(lines.some((line) => line.includes("environment variables"))).toBe(
+      false,
+    );
+  });
+
+  it("tells any other project to set its environment and run dev", async () => {
+    const { lines } = await nextSteps({ scripts: { dev: "vite" } });
+
+    expect(lines).toContain("  # Set up your environment variables in .env");
+    expect(lines).toContain("  npm run dev");
+    expect(lines).not.toContain("  code .");
+  });
+});
+
 describe("resolveProject", () => {
   it("returns template metadata when --template is provided", async () => {
     const result = await resolveProject({
@@ -517,9 +582,9 @@ describe("resolveProject error handling", () => {
 });
 
 describe("PROJECT_METADATA", () => {
-  it("contains all 8 templates", () => {
+  it("contains all 9 templates", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    expect(templates).toHaveLength(8);
+    expect(templates).toHaveLength(9);
     expect(templates.map((t) => t.name)).toEqual([
       "default",
       "minimal",
@@ -529,6 +594,7 @@ describe("PROJECT_METADATA", () => {
       "langchain",
       "mcp",
       "eve",
+      "vscode",
     ]);
   });
 
@@ -749,9 +815,76 @@ describe("resolvePresetUrl", () => {
     expect(resolvePresetUrl(url)).toBe(url);
   });
 
-  it("passes through http URLs unchanged", () => {
-    const url = "http://localhost:3000/preset";
-    expect(resolvePresetUrl(url)).toBe(url);
+  it("passes through http localhost URLs unchanged", () => {
+    for (const url of [
+      "http://localhost:3000/preset",
+      "http://127.0.0.1:3000/preset",
+      "http://[::1]:3000/preset",
+    ]) {
+      expect(resolvePresetUrl(url)).toBe(url);
+    }
+  });
+
+  it("refuses http URLs for other hosts", () => {
+    expect(() => resolvePresetUrl("http://example.com/preset")).toThrow(
+      "--preset URLs must use https (http only on localhost).",
+    );
+  });
+
+  it("refuses other schemes and URLs with credentials", () => {
+    for (const url of ["file:///etc/preset.json", "ftp://example.com/p"]) {
+      expect(() => resolvePresetUrl(url)).toThrow(
+        "--preset URLs must use https",
+      );
+    }
+    expect(() =>
+      resolvePresetUrl("https://user:secret@example.com/preset"),
+    ).toThrow("--preset URLs must not contain credentials.");
+  });
+
+  it("is checked before the project is scaffolded", async () => {
+    const cwd = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    mocks.downloadProject.mockClear();
+    mocks.downloadTemplate.mockClear();
+    mocks.resolveLatestReleaseRef.mockClear();
+    mocks.scaffoldProject.mockClear();
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        create.parseAsync(
+          [
+            "my-app",
+            "--cwd",
+            cwd,
+            "--preset",
+            "http://example.com/preset",
+            "--skip-install",
+            "--no-skills",
+          ],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("process.exit");
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("--preset URLs must use https"),
+      );
+      expect(mocks.scaffoldProject).not.toHaveBeenCalled();
+      expect(mocks.downloadProject).not.toHaveBeenCalled();
+      expect(mocks.downloadTemplate).not.toHaveBeenCalled();
+      expect(mocks.resolveLatestReleaseRef).not.toHaveBeenCalled();
+      expect(fs.readdirSync(cwd)).toEqual([]);
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it("expands a bare preset name to the playground URL", () => {

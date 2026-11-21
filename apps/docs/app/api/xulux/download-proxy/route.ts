@@ -124,11 +124,13 @@ export async function GET(req: Request) {
 
     if (!upstream.ok) {
       const details = await readBoundedText(upstream);
+      console.error(
+        "[api/xulux/download-proxy] upstream",
+        upstream.status,
+        details.slice(0, 500),
+      );
       return Response.json(
-        {
-          error: `Upstream responded ${upstream.status}.`,
-          details: details.slice(0, 500) || undefined,
-        },
+        { error: `Upstream responded ${upstream.status}.` },
         { status: 502 },
       );
     }
@@ -169,17 +171,7 @@ export async function GET(req: Request) {
       },
     });
   } catch (err) {
-    const cause =
-      err instanceof Error && err.cause instanceof Error
-        ? err.cause.message
-        : undefined;
-    return Response.json(
-      {
-        error: "Proxy fetch failed.",
-        details: err instanceof Error ? err.message : String(err),
-        cause,
-      },
-      { status: 502 },
-    );
+    console.error("[api/xulux/download-proxy]", err);
+    return Response.json({ error: "Proxy fetch failed." }, { status: 502 });
   }
 }

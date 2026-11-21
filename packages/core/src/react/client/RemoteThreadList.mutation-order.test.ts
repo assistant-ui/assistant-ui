@@ -108,7 +108,9 @@ describe("RemoteThreadList thread mutations", () => {
       const actions = threads.__internal_getRawActions!();
       try {
         await actions.switchToThread("a");
-        flushTapSync(() => {});
+        await vi.waitFor(() =>
+          expect(threads.getState().mainThreadId).toBe("a"),
+        );
         const firstRename = actions.rename("a", "First");
         const firstResult = firstRename.catch((error: unknown) => error);
         await started.promise;
@@ -125,8 +127,9 @@ describe("RemoteThreadList thread mutations", () => {
           settlement === "reject" ? renameFailure : undefined,
         );
         await lastRename;
-        flushTapSync(() => {});
-        expect(threads.item({ id: "a" }).getState().title).toBe("Last");
+        await vi.waitFor(() =>
+          expect(threads.item({ id: "a" }).getState().title).toBe("Last"),
+        );
         expect(serverTitle).toBe(threads.item({ id: "a" }).getState().title);
       } finally {
         handle.destroy();
@@ -178,9 +181,9 @@ describe("RemoteThreadList thread mutations", () => {
           timing === "before" ? actions.rename(draftId, "Last") : undefined;
         initialization.resolve();
         await initializing;
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
-        flushTapSync(() => {});
-        expect(threads.item({ id: "a" }).getState().id).toBe(draftId);
+        await vi.waitFor(() =>
+          expect(threads.item({ id: "a" }).getState().id).toBe(draftId),
+        );
         lastRename ??= actions.rename(draftId, "Last");
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
         expect(adapter.rename).toHaveBeenCalledTimes(1);
@@ -190,14 +193,15 @@ describe("RemoteThreadList thread mutations", () => {
           settlement === "reject" ? failure : undefined,
         );
         await Promise.all([middleRename, lastRename]);
-        flushTapSync(() => {});
         expect(
           vi.mocked(adapter.rename).mock.calls.map(([, title]) => title),
         ).toEqual(
           timing === "before" ? ["First", "Middle", "Last"] : ["First", "Last"],
         );
-        expect(threads.item({ id: draftId }).getState().title).toBe("Last");
-        expect(threads.item({ id: "a" }).getState().title).toBe("Last");
+        await vi.waitFor(() => {
+          expect(threads.item({ id: draftId }).getState().title).toBe("Last");
+          expect(threads.item({ id: "a" }).getState().title).toBe("Last");
+        });
         expect(serverTitle).toBe(
           threads.item({ id: draftId }).getState().title,
         );
@@ -268,7 +272,7 @@ describe("RemoteThreadList thread mutations", () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       firstArchive.resolve();
       await Promise.all([first, second, unarchived!]);
-      flushTapSync(() => {});
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
       expect(calls).toEqual(["archive", "archive", "unarchive"]);
       expect({
         shown: threads.item({ id: "a" }).getState().status,

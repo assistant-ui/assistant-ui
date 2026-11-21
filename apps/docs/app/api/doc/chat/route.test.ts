@@ -7,7 +7,11 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(async (): Promise<{ user: { id: string } } | null> => null),
 }));
 
-vi.mock("@/lib/accounts-auth", () => ({ getSession: mocks.getSession }));
+vi.mock("@/lib/accounts-auth", () => ({
+  getSession: mocks.getSession,
+  // The session refresh in front of the route is aui-auth's, tested in lib/auth-origin.test.ts.
+  withDocsSession: <T>(route: T) => route,
+}));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
   ...(await importOriginal()),

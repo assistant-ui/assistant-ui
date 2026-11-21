@@ -1448,6 +1448,231 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it.each(["inset update", "resize observer remeasurement"] as const)(
+    "keeps a reader's scroll-up when the footer shrinks through %s",
+    (path) => {
+      const view = geometry(7, 3);
+      let footerHeight = 2;
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({
+          ...options(),
+          scrollToBottomOnInitialize: false,
+        }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      const footer = controller.registerContentInset(
+        path === "resize observer remeasurement"
+          ? () => footerHeight
+          : undefined,
+      );
+      footer.setHeight(2);
+      observers[0]!.trigger();
+      expect(view.element.scrollTop).toBe(4);
+
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -2 }));
+      view.grow(5);
+      view.setTop(0);
+      if (path === "inset update") {
+        footer.setHeight(0);
+        observers[0]!.trigger();
+      } else {
+        footerHeight = 0;
+        observers[0]!.trigger();
+      }
+
+      expect(view.element.scrollTop).toBe(0);
+      expect(controller.isAtBottom).toBe(false);
+      controller.dispose();
+    },
+  );
+
+  it("rechecks at-bottom after footer growth and a compensating content shrink", () => {
+    const view = geometry(5, 3);
+    view.setTop(2);
+    const onAtBottomChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange,
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    view.setTop(0);
+    expect(controller.isAtBottom).toBe(false);
+
+    const footer = controller.registerContentInset();
+    view.grow(6);
+    footer.setHeight(1);
+    expect(controller.isAtBottom).toBe(false);
+
+    view.grow(5);
+    observers[0]!.trigger();
+
+    expect(controller.isAtBottom).toBe(true);
+    expect(onAtBottomChange).toHaveBeenLastCalledWith(true);
+    controller.dispose();
+  });
+
+  it("rechecks at-bottom when the footer and content both return to their observed sizes", () => {
+    const view = geometry(5, 3);
+    const onAtBottomChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange,
+    });
+    controller.attach(view.element);
+    const footer = controller.registerContentInset();
+    footer.setHeight(1);
+    observers[0]!.trigger();
+    expect(controller.isAtBottom).toBe(true);
+
+    view.grow(7);
+    footer.setHeight(2);
+    footer.setHeight(1);
+    expect(controller.isAtBottom).toBe(false);
+
+    view.grow(5);
+    observers[0]!.trigger();
+
+    expect(controller.isAtBottom).toBe(true);
+    expect(onAtBottomChange).toHaveBeenLastCalledWith(true);
+    controller.dispose();
+  });
+
+  it("holds a prepended row when content above it settles as the footer shrinks", () => {
+    const view = geometry(320, 100);
+    const heights = Array<number>(8).fill(80);
+    const messages = heights.map((_, index) => {
+      const message = document.createElement("div");
+      message.dataset["messageId"] = `message-${index}`;
+      message.getBoundingClientRect = () => {
+        let top = 40 - view.element.scrollTop;
+        for (const sibling of view.element.children) {
+          if (sibling === message) break;
+          top += heights[messages.indexOf(sibling as HTMLDivElement)]!;
+        }
+        return new DOMRect(0, top, 100, heights[index]!);
+      };
+      return message;
+    });
+    view.element.getBoundingClientRect = () => new DOMRect(0, 40, 100, 100);
+    view.element.append(...messages.slice(4));
+    const updateHeight = () =>
+      view.grow(
+        [...view.element.children].reduce(
+          (total, message) =>
+            total + heights[messages.indexOf(message as HTMLDivElement)]!,
+          0,
+        ),
+      );
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({
+        ...options(),
+        autoScroll: false,
+        scrollToBottomOnInitialize: false,
+      }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    const footer = controller.registerContentInset();
+    footer.setHeight(20);
+    view.setTop(0);
+    const observer = observers[0]!;
+    view.element.prepend(...messages.slice(0, 4));
+    updateHeight();
+    controller.messagesPrepended("message-4");
+    observer.trigger();
+    expect(view.element.scrollTop).toBe(320);
+
+    heights[3] = 120;
+    updateHeight();
+    footer.setHeight(10);
+    observer.trigger();
+
+    expect(view.element.scrollTop).toBe(360);
+    controller.dispose();
+  });
+
+  it("retargets an in-flight smooth scroll when content grows as the footer shrinks", () => {
+    const view = geometry(500, 100);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), scrollToBottomOnInitialize: false }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    observers[0]!.trigger();
+    const footer = controller.registerContentInset();
+    footer.setHeight(50);
+    view.setTop(200);
+    view.scrollTo.mockImplementation(() => {});
+    controller.scrollToBottom("smooth");
+    view.scrollTo.mockClear();
+
+    view.grow(600);
+    footer.setHeight(30);
+    observers[0]!.trigger();
+
+    expect(view.scrollTo).toHaveBeenCalledExactlyOnceWith({
+      top: 600,
+      behavior: "smooth",
+    });
+    controller.dispose();
+  });
+
+  it("remeasures registered insets even when viewport metrics are unchanged", () => {
+    const view = geometry(100, 100);
+    const onContentInsetChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({ ...options(), autoScroll: false }),
+      onAtBottomChange: vi.fn(),
+      onContentInsetChange,
+    });
+    controller.attach(view.element);
+    let height = 80;
+    const measure = vi.fn(() => height);
+    const inset = controller.registerContentInset(measure);
+    inset.setHeight(80);
+    observers[0]!.trigger();
+    onContentInsetChange.mockClear();
+    height = 40;
+    observers[0]!.trigger();
+    expect(measure).toHaveBeenCalledTimes(2);
+    expect(onContentInsetChange).toHaveBeenCalledExactlyOnceWith(40);
+    controller.dispose();
+  });
+
+  it("does not notify for an unchanged inset measurement", () => {
+    const view = geometry();
+    const onContentInsetChange = vi.fn();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+      onContentInsetChange,
+    });
+    controller.attach(view.element);
+    const measure = vi.fn(() => 40);
+    controller.registerContentInset(measure).setHeight(40);
+    onContentInsetChange.mockClear();
+    observers[0]!.trigger();
+    expect(measure).toHaveBeenCalledOnce();
+    expect(onContentInsetChange).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("does not measure an unregistered inset", () => {
+    const view = geometry();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    const measure = vi.fn(() => 40);
+    controller.registerContentInset(measure).unregister();
+    observers[0]!.trigger();
+    expect(measure).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
   it("sums registered insets and removes them on unregister", () => {
     const view = geometry(600, 100);
     const controller = createThreadViewportAutoScroll({

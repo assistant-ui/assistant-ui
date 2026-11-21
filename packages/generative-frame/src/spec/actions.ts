@@ -1,5 +1,6 @@
 import type { Catalog } from "./catalog";
 import { resolveValue, type ExpressionContext } from "./expressions";
+import { resolvedIssues } from "./resolved";
 import type { SpecStateStore } from "./state";
 import type { ActionBinding } from "./types";
 
@@ -91,6 +92,18 @@ export function createActionDispatcher(
         state: options.store,
       };
       try {
+        // Params written as expressions were not checked when the spec was
+        // validated, so the resolved params are checked before anything runs.
+        const issue = resolvedIssues(
+          options.catalog?.action(action)?.params,
+          params,
+          binding.params ?? {},
+        )[0];
+        if (issue) {
+          throw new Error(
+            `Action "${action}" params ${issue.path === "/" ? "" : `${issue.path.slice(1)} `}${issue.message}`,
+          );
+        }
         if (options.catalog?.action(action)?.confirm === true) {
           if (kind === "watch") {
             throw new Error(

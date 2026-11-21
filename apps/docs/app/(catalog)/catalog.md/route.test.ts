@@ -7,12 +7,11 @@ const get = async () => {
 };
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   vi.resetModules();
 });
 
 describe("catalog markdown route", () => {
-  it("lists every product when the shop is open", async () => {
+  it("lists every product", async () => {
     const response = await get();
     expect(response.status).toBe(200);
     const body = await response.text();

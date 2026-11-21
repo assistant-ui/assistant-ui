@@ -431,6 +431,18 @@ export class ToolInvocationTracker {
       this._deleteStatus(toolCallId);
   }
 
+  private _rejectHumanInput(toolCallId: string, reason: Error): void {
+    const handlers = this._humanInput.get(toolCallId);
+    if (!handlers) return;
+    this._humanInput.delete(toolCallId);
+    this._endHumanRequest(toolCallId, handlers.executionId);
+    try {
+      handlers.reject(reason);
+    } catch {
+      // host rejection handler threw; the request is already withdrawn
+    }
+  }
+
   /**
    * Resolve a pending human-input request for the given tool call. Returns
    * `true` if a pending request was resumed, `false` if the tracker has no
@@ -737,10 +749,14 @@ export class ToolInvocationTracker {
     discarded: boolean,
     clientOwned: boolean,
     ownershipDeferred: boolean,
+    providerExecuted: boolean,
   ): ToolCallEntry {
+    // Forwarding the mark lets the execution stream skip the call outright,
+    // so no never-settling execution holds its part open.
     const toolCallController = this._controller.addToolCallPart({
       toolName,
       toolCallId,
+      ...(providerExecuted && { providerExecuted: true }),
     });
     const entry: ToolCallEntry = {
       toolName,
@@ -824,6 +840,15 @@ export class ToolInvocationTracker {
           }
           entry.argsText = content.argsText;
           shouldWriteArgsText = false;
+          // The execution holds the args it started with. A human() answer
+          // given while the UI shows the new args would authorize the old
+          // ones, so a pending request is rejected instead (A.4).
+          this._rejectHumanInput(
+            content.toolCallId,
+            new Error(
+              "Tool call arguments changed while waiting for human input",
+            ),
+          );
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {
         if (
@@ -962,12 +987,17 @@ export class ToolInvocationTracker {
           discarded,
           ownership === true,
           ownership === undefined || (!this._isRunning && ownership === false),
+          content.providerExecuted === true,
         );
       }
 
       if (content.result !== undefined) entry.skipExecute = true;
 
       if (content.approval !== undefined) entry.skipExecute = true;
+
+      // A backend-owned call is never handed to the frontend tool, whatever
+      // the ownership predicate says (EDGE_CASES.md A.9).
+      if (content.providerExecuted === true) entry.skipExecute = true;
 
       this._resolveDeferredOwnership(entry, content);
 

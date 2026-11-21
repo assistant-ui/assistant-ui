@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, renderHook } from "@testing-library/react";
-import type { HttpAgent } from "@ag-ui/client";
+import { HttpAgent } from "@ag-ui/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 
@@ -87,4 +87,49 @@ it("passes joinStrategy to the active run", async () => {
     { type: "text", text: "A" },
     { type: "text", text: "B" },
   ]);
+});
+
+it("batches text deltas emitted from one response before re-rendering the host", async () => {
+  const deltas = Array.from({ length: 20 }, (_, index) => String(index));
+  const events = [
+    { type: "RUN_STARTED", threadId: "main", runId: "run" },
+    { type: "TEXT_MESSAGE_START", messageId: "answer" },
+    ...deltas.map((delta) => ({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "answer",
+      delta,
+    })),
+    { type: "TEXT_MESSAGE_END", messageId: "answer" },
+    { type: "RUN_FINISHED", threadId: "main", runId: "run" },
+  ];
+  const agent = new HttpAgent({
+    url: "http://agent.test/agent",
+    fetch: async () =>
+      new Response(
+        events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+        { headers: { "content-type": "text/event-stream" } },
+      ),
+  });
+  let renders = 0;
+  const { result } = renderHook(() => {
+    renders++;
+    return useAgUiRuntime({ agent });
+  });
+
+  const baseline = renders;
+  const pending = result.current.thread.append({
+    role: "user",
+    content: [{ type: "text", text: "go" }],
+  });
+  await pending;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const assistant = result.current.thread
+    .getState()
+    .messages.find((message) => message.role === "assistant");
+  expect(assistant).toMatchObject({
+    content: [{ type: "text", text: deltas.join("") }],
+    status: { type: "complete" },
+  });
+  expect(renders - baseline).toBeLessThanOrEqual(6);
 });

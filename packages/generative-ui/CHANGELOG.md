@@ -1,5 +1,22 @@
 # @assistant-ui/generative-ui
 
+## 0.0.12
+
+### Patch Changes
+
+- [#10605](https://github.com/assistant-ui/assistant-ui/pull/10605) [`51b4613`](https://github.com/assistant-ui/assistant-ui/commit/51b46137424e8b1041bf7f5b27ab6a9e6fe87d26) - fix: `Box` keeps a `width` or `height` only when it is a number, a CSS length, a sizing keyword or a `calc`/`min`/`max`/`clamp` of those, and `Box` and `Card` drop a `background` that holds `;`, `{`, `}`, a quote, a bracket, an unclosed parenthesis or a comment, and the same goes for a size, so server-rendered styles hold one value per property. ([@Yonom](https://github.com/Yonom))
+
+- [#10586](https://github.com/assistant-ui/assistant-ui/pull/10586) [`72080a9`](https://github.com/assistant-ui/assistant-ui/commit/72080a9af34364a2a13d61ddda3623b9893c5b13) - The Teams converter keeps markdown links written in plain text props (Header, Text, Caption, Badge, Fact, Tabs, Steps, Timeline, table cells, card titles and an unlinked Citation title) as literal text, as it already did for Citation sources and snippets. Links the converter builds itself, and the Markdown component, still render as links. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804), [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e), [`709309d`](https://github.com/assistant-ui/assistant-ui/commit/709309dac48b7fe059bda7fbc8533de0ac4b0f03)]:
+  - assistant-stream@0.3.58
+  - generative-frame@0.0.11
+
+## 0.0.11
+
+### Patch Changes
+
+- [#10418](https://github.com/assistant-ui/assistant-ui/pull/10418) [`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2) - Preserve explicitly optional inputs when converting forms to Slack blocks. ([@mahshid](https://github.com/mahshid))
+
 ## 0.0.10
 
 ### Patch Changes

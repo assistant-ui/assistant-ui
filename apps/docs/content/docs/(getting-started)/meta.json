@@ -4,5 +4,12 @@
   "icon": "Rocket",
   "root": true,
   "platforms": ["react"],
-  "pages": ["installation", "cli", "rtl", "base-ui", "devtools"]
+  "pages": [
+    "installation",
+    "manual-installation",
+    "cli",
+    "rtl",
+    "base-ui",
+    "devtools"
+  ]
 }

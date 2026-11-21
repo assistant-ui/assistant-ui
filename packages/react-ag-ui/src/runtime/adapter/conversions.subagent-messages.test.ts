@@ -407,6 +407,123 @@ describe("fromAgUiSnapshotMessages subagent attribution", () => {
     ]);
   });
 
+  it("retains each nested record's pending-call admission when adjacent records are joined", () => {
+    const converted = fromAgUiSnapshotMessages(
+      [
+        { id: "a", role: "assistant", content: "", toolCalls: [call("spawn")] },
+        { id: "t", role: "tool", toolCallId: "spawn", content: '"ok"' },
+        {
+          id: "s1",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("one"), call("excluded")],
+          subagentRunId: "run",
+          metadata: {
+            custom: { agui: { pendingToolCallIds: ["one", "future"] } },
+          },
+        },
+        {
+          id: "s2",
+          role: "assistant",
+          content: "",
+          toolCalls: [call("two")],
+          subagentRunId: "run",
+          metadata: { custom: { agui: { pendingToolCallIds: ["two"] } } },
+        },
+      ],
+      { joinAdjacentAssistantMessages: true },
+      new Map([["run", "spawn"]]),
+    ) as (Message & {
+      metadata?: { custom?: { agui?: { pendingToolCallIds?: string[] } } };
+    })[];
+    const nested = findCall(converted, "spawn")?.messages?.[0] as Message & {
+      metadata?: { custom?: { agui?: { pendingToolCallIds?: string[] } } };
+    };
+    expect(findCall(converted, "spawn")?.messages).toHaveLength(1);
+    expect(nested.metadata?.custom?.agui?.pendingToolCallIds).toEqual([
+      "one",
+      "future",
+      "two",
+    ]);
+    expect(converted[0]?.metadata?.custom?.agui?.pendingToolCallIds).toEqual([
+      "one",
+      "future",
+      "two",
+    ]);
+  });
+
+  it.each([false, true])(
+    "does not merge pending lists while folding a nested run when joinAdjacentAssistantMessages is %s",
+    (joinAdjacentAssistantMessages) => {
+      // An empty record does not open a turn, so the adjacent-record join
+      // leaves both records for the subagent fold.
+      const converted = fromAgUiSnapshotMessages(
+        [
+          {
+            id: "a",
+            role: "assistant",
+            content: "",
+            toolCalls: [call("spawn")],
+          },
+          { id: "t", role: "tool", toolCallId: "spawn", content: '"ok"' },
+          {
+            id: "s1",
+            role: "assistant",
+            content: "",
+            subagentRunId: "run",
+            metadata: {
+              custom: {
+                agui: {
+                  pendingToolCallIds: ["stale-a"],
+                  interrupts: [{ id: "int-a", reason: "external" }],
+                },
+              },
+            },
+          },
+          {
+            id: "s2",
+            role: "assistant",
+            content: "done",
+            subagentRunId: "run",
+            metadata: {
+              custom: { agui: { pendingToolCallIds: ["stale-b"] } },
+            },
+          },
+        ],
+        { joinAdjacentAssistantMessages },
+        new Map([["run", "spawn"]]),
+      ) as (Message & {
+        metadata?: {
+          custom?: {
+            agui?: {
+              pendingToolCallIds?: string[];
+              interrupts?: { id: string }[];
+            };
+          };
+        };
+      })[];
+      const nested = findCall(converted, "spawn")?.messages?.[0] as Message & {
+        metadata?: {
+          custom?: {
+            agui?: {
+              pendingToolCallIds?: string[];
+              interrupts?: { id: string }[];
+            };
+          };
+        };
+      };
+      expect(texts(nested)).toEqual(["done"]);
+      expect(
+        nested.metadata?.custom?.agui?.interrupts?.map(
+          (interrupt) => interrupt.id,
+        ),
+      ).toEqual(["int-a"]);
+      expect(nested.metadata?.custom?.agui?.pendingToolCallIds).toEqual([
+        "stale-b",
+      ]);
+    },
+  );
+
   it("keeps a deeply nested pending call visible through resolved spawning calls", () => {
     const messages = [
       { id: "a1", role: "assistant", content: "", toolCalls: [call("top")] },

@@ -1,9 +1,11 @@
 import { accountCloud } from "@/lib/account-cloud";
-import { getSession } from "@/lib/accounts-auth";
+import { getSession, withDocsSession } from "@/lib/accounts-auth";
 import { getAnonymousSession } from "@/lib/anonymous-session";
 import { mergeConversations } from "@/lib/demo-usage";
 
-export async function POST(request: Request) {
+export const POST = withDocsSession(claimDemoThreads);
+
+async function claimDemoThreads(request: Request) {
   const headers = { "Cache-Control": "no-store" };
   const fetchSite = request.headers.get("sec-fetch-site");
   const origin = request.headers.get("origin");

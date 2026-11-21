@@ -16,23 +16,25 @@ const REASONS: Record<string, string> = {
 export default async function AuthErrorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string; description?: string }>;
+  searchParams: Promise<{ reason?: string | string[] }>;
 }): Promise<ReactNode> {
-  const { reason, description } = await searchParams;
-  const message =
-    (reason ? REASONS[reason] : undefined) ??
-    description ??
-    "Sign-in did not complete.";
+  const { reason: rawReason } = await searchParams;
+  const reason = typeof rawReason === "string" ? rawReason : undefined;
+  // Only known reason codes are shown. Free text from the URL never reaches
+  // the page, so a crafted link cannot put its own wording on this page.
+  const known = reason && Object.hasOwn(REASONS, reason) ? reason : undefined;
+  const message = known ? REASONS[known] : undefined;
 
   return (
     <main
       {...MAIN_CONTENT_PROPS}
       className="mx-auto flex min-h-[60svh] w-full max-w-[36rem] flex-col justify-center gap-3 px-6"
     >
-      <h1 className={typeSection}>{message}</h1>
-      {reason ? (
+      <h1 className={typeSection}>Sign-in did not complete.</h1>
+      {message ? <p className="text-muted-foreground">{message}</p> : null}
+      {known ? (
         <p className="text-muted-foreground font-mono text-[12px] [font-variant-ligatures:none]">
-          {reason}
+          {known}
         </p>
       ) : null}
       <Link

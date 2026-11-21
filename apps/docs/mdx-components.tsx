@@ -1,7 +1,10 @@
 import type { MDXComponents } from "mdx/types";
 import type { CSSProperties, ComponentProps, ReactNode } from "react";
 import { Callout } from "@/components/ui/callout";
-import { AgentSetup } from "@/components/shared/shop-entry";
+import { AgentSetup } from "@/components/shared/lazy-agent-setup";
+import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
+import { ManualSteps } from "@/components/shared/manual-steps";
+import { AnchorAlias } from "@/components/shared/anchor-alias";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
 import { Step, Steps } from "@/components/ui/steps";
@@ -37,6 +40,7 @@ import { SurfaceGrid } from "@/components/pages/docs/landing/surface-grid";
 import { Flow } from "@/components/assistant-ui/elements/flow";
 import { MermaidDiagram } from "@/components/pages/docs/mermaid-diagram";
 import { TapTutorialSlideshow } from "@/components/pages/docs/tap/tutorial-slideshow";
+import { withDocsCodeBlock } from "@/lib/docs-code";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
   return (
@@ -105,7 +109,7 @@ function MdxImage({
 export function getMDXComponents(
   components: MDXComponents = {},
 ): MDXComponents {
-  return {
+  return withDocsCodeBlock({
     a: MdxLink,
     img: MdxImage,
     ThemeImage,
@@ -132,7 +136,9 @@ export function getMDXComponents(
         </CodeBlock>
       );
     },
-    table: (props: ComponentProps<"table">) => (
+    // `typeof Table`, not `"table"`: Farm 0.1.75's islands check reads `<"table">`
+    // as an open <table> and refuses the client components rendered below it.
+    table: (props: ComponentProps<typeof Table>) => (
       <div className="my-6">
         <Table {...props} />
       </div>
@@ -148,6 +154,13 @@ export function getMDXComponents(
     PlatformTabs,
     Callout,
     AgentSetup,
+    ManualSteps,
+    AnchorAlias,
+    AgentSetupPrompt: () => (
+      <div className="not-prose my-6">
+        <SetupCommandPrompt page="docs" section="installation" />
+      </div>
+    ),
     Card,
     Cards,
     Step,
@@ -169,7 +182,7 @@ export function getMDXComponents(
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,
-  };
+  });
 }
 
 export const useMDXComponents = getMDXComponents;

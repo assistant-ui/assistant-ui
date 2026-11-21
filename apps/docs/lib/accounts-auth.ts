@@ -1,71 +1,144 @@
 import "server-only";
 
-import { Redis } from "@upstash/redis";
-import { after } from "@farm.js/core/after";
-import {
-  createAccountsAuth,
-  createMemorySessionStore,
-  type AccountsFetchOptions,
-} from "aui-auth";
-import { createAesGcmCodec } from "aui-auth/database";
-import { createRedisSessionStore } from "aui-auth/database/redis";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { headers } from "@farm.js/core/headers";
+import {
+  type AuiJson,
+  type AuthConfig,
+  createAuth,
+  pathMatcher,
+  requestOrigin,
+  resolveEnvironment,
+} from "aui-auth";
+import aui from "@/aui.json";
 
-export type DocsSessionData = Record<string, never>;
+/**
+ * Sign-in through accounts with aui-auth 0.2: the session is the access token
+ * in `__Host-aui.at`, verified on every request, and a refresh token accounts
+ * rotates. Nothing is stored here. Production is the origin client
+ * `https://www.assistant-ui.com` (aui.json), proven by the Vercel deployment;
+ * tokens for the registered `urn:aui:assistant-ui-demo` still verify. Previews
+ * and `farm dev` sign in as `assistant-ui-demo-dev` through accounts.aui.dev.
+ *
+ * Signing in is optional on this site, so every page is public and only the
+ * routes that read the session refresh it, through `withDocsSession`.
+ */
+const isApi = pathMatcher(["/api/:path*"]);
 
-const issuer = process.env.NEXT_PUBLIC_AUTH_URL;
-const clientId = process.env.DOCS_OIDC_CLIENT_ID;
-const encryptionKey = process.env.ENCRYPTION_KEY;
-const hasRedis =
-  !!process.env.UPSTASH_REDIS_REST_URL &&
-  !!process.env.UPSTASH_REDIS_REST_TOKEN;
+// What `withDocsSession` resolved for the route it wraps. A refreshed token is
+// read by that route in the same request, as the Next proxy handed it on in the
+// request's cookie header.
+const routeSession = new AsyncLocalStorage<{
+  cookieHeader: string;
+  secure: boolean;
+}>();
 
-// A deployment spreads requests across instances, so its sessions only survive
-// in Redis. A dev server is one process, and keeping its sessions in memory is
-// what lets sign-in run locally without the production store's credentials.
-const store =
-  encryptionKey && hasRedis
-    ? createRedisSessionStore<DocsSessionData>({
-        redis: Redis.fromEnv(),
-        codec: createAesGcmCodec(encryptionKey),
-        prefix: "aui:www:session:",
-      })
-    : process.env.NODE_ENV === "development"
-      ? createMemorySessionStore<DocsSessionData>()
-      : null;
+/** The aui-auth binding for this app: aui-auth's Web core, with no Next APIs. */
+export function createDocsAuth(config: AuthConfig) {
+  const core = createAuth(config);
 
-// Docs is a public site that happens to offer sign-in, so an unconfigured
-// deployment serves every page as a signed-out visitor rather than failing.
-export const accounts =
-  issuer && clientId && encryptionKey && store
-    ? createAccountsAuth<DocsSessionData>({
-        issuer,
-        clientId,
-        cookieName: "assistant-ui.www_session",
-        cache: { secret: encryptionKey },
-        store,
-        // The account row renders the name and the avatar, so a profile edited
-        // on accounts has to reach the session; the re-read runs after the
-        // response rather than in front of it.
-        revalidateUser: true,
-        deferRevalidation: after,
-      })
-    : null;
+  async function handle(request: Request): Promise<Response> {
+    return (
+      (await core.handle(request)) ?? new Response("Not found", { status: 404 })
+    );
+  }
 
-/** What every call to the accounts API from this app starts from; null until the deployment names an issuer. */
-export const accountsOptions: AccountsFetchOptions | null = issuer
-  ? { issuer }
-  : null;
+  /**
+   * What the Next proxy did in front of a session route: verifies the access
+   * token, refreshes it within a minute of expiry, hands the route the rotated
+   * cookies and sets them on its response. Every page is public, so a
+   * signed-out visitor goes through with no session.
+   */
+  function withSession<Rest extends unknown[]>(
+    route: (request: Request, ...rest: Rest) => Response | Promise<Response>,
+  ) {
+    return async (request: Request, ...rest: Rest): Promise<Response> => {
+      const result = await core.guard(request, {
+        isPublic: () => true,
+        isApi,
+      });
+      if (result.kind === "respond") return result.response;
+      const response = await routeSession.run(
+        {
+          cookieHeader: result.cookieHeader,
+          secure: requestOrigin(request).startsWith("https:"),
+        },
+        () => route(request, ...rest),
+      );
+      if (result.setCookies.length === 0) return response;
+      // A fetched or streamed response can carry immutable headers.
+      const withCookies = new Response(response.body, response);
+      for (const cookie of result.setCookies)
+        withCookies.headers.append("set-cookie", cookie);
+      return withCookies;
+    };
+  }
 
-// The session cookies ride the request headers, which the auth client reads from a Request.
-const currentRequest = async () =>
-  new Request("http://localhost/", { headers: new Headers([...headers()]) });
+  /** The session of this request, or null. */
+  async function session() {
+    const resolved = routeSession.getStore();
+    if (resolved)
+      return core.sessionFromCookieHeader(
+        resolved.cookieHeader,
+        resolved.secure,
+      );
+    const requestHeaders = headers();
+    const secure = (requestHeaders.get("x-forwarded-proto") ?? "")
+      .split(",")
+      .some((protocol) => protocol.trim() === "https");
+    return core.sessionFromCookieHeader(requestHeaders.get("cookie"), secure);
+  }
 
-export const getSession = accounts
-  ? async () => accounts.sessionFromRequest(await currentRequest())
-  : async () => null;
+  return { core, GET: handle, POST: handle, withSession, auth: session };
+}
 
-/** A fresh access token for the request's session, refreshed when it is about to expire; null when signed out. */
-export const getAccessToken = accounts
-  ? async () => accounts.accessTokenFromRequest(await currentRequest())
-  : async (): Promise<string | null> => null;
+export type DocsAuth = ReturnType<typeof createDocsAuth>;
+
+let created: DocsAuth | null | undefined;
+
+// Docs is a public site that happens to offer sign-in, so a process that
+// cannot name its environment (`farm start` outside Vercel without `AUI_ENV`)
+// serves every page as a signed-out visitor rather than failing.
+export function docsAuth(): DocsAuth | null {
+  if (created === undefined) {
+    try {
+      created = createDocsAuth(resolveEnvironment(aui as AuiJson));
+    } catch (error) {
+      console.error("[auth] sign-in is not configured", error);
+      created = null;
+    }
+  }
+  return created;
+}
+
+/** The accounts origin this process signs in through, for accounts API calls; null when sign-in is off. */
+export function accountsIssuer(): string | null {
+  const auth = docsAuth();
+  return auth ? auth.core.issuer : null;
+}
+
+/**
+ * Wraps a route that reads the session, so an expiring session is refreshed in
+ * front of it. A deployment without sign-in runs the route as it is.
+ */
+export function withDocsSession<Rest extends unknown[]>(
+  route: (request: Request, ...rest: Rest) => Response | Promise<Response>,
+) {
+  return (request: Request, ...rest: Rest): Promise<Response> => {
+    const auth = docsAuth();
+    return auth
+      ? auth.withSession(route)(request, ...rest)
+      : Promise.resolve(route(request, ...rest));
+  };
+}
+
+/** The session of this request, or null. `withDocsSession` refreshed it already. */
+export async function getSession() {
+  const auth = docsAuth();
+  return auth ? auth.auth() : null;
+}
+
+/** The access token of this request's session; null when signed out. */
+export async function getAccessToken(): Promise<string | null> {
+  return (await getSession())?.accessToken ?? null;
+}

@@ -10,7 +10,7 @@ import {
   type MessagePrimitiveGroupedParts,
   renderGroupNode,
 } from "../message/MessageGroupedParts";
-import { hasMessageId } from "./ThreadMessages";
+import { hasMessageId } from "../../../utils/hasMessageId";
 
 export namespace ThreadPrimitiveRow {
   /** Switch on `type`, which repeats `row.type` so it narrows the rest. */

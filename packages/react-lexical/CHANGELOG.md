@@ -1,5 +1,21 @@
 # @assistant-ui/react-lexical
 
+## 0.2.24
+
+### Patch Changes
+
+- [#10553](https://github.com/assistant-ui/assistant-ui/pull/10553) [`d156e79`](https://github.com/assistant-ui/assistant-ui/commit/d156e7987ddf4aca65feb89df8d23f29d8b1bc63) - fix: omit `aria-expanded` from `unstable_useTriggerPopoverAriaProps` and `ComposerPrimitive.Input` so textbox inputs do not emit invalid ARIA attributes when a trigger popover is open ([@chuganzy](https://github.com/chuganzy))
+
+- [#10649](https://github.com/assistant-ui/assistant-ui/pull/10649) [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524) - share composition, attachment key, and message id helpers across bindings without changing their behavior. ([@okisdev](https://github.com/okisdev))
+
+## 0.2.23
+
+### Patch Changes
+
+- [#10493](https://github.com/assistant-ui/assistant-ui/pull/10493) [`2691e38`](https://github.com/assistant-ui/assistant-ui/commit/2691e38409423e2ab5e51771a16fa05410554f80) - react: expose `unstable_useComposerRunStartFocusGuard`, the decision `ComposerPrimitive.Input` makes on `thread.runStart`, and use it in `LexicalComposerInput` instead of a copy that resolved the thread root from the DOM. The guard reads the thread root from context, so a composer portaled outside `ThreadPrimitive.Root` now takes focus on a run start when focus sits inside its thread, matching `ComposerPrimitive.Input`. ([@egg119](https://github.com/egg119))
+  
+  react-lexical: raise the `@assistant-ui/react` peer floor to `^0.15.36`, the first release that exports the hook. `@assistant-ui/react` is a host-supplied peer and `onlyUpdatePeerDependentsWhenOutOfRange` is set, so the floor has to be raised by hand.
+
 ## 0.2.22
 
 ### Patch Changes

@@ -16,9 +16,27 @@ strictDepBuilds: true
 overrides:
   '@google/adk>adm-zip': ^0.6.1
   '@vercel/container>tar': ^7.5.22
+  # @lhci/cli 0.15.1, the latest release, bundles Lighthouse 12.6.1, which returned no performance score (NO_LCP) on current Chrome.
+  '@lhci/cli>lighthouse': ^13.5.0
+  '@lhci/utils>lighthouse': ^13.5.0
   '@earendil-works/pi-coding-agent>undici': ^8.12.2
   guarded-fetch>undici: ^7.30.1
   miniflare>undici: ^7.30.1
+  '@modelcontextprotocol/client@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-104850, CVE-2026-111769
+  '@modelcontextprotocol/sdk@>=1.0.0 <1.32.0': ^1.32.0 # aui-sec: CVE-2026-104850, CVE-2026-111767, CVE-2026-111768, CVE-2026-111769, CVE-2026-111771, GHSA-F897-62HF-6GXQ
+  '@modelcontextprotocol/server@>=2.0.0 <2.3.0': ^2.3.0 # aui-sec: CVE-2026-111768, CVE-2026-111770, CVE-2026-111771, GHSA-F897-62HF-6GXQ
+  'ajv@>=8.0.0 <8.18.0': ^8.18.0 # aui-sec: CVE-2025-69873
+  'fflate@>=0.7.0 <0.7.5': ^0.7.5 # aui-sec: CVE-2026-45820
+  'js-yaml@>=4.0.0 <4.3.2': ^4.3.2 # aui-sec: CVE-2026-53550, CVE-2026-59869, CVE-2026-84375, GHSA-5P4M-2WFM-XMQJ
+  'minimatch@>=10.0.0 <10.2.3': ^10.2.3 # aui-sec: CVE-2026-26996, CVE-2026-27903, CVE-2026-27904
+  'path-to-regexp@>=6.0.0 <6.3.0': ^6.3.0 # aui-sec: CVE-2024-45296
+  'path-to-regexp@>=8.0.0 <8.4.0': ^8.4.0 # aui-sec: CVE-2026-4923, CVE-2026-4926
+  'seroval@>=1.0.0 <1.8.2': ^1.8.2 # aui-sec: GHSA-6Q9X-XGWM-CFPG
+  'smol-toml@>=1.0.0 <1.9.0': ^1.9.0 # aui-sec: CVE-2026-85730, GHSA-R4XH-JQRQ-34V2, GHSA-V3RJ-XJV7-4JMQ
+  'undici@>=5.0.0 <5.29.0': ^5.29.0 # aui-sec: CVE-2025-22150, CVE-2025-47279
+  'undici@>=7.0.0 <7.30.2': ^7.30.2 # aui-sec: CVE-2026-109383, CVE-2026-109829, CVE-2026-109841, CVE-2026-109869, CVE-2026-109924, CVE-2026-109932, CVE-2026-116592, CVE-2026-116630, CVE-2026-120222, CVE-2026-120415, CVE-2026-120423, CVE-2026-120474, CVE-2026-87018, CVE-2026-87029
+  'undici@>=8.0.0 <8.12.4': ^8.12.4 # aui-sec: CVE-2026-109383, CVE-2026-109829, CVE-2026-109841, CVE-2026-109869, CVE-2026-109924, CVE-2026-109932, CVE-2026-116592, CVE-2026-116630, CVE-2026-120222, CVE-2026-120415, CVE-2026-120423, CVE-2026-120474, CVE-2026-87018, CVE-2026-87029
+  'zod@>=4.0.0 <4.6.6': ^4.6.6 # aui-sec: CVE-2023-54404
 
 verifyDepsBeforeRun: install
 
@@ -85,6 +103,86 @@ minimumReleaseAgeExclude:
   - safe-content-frame
   - tw-shimmer
   - typescript
+
+# Fail the install when a package loses the trusted publishing or provenance it used to have.
+trustPolicy: no-downgrade
+# Exact releases the policy flags, each checked on the registry before trusting it.
+trustPolicyExclude:
+  - '@expo/cli@57.0.32'
+  - '@expo/config-plugins@57.0.11'
+  - '@expo/config@57.0.10'
+  - '@expo/fingerprint@0.20.14'
+  - '@expo/image-utils@0.11.6'
+  - '@expo/inline-modules@0.1.8'
+  - '@expo/local-build-cache-provider@57.0.9'
+  - '@expo/metro-config@57.0.13'
+  - '@expo/metro-file-map@57.0.4'
+  - '@expo/metro-runtime@57.0.17'
+  - '@expo/prebuild-config@57.0.19'
+  - '@expo/require-utils@57.0.6'
+  - '@expo/router-server@57.0.14'
+  - '@expo/ui@57.0.26'
+  - '@flue/react@2.3.0'
+  - '@flue/runtime@2.3.0'
+  - '@flue/sdk@2.3.0'
+  - '@flue/vite@2.3.0'
+  - '@pierre/theme@2.0.0'
+  - '@vercel/backends@22.0.1'
+  - '@vercel/build-utils@15.0.1'
+  - '@vercel/cervel@0.1.87'
+  - '@vercel/cli-auth@0.3.12'
+  - '@vercel/cli-config@0.3.1'
+  - '@vercel/cli-config@0.3.3'
+  - '@vercel/cli-exec@1.0.1'
+  - '@vercel/container@22.0.1'
+  - '@vercel/detect-agent@1.2.7'
+  - '@vercel/elysia@22.0.1'
+  - '@vercel/error-utils@2.2.1'
+  - '@vercel/express@22.0.1'
+  - '@vercel/fastify@22.0.1'
+  - '@vercel/gatsby-plugin-vercel-analytics@1.0.12'
+  - '@vercel/gatsby-plugin-vercel-builder@2.2.79'
+  - '@vercel/go@25.0.1'
+  - '@vercel/h3@22.0.1'
+  - '@vercel/hono@22.0.1'
+  - '@vercel/hydrogen@23.0.1'
+  - '@vercel/koa@22.0.1'
+  - '@vercel/nestjs@22.0.1'
+  - '@vercel/next@26.0.1'
+  - '@vercel/node@27.0.1'
+  - '@vercel/oidc@3.8.10'
+  - '@vercel/python-analysis@0.15.2'
+  - '@vercel/python@28.0.1'
+  - '@vercel/redwood@24.0.1'
+  - '@vercel/remix-builder@27.0.1'
+  - '@vercel/ruby@24.0.1'
+  - '@vercel/rust@23.0.1'
+  - '@vercel/static-build@24.0.1'
+  - '@vercel/static-config@3.4.4'
+  - '@vercel/vc-native-darwin-arm64@65.2.0'
+  - '@vercel/vc-native-darwin-x64@65.2.0'
+  - '@vercel/vc-native-linux-arm64@65.2.0'
+  - '@vercel/vc-native-linux-x64@65.2.0'
+  - '@vercel/vc-native-win32-x64@65.2.0'
+  - babel-preset-expo@57.0.16
+  - chokidar@4.0.3
+  - chromium-bidi@157.0.8090-0
+  - expo-asset@57.0.20
+  - expo-constants@57.0.22
+  - expo-image-manipulator@57.0.21
+  - expo-linking@57.0.13
+  - expo-modules-autolinking@57.0.16
+  - expo-modules-core@57.0.24
+  - expo-modules-jsi@57.1.3
+  - expo-router@57.0.29
+  - expo-splash-screen@57.0.10
+  - expo@57.0.31
+  - semver@6.3.1
+  - ua-parser-js@1.0.41
+  - undici@5.29.0
+  - vercel@65.2.0
+# Drop entries on add, update and remove once the locked version is gone.
+trustPolicyExcludePrune: true
 
 allowBuilds:
   '@clerk/shared': false

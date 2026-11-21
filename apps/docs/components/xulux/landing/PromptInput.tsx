@@ -30,7 +30,7 @@ export function PromptInput({
   useEffect(() => {
     void value;
     const el = textareaRef.current;
-    if (!el) return;
+    if (!el || CSS.supports("field-sizing", "content")) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
   }, [value]);
@@ -65,7 +65,7 @@ export function PromptInput({
           }}
           placeholder={placeholder}
           rows={1}
-          className="aui-composer-input text-foreground placeholder:text-muted-foreground/80 relative max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none"
+          className="aui-composer-input text-foreground placeholder:text-muted-foreground/80 relative field-sizing-content max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none"
         />
         <div className="aui-composer-action-wrapper relative flex items-center justify-between px-0.5 pb-0.5">
           <Button

@@ -76,6 +76,8 @@ export function useAgUiRuntime(
       logger,
       showThinking: options.showThinking ?? true,
       joinStrategy: options.joinStrategy,
+      joinAdjacentAssistantMessages:
+        options.joinAdjacentAssistantMessages ?? false,
       getRunContext: options.getRunContext,
       resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
@@ -98,6 +100,8 @@ export function useAgUiRuntime(
       logger,
       showThinking: options.showThinking ?? true,
       joinStrategy: options.joinStrategy,
+      joinAdjacentAssistantMessages:
+        options.joinAdjacentAssistantMessages ?? false,
       getRunContext: options.getRunContext,
       resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
@@ -223,12 +227,14 @@ export function useAgUiRuntime(
     const abandonPreviousThread = () => {
       queueRef.current?.notifyCancelled();
       if (core.isRunning()) {
-        void core.cancel().catch((error: unknown) => {
+        try {
+          core.leave();
+        } catch (error) {
           logger.error?.(
             "[agui] cancelling the run on thread switch failed",
             error,
           );
-        });
+        }
       }
       queueRef.current?.clear();
     };
@@ -330,6 +336,10 @@ export function useAgUiRuntime(
           setState: (next) => core.setState(next),
         }),
         unstable_enableToolInvocations: true,
+        unstable_isClientToolCall: (toolCall) =>
+          core.isToolCallNamedByInterrupt(toolCall.toolCallId)
+            ? false
+            : undefined,
         unstable_persistsHistory: true,
         setToolStatuses,
         onNew: (message: AppendMessage) =>

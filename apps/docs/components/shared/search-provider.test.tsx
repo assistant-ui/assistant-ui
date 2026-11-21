@@ -6,7 +6,7 @@ import { SearchProvider } from "./search-provider";
 
 const mocks = vi.hoisted(() => ({ opened: vi.fn() }));
 
-vi.mock("@/components/shared/search-dialog", () => ({
+vi.mock("@/components/shared/lazy-search-dialog", () => ({
   SearchDialog: ({ open }: { open: boolean }) =>
     open ? <div role="dialog" /> : null,
 }));

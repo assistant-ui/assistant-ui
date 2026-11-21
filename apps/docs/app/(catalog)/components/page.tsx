@@ -2,6 +2,7 @@ import type { Metadata } from "@farm.js/core";
 import { Link } from "@farm.js/core/client";
 import { ArrowRightIcon } from "lucide-react";
 import { DemoCard } from "@/components/pages/elements/demo-card";
+import { ElementDemo } from "@/components/pages/elements/element-demos";
 import {
   ELEMENT_COUNT,
   getElement,
@@ -238,7 +239,7 @@ export default function ShopPage() {
                           </SetupPromptTrigger>
                         }
                       >
-                        <element.Component />
+                        <ElementDemo demo={element.slug} />
                       </DemoCard>
                     </li>,
                   ]

@@ -67,14 +67,14 @@ const trackEventBeforeLeaving = (
 export const analytics = {
   cta: {
     clicked: (
-      cta:
-        | "get_started"
-        | "contact_sales"
-        | "why_us"
-        | "start_setup_agent"
-        | "start_setup_manual",
+      cta: "get_started" | "contact_sales" | "why_us" | "start_setup_manual",
       location: string,
-    ) => trackEvent("cta_clicked", { cta, location }),
+      properties?: AnalyticsProperties,
+    ) => trackEvent("cta_clicked", { ...properties, cta, location }),
+
+    /** The setup prompt's dropdown (copy prompt / manual steps) was opened. */
+    setupMenuOpened: (location: string) =>
+      trackEvent("setup_menu_opened", { location }),
 
     npmCommandCopied: (
       command = "npx assistant-ui init",

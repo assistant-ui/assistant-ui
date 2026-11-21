@@ -1,11 +1,19 @@
 import type { RequestMiddlewareContext } from "@farm.js/core/middleware";
+import { answerAnalytics } from "@/lib/analytics-proxy";
 import { docsSiteMarkdownFileRewrites } from "@/lib/docs-sites";
 import { docsMarkdownFileRewrites } from "@/lib/markdown-rewrites";
 import { matchRewrite, type RewriteRule } from "@/lib/rewrite-rules";
 
 // Farm reads this at build time and prerenders every page it leaves out, so each entry stays a literal.
 export const config = {
-  matcher: ["/changelog", "/docs/mcp", "/docs/.well-known/mcp", /\.mdx?$/],
+  matcher: [
+    "/changelog",
+    "/docs/mcp",
+    "/docs/.well-known/mcp",
+    "/umami/:path*",
+    "/ph/:path*",
+    /\.mdx?$/,
+  ],
 };
 
 // These must answer before the page routes that would otherwise claim their paths.
@@ -55,6 +63,9 @@ export function middleware(
   request: Request,
   context: RequestMiddlewareContext,
 ) {
+  const analytics = answerAnalytics(request);
+  if (analytics) return analytics;
+
   const url = new URL(request.url);
   if (url.pathname === "/changelog") {
     if (!url.searchParams.has("pkg") && !url.searchParams.has("page")) return;

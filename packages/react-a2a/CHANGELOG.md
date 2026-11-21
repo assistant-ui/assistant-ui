@@ -1,5 +1,22 @@
 # @assistant-ui/react-a2a
 
+## 0.2.53
+
+### Patch Changes
+
+- Updated dependencies [[`528bfe9`](https://github.com/assistant-ui/assistant-ui/commit/528bfe964f1306f7070fd4efe034873b5f1cfe45), [`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804), [`8f30cfc`](https://github.com/assistant-ui/assistant-ui/commit/8f30cfc76b6e1483cc390a293eafc4d8fffb2bcd), [`11afc02`](https://github.com/assistant-ui/assistant-ui/commit/11afc0276e87cc0834342d6fdeeaaf0595fccdbe), [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e), [`d9a7f68`](https://github.com/assistant-ui/assistant-ui/commit/d9a7f68b5a38fcc3f68b5acf127f71dd5b8a6837), [`cba4061`](https://github.com/assistant-ui/assistant-ui/commit/cba406112b09de49e99764b51a9d90a8ca952cc7), [`51b4613`](https://github.com/assistant-ui/assistant-ui/commit/51b46137424e8b1041bf7f5b27ab6a9e6fe87d26), [`8c67589`](https://github.com/assistant-ui/assistant-ui/commit/8c67589ca1b3ffac888c19e9a2759ee7c052ce4b), [`48b920e`](https://github.com/assistant-ui/assistant-ui/commit/48b920eebdfbbe169bd408782fd7f364e84e9621), [`b43be24`](https://github.com/assistant-ui/assistant-ui/commit/b43be2420a395ec193a01a8e85bf818c76a7cc90), [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524), [`72080a9`](https://github.com/assistant-ui/assistant-ui/commit/72080a9af34364a2a13d61ddda3623b9893c5b13), [`334bf5c`](https://github.com/assistant-ui/assistant-ui/commit/334bf5cfc2e86756bf1d6cb2001d11926c73dba4), [`0f49172`](https://github.com/assistant-ui/assistant-ui/commit/0f49172e1d7d7152e0665ddedb10f3b7f73e2425)]:
+  - @assistant-ui/core@0.3.37
+  - assistant-stream@0.3.58
+  - @assistant-ui/store@0.3.24
+  - @assistant-ui/generative-ui@0.0.12
+
+## 0.2.52
+
+### Patch Changes
+
+- Updated dependencies [[`0482b22`](https://github.com/assistant-ui/assistant-ui/commit/0482b22d08283b4aabcc2b9ec58d8a6d6dc256e2)]:
+  - @assistant-ui/generative-ui@0.0.11
+
 ## 0.2.51
 
 ### Patch Changes

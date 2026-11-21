@@ -1,31 +1,37 @@
 # setup-agent
 
-One setup, shared live between the browser that opened it and the coding agent installing its products. The state is a Statewire host (`setup-agent/host`) served from a Cloudflare Durable Object (`apps/checkout-worker`); the CLI (`npx setup-agent <url>`) is a thin Statewire client the agent drives from its shell.
+One setup, shared live between the browser that opened it and the coding agent installing its products. The state is a Statewire host (`setup-agent/host`) served from a Cloudflare Durable Object (`apps/checkout-worker`); the CLI (`npx setup-agent <url>`) is a thin Statewire client the agent drives from its shell. A setup with no request and no open connection for 24 hours is deleted, with any key deposited in it; requests are recorded at most hourly, so deletion can come up to an hour later than that. Once its state passes 512 KiB, commands that add content are refused with `setup-full`; `checkout/create` can still replace it.
 
 ```sh
 npx setup-agent <url>              # instructions plus the current setup
 npx setup-agent <url> stream       # one JSON array of events per line; run it under a Monitor
-npx setup-agent <url> wait start   # wait for the user to click Begin plan in their browser
+npx setup-agent <url> wait start   # wait for the setup page to start the plan
 npx setup-agent <url> log "Sure, I will keep the existing chat route"   # a reply, or something no question or step conveys
 npx setup-agent <url> ask --preset llm-provider --only openai,anthropic --default openai
 npx setup-agent <url> ask "Where should assistant-ui live?" --optional   # keep working; the answer arrives on the stream
 npx setup-agent <url> ask "Which integrations?" --choices slack,email --icons "slack=message,email=mail"   # multi-select; answers ["slack","email"]
 npx setup-agent <url> ask "Which package manager?" --choices pnpm,npm --icons "pnpm=package,npm=package" --single   # the options exclude each other; answers "pnpm"
-npx setup-agent <url> wait q1      # block only when nothing else can proceed
+npx setup-agent <url> wait q1      # block for the answer; after 100s it prints {"ok":false,"status":"waiting","next":...} to run again
 npx setup-agent <url> plan --file plan.md --wait   # {"decision":"approve"} or {"decision":"revise","feedback":"..."}
 npx setup-agent <url> add-step "Install the packages" --detail "pnpm add ..." --active   # prints {"stepId":"s1"}
 npx setup-agent <url> step s1 done --note "installed"
 npx setup-agent <url> env q2 OPENAI_API_KEY --file .env.local   # write the key behind a model answer without seeing it
 npx setup-agent <url> done --summary "installed the thread and a chat route" --preview http://localhost:3000
+npx setup-agent <url> answer q3 pnpm   # the user answered in the agent's own chat; also: answer plan approve, answer finish close
+npx setup-agent <url> stream --setup-app-url https://setup.assistant-ui.com   # also open the setup page when the setup waits on the user
 ```
 
 ## Phases
 
-A setup opens `waiting` with its products and nothing else: no steps, no questions. After connecting, the agent tells the user to return to their browser and click **Begin plan**. It keeps the stream running and blocks on `wait start`, which prints `{"ok":true,"status":"planning"}` once planning begins, or `{"ok":false,"status":"cancelled"}` when the user ends the setup first. The browser sends `checkout/begin-plan`, moving the setup to `planning` and emitting `planning.started` on the stream. Questions and plan submissions are refused while waiting. Products are the starting list of names and setup guide references. The agent explores every starting guide and may discover other relevant products or dependencies without adding them to the cart. It includes those additions in the plan for approval. The legacy `ask --product` and `checkout/add-product` protocol remains supported for older agents. In `planning`, the agent investigates the project, asks what the code does not decide, and proposes a markdown plan with `plan` carrying its findings. `log` is for replying to the user and for what no question or step conveys. The user approves the plan or asks for changes with feedback; every revision is kept. Approval moves the setup to `installing`, where the agent declares its own steps with `add-step` and works through them with `step`. `add-step` and `step` are refused before approval. `done` marks the remaining steps done and proposes closing, with an optional `--summary` and an optional `--preview <url>` naming a dev server the agent left running; a preview must be an http(s) URL on localhost, and the browser offers to open it. `done` does not close. The browser shows the proposal with a close action that sends `checkout/finish`, and the stream prints `finished`. Until then the agent stays idle on the stream, because the user may send a follow-up message; after handling one it runs `done` again to renew the proposal.
+A setup opens `waiting` with its products and nothing else: no steps, no questions. After connecting, the agent keeps the stream running and blocks on `wait start`, which prints `{"ok":true,"status":"planning"}` once planning begins, or `{"ok":false,"status":"cancelled"}` when the user ends the setup first. The setup page has no Begin plan button: it sends `checkout/begin-plan` by itself once it joins a waiting setup, moving the setup to `planning` and emitting `planning.started` on the stream. Questions and plan submissions are refused while waiting. Products are the starting list of names and setup guide references. The agent explores every starting guide and may discover other relevant products or dependencies without adding them to the cart. It includes those additions in the plan for approval. The legacy `ask --product` and `checkout/add-product` protocol remains supported for older agents. In `planning`, the agent investigates the project, asks what the code does not decide, and proposes a markdown plan with `plan` carrying its findings. `log` is for replying to the user and for what no question or step conveys. The user approves the plan or asks for changes with feedback; every revision is kept. Approval moves the setup to `installing`, where the agent declares its own steps with `add-step` and works through them with `step`. `add-step` and `step` are refused before approval. `done` marks the remaining steps done and proposes closing, with an optional `--summary` and an optional `--preview <url>` naming a dev server the agent left running; a preview must be an http(s) URL on localhost, and the browser offers to open it. `done` does not close. The browser shows the proposal with a close action that sends `checkout/finish`, and the stream prints `finished`. Until then the agent stays idle on the stream, because the user may send a follow-up message; after handling one it runs `done` again to renew the proposal.
 
-The URL is the browser's link to its agent, not one setup. A finished or cancelled setup stays on the link, and the browser's next setup replaces it with a new `checkout/create` carrying a new `id`: the plans, steps, inputs and log start over, the agent's presence carries across when it is still connected, and the stream prints `setup.created` with the new products. The agent keeps the stream running after `finished` or `cancelled` and blocks on `wait start`, which returns once the next setup begins planning; a setup already closed when the wait begins is skipped rather than reported.
+The URL is the browser's link to its agent, not one setup. A finished or cancelled setup stays on the link until the agent replaces it with a new `checkout/create` carrying a new `id` (only the agent creates setups; the browser never sends it), or until it has been idle for about a day and is deleted. On replacement, the plans, steps, inputs and log start over, the agent's presence carries across when it is still connected, and the stream prints `setup.created` with the new products. The agent keeps the stream running after `finished` or `cancelled` and blocks on `wait start`, which returns once the next setup begins planning; a setup already closed when the wait begins is skipped rather than reported.
 
 The browser sends the setup `id` and the displayed plan `revision` with each `checkout/plan` decision. The host rejects a mismatched setup or revision with `stale-plan`, so a queued decision cannot approve or revise a newer plan. Older clients may omit these fields and retain their existing behavior. The guard requires a host running this version of `setup-agent`.
+
+## Waiting
+
+Nothing wakes a coding agent that ends its turn: the stream prints to a background process the agent only reads between commands. So the briefing tells the agent to run the setup to the end in one turn and to block on every answer with `wait <input-id>`, `plan --wait` or `ask --wait`. Those waits return after 100 seconds, under the two minutes Claude Code gives a shell command by default, with `{"ok":false,"status":"waiting","waitingFor":"q1","next":"<command>"}`; the agent runs `next` again. `--timeout <seconds>` sets another limit, and `0` waits as long as it takes. `wait start` has no limit by default, since waiting for the user's next setup is idle time. The agent ends its turn only to ask the user in its own conversation, and after `done`.
 
 ## Inputs
 
@@ -40,6 +46,43 @@ Two standard choices and a legacy project choice ship as presets (`setup-agent` 
 - `project` (legacy decoder compatibility): the React projects the agent found, passed as `--choices "apps/web=Next.js,apps/admin"`, ahead of a fixed "New project" option whose second pick is the meta framework. Answers a path, or `new:<next|vite|react-router|tanstack-start|expo>`.
 
 `--only` restricts a preset to some of its options and leaves out `--choices` (a single id locks the choice in) and `--default` preselects one.
+
+## SDK
+
+`setup-agent/sdk` is what a CLI embeds to offer `<tool> setup` to coding agents; `npx assistant-ui@latest setup` is built on it. The `setup-agent` bin is a thin wrapper around the same code.
+
+```ts
+import { runAgentSetup } from "setup-agent/sdk";
+
+const { stream, client } = await runAgentSetup({
+  server: "https://checkout.assistant-ui.com",
+  setupAppUrl: "https://setup.assistant-ui.com",
+  products: [{ slug: "assistant-ui", name: "assistant-ui" }],
+  command: "npx my-tool setup", // the agent runs `npx my-tool setup <url> <command>`
+  name: "my-tool setup",
+});
+process.on("SIGINT", () => stream.stop().finally(() => client.dispose()));
+```
+
+`runAgentSetup` starts a session, prints the briefing and keeps running as the stream. Route `<tool> setup <url> ...` to `runSetupCommand(argv, { command, browser: { setupAppUrl } })` from `setup-agent/cli` for the other steps.
+
+The browser opens only when the setup waits on the user (an open input, a proposed plan, a proposal to close). The joined page sends `browser/heartbeat` every 5s and `browser/bye` on pagehide; it counts as present for 20s after a beat. Setup:
+
+- opens the page for the first need, one tab for everything waiting;
+- opens nothing while a joined page is present;
+- never opens a second tab within 30s of the last, and never reopens a tab that has not joined (30s after opening one that never joined, it hands what waits to the agent); it prints `input.needed` (`reason: "recently-opened"`) so the agent can ask in its own chat;
+- prints `input.needed` (`reason: "browser-closed"`) when the page leaves with something waiting, or a need arrives inside the 30s after it left; a later need reopens it once that 30s guard has expired;
+- under `--no-open` (with `--setup-app-url` for the bin), prints `input.needed` (`reason: "no-browser"`) for every need.
+
+Each `input.needed` carries the question, its options and the `answer` command. On a worker without browser presence, setup opens once and then leaves the rest to the agent.
+
+## Guide
+
+Setup is online-only. Every text the CLI shows the agent lives on the setup server (`apps/checkout-worker/src/guide.ts`), so a wording or flow fix ships with a worker deploy and reaches every CLI from this version on. That covers the briefing, the stream's messages, the `waiting` and `done` hints, and the questions `input.needed` relays. Commands that print guidance (`<url>` itself, `stream`, `ask`, `plan`, `wait`, `done`, and `runAgentSetup`) fetch `GET <setup-url>/guide?protocol=1&started=<user|agent|agent-stream>&opened=<0|1>`. Without it they fail with `Setup needs internet access to <url>`.
+
+The guide is data. The CLI strips control characters and bidirectional overrides from every text, and fills `{{cmd}}`, `{{url}}` and the other placeholders with values it computes itself. It runs the intro only from three local actions: `print` (a text by key), `print-status` and `announce-agent`. It refuses any other step, a guide over 256 KB, and redirects. Commands for the CLI to run, files it writes and URLs it opens never come from the guide. The server's text can still steer the agent, as its questions and user messages already can, so the guide is as trusted as the setup server.
+
+`GUIDE_PROTOCOL` is the format version. The server answers another version with 426, and the CLI tells the user to update. Bump it only for a change an older CLI cannot read. A new command, flag or local action needs an npm release.
 
 ## Workspace
 

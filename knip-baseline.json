@@ -33,10 +33,10 @@
     "packages/react-devtools/package.json": ["@assistant-ui/tap"],
     "packages/react-ink-markdown/package.json": [
       "@assistant-ui/core",
-      "@assistant-ui/react-ink",
-      "@assistant-ui/store"
+      "@assistant-ui/react-ink"
     ],
     "packages/react-native/package.json": ["@babel/core", "react-native-web"],
+    "packages/react-streamdown/package.json": ["@streamdown/code-v1"],
     "packages/react/package.json": ["@types/json-schema"],
     "packages/remote-components-vite/package.json": [
       "@assistant-ui/remote-components-react"
@@ -62,7 +62,6 @@
     "packages/remote-components-vite/src/index.ts": [
       "remoteComponents | default"
     ],
-    "packages/setup-agent/src/cli.ts": ["agentInstructions | INSTRUCTIONS"],
     "packages/tap/src/standalone-shim/jsx-runtime.ts": [
       "throwRender | jsx | jsxs"
     ]
@@ -306,9 +305,6 @@
     ],
     "packages/generative-frame/src/runtime/index.ts": ["RuntimeConfig"],
     "packages/markdown/src/tokenizer/types.ts": ["TokenizeResult"],
-    "packages/react-ag-ui/src/runtime/adapter/subscriber.ts": [
-      "AgUiSubscriber"
-    ],
     "packages/react-devtools/src/data/types.ts": ["SerializedModelContext"],
     "packages/react-devtools/src/views/activity/index.ts": ["ActivityNode"],
     "packages/react-devtools/src/views/attachments/index.ts": [
@@ -401,6 +397,9 @@
     "packages/react-markdown/src/primitives/MarkdownText.overrides.test.tsx": [
       "jsdom"
     ],
+    "packages/solid/src/primitives/ThreadListPrimitiveNew.test.ts": ["react"],
+    "packages/solid/src/primitives/threadListStructural.test.ts": ["react"],
+    "packages/solid/src/testUtils.ts": ["react"],
     "packages/svelte/src/__tests__/clients.ts": ["react"],
     "packages/ui/src/components/react-native/assistant-ui/elements/markdown-text.compiler.test.ts": [
       "@babel/core"

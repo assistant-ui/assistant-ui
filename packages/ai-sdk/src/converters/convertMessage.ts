@@ -656,6 +656,7 @@ function convertParts(
             part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
+          ...(part.providerExecuted === true && { providerExecuted: true }),
           ...(part.callProviderMetadata != null
             ? {
                 providerMetadata:

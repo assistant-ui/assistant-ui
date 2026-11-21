@@ -24,6 +24,7 @@ type AgUiInterrupt = {
   reason: AgUiInterruptReason;
   message?: string;
   toolCallId?: string;
+  subagentRunId?: string;
   responseSchema?: Record<string, unknown>;
   expiresAt?: string;
   metadata?: Record<string, unknown>;
@@ -101,6 +102,16 @@ type AppendMessage = Omit<ThreadMessage, "id"> & {
 };
 
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
+
+type AssistantError = {
+  readonly code: AssistantErrorCode;
+  readonly message: string;
+  readonly statusCode?: number;
+  readonly severity?: ErrorSeverity;
+  readonly display?: ErrorDisplay;
+};
+
+type AssistantErrorCode = "unknown" | "network" | "provider" | (string & {});
 
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
@@ -202,6 +213,7 @@ type BaseComposerState = {
   readonly runConfig: RunConfig;
   readonly attachmentAccept: string;
   readonly dictation: DictationState | undefined;
+  readonly lastDictationEnd?: DictationEnd | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
   readonly submission?: ComposerSubmission | undefined;
@@ -381,6 +393,7 @@ declare namespace DictationAdapter {
   } | {
     type: "ended";
     reason: "cancelled" | "error" | "stopped";
+    error?: unknown;
   };
   type Result = {
     transcript: string;
@@ -399,6 +412,13 @@ declare namespace DictationAdapter {
 type DictationAdapter = {
   listen: () => DictationAdapter.Session;
   disableInputDuringDictation?: boolean;
+};
+
+type DictationEnd = {
+  readonly reason: Extract<DictationAdapter.Status, {
+    type: "ended";
+  }>["reason"];
+  readonly error?: AssistantError;
 };
 
 type DictationState = {
@@ -428,6 +448,10 @@ type EditComposerState = BaseComposerState & {
   readonly parentId: string | null;
   readonly sourceId: string | null;
 };
+
+type ErrorDisplay = "dev-only" | "inline" | "silent" | "toast";
+
+type ErrorSeverity = "critical" | "info" | "warning";
 
 type ExportedMessageRepository = {
   headId?: string | null;
@@ -581,6 +605,7 @@ type FileMessagePart = {
 
 type FromAgUiMessagesOptions = {
   showThinking?: boolean;
+  joinAdjacentAssistantMessages?: boolean;
 };
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -1003,6 +1028,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly id?: string;
   readonly text: string;
+  readonly unstable_redacted?: boolean;
   readonly status?: MessagePartStreamStatus;
   readonly unstable_summary?: string;
   readonly timing?: MessagePartTiming;
@@ -1585,6 +1611,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     type: "human";
     payload: unknown;
   };
+  readonly providerExecuted?: boolean | undefined;
   readonly approval?: {
     readonly id: string;
     readonly prompt?: string;
@@ -1772,6 +1799,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   logger?: Partial<Logger>;
   showThinking?: boolean;
   joinStrategy?: JoinStrategy;
+  joinAdjacentAssistantMessages?: boolean;
   getRunContext?: ((input: {
     messages: readonly Message[];
     runConfig: RunConfig | undefined;

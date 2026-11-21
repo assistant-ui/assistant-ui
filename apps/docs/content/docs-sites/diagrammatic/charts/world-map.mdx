@@ -4,13 +4,15 @@ description: A choropleth on real country outlines. Values keyed by ISO country 
 ---
 
 import { Example } from "@/components/diagrammatic/example";
-import Flagship from "@/components/diagrammatic/examples/world-map/flagship";
+import {
+  WorldMapFlagship as Flagship,
+  WorldMapRegions as Regions,
+  WorldMapSelect as Select,
+  WorldMapZoom as ZoomExample,
+} from "@/components/diagrammatic/examples.lazy";
 import Basic from "@/components/diagrammatic/examples/world-map/basic";
 import SharedScale from "@/components/diagrammatic/examples/world-map/shared-scale";
 import Themed from "@/components/diagrammatic/examples/world-map/themed";
-import Regions from "@/components/diagrammatic/examples/world-map/regions";
-import Select from "@/components/diagrammatic/examples/world-map/select";
-import ZoomExample from "@/components/diagrammatic/examples/world-map/zoom";
 
 <Example file="world-map/flagship"><Flagship /></Example>
 

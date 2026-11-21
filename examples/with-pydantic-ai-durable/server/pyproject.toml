@@ -1,0 +1,21 @@
+[project]
+name = "with-pydantic-ai-durable-server"
+version = "0.0.0"
+description = "Pydantic AI agent over AG-UI with threads that survive a closed browser"
+requires-python = ">=3.11"
+dependencies = [
+  "assistant-stream[pydantic-ai,redis]>=0.0.37",
+  "pydantic-ai-slim[openai]>=2.61.0",
+  "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+postgres = ["assistant-stream[postgres]"]
+
+[tool.uv]
+package = false
+exclude-newer = "2026-10-26T00:00:00Z"
+
+# Inside the assistant-ui repo the example runs against the package source.
+[tool.uv.sources]
+assistant-stream = { path = "../../../python/assistant-stream", editable = true }

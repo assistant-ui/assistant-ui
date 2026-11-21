@@ -17,6 +17,7 @@
         "!.farm/cache/**",
         ".vercel/output/**",
         "generated/**",
+        "public/rc/**",
         ".output/**",
         "build/**"
       ],
@@ -37,6 +38,16 @@
         "generated/integrationTypeDocs.ts",
         "generated/primitiveDocs.ts"
       ]
+    },
+    "check:links": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["LINKINATOR_EXTERNAL"]
+    },
+    "check:lighthouse": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "passThroughEnv": ["CHROME_PATH"]
     },
     "dev": {
       "dependsOn": ["^build", "generate:type-docs"],

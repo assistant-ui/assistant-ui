@@ -22,39 +22,34 @@ from assistant_stream.resumable.types import (
     ResumableStreamStatus,
 )
 
-
-@dataclass
-class _FinalizeMarker:
-    kind: Literal["done", "error"]
-    error: str | None = None
+_CURSOR_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 
 @dataclass
 class _StreamState:
     lease: ResumableStreamLease
+    ttl_ms: int
+    expires_at: float
     entries: list[ResumableStreamEntry] = field(default_factory=list)
-    next_seq: int = 1
-    expires_at: float = 0.0
-    ttl_ms: int = 0
-    final: _FinalizeMarker | None = None
+    final: Literal["done", "error"] | None = None
+    error: str | None = None
     waiters: list[asyncio.Event] = field(default_factory=list)
+
+    def notify(self) -> None:
+        waiters, self.waiters = self.waiters, []
+        for event in waiters:
+            event.set()
 
 
 def _cursor_of(seq: int) -> str:
-    if seq == 0:
-        return "0"
-    alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
-    n = seq
-    chars: list[str] = []
-    while n:
-        n, rem = divmod(n, 36)
-        chars.append(alphabet[rem])
-    return "".join(reversed(chars))
+    chars = ""
+    while seq:
+        seq, rem = divmod(seq, 36)
+        chars = _CURSOR_ALPHABET[rem] + chars
+    return chars or "0"
 
 
 def _seq_from_cursor(cursor: str) -> int:
-    if cursor == "":
-        return 0
     try:
         return int(cursor, 36)
     except ValueError:
@@ -82,109 +77,36 @@ class _InMemoryResumableStreamStore:
         self._gc_task: asyncio.Task[None] | None = None
         self._disposed = False
 
-    def _ensure_gc(self) -> None:
-        if (
-            self._gc_interval_ms is None
-            or self._disposed
-            or self._gc_task is not None
-        ):
-            return
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return
+    def _enter(self, stream_id: str) -> None:
+        interval_ms = self._gc_interval_ms
+        if interval_ms is not None and not self._disposed and self._gc_task is None:
+            with suppress(RuntimeError):
+                loop = asyncio.get_running_loop()
+                self._gc_task = loop.create_task(self._gc_loop(interval_ms / 1000.0))
+        validate_stream_id(stream_id)
 
-        interval_s = self._gc_interval_ms / 1000.0
-
-        async def _gc_loop() -> None:
-            while True:
-                await asyncio.sleep(interval_s)
-                self._evict_expired()
-
-        self._gc_task = loop.create_task(_gc_loop())
+    async def _gc_loop(self, interval_s: float) -> None:
+        while True:
+            await asyncio.sleep(interval_s)
+            self._evict_expired()
 
     def _evict_expired(self) -> None:
         t = self._now()
-        expired: list[tuple[str, _StreamState]] = []
-        for stream_id, state in self._streams.items():
-            if state.expires_at <= t:
-                expired.append((stream_id, state))
+        expired = [(k, s) for k, s in self._streams.items() if s.expires_at <= t]
         for stream_id, state in expired:
             del self._streams[stream_id]
             if state.final is None:
-                state.final = _FinalizeMarker(kind="error", error="Stream expired")
-            self._notify(state)
+                state.final, state.error = "error", "Stream expired"
+            state.notify()
 
-    def _notify(self, state: _StreamState) -> None:
-        waiters = state.waiters
-        state.waiters = []
-        for event in waiters:
-            event.set()
-
-    def _find_start_index(self, state: _StreamState, cursor: str) -> int:
-        if cursor == "":
-            return 0
-        after = _seq_from_cursor(cursor)
-        lo = 0
-        hi = len(state.entries)
-        while lo < hi:
-            mid = (lo + hi) // 2
-            seq = _seq_from_cursor(state.entries[mid].cursor)
-            if seq <= after:
-                lo = mid + 1
-            else:
-                hi = mid
-        return lo
-
-    async def _wait_for_update(
-        self,
-        state: _StreamState,
-        signal: CancellationSignal,
-        wake_by: float | None,
-    ) -> None:
-        if signal.is_set():
-            return
-        if wake_by is not None and wake_by <= 0:
-            return
-
-        event = asyncio.Event()
-        state.waiters.append(event)
-
-        notify_task = asyncio.create_task(event.wait())
-        signal_task = asyncio.create_task(signal.wait())
-        tasks: set[asyncio.Task[object]] = {notify_task, signal_task}
-        if wake_by is not None:
-            tasks.add(asyncio.create_task(asyncio.sleep(wake_by / 1000.0)))
-
-        try:
-            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        finally:
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-            for task in tasks:
-                with suppress(asyncio.CancelledError):
-                    await task
-            with suppress(ValueError):
-                state.waiters.remove(event)
-
-    def _require_active(
-        self, stream_id: str, lease: ResumableStreamLease | None = None
-    ) -> _StreamState:
+    def _get(self, stream_id: str) -> _StreamState | None:
         self._evict_expired()
-        state = self._streams.get(stream_id)
+        return self._streams.get(stream_id)
+
+    def _get_existing(self, stream_id: str) -> _StreamState:
+        state = self._get(stream_id)
         if state is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
-        if lease is not None and state.lease != lease:
-            raise ResumableStreamError(
-                "missing",
-                f"Stream superseded by a new acquisition: {stream_id}",
-            )
-        if state.final is not None:
-            raise ResumableStreamError(
-                "finalized",
-                f"Stream already finalized: {stream_id}",
-            )
         return state
 
     async def acquire(
@@ -195,25 +117,15 @@ class _InMemoryResumableStreamStore:
     async def acquire_lease(
         self, stream_id: str, *, ttl_ms: int | None = None
     ) -> ResumableStreamAcquisition:
-        self._ensure_gc()
-        validate_stream_id(stream_id)
-        self._evict_expired()
-        if stream_id in self._streams:
+        self._enter(stream_id)
+        if self._get(stream_id) is not None:
             return ResumableStreamAcquisition(role="consumer", lease=None)
-
         if self._max_streams is not None and len(self._streams) >= self._max_streams:
             raise RuntimeError("maxStreams exceeded")
-
-        resolved_ttl = ttl_ms if ttl_ms is not None else self._default_ttl_ms
+        ttl = ttl_ms if ttl_ms is not None else self._default_ttl_ms
         lease = ResumableStreamLease(token=uuid.uuid4().hex)
         self._streams[stream_id] = _StreamState(
-            entries=[],
-            next_seq=1,
-            expires_at=self._now() + resolved_ttl,
-            ttl_ms=resolved_ttl,
-            final=None,
-            waiters=[],
-            lease=lease,
+            lease=lease, ttl_ms=ttl, expires_at=self._now() + ttl
         )
         return ResumableStreamAcquisition(role="producer", lease=lease)
 
@@ -223,24 +135,27 @@ class _InMemoryResumableStreamStore:
         chunk: bytes,
         lease: ResumableStreamLease | None = None,
     ) -> None:
-        self._ensure_gc()
-        validate_stream_id(stream_id)
-        if (
-            self._max_chunk_bytes is not None
-            and len(chunk) > self._max_chunk_bytes
-        ):
+        self._enter(stream_id)
+        if self._max_chunk_bytes is not None and len(chunk) > self._max_chunk_bytes:
             raise RuntimeError(f"Chunk exceeds maxChunkBytes: {len(chunk)}")
-        state = self._require_active(stream_id, lease)
+        state = self._get_existing(stream_id)
+        if lease is not None and state.lease != lease:
+            raise ResumableStreamError(
+                "missing", f"Stream superseded by a new acquisition: {stream_id}"
+            )
+        if state.final is not None:
+            raise ResumableStreamError(
+                "finalized", f"Stream already finalized: {stream_id}"
+            )
         if (
             self._max_entries_per_stream is not None
             and len(state.entries) >= self._max_entries_per_stream
         ):
             raise RuntimeError(f"Stream exceeded maxEntriesPerStream: {stream_id}")
-        seq = state.next_seq
-        state.next_seq += 1
-        state.entries.append(ResumableStreamEntry(cursor=_cursor_of(seq), chunk=chunk))
+        cursor = _cursor_of(len(state.entries) + 1)
+        state.entries.append(ResumableStreamEntry(cursor=cursor, chunk=chunk))
         state.expires_at = self._now() + state.ttl_ms
-        self._notify(state)
+        state.notify()
 
     async def finalize(
         self,
@@ -249,84 +164,86 @@ class _InMemoryResumableStreamStore:
         error: str | None = None,
         lease: ResumableStreamLease | None = None,
     ) -> bool:
-        self._ensure_gc()
-        validate_stream_id(stream_id)
-        self._evict_expired()
-        state = self._streams.get(stream_id)
-        if state is None:
-            raise RuntimeError(f"Stream not found: {stream_id}")
-        if lease is not None and state.lease != lease:
+        self._enter(stream_id)
+        state = self._get_existing(stream_id)
+        if (lease is not None and state.lease != lease) or state.final is not None:
             return False
-        if state.final is not None:
-            return False
-        if status == "done":
-            state.final = _FinalizeMarker(kind="done")
-        else:
-            state.final = _FinalizeMarker(
-                kind="error", error=error if error is not None else "Stream errored"
-            )
+        state.final = status
+        if status == "error":
+            state.error = error if error is not None else "Stream errored"
         state.expires_at = self._now() + state.ttl_ms
-        self._notify(state)
+        state.notify()
         return True
 
     async def read(
         self, stream_id: str, cursor: str, signal: CancellationSignal
     ) -> AsyncIterator[ResumableStreamEntry]:
-        self._ensure_gc()
-        validate_stream_id(stream_id)
-        self._evict_expired()
-        state = self._streams.get(stream_id)
-        if state is None:
-            raise RuntimeError(f"Stream not found: {stream_id}")
-
-        idx = self._find_start_index(state, cursor)
+        self._enter(stream_id)
+        state = self._get_existing(stream_id)
+        # Cursors are 1-based sequence numbers and entries are never removed.
+        idx = min(max(_seq_from_cursor(cursor), 0), len(state.entries))
 
         while True:
             if signal.is_set():
                 return
-
             while idx < len(state.entries):
                 if signal.is_set():
                     return
                 yield state.entries[idx]
                 idx += 1
-
+            if state.final == "error":
+                raise RuntimeError(state.error or "Stream errored")
             if state.final is not None:
-                if state.final.kind == "error":
-                    raise RuntimeError(state.final.error or "Stream errored")
                 return
-
-            wake_by = state.expires_at - self._now()
-            await self._wait_for_update(state, signal, wake_by)
+            await _wait_for_update(state, signal, state.expires_at - self._now())
             self._evict_expired()
 
     async def status(self, stream_id: str) -> ResumableStreamStatus:
-        self._ensure_gc()
-        validate_stream_id(stream_id)
-        self._evict_expired()
-        state = self._streams.get(stream_id)
+        self._enter(stream_id)
+        state = self._get(stream_id)
         if state is None:
             return "missing"
-        if state.final is None:
-            return "streaming"
-        return "error" if state.final.kind == "error" else "done"
+        return state.final or "streaming"
 
     async def delete(self, stream_id: str) -> None:
-        self._ensure_gc()
-        validate_stream_id(stream_id)
-        state = self._streams.get(stream_id)
+        self._enter(stream_id)
+        state = self._streams.pop(stream_id, None)
         if state is None:
             return
-        del self._streams[stream_id]
         if state.final is None:
-            state.final = _FinalizeMarker(kind="done")
-        self._notify(state)
+            state.final = "done"
+        state.notify()
 
     def dispose(self) -> None:
         self._disposed = True
         if self._gc_task is not None:
             self._gc_task.cancel()
             self._gc_task = None
+
+
+async def _wait_for_update(
+    state: _StreamState, signal: CancellationSignal, wake_by_ms: float
+) -> None:
+    if signal.is_set() or wake_by_ms <= 0:
+        return
+    event = asyncio.Event()
+    state.waiters.append(event)
+    tasks = {
+        asyncio.create_task(event.wait()),
+        asyncio.create_task(signal.wait()),
+    }
+    try:
+        await asyncio.wait(
+            tasks, timeout=wake_by_ms / 1000.0, return_when=asyncio.FIRST_COMPLETED
+        )
+    finally:
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with suppress(asyncio.CancelledError):
+                await task
+        with suppress(ValueError):
+            state.waiters.remove(event)
 
 
 def create_in_memory_resumable_stream_store(

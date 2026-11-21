@@ -44,7 +44,7 @@ export async function RuntimeSetup() {
         <p className="text-muted-foreground">
           The{" "}
           <Link
-            href="/docs/installation"
+            href="/docs/manual-installation"
             className="text-foreground underline underline-offset-4 hover:no-underline"
           >
             installation guide

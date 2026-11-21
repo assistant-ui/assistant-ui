@@ -48,10 +48,11 @@ import type {
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
+  assertImportable,
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
-import { generateId } from "../../utils/id";
+import { generateId, isErrorMessageId } from "../../utils/id";
 import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
   NO_TOOL_EXECUTIONS,
@@ -288,10 +289,42 @@ export class ExternalStoreThreadRuntimeCore
     }
   }
 
-  // Placeholder id for the upcoming assistant message, reused across snapshot
+  // Placeholder for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
   // keeps one identity per response.
-  private _optimistic: { id: string; parentId: string | null } | null = null;
+  private _optimistic: {
+    message: ThreadMessage;
+    parentId: string | null;
+  } | null = null;
+
+  // Synthesized error messages (`__error__` ids) added from the host's
+  // messages array, per repository so a thread switched away from and back
+  // keeps its record. Each conversion of an error makes a fresh id, so once
+  // the host no longer sends one it is gone for good and would otherwise stay
+  // behind as a sibling branch.
+  private readonly _errorMessageIdsByRepository = new WeakMap<
+    MessageRepository,
+    Set<string>
+  >();
+
+  // Full host snapshot passes completed, so a pass resumed after a run event
+  // can tell whether a listener already applied a newer one.
+  private _completedHostSnapshots = 0;
+
+  private get _errorMessageIds() {
+    let ids = this._errorMessageIdsByRepository.get(this.repository);
+    if (!ids) {
+      // A repository can outlive the core that synthesized its error message.
+      ids = new Set(
+        this.repository
+          .export()
+          .messages.map(({ message }) => message.id)
+          .filter(isErrorMessageId),
+      );
+      this._errorMessageIdsByRepository.set(this.repository, ids);
+    }
+    return ids;
+  }
 
   // The last host branch with locally submitted feedback applied, or the array
   // last handed to setMessages, whichever was written last. Excludes the
@@ -511,11 +544,11 @@ export class ExternalStoreThreadRuntimeCore
   private _evictPlaceholder() {
     if (!this._optimistic) return;
     try {
-      this.repository.getMessage(this._optimistic.id);
+      this.repository.getMessage(this._optimistic.message.id);
     } catch {
       return;
     }
-    this.repository.deleteMessage(this._optimistic.id);
+    this.repository.deleteMessage(this._optimistic.message.id);
   }
 
   private _updateStoreSnapshot(
@@ -549,7 +582,10 @@ export class ExternalStoreThreadRuntimeCore
       const head = this.repository.getMessages();
       const tail = head.at(-1);
       this._optimistic = tail?.metadata.isOptimistic
-        ? { id: tail.id, parentId: head.at(-2)?.id ?? null }
+        ? {
+            message: tail,
+            parentId: head.at(-2)?.id ?? null,
+          }
         : null;
     }
     if (oldStore?.queue !== store.queue) {
@@ -777,6 +813,17 @@ export class ExternalStoreThreadRuntimeCore
       for (const [id, message] of hostDeletedMessages) {
         this._evictDeletedMessage(id, message, false);
       }
+      const errorMessageIds = this._errorMessageIds;
+      for (const id of errorMessageIds) {
+        if (incomingIds.has(id)) continue;
+        // A host that kept the error and built turns on it owns that branch.
+        if (this.repository.hasChildren(id)) continue;
+        errorMessageIds.delete(id);
+        this._evictDeletedMessage(id, undefined, false);
+      }
+      for (const message of messages) {
+        if (isErrorMessageId(message.id)) errorMessageIds.add(message.id);
+      }
 
       // A pass over the host's previous array, such as a client tool's
       // running refresh, can predate the host's answer to onDelete.
@@ -837,6 +884,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this._effectiveIsRunning = isRunning;
+    const completedHostSnapshots = this._completedHostSnapshots;
     if (previousIsRunning !== isRunning) {
       if (isRunning) {
         const scope = this._cancelledToolTurn;
@@ -856,6 +904,10 @@ export class ExternalStoreThreadRuntimeCore
       } else {
         this._notifyEventSubscribers("runEnd", {});
       }
+      // A listener may have published a newer host snapshot that already
+      // selected its head and drove tools; this one may point at a message it
+      // evicted.
+      if (this._completedHostSnapshots !== completedHostSnapshots) return;
     }
 
     // Append an optimistic placeholder while running but before a trailing
@@ -869,17 +921,21 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.resetHead(parentId);
       }
       if (this._optimistic?.parentId !== parentId) {
-        this._optimistic = { id: generateId(), parentId };
+        this._optimistic = {
+          parentId,
+          message: fromThreadMessageLike(
+            {
+              role: "assistant",
+              content: [],
+              metadata: { isOptimistic: true },
+            },
+            generateId(),
+            { type: "running" },
+          ),
+        };
       }
-      optimisticId = this._optimistic.id;
-      this.repository.addOrUpdateMessage(
-        parentId,
-        fromThreadMessageLike(
-          { role: "assistant", content: [], metadata: { isOptimistic: true } },
-          optimisticId,
-          { type: "running" },
-        ),
-      );
+      optimisticId = this._optimistic.message.id;
+      this.repository.addOrUpdateMessage(parentId, this._optimistic.message);
     }
 
     if (optimisticId === null) this._optimistic = null;
@@ -914,6 +970,7 @@ export class ExternalStoreThreadRuntimeCore
         this._runTrackerUpdate(() => this._toolInvocations?.reset());
       }
       this._runTrackerUpdate(() => this._driveToolInvocations());
+      this._completedHostSnapshots++;
     }
 
     this._notifySubscribers();
@@ -1654,7 +1711,9 @@ export class ExternalStoreThreadRuntimeCore
       // setMessages replaces the whole array, and the host may hold updates
       // this runtime has not received yet, so it is called only when the
       // rollback left something the host does not already hold.
-      const view = this._messages.filter((m) => m.id !== this._optimistic?.id);
+      const view = this._messages.filter(
+        (m) => m.id !== this._optimistic?.message.id,
+      );
       if (!shallowArrayEqual(view, this._storeMessages))
         this.updateMessages(view);
     };
@@ -1770,6 +1829,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onImport)
       throw new Error("Runtime does not support importing messages.");
 
+    assertImportable(data);
     const pendingResume = this._pendingResume;
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();

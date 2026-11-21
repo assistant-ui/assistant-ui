@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
-import { hasTasks } from "./ci-has-tasks.mjs";
+import { fileURLToPath } from "node:url";
+import { hasTasks, planHasTasks } from "./ci-has-tasks.mjs";
+
+const script = fileURLToPath(new URL("./ci-has-tasks.mjs", import.meta.url));
 
 function fixture(tasks, failAt) {
   const calls = [];
@@ -131,6 +143,74 @@ test("workspace changes avoid planner overhead without skipping checks", () => {
     "scripts/typecheck.sh",
     ".github/workflows/code-quality.yaml",
   ]);
+});
+
+test("planning alone asks Turbo without the workspace shortcut", () => {
+  const args = ["build", "--filter=...[origin/main]"];
+  for (const [tasks, expected] of [
+    [[], false],
+    [[{ command: "<NONEXISTENT>" }], false],
+    [[{ command: "aui-build" }], true],
+  ]) {
+    const { exec, calls } = fixture(tasks);
+    assert.equal(planHasTasks(args, exec), expected);
+    assert.deepEqual(
+      calls.map(({ command, args }) => [command, ...args]),
+      [
+        [
+          "pnpm",
+          "--filter=.",
+          "list",
+          "turbo",
+          "--lockfile-only",
+          "--depth=0",
+          "--json",
+        ],
+        ["pnpm", "dlx", "turbo@2.11.5", "run", ...args, "--dry=json"],
+      ],
+    );
+  }
+  for (const failAt of [1, 2]) {
+    assert.equal(planHasTasks(args, fixture([], failAt).exec), true);
+  }
+});
+
+test("the CLI plans alone with --plan", (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "aui-ci-has-tasks-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const pnpm = path.join(root, "pnpm");
+  writeFileSync(
+    pnpm,
+    `#!/usr/bin/env bash
+echo "$*" >> "${root}/calls"
+case "$*" in
+  *" list "*) echo '[{"devDependencies":{"turbo":{"version":"2.11.5"}}}]' ;;
+  dlx*) echo '{"tasks":[]}' ;;
+esac
+`,
+  );
+  chmodSync(pnpm, 0o755);
+  const result = spawnSync(
+    process.execPath,
+    [script, "--plan", "build", "--filter={./examples/*}[origin/main]"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${root}${path.delimiter}${process.env.PATH}`,
+      },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "false\n");
+  assert.deepEqual(
+    readFileSync(path.join(root, "calls"), "utf8").trim().split("\n"),
+    [
+      "--filter=. list turbo --lockfile-only --depth=0 --json",
+      "dlx turbo@2.11.5 run build --filter={./examples/*}[origin/main] --dry=json",
+    ],
+  );
 });
 
 test("typecheck installation and execution use the planner result", () => {
