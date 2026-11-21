@@ -540,8 +540,8 @@ importers:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
       appos-host:
-        specifier: link:../../../appos/packages/appos-host
-        version: link:../../../appos/packages/appos-host
+        specifier: github:assistant-ui/appOS#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host
+        version: git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host(react@19.3.1)
       assistant-cloud:
         specifier: workspace:*
         version: link:../../packages/cloud
@@ -1473,8 +1473,8 @@ importers:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
       appos-client:
-        specifier: link:../../../appos/packages/appos-client
-        version: link:../../../appos/packages/appos-client
+        specifier: github:assistant-ui/appOS#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client
+        version: git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client(@ai-sdk/provider@4.0.34)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -16056,6 +16056,24 @@ packages:
   anynum@1.0.1:
     resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
 
+  appos-client@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client:
+    resolution: {commit: c4da971445063e97a63c8ca899145b36be41d9e9, path: packages/appos-client, repo: https://github.com/assistant-ui/appOS.git, type: git}
+    version: 0.0.1
+    peerDependencies:
+      '@ai-sdk/provider': ^4.0.0
+    peerDependenciesMeta:
+      '@ai-sdk/provider':
+        optional: true
+
+  appos-host@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host:
+    resolution: {commit: c4da971445063e97a63c8ca899145b36be41d9e9, path: packages/appos-host, repo: https://github.com/assistant-ui/appOS.git, type: git}
+    version: 0.0.1
+    peerDependencies:
+      react: ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+
   archiver@8.0.0:
     resolution: {integrity: sha512-fV1orZfsnPn9BaSByR/qE67rJCLJEy2Ox5bq7nJh+jquWaNh6Sfec75kJ2T6PtdGUbPQlrVoSVCEOa5SdiTQ1g==}
     engines: {node: '>=18'}
@@ -16511,6 +16529,10 @@ packages:
   caniuse-lite@1.0.30001819:
     resolution: {integrity: sha512-LFUqIIAwpzsIuevnKnsR9qnStBcgzPShTX61lBwN9uFkkf8o8zLiebEjbW8AYtZiF+1YKDWfdt/pWDtMuG8Xwg==}
 
+  cborg@1.10.2:
+    resolution: {integrity: sha512-b3tFPA9pUr2zCUiCfRd2+wok2/LBSNUMKOuRRok+WlvvAgEt/PlbgPTsZUcwCOs53IJvLgTp0eotwtosE6njug==}
+    hasBin: true
+
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
 
@@ -16805,6 +16827,10 @@ packages:
 
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
+
+  commander@4.1.1:
+    resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
+    engines: {node: '>= 6'}
 
   commander@6.2.1:
     resolution: {integrity: sha512-U7VdrJFnJgo4xjrHpTzu0yrHPGImdsmD95ZlgYSEajAn2JKzDhDTPG9kBTefmObL2w/ngeZnilk+OV9CG3d7UA==}
@@ -20586,6 +20612,11 @@ packages:
     engines: {node: '>=4'}
     hasBin: true
 
+  mime@2.6.0:
+    resolution: {integrity: sha512-USPkMeET31rOMiarsBNIHZKLGgvKc/LrjofAnBlOttf5ajRvqiRA8QsenbcooctK6d6Ts6aqZXBA+XbkKthiQg==}
+    engines: {node: '>=4.0.0'}
+    hasBin: true
+
   mime@4.1.1:
     resolution: {integrity: sha512-YAApRsTpM2+gnUFHhRNGfkX8NK0V5xj1nyQLufGlwEI+eX4xRsTcel2IXDuMEGSGjBvzykNW4VuoEACgwYe7BQ==}
     engines: {node: '>=16'}
@@ -24228,6 +24259,11 @@ packages:
 
   warn-once@0.1.1:
     resolution: {integrity: sha512-VkQZJbO8zVImzYFteBXvBOZEl1qL175WH8VmZcxF2fZAoudNhNDvHi+doCaAEdU2l2vtcIwa2zn0QK5+I1HQ3Q==}
+
+  wbn@0.0.10:
+    resolution: {integrity: sha512-CveWTUFIIm2DRTPt2Q2XSUcBL+v/tYKdzfLDhPQtwE/vH8jqQCa9CvEwHsfFELks5Nurni2rN2DmR/fp3GccRg==}
+    engines: {node: '>= 20.0.0'}
+    hasBin: true
 
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
@@ -34238,6 +34274,16 @@ snapshots:
 
   anynum@1.0.1: {}
 
+  appos-client@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-client(@ai-sdk/provider@4.0.34):
+    optionalDependencies:
+      '@ai-sdk/provider': 4.0.34
+
+  appos-host@git+https://github.com/assistant-ui/appOS.git#c4da971445063e97a63c8ca899145b36be41d9e9&path:packages/appos-host(react@19.3.1):
+    dependencies:
+      wbn: 0.0.10
+    optionalDependencies:
+      react: 19.3.1
+
   archiver@8.0.0:
     dependencies:
       async: 3.2.6
@@ -34813,6 +34859,8 @@ snapshots:
 
   caniuse-lite@1.0.30001819: {}
 
+  cborg@1.10.2: {}
+
   ccount@2.0.1: {}
 
   chai@6.3.0: {}
@@ -35089,6 +35137,8 @@ snapshots:
   commander@15.0.0: {}
 
   commander@2.20.3: {}
+
+  commander@4.1.1: {}
 
   commander@6.2.1: {}
 
@@ -39940,6 +39990,8 @@ snapshots:
       mime-db: 1.54.0
 
   mime@1.6.0: {}
+
+  mime@2.6.0: {}
 
   mime@4.1.1: {}
 
@@ -44820,6 +44872,12 @@ snapshots:
       makeerror: 1.0.12
 
   warn-once@0.1.1: {}
+
+  wbn@0.0.10:
+    dependencies:
+      cborg: 1.10.2
+      commander: 4.1.1
+      mime: 2.6.0
 
   wcwidth@1.0.1:
     dependencies:
