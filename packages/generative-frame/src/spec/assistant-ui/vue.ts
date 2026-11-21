@@ -9,6 +9,7 @@ import {
   type Component,
   type PropType,
 } from "vue";
+import { fillComposer } from "../../assistant-ui/fillComposer";
 import { toolkitEntry } from "../../assistant-ui/entry";
 import type {
   ToolkitDisplay,
@@ -48,7 +49,6 @@ import {
   supersededInMessage,
   type InteractionLog,
   type SpecArgs,
-  fillComposer,
   writeClipboard,
 } from "./thread";
 

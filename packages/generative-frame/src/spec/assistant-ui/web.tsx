@@ -4,7 +4,8 @@ import type { ModelContextSource } from "../../assistant-ui/modelContext";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import type { Catalog } from "../catalog";
 import { SpecRenderer } from "../react/SpecRenderer";
-import { fillComposer, writeClipboard } from "./thread";
+import { fillComposer } from "../../assistant-ui/fillComposer";
+import { writeClipboard } from "./thread";
 import { specToolkitFor, type SpecToolkitOptions } from "./toolkit";
 
 function useMessages() {

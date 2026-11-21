@@ -379,24 +379,3 @@ export const copyTextHandler =
     }
     return write(text);
   };
-
-type ComposerHost = {
-  thread: {
-    composer(): {
-      getState(): { text: string };
-      setText(text: string): void;
-    };
-  };
-};
-
-/**
- * The default `sendMessage`: adds `text` to the thread composer, after what
- * the user already typed, so the user reviews it and sends it. A component
- * can emit an event without a user gesture, so a spec never sends on its own.
- */
-export const fillComposer = (aui: ComposerHost, text: string) => {
-  const composer = aui.thread.composer();
-  composer.setText(
-    [composer.getState().text, text].filter((part) => part.trim()).join(" "),
-  );
-};
