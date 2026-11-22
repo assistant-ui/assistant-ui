@@ -1,6 +1,11 @@
 import { spawn } from "node:child_process";
 import type { Checkout } from "setup-agent";
-import { parseSetupUrl } from "setup-agent/cli";
+import {
+  OFFICIAL_SETUP_APPS,
+  OFFICIAL_SETUP_SERVERS,
+  parseSetupUrl,
+  parseTrustedSetupUrl,
+} from "setup-agent/cli";
 
 /** How an agent runs setup commands: `<SETUP_COMMAND> <url> <command>`. */
 export const SETUP_COMMAND = "npx assistant-ui@latest setup";
@@ -92,7 +97,13 @@ export type SetupEndpoints = {
   setupAppUrl: string;
 };
 
-/** The docs site, setup server and setup app, from flags, then the environment, then production. */
+/**
+ * The docs site, setup server and setup app, from flags, then the environment,
+ * then production. The setup server and app must be official or on this
+ * machine: every step command in the briefing refuses other hosts, so a setup
+ * created elsewhere could not be continued. Checked here, once, so the run
+ * fails before it creates a setup.
+ */
 export const resolveEndpoints = (
   options: { docsUrl?: string; setupServer?: string; setupAppUrl?: string },
   env: NodeJS.ProcessEnv = process.env,
@@ -100,15 +111,19 @@ export const resolveEndpoints = (
   docsUrl: parseSetupUrl(
     options.docsUrl ?? env.ASSISTANT_UI_DOCS_URL ?? DEFAULT_DOCS_URL,
   ),
-  setupServer: parseSetupUrl(
+  setupServer: parseTrustedSetupUrl(
     options.setupServer ??
       env.ASSISTANT_UI_SETUP_SERVER ??
       DEFAULT_SETUP_SERVER,
+    OFFICIAL_SETUP_SERVERS,
+    "setup server",
   ),
-  setupAppUrl: parseSetupUrl(
+  setupAppUrl: parseTrustedSetupUrl(
     options.setupAppUrl ??
       env.ASSISTANT_UI_SETUP_APP_URL ??
       DEFAULT_SETUP_APP_URL,
+    OFFICIAL_SETUP_APPS,
+    "setup page",
   ),
 });
 
