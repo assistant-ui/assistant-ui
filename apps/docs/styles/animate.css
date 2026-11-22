@@ -79,7 +79,11 @@
 
 @keyframes line-hot-settle {
   from {
-    background-color: color-mix(in oklab, var(--color-blue-500) 14%, transparent);
+    background-color: color-mix(
+      in oklab,
+      var(--color-blue-500) 14%,
+      transparent
+    );
   }
   to {
     background-color: transparent;

@@ -157,7 +157,11 @@
   --foreground: oklch(0.145 0.006 var(--tint));
   /* Content slabs (code blocks) carry a fill instead of a border, so the tint
      has to stay slight. Resolved per theme: it lifts on dark, recedes on light. */
-  --code-surface: color-mix(in oklab, var(--foreground) 2.5%, var(--background));
+  --code-surface: color-mix(
+    in oklab,
+    var(--foreground) 2.5%,
+    var(--background)
+  );
   --card: oklch(0.992 0.002 var(--tint));
   --card-foreground: oklch(0.145 0.006 var(--tint));
   --popover: oklch(0.992 0.002 var(--tint));
