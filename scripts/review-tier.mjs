@@ -378,17 +378,7 @@ export async function gatherPullRequest(
   let authorHasWriteAccess = false;
   let openPullRequestCount = 0;
   if (author !== null) {
-    try {
-      const permission = await client.rest(
-        "GET",
-        `${repo}/collaborators/${encodeURIComponent(author)}/permission`,
-      );
-      authorHasWriteAccess = ["admin", "maintain", "write"].includes(
-        permission.data.permission,
-      );
-    } catch (error) {
-      if (error.status !== 404) throw error;
-    }
+    authorHasWriteAccess = await hasWriteAccess(client, policy, author);
     const search = await client.graphql(
       `query ReviewTierAuthorCount($query: String!) {
       search(query: $query, type: ISSUE) { issueCount }
@@ -449,6 +439,41 @@ export async function gatherPullRequest(
       teams,
     },
   };
+}
+
+async function hasWriteAccess(client, policy, author) {
+  try {
+    const permission = await client.rest(
+      "GET",
+      `/repos/${policy.repository}/collaborators/${encodeURIComponent(author)}/permission`,
+    );
+    return ["admin", "maintain", "write"].includes(permission.data.permission);
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    return false;
+  }
+}
+
+async function hasOpenPullRequestCapCheck(client, policy, pullRequests) {
+  const repo = `/repos/${policy.repository}`;
+  // A prior check title is the persisted cap signal after several PRs close or become drafts.
+  const capLabel = requirementLabels["open-pr-cap"].toLowerCase();
+  for (const { headSha } of pullRequests) {
+    const { data } = await client.rest(
+      "GET",
+      `${repo}/commits/${encodeURIComponent(headSha)}/check-runs?check_name=${encodeURIComponent(policy.reviewTierCheck.name)}&filter=latest`,
+    );
+    if (
+      data.check_runs.some(
+        (run) =>
+          (policy.reviewTierCheck.integrationId === null ||
+            run.app?.id === policy.reviewTierCheck.integrationId) &&
+          run.output?.title?.toLowerCase().includes(capLabel),
+      )
+    )
+      return true;
+  }
+  return false;
 }
 
 export async function gatherPeople(client, policy) {
@@ -905,6 +930,15 @@ const openPullRequestsQuery = `query ReviewTierOpenPullRequests($owner: String!,
   }
 }`;
 
+const capPullRequestsQuery = `query ReviewTierCapPullRequests($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(states: OPEN, first: 100, after: $after) {
+      nodes { number isDraft headRefOid author { login } }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}`;
+
 const authorPullRequestsQuery = `query ReviewTierAuthorPullRequests($query: String!, $after: String) {
   search(query: $query, type: ISSUE, first: 100, after: $after) {
     nodes { ... on PullRequest { number } }
@@ -938,6 +972,7 @@ export async function main({
   let numbers = [];
   let labels = null;
   let listOpen = false;
+  let capSweep = false;
   let checkSha;
   let mergeGroup = false;
   let siblingAuthor = null;
@@ -986,8 +1021,10 @@ export async function main({
         listOpen = true;
         break;
       case "schedule":
-        if (event.schedule !== dailySweepCron)
+        if (event.schedule !== dailySweepCron) {
           labels = [tierLabel(policy, 2), tierLabel(policy, 3)];
+          capSweep = true;
+        }
         listOpen = true;
         break;
       default:
@@ -1042,6 +1079,7 @@ export async function main({
         : null;
     } while (after !== null);
   }
+  let exitCode = 0;
   if (listOpen) {
     const [owner, name] = policy.repository.split("/");
     let after = null;
@@ -1062,8 +1100,58 @@ export async function main({
         ? connection.pageInfo.endCursor
         : null;
     } while (after !== null);
+    if (capSweep) {
+      const byAuthor = new Map();
+      after = null;
+      do {
+        const data = await client.graphql(capPullRequestsQuery, {
+          owner,
+          name,
+          after,
+        });
+        const connection = data.repository.pullRequests;
+        for (const pr of connection.nodes) {
+          if (pr.isDraft || !pr.author?.login) continue;
+          const authorNumbers = byAuthor.get(pr.author.login) ?? [];
+          authorNumbers.push({ number: pr.number, headSha: pr.headRefOid });
+          byAuthor.set(pr.author.login, authorNumbers);
+        }
+        after = connection.pageInfo.hasNextPage
+          ? connection.pageInfo.endCursor
+          : null;
+      } while (after !== null);
+
+      const minimumCap = Math.min(
+        policy.openPullRequestCap.withWriteAccess,
+        policy.openPullRequestCap.withoutWriteAccess,
+      );
+      for (const [author, authorNumbers] of byAuthor) {
+        try {
+          people ??= await gatherPeople(client, policy);
+          if (
+            people.admins.includes(author) ||
+            (people.teams[policy.teams.maintainers] ?? []).includes(author)
+          )
+            continue;
+          let atCap = false;
+          if (authorNumbers.length >= minimumCap) {
+            const cap = (await hasWriteAccess(client, policy, author))
+              ? policy.openPullRequestCap.withWriteAccess
+              : policy.openPullRequestCap.withoutWriteAccess;
+            atCap = authorNumbers.length >= cap;
+          }
+          if (
+            atCap ||
+            (await hasOpenPullRequestCapCheck(client, policy, authorNumbers))
+          )
+            numbers.push(...authorNumbers.map(({ number }) => number));
+        } catch (error) {
+          console.error(`Author ${author}: ${error.message}`);
+          exitCode = 1;
+        }
+      }
+    }
   }
-  let exitCode = 0;
   for (const number of new Set(numbers)) {
     try {
       people ??= await gatherPeople(client, policy);

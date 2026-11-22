@@ -141,6 +141,7 @@ function fakeClient({
   teamStatus = 404,
   permission = "write",
   permissionStatus,
+  permissionErrors = {},
   openCount = 1,
   issues = {},
   issueErrors = {},
@@ -149,6 +150,7 @@ function fakeClient({
   comments = [],
   checkRuns = [],
   pages = [{ nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }],
+  capPages = [{ nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }],
   authorPages = [
     { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
   ],
@@ -298,6 +300,18 @@ function fakeClient({
         assert.ok(pages[index], `Unrecorded page ${variables.after}`);
         return { repository: { pullRequests: structuredClone(pages[index]) } };
       }
+      if (query.includes("query ReviewTierCapPullRequests(")) {
+        const index =
+          variables.after === null
+            ? 0
+            : capPages.findIndex(
+                (page) => page.pageInfo.endCursor === variables.after,
+              ) + 1;
+        assert.ok(capPages[index], `Unrecorded cap page ${variables.after}`);
+        return {
+          repository: { pullRequests: structuredClone(capPages[index]) },
+        };
+      }
       assert.fail(`Unrecorded GraphQL query: ${query}`);
     },
     async paginate(resource) {
@@ -360,9 +374,13 @@ function fakeClient({
             data: { merge_base_commit: { sha: "merge-base" } },
             status: 200,
           };
-        if (
-          resource === `${repo}/collaborators/${pr.author?.login}/permission`
-        ) {
+        const permissionAuthor =
+          /^\/repos\/[^/]+\/[^/]+\/collaborators\/([^/]+)\/permission$/.exec(
+            resource,
+          )?.[1];
+        if (permissionAuthor) {
+          if (permissionErrors[permissionAuthor])
+            throw apiError(permissionErrors[permissionAuthor]);
           if (permissionStatus) throw apiError(permissionStatus);
           return { data: { permission }, status: 200 };
         }
@@ -1993,6 +2011,219 @@ test("the daily schedule lists all open non-draft pull requests", async () => {
       [12, 14],
     );
   }
+});
+
+test("the ten-minute sweep clears a stale cap on T0 siblings after a conflicted PR becomes a draft", async () => {
+  const sibling = docsPullRequest({ author: user("samdickson22") });
+  const capPages = [
+    {
+      nodes: [
+        {
+          number: 12,
+          isDraft: false,
+          author: user("samdickson22"),
+          headRefOid: "head",
+        },
+        {
+          number: 16,
+          isDraft: true,
+          author: user("samdickson22"),
+          headRefOid: "draft",
+        },
+      ],
+      pageInfo: { hasNextPage: true, endCursor: "cap-page-1" },
+    },
+    {
+      nodes: [
+        {
+          number: 14,
+          isDraft: false,
+          author: user("samdickson22"),
+          headRefOid: "head",
+        },
+        {
+          number: 15,
+          isDraft: false,
+          author: user("samdickson22"),
+          headRefOid: "head",
+        },
+        {
+          number: 17,
+          isDraft: false,
+          author: user("other"),
+          headRefOid: "other-head",
+        },
+      ],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+  ];
+  const recording = fakeClient({
+    pr: sibling,
+    permission: "read",
+    openCount: 3,
+    capPages,
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "schedule", {
+        schedule: "*/10 * * * *",
+      }),
+    ),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [12, 14, 15],
+  );
+  const checkWrites = recording.writes.filter(({ resource }) =>
+    resource.endsWith("/check-runs"),
+  );
+  assert.ok(checkWrites.length > 0);
+  assert.ok(
+    checkWrites.every(
+      ({ body }) =>
+        !body.output.title.toLowerCase().includes("open pull requests"),
+    ),
+  );
+});
+
+test("the ten-minute sweep uses the writer cap without evaluating unrelated T0 pull requests", async () => {
+  for (const [count, expected] of [
+    [3, []],
+    [5, [12, 14, 15, 16, 17]],
+  ]) {
+    const recording = fakeClient({
+      pr: docsPullRequest({ author: user("samdickson22") }),
+      permission: "write",
+      openCount: count,
+      capPages: [
+        {
+          nodes: [12, 14, 15, 16, 17].slice(0, count).map((number) => ({
+            number,
+            isDraft: false,
+            author: user("samdickson22"),
+            headRefOid: "head",
+          })),
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      ],
+    });
+    assert.equal(
+      await main(
+        eventOptions(recording.client, "schedule", {
+          schedule: "*/10 * * * *",
+        }),
+      ),
+      0,
+    );
+    assert.deepEqual(
+      recording.calls
+        .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+        .map(({ variables }) => variables.number),
+      expected,
+    );
+  }
+});
+
+test("the ten-minute sweep clears stale cap checks after two conflicted PRs become drafts", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ author: user("samdickson22") }),
+    permission: "read",
+    openCount: 2,
+    checkRuns: [
+      {
+        id: 7,
+        head_sha: "head",
+        app: { id: 42 },
+        status: "in_progress",
+        output: { title: "T0 · needs a change: open pull requests" },
+      },
+    ],
+    capPages: [
+      {
+        nodes: [
+          {
+            number: 12,
+            isDraft: false,
+            author: user("samdickson22"),
+            headRefOid: "head",
+          },
+          {
+            number: 13,
+            isDraft: true,
+            author: user("samdickson22"),
+            headRefOid: "draft-1",
+          },
+          {
+            number: 14,
+            isDraft: false,
+            author: user("samdickson22"),
+            headRefOid: "head",
+          },
+          {
+            number: 15,
+            isDraft: true,
+            author: user("samdickson22"),
+            headRefOid: "draft-2",
+          },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "schedule", { schedule: "*/10 * * * *" }),
+    ),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [12, 14],
+  );
+});
+
+test("a failed cap permission lookup does not stop the normal ten-minute sweep", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({ author: user("samdickson22") }),
+    pages: [
+      {
+        nodes: [{ number: 12, isDraft: false }],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+    capPages: [
+      {
+        nodes: [21, 22, 23].map((number) => ({
+          number,
+          isDraft: false,
+          author: user("other"),
+          headRefOid: `other-${number}`,
+        })),
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+    permissionErrors: { other: 500 },
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "schedule", { schedule: "*/10 * * * *" }),
+    ),
+    1,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [12],
+  );
+  assert.ok(
+    recording.writes.some(({ resource }) => resource.endsWith("/check-runs")),
+  );
 });
 
 test("the review tier workflow contains the daily sweep cron", () => {
