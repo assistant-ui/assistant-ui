@@ -2224,15 +2224,27 @@ test("Claude fork review validates the relay before the review job and rechecks 
   );
   assert.match(
     review,
-    /group: claude-code-review-fork-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}/,
+    /group: claude-code-review-fork-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}-\$\{\{ needs\.claude-fork-review-validate\.outputs\.head_sha \}\}\n      cancel-in-progress: true/,
   );
   assert.doesNotMatch(review, /: write|download-artifact/);
   const publish = job("claude-fork-review-publish");
+  assert.match(
+    publish,
+    /group: claude-code-review-fork-publish-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}\n      cancel-in-progress: false/,
+  );
   assert.match(publish, /permissions:\n      pull-requests: write\n    steps:/);
   assert.doesNotMatch(publish, /secrets\.|actions\/checkout/);
+  const firstWrite = publish.indexOf("--method POST");
   const recheck = publish.indexOf(".head.sha == $sha'");
   assert.ok(recheck > 0, "publisher rechecks the head");
-  assert.ok(recheck < publish.indexOf("--method POST"), "before writing");
+  assert.ok(recheck < firstWrite, "before writing");
+  const laterRun = publish.indexOf("($m.run | tonumber) > $run");
+  assert.ok(laterRun > recheck, "publisher drops a run older than the sticky");
+  assert.ok(laterRun < firstWrite, "before writing");
+  assert.match(
+    publish,
+    /echo "<!-- claude-fork-review sha=\$HEAD_SHA run=\$RUN_ID -->"/,
+  );
 });
 
 const pullRequest = (overrides = {}) => ({

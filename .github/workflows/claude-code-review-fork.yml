@@ -181,10 +181,11 @@ jobs:
   claude-fork-review:
     needs: [claude-fork-review-validate, claude-fork-review-budget]
     if: needs.claude-fork-review-budget.outputs.review == 'true'
-    # Only validated relays reach this group, so a newer push cancels the review
-    # of an older head and never the reverse.
+    # Keyed on the validated head, so a delayed relay for an older head cannot
+    # cancel the review of a newer one. A rerun for the same head replaces the
+    # earlier review; a review of an older head finishes and its publisher drops it.
     concurrency:
-      group: claude-code-review-fork-${{ needs.claude-fork-review-validate.outputs.number }}
+      group: claude-code-review-fork-${{ needs.claude-fork-review-validate.outputs.number }}-${{ needs.claude-fork-review-validate.outputs.head_sha }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -271,13 +272,17 @@ jobs:
           }
           echo "review=$(cat "$RUNNER_TEMP/review.json")" >> "$GITHUB_OUTPUT"
 
-  # Publishes the review as data. Holds the only write token and no Claude
+  # Publishes the review as data. Can write to pull requests but holds no Claude
   # secret, checks out nothing, and runs no model-provided text as code.
-  # A review that finishes after the PR moved on is dropped here, so a late
-  # publisher never replaces the verdict for a newer head.
+  # Publishers for one PR run one at a time and re-read the PR inside that
+  # section, so a review of an older head, or an earlier run for the same head,
+  # never replaces a newer verdict.
   claude-fork-review-publish:
     needs: [claude-fork-review-validate, claude-fork-review]
     if: needs.claude-fork-review.outputs.review != ''
+    concurrency:
+      group: claude-code-review-fork-publish-${{ needs.claude-fork-review-validate.outputs.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -290,6 +295,7 @@ jobs:
           NUMBER: ${{ needs.claude-fork-review-validate.outputs.number }}
           HEAD_SHA: ${{ needs.claude-fork-review-validate.outputs.head_sha }}
           REVIEW: ${{ needs.claude-fork-review.outputs.review }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           [[ "$NUMBER" =~ ^[1-9][0-9]{0,8}$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || {
             echo "::error::Invalid PR number or head SHA"
@@ -300,6 +306,21 @@ jobs:
             '.state == "open" and .draft == false and .head.sha == $sha' \
             "$RUNNER_TEMP/pr.json" >/dev/null; then
             echo "::notice::PR #$NUMBER is no longer open at $HEAD_SHA; dropping this review"
+            exit 0
+          fi
+
+          # The sticky comment records the head and run it was published for.
+          # Run IDs increase in creation order, so a later run for this head
+          # already published a newer review.
+          gh api --paginate "repos/$REPO/issues/$NUMBER/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- claude-fork-review"))) | {id, body}' \
+            | jq -s 'last // {}' > "$RUNNER_TEMP/sticky.json"
+          COMMENT_ID=$(jq -r '.id // empty' "$RUNNER_TEMP/sticky.json")
+          if jq -e --arg sha "$HEAD_SHA" --argjson run "$RUN_ID" '
+              (.body // "" | capture("^<!-- claude-fork-review sha=(?<sha>[0-9a-f]{40}) run=(?<run>[0-9]+) -->")?) as $m
+              | $m != null and $m.sha == $sha and ($m.run | tonumber) > $run
+            ' "$RUNNER_TEMP/sticky.json" >/dev/null; then
+            echo "::notice::A later run already reviewed $HEAD_SHA; dropping this review"
             exit 0
           fi
           printf '%s' "$REVIEW" > "$RUNNER_TEMP/review.json"
@@ -330,7 +351,7 @@ jobs:
 
           BODY_FILE="$RUNNER_TEMP/claude-fork-review.md"
           {
-            echo '<!-- claude-fork-review -->'
+            echo "<!-- claude-fork-review sha=$HEAD_SHA run=$RUN_ID -->"
             jq -r .verdict "$RUNNER_TEMP/review.json"
             if [ "$UNANCHORED" = true ]; then
               printf '\n**Line comments**\n\n'
@@ -339,8 +360,6 @@ jobs:
             printf '\n<sub>%s</sub>\n' "$(jq -r .note "$RUNNER_TEMP/review.json")"
           } > "$BODY_FILE"
 
-          COMMENT_ID=$(gh api --paginate "repos/$REPO/issues/$NUMBER/comments" \
-            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- claude-fork-review -->"))) | .id' | tail -n 1)
           jq -n --rawfile body "$BODY_FILE" '{ body: $body }' > "$RUNNER_TEMP/claude-fork-review.json"
 
           if [ -n "$COMMENT_ID" ]; then
