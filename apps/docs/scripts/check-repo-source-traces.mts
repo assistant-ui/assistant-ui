@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+import { promises as fs, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import {
@@ -53,12 +53,38 @@ function resolveHighlighterFiles() {
       fumadocs.resolve("shiki/core"),
       fumadocs.resolve("shiki/wasm"),
       shiki.resolve("@shikijs/langs/typescript"),
+      shiki.resolve("@shikijs/themes/catppuccin-latte"),
       shiki.resolve("@shikijs/themes/catppuccin-mocha"),
     ],
   };
 }
 
-function checkHighlighterTraces(routeTraces: readonly RouteTrace[]) {
+// A trace may name a package file through a pnpm symlink, while require.resolve
+// returns the real path, so both sides are compared as real paths.
+function toRealTraces(routeTraces: readonly RouteTrace[]): RouteTrace[] {
+  const realpaths = new Map<string, string>();
+  const toRealpath = (file: string) => {
+    let real = realpaths.get(file);
+    if (real === undefined) {
+      try {
+        real = realpathSync(file);
+      } catch {
+        real = file;
+      }
+      realpaths.set(file, real);
+    }
+    return real;
+  };
+  return routeTraces.map((trace) => ({
+    filePath: trace.filePath,
+    files: trace.files.map((file) =>
+      toRealpath(path.resolve(path.dirname(trace.filePath), file)),
+    ),
+  }));
+}
+
+function checkHighlighterTraces(tracesOnDisk: readonly RouteTrace[]) {
+  const routeTraces = toRealTraces(tracesOnDisk);
   const { highlighterFile, runtimeFiles } = resolveHighlighterFiles();
   const unhighlighted = findRoutesWithoutHighlighter(
     routeTraces,
@@ -142,14 +168,17 @@ async function main() {
     ),
   );
   const emittedTracePaths = new Set(serverTracePaths);
-  const missingRequiredTracePaths = [...requiredTracePaths].filter(
-    (file) => !emittedTracePaths.has(file),
-  );
+  const missingRequiredTracePaths = [
+    ...REQUIRED_REPO_SOURCE_ROUTE_TRACES,
+    ...REQUIRED_HIGHLIGHTER_ROUTE_TRACES,
+  ]
+    .map((file) => path.join(SERVER_ROOT, file))
+    .filter((file) => !emittedTracePaths.has(file));
 
   if (missingRequiredTracePaths.length > 0) {
     console.error(
       [
-        "Required repo-source route traces were not emitted:",
+        "Required route traces were not emitted:",
         ...missingRequiredTracePaths.map((file) =>
           path.relative(SERVER_ROOT, file),
         ),
