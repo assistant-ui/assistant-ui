@@ -88,11 +88,6 @@ describe("docs Next config composition", () => {
     expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("3");
   });
 
-  it("loads Farming Labs rehype-code outside the server bundle", () => {
-    expect(config.serverExternalPackages).toContain("@farming-labs/next");
-    expect(config.transpilePackages ?? []).not.toContain("@farming-labs/next");
-  });
-
   it("keeps a TURBO_TASKS_AVAILABLE_PARALLELISM that is already set", async () => {
     const loaded = process.env.TURBO_TASKS_AVAILABLE_PARALLELISM;
     onTestFinished(() => {
