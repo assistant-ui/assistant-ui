@@ -274,14 +274,15 @@ jobs:
 
   # Publishes the review as data. Can write to pull requests but holds no Claude
   # secret, checks out nothing, and runs no model-provided text as code.
-  # Publishers for one PR run one at a time and re-read the PR inside that
-  # section, so a review of an older head, or an earlier run for the same head,
-  # never replaces a newer verdict.
+  # Publishers for the same head run one at a time. Each head has its own group,
+  # because a group keeps one pending job and a stale publisher must never
+  # displace a newer head's. The PR head is re-read before every write, and the
+  # sticky comment records the head and run it was published for.
   claude-fork-review-publish:
     needs: [claude-fork-review-validate, claude-fork-review]
     if: needs.claude-fork-review.outputs.review != ''
     concurrency:
-      group: claude-code-review-fork-publish-${{ needs.claude-fork-review-validate.outputs.number }}
+      group: claude-code-review-fork-publish-${{ needs.claude-fork-review-validate.outputs.number }}-${{ needs.claude-fork-review-validate.outputs.head_sha }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -301,13 +302,16 @@ jobs:
             echo "::error::Invalid PR number or head SHA"
             exit 1
           }
-          gh api "repos/$REPO/pulls/$NUMBER" > "$RUNNER_TEMP/pr.json"
-          if ! jq -e --arg sha "$HEAD_SHA" \
-            '.state == "open" and .draft == false and .head.sha == $sha' \
-            "$RUNNER_TEMP/pr.json" >/dev/null; then
-            echo "::notice::PR #$NUMBER is no longer open at $HEAD_SHA; dropping this review"
-            exit 0
-          fi
+          require_current_head() {
+            gh api "repos/$REPO/pulls/$NUMBER" > "$RUNNER_TEMP/pr.json"
+            jq -e --arg sha "$HEAD_SHA" \
+              '.state == "open" and .draft == false and .head.sha == $sha' \
+              "$RUNNER_TEMP/pr.json" >/dev/null || {
+              echo "::notice::PR #$NUMBER is no longer open at $HEAD_SHA; dropping this review"
+              exit 0
+            }
+          }
+          require_current_head
 
           # The sticky comment records the head and run it was published for.
           # Run IDs increase in creation order, so a later run for this head
@@ -342,6 +346,7 @@ jobs:
             }' "$RUNNER_TEMP/review.json" > "$RUNNER_TEMP/inline.json"
           UNANCHORED=false
           if jq -e '.comments | length > 0' "$RUNNER_TEMP/inline.json" >/dev/null; then
+            require_current_head
             gh api --method POST "repos/$REPO/pulls/$NUMBER/reviews" \
               --input "$RUNNER_TEMP/inline.json" >/dev/null || {
               echo "::warning::GitHub rejected the inline comments; adding them to the review comment"
@@ -362,6 +367,7 @@ jobs:
 
           jq -n --rawfile body "$BODY_FILE" '{ body: $body }' > "$RUNNER_TEMP/claude-fork-review.json"
 
+          require_current_head
           if [ -n "$COMMENT_ID" ]; then
             gh api --method PATCH "repos/$REPO/issues/comments/$COMMENT_ID" \
               --input "$RUNNER_TEMP/claude-fork-review.json" >/dev/null

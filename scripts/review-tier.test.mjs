@@ -2230,17 +2230,27 @@ test("Claude fork review validates the relay before the review job and rechecks 
   const publish = job("claude-fork-review-publish");
   assert.match(
     publish,
-    /group: claude-code-review-fork-publish-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}\n      cancel-in-progress: false/,
+    /group: claude-code-review-fork-publish-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}-\$\{\{ needs\.claude-fork-review-validate\.outputs\.head_sha \}\}\n      cancel-in-progress: false/,
   );
   assert.match(publish, /permissions:\n      pull-requests: write\n    steps:/);
   assert.doesNotMatch(publish, /secrets\.|actions\/checkout/);
-  const firstWrite = publish.indexOf("--method POST");
-  const recheck = publish.indexOf(".head.sha == $sha'");
-  assert.ok(recheck > 0, "publisher rechecks the head");
-  assert.ok(recheck < firstWrite, "before writing");
+  assert.match(publish, /\.head\.sha == \$sha'/);
+  assert.equal(publish.split("gh api --method ").length - 1, 3);
+  assert.match(
+    publish,
+    /require_current_head\n\s*if \[ -n "\$COMMENT_ID" \]; then/,
+  );
+  assert.match(
+    publish,
+    /require_current_head\n\s*gh api --method POST "repos\/\$REPO\/pulls\/\$NUMBER\/reviews"/,
+  );
+  assert.match(
+    publish,
+    /gh api --paginate "repos\/\$REPO\/issues\/\$NUMBER\/comments"/,
+  );
   const laterRun = publish.indexOf("($m.run | tonumber) > $run");
-  assert.ok(laterRun > recheck, "publisher drops a run older than the sticky");
-  assert.ok(laterRun < firstWrite, "before writing");
+  assert.ok(laterRun > 0, "publisher drops a run older than the sticky");
+  assert.ok(laterRun < publish.indexOf("gh api --method "), "before writing");
   assert.match(
     publish,
     /echo "<!-- claude-fork-review sha=\$HEAD_SHA run=\$RUN_ID -->"/,
