@@ -13,8 +13,10 @@ const getRunEnd = (
   hunkIndex: ParsedLine["hunkIndex"],
 ) => {
   let index = startIndex;
-  while (lines[index]?.type === type && lines[index].hunkIndex === hunkIndex) {
+  let line = lines[index];
+  while (line?.type === type && line.hunkIndex === hunkIndex) {
     index++;
+    line = lines[index];
   }
   return index;
 };
