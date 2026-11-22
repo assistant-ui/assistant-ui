@@ -33,7 +33,7 @@ describe("connectCheckout against a server that refuses the link", () => {
     vi.stubGlobal("fetch", fetch);
     await expect(
       connectCheckout("https://checkout.test/short"),
-    ).rejects.toThrow(/^setup unreachable: /);
+    ).rejects.toThrow("setup unreachable: protocol-error (HTTP 404)");
     expect(fetch).toHaveBeenCalled();
   });
 });
