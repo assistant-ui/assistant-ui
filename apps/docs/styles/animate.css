@@ -1,16 +1,3 @@
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(calc(-100% - var(--gap)));
-  }
-}
-
-@utility animate-marquee {
-  animation: marquee var(--duration) linear infinite;
-}
-
 @keyframes stage-progress {
   from {
     transform: scaleX(0);
@@ -92,7 +79,7 @@
 
 @keyframes line-hot-settle {
   from {
-    background-color: color-mix(in oklab, #3b82f6 14%, transparent);
+    background-color: color-mix(in oklab, var(--color-blue-500) 14%, transparent);
   }
   to {
     background-color: transparent;
@@ -100,7 +87,7 @@
 }
 
 .code-cascade .line-hot {
-  box-shadow: inset 2px 0 0 #3b82f6;
+  box-shadow: inset 2px 0 0 var(--color-blue-500);
   animation:
     code-line-in 0.4s both,
     line-hot-settle 1.6s both;
@@ -128,7 +115,7 @@
 
 @keyframes hero-word-ink {
   from {
-    color: #3b82f6;
+    color: var(--color-blue-500);
   }
 }
 

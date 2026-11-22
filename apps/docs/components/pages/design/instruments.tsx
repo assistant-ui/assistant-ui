@@ -164,7 +164,7 @@ function Sample({ kind, live }: { kind: MotionKind; live: boolean }) {
             className={
               live
                 ? "line line-hot block h-1 w-8"
-                : "line line-hot block h-1 w-8 bg-blue-500/8 shadow-[inset_2px_0_0_#3b82f6] dark:bg-blue-500/15"
+                : "line line-hot block h-1 w-8 bg-blue-500/8 shadow-[inset_2px_0_0_var(--color-blue-500)] dark:bg-blue-500/15"
             }
           />
           <span className="line bg-foreground/20 block h-1 w-7" />

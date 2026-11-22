@@ -165,9 +165,11 @@ export default function DesignPage() {
               note="The quiet fill under machine text and selected rows."
             />
             <Row
-              sample={<Swatch color="oklch(0.922 0.005 var(--tint))" ring />}
+              sample={
+                <Swatch color="oklch(0.145 0.006 var(--tint) / 10%)" ring />
+              }
               name="--border"
-              value="0.922 0.005"
+              value="0.145 0.006 / 10%"
               note="The hairline. One line weight for the whole site."
             />
             <Row
