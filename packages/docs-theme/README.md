@@ -13,17 +13,13 @@ The private website in `apps/docs` is named `@assistant-ui/docs-site`.
 ## Install
 
 ```sh
-pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.148 @farming-labs/theme@0.2.148 fumadocs-core@16.17.8 fumadocs-ui@16.17.8 motion@^14
+pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.141 @farming-labs/theme@0.2.141 fumadocs-core@16.17.8 fumadocs-ui@16.17.8 motion@^14
 ```
 
 Add your framework's adapter at the same version: `@farming-labs/next`,
 `@farming-labs/tanstack-start`, or `@farming-labs/farmjs`.
 
-The Farming Labs Docs and Theme peers accept `^0.2.141`; existing sites on
-0.2.141 can keep that version. Development and the assistant-ui site use 0.2.148.
-Keep Docs, Theme, and your adapter on the same version. The 0.2.141 floor provides
-the theme options, shared-layout page features, theme-supplied MDX components,
-and focused `@farming-labs/docs/config` entry this package uses.
+Use the Farming Labs Docs, adapter, and Theme stable patch 0.2.141 with Fumadocs UI 16.17.8. This version provides the theme options, shared-layout page features and theme-supplied MDX components the theme relies on, and includes the focused `@farming-labs/docs/config` entry used by the theme, avoids loading the raw Markdown parser for MDX tree helpers, loads the built-in command-search dialog on first use, and defaults build-time MDX highlighting to Oniguruma.
 Fumadocs UI and Fumadocs Core are required peers because the theme imports their
 shared contexts and framework helpers. Package managers with automatic peer
 installation install them; otherwise, add `fumadocs-ui@16.17.8` and
@@ -31,14 +27,11 @@ installation install them; otherwise, add `fumadocs-ui@16.17.8` and
 Fumadocs Core's Zod 4 peer with the version resolved by `@farming-labs/theme`. PnP can create separate context instances for different
 peer environments even when the Fumadocs versions match.
 
-Fumadocs UI and Fumadocs Core remain pinned to 16.17.8 as an exception to the
-repository's caret-range convention. Both framework versions above use these
-versions. Duplicate Fumadocs instances can split the tree, search, and TOC React
-contexts and break rendering. Before adopting a newer framework patch, check
-its Fumadocs dependencies, verify that the installed packages share the same
-context instances, and run the full layout render tests. A framework release
-that changes those dependencies needs a compatibility review before use with
-this theme. The framework owns
+The Docs, Theme, Fumadocs UI, and Fumadocs Core peers use exact versions as an exception to the
+repository's caret-range convention. A future framework patch may change its
+Fumadocs dependency, so accepting it independently could split the tree, search,
+and TOC React contexts and break rendering. Update all four pins together and
+run the full layout render tests when changing them. The framework owns
 MDX rendering, content discovery, search, Markdown routes, and MCP endpoints;
 this package supplies the appearance and navigation components.
 
