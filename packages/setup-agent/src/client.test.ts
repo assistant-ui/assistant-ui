@@ -5,6 +5,7 @@ const { created } = vi.hoisted(() => ({
   created: [] as {
     options: { onError: (error: unknown) => void; transport: unknown };
     state: unknown;
+    connection: object;
     listener: () => void;
     dispose: ReturnType<typeof vi.fn>;
     unsubscribe: ReturnType<typeof vi.fn>;
@@ -55,6 +56,28 @@ describe("connectCheckout", () => {
     expect(created.at(-1)!.options.transport).toEqual({
       http: { url: "https://checkout.test/session" },
     });
+  });
+
+  it("hands a socket that fails before any state over to SSE, which reports why", async () => {
+    vi.stubGlobal("WebSocket", class {});
+    const connecting = connectCheckout("https://checkout.test/session");
+    const socket = created.at(-1)!;
+    socket.connection = { status: "retrying" };
+    socket.listener();
+    expect(socket.dispose).toHaveBeenCalled();
+    const sse = created.at(-1)!;
+    expect(sse.options.transport).toEqual({
+      http: { url: "https://checkout.test/session" },
+    });
+    sse.connection = {
+      status: "stopped",
+      reason: "protocol-error",
+      message: "Not found",
+    };
+    sse.listener();
+    await expect(connecting).rejects.toThrow(
+      "setup unreachable: protocol-error (Not found)",
+    );
   });
 
   it("disposes the client when the first connection fails", async () => {
