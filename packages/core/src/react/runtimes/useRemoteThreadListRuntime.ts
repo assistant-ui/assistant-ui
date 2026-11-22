@@ -19,6 +19,7 @@ import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
 import { resource, useResource } from "@assistant-ui/tap";
+import { useRefreshScope } from "@assistant-ui/tap/internal";
 import {
   AuiConfig,
   createAssistantClient,
@@ -237,15 +238,23 @@ const useRemoteThreadListRuntimeImpl = (
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
+  const refreshToken = useMemo(() => ({}), []);
   const [runtimeHookStore] = useState(
-    () => new WritableSubscribable(options.runtimeHook),
+    () =>
+      new WritableSubscribable({
+        refreshToken,
+        runtimeHook: options.runtimeHook,
+      }),
   );
   // The layout phase re-renders hosted threads before this commit yields. An
   // insertion effect cannot notify subscribers, so descendant layout effects
   // of the same commit still see the previous hook.
   useIsomorphicLayoutEffect(() => {
-    runtimeHookStore.setState(options.runtimeHook);
-  }, [runtimeHookStore, options.runtimeHook]);
+    runtimeHookStore.setState({
+      refreshToken,
+      runtimeHook: options.runtimeHook,
+    });
+  }, [runtimeHookStore, refreshToken, options.runtimeHook]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
@@ -258,11 +267,12 @@ export const useRemoteThreadListRuntime = (
   const [stableRuntimeHook] = useState(
     () =>
       function useCommittedRuntimeHook() {
-        return useSubscribable({
+        const committed = useSubscribable({
           subscribe: runtimeHookStore.subscribe,
           getState: runtimeHookStore.getState,
           getServerSnapshot: runtimeHookStore.getState,
-        })();
+        });
+        return useRefreshScope(committed.refreshToken, committed.runtimeHook);
       },
   );
 

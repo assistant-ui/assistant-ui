@@ -124,6 +124,24 @@ const isSensitiveElement = (element: unknown): boolean => {
   );
 };
 
+const holdsStringValue = (
+  element: unknown,
+  current: unknown,
+  value: unknown,
+): boolean => {
+  if (
+    typeof HTMLInputElement !== "undefined" &&
+    element instanceof HTMLInputElement &&
+    element.type === "checkbox"
+  ) {
+    return typeof value !== "boolean";
+  }
+  if (typeof HTMLElement !== "undefined" && element instanceof HTMLElement) {
+    return true;
+  }
+  return typeof current !== "number" && typeof current !== "boolean";
+};
+
 export const useAssistantForm = <
   TFieldValues extends FieldValues = FieldValues,
   TContext = any,
@@ -309,9 +327,16 @@ export const useAssistantForm = <
                 message: `The form has no field named "${args.name}" that can be set.`,
               };
             }
+            const fieldReference: unknown = Array.isArray(field?._f?.refs)
+              ? field?._f?.refs[0]
+              : field?._f?.ref;
+            const current: unknown = getValues(name as Path<TFieldValues>);
+            const next = holdsStringValue(fieldReference, current, args.value)
+              ? String(args.value)
+              : args.value;
             setValue(
               name as Path<TFieldValues>,
-              args.value as PathValue<TFieldValues, Path<TFieldValues>>,
+              next as PathValue<TFieldValues, Path<TFieldValues>>,
             );
 
             return { success: true };
@@ -353,9 +378,13 @@ export const useAssistantForm = <
                   ? field._f.refs[0]
                   : field._f.ref;
 
-                if (fieldReference instanceof HTMLElement) {
+                if (
+                  typeof HTMLElement !== "undefined" &&
+                  fieldReference instanceof HTMLElement
+                ) {
                   if ("form" in fieldReference) {
                     formElement =
+                      typeof HTMLFormElement !== "undefined" &&
                       fieldReference.form instanceof HTMLFormElement
                         ? fieldReference.form
                         : null;

@@ -40,7 +40,7 @@ jobs:
         working-directory: python/${{ matrix.package }}
     services:
       postgres:
-        image: postgres:17-alpine # ratchet:exclude
+        image: ${{ matrix.package == 'assistant-stream' && 'postgres:17-alpine' || '' }} # ratchet:exclude
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

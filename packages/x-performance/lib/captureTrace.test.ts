@@ -141,6 +141,16 @@ it("fails as soon as Chrome exits before it starts", async () => {
   });
 });
 
+it("rejects with the spawn error and removes its profile when Chrome cannot be launched", async () => {
+  const { child, profile, result } = failedCapture(null);
+  const spawnError = new Error("spawn /usr/bin/google-chrome EACCES");
+  child.emit("error", spawnError);
+  child.emit("close", -13, null);
+  await vi.advanceTimersByTimeAsync(200);
+  await expect(result).resolves.toBe(spawnError);
+  expect(existsSync(profile)).toBe(false);
+});
+
 it("waits for Chrome to close before removing its profile after a failed connection", async () => {
   const { child, profile, failure, result } = failedCapture();
 

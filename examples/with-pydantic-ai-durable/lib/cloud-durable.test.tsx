@@ -196,11 +196,25 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
     state.frames.push(frame);
     for (const listener of state.listeners) listener.enqueue(frame);
   };
-  const begin = (input: {
-    messages: unknown[];
-    runId: string;
-    threadId?: string;
-  }) => {
+  const begin = (
+    input: {
+      messages: unknown[];
+      runId: string;
+      threadId?: string;
+    },
+    events: object[] = [
+      {
+        type: "TEXT_MESSAGE_START",
+        messageId: "stream-a1",
+        role: "assistant",
+      },
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "stream-a1",
+        delta: "partial",
+      },
+    ],
+  ) => {
     state.record = { messages: input.messages, running: true };
     state.frames = [];
     state.ended = false;
@@ -209,16 +223,7 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
       threadId: input.threadId ?? threadId,
       runId: input.runId,
     });
-    push({
-      type: "TEXT_MESSAGE_START",
-      messageId: "stream-a1",
-      role: "assistant",
-    });
-    push({
-      type: "TEXT_MESSAGE_CONTENT",
-      messageId: "stream-a1",
-      delta: "partial",
-    });
+    for (const event of events) push(event);
   };
   const finish = () => {
     push({
@@ -291,7 +296,7 @@ const createDurable = (threadId: string, record: DurableRecord | null) => {
     }
     return json({ error: "not found" }, 404);
   };
-  return { state, begin, finish, handle };
+  return { state, begin, finish, handle, push };
 };
 
 let cloud: ReturnType<typeof createCloud>;
@@ -359,6 +364,8 @@ class DurableTestAgent extends HttpAgent {
 type Tab = {
   getAui: () => AssistantClient;
   getRuntime: () => AssistantRuntime;
+  unmount: () => void;
+  remount: () => Promise<void>;
 };
 
 // `tab` rides in the Aui-User-Id header so calls can be told apart; the in-memory cloud ignores ownership.
@@ -412,12 +419,22 @@ const openTab = async (tab: string, staleAfter = 30_000): Promise<Tab> => {
       </AssistantRuntimeProvider>
     );
   };
-  render(<App />);
-  await waitFor(() => expect(aui).toBeDefined());
-  await act(async () => {
-    await aui!.threads.getLoadThreadsPromise();
-  });
-  return { getAui: () => aui!, getRuntime: () => runtime };
+  let view: ReturnType<typeof render>;
+  const mount = async () => {
+    aui = undefined;
+    view = render(<App />);
+    await waitFor(() => expect(aui).toBeDefined());
+    await act(async () => {
+      await aui!.threads.getLoadThreadsPromise();
+    });
+  };
+  await mount();
+  return {
+    getAui: () => aui!,
+    getRuntime: () => runtime,
+    unmount: () => view.unmount(),
+    remount: mount,
+  };
 };
 
 const openThread = async (...tabs: Tab[]) => {
@@ -485,8 +502,9 @@ const runInput = {
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
-afterEach(() => {
-  cleanup();
+afterEach(async () => {
+  await act(async () => cleanup());
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -551,6 +569,161 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     expect(shown(tab)).toEqual(["user: hello", "assistant: partial answer"]);
     // The takeover followed the run; it never started another.
     expect(durable.state.starts).toEqual([]);
+  }, 15_000);
+
+  it("(a) immediately rejoins a reasoning-only run in another tab after unmount ends its lease and stores one answer", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      shouldAdvanceTime: true,
+    });
+    useServers([userRow], null);
+    durable.begin(runInput, [
+      {
+        type: "REASONING_MESSAGE_START",
+        messageId: "reasoning-1",
+        role: "reasoning",
+      },
+      {
+        type: "REASONING_MESSAGE_CONTENT",
+        messageId: "reasoning-1",
+        delta: "thinking",
+      },
+    ]);
+    const first = await openTab("tab-a");
+    await openThread(first);
+    await waitFor(() =>
+      expect(
+        first.getAui().thread.getState().messages[1]?.content,
+      ).toMatchObject([{ type: "reasoning", text: "thinking" }]),
+    );
+    await waitFor(() => expect(assistantRows()).toHaveLength(1));
+    const interrupted = assistantRows()[0]!;
+    const leaseId = interrupted.lease!.id;
+    expect(durable.state.connects).toEqual(["durable-1"]);
+
+    await act(async () => {
+      first.unmount();
+    });
+    expect(interrupted.content.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "The connection ended before the answer finished.",
+    });
+    expect(interrupted.lease?.status).toBe("ended");
+    const beats = () =>
+      cloud.calls.filter(
+        (call) =>
+          call.tab === "tab-a" &&
+          call.path === `/threads/remote-1/runs/${leaseId}/heartbeat`,
+      ).length;
+    const before = beats();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(beats()).toBe(before);
+    const second = await openTab("tab-b");
+    await openThread(second);
+    await waitFor(() =>
+      expect(second.getAui().thread.getState().messages).toHaveLength(2),
+    );
+    expect(Date.now() - interrupted.lease!.beatAt).toBeLessThan(30_000);
+    expect(durable.state.connects).toEqual(["durable-1", "durable-1"]);
+    expect(cloud.rows.some((row) => row.id === interrupted.id)).toBe(false);
+    await waitFor(() =>
+      expect(
+        second.getAui().thread.getState().messages[1]?.content,
+      ).toMatchObject([{ type: "reasoning", text: "thinking" }]),
+    );
+    await act(async () => {
+      durable.push({
+        type: "REASONING_MESSAGE_END",
+        messageId: "reasoning-1",
+      });
+      durable.push({
+        type: "TEXT_MESSAGE_START",
+        messageId: "stream-a1",
+        role: "assistant",
+      });
+      durable.push({
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "stream-a1",
+        delta: "partial",
+      });
+      durable.finish();
+    });
+    await waitFor(() =>
+      expect(rowText(assistantRows()[0])).toBe("partial answer"),
+    );
+    expect(assistantRows()).toHaveLength(1);
+    expect(assistantRows()[0]!.parent_id).toBe("u1");
+    expect(shown(second)).toEqual(["user: hello", "assistant: partial answer"]);
+    expect(second.getAui().thread.getState().isRunning).toBe(false);
+    await waitFor(() =>
+      expect(assistantRows()[0]!.lease?.status).toBe("ended"),
+    );
+    expect(durable.state.starts).toEqual([]);
+  }, 15_000);
+
+  it("(a) immediately rejoins a run when the same page remounts after unmount ends its lease and stores one answer", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      shouldAdvanceTime: true,
+    });
+    useServers([userRow], null);
+    durable.begin(runInput);
+    const tab = await openTab("tab-a");
+    await openThread(tab);
+    await waitFor(() =>
+      expect(shown(tab)).toEqual(["user: hello", "assistant: partial"]),
+    );
+    await waitFor(() => expect(assistantRows()).toHaveLength(1));
+    const interrupted = assistantRows()[0]!;
+    const leaseId = interrupted.lease!.id;
+    expect(durable.state.connects).toEqual(["durable-1"]);
+    const beats = () =>
+      cloud.calls.filter(
+        (call) =>
+          call.tab === "tab-a" &&
+          call.path === `/threads/remote-1/runs/${leaseId}/heartbeat`,
+      ).length;
+
+    await act(async () => tab.unmount());
+    expect(interrupted.content.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "The connection ended before the answer finished.",
+    });
+    expect(interrupted.lease?.status).toBe("ended");
+    const beatsAtUnmount = beats();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(beats()).toBe(beatsAtUnmount);
+    await tab.remount();
+    await openThread(tab);
+    await waitFor(() =>
+      expect(tab.getAui().thread.getState().messages).toHaveLength(2),
+    );
+    expect(Date.now() - interrupted.lease!.beatAt).toBeLessThan(30_000);
+    expect(durable.state.connects).toEqual(["durable-1", "durable-1"]);
+    expect(beats()).toBe(beatsAtUnmount);
+    expect(cloud.rows.some((row) => row.id === interrupted.id)).toBe(false);
+
+    await act(async () => durable.finish());
+    await waitFor(() =>
+      expect(shown(tab)).toEqual(["user: hello", "assistant: partial answer"]),
+    );
+    await waitFor(() =>
+      expect(rowText(assistantRows()[0])).toBe("partial answer"),
+    );
+    expect(assistantRows()).toHaveLength(1);
+    expect(assistantRows()[0]!.parent_id).toBe("u1");
+    expect(tab.getAui().thread.getState().isRunning).toBe(false);
+    await waitFor(() =>
+      expect(assistantRows()[0]!.lease?.status).toBe("ended"),
+    );
+    expect(durable.state.starts).toEqual([]);
+    expect(cloud.calls.every((call) => call.tab === "tab-a")).toBe(true);
   }, 15_000);
 
   it("(b) stores the server's answer for a run that finished with no tab open, in place of the interrupted reply", async () => {

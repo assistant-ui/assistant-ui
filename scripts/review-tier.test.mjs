@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
 import {
@@ -1972,6 +1973,130 @@ test("the review tier workflow contains the daily sweep cron", () => {
     ),
   );
 });
+
+function workflowJobRuns(file, job, eventName, event, appId = "123") {
+  const workflow = readFileSync(
+    new URL(`../.github/workflows/${file}`, import.meta.url),
+    "utf8",
+  );
+  if (eventName === "pull_request_review") {
+    const types = workflow.match(
+      /pull_request_review:\n    types: \[([^\]]+)\]/,
+    )[1];
+    if (
+      !types
+        .split(",")
+        .map((type) => type.trim())
+        .includes(event.action)
+    )
+      return false;
+  }
+  const body = workflow.split(`\n  ${job}:\n`)[1].split(/^  [\w-]+:\n/m)[0];
+  const condition = body.match(/^    if: >-\n((?:      .*\n)+)/m)?.[1];
+  assert.ok(condition || !/^    if:/m.test(body), "unrecognized job condition");
+  // These conditions use JavaScript-compatible operators; expand the Actions array projection for the fixtures.
+  const expression = (condition ?? "true").replaceAll(
+    "github.event.pull_request.labels.*.name",
+    "github.event.pull_request.labels.map(label => label.name)",
+  );
+  return Boolean(
+    runInNewContext(expression, {
+      github: { event_name: eventName, event },
+      vars: { REVIEW_POLICY_APP_ID: appId },
+      startsWith: (value, prefix) => value.startsWith(prefix),
+      contains: (values, value) => values.includes(value),
+    }),
+  );
+}
+
+for (const [action, state, expected] of [
+  ["submitted", "approved", true],
+  ["submitted", "changes_requested", true],
+  ["dismissed", "dismissed", true],
+  ["submitted", "commented", false],
+  ["submitted", "pending", false],
+  ["submitted", "", false],
+  ["edited", "approved", false],
+  ["edited", "changes_requested", false],
+  ["edited", "commented", false],
+]) {
+  test(`review relay ${expected ? "runs" : "skips"} for ${action} ${state || "without a state"}`, () => {
+    assert.equal(
+      workflowJobRuns(
+        "review-tier-relay.yaml",
+        "relay",
+        "pull_request_review",
+        {
+          action,
+          review: { state },
+        },
+      ),
+      expected,
+    );
+  });
+}
+
+for (const conclusion of [
+  "success",
+  "skipped",
+  "failure",
+  "cancelled",
+  "timed_out",
+  "action_required",
+  "neutral",
+  "stale",
+  null,
+]) {
+  test(`review evaluator gates the entire job on relay conclusion ${conclusion}`, () => {
+    assert.equal(
+      workflowJobRuns("review-tier.yaml", "evaluate", "workflow_run", {
+        workflow_run: { conclusion },
+      }),
+      conclusion === "success",
+    );
+  });
+}
+
+for (const [eventName, event, expected] of [
+  ["schedule", {}, true],
+  ["workflow_dispatch", {}, true],
+  ["merge_group", {}, true],
+  ["issues", { label: { name: "decision: accepted" } }, true],
+  ["issues", { label: { name: "bug" } }, false],
+  ["pull_request_target", { action: "synchronize" }, true],
+  ["pull_request_target", { action: "labeled", label: { name: "bug" } }, false],
+  [
+    "pull_request_target",
+    { action: "labeled", label: { name: "behavior-change" } },
+    true,
+  ],
+  [
+    "pull_request_target",
+    { action: "edited", changes: {}, sender: { type: "User" } },
+    true,
+  ],
+  [
+    "pull_request_target",
+    {
+      action: "edited",
+      changes: {},
+      sender: { type: "Bot" },
+      pull_request: { labels: [] },
+    },
+    false,
+  ],
+]) {
+  test(`review evaluator preserves the ${eventName} ${JSON.stringify(event)} filter`, () => {
+    assert.equal(
+      workflowJobRuns("review-tier.yaml", "evaluate", eventName, event),
+      expected,
+    );
+    assert.equal(
+      workflowJobRuns("review-tier.yaml", "evaluate", eventName, event, ""),
+      false,
+    );
+  });
+}
 
 test("issues events reevaluate only open T3 pull requests and only for the decision label", async () => {
   for (const event of [{}, { label: { name: "bug" } }]) {

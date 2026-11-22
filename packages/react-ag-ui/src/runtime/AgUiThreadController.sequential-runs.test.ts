@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it, vi } from "vitest";
 import type { AbstractAgent } from "@ag-ui/client";
 import type { AppendMessage } from "@assistant-ui/core";
@@ -206,7 +207,10 @@ describe("AgUiThreadController sequential runs during response cleanup", () => {
     try {
       response.content("second-answer", " answer");
       expect(
-        core.getMessages().find(({ id }) => id === "second-answer")?.content,
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "second-answer")
+          ?.content,
       ).toEqual([{ type: "text", text: "second answer" }]);
       response.end("second-answer");
       response.finish();
@@ -221,11 +225,13 @@ describe("AgUiThreadController sequential runs during response cleanup", () => {
       expect(
         core
           .getMessages()
-          .map(({ id }) => id)
+          .map((message) => agUiWireMessageId(message))
           .slice(1, 3),
       ).toEqual(["first-answer", "second-answer"]);
       expect(
-        core.getMessages().find(({ id }) => id === "second-answer"),
+        core
+          .getMessages()
+          .find((message) => agUiWireMessageId(message) === "second-answer"),
       ).toMatchObject({
         content: [{ type: "text", text: "second answer" }],
         status: { type: "complete" },

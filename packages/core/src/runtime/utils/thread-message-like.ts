@@ -125,12 +125,7 @@ const convertDataPrefixedPart = (
 
 const isString = (value: unknown): value is string => typeof value === "string";
 
-/**
- * Input can carry fields of the wrong type. File and source parts follow the
- * same rule as the storage readers (`isStoredMessagePart`): a part missing a
- * field it needs to render is dropped and a malformed optional field is
- * removed, the same way whichever path delivered it.
- */
+/** Keep initial conversion aligned with history parsing by reusing its part guards. */
 const keepWellFormed = <T>(part: T): T | null =>
   isStoredMessagePart(part) ? withoutInvalidOptionals(part) : null;
 
@@ -195,14 +190,30 @@ export const fromThreadMessageLike = (
                 const summary = isString(part.unstable_summary)
                   ? part.unstable_summary
                   : undefined;
-                if (!text.trim() && !summary?.trim()) return null;
-                if (text === part.text && summary === part.unstable_summary)
+                const redacted =
+                  typeof part.unstable_redacted === "boolean"
+                    ? part.unstable_redacted
+                    : undefined;
+                if (redacted !== true && !text.trim() && !summary?.trim())
+                  return null;
+                if (
+                  text === part.text &&
+                  summary === part.unstable_summary &&
+                  redacted === part.unstable_redacted
+                )
                   return part;
-                const { unstable_summary: _summary, ...rest } = part;
+                const {
+                  unstable_summary: _summary,
+                  unstable_redacted: _redacted,
+                  ...rest
+                } = part;
                 return {
                   ...rest,
                   text,
                   ...(summary !== undefined && { unstable_summary: summary }),
+                  ...(redacted !== undefined && {
+                    unstable_redacted: redacted,
+                  }),
                 };
               }
 
@@ -214,7 +225,7 @@ export const fromThreadMessageLike = (
                 return sanitizeImageContent(part);
 
               case "data":
-                return part;
+                return keepWellFormed(part);
 
               case "generative-ui":
                 return part;
@@ -306,11 +317,11 @@ export const fromThreadMessageLike = (
             switch (type) {
               case "file":
               case "image":
+              case "audio":
+              case "data":
                 return keepWellFormed(part);
 
               case "text":
-              case "audio":
-              case "data":
                 return part;
 
               case "reasoning":

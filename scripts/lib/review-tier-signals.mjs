@@ -90,6 +90,85 @@ function* dependencySpecs(manifest) {
   }
 }
 
+function changesInstallPolicy(lines) {
+  const topLevelKey = /^(['"]?)([^\s'"#].*?)\1:(?:\s|$)/;
+  const packageName = /(?:@[\w.-]+\/)?[\w.-]+/;
+  const exactVersion =
+    /(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?/;
+  const rangeVersion =
+    /(?:\d+|x|\*)(?:\.(?:\d+|x|\*)){0,2}(?:-[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?/;
+  const overrideKey = /(?:[^\s:'"\\{}[\],#]+|'[^'\\]+'|"[^"\\]+")/;
+  const override = new RegExp(
+    `^ +${overrideKey.source}: +(?:[~^]|[<>]=?|=)? *${rangeVersion.source}(?:(?: +(?:- +)?| *\\|\\| *)(?:[~^]|[<>]=?|=)? *${rangeVersion.source})*(?: +#.*)? *$`,
+  );
+  const build = new RegExp(
+    `^ +(['"]?)(${packageName.source})@(${exactVersion.source})\\1: +(true|false)(?: +#.*)? *$`,
+  );
+  const exclusion = new RegExp(
+    `^ *- +(['"]?)${packageName.source}@${exactVersion.source}\\1(?: +#.*)? *$`,
+  );
+  let section;
+  const builds = { "+": [], "-": [] };
+
+  for (const line of lines) {
+    if (line.startsWith("@@")) {
+      const context = /^@@.*?@@ ?(.*)$/.exec(line)?.[1] ?? "";
+      section = topLevelKey.exec(context)?.[2];
+      continue;
+    }
+    if (
+      /^(?:\+\+\+|---) (?:[ab]\/pnpm-workspace\.yaml|\/dev\/null)$/.test(line)
+    ) {
+      continue;
+    }
+    const side = line[0];
+    if (side !== "+" && side !== "-" && side !== " ") continue;
+    const text = line.slice(1);
+    const key = topLevelKey.exec(text)?.[2];
+    if (key !== undefined) {
+      if (side !== " ") return true;
+      section = key;
+    }
+    if (side === " " || /^\s*(?:#.*)?$/.test(text)) continue;
+    if (section === "overrides" && override.test(text)) {
+      continue;
+    }
+    if (section === "allowBuilds") {
+      const entry = build.exec(text);
+      if (entry) {
+        const [, , name, version, value] = entry;
+        builds[side].push({ name, version, value });
+        continue;
+      }
+    }
+    if (
+      (section === "minimumReleaseAgeExclude" ||
+        section === "trustPolicyExclude") &&
+      exclusion.test(text)
+    ) {
+      continue;
+    }
+    return true;
+  }
+
+  const names = new Set(
+    [...builds["+"], ...builds["-"]].map(({ name }) => name),
+  );
+  return [...names].some((name) => {
+    const added = builds["+"].filter((entry) => entry.name === name);
+    const removed = builds["-"].filter((entry) => entry.name === name);
+    const removedVersions = new Set(removed.map(({ version }) => version));
+    return (
+      added.some(({ version }) => removedVersions.has(version)) ||
+      ["true", "false"].some(
+        (value) =>
+          added.filter((entry) => entry.value === value).length !==
+          removed.filter((entry) => entry.value === value).length,
+      )
+    );
+  });
+}
+
 export function computeTier(input, policy) {
   const type = parseTitleType(policy, input.title);
   const reasons = new Map();
@@ -133,6 +212,8 @@ export function computeTier(input, policy) {
           ? "contract-area"
           : "contract-docs";
         addReason(2, code, path, path);
+      } else if (/\.(?:tgz|tar\.gz|tar)$/i.test(path)) {
+        addReason(3, "unowned-archive", path, path);
       } else if (isLowRiskPath(policy, path)) {
         addReason(0, "low-risk-path", path);
       } else if (isTestPath(policy, path)) {
@@ -194,6 +275,17 @@ export function computeTier(input, policy) {
         ))
     ) {
       addReason(3, "ci-permissions", file.path);
+    }
+    if (
+      [file.path, file.previousPath].some(
+        (path) => path?.split("/").at(-1) === "pnpm-workspace.yaml",
+      ) &&
+      (file.status === "removed" ||
+        file.status === "renamed" ||
+        file.patch === null ||
+        changesInstallPolicy(lines))
+    ) {
+      addReason(3, "install-policy", file.path);
     }
     if (
       type === "refactor" &&

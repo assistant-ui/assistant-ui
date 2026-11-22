@@ -37,6 +37,6 @@
     "svelte-check": "^4.7.7",
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.7"
   }
 }

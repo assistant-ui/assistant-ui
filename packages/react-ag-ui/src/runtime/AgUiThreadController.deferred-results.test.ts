@@ -6,7 +6,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
-import { toAgUiMessages } from "./adapter/conversions";
+import { agUiWireMessageId, toAgUiMessages } from "./adapter/conversions";
 import { makeLogger } from "./logger";
 
 type Subscriber = {
@@ -421,9 +421,9 @@ describe("AgUiThreadController deferred tool results", () => {
         { id: "assistant-b", role: "assistant", content: "snapshot text" },
       ]);
 
-      expect(core.getMessages().map((message) => message.id)).toContain(
-        "assistant-b",
-      );
+      expect(
+        core.getMessages().map((message) => agUiWireMessageId(message)),
+      ).toContain("assistant-b");
       expect(toolCallResults(core)).toEqual([]);
     } finally {
       release();
@@ -509,7 +509,7 @@ describe("AgUiThreadController deferred tool results", () => {
     addResult(core, "assistant-a", "tool-a");
     const retained = core
       .getMessages()
-      .filter((message) => message.id !== "assistant-b");
+      .filter((message) => agUiWireMessageId(message) !== "assistant-b");
     core.applyExternalMessages(retained);
     release();
     await firstRun;
@@ -517,12 +517,12 @@ describe("AgUiThreadController deferred tool results", () => {
 
     const messages = core.getMessages();
     expect(
-      messages.find((message) => message.id === "assistant-b"),
+      messages.find((message) => agUiWireMessageId(message) === "assistant-b"),
     ).toBeUndefined();
     expect(
       (
         messages.find(
-          (message) => message.id === "assistant-a",
+          (message) => agUiWireMessageId(message) === "assistant-a",
         ) as ThreadAssistantMessage
       ).content,
     ).toContainEqual(
@@ -555,14 +555,16 @@ describe("AgUiThreadController deferred tool results", () => {
     await vi.waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
 
     expect(
-      core.getMessages().some((message) => message.id === "assistant-a"),
+      core
+        .getMessages()
+        .some((message) => agUiWireMessageId(message) === "assistant-a"),
     ).toBe(false);
     expect(
       (
         core
           .getMessages()
           .find(
-            (message) => message.id === "assistant-b",
+            (message) => agUiWireMessageId(message) === "assistant-b",
           ) as ThreadAssistantMessage
       ).content,
     ).toContainEqual(
@@ -592,7 +594,9 @@ describe("AgUiThreadController deferred tool results", () => {
       addResult(core, "assistant-a", "tool-a");
       addResult(core, "assistant-b", "tool-b");
       core.applyExternalMessages(
-        captured.filter((message) => message.id !== "assistant-a"),
+        captured.filter(
+          (message) => agUiWireMessageId(message) !== "assistant-a",
+        ),
       );
 
       expect(toolCallResults(core)).toEqual([
