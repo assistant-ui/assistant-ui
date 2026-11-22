@@ -45,7 +45,7 @@
     "@assistant-ui/remote-components-react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^26.6.5",
-    "vite": "^8.3.5",
+    "vite": "^8.3.7",
     "vitest": "^5.0.5"
   },
   "homepage": "https://www.assistant-ui.com/remote-components",
