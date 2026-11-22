@@ -1,5 +1,16 @@
 # @assistant-ui/ai-sdk
 
+## 0.0.20
+
+### Patch Changes
+
+- [#10714](https://github.com/assistant-ui/assistant-ui/pull/10714) [`ac873e5`](https://github.com/assistant-ui/assistant-ui/commit/ac873e5d3aded57180cbb8f2ec17fa109db6e4cd) - RuntimeExtras gains `useExtras`, which the React Compiler recognizes as a hook, and `use` is deprecated. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`74199f8`](https://github.com/assistant-ui/assistant-ui/commit/74199f892e29cc9377eb13b515de64a0ccadaf08), [`01d3fd7`](https://github.com/assistant-ui/assistant-ui/commit/01d3fd7519f6b4e16043285c7f03658fd7e4e685), [`974347f`](https://github.com/assistant-ui/assistant-ui/commit/974347f28c8e37e7dbde8ed526ce0363fe346cb6), [`ac873e5`](https://github.com/assistant-ui/assistant-ui/commit/ac873e5d3aded57180cbb8f2ec17fa109db6e4cd), [`9906ce6`](https://github.com/assistant-ui/assistant-ui/commit/9906ce658c309e57b138c5232f2fb1b09cdb55f8), [`3c1497d`](https://github.com/assistant-ui/assistant-ui/commit/3c1497d5ed2b4821a8f2007cc0aa8361e58b24d6), [`50efa27`](https://github.com/assistant-ui/assistant-ui/commit/50efa27e67989bd3104805047e8a444fe2a18e32), [`c66dab9`](https://github.com/assistant-ui/assistant-ui/commit/c66dab996f43619fb8ed6e4e6e673726f0e70da3), [`709a0cc`](https://github.com/assistant-ui/assistant-ui/commit/709a0cc74b14b6196b9e9466ecac58b502ae70e5), [`aea6e31`](https://github.com/assistant-ui/assistant-ui/commit/aea6e313402681acd45cc23bdadcfe7d37cd2e03), [`ca7c132`](https://github.com/assistant-ui/assistant-ui/commit/ca7c132a2e734d3ceeeca3b164f693aabebebb51), [`ed4e645`](https://github.com/assistant-ui/assistant-ui/commit/ed4e64513d5e34a38488b5e77a390a7c5878b0b1), [`297420f`](https://github.com/assistant-ui/assistant-ui/commit/297420f1dcaf28965762dd4ceb3e2ae6799d352d), [`c21c46d`](https://github.com/assistant-ui/assistant-ui/commit/c21c46d0cdef039ec1377eefa3f01507df22453c), [`e1efac0`](https://github.com/assistant-ui/assistant-ui/commit/e1efac0c22e9799f3d0e0422dc6abdbe8c1c5c09)]:
+  - @assistant-ui/core@0.3.38
+  - @assistant-ui/tap@0.9.27
+  - assistant-stream@0.3.59
+  - @assistant-ui/store@0.3.25
+
 ## 0.0.19
 
 ### Patch Changes

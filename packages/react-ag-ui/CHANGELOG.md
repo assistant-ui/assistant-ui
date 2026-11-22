@@ -1,5 +1,26 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.12
+
+### Patch Changes
+
+- [#10767](https://github.com/assistant-ui/assistant-ui/pull/10767) [`c056b2c`](https://github.com/assistant-ui/assistant-ui/commit/c056b2cbb17ee454e0414915524124b7eb4594a7) - Leaving a durable run midway stores its reply as interrupted by the connection instead of cancelled, so another tab or a remount takes the run over. ([@okisdev](https://github.com/okisdev))
+
+- [#10750](https://github.com/assistant-ui/assistant-ui/pull/10750) [`3ebd6d2`](https://github.com/assistant-ui/assistant-ui/commit/3ebd6d27281fd63d7542d79a341649368435d9ba) - A run rejoined in flight gives its assistant message the agent's id when the message has no content yet, so every client following the run stores one answer. ([@okisdev](https://github.com/okisdev))
+
+- [#10743](https://github.com/assistant-ui/assistant-ui/pull/10743) [`667e2ee`](https://github.com/assistant-ui/assistant-ui/commit/667e2eed2613310c2f74a659426ca5c3656cfdeb) - Interrupts keep the `subagentRunId` that names the suspended subagent they belong to, so an app can render and answer a subagent's interrupt in place. ([@okisdev](https://github.com/okisdev))
+
+- [#10704](https://github.com/assistant-ui/assistant-ui/pull/10704) [`03c0650`](https://github.com/assistant-ui/assistant-ui/commit/03c06506107f55a7bc11bed616a2fed06af8a8ba) - Adapters that install `@assistant-ui/core` declare `@assistant-ui/store` and `@assistant-ui/tap` as peers, so strict installers such as Yarn PnP resolve the single copy the app provides. `@assistant-ui/react-ag-ui` also forwards the `zod` peer that `@ag-ui/client` declares. ([@okisdev](https://github.com/okisdev))
+
+- [#10714](https://github.com/assistant-ui/assistant-ui/pull/10714) [`ac873e5`](https://github.com/assistant-ui/assistant-ui/commit/ac873e5d3aded57180cbb8f2ec17fa109db6e4cd) - RuntimeExtras gains `useExtras`, which the React Compiler recognizes as a hook, and `use` is deprecated. ([@okisdev](https://github.com/okisdev))
+
+- [#10734](https://github.com/assistant-ui/assistant-ui/pull/10734) [`784c085`](https://github.com/assistant-ui/assistant-ui/commit/784c085a015994fb3fde389379ac7485c7c624a1) - An assistant message that never receives a server id keeps its id when its run finishes, so its row no longer remounts at the end of the run. ([@okisdev](https://github.com/okisdev))
+
+- [#10736](https://github.com/assistant-ui/assistant-ui/pull/10736) [`4645634`](https://github.com/assistant-ui/assistant-ui/commit/464563474a0ec7fe10327510221d471ff80cd3d3) - A locally created assistant message keeps its row mounted when the agent first names it; the agent's id moves to `metadata.custom.agui.messageId` and is still what outbound history and snapshot reconciliation use. A message created directly under the agent's id keeps it as `message.id` without `metadata.custom.agui.messageId`. History writes keep their persisted record ids and parent links, and history bookkeeping no longer carries over between threads. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`74199f8`](https://github.com/assistant-ui/assistant-ui/commit/74199f892e29cc9377eb13b515de64a0ccadaf08), [`01d3fd7`](https://github.com/assistant-ui/assistant-ui/commit/01d3fd7519f6b4e16043285c7f03658fd7e4e685), [`974347f`](https://github.com/assistant-ui/assistant-ui/commit/974347f28c8e37e7dbde8ed526ce0363fe346cb6), [`ac873e5`](https://github.com/assistant-ui/assistant-ui/commit/ac873e5d3aded57180cbb8f2ec17fa109db6e4cd), [`9906ce6`](https://github.com/assistant-ui/assistant-ui/commit/9906ce658c309e57b138c5232f2fb1b09cdb55f8), [`3c1497d`](https://github.com/assistant-ui/assistant-ui/commit/3c1497d5ed2b4821a8f2007cc0aa8361e58b24d6), [`50efa27`](https://github.com/assistant-ui/assistant-ui/commit/50efa27e67989bd3104805047e8a444fe2a18e32), [`c66dab9`](https://github.com/assistant-ui/assistant-ui/commit/c66dab996f43619fb8ed6e4e6e673726f0e70da3), [`709a0cc`](https://github.com/assistant-ui/assistant-ui/commit/709a0cc74b14b6196b9e9466ecac58b502ae70e5), [`aea6e31`](https://github.com/assistant-ui/assistant-ui/commit/aea6e313402681acd45cc23bdadcfe7d37cd2e03), [`ed4e645`](https://github.com/assistant-ui/assistant-ui/commit/ed4e64513d5e34a38488b5e77a390a7c5878b0b1), [`297420f`](https://github.com/assistant-ui/assistant-ui/commit/297420f1dcaf28965762dd4ceb3e2ae6799d352d)]:
+  - @assistant-ui/core@0.3.38
+  - assistant-stream@0.3.59
+
 ## 0.1.11
 
 ### Patch Changes
