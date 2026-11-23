@@ -19,7 +19,6 @@ vi.mock("../lib/setup-session", async (importOriginal) => ({
   ),
 }));
 
-// The client the mocked session hands back; a test can close its setup.
 const fakeClient = vi.hoisted(() => {
   const listeners = new Set<() => void>();
   const client = {
