@@ -153,12 +153,17 @@ export const setupPageUrl = (
  * such as a test driver.
  */
 const openUrl = (url: string) => {
-  // BROWSER runs directly: where it is set (a remote shell), xdg-open is often missing.
+  // With no display (a remote shell), xdg-open is often missing, so BROWSER runs directly.
+  const { SETUP_AGENT_BROWSER, BROWSER, DISPLAY, WAYLAND_DISPLAY } =
+    process.env;
   const custom =
-    process.env.SETUP_AGENT_BROWSER?.trim() ||
-    (process.platform === "darwin" || process.platform === "win32"
+    SETUP_AGENT_BROWSER?.trim() ||
+    (process.platform === "darwin" ||
+    process.platform === "win32" ||
+    DISPLAY ||
+    WAYLAND_DISPLAY
       ? undefined
-      : process.env.BROWSER?.trim());
+      : BROWSER?.split(":")[0]?.trim());
   const [command, args] = custom
     ? [custom, [url]]
     : process.platform === "darwin"
