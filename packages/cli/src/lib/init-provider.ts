@@ -74,7 +74,7 @@ export function snapshotProjectProviders(root: string): ProjectProviders {
     (id) =>
       Object.hasOwn(deps, CHAT_PROVIDERS[id].pkg) ||
       new RegExp(
-        `^\\s*(?:export\\s+)?${CHAT_PROVIDERS[id].key}\\s*=\\s*\\S`,
+        `^[ \\t]*(?:export[ \\t]+)?${CHAT_PROVIDERS[id].key}[ \\t]*=[ \\t]*[^\\s#]`,
         "m",
       ).test(env),
   );

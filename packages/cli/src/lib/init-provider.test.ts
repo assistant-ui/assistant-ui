@@ -52,7 +52,7 @@ describe("snapshotProjectProviders", () => {
         dependencies: { "@ai-sdk/google": "^3.0.0" },
       }),
       ".env.local":
-        "# keys\nexport ANTHROPIC_API_KEY=sk-ant-x\nOPENAI_API_KEY=\n",
+        "OPENAI_API_KEY=\n# keys\nexport ANTHROPIC_API_KEY=sk-ant-x\nGOOGLE_GENERATIVE_AI_API_KEY= # unset\n",
     });
     expect(snapshotProjectProviders(root)).toEqual({
       used: ["anthropic", "google"],
