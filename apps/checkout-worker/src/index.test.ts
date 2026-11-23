@@ -160,6 +160,7 @@ describe("secret lifecycle", () => {
       expect(client.state?.browser).toEqual({
         connected: true,
         lastSeenAt: expect.any(Number),
+        awakeSince: expect.any(Number),
       }),
     );
     // Commands every released CLI sends keep working beside it.
