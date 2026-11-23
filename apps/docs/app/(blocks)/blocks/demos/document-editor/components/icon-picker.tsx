@@ -390,6 +390,7 @@ function IconPanel({
   );
   const { entries, rows, starts } = useMemo(() => gridOf(sections), [sections]);
   const current = entries[active];
+  const selected = entries.findIndex((entry) => sameIcon(entry.icon, value));
   const browsing = kind === "emoji" && query.trim() === "";
   const noun = KIND_LABELS[kind].toLowerCase();
 
@@ -642,11 +643,14 @@ function IconPanel({
                         role="option"
                         tabIndex={-1}
                         aria-label={entry.label}
-                        aria-selected={sameIcon(entry.icon, value)}
+                        aria-selected={cell === selected}
+                        data-current={
+                          sameIcon(entry.icon, value) ? "" : undefined
+                        }
                         data-cell={cell}
                         data-active={cell === active ? "" : undefined}
                         className={cn(
-                          "text-muted-foreground data-active:bg-accent data-active:text-foreground aria-selected:text-foreground flex h-8 items-center justify-center outline-none aria-selected:shadow-[inset_0_0_0_1px_var(--ring)] pointer-coarse:h-9",
+                          "text-muted-foreground data-active:bg-accent data-active:text-foreground data-current:text-foreground flex h-8 items-center justify-center outline-none data-current:shadow-[inset_0_0_0_1px_var(--ring)] pointer-coarse:h-9",
                           radius.sm,
                         )}
                         onClick={() => choose(entry.icon)}
