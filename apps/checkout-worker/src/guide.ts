@@ -11,6 +11,8 @@
 export type GuideContext = {
   started: "user" | "agent" | "agent-stream";
   opened: boolean;
+  /** Nobody answers: `setup --unattended`, as in CI or an evaluation run. */
+  unattended?: boolean;
 };
 type GuideStep =
   | { action: "print"; text: string }
@@ -59,11 +61,23 @@ When the setup puts an assistant in the app, ask how users should access it afte
   {{cmd}} {{url}} ask "Where should users access the assistant?" --entry-points '<JSON array>' --wait
 Mark a clear fit with "recommended":true rather than --default, so the user makes the pick. When you ask it, do not submit the plan before the user picks an entry point. Respect the selected placement and trigger in the plan and implementation. Do not ask for a new-versus-existing app setting; discover the app from its files and ask only for an install path when needed.`;
 
+/** How the agent finishes a setup nobody answers; it overrides every "ask the user" and "wait" below it. */
+const unattendedRules = `Nobody answers this setup: it runs unattended (--unattended), as in CI, a background job or an evaluation run. Do not ask questions, open the setup page, or wait for answers. Instead:
+- Decide every choice yourself, in this order: what the project already uses; the defaults setup printed above (such as the model provider); the option you would have recommended. Record each decision with "log".
+- Install into the app in the current directory, or the one app below it when the current directory is not an app.
+- Submit the plan with "{{cmd}} {{url}} plan --file <path>" (without --wait), then approve it yourself with "{{cmd}} {{url}} answer plan approve".
+- Skip every step that needs a person, such as signing in to assistant-ui cloud or a model API key (run no "env" command), and leave the code ready for it.
+- Once the install is done and verified, run "done" with a summary, then "{{cmd}} {{url}} answer finish close", then stop setup.
+- End your reply with a "To finish" list: every step you skipped and every choice the user may want to change, such as "Add ANTHROPIC_API_KEY to .env.local".
+Where the rest of this guide says to ask the user or wait for an answer, follow these rules instead.
+
+`;
+
 const briefing = (context: GuideContext) => {
   const { started, opened } = context;
   const byAgent = started !== "user";
   const streaming = started === "agent-stream";
-  return `How this setup works: it installs into the user's project through you, their coding agent, ${byAgent ? (streaming ? (!opened ? "and you started it. Setup opens no browser from this machine (--no-open, or no screen here), so the user follows it on the setup page from any device once you give them the link, or answers you in your own conversation" : "and you started it. The user follows it on the setup page, which setup opens in their browser when it needs their input") : "and you opened it in the user's browser") : "and the user opened it in their browser"}. The setup page shows this setup live, and every command below updates it. The user watches that page, not this terminal: once setup begins, send questions through "ask" so the user can answer there.
+  return `${context.unattended ? unattendedRules : ""}How this setup works: it installs into the user's project through you, their coding agent, ${byAgent ? (streaming ? (!opened ? "and you started it. Setup opens no browser from this machine (--no-open, or no screen here), so the user follows it on the setup page from any device once you give them the link, or answers you in your own conversation" : "and you started it. The user follows it on the setup page, which setup opens in their browser when it needs their input") : "and you opened it in the user's browser") : "and the user opened it in their browser"}. The setup page shows this setup live, and every command below updates it. The user watches that page, not this terminal: once setup begins, send questions through "ask" so the user can answer there.
 
 ${streamSection(streaming, byAgent && !opened)}
 
@@ -104,7 +118,7 @@ which returns once that setup begins, then run "status" for its products, guides
 };
 
 /** What the agent reads first in the output of a setup command that keeps running. */
-const streamBriefing = (opened: boolean) =>
+const streamBriefing = (opened: boolean, unattended: boolean) =>
   `{{name}} is running. You started it with {{cmd}} to install what the user asked for, and the steps below are how that install runs. This command keeps running: it is the setup's live connection to the page the user follows.
 
 1. Keep it running in the background until the setup ends. If you started it in the foreground, stop it and resume it in the background (Claude Code: Bash with run_in_background; Codex and other agents: add > "\${TMPDIR:-/tmp}/setup-{{linkId}}.log" 2>&1 & and read that file):
@@ -112,9 +126,11 @@ const streamBriefing = (opened: boolean) =>
 2. Its new output does not wake you, so never end your turn to wait for it. Read the new lines between your other commands; each line after this briefing is a JSON array of events. Answers reach you through the blocking "wait" commands below.
 3. Run every other command in another shell: {{cmd}} {{url}} <command>.
 4. ${
-    opened
-      ? "Setup opens the setup page in the user's browser on this machine when you ask the user something; do not open it yourself. If the user is not at this machine, give them {{browserUrl}} to open on their own device."
-      : 'Setup opens no browser from this machine (--no-open, or no screen here). Give the user {{browserUrl}} now: they can open it on any device, such as their laptop or phone, to answer your questions and approve the plan. Or ask them each question in your own conversation and pass their reply with its "answer" command.'
+    unattended
+      ? "Nobody answers this setup (--unattended), so it opens no browser: follow the unattended rules below."
+      : opened
+        ? "Setup opens the setup page in the user's browser on this machine when you ask the user something; do not open it yourself. If the user is not at this machine, give them {{browserUrl}} to open on their own device."
+        : 'Setup opens no browser from this machine (--no-open, or no screen here). Give the user {{browserUrl}} now: they can open it on any device, such as their laptop or phone, to answer your questions and approve the plan. Or ask them each question in your own conversation and pass their reply with its "answer" command.'
   } On an "input.needed" event, do what its message says; to answer from here, run its "answer" command with the user's reply.
 5. To stop setup, end this process: Ctrl-C, or kill with its pid. Do not pkill by a pattern, which also matches your own shell's command. The setup page then shows you as disconnected; the project is left as it is.
 
@@ -136,7 +152,10 @@ export const buildGuide = (context: GuideContext): Guide => {
     texts: {
       briefing: briefing(context),
       "intro.status-heading": "\nCurrent setup:\n",
-      "stream.briefing": streamBriefing(context.opened),
+      "stream.briefing": streamBriefing(
+        context.opened,
+        context.unattended === true,
+      ),
       "stream.briefing-footer":
         "Setup page, if the user asks for it: {{browserUrl}}\n\nCurrent setup:\n",
       "stream.stay-connected":
@@ -151,6 +170,7 @@ export const buildGuide = (context: GuideContext): Guide => {
         "The user closed the setup page. Ask the user in your own conversation: {{question}}",
       "stream.ask.no-browser":
         "The user has no setup page open. Ask the user in your own conversation, or give them {{page}} to open on any device: {{question}}",
+      "stream.unattended": `Nobody has opened the setup page in {{minutes}} minutes. If the user is not answering you in your own conversation either, finish this setup unattended: answer each open question yourself with its "answer" command (what the project already uses, else the default setup printed, else the option you would recommend), approve your own plan with "answer plan approve", skip steps that need a person (cloud sign-in, a model API key), and end your reply with a "To finish" list of what you skipped and chose. Otherwise keep waiting for the user.`,
       "wait.waiting": `The user has not answered yet. Run "next" now to keep waiting (it only waits; do not repeat the command you ran, which would ask or submit again), or go on with other work and run it when you need the answer. Do not end your turn: nothing resumes you until you run it.`,
       "done.next":
         "Keep the stream running and stay idle. The user closes the setup or sends a follow-up message.",
@@ -217,9 +237,11 @@ export const respondToGuideRequest = (params: URLSearchParams) => {
     };
   const started = params.get("started") ?? "user";
   const opened = params.get("opened") ?? "1";
+  const unattended = params.get("unattended") ?? "0";
   if (
     !STARTS.includes(started as GuideContext["started"]) ||
-    !["0", "1"].includes(opened)
+    !["0", "1"].includes(opened) ||
+    !["0", "1"].includes(unattended)
   )
     return { status: 400, body: { error: "invalid-request" } };
   return {
@@ -227,6 +249,7 @@ export const respondToGuideRequest = (params: URLSearchParams) => {
     body: build({
       started: started as GuideContext["started"],
       opened: opened === "1",
+      ...(unattended === "1" && { unattended: true }),
     }),
   };
 };

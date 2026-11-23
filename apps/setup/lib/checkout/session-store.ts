@@ -111,11 +111,18 @@ export const canRestoreCheckoutSession = (sessionId: string, url: string) => {
   return stored?.id === sessionId && checkoutUrl(stored.link) === url;
 };
 
-/** The link and setup ids `assistant-ui setup` put in the setup page's fragment (`#link=<id>&setup=<id>`), or `null`. */
+/**
+ * The link and setup ids `assistant-ui setup` put in the setup page's
+ * fragment (`#link=<id>&setup=<id>`, or the short `#<id>` an agent hands the
+ * user to open on another device), or `null`.
+ */
 export const parseAgentFragment = (
   hash: string,
 ): { link: string; setup?: string } | null => {
-  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const bare = hash.replace(/^#/, "");
+  // Exactly the 12 characters setup's link ids have, so a page anchor never reads as one.
+  if (/^[A-Za-z0-9]{12}$/.test(bare)) return { link: bare };
+  const params = new URLSearchParams(bare);
   const link = params.get("link");
   if (link === null || !LINK_PATTERN.test(link)) return null;
   const setup = params.get("setup");

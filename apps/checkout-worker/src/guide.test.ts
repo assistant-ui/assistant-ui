@@ -100,6 +100,34 @@ describe("buildGuide", () => {
         );
   });
 
+  it("tells an unattended agent to decide, approve its own plan and list what is left, ahead of every ask", () => {
+    const guide = buildGuide({
+      started: "agent-stream",
+      opened: false,
+      unattended: true,
+    });
+    expect(guide.texts.briefing).toMatch(/^Nobody answers this setup/);
+    expect(guide.texts.briefing).toContain(
+      '"{{cmd}} {{url}} answer plan approve"',
+    );
+    expect(guide.texts.briefing).toContain('a "To finish" list');
+    expect(guide.texts["stream.briefing"]).toContain(
+      "Nobody answers this setup (--unattended)",
+    );
+    expect(
+      buildGuide({ started: "agent-stream", opened: false }).texts.briefing,
+    ).not.toContain("Nobody answers this setup");
+  });
+
+  it("offers to go on unattended once nobody has come for a while", () => {
+    const text = buildGuide({ started: "agent-stream", opened: true }).texts[
+      "stream.unattended"
+    ]!;
+    expect(text).toContain("{{minutes}} minutes");
+    expect(text).toContain('"answer plan approve"');
+    expect(text).toContain("Otherwise keep waiting for the user.");
+  });
+
   it("asks contextual entry points before the plan", () => {
     const text = briefing({ started: "user", opened: true });
     expect(text).toContain("only 1–3 sensible alternatives");
@@ -143,7 +171,19 @@ describe("GET /<link>/guide", () => {
       respondToGuideRequest(new URLSearchParams("protocol=1&started=robot"))
         .status,
     ).toBe(400);
-    for (const query of ["", "protocol=abc", "protocol=1.5"])
+    expect(
+      respondToGuideRequest(
+        new URLSearchParams("protocol=1&started=agent-stream&unattended=1"),
+      ).body,
+    ).toEqual(
+      buildGuide({ started: "agent-stream", opened: true, unattended: true }),
+    );
+    for (const query of [
+      "",
+      "protocol=abc",
+      "protocol=1.5",
+      "protocol=1&unattended=yes",
+    ])
       expect(respondToGuideRequest(new URLSearchParams(query)).status).toBe(
         400,
       );

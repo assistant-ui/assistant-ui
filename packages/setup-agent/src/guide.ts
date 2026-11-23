@@ -26,6 +26,7 @@ export const GUIDE_TEXT_KEYS = [
   "stream.ask.recently-opened",
   "stream.ask.browser-closed",
   "stream.ask.no-browser",
+  "stream.unattended",
   "wait.waiting",
   "done.next",
   "need.plan.question",
@@ -68,6 +69,8 @@ export type Guide = {
 export type GuideContext = {
   started: "user" | "agent" | "agent-stream";
   opened: boolean;
+  /** Nobody answers the setup (`--unattended`); sent only when true, so an older server gets the request it knows. */
+  unattended?: boolean;
 };
 
 const MAX_GUIDE_BYTES = 256 * 1024;
@@ -131,12 +134,13 @@ export const parseGuide = (value: unknown): Guide => {
  */
 export const loadGuide = async (
   setupUrl: string,
-  { started, opened }: GuideContext,
+  { started, opened, unattended }: GuideContext,
 ): Promise<Guide> => {
   const query = new URLSearchParams({
     protocol: String(GUIDE_PROTOCOL),
     started,
     opened: opened ? "1" : "0",
+    ...(unattended && { unattended: "1" }),
   });
   const offline = `Setup needs internet access to ${setupUrl}`;
   let response: Response;

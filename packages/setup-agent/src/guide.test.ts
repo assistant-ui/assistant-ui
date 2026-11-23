@@ -75,6 +75,19 @@ describe("loadGuide", () => {
     );
   });
 
+  it("asks for the unattended wording only when nobody answers", async () => {
+    const fetch = serve(() => Response.json(testGuide));
+    await loadGuide(URL, {
+      started: "agent-stream",
+      opened: false,
+      unattended: true,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      `${URL}/guide?protocol=1&started=agent-stream&opened=0&unattended=1`,
+      expect.anything(),
+    );
+  });
+
   it("fails clearly offline: setup is online-only", async () => {
     serve(() => {
       throw new TypeError("fetch failed");
