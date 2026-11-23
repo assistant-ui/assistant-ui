@@ -51,6 +51,86 @@ export type Block = {
 
 export const BLOCKS: readonly Block[] = [
   {
+    slug: "chat-basic",
+    title: "Chat basic",
+    description:
+      "A whole chat written with every assistant-ui primitive, using only the shadcn/ui tooltip and resizable components.",
+    image: {
+      light: "/screenshot/blocks/chat-basic-light.webp",
+      dark: "/screenshot/blocks/chat-basic-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/chat-basic",
+    previewUrl: "/blocks/demos/chat-basic",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/chat-basic",
+      include: ["components", "block.css", "layout.tsx", "page.tsx"],
+      entry: "components/chat.tsx",
+    },
+    stack: [
+      { name: "shadcn/ui", package: "shadcn" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+      { name: "React", package: "react" },
+    ],
+    useCases: [
+      "A starting point for a chat whose markup and styles are all yours.",
+      "A reference for how each primitive is composed, with every one in a single file.",
+      "A chat to try a design on before you wire up a model.",
+    ],
+    capabilities: [
+      {
+        title: "Thread and messages",
+        description:
+          "A scrolling thread with a welcome screen, suggestions, a scroll-to-bottom button, and separate user and assistant messages.",
+      },
+      {
+        title: "Composer",
+        description:
+          "Send and stop, files by button or by drop, a quoted passage, and a queue for messages sent while a reply is being written.",
+      },
+      {
+        title: "Message actions",
+        description:
+          "Copy, edit, regenerate, read aloud, rate, and export as Markdown from a More menu.",
+      },
+      {
+        title: "Branches",
+        description:
+          "Editing a message or regenerating a reply keeps the earlier version, and a picker moves between them.",
+      },
+      {
+        title: "Reasoning and tool calls",
+        description:
+          "A collapsible Thinking block holds the reasoning and the tool call that came before the answer.",
+      },
+      {
+        title: "Quoting",
+        description:
+          "Selecting text in a message shows a Quote button, and the passage is sent with the next message.",
+      },
+      {
+        title: "Errors",
+        description: "A failed reply shows its error under the message.",
+      },
+      {
+        title: "Chat list",
+        description:
+          "A sidebar of chats with new, archive, restore and delete, kept in memory.",
+      },
+      {
+        title: "Floating layout",
+        description:
+          "One button moves the same thread into a bubble in the corner of the page.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
+      "The shadcn/ui tooltip and resizable components, for the labels on the icon buttons and the sidebar you can drag.",
+      "A model of your own. The chat answers from a script, so replace scriptedModel with a ChatModelAdapter or another assistant-ui runtime.",
+      "A browser with speech synthesis for reading a reply aloud.",
+    ],
+  },
+  {
     slug: "document-editor",
     title: "Document editor",
     description:
@@ -144,86 +224,6 @@ export const BLOCKS: readonly Block[] = [
         },
       ],
     },
-  },
-  {
-    slug: "chat-basic",
-    title: "Chat basic",
-    description:
-      "A whole chat written with every assistant-ui primitive, using only the shadcn/ui tooltip and resizable components.",
-    image: {
-      light: "/screenshot/blocks/chat-basic-light.webp",
-      dark: "/screenshot/blocks/chat-basic-dark.webp",
-    },
-    githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/chat-basic",
-    previewUrl: "/blocks/demos/chat-basic",
-    source: {
-      directory: "apps/docs/app/(blocks)/blocks/demos/chat-basic",
-      include: ["components", "block.css", "layout.tsx", "page.tsx"],
-      entry: "components/chat.tsx",
-    },
-    stack: [
-      { name: "shadcn/ui", package: "shadcn" },
-      { name: "Tailwind CSS", package: "tailwindcss" },
-      { name: "React", package: "react" },
-    ],
-    useCases: [
-      "A starting point for a chat whose markup and styles are all yours.",
-      "A reference for how each primitive is composed, with every one in a single file.",
-      "A chat to try a design on before you wire up a model.",
-    ],
-    capabilities: [
-      {
-        title: "Thread and messages",
-        description:
-          "A scrolling thread with a welcome screen, suggestions, a scroll-to-bottom button, and separate user and assistant messages.",
-      },
-      {
-        title: "Composer",
-        description:
-          "Send and stop, files by button or by drop, a quoted passage, and a queue for messages sent while a reply is being written.",
-      },
-      {
-        title: "Message actions",
-        description:
-          "Copy, edit, regenerate, read aloud, rate, and export as Markdown from a More menu.",
-      },
-      {
-        title: "Branches",
-        description:
-          "Editing a message or regenerating a reply keeps the earlier version, and a picker moves between them.",
-      },
-      {
-        title: "Reasoning and tool calls",
-        description:
-          "A collapsible Thinking block holds the reasoning and the tool call that came before the answer.",
-      },
-      {
-        title: "Quoting",
-        description:
-          "Selecting text in a message shows a Quote button, and the passage is sent with the next message.",
-      },
-      {
-        title: "Errors",
-        description: "A failed reply shows its error under the message.",
-      },
-      {
-        title: "Chat list",
-        description:
-          "A sidebar of chats with new, archive, restore and delete, kept in memory.",
-      },
-      {
-        title: "Floating layout",
-        description:
-          "One button moves the same thread into a bubble in the corner of the page.",
-      },
-    ],
-    requirements: [
-      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
-      "The shadcn/ui tooltip and resizable components, for the labels on the icon buttons and the sidebar you can drag.",
-      "A model of your own. The chat answers from a script, so replace scriptedModel with a ChatModelAdapter or another assistant-ui runtime.",
-      "A browser with speech synthesis for reading a reply aloud.",
-    ],
   },
 ];
 
