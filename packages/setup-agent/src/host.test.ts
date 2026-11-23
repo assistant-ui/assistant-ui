@@ -121,11 +121,14 @@ describe("CheckoutHost", () => {
     }
     await host.commands["browser/bye"]();
     vi.advanceTimersByTime(60_000);
-    for (let minute = 0; minute < 20; minute++) {
+    // The run starts again at the page's return: a full hour from there.
+    for (let minute = 0; minute < 60; minute++) {
       await host.commands["browser/heartbeat"]();
+      expect(host.state.status).toBe("installing");
       vi.advanceTimersByTime(60_000);
     }
-    expect(host.state.status).toBe("installing");
+    await host.commands["browser/heartbeat"]();
+    expect(host.state.status).toBe("cancelled");
   });
 
   it("keeps a setup after a sleep that silenced both the page and the agent", async () => {

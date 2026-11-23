@@ -492,18 +492,16 @@ const useCheckoutHost = (restored: unknown) => {
       const previous = state.browser?.lastSeenAt ?? null;
       // Kept in the setup's state, so the run survives the worker hibernating between beats.
       const awakeSince =
-        previous === null || now - previous > PAGE_GAP_MS
+        previous === null ||
+        !state.browser?.connected ||
+        now - previous > PAGE_GAP_MS
           ? now
-          : (state.browser?.awakeSince ?? previous);
+          : (state.browser.awakeSince ?? previous);
       state.browser = { lastSeenAt: now, connected: true, awakeSince };
       endIfAbandoned();
     },
     "browser/bye": () => {
-      if (state.browser) {
-        state.browser.connected = false;
-        // A page that left is not awake through what follows.
-        delete state.browser.awakeSince;
-      }
+      if (state.browser) state.browser.connected = false;
     },
     "agent/plan": ({ markdown }) => {
       requireStarted();
