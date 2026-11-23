@@ -153,7 +153,12 @@ export const setupPageUrl = (
  * such as a test driver.
  */
 const openUrl = (url: string) => {
-  const custom = process.env.SETUP_AGENT_BROWSER?.trim();
+  // BROWSER runs directly: where it is set (a remote shell), xdg-open is often missing.
+  const custom =
+    process.env.SETUP_AGENT_BROWSER?.trim() ||
+    (process.platform === "darwin" || process.platform === "win32"
+      ? undefined
+      : process.env.BROWSER?.trim());
   const [command, args] = custom
     ? [custom, [url]]
     : process.platform === "darwin"

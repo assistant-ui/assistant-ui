@@ -161,7 +161,7 @@ const AGENT_VENDORS: Record<string, string> = {
 /**
  * The plan's default model provider: the one llm-provider preset option the
  * project in this folder already uses (its AI SDK package, or its key in
- * .env, .env.local or .env.development), else the running coding agent's
+ * .env, .env.local, .env.development or .env.production), else the running coding agent's
  * vendor; none when neither settles it.
  */
 export const defaultProvider = (cwd: string, agentKind?: string) => {
@@ -177,7 +177,9 @@ export const defaultProvider = (cwd: string, agentKind?: string) => {
     const pkg = JSON.parse(read("package.json"));
     deps = { ...pkg.dependencies, ...pkg.devDependencies };
   } catch {}
-  const env = [".env", ".env.local", ".env.development"].map(read).join("\n");
+  const env = [".env", ".env.local", ".env.development", ".env.production"]
+    .map(read)
+    .join("\n");
   const used = INPUT_PRESETS["llm-provider"].options.filter(
     ({ id, description = "" }) =>
       deps[`@ai-sdk/${id}`] !== undefined ||
@@ -317,7 +319,8 @@ export const setup = new Command()
 Run by a coding agent, setup starts a guided setup, prints the steps the agent
 follows and keeps running as the setup's stream; run it in the background. It
 opens the user's browser only when the setup needs their input, and none over
-SSH, in CI or on a Linux machine with no display (unless BROWSER names one).
+SSH without a forwarded display, in CI or on a Linux machine with no display,
+unless BROWSER or SETUP_AGENT_BROWSER names a program.
 Stop it with \`setup <url> cancel\` and Ctrl-C; with nobody to answer, pass
 --unattended. Run in an interactive terminal, it asks which coding agent you
 use and starts it with the setup prompt.`,
