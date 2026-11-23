@@ -56,7 +56,7 @@ npx assistant-ui info
 
 `init` falls back to `create` when no `package.json` is found, so a single command works for both new and existing projects. Use `init --yes` for CI where prompts are not available.
 
-Coding agents use `npx assistant-ui@latest setup`, which opens a guided setup in the user's browser. Run by a coding agent outside a setup session for the folder they act on (`--cwd`, or the project directory given to `init`/`create`), `init`, `create` and `add` stop with exit code 2 and point it to `setup`; pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1` to run them anyway. A setup session ends when `setup` exits, or two hours after it starts. Run without a terminal by an agent the CLI does not detect (or by a script or CI), `init` and `create` print a note recommending `setup` before they start, then run as usual and end with a one-line pointer to it; run by an agent or outside a terminal, `--help` ends with the note.
+Coding agents use `npx assistant-ui@latest setup`, which opens a guided setup in the user's browser. Run by a coding agent outside a setup session for the folder they act on (`--cwd`, or the project directory given to `init`/`create`), `init`, `create` and `add` stop with exit code 2 and point it to `setup`; pass `--force` or set `ASSISTANT_UI_ALLOW_AGENT=1` to run them anyway. A setup session ends when `setup` exits, or two hours after it starts. Run without a terminal by an agent the CLI does not detect (or by a script or CI), `init` and `create` print a note recommending `setup` before they start, then run as usual and end with a one-line pointer to it, except inside a setup session or with `--force`; run by an agent or outside a terminal, `--help` always ends with the note.
 
 ## Templates
 

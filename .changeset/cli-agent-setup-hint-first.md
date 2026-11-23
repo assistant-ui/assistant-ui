@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-Run without a terminal by a coding agent the CLI does not detect, `init` and `create` now print the note recommending `npx assistant-ui@latest setup` before they start instead of after they finish, and end with a one-line pointer to it. Inside a setup session or with `--force`, the note is left out.
+When `init` or `create` runs without a terminal and no coding agent is detected (an agent the CLI does not recognize, CI, or a script), it now prints the note recommending `npx assistant-ui@latest setup` before it starts instead of after it finishes, and ends with a one-line pointer to it. Inside a setup session or with `--force`, the note is left out.

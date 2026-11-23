@@ -20,6 +20,12 @@ const hinted = new WeakSet<Command>();
 let printed = false;
 let pointerDue: Command | undefined;
 
+const printPointer = () => {
+  if (pointerDue === undefined) return;
+  pointerDue = undefined;
+  process.stdout.write(`\n${AGENT_SETUP_POINTER}\n`);
+};
+
 /** Ends `command`'s help with the agent setup hint when an agent reads it, so `--help | tail` keeps it. */
 export const addAgentSetupHelp = (command: Command) => {
   command.addHelpText("after", () =>
@@ -58,11 +64,13 @@ export const addAgentSetupHint = (command: Command) => {
     printed = true;
     pointerDue = thisCommand;
     process.stdout.write(`${AGENT_SETUP_HINT}\n\n`);
+    // A command that stops early with process.exit skips postAction.
+    process.once("exit", printPointer);
   });
   command.hook("postAction", (thisCommand) => {
     if (pointerDue !== thisCommand) return;
-    pointerDue = undefined;
-    process.stdout.write(`\n${AGENT_SETUP_POINTER}\n`);
+    process.removeListener("exit", printPointer);
+    printPointer();
   });
   return command;
 };

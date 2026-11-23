@@ -131,14 +131,40 @@ describe("addAgentSetupHint", () => {
 
   it("prints the hint before an undetected agent's run starts and a pointer after it, once", async () => {
     const { action, run } = await load();
+    const exitListeners = process.listenerCount("exit");
     const command = await run("create", ["my-app"]);
     await run("create", ["my-app"], command);
+    expect(process.listenerCount("exit")).toBe(exitListeners);
     expect(action).toHaveBeenCalledTimes(2);
     expect(out).toEqual([
       `${AGENT_SETUP_HINT}\n\n`,
       "Next steps: npm run dev\n",
       `\n${AGENT_SETUP_POINTER}\n`,
       "Next steps: npm run dev\n",
+    ]);
+  });
+
+  it("prints the pointer on exit when the command stops before it finishes", async () => {
+    const { addAgentSetupHint } = await import("./agent-setup-hint");
+    const exitListeners = process.listeners("exit");
+    const command = addAgentSetupHint(
+      new Command("create").action(() => {
+        throw new Error("Unknown template");
+      }),
+    );
+    process.argv = ["node", "assistant-ui", "create"];
+    await expect(command.parseAsync([], { from: "user" })).rejects.toThrow(
+      "Unknown template",
+    );
+    const added = process
+      .listeners("exit")
+      .filter((listener) => !exitListeners.includes(listener));
+    expect(added).toHaveLength(1);
+    process.removeListener("exit", added[0]!);
+    added[0]!(0);
+    expect(out).toEqual([
+      `${AGENT_SETUP_HINT}\n\n`,
+      `\n${AGENT_SETUP_POINTER}\n`,
     ]);
   });
 
