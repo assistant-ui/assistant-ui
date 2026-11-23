@@ -179,6 +179,19 @@ async function compareApprovals(client, repo, head, reviews) {
   return comparisons;
 }
 
+async function hasWriteAccess(client, policy, author) {
+  try {
+    const permission = await client.rest(
+      "GET",
+      `/repos/${policy.repository}/collaborators/${encodeURIComponent(author)}/permission`,
+    );
+    return ["admin", "maintain", "write"].includes(permission.data.permission);
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    return false;
+  }
+}
+
 export async function gatherPullRequest(
   client,
   policy,
@@ -371,17 +384,7 @@ export async function gatherPullRequest(
   let authorHasWriteAccess = false;
   let openPullRequestCount = 0;
   if (author !== null) {
-    try {
-      const permission = await client.rest(
-        "GET",
-        `${repo}/collaborators/${encodeURIComponent(author)}/permission`,
-      );
-      authorHasWriteAccess = ["admin", "maintain", "write"].includes(
-        permission.data.permission,
-      );
-    } catch (error) {
-      if (error.status !== 404) throw error;
-    }
+    authorHasWriteAccess = await hasWriteAccess(client, policy, author);
     const search = await client.graphql(
       `query ReviewTierAuthorCount($query: String!) {
       search(query: $query, type: ISSUE) { issueCount }
@@ -898,6 +901,55 @@ const openPullRequestsQuery = `query ReviewTierOpenPullRequests($owner: String!,
   }
 }`;
 
+const cappedAuthorPullRequestsQuery = `query ReviewTierCappedAuthors($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(states: OPEN, first: 100, after: $after) {
+      nodes { number isDraft author { login } }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}`;
+
+// A pull request workflow does not run while the pull request has a conflict,
+// so a conflicted pull request that is closed or converted to a draft reaches
+// Review Tier only through the ten minute sweep. The sweep normally covers the
+// labelled tiers, so an author left at the cap by a conflicted sibling would
+// keep the stale result until the daily sweep. Return the open pull requests of
+// every author at or over the cap so the sweep can clear them in one pass.
+async function cappedAuthorPullRequests(client, policy, people) {
+  const [owner, name] = policy.repository.split("/");
+  const maintainers = new Set([
+    ...people.admins,
+    ...(people.teams[policy.teams.maintainers] ?? []),
+  ]);
+  const byAuthor = new Map();
+  let after = null;
+  do {
+    const data = await client.graphql(cappedAuthorPullRequestsQuery, {
+      owner,
+      name,
+      after,
+    });
+    const connection = data.repository.pullRequests;
+    for (const node of connection.nodes) {
+      const author = node.author?.login;
+      if (node.isDraft || !author || maintainers.has(author)) continue;
+      byAuthor.set(author, [...(byAuthor.get(author) ?? []), node.number]);
+    }
+    after = connection.pageInfo.hasNextPage
+      ? connection.pageInfo.endCursor
+      : null;
+  } while (after !== null);
+  const numbers = [];
+  for (const [author, authorNumbers] of byAuthor) {
+    const cap = (await hasWriteAccess(client, policy, author))
+      ? policy.openPullRequestCap.withWriteAccess
+      : policy.openPullRequestCap.withoutWriteAccess;
+    if (authorNumbers.length >= cap) numbers.push(...authorNumbers);
+  }
+  return numbers;
+}
+
 const authorPullRequestsQuery = `query ReviewTierAuthorPullRequests($query: String!, $after: String) {
   search(query: $query, type: ISSUE, first: 100, after: $after) {
     nodes { ... on PullRequest { number } }
@@ -934,6 +986,7 @@ export async function main({
   let checkSha;
   let mergeGroup = false;
   let siblingAuthor = null;
+  let cappedAuthors = false;
   let excludedNumber;
   if (values.length) {
     numbers = [pullRequestNumber(values[0])];
@@ -994,8 +1047,10 @@ export async function main({
         listOpen = true;
         break;
       case "schedule":
-        if (event.schedule !== dailySweepCron)
+        if (event.schedule !== dailySweepCron) {
           labels = [tierLabel(policy, 2), tierLabel(policy, 3)];
+          cappedAuthors = true;
+        }
         listOpen = true;
         break;
       default:
@@ -1051,6 +1106,10 @@ export async function main({
         ? connection.pageInfo.endCursor
         : null;
     } while (after !== null);
+  }
+  if (cappedAuthors) {
+    people ??= await gatherPeople(client, policy);
+    numbers.push(...(await cappedAuthorPullRequests(client, policy, people)));
   }
   let exitCode = 0;
   for (const number of new Set(numbers)) {

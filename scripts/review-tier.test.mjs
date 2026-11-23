@@ -141,6 +141,7 @@ function fakeClient({
   teamStatus = 404,
   permission = "write",
   permissionStatus,
+  permissions = {},
   openCount = 1,
   issues = {},
   issueErrors = {},
@@ -149,6 +150,9 @@ function fakeClient({
   comments = [],
   checkRuns = [],
   pages = [{ nodes: [], pageInfo: { hasNextPage: false, endCursor: null } }],
+  cappedAuthorPages = [
+    { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+  ],
   authorPages = [
     { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
   ],
@@ -281,6 +285,23 @@ function fakeClient({
         assert.ok(pages[index], `Unrecorded page ${variables.after}`);
         return { repository: { pullRequests: structuredClone(pages[index]) } };
       }
+      if (query.includes("query ReviewTierCappedAuthors(")) {
+        const index =
+          variables.after === null
+            ? 0
+            : cappedAuthorPages.findIndex(
+                (page) => page.pageInfo.endCursor === variables.after,
+              ) + 1;
+        assert.ok(
+          cappedAuthorPages[index],
+          `Unrecorded page ${variables.after}`,
+        );
+        return {
+          repository: {
+            pullRequests: structuredClone(cappedAuthorPages[index]),
+          },
+        };
+      }
       assert.fail(`Unrecorded GraphQL query: ${query}`);
     },
     async paginate(resource) {
@@ -343,11 +364,17 @@ function fakeClient({
             data: { merge_base_commit: { sha: "merge-base" } },
             status: 200,
           };
-        if (
-          resource === `${repo}/collaborators/${pr.author?.login}/permission`
-        ) {
+        const collaborator = new RegExp(
+          `^${repo}/collaborators/([^/]+)/permission$`,
+        ).exec(resource)?.[1];
+        if (collaborator) {
           if (permissionStatus) throw apiError(permissionStatus);
-          return { data: { permission }, status: 200 };
+          return {
+            data: {
+              permission: permissions[collaborator] ?? permission,
+            },
+            status: 200,
+          };
         }
         assert.fail(`Unrecorded GET: ${resource}`);
       }
@@ -1960,6 +1987,142 @@ test("the daily schedule lists all open non-draft pull requests", async () => {
       [12, 14],
     );
   }
+});
+
+test("the ten minute sweep re-evaluates the pull requests of authors at the cap", async () => {
+  const recording = fakeClient({
+    pages: [
+      {
+        nodes: [{ number: 12, isDraft: false }],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+    cappedAuthorPages: [
+      {
+        nodes: [
+          { number: 21, isDraft: false, author: { login: "capped" } },
+          { number: 22, isDraft: false, author: { login: "capped" } },
+          { number: 26, isDraft: true, author: { login: "capped" } },
+          { number: 24, isDraft: false, author: { login: "below" } },
+          { number: 25, isDraft: false, author: { login: "below" } },
+        ],
+        pageInfo: { hasNextPage: true, endCursor: "more" },
+      },
+      {
+        nodes: [
+          { number: 23, isDraft: false, author: { login: "capped" } },
+          { number: 31, isDraft: false, author: { login: "Yonom" } },
+          { number: 32, isDraft: false, author: { login: "Yonom" } },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+    permissions: { capped: "read" },
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "schedule", { schedule: "*/10 * * * *" }),
+    ),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter((call) => call.query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [12, 21, 22, 23],
+  );
+  assert.deepEqual(
+    [
+      ...new Set(
+        recording.calls
+          .filter(({ kind }) => kind === "rest")
+          .map(({ resource }) => resource)
+          .filter((resource) => resource.endsWith("/permission"))
+          .map(
+            (resource) =>
+              /\/collaborators\/([^/]+)\/permission$/.exec(resource)?.[1],
+          ),
+      ),
+    ],
+    ["capped", "below", "samdickson22"],
+  );
+});
+
+test("the daily sweep does not look for authors at the cap", async () => {
+  const recording = fakeClient();
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "schedule", { schedule: dailySweepCron }),
+    ),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls.filter((call) =>
+      call.query?.includes("query ReviewTierCappedAuthors("),
+    ),
+    [],
+  );
+});
+
+test("the sweep compares each author against the cap for their access", async () => {
+  const recording = fakeClient({
+    cappedAuthorPages: [
+      {
+        nodes: [
+          { number: 41, isDraft: false, author: { login: "collaborator" } },
+          { number: 42, isDraft: false, author: { login: "collaborator" } },
+          { number: 43, isDraft: false, author: { login: "collaborator" } },
+          { number: 44, isDraft: false, author: { login: "collaborator" } },
+          { number: 51, isDraft: false, author: { login: "reader" } },
+          { number: 52, isDraft: false, author: { login: "reader" } },
+          { number: 53, isDraft: false, author: { login: "reader" } },
+          { number: 54, isDraft: false, author: { login: "reader" } },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+    permissions: { collaborator: "write", reader: "read" },
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "schedule", { schedule: "*/10 * * * *" }),
+    ),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter((call) => call.query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [51, 52, 53, 54],
+  );
+});
+
+test("the ten minute sweep treats a missing collaborator permission as no write access", async () => {
+  const recording = fakeClient({
+    cappedAuthorPages: [
+      {
+        nodes: [
+          { number: 61, isDraft: false, author: { login: "stranger" } },
+          { number: 62, isDraft: false, author: { login: "stranger" } },
+          { number: 63, isDraft: false, author: { login: "stranger" } },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    ],
+    permissionStatus: 404,
+  });
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "schedule", { schedule: "*/10 * * * *" }),
+    ),
+    0,
+  );
+  assert.deepEqual(
+    recording.calls
+      .filter((call) => call.query?.includes("query ReviewTierPullRequest("))
+      .map(({ variables }) => variables.number),
+    [61, 62, 63],
+  );
 });
 
 test("the review tier workflow contains the daily sweep cron", () => {
