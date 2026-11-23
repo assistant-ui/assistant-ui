@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { CommandInstructions } from "./commands";
 import { MemoryView } from "./memory";
 import { Sidebar } from "./sidebar";
-import { menuContentClass, menuItemClass } from "./styles";
+import { menuContentClass, menuItemClass } from "../lib/styles";
 import { Thread } from "./thread";
 
 export type DemoView = "thread" | "memory";

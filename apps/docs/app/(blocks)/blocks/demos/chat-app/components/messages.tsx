@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AssistantActionBar, BranchPicker } from "./action-bar";
 import { Sources } from "./sources";
-import { actionButtonClass } from "./styles";
+import { actionButtonClass } from "../lib/styles";
 import { DisclosureTrigger, disclosureContentClass, ToolCall } from "./trace";
 
 const groupAssistantParts = groupPartByType({

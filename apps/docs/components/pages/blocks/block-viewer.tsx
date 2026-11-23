@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { FileEmpty01Icon, Folder01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
   ChevronRight,
   ExternalLink,
@@ -64,7 +66,18 @@ const control = "size-7";
 const IMAGE_SIZES = "(min-width: 1280px) 1248px, 100vw";
 
 const treeRow =
-  "hover:bg-foreground/[0.04] focus-visible:outline-ring flex w-full items-center gap-1.5 rounded-sm py-1.5 pe-2 text-left font-sans text-xs [font-variant-ligatures:none] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none [@media(pointer:coarse)]:py-2";
+  "hover:bg-foreground/[0.04] focus-visible:outline-ring flex w-full items-center gap-1.5 rounded-sm py-1.5 pe-2 text-left font-sans text-sm [font-variant-ligatures:none] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none [@media(pointer:coarse)]:py-2";
+
+function TreeGlyph({ icon }: { icon: IconSvgElement }) {
+  return (
+    <HugeiconsIcon
+      icon={icon}
+      strokeWidth={1.75}
+      aria-hidden
+      className="text-muted-foreground size-3.5 shrink-0"
+    />
+  );
+}
 
 function languageOf(filePath: string) {
   return (
@@ -143,6 +156,7 @@ function TreeItems({
                       open && "rotate-90",
                     )}
                   />
+                  <TreeGlyph icon={Folder01Icon} />
                   <span className="truncate">{node.name}</span>
                 </button>
                 {open && (
@@ -169,6 +183,7 @@ function TreeItems({
                 )}
                 style={{ paddingInlineStart: `${depth * 0.75 + 1.625}rem` }}
               >
+                <TreeGlyph icon={FileEmpty01Icon} />
                 <span className="truncate">{node.name}</span>
               </button>
             )}

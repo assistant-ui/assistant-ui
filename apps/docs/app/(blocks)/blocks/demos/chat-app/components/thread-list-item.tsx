@@ -18,8 +18,8 @@ import {
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ThreadRenameInput } from "./thread-rename-input";
 import { cn } from "@/lib/utils";
-import { SidebarNavigationContext } from "./sidebar-context";
-import { menuContentClass, menuItemClass } from "./styles";
+import { SidebarNavigationContext } from "../lib/sidebar-context";
+import { menuContentClass, menuItemClass } from "../lib/styles";
 
 function ThreadListItem(): ReactNode {
   const { onNavigate } = useContext(SidebarNavigationContext);

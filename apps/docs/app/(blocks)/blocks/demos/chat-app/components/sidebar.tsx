@@ -8,7 +8,7 @@ import { useDemoThreadListGroups } from "./thread-list-groups";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { SidebarAccount } from "./account";
-import { SidebarNavigationContext } from "./sidebar-context";
+import { SidebarNavigationContext } from "../lib/sidebar-context";
 import { threadListItemComponents } from "./thread-list-item";
 
 const sidebarLabelClass =

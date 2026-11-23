@@ -16,7 +16,7 @@ import {
 } from "@/lib/analytics-identity";
 import { useSession, type SessionUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
-import { menuContentClass, menuItemClass } from "./styles";
+import { menuContentClass, menuItemClass } from "../lib/styles";
 
 const rowClass =
   "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] rounded-control flex h-8 w-full items-center gap-2 px-2 text-[13px] transition-colors";

@@ -20,7 +20,11 @@ import {
 import { useState, type ReactNode } from "react";
 import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
 import { FeedbackActions } from "@/components/pages/docs/assistant/assistant-action-bar";
-import { actionButtonClass, menuContentClass, menuItemClass } from "./styles";
+import {
+  actionButtonClass,
+  menuContentClass,
+  menuItemClass,
+} from "../lib/styles";
 import { cn } from "@/lib/utils";
 
 export function AssistantActionBar(): ReactNode {
