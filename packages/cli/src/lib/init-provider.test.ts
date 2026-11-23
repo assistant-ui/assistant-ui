@@ -44,7 +44,7 @@ afterEach(() => {
 });
 
 describe("snapshotProject", () => {
-  it("notes an OpenAI package and a chat route the project already had", () => {
+  it("notes an OpenAI package and the chat routes the project already had", () => {
     expect(
       snapshotProject(
         project({
@@ -54,10 +54,13 @@ describe("snapshotProject", () => {
           "src/app/api/chat/route.ts": "export {}",
         }),
       ),
-    ).toEqual({ hadOpenAI: true, hadRoute: true });
+    ).toEqual({
+      hadOpenAI: true,
+      routes: { "src/app/api/chat/route.ts": "export {}" },
+    });
     expect(snapshotProject(project({ "package.json": "{}" }))).toEqual({
       hadOpenAI: false,
-      hadRoute: false,
+      routes: {},
     });
   });
 });
@@ -92,12 +95,11 @@ describe("providerInstallCommands", () => {
 });
 
 describe("applyChatProvider", () => {
-  it("switches the route init scaffolded to the provider --provider names", async () => {
+  const fresh = { hadOpenAI: false, routes: {} };
+
+  it("installs the provider, then switches the route init scaffolded, then drops OpenAI", async () => {
     const root = project({ "app/api/chat/route.ts": ROUTE });
-    const note = await applyChatProvider(root, "npm", "anthropic", {
-      hadOpenAI: false,
-      hadRoute: false,
-    });
+    const note = await applyChatProvider(root, "npm", "anthropic", fresh);
     expect(note).toBe(
       "Chat route: Anthropic (claude-opus-5-5). Set ANTHROPIC_API_KEY in .env.local.",
     );
@@ -110,21 +112,47 @@ describe("applyChatProvider", () => {
     ]);
   });
 
-  it("changes nothing without --provider, with openai, or for a route the project already had", async () => {
+  it("leaves the working OpenAI route when the provider install fails", async () => {
     const root = project({ "app/api/chat/route.ts": ROUTE });
-    const fresh = { hadOpenAI: false, hadRoute: false };
+    runSpawn.mockRejectedValueOnce(new Error("network"));
+    await expect(
+      applyChatProvider(root, "npm", "anthropic", fresh),
+    ).rejects.toThrow("network");
+    expect(
+      fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
+    ).toBe(ROUTE);
+  });
+
+  it("switches a route the scaffold replaced with --overwrite", async () => {
+    const root = project({ "app/api/chat/route.ts": ROUTE });
+    await applyChatProvider(root, "npm", "google", {
+      hadOpenAI: true,
+      routes: { "app/api/chat/route.ts": "export const POST = mine;" },
+    });
+    expect(
+      fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
+    ).toContain('google("gemini-3.8-flash")');
+    expect(runSpawn.mock.calls).toEqual([
+      ["npm", ["install", "@ai-sdk/google"], root],
+    ]);
+  });
+
+  it("says so when --provider cannot apply, and changes nothing", async () => {
+    const root = project({ "app/api/chat/route.ts": ROUTE });
+    expect(
+      await applyChatProvider(root, "npm", "anthropic", {
+        hadOpenAI: false,
+        routes: { "app/api/chat/route.ts": ROUTE },
+      }),
+    ).toBe(
+      "--provider anthropic did not apply: app/api/chat/route.ts is not a route init scaffolded in this run, so switch its provider yourself.",
+    );
     expect(await applyChatProvider(root, "npm", undefined, fresh)).toBe(
       undefined,
     );
     expect(await applyChatProvider(root, "npm", "openai", fresh)).toBe(
       undefined,
     );
-    expect(
-      await applyChatProvider(root, "npm", "anthropic", {
-        hadOpenAI: false,
-        hadRoute: true,
-      }),
-    ).toBe(undefined);
     expect(
       fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
     ).toBe(ROUTE);

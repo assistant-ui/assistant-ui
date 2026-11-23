@@ -28,14 +28,19 @@ const CHAT_PROVIDERS = {
 export type ChatProvider = keyof typeof CHAT_PROVIDERS;
 export const CHAT_PROVIDER_IDS = Object.keys(CHAT_PROVIDERS) as ChatProvider[];
 
-const ROUTE_FILES = ["app/api/chat/route.ts", "src/app/api/chat/route.ts"];
+const ROUTE_FILES = [
+  "app/api/chat/route.ts",
+  "src/app/api/chat/route.ts",
+  "app/api/chat/route.js",
+  "src/app/api/chat/route.js",
+];
 
 /** What the project has before `init` touches it. */
 export type ProjectSnapshot = {
   /** Whether @ai-sdk/openai was already a dependency. */
   hadOpenAI: boolean;
-  /** Whether the chat route existed. */
-  hadRoute: boolean;
+  /** Each chat route file that existed, by path, with its source. */
+  routes: Record<string, string>;
 };
 
 export function snapshotProject(root: string): ProjectSnapshot {
@@ -51,10 +56,15 @@ export function snapshotProject(root: string): ProjectSnapshot {
   } catch {
     // No readable package.json: nothing to keep.
   }
-  return {
-    hadOpenAI: Object.hasOwn(deps, CHAT_PROVIDERS.openai.pkg),
-    hadRoute: ROUTE_FILES.some((file) => fs.existsSync(path.join(root, file))),
-  };
+  const routes: Record<string, string> = {};
+  for (const file of ROUTE_FILES) {
+    try {
+      routes[file] = fs.readFileSync(path.join(root, file), "utf8");
+    } catch {
+      // Not there.
+    }
+  }
+  return { hadOpenAI: Object.hasOwn(deps, CHAT_PROVIDERS.openai.pkg), routes };
 }
 
 const OPENAI_IMPORT = /import \{ openai \} from "@ai-sdk\/openai";/;
@@ -100,14 +110,14 @@ export function providerInstallCommands(
   return commands;
 }
 
-/** Where the scaffolded chat route is, relative to the project root. */
-const findChatRoute = (root: string) =>
-  ROUTE_FILES.find((file) => fs.existsSync(path.join(root, file)));
-
 /**
  * Moves the chat route `init` just scaffolded onto the provider `--provider`
  * names, so the project ends with that provider's package only. A route the
- * project had before is never touched. Returns what to tell the user.
+ * project had before and `init` left alone is never touched; a scaffold that
+ * replaced it (with --overwrite) is switched like a new one. The provider's
+ * package installs before the route changes, so a failed install leaves a
+ * working OpenAI route. Returns what to tell the user, including when the
+ * flag could not apply.
  */
 export async function applyChatProvider(
   root: string,
@@ -115,22 +125,27 @@ export async function applyChatProvider(
   provider: ChatProvider | undefined,
   snapshot: ProjectSnapshot,
 ): Promise<string | undefined> {
-  if (provider === undefined || provider === "openai" || snapshot.hadRoute)
-    return undefined;
-  const route = findChatRoute(root);
-  if (route === undefined) return undefined;
-  const file = path.join(root, route);
-  const switched = switchRouteProvider(fs.readFileSync(file, "utf8"), provider);
+  if (provider === undefined || provider === "openai") return undefined;
+  const route = ROUTE_FILES.find((file) =>
+    fs.existsSync(path.join(root, file)),
+  );
+  const file = route === undefined ? undefined : path.join(root, route);
+  const source = file === undefined ? undefined : fs.readFileSync(file, "utf8");
+  const switched =
+    route === undefined || snapshot.routes[route] === source
+      ? undefined
+      : switchRouteProvider(source!, provider);
   if (switched === undefined)
-    return `${route} is not the route init scaffolds, so it stays as it is; switch it to ${provider} yourself.`;
-  assertSafeProjectFile(file, root);
-  fs.writeFileSync(file, switched);
-  for (const [command, args] of providerInstallCommands(
+    return `--provider ${provider} did not apply: ${route ?? "app/api/chat/route.ts"} is not a route init scaffolded in this run, so switch its provider yourself.`;
+  const [add, remove] = providerInstallCommands(
     pm,
     provider,
     snapshot.hadOpenAI,
-  ))
-    await runSpawn(command, args, root);
+  );
+  await runSpawn(add![0], add![1], root);
+  assertSafeProjectFile(file!, root);
+  fs.writeFileSync(file!, switched);
+  if (remove !== undefined) await runSpawn(remove[0], remove[1], root);
   const { name, model, key } = CHAT_PROVIDERS[provider];
   return `Chat route: ${name} (${model}). Set ${key} in .env.local.`;
 }
