@@ -196,4 +196,13 @@ describe("CloudMessagePersistence thread leases", () => {
     expect(persistence.isPersisted("a1")).toBe(false);
     expect(persistence.hasOpenRun("a1")).toBe(false);
   });
+  it("passes an unknown thread's 404 through instead of asking for a newer server", async () => {
+    const { cloud, runs } = createCloud();
+    runs.open.mockRejectedValueOnce(apiError(404, "Thread not found"));
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const error = await persistence.beginRun("t1", "a1", null).catch((e) => e);
+    expect(error).toBeInstanceOf(CloudAPIError);
+    expect(error.code).toBe("Thread not found");
+  });
 });

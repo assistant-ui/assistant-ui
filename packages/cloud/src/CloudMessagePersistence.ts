@@ -88,10 +88,11 @@ const lostLeaseCode = (error: unknown): string | undefined =>
     ? error.code
     : undefined;
 
-// A server before v0.2.12 has no `POST /threads/:id/runs` route.
+// A server before v0.2.12 has no `POST /threads/:id/runs` route. Its 404 is the router's, not the route's "Thread not found".
 const isThreadRunMissing = (error: unknown) =>
   error instanceof CloudAPIError &&
-  (error.status === 404 || error.status === 405);
+  (error.status === 405 ||
+    (error.status === 404 && error.code !== "Thread not found"));
 
 const fitsExternalId = (id: string) => id.length > 0 && id.length <= 255;
 
