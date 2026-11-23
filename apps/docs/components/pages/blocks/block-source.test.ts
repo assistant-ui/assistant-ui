@@ -7,6 +7,7 @@ import {
   blockDependencies,
   publishedDependencies,
   readBlockFiles,
+  toAppLayout,
 } from "./block-source";
 
 describe("readBlockFiles", () => {
@@ -261,5 +262,71 @@ describe("blockAssistantUi", () => {
         { path: "lib/utils.ts", code: 'import { clsx } from "clsx";' },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("toAppLayout", () => {
+  it("shows a demo block as a standalone Next app, with imports that still resolve", () => {
+    const files = toAppLayout([
+      { path: ".env.example", code: "KEY=" },
+      { path: "README.md", code: "# Block" },
+      { path: "api/chat/route.ts", code: 'import { x } from "../../lib/doc";' },
+      {
+        path: "block.tsx",
+        code: 'import "./block.css";\nimport { Ui } from "./components/ui";',
+      },
+      { path: "block.css", code: "" },
+      {
+        path: "components/ui.tsx",
+        code: 'import data from "../data.json";\nimport { y } from "./other";',
+      },
+      { path: "data.json", code: "{}" },
+      { path: "hooks/use-thing.ts", code: "" },
+      { path: "layout.tsx", code: 'import "./block.css";' },
+      { path: "lib/doc.ts", code: "" },
+      {
+        path: "page.tsx",
+        code: 'import { Block } from "./block";\nimport data from "./data.json";',
+      },
+    ]);
+
+    expect(files).toEqual([
+      { path: ".env.example", code: "KEY=" },
+      { path: "README.md", code: "# Block" },
+      { path: "app/api/chat/route.ts", code: 'import { x } from "@/lib/doc";' },
+      {
+        path: "components/block.tsx",
+        code: 'import "@/app/block.css";\nimport { Ui } from "./ui";',
+      },
+      { path: "app/block.css", code: "" },
+      {
+        path: "components/ui.tsx",
+        code: 'import data from "@/app/data.json";\nimport { y } from "./other";',
+      },
+      { path: "app/data.json", code: "{}" },
+      { path: "hooks/use-thing.ts", code: "" },
+      { path: "app/layout.tsx", code: 'import "./block.css";' },
+      { path: "lib/doc.ts", code: "" },
+      {
+        path: "app/page.tsx",
+        code: 'import { Block } from "@/components/block";\nimport data from "./data.json";',
+      },
+    ]);
+  });
+
+  it("leaves a block that is already laid out as an app where it is", () => {
+    const files = [
+      { path: "app/page.tsx", code: 'import { A } from "../components/a";' },
+      { path: "components/a.tsx", code: "" },
+      { path: "package.json", code: "{}" },
+      { path: "next.config.ts", code: "" },
+    ];
+
+    expect(toAppLayout(files).map((file) => file.path)).toEqual([
+      "app/page.tsx",
+      "components/a.tsx",
+      "package.json",
+      "next.config.ts",
+    ]);
   });
 });

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import {
   blockAssistantUi,
   blockDependencies,
+  blockFilePath,
   readBlockSource,
   readPublishedDependencies,
 } from "@/components/pages/blocks/block-source";
@@ -88,7 +89,7 @@ export default async function BlockPage(props: {
           previewUrl={block.previewUrl}
           image={block.image}
           files={files}
-          entry={block.source.entry}
+          entry={blockFilePath(block.source.entry)}
         />
       </div>
 

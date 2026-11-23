@@ -42,7 +42,7 @@ export async function readBlockSource(
   "use cache";
   cacheLife("max");
   // Routes that read these files list them in `outputFileTracingIncludes`.
-  return readBlockFiles(
+  const files = await readBlockFiles(
     path.join(
       /* turbopackIgnore: true */ process.cwd(),
       "..",
@@ -51,6 +51,71 @@ export async function readBlockSource(
     ),
     source.include,
   );
+  return toAppLayout(files);
+}
+
+const APP_ROUTE_FILE =
+  /^(?:page|layout|template|loading|error|not-found|route)\.[cm]?[jt]sx?$/;
+const CODE_FILE = /\.[cm]?[jt]sx?$/;
+const RESOLVE_SUFFIXES = [
+  "",
+  ".tsx",
+  ".ts",
+  ".jsx",
+  ".js",
+  "/index.tsx",
+  "/index.ts",
+];
+
+/**
+ * Where a demo block's file sits in a standalone Next app. A demo lives inside
+ * the docs routes, so its page, layout, styles, data and routes are shown
+ * under `app/`, and any other root module under `components/`.
+ */
+export function blockFilePath(filePath: string): string {
+  const [first = "", ...rest] = filePath.split("/");
+  if (rest.length > 0) return first === "api" ? `app/${filePath}` : filePath;
+  if (
+    APP_ROUTE_FILE.test(first) ||
+    first.endsWith(".css") ||
+    first === "data.json"
+  )
+    return `app/${first}`;
+  if (CODE_FILE.test(first) && !first.includes(".config."))
+    return `components/${first}`;
+  return filePath;
+}
+
+const RELATIVE_IMPORT = /((?:from|import)\s*")(\.\.?\/[^"]+)(")/g;
+
+/**
+ * Moves each file to `blockFilePath` and rewrites its relative imports to
+ * match: a sibling stays `./name`, anything else becomes `@/path`.
+ */
+export function toAppLayout(files: readonly BlockFile[]): BlockFile[] {
+  const paths = new Set(files.map((file) => file.path));
+  return files.map((file) => {
+    const shownPath = blockFilePath(file.path);
+    const code = file.code.replace(
+      RELATIVE_IMPORT,
+      (match, before: string, specifier: string, after: string) => {
+        const resolved = path.posix.join(
+          path.posix.dirname(file.path),
+          specifier,
+        );
+        const suffix = RESOLVE_SUFFIXES.find((ending) =>
+          paths.has(resolved + ending),
+        );
+        if (suffix === undefined) return match;
+        const target = blockFilePath(resolved + suffix);
+        const shown = suffix ? target.slice(0, -suffix.length) : target;
+        const sibling =
+          path.posix.dirname(target) === path.posix.dirname(shownPath);
+        return `${before}${sibling ? `./${path.posix.basename(shown)}` : `@/${shown}`}${after}`;
+      },
+    );
+    return { path: shownPath, code };
+  });
 }
 
 export async function readBlockFiles(
