@@ -37,8 +37,6 @@ export type Block = {
    * renders a demo block. The live site shows the screenshot without one.
    */
   previewUrl: string | null;
-  /** Port the docs dev server starts the block on when it has no address. */
-  devPort?: number;
   source: BlockSource;
   /** The main things the block is built with, the most particular first, four at most. */
   stack: readonly BlockStackItem[];
