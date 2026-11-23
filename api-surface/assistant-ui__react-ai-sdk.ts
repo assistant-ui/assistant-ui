@@ -1,18 +1,18 @@
-import { CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
+import { CreateUIMessage, UIMessage, UseChatHelpers, useChat } from "@ai-sdk/react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ChatInit, ChatTransport, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
+import { ChatInit, ChatTransport, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage as UIMessage$1 } from "ai";
 
 import { JSONSchema7 } from "json-schema";
 
 import { ComponentType, ReactNode } from "react";
 
-declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKChatOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
+declare const AISDKChat: <UI_MESSAGE extends UIMessage = UIMessage<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKChatOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
 
-type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE>;
+type AISDKChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = ChatThreadOptions<UI_MESSAGE>;
 
-type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ExternalStoreSharedOptions & {
+type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
@@ -35,9 +35,9 @@ type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Externa
   unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
 };
 
-declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKThreadsOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
+declare const AISDKThreads: <UI_MESSAGE extends UIMessage = UIMessage<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKThreadsOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
 
-type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "messages" | "transport"> & {
+type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "messages" | "transport"> & {
   transport?: ChatTransport<UI_MESSAGE> | (() => ChatTransport<UI_MESSAGE>) | undefined;
   cloud?: AssistantCloud | undefined;
   scopeId?: string | undefined;
@@ -86,7 +86,7 @@ type AssistantChatResumableOptions = {
   isFinishEvent?: (chunk: Uint8Array, accumulator: string) => boolean;
 };
 
-declare class AssistantChatTransport<UI_MESSAGE extends UIMessage> extends DefaultChatTransport<UI_MESSAGE> {
+declare class AssistantChatTransport<UI_MESSAGE extends UIMessage$1> extends DefaultChatTransport<UI_MESSAGE> {
   #private;
   __internal_clone(): AssistantChatTransport<UI_MESSAGE>;
   constructor(initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>);
@@ -95,7 +95,7 @@ declare class AssistantChatTransport<UI_MESSAGE extends UIMessage> extends Defau
   __internal_setGetThreadListItem(getter: () => InitializableThreadListItem | undefined): void;
 }
 
-type AssistantChatTransportInitOptions<UI_MESSAGE extends UIMessage> = HttpChatTransportInitOptions<UI_MESSAGE> & {
+type AssistantChatTransportInitOptions<UI_MESSAGE extends UIMessage$1> = HttpChatTransportInitOptions<UI_MESSAGE> & {
   resumable?: AssistantChatResumableOptions;
 };
 
@@ -704,7 +704,7 @@ type ChatModelRunResult = {
   };
 };
 
-type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
+type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
   throttle?: number | undefined;
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
@@ -891,7 +891,7 @@ type CreateStartRunConfig = {
   runConfig?: RunConfig | undefined;
 };
 
-type CustomToCreateMessageFunction = <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(message: AppendMessage) => CreateUIMessage<UI_MESSAGE>;
+type CustomToCreateMessageFunction = <UI_MESSAGE extends UIMessage = UIMessage>(message: AppendMessage) => CreateUIMessage<UI_MESSAGE>;
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
@@ -2493,7 +2493,7 @@ type Unstable_ToolInteractionLog = {
 
 type Unsubscribe = () => void;
 
-type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
+type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
   transport?: ChatTransport<UI_MESSAGE> | undefined;
   cloud?: AssistantCloud | undefined;
   scopeId?: string | undefined;
@@ -2554,17 +2554,17 @@ declare namespace entry_root_exports {
   export { AISDKChat, AISDKChatOptions, AISDKThreads, AISDKThreadsOptions, AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKChat, useAISDKError, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
 }
 
-declare function injectQuoteContext(messages: UIMessage[]): UIMessage[];
+declare function injectQuoteContext(messages: UIMessage$1[]): UIMessage$1[];
 
-declare function unstable_injectInteractableContext(messages: UIMessage[], format?: (item: Unstable_InteractableSnapshotEntry) => string): UIMessage[];
+declare function unstable_injectInteractableContext(messages: UIMessage$1[], format?: (item: Unstable_InteractableSnapshotEntry) => string): UIMessage$1[];
 
-declare const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage>() => UseChatHelpers<UI_MESSAGE> | undefined;
+declare const useAISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>() => UseChatHelpers<UI_MESSAGE> | undefined;
 
 declare const useAISDKError: () => Error | undefined;
 
-declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter<UI_MESSAGE>) => AssistantRuntime;
+declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage = UIMessage>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter<UI_MESSAGE>) => AssistantRuntime;
 
-declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param3?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
+declare const useChatRuntime: <UI_MESSAGE extends UIMessage = UIMessage>(_param3?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 
 declare function useThreadTokenUsage(): ThreadTokenUsage | undefined;
 

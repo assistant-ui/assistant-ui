@@ -1,6 +1,6 @@
-import { DocsConfig as DocsConfig$1 } from "@farming-labs/docs";
+import { DocsConfig } from "@farming-labs/docs";
 
-import { DocsConfig, DocsTheme } from "@farming-labs/docs/config";
+import { DocsConfig as DocsConfig$1, DocsTheme } from "@farming-labs/docs/config";
 
 import { RootProvider } from "@farming-labs/theme";
 
@@ -235,7 +235,7 @@ declare const assistantUiCodeBlock: {
   darkTheme: string;
 };
 
-declare const assistantUiDefaults: Required<Pick<DocsConfig, "breadcrumb" | "lastUpdated" | "pageActions" | "sidebar">>;
+declare const assistantUiDefaults: Required<Pick<DocsConfig$1, "breadcrumb" | "lastUpdated" | "pageActions" | "sidebar">>;
 
 declare const assistantUiMdxComponents: {
   h1: (props: ComponentProps<"h1">) => import("react").JSX.Element;
@@ -263,7 +263,7 @@ declare const assistantUiMdxComponents: {
   ThemeImage: typeof ThemeImage;
 };
 
-declare const createDocsLayout: (config: DocsConfig$1, options: createDocsLayout.Options) => (_param30: {
+declare const createDocsLayout: (config: DocsConfig, options: createDocsLayout.Options) => (_param30: {
   children: ReactNode;
 }) => import("react").JSX.Element;
 
@@ -285,7 +285,7 @@ declare namespace createDocsLayout {
   }
 }
 
-declare const createDocsMetadata: (config: DocsConfig$1) => Record<string, unknown>;
+declare const createDocsMetadata: (config: DocsConfig) => Record<string, unknown>;
 
 declare namespace entry_mdx_exports {
   export { Callout, CalloutProps, CalloutType, Card, CardProps, Cards, Code, CodeBlock, CodeBlockProps, CodeGroup, File, Files, Folder, Heading, Kbd, Pre, Step, Steps, Tab, TabProps, Table, Tabs, TabsProps, ThemeImage, assistantUiCodeBlock, assistantUiMdxComponents };
