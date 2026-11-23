@@ -492,10 +492,22 @@ importers:
       '@hookform/resolvers':
         specifier: ^6.0.0
         version: 6.0.0(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(joi@18.3.2)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
+      '@hugeicons/core-free-icons':
+        specifier: ^4.4.0
+        version: 4.4.0
+      '@hugeicons/react':
+        specifier: ^1.1.10
+        version: 1.1.10(react@19.3.1)
       '@langchain/langgraph-sdk':
         specifier: ^1.17.0
         version: 1.17.0(@langchain/core@1.4.2(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(openai@7.43.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(google-auth-library@10.9.1(supports-color@10.2.2))(undici@5.29.0)(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@lexical/history':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      '@lexical/list':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      '@lexical/mark':
         specifier: ^0.53.0
         version: 0.53.0(typescript@7.0.2)
       '@lexical/plain-text':
@@ -504,6 +516,12 @@ importers:
       '@lexical/react':
         specifier: ^0.53.0
         version: 0.53.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)(yjs@13.6.33)
+      '@lexical/rich-text':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
+      '@lexical/table':
+        specifier: ^0.53.0
+        version: 0.53.0(typescript@7.0.2)
       '@lexical/utils':
         specifier: ^0.53.0
         version: 0.53.0(typescript@7.0.2)
@@ -10136,6 +10154,14 @@ packages:
         optional: true
       zod:
         optional: true
+
+  '@hugeicons/core-free-icons@4.4.0':
+    resolution: {integrity: sha512-7Mz8bmGoY6tZ6l3C2TXwNMLVSr0I8HPwjjFIERAuJFj3rWwLxdF2ZLkDqdrVuEE1dx5b/VXyIsP4WoSU6Q40KQ==}
+
+  '@hugeicons/react@1.1.10':
+    resolution: {integrity: sha512-9tAsd92yMVVGP+E+d8cM+wc0VnXuYZHNbWQi7TOe8k2neawmhiaFmVFbzyruejhOMa197/LbgvSED32ayUo3ZA==}
+    peerDependencies:
+      react: '>=16.0.0'
 
   '@iarna/toml@2.2.5':
     resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
@@ -27539,6 +27565,12 @@ snapshots:
       joi: 18.3.2
       valibot: 1.5.0(typescript@7.0.2)
       zod: 4.6.7
+
+  '@hugeicons/core-free-icons@4.4.0': {}
+
+  '@hugeicons/react@1.1.10(react@19.3.1)':
+    dependencies:
+      react: 19.3.1
 
   '@iarna/toml@2.2.5': {}
 

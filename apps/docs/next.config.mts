@@ -193,6 +193,10 @@ const config: NextConfig = {
       "./components/demo/elements/*.tsx",
       "../../packages/ui/src/components/react/assistant-ui/elements/*.tsx",
     ],
+    "/blocks/*": [
+      "./app/(blocks)/blocks/demos/**/[!.]*",
+      "./app/(blocks)/blocks/demos/**/.env.example",
+    ],
     "/api/doc/chat": REPO_SOURCE_TRACE,
     "/api/xulux/chat": REPO_SOURCE_TRACE,
     "/api/xulux/demo-download": REPO_SOURCE_TRACE,
