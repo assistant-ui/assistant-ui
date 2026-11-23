@@ -6,7 +6,7 @@ import { stripVTControlCharacters } from "node:util";
  * layout in `TooltipProvider`. assistant-ui components that use tooltips
  * render their own `TooltipProvider`, so the note does not apply to them.
  */
-export const TOOLTIP_NOTE_START = "The `tooltip` component has been added.";
+const TOOLTIP_NOTE_START = "The `tooltip` component has been added.";
 const TOOLTIP_NOTE_MARKER = "wrap your app with the `TooltipProvider`";
 
 /** Removes text from a stream of output and passes the rest through. */
