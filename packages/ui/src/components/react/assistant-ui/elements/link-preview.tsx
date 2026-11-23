@@ -50,12 +50,16 @@ export function LinkPreview({
         layout === "card" ? "aspect-video w-full" : "size-16",
       )}
     >
-      <img
-        src={image}
-        alt={imageAlt ?? ""}
-        className="size-full object-cover"
-        onError={() => setFailedImage(image)}
-      />
+      {/* A picture wrapper marks a deliberate native img for the Next.js lint, because
+         next/image needs per-host config for runtime URLs and only exists in Next.js. */}
+      <picture className="contents">
+        <img
+          src={image}
+          alt={imageAlt ?? ""}
+          className="size-full object-cover"
+          onError={() => setFailedImage(image)}
+        />
+      </picture>
     </div>
   ) : null;
 
@@ -75,13 +79,15 @@ export function LinkPreview({
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-3">
         <div className="flex min-w-0 items-center gap-1.5">
           {hasFavicon ? (
-            <img
-              data-slot="link-preview-favicon"
-              src={favicon}
-              alt=""
-              className="size-4 shrink-0 rounded-sm object-cover"
-              onError={() => setFailedFavicon(favicon)}
-            />
+            <picture className="contents">
+              <img
+                data-slot="link-preview-favicon"
+                src={favicon}
+                alt=""
+                className="size-4 shrink-0 rounded-sm object-cover"
+                onError={() => setFailedFavicon(favicon)}
+              />
+            </picture>
           ) : (
             <span
               aria-hidden

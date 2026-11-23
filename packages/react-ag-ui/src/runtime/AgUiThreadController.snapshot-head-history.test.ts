@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, expect, it } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { HttpAgent } from "@ag-ui/client";
@@ -37,7 +38,7 @@ function createHistory(writes: string[]) {
         [...items.values()].map((item) => [
           item.message.id,
           {
-            id: item.message.id,
+            id: agUiWireMessageId(item.message),
             status: item.message.status?.type,
             text: item.message.content
               .flatMap((part: any) => (part.type === "text" ? [part.text] : []))
@@ -47,11 +48,11 @@ function createHistory(writes: string[]) {
       ),
     load: async () => ({ headId, messages: [...items.values()] }),
     append: async (item: any) => {
-      writes.push(`append ${item.message.id}`);
+      writes.push(`append ${agUiWireMessageId(item.message)}`);
       store(item, true);
     },
     update: async (item: any) => {
-      writes.push(`update ${item.message.id}`);
+      writes.push(`update ${agUiWireMessageId(item.message)}`);
       store(item, false);
     },
   };
@@ -65,7 +66,12 @@ async function reload(history: ReturnType<typeof createHistory>) {
     history: history as any,
   });
   await core.__internal_load();
-  return core.getMessages().map((m: any) => `${m.id}:${m.status?.type ?? "-"}`);
+  const rows = [...history.rows().values()];
+  expect(rows).toHaveLength(core.getMessageRepository().messages.length);
+  expect(new Set(rows.map(({ id }) => id)).size).toBe(rows.length);
+  return core
+    .getMessages()
+    .map((m: any) => `${agUiWireMessageId(m)}:${m.status?.type ?? "-"}`);
 }
 
 async function run(
@@ -112,7 +118,7 @@ async function run(
   await settle();
   const shown = core
     .getMessages()
-    .map((m: any) => `${m.id}:${m.status?.type ?? "-"}`);
+    .map((m: any) => `${agUiWireMessageId(m)}:${m.status?.type ?? "-"}`);
   return {
     rows: history.rows(),
     writes,
@@ -406,7 +412,10 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
     expect(shown.slice(1)).toEqual(["answer:complete", "other:complete"]);
-    expect(rows.get("answer"), writes.join(", ")).toMatchObject({
+    expect(
+      [...rows.values()].find(({ id }) => id === "answer"),
+      writes.join(", "),
+    ).toMatchObject({
       status: "complete",
       text: "a1a2",
     });
@@ -442,7 +451,9 @@ describe("ag-ui: a snapshot's new head and the history adapter", () => {
       start,
       [end, { type: "RUN_FINISHED", threadId: "t", runId: "r" }],
     ]);
-    expect(rows.get("answer")?.status).toBe("complete");
+    expect([...rows.values()].find(({ id }) => id === "answer")?.status).toBe(
+      "complete",
+    );
     expect(reloaded).toEqual(shown);
   });
 });

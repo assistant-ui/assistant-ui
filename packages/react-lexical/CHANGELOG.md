@@ -1,5 +1,11 @@
 # @assistant-ui/react-lexical
 
+## 0.2.25
+
+### Patch Changes
+
+- [#10731](https://github.com/assistant-ui/assistant-ui/pull/10731) [`9ee2ddb`](https://github.com/assistant-ui/assistant-ui/commit/9ee2ddbe2058c7cda3840f4b649713c813a7be68) - `LexicalComposerInput` accepts `formatter={null}` to keep composer text as plain text, so directive-shaped text set through the runtime round-trips unchanged; registered trigger formatters still apply. ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.24
 
 ### Patch Changes

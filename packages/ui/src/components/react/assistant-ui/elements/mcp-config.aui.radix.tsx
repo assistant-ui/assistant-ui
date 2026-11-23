@@ -194,7 +194,11 @@ const ServerAvatar: FC = () => {
   return (
     <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border">
       {icon ? (
-        <img src={icon} alt={name} className="size-full object-cover" />
+        // A picture wrapper marks a deliberate native img for the Next.js lint, because
+        // next/image needs per-host config for runtime URLs and only exists in Next.js.
+        <picture className="contents">
+          <img src={icon} alt={name} className="size-full object-cover" />
+        </picture>
       ) : (
         <ServerIcon className="size-4" />
       )}

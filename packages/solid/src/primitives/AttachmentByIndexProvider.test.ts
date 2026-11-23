@@ -144,7 +144,6 @@ describe("AttachmentByIndexProvider", () => {
     await composer.addAttachment(
       new File(["data"], "sending.txt", { type: "text/plain" }),
     );
-    flushTapSync(() => {});
     await vi.waitFor(() =>
       expect(client().composer.getState().attachments).toHaveLength(1),
     );
@@ -186,7 +185,6 @@ describe("AttachmentByIndexProvider", () => {
       name: "draft.txt",
       content: [],
     });
-    flushTapSync(() => {});
     setSource("composer");
     await vi.waitFor(() => expect(el.textContent).toBe("draft.txt"));
     expect(error).not.toHaveBeenCalled();

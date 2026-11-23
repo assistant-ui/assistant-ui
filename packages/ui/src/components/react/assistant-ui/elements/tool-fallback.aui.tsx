@@ -452,20 +452,12 @@ const receiptIcons = {
 function ToolFallbackApprovalReceipt({
   approval,
   className,
-  focusReceiptRef,
   receiptRef,
   ...props
 }: React.ComponentPropsWithoutRef<"div"> & {
   approval: NonNullable<ToolCallMessagePart["approval"]>;
-  focusReceiptRef: React.MutableRefObject<string | null | undefined>;
-  receiptRef: React.MutableRefObject<HTMLDivElement | null>;
+  receiptRef: React.RefCallback<HTMLDivElement>;
 }) {
-  useLayoutEffect(() => {
-    const shouldFocus = focusReceiptRef.current === approval.id;
-    focusReceiptRef.current = null;
-    if (shouldFocus) receiptRef.current?.focus({ preventScroll: true });
-  }, [approval.id, focusReceiptRef, receiptRef]);
-
   const receipt = approvalReceipt(approval);
   const Icon = receiptIcons[receipt.outcome];
   const notes = [
@@ -787,6 +779,16 @@ function ToolFallbackApprovalImpl({
     forwardedRef,
     () => pendingGroupRef.current ?? receiptRef.current,
   );
+  const setReceipt = useCallback(
+    (element: HTMLDivElement | null) => {
+      receiptRef.current = element;
+      if (!element) return;
+      const shouldFocus = focusReceiptRef.current === approval?.id;
+      focusReceiptRef.current = null;
+      if (shouldFocus) element.focus({ preventScroll: true });
+    },
+    [approval?.id],
+  );
   const setPendingGroup = useCallback(
     (element: HTMLDivElement | null) => {
       const group = pendingGroupRef.current;
@@ -818,8 +820,7 @@ function ToolFallbackApprovalImpl({
     return (
       <ToolFallbackApprovalReceipt
         approval={approval}
-        receiptRef={receiptRef}
-        focusReceiptRef={focusReceiptRef}
+        receiptRef={setReceipt}
         className={className}
         {...props}
       />

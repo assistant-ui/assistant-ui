@@ -1,5 +1,31 @@
 # @assistant-ui/core
 
+## 0.3.38
+
+### Patch Changes
+
+- [#10742](https://github.com/assistant-ui/assistant-ui/pull/10742) [`74199f8`](https://github.com/assistant-ui/assistant-ui/commit/74199f892e29cc9377eb13b515de64a0ccadaf08) - Development warnings and tap checks now work in browser builds where the bundler replaces `process.env.NODE_ENV` without defining a `process` global. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10726](https://github.com/assistant-ui/assistant-ui/pull/10726) [`01d3fd7`](https://github.com/assistant-ui/assistant-ui/commit/01d3fd7519f6b4e16043285c7f03658fd7e4e685) - A runtime core created over a message repository that another core already wrote to now also drops that core's error message once the host stops sending it. ([@lhy-dcf](https://github.com/lhy-dcf))
+
+- [#10716](https://github.com/assistant-ui/assistant-ui/pull/10716) [`974347f`](https://github.com/assistant-ui/assistant-ui/commit/974347f28c8e37e7dbde8ed526ce0363fe346cb6) - fix: drop a synthesized error message from the thread once the host's messages no longer carry it, so a reload or a new message after a failed request no longer leaves the error behind as a sibling branch ([@gentil93](https://github.com/gentil93))
+
+- [#10714](https://github.com/assistant-ui/assistant-ui/pull/10714) [`ac873e5`](https://github.com/assistant-ui/assistant-ui/commit/ac873e5d3aded57180cbb8f2ec17fa109db6e4cd) - RuntimeExtras gains `useExtras`, which the React Compiler recognizes as a hook, and `use` is deprecated. ([@okisdev](https://github.com/okisdev))
+
+- [#10578](https://github.com/assistant-ui/assistant-ui/pull/10578) [`9906ce6`](https://github.com/assistant-ui/assistant-ui/commit/9906ce658c309e57b138c5232f2fb1b09cdb55f8) - Honor `disabled: true` when a frontend tool is called. Until now `disabled` only kept the tool's schema from the model. A call that names a disabled tool now gets the error result `Tool "<name>" is disabled.` and `execute` and `streamCall` do not run, including for tools that only define `streamCall`. Frame tools behave the same way. Set `disabled: false` to run the tool again. ([@Yonom](https://github.com/Yonom))
+
+- [#10769](https://github.com/assistant-ui/assistant-ui/pull/10769) [`3c1497d`](https://github.com/assistant-ui/assistant-ui/commit/3c1497d5ed2b4821a8f2007cc0aa8361e58b24d6) - Update hosted runtime callbacks and effects on Fast Refresh while preserving thread state and in-flight runs, and keep an external store reply placeholder's `createdAt` across snapshots. ([@okisdev](https://github.com/okisdev))
+
+- [#10711](https://github.com/assistant-ui/assistant-ui/pull/10711) [`50efa27`](https://github.com/assistant-ui/assistant-ui/commit/50efa27e67989bd3104805047e8a444fe2a18e32) - fix: validate top-level user audio and data message parts during conversion ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10724](https://github.com/assistant-ui/assistant-ui/pull/10724) [`c66dab9`](https://github.com/assistant-ui/assistant-ui/commit/c66dab996f43619fb8ed6e4e6e673726f0e70da3) - fix: validate top-level assistant data message parts during conversion ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10419](https://github.com/assistant-ui/assistant-ui/pull/10419) [`aea6e31`](https://github.com/assistant-ui/assistant-ui/commit/aea6e313402681acd45cc23bdadcfe7d37cd2e03) - Ignore non-streaming adapter results that resolve after cancellation so late content and approval pauses are not added to the message or its history. ([@peterolkhov](https://github.com/peterolkhov))
+
+- [#10515](https://github.com/assistant-ui/assistant-ui/pull/10515) [`ed4e645`](https://github.com/assistant-ui/assistant-ui/commit/ed4e64513d5e34a38488b5e77a390a7c5878b0b1) - Preserve reasoning parts marked with `unstable_redacted: true` from external stores and across Cloud history reloads so custom renderers can show a marker in the original message position. ([@Johnx-w](https://github.com/Johnx-w))
+- Updated dependencies [[`9906ce6`](https://github.com/assistant-ui/assistant-ui/commit/9906ce658c309e57b138c5232f2fb1b09cdb55f8), [`709a0cc`](https://github.com/assistant-ui/assistant-ui/commit/709a0cc74b14b6196b9e9466ecac58b502ae70e5), [`297420f`](https://github.com/assistant-ui/assistant-ui/commit/297420f1dcaf28965762dd4ceb3e2ae6799d352d)]:
+  - assistant-stream@0.3.59
+
 ## 0.3.37
 
 ### Patch Changes

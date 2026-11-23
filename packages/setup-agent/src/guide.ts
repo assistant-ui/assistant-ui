@@ -26,6 +26,7 @@ export const GUIDE_TEXT_KEYS = [
   "stream.ask.recently-opened",
   "stream.ask.browser-closed",
   "stream.ask.no-browser",
+  "stream.unattended",
   "wait.waiting",
   "done.next",
   "need.plan.question",
@@ -50,6 +51,11 @@ export const GUIDE_TEXT_KEYS = [
 ] as const;
 export type GuideTextKey = (typeof GUIDE_TEXT_KEYS)[number];
 
+/** Texts added within protocol 1: a server from before them leaves them out, and the CLI reads them as empty. */
+const LATER_TEXT_KEYS: ReadonlySet<GuideTextKey> = new Set([
+  "stream.unattended",
+]);
+
 /** All a guide can make the CLI do: print one of its texts, print the setup's state, or announce the agent. */
 const LOCAL_ACTIONS = ["print", "print-status", "announce-agent"] as const;
 
@@ -68,6 +74,8 @@ export type Guide = {
 export type GuideContext = {
   started: "user" | "agent" | "agent-stream";
   opened: boolean;
+  /** Nobody answers the setup (`--unattended`); sent only when true, so an older server gets the request it knows. */
+  unattended?: boolean;
 };
 
 const MAX_GUIDE_BYTES = 256 * 1024;
@@ -102,7 +110,10 @@ export const parseGuide = (value: unknown): Guide => {
   const texts = guide.texts as Record<string, unknown> | undefined;
   const parsed = {} as Record<GuideTextKey, string>;
   for (const key of GUIDE_TEXT_KEYS) {
-    const text = texts?.[key];
+    const text =
+      texts?.[key] === undefined && LATER_TEXT_KEYS.has(key)
+        ? ""
+        : texts?.[key];
     if (typeof text !== "string") throw new Error(`the guide has no "${key}"`);
     parsed[key] = sanitizeTerminalText(text);
   }
@@ -131,12 +142,13 @@ export const parseGuide = (value: unknown): Guide => {
  */
 export const loadGuide = async (
   setupUrl: string,
-  { started, opened }: GuideContext,
+  { started, opened, unattended }: GuideContext,
 ): Promise<Guide> => {
   const query = new URLSearchParams({
     protocol: String(GUIDE_PROTOCOL),
     started,
     opened: opened ? "1" : "0",
+    ...(unattended && { unattended: "1" }),
   });
   const offline = `Setup needs internet access to ${setupUrl}`;
   let response: Response;

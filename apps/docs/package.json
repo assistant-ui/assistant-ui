@@ -53,7 +53,7 @@
     "@hookform/resolvers": "^6.0.0",
     "@hugeicons/core-free-icons": "^4.4.0",
     "@hugeicons/react": "^1.1.10",
-    "@langchain/langgraph-sdk": "^1.12.7",
+    "@langchain/langgraph-sdk": "^1.17.0",
     "@lexical/history": "^0.53.0",
     "@lexical/list": "^0.53.0",
     "@lexical/mark": "^0.53.0",

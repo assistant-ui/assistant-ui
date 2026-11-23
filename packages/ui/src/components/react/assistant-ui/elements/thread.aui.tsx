@@ -7,7 +7,7 @@ import {
 } from "@/components/assistant-ui/elements/attachment.aui";
 import { File, getFileHref } from "@/components/assistant-ui/elements/file";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
-import { Image } from "@/components/assistant-ui/elements/image";
+import { Image as MessageImage } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
@@ -109,8 +109,8 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
- * `Welcome` replace whole sections; the remaining slots override how the
- * assistant message renders tool calls and part groups. Tool UIs registered
+ * `Welcome` replace whole sections; the message slots override tool calls,
+ * part groups, and the pending indicator. Tool UIs registered
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
  * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
  * conversation and have no registered UI render through it instead of the
@@ -121,6 +121,7 @@ const reasoningDuration = (timing: ThreadGroupPart["timing"]) =>
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
+  Indicator?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   ToolGroup?:
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
@@ -696,6 +697,7 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   const {
+    Indicator,
     ToolFallback: ToolFallbackComponent = ToolFallback,
     ToolGroup,
     ReasoningGroup,
@@ -769,11 +771,13 @@ const AssistantMessage: FC = () => {
               case "image":
                 return (
                   <div data-slot="aui_assistant-message-image" className="py-1">
-                    <Image {...part} />
+                    <MessageImage {...part} />
                   </div>
                 );
               case "indicator":
-                return (
+                return Indicator ? (
+                  <Indicator />
+                ) : (
                   <span
                     data-slot="aui_assistant-message-indicator"
                     className="animate-pulse font-sans"
@@ -877,7 +881,7 @@ const MessageFile: FileMessagePartComponent = (part) => {
       : null;
   if (!image) return <File {...part} />;
   return (
-    <Image
+    <MessageImage
       type="image"
       image={image}
       status={part.status}
@@ -894,7 +898,7 @@ const UserFilePart: FileMessagePartComponent = (part) => (
 
 const UserImagePart: ImageMessagePartComponent = (part) => (
   <div data-slot="aui_user-message-image" className="py-1">
-    <Image {...part} />
+    <MessageImage {...part} />
   </div>
 );
 

@@ -9,6 +9,7 @@ import {
   type Component,
   type PropType,
 } from "vue";
+import { fillComposer } from "../../assistant-ui/fillComposer";
 import { toolkitEntry } from "../../assistant-ui/entry";
 import type {
   ToolkitDisplay,
@@ -227,7 +228,7 @@ export function createSpecToolkit(
             if (typeof text !== "string" || !text.trim()) {
               throw new Error("sendMessage needs a non-empty string `text`");
             }
-            aui.thread.append(text);
+            fillComposer(aui, text);
           },
           updateModelContext: (params) =>
             shared.share(toSharedContext(params["text"], params["data"])),

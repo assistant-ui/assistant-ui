@@ -19,6 +19,7 @@ import {
 import { isWebMcpEnabled } from "./lib/feature-flags.ts";
 import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer.ts";
 import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs.ts";
+import { APEX_REDIRECTS, APPS_DOCUMENT_HEADERS } from "./lib/apex-redirect.ts";
 import {
   DOCS_SITE_REDIRECTS,
   docsSiteMarkdownAcceptRewrites,
@@ -243,8 +244,10 @@ const config: NextConfig = {
       source,
       headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],
     })),
+    APPS_DOCUMENT_HEADERS,
   ],
   redirects: async () => [
+    ...APEX_REDIRECTS,
     ...LEGACY_TAP_DOCS_REDIRECTS,
     ...DOCS_SITE_REDIRECTS,
     // The setup wizard moved to its own app; the fragment an agent link carries survives the redirect.

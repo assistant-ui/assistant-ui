@@ -156,16 +156,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Pull Vercel Environment Information
-        working-directory: apps/registry
-        run: pnpm exec vercel pull --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm --fail-if-no-match --filter @assistant-ui/x-deploy exec vercel pull --yes --prod --cwd "$GITHUB_WORKSPACE/apps/registry" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Project Artifacts
-        working-directory: apps/registry
-        run: pnpm exec vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm --fail-if-no-match --filter @assistant-ui/x-deploy exec vercel build --prod --cwd "$GITHUB_WORKSPACE/apps/registry" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project Artifacts to Vercel
-        working-directory: apps/registry
-        run: pnpm exec vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm --fail-if-no-match --filter @assistant-ui/x-deploy exec vercel deploy --prebuilt --prod --cwd "$GITHUB_WORKSPACE/apps/registry" --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Recovery guidance
         if: failure()
@@ -174,7 +171,11 @@ jobs:
         run: |
           if [ -n "$DEPLOY_SHA" ]; then
             echo "::error::The registry deploy failed for ${DEPLOY_SHA}, so the registry still serves the previous release."
-            echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
+            if [ "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD 2>/dev/null)" = "$DEPLOY_SHA" ] && [ ! -f "$GITHUB_WORKSPACE/packages/x-deploy/package.json" ]; then
+              echo "::error::${DEPLOY_SHA} predates packages/x-deploy, so this workflow cannot deploy it. Run Deploy Shadcn Registry via workflow_dispatch on a release tag from that commit's era with releaseSha=${DEPLOY_SHA}, so that commit's own workflow deploys it."
+            else
+              echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
+            fi
           else
             echo "::error::The registry deploy failed before it resolved a commit, so the registry still serves the previous release."
             echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch without releaseSha to deploy the latest default-branch commit."

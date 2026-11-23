@@ -9,7 +9,8 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
   pull_request_target:
     branches: [main]
-    types: [opened, synchronize, ready_for_review, reopened]
+    # labeled: a maintainer adds claude-review to bypass the review budget.
+    types: [opened, synchronize, ready_for_review, reopened, labeled]
 
 env:
   # Shared action configuration
@@ -178,12 +179,55 @@ jobs:
           gh api --method PATCH "repos/${{ github.repository }}/issues/comments/$(jq -r .id <<<"$COMMENT")" \
             --input "$RUNNER_TEMP/claude-review-final.json" >/dev/null
 
-  claude-fork-review:
+  # Caps fork reviews per author and per day (scripts/review-budget.mjs). No
+  # Claude secret. The script reads the author back from the job name.
+  claude-fork-review-budget:
+    name: claude-fork-review-budget (${{ github.event.pull_request.user.login }})
+    concurrency:
+      group: claude-review-budget-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     if: >-
       github.event_name == 'pull_request_target'
       && github.event.pull_request.draft == false
       && github.event.pull_request.head.repo.full_name != github.repository
       && github.event.sender.type != 'Bot'
+      && (github.event.action != 'labeled' || github.event.label.name == 'claude-review')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    outputs:
+      review: ${{ steps.budget.outputs.review }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # ratchet:pnpm/setup@v3.1.2
+        with:
+          cache: false
+          install: false
+      - id: budget
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          REVIEW_BUDGET_PER_AUTHOR: 3
+          REVIEW_BUDGET_REPO: 30
+          REVIEW_BUDGET_LABEL: claude-review
+        run: node scripts/review-budget.mjs
+
+  claude-fork-review:
+    needs: claude-fork-review-budget
+    if: >-
+      github.event_name == 'pull_request_target'
+      && github.event.pull_request.draft == false
+      && github.event.pull_request.head.repo.full_name != github.repository
+      && github.event.sender.type != 'Bot'
+      && needs.claude-fork-review-budget.outputs.review == 'true'
     concurrency:
       group: claude-code-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true

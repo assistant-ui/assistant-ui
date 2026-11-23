@@ -3148,31 +3148,66 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     });
   });
 
-  it("marks the message cancelled when a non-streaming adapter resolves after abort", async () => {
-    let released!: () => void;
-    const pending = new Promise<void>((resolve) => {
-      released = resolve;
-    });
-
-    const thread = createThread({
-      async run() {
-        await pending;
-        return { content: [{ type: "text", text: "hello" }] };
+  it.each([
+    {
+      name: "text without a status",
+      result: { content: [{ type: "text", text: "hello" }] },
+    },
+    {
+      name: "a completed response",
+      result: {
+        content: [{ type: "text", text: "hello" }],
+        status: { type: "complete", reason: "stop" },
       },
-    });
+    },
+    {
+      name: "an approval pause",
+      result: toolCallResult("deploy", { id: "approval-1" }),
+    },
+  ] satisfies { name: string; result: ChatModelRunResult }[])(
+    "ignores $name when a non-streaming adapter resolves after abort",
+    async ({ result }) => {
+      let released!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        released = resolve;
+      });
+      const appendHistory = vi.fn(
+        async (_item: ExportedMessageRepositoryItem) => {},
+      );
+      const thread = createThread(
+        {
+          async run() {
+            await pending;
+            return result;
+          },
+        },
+        {
+          history: {
+            async load() {
+              return { messages: [] };
+            },
+            append: appendHistory,
+          },
+        },
+      );
 
-    const appendPromise = thread.append(userMessage("hi"));
-    await flush();
+      const appendPromise = thread.append(userMessage("hi"));
+      await flush();
 
-    thread.cancelRun();
-    released();
-    await appendPromise;
+      thread.cancelRun();
+      released();
+      await appendPromise;
 
-    expect(thread.messages.at(-1)?.status).toEqual({
-      type: "incomplete",
-      reason: "cancelled",
-    });
-  });
+      expect(thread.messages.at(-1)?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+      expect(thread.messages.at(-1)?.content).toEqual([]);
+      expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(
+        thread.messages.at(-1),
+      );
+    },
+  );
 
   it("keeps a completed run complete", async () => {
     const thread = createThread({

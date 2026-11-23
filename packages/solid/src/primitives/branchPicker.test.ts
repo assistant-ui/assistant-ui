@@ -55,7 +55,6 @@ const createTestRuntime = (supportsSwitching = true) => {
       await vi.waitFor(() =>
         expect(runtime.thread.getState().messages[0]!.id).toBe("u2"),
       );
-      flushTapSync(() => {});
     },
     setRunning: (value: boolean) => {
       isRunning = value;

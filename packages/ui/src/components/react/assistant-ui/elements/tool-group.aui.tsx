@@ -7,6 +7,7 @@ import {
   useState,
   type FC,
   type PropsWithChildren,
+  type ReactNode,
 } from "react";
 import { ChevronDownIcon, LoaderIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -95,14 +96,14 @@ function ToolGroupRoot({
 function ToolGroupTrigger({
   count,
   active = false,
+  label = `${count} tool ${count === 1 ? "call" : "calls"}`,
   className,
   ...props
-}: React.ComponentProps<typeof CollapsibleTrigger> & {
+}: Omit<React.ComponentProps<typeof CollapsibleTrigger>, "children"> & {
   count: number;
   active?: boolean;
+  label?: ReactNode;
 }) {
-  const label = `${count} tool ${count === 1 ? "call" : "calls"}`;
-
   return (
     <CollapsibleTrigger
       data-slot="tool-group-trigger"

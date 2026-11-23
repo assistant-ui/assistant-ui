@@ -251,6 +251,59 @@ describe("POST /api/mcp", () => {
     });
   });
 
+  it("sends instructions that name every tool on initialize", async () => {
+    const response = await requestMcp("initialize", {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "route-test-client", version: "1.0.0" },
+    });
+
+    const { instructions } = response.result as { instructions?: string };
+    expect(typeof instructions).toBe("string");
+
+    const toolsResponse = await requestMcp("tools/list", {});
+    const tools = (toolsResponse.result as { tools: Array<{ name: string }> })
+      .tools;
+    for (const tool of tools) expect(instructions).toContain(tool.name);
+    expect(instructions).toContain("assistant-ui-template-workflow");
+  });
+
+  it("describes every tool input property", async () => {
+    const toolsResponse = await requestMcp("tools/list", {});
+    const tools = (
+      toolsResponse.result as {
+        tools: Array<{ name: string; inputSchema: Record<string, unknown> }>;
+      }
+    ).tools;
+
+    const undescribed: string[] = [];
+    const visit = (path: string, schema: Record<string, unknown>) => {
+      const properties = schema["properties"] as
+        | Record<string, Record<string, unknown>>
+        | undefined;
+      for (const [name, property] of Object.entries(properties ?? {})) {
+        const propertyPath = `${path}.${name}`;
+        if (!property["description"]) undescribed.push(propertyPath);
+        visit(propertyPath, property);
+      }
+    };
+    for (const tool of tools) visit(tool.name, tool.inputSchema);
+
+    expect(undescribed).toEqual([]);
+    const preview = tools.find((tool) => tool.name === "preview_template")!;
+    const config = (
+      preview.inputSchema["properties"] as Record<
+        string,
+        { properties: Record<string, unknown> }
+      >
+    )["config"]!;
+    expect(Object.keys(config.properties)).toEqual([
+      "hostUi",
+      "assistant",
+      "brandTheme",
+    ]);
+  });
+
   it("lists the seven public tools and the template workflow prompt", async () => {
     const toolsResponse = await requestMcp("tools/list", {});
     expect(toolsResponse.error).toBeUndefined();

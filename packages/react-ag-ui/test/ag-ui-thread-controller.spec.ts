@@ -12,12 +12,23 @@ import type {
 } from "@assistant-ui/core";
 import { EventType, HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
-import { toAgUiMessages } from "../src/runtime/adapter/conversions";
+import {
+  agUiWireMessageId,
+  toAgUiMessages,
+} from "../src/runtime/adapter/conversions";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 import type {
   AgUiResumeTranscript,
   UseAgUiRuntimeOptions,
 } from "../src/runtime/types";
+
+const localId = (core: AgUiThreadController, wireId: string) => {
+  const item = core
+    .getMessageRepository()
+    .messages.find(({ message }) => agUiWireMessageId(message) === wireId);
+  expect(item, `Missing message with wire id "${wireId}"`).toBeDefined();
+  return item!.message.id;
+};
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -369,7 +380,9 @@ describe("joinStrategy", () => {
       const assistants = messages.filter(
         (message) => message.role === "assistant",
       );
-      expect(assistants.map((message) => message.id)).toEqual(["streamed"]);
+      expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
+        "streamed",
+      ]);
       expect(assistants[0]!.content).toMatchObject([
         { type: "text", text: "checking" },
         { type: "tool-call", toolCallId: "c-1", result: "sunny" },
@@ -607,7 +620,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const readAssistantText = () => {
       const assistant = core
         .getMessages()
-        .find((message) => message.id === "assistant-2") as
+        .find((message) => agUiWireMessageId(message) === "assistant-2") as
         | ThreadAssistantMessage
         | undefined;
       const text = assistant?.content.find((part) => part.type === "text");
@@ -716,7 +729,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(streamedText).toEqual(["Hello", "Hello world"]);
     expect(core.getMessages()).toHaveLength(3);
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "assistant-2",
+      id: localId(core, "assistant-2"),
       role: "assistant",
       content: [{ type: "text", text: "Hello world" }],
       status: { type: "complete" },
@@ -807,7 +820,7 @@ describe("AGUIThreadRuntimeCore", () => {
       .filter(
         (message) => message.role === "assistant",
       ) as ThreadAssistantMessage[];
-    expect(assistants.map((message) => message.id)).toEqual([
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
       "assistant-1",
       "assistant-2",
     ]);
@@ -827,8 +840,10 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(
       core
         .getMessageRepository()
-        .messages.find((item) => item.message.id === "assistant-2")?.parentId,
-    ).toBe("assistant-1");
+        .messages.find(
+          (item) => agUiWireMessageId(item.message) === "assistant-2",
+        )?.parentId,
+    ).toBe(localId(core, "assistant-1"));
   });
 
   it("keeps the tool assistant on the head path before a snapshot", async () => {
@@ -868,10 +883,12 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onTextMessageStartEvent?.({
           event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
         });
-        midRunIds = core.getMessages().map((message) => message.id);
+        midRunIds = core
+          .getMessages()
+          .map((message) => agUiWireMessageId(message));
         midRunTool = core
           .getMessages()
-          .find((message) => message.id === "assistant-1") as
+          .find((message) => agUiWireMessageId(message) === "assistant-1") as
           | ThreadAssistantMessage
           | undefined;
         subscriber.onTextMessageContentEvent?.({
@@ -908,7 +925,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const assistants = messages.filter(
       (message) => message.role === "assistant",
     ) as ThreadAssistantMessage[];
-    expect(assistants.map((message) => message.id)).toEqual([
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
       "assistant-1",
       "assistant-2",
     ]);
@@ -925,8 +942,10 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(
       core
         .getMessageRepository()
-        .messages.find((item) => item.message.id === "assistant-2")?.parentId,
-    ).toBe("assistant-1");
+        .messages.find(
+          (item) => agUiWireMessageId(item.message) === "assistant-2",
+        )?.parentId,
+    ).toBe(localId(core, "assistant-1"));
   });
 
   it("splits follow-up text when the run opens with a tool call", async () => {
@@ -980,7 +999,7 @@ describe("AGUIThreadRuntimeCore", () => {
       .filter(
         (message) => message.role === "assistant",
       ) as ThreadAssistantMessage[];
-    expect(assistants.map((message) => message.id)).toEqual([
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
       "assistant-1",
       "assistant-2",
     ]);
@@ -4548,7 +4567,7 @@ describe("AGUIThreadRuntimeCore", () => {
       type: "text",
       text: "recovered",
     });
-    expect(assistant.metadata.isOptimistic).toBeUndefined();
+    expect(assistant.metadata.isOptimistic).toBe(false);
 
     const loadedRepository = core.getMessageRepository();
     expect(loadedRepository?.headId).toBe(assistant.id);
@@ -5716,17 +5735,18 @@ describe("AGUIThreadRuntimeCore", () => {
 
       expect(runAgent).toHaveBeenCalledTimes(2);
       expect(
-        core.getMessages().find((message) => message.id === "a")?.status,
+        core.getMessages().find((message) => agUiWireMessageId(message) === "a")
+          ?.status,
       ).toMatchObject({ type: "complete" });
       const continuation = core
         .getMessageRepository()
         .messages.find(
           ({ message }) =>
             message.role === "assistant" &&
-            message.id !== "a" &&
-            message.id !== "b",
+            agUiWireMessageId(message) !== "a" &&
+            agUiWireMessageId(message) !== "b",
         );
-      expect(continuation?.parentId).toBe("b");
+      expect(continuation?.parentId).toBe(localId(core, "b"));
     },
   );
 
@@ -5736,7 +5756,9 @@ describe("AGUIThreadRuntimeCore", () => {
       thirdMessage: true,
       beforeFinish: () => {
         expect(
-          core.getMessages().find((message) => message.id === "a")?.status,
+          core
+            .getMessages()
+            .find((message) => agUiWireMessageId(message) === "a")?.status,
         ).toMatchObject({ type: "running" });
         expect(core.getPendingToolCalls()).toBeNull();
       },
@@ -5745,10 +5767,11 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(
-      core.getMessages().find((message) => message.id === "a")?.status,
+      core.getMessages().find((message) => agUiWireMessageId(message) === "a")
+        ?.status,
     ).toMatchObject({ type: "requires-action", reason: "tool-calls" });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
   });
@@ -5758,7 +5781,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore({ runAgent } as unknown as HttpAgent);
     await core.append(createAppendMessage());
 
-    expect(core.getPendingInterrupts()?.messageId).toBe("b");
+    expect(core.getPendingInterrupts()?.messageId).toBe(localId(core, "b"));
     core.addToolResult({
       messageId: "a",
       toolCallId: "call-1",
@@ -5768,7 +5791,8 @@ describe("AGUIThreadRuntimeCore", () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(
-      core.getMessages().find((message) => message.id === "a")?.status,
+      core.getMessages().find((message) => agUiWireMessageId(message) === "a")
+        ?.status,
     ).toMatchObject({ type: "complete" });
     expect(runAgent).toHaveBeenCalledTimes(1);
     await core.submitInterruptResponses([
@@ -5788,14 +5812,17 @@ describe("AGUIThreadRuntimeCore", () => {
         (message): message is ThreadAssistantMessage =>
           message.role === "assistant",
       );
-    expect(assistants.map((message) => message.id)).toEqual(["a", "b"]);
+    expect(assistants.map((message) => agUiWireMessageId(message))).toEqual([
+      "a",
+      "b",
+    ]);
     expect(assistants[0]?.status).toMatchObject({
       type: "requires-action",
       reason: "tool-calls",
     });
     expect(assistants[1]?.status).toMatchObject({ type: "complete" });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
 
@@ -5823,7 +5850,9 @@ describe("AGUIThreadRuntimeCore", () => {
         }),
       ]),
     );
-    expect(core.getMessages().some((message) => message.id === "b")).toBe(true);
+    expect(
+      core.getMessages().some((message) => agUiWireMessageId(message) === "b"),
+    ).toBe(true);
   });
 
   it("keeps an earlier split message pending when RUN_FINISHED lists its call", async () => {
@@ -5848,7 +5877,7 @@ describe("AGUIThreadRuntimeCore", () => {
     ]);
     expect(b?.status).toMatchObject({ type: "complete" });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
   });
@@ -5873,7 +5902,7 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "tool-calls",
     });
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "b",
+      messageId: localId(core, "b"),
       toolCallIds: ["call-2"],
     });
   });
@@ -5934,7 +5963,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1", "call-2"],
     });
     core.addToolResult({
@@ -5946,7 +5975,7 @@ describe("AGUIThreadRuntimeCore", () => {
     });
     expect(runAgent).toHaveBeenCalledTimes(1);
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "b",
+      messageId: localId(core, "b"),
       toolCallIds: ["call-2"],
     });
     core.addToolResult({
@@ -5987,7 +6016,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(runAgent).toHaveBeenCalledTimes(1);
     expect(core.getPendingToolCalls()).toEqual({
-      messageId: "a",
+      messageId: localId(core, "a"),
       toolCallIds: ["call-1"],
     });
   });
@@ -9006,10 +9035,12 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getState()).toEqual({ count: 2, label: "base" });
   });
 
-  it("adopts TEXT_MESSAGE_START.messageId as the ThreadAssistantMessage.id", async () => {
+  it("records TEXT_MESSAGE_START.messageId without changing the local assistant id", async () => {
     const serverId = "11111111-1111-1111-1111-111111111111";
+    let originalId!: string;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
+        originalId = core.getMessages().at(-1)!.id;
         subscriber.onTextMessageStartEvent?.({
           event: {
             type: "TEXT_MESSAGE_START",
@@ -9036,11 +9067,12 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     expect(assistant.role).toBe("assistant");
-    expect(assistant.id).toBe(serverId);
+    expect(assistant.id).toBe(originalId);
+    expect(agUiWireMessageId(assistant)).toBe(serverId);
     expect(assistant.content[0]).toMatchObject({ type: "text", text: "Hello" });
   });
 
-  it("persists assistant history under the server id, not the placeholder", async () => {
+  it("persists the local assistant id with the server id in metadata", async () => {
     const serverId = "srv-msg-42";
     const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const history: ThreadHistoryAdapter = {
@@ -9048,8 +9080,10 @@ describe("AGUIThreadRuntimeCore", () => {
       append,
     } as unknown as ThreadHistoryAdapter;
 
+    let originalId!: string;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
+        originalId = core.getMessages().at(-1)!.id;
         subscriber.onTextMessageStartEvent?.({
           event: { type: "TEXT_MESSAGE_START", messageId: serverId },
         });
@@ -9077,7 +9111,8 @@ describe("AGUIThreadRuntimeCore", () => {
     ) {
       throw new Error("expected an assistant history entry");
     }
-    expect(assistantAppendEntry.message.id).toBe(serverId);
+    expect(assistantAppendEntry.message.id).toBe(originalId);
+    expect(agUiWireMessageId(assistantAppendEntry.message)).toBe(serverId);
   });
 
   it("stabilizes the assistant id before history.append fires", async () => {
@@ -9133,13 +9168,15 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(assistant.status).toMatchObject({ type: "complete" });
   });
 
-  it("routes addToolResult through the server id after id reassignment", async () => {
+  it("routes addToolResult through the local id after adopting the server id", async () => {
     const serverId = "srv-with-tools";
     let resumeCalls = 0;
+    let originalId!: string;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
         resumeCalls += 1;
         if (resumeCalls === 1) {
+          originalId = core.getMessages().at(-1)!.id;
           subscriber.onTextMessageStartEvent?.({
             event: { type: "TEXT_MESSAGE_START", messageId: serverId },
           });
@@ -9164,11 +9201,13 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const assistantBeforeResult = core
       .getMessages()
-      .find((m) => m.id === serverId) as ThreadAssistantMessage | undefined;
-    expect(assistantBeforeResult?.id).toBe(serverId);
+      .find((m) => agUiWireMessageId(m) === serverId) as
+      | ThreadAssistantMessage
+      | undefined;
+    expect(assistantBeforeResult?.id).toBe(originalId);
 
     core.addToolResult({
-      messageId: serverId,
+      messageId: assistantBeforeResult!.id,
       toolCallId: "tc-9",
       toolName: "lookup",
       result: { ok: true },
@@ -9177,7 +9216,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const updatedAssistant = core
       .getMessages()
-      .find((m) => m.id === serverId) as ThreadAssistantMessage;
+      .find((m) => agUiWireMessageId(m) === serverId) as ThreadAssistantMessage;
     const toolPart = updatedAssistant.content.find(
       (part) => part.type === "tool-call",
     ) as any;
@@ -9286,7 +9325,7 @@ describe("AGUIThreadRuntimeCore", () => {
     );
     const optimisticLingerers = core
       .getMessages()
-      .filter((m) => m.id.startsWith("__optimistic__"));
+      .filter((m) => m.metadata.isOptimistic);
     expect(optimisticLingerers).toHaveLength(0);
     expect(
       core
@@ -9314,12 +9353,12 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore(agent);
     await core.append(createAppendMessage());
 
-    expect(midRunAssistant?.id.startsWith("__optimistic__")).toBe(true);
+    expect(midRunAssistant?.id.startsWith("__optimistic__")).toBe(false);
     expect(midRunAssistant?.metadata.isOptimistic).toBe(true);
 
     const assistant = core
       .getMessages()
-      .find((m) => m.id === serverId) as ThreadAssistantMessage;
+      .find((m) => agUiWireMessageId(m) === serverId) as ThreadAssistantMessage;
     expect(assistant).toBeDefined();
     expect(assistant.metadata.isOptimistic).toBeUndefined();
   });
@@ -9339,7 +9378,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     expect(assistant.id.startsWith("__optimistic__")).toBe(false);
-    expect(assistant.metadata.isOptimistic).toBeUndefined();
+    expect(assistant.metadata.isOptimistic).toBe(false);
   });
 
   it("keeps the active turn visible when a server id collides on a disjoint branch", async () => {
@@ -9584,7 +9623,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: mid,
+      id: localId(core, mid),
       role: "assistant",
       content: [
         { type: "text", text: "Hi" },
@@ -9949,11 +9988,11 @@ describe("AGUIThreadRuntimeCore", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(runInputs).toHaveLength(2);
-    expect(postRunHead).toBe("assistant-1");
-    expect(preRunHead).not.toBe(postRunHead);
+    expect(postRunHead).toBe(localId(core, "assistant-1"));
+    expect(preRunHead).toBe(postRunHead);
     expect(runInputs[1].messages).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: postRunHead, role: "assistant" }),
+        expect.objectContaining({ id: "assistant-1", role: "assistant" }),
       ]),
     );
     expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
@@ -10355,7 +10394,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const reasoningOf = (core: AgUiThreadController, id: string) =>
       core
         .getMessages()
-        .find((message) => message.id === id)
+        .find((message) => agUiWireMessageId(message) === id)
         ?.content.flatMap((part) =>
           part.type === "reasoning" ? [part.text] : [],
         );
@@ -10408,7 +10447,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
       const answer = core
         .getMessages()
-        .find((message) => message.id === "assistant-2")!;
+        .find((message) => agUiWireMessageId(message) === "assistant-2")!;
       expect(
         answer.content.map((part) =>
           part.type === "reasoning" || part.type === "text"
@@ -10467,7 +10506,9 @@ describe("AGUIThreadRuntimeCore", () => {
       await core.append(createAppendMessage());
 
       const messageOf = (id: string) =>
-        core.getMessages().find((m) => m.id === id) as ThreadAssistantMessage;
+        core
+          .getMessages()
+          .find((m) => agUiWireMessageId(m) === id) as ThreadAssistantMessage;
       expect(messageOf("assistant-1").content.map((part) => part.type)).toEqual(
         ["tool-call"],
       );
@@ -10600,7 +10641,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
       const answer = core
         .getMessages()
-        .find((message) => message.id === "assistant-2")!;
+        .find((message) => agUiWireMessageId(message) === "assistant-2")!;
       expect(answer.content[0]).toMatchObject({
         type: "reasoning",
         text: "write the answer",
