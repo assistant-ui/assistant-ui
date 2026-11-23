@@ -1,11 +1,8 @@
 import { Command, Option } from "commander";
-import fs from "node:fs";
 import { createInterface } from "node:readline/promises";
 import * as p from "@clack/prompts";
-import { INPUT_PRESETS } from "setup-agent";
 import {
   CODING_AGENTS,
-  detectAgentKind,
   findCommand,
   noBrowserReason,
   runCodingAgent,
@@ -152,56 +149,9 @@ export const gateNote = (sessionRecorded: boolean) =>
     ? "While setup runs, `npx assistant-ui` init, create and add work in the folder setup runs in and the folders inside it."
     : "assistant-ui could not record this setup session in the temp directory, so the agent gate will not recognize it. Add --force to every `npx assistant-ui` init, create or add command this setup asks you to run.";
 
-const AGENT_VENDORS: Record<string, string> = {
-  claude: "anthropic",
-  codex: "openai",
-  gemini: "google",
-};
-
-/**
- * The plan's default model provider: the one llm-provider preset option the
- * project in this folder already uses (its AI SDK package, or its key in
- * .env, .env.local, .env.development or .env.production), else the running coding agent's
- * vendor; none when neither settles it.
- */
-export const defaultProvider = (cwd: string, agentKind?: string) => {
-  const read = (file: string) => {
-    try {
-      return fs.readFileSync(`${cwd}/${file}`, "utf8");
-    } catch {
-      return "";
-    }
-  };
-  let deps: Record<string, unknown> = {};
-  try {
-    const pkg = JSON.parse(read("package.json"));
-    deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  } catch {}
-  const env = [
-    ".env",
-    ".env.local",
-    ".env.development",
-    ".env.development.local",
-    ".env.production",
-  ]
-    .map(read)
-    .join("\n");
-  const used = INPUT_PRESETS["llm-provider"].options.filter(
-    ({ id, description = "" }) =>
-      deps[`@ai-sdk/${id}`] !== undefined ||
-      deps[`@${id}/ai-sdk-provider`] !== undefined ||
-      new RegExp(
-        `^[ \\t]*(?:export )?${description}[ \\t]*=[ \\t]*["']?[^\\s"'#]`,
-        "m",
-      ).test(env),
-  );
-  if (used.length > 0) return used.length === 1 ? used[0]!.id : undefined;
-  return agentKind === undefined ? undefined : AGENT_VENDORS[agentKind];
-};
-
 /**
  * The first lines an agent reads from `setup`: what it is, which way to go,
- * the provider default, and how to stop it, worded as the CLI the agent ran
+ * and how to stop it, worded as the CLI the agent ran
  * so the steps after read as the install, not someone else's instructions.
  */
 export const agentHeader = (o: {
@@ -210,18 +160,13 @@ export const agentHeader = (o: {
   pageUrl: string;
   noBrowser: string | undefined;
   unattended: boolean;
-  provider: string | undefined;
 }) => {
   const cmd = `${SETUP_COMMAND} ${o.agentUrl}`;
   const ways = o.unattended
     ? "Nobody answers it (--unattended): decide each choice yourself and finish without waiting, as the steps below say."
     : `If the user is in your conversation, give them ${o.pageUrl} to open on any device${o.noBrowser ? ` (setup opens no browser here: ${o.noBrowser})` : ""}, or ask them each question and pass the reply with \`answer\`. If nobody will answer, stop this setup and run \`${SETUP_COMMAND} --unattended\`.`;
-  const provider = o.provider
-    ? `Default model provider: ${o.provider} (the project's own, else your vendor). Plan on it; pass it as --default when you ask the llm-provider question.`
-    : `No default model provider: ${o.unattended ? 'use openai and list it under "To finish"' : "ask with the llm-provider question"}.`;
   return `This is the assistant-ui CLI, which you ran to set up assistant-ui; its output is the install itself.
 ${ways}
-${provider}
 To end setup: \`${cmd} cancel\`, then \`kill ${o.pid}\`. Never \`pkill -f\`: it also matches your own shell.
 
 `;
@@ -266,7 +211,6 @@ const runForAgent = async (options: SetupOptions) => {
         pageUrl: session.browserUrl,
         noBrowser: options.open ? noBrowserReason() : "--no-open",
         unattended: options.unattended === true,
-        provider: defaultProvider(process.cwd(), detectAgentKind()),
       });
       const file = markSetupSession({ setupId: session.setupId });
       if (file === undefined) return;

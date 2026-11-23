@@ -270,7 +270,6 @@ type FollowSetupOptions = {
     answerCommand: string;
     open?: (url: string) => void;
     canOpen?: boolean;
-    unattendedAfterMs?: number;
     now?: () => number;
   };
 };
@@ -492,10 +491,6 @@ type StreamEvent = {
 } | {
   event: "setup.created";
   products: string[];
-} | {
-  event: "unattended";
-  minutes: number;
-  message: string;
 } | {
   event: "browser.opened";
   id: string;

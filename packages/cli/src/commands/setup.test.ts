@@ -13,7 +13,6 @@ import {
 import {
   agentHeader,
   agentOptions,
-  defaultProvider,
   gateNote,
   handOffPrompt,
   setup,
@@ -117,14 +116,13 @@ describe("setup", () => {
     ]);
   });
 
-  it("names both ways to go, the provider default and a clean stop", () => {
+  it("names both ways to go and a clean stop", () => {
     const header = agentHeader({
       pid: 42,
       agentUrl: "https://c.test/abc",
       pageUrl: "https://setup.test/#link=abc",
       noBrowser: "ssh",
       unattended: false,
-      provider: "anthropic",
     });
     expect(header).toContain(
       "give them https://setup.test/#link=abc to open on any device (setup opens no browser here: ssh)",
@@ -132,30 +130,9 @@ describe("setup", () => {
     expect(header).toContain(
       "run `npx assistant-ui@latest setup --unattended`",
     );
-    expect(header).toContain("Default model provider: anthropic");
     expect(header).toContain(
       "`npx assistant-ui@latest setup https://c.test/abc cancel`, then `kill 42`",
     );
-  });
-
-  it("defaults the provider to the project's own, else the coding agent's vendor", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aui-provider-"));
-    try {
-      expect(defaultProvider(dir, "claude")).toBe("anthropic");
-      expect(defaultProvider(dir, "cursor")).toBeUndefined();
-      fs.writeFileSync(
-        path.join(dir, ".env.local"),
-        'XAI_API_KEY=""\nOPENAI_API_KEY=sk\n',
-      );
-      expect(defaultProvider(dir, "claude")).toBe("openai");
-      fs.writeFileSync(
-        path.join(dir, "package.json"),
-        JSON.stringify({ dependencies: { "@ai-sdk/google": "^3" } }),
-      );
-      expect(defaultProvider(dir, "claude")).toBeUndefined();
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
   });
 
   it("offers products and a no-open flag", () => {

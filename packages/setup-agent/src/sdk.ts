@@ -135,7 +135,6 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
           answerCommand: `${options.command} ${shellWord(agentUrl)} answer`,
           ...(options.open && { open: options.open }),
           canOpen,
-          unattendedAfterMs: 3 * 60_000,
         },
       }),
     });

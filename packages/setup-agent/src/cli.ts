@@ -760,7 +760,6 @@ const runStream = async (
             (options.browser?.canOpen ?? true) &&
             !flags.has("no-open") &&
             noBrowserReason() === undefined,
-          unattendedAfterMs: 3 * 60_000,
         },
       }),
   });
