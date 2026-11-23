@@ -64,6 +64,42 @@ describe("buildGuide", () => {
       );
   });
 
+  it("says the agent started the install itself, and how to stop it", () => {
+    for (const opened of [true, false]) {
+      const text = buildGuide({ started: "agent-stream", opened }).texts[
+        "stream.briefing"
+      ]!;
+      expect(text).toContain(
+        "You started it with {{cmd}} to install what the user asked for",
+      );
+      expect(text).toContain("To stop setup, end this process");
+      expect(text).toContain("Do not pkill by a pattern");
+    }
+  });
+
+  it("gives the user the setup page link to open on their own device when no browser opens here", () => {
+    const guide = buildGuide({ started: "agent-stream", opened: false });
+    expect(guide.texts["stream.briefing"]).toContain(
+      "Give the user {{browserUrl}} now: they can open it on any device",
+    );
+    expect(guide.texts.briefing).toContain(
+      "the user follows it on the setup page from any device",
+    );
+    expect(guide.texts["stream.ask.no-browser"]).toContain(
+      "give them {{page}} to open on any device",
+    );
+    // The user answers in the agent's conversation, never "the terminal" they may not see.
+    for (const context of CONTEXTS)
+      for (const key of [
+        "stream.ask.recently-opened",
+        "stream.ask.browser-closed",
+        "stream.ask.no-browser",
+      ])
+        expect(buildGuide(context).texts[key]).toContain(
+          "in your own conversation",
+        );
+  });
+
   it("asks contextual entry points before the plan", () => {
     const text = briefing({ started: "user", opened: true });
     expect(text).toContain("only 1–3 sensible alternatives");

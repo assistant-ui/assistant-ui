@@ -41,7 +41,7 @@ const streamSection = (streaming: boolean, noOpen: boolean) =>
   streaming
     ? `The command that printed this is the stream. Keep it running in the background until the setup ends: the browser shows you as connected only while it runs. New output does not wake you: read its new lines between your other commands. Each new line is a JSON array of events: ${EVENT_LIST}, plus:
 - "browser.opened" ({id, message}): setup opened the setup page in the user's browser for a question. Tell the user once, in your own conversation, that it waits there, and keep working in the same turn.
-- "input.needed" ({id, message, question, options?, answer}): the user may not see the browser right now. Do what its message says: run "wait <id>" for their answer in the browser, or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
+- "input.needed" ({id, message, question, options?, answer}): the user is not on the setup page right now. Do what its message says: run "wait <id>" for their answer in the browser, or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
 If this command stops, start it again in the background with
   {{cmd}} {{url}} stream${noOpen ? " --no-open" : ""}
 The URL is the user's link to you from their browser, not one setup: it outlives this one, and their next setup arrives on the same stream.`
@@ -63,7 +63,7 @@ const briefing = (context: GuideContext) => {
   const { started, opened } = context;
   const byAgent = started !== "user";
   const streaming = started === "agent-stream";
-  return `You are the coding agent for a setup ${byAgent ? (streaming ? (!opened ? "you started; setup opens no browser (--no-open), so the user follows it on the setup page if they open it, or answers you in your own conversation" : "you started; the user follows it in their browser, which setup opens when you ask the user something") : "you opened in the user's browser") : "the user opened in their browser"}. The browser shows this setup live; every command below updates it. The user watches the browser, not this terminal: once setup begins, send questions through "ask" so the user can answer in their browser.
+  return `How this setup works: it installs into the user's project through you, their coding agent, ${byAgent ? (streaming ? (!opened ? "and you started it. Setup opens no browser from this machine (--no-open, or no screen here), so the user follows it on the setup page from any device once you give them the link, or answers you in your own conversation" : "and you started it. The user follows it on the setup page, which setup opens in their browser when it needs their input") : "and you opened it in the user's browser") : "and the user opened it in their browser"}. The setup page shows this setup live, and every command below updates it. The user watches that page, not this terminal: once setup begins, send questions through "ask" so the user can answer there.
 
 ${streamSection(streaming, byAgent && !opened)}
 
@@ -105,7 +105,7 @@ which returns once that setup begins, then run "status" for its products, guides
 
 /** What the agent reads first in the output of a setup command that keeps running. */
 const streamBriefing = (opened: boolean) =>
-  `{{name}} is running. This command keeps running: it is the setup's stream.
+  `{{name}} is running. You started it with {{cmd}} to install what the user asked for, and the steps below are how that install runs. This command keeps running: it is the setup's live connection to the page the user follows.
 
 1. Keep it running in the background until the setup ends. If you started it in the foreground, stop it and resume it in the background (Claude Code: Bash with run_in_background; Codex and other agents: add > "\${TMPDIR:-/tmp}/setup-{{linkId}}.log" 2>&1 & and read that file):
   {{cmd}} {{url}} stream${opened ? "" : " --no-open"}
@@ -113,9 +113,10 @@ const streamBriefing = (opened: boolean) =>
 3. Run every other command in another shell: {{cmd}} {{url}} <command>.
 4. ${
     opened
-      ? "Setup opens the user's browser by itself when you ask the user something; do not open it yourself."
-      : `Setup will not open a browser (--no-open). Give the user {{browserUrl}} once, or ask in your own conversation.`
+      ? "Setup opens the setup page in the user's browser on this machine when you ask the user something; do not open it yourself. If the user is not at this machine, give them {{browserUrl}} to open on their own device."
+      : 'Setup opens no browser from this machine (--no-open, or no screen here). Give the user {{browserUrl}} now: they can open it on any device, such as their laptop or phone, to answer your questions and approve the plan. Or ask them each question in your own conversation and pass their reply with its "answer" command.'
   } On an "input.needed" event, do what its message says; to answer from here, run its "answer" command with the user's reply.
+5. To stop setup, end this process: Ctrl-C, or kill with its pid. Do not pkill by a pattern, which also matches your own shell's command. The setup page then shows you as disconnected; the project is left as it is.
 
 `;
 
@@ -145,11 +146,11 @@ export const buildGuide = (context: GuideContext): Guide => {
       "stream.opened.finish":
         "Opened the setup in the user's browser for closing the setup. Tell the user once that it is waiting there, and give them {{url}} in case it did not open. The answer arrives on this stream.",
       "stream.ask.recently-opened":
-        "A browser tab for setup was opened {{agoSeconds}}s ago. Wait for the user there{{wait}}, or ask the user directly in the terminal: {{question}}",
+        "Setup opened the setup page in a browser on this machine {{agoSeconds}}s ago, and the user has not joined it yet; they may not be at this machine. Wait for them there{{wait}}, or ask the user in your own conversation and give them {{page}} to open on their own device: {{question}}",
       "stream.ask.browser-closed":
-        "The user closed the setup tab. Ask the user directly in the terminal: {{question}}",
+        "The user closed the setup page. Ask the user in your own conversation: {{question}}",
       "stream.ask.no-browser":
-        "No browser tab is open for this setup. Ask the user directly in the terminal, or give them {{page}}: {{question}}",
+        "The user has no setup page open. Ask the user in your own conversation, or give them {{page}} to open on any device: {{question}}",
       "wait.waiting": `The user has not answered yet. Run "next" now to keep waiting (it only waits; do not repeat the command you ran, which would ask or submit again), or go on with other work and run it when you need the answer. Do not end your turn: nothing resumes you until you run it.`,
       "done.next":
         "Keep the stream running and stay idle. The user closes the setup or sends a follow-up message.",
