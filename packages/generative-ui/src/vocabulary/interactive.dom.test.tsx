@@ -213,11 +213,10 @@ describe("Input", () => {
     );
 
     expect(
-      Array.from(container.querySelectorAll("input, textarea")).map(
-        (control) =>
-          control instanceof HTMLInputElement
-            ? control.type
-            : control.tagName.toLowerCase(),
+      Array.from(container.querySelectorAll("input, textarea")).map((control) =>
+        control instanceof HTMLInputElement
+          ? control.type
+          : control.tagName.toLowerCase(),
       ),
     ).toEqual(["password", "number", "textarea", "textarea"]);
   });
