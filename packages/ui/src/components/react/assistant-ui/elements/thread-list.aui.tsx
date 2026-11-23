@@ -377,20 +377,17 @@ const ThreadListItemRename: FC<{
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const [value, setValue] = useState(title);
-  const inputRef = useRef<HTMLInputElement>(null);
   const settledRef = useRef(false);
+  const selectedRef = useRef(false);
 
-  useEffect(() => {
-    inputRef.current?.select();
-  }, []);
-
-  const commit = (restoreFocus: boolean) => {
+  // Handlers read the input from their event because React 18 drops a `ref` passed to the function component `Input`.
+  const commit = (input: HTMLInputElement | null) => {
     if (settledRef.current) return;
     settledRef.current = true;
 
     const next = value.trim();
     if (!next || next === title) {
-      onDone(restoreFocus);
+      onDone(input !== null);
       return;
     }
 
@@ -399,7 +396,7 @@ const ThreadListItemRename: FC<{
       .then(() => aui.threadListItem.rename(next))
       .then(
         () => {
-          onDone(restoreFocus && inputRef.current?.matches(":focus") === true);
+          onDone(input?.matches(":focus") === true);
         },
         () => {
           settledRef.current = false;
@@ -415,20 +412,24 @@ const ThreadListItemRename: FC<{
 
   return (
     <Input
-      ref={inputRef}
       autoFocus
       data-slot="aui_thread-list-item-rename"
       aria-label="Rename thread"
       value={value}
       className="h-7 min-w-0 flex-1 ps-2.5 pe-9 text-sm"
       onChange={(event) => setValue(event.target.value)}
-      onBlur={() => commit(false)}
+      onFocus={(event) => {
+        if (selectedRef.current) return;
+        selectedRef.current = true;
+        event.currentTarget.select();
+      }}
+      onBlur={() => commit(null)}
       onKeyDown={(event) => {
         if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229)
           return;
         if (event.key === "Enter") {
           event.preventDefault();
-          commit(true);
+          commit(event.currentTarget);
         } else if (event.key === "Escape") {
           event.preventDefault();
           cancel();
