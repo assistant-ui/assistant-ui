@@ -274,6 +274,9 @@ export function describeInitFinish(result: InitFinishResult): string[] {
       `Next step: render <Assistant /> (import { Assistant } from "${specifier}") in ${result.page.pagePath} or any page.`,
     );
   }
+  lines.push(
+    "TooltipProvider: shadcn's note above to wrap your layout applies only if you use its `Tooltip` directly. assistant-ui components render their own, so the assistant works without it.",
+  );
   for (const repair of result.fontRepairs) {
     lines.push(
       repair.value

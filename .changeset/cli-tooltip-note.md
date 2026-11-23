@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-`init`, `create` and `add` no longer pass along shadcn's note to wrap the layout in `TooltipProvider`, since assistant-ui components render their own. `init` also drops its line telling you to skip that note, so the output says one thing.
+`init` no longer tells you to skip shadcn's note about wrapping the layout in `TooltipProvider` right after passing that note along. It now says the note applies only if you use shadcn's `Tooltip` directly, since assistant-ui components render their own provider.
