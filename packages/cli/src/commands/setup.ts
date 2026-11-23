@@ -177,16 +177,23 @@ export const defaultProvider = (cwd: string, agentKind?: string) => {
     const pkg = JSON.parse(read("package.json"));
     deps = { ...pkg.dependencies, ...pkg.devDependencies };
   } catch {}
-  const env = [".env", ".env.local", ".env.development", ".env.production"]
+  const env = [
+    ".env",
+    ".env.local",
+    ".env.development",
+    ".env.development.local",
+    ".env.production",
+  ]
     .map(read)
     .join("\n");
   const used = INPUT_PRESETS["llm-provider"].options.filter(
     ({ id, description = "" }) =>
       deps[`@ai-sdk/${id}`] !== undefined ||
       deps[`@${id}/ai-sdk-provider`] !== undefined ||
-      new RegExp(`^[ \\t]*(?:export )?${description}=["']?[^\\s"'#]`, "m").test(
-        env,
-      ),
+      new RegExp(
+        `^[ \\t]*(?:export )?${description}[ \\t]*=[ \\t]*["']?[^\\s"'#]`,
+        "m",
+      ).test(env),
   );
   if (used.length > 0) return used.length === 1 ? used[0]!.id : undefined;
   return agentKind === undefined ? undefined : AGENT_VENDORS[agentKind];

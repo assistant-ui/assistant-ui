@@ -109,7 +109,7 @@ describe("setup-agent/sdk", () => {
     [{ SSH_TTY: "/dev/pts/0" }, false, "opened=0", ["input.needed"]],
     [{ DISPLAY: ":0" }, true, "opened=0&unattended=1", []],
   ])(
-    "opens no browser for %o (unattended: %s), and relays a question only when someone answers",
+    "opens no browser for %o (unattended: %s), and relays questions to the agent only when attended",
     async (env, unattended, query, events) => {
       vi.useFakeTimers();
       try {

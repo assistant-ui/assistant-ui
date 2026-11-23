@@ -760,6 +760,7 @@ const runStream = async (
             (options.browser?.canOpen ?? true) &&
             !flags.has("no-open") &&
             noBrowserReason() === undefined,
+          unattendedAfterMs: 3 * 60_000,
         },
       }),
   });
@@ -1093,7 +1094,7 @@ export const runSetupCommand = async (
       case "cancel": {
         const { id } = requireState(client);
         if (id !== null) await commands["checkout/cancel"]({ id });
-        print({ ok: true });
+        print({ ok: id !== null, status: requireState(client).status });
         break;
       }
       case "log": {
