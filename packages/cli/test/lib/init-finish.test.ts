@@ -94,7 +94,6 @@ describe("finishExistingProjectInit", () => {
     expect(lines[0]).toBe(
       `${appDir}/page.tsx now renders <Assistant />. Run the dev server and open /.`,
     );
-    // One reading of shadcn's TooltipProvider note: it is for direct Tooltip use, not a step to skip.
     expect(lines.join("\n")).toMatch(
       /TooltipProvider: shadcn's note above to wrap your layout applies only if you use its `Tooltip` directly\.[\s\S]*`cn` dependency/,
     );
