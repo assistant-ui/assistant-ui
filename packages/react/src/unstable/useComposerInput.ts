@@ -56,7 +56,7 @@ export type Unstable_ComposerInput = {
  * not a second input: it does not own keyboard behavior, autosize, IME or
  * contentEditable sync, paste/drop attachments, focus management, or rich-text
  * state. Spread `unstable_useTriggerPopoverAriaProps()` onto your element for
- * trigger-popover combobox semantics.
+ * trigger-popover ARIA semantics.
  *
  * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  *
@@ -112,11 +112,11 @@ export function unstable_useComposerInput(
 export type Unstable_TriggerPopoverAriaProps = TriggerPopoverAriaProps;
 
 /**
- * ARIA combobox attributes for the focused element (typically the composer
- * input) describing the open trigger popover, per the WAI-ARIA editable
- * combobox pattern. Returns an empty object outside a `TriggerPopoverRoot` or
- * when no popover is open. Spread these last so they take precedence over any
- * matching ARIA props you set yourself, mirroring `ComposerPrimitive.Input`.
+ * ARIA attributes for the focused `textbox` element (typically the composer
+ * input) describing the open trigger popover. Returns an empty object outside
+ * a `TriggerPopoverRoot` or when no popover is open. Spread these last so
+ * they take precedence over any matching ARIA props you set yourself,
+ * mirroring `ComposerPrimitive.Input`.
  *
  * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  *

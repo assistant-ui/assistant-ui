@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { FileTextIcon, ImageIcon, PaperclipIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
+import { safeBackgroundImage } from "../utils/href";
 
 export interface MessageAttachmentItem {
   id: string;
@@ -17,11 +18,17 @@ export interface MessageAttachmentItem {
 export function MessageAttachments({
   attachments,
   onOpen,
+  imageOrigins,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "children" | "attachments" | "onOpen"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "attachments" | "onOpen" | "imageOrigins"
+> & {
   attachments: readonly MessageAttachmentItem[];
   onOpen?: (id: string) => void;
+  /** Origins a `swatch` may load remote `url(...)` images from. Same-page paths, `data:image/` and `blob:` URLs always load. */
+  imageOrigins?: readonly string[] | undefined;
 }) {
   return (
     <div
@@ -41,7 +48,10 @@ export function MessageAttachments({
                   onOpen && "group-hover:scale-[1.04]",
                 )}
                 style={{
-                  backgroundImage: item.swatch,
+                  backgroundImage: safeBackgroundImage(
+                    item.swatch,
+                    imageOrigins,
+                  ),
                   backgroundColor: "var(--color-foreground)",
                 }}
               />

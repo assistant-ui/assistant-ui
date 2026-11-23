@@ -688,6 +688,12 @@ const getMessageStatus = (
 
   if (message.info.error) {
     const error = message.info.error;
+    if (isRecord(error) && error.name === "MessageAbortedError") {
+      return {
+        type: "incomplete",
+        reason: "cancelled",
+      };
+    }
     const maybeMessage =
       isRecord(error) &&
       isRecord(error.data) &&

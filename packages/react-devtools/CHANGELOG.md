@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 1.2.28
+
+### Patch Changes
+
+- [#10516](https://github.com/assistant-ui/assistant-ui/pull/10516) [`1b37ba2`](https://github.com/assistant-ui/assistant-ui/commit/1b37ba21d631221269b53dfb49b683f3fefe5bf7) - fix: hide `DevToolsModal` in production builds from Vite and other bundlers that leave no `process` global in the browser ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 1.2.27
 
 ### Patch Changes

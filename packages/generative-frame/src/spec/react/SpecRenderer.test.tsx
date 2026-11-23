@@ -1293,6 +1293,24 @@ describe("SpecRenderer", () => {
     ).toBe("Picture: src expected string, got object");
   });
 
+  it("shows invalid props when a bound value breaks the prop schema", () => {
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec(
+          { main: { type: "Picture", props: { src: { $state: "/src" } } } },
+          { src: 5 },
+        )}
+      />,
+    );
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="invalid-props"]')
+        ?.textContent,
+    ).toBe("Picture: src expected string, got integer");
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
   it("shows pending children while streaming and keeps user state when spec state streams in", () => {
     const first = spec(
       {

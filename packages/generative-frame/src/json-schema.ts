@@ -221,7 +221,7 @@ export function validateJsonSchema(
   if (typeOf(value) === "object") {
     const record = value as Record<string, unknown>;
     for (const key of schema.required ?? []) {
-      if (record[key] === undefined) {
+      if (!Object.hasOwn(record, key) || record[key] === undefined) {
         issues.push({
           path: `${path}/${escapeToken(key)}`,
           message: "is required",
@@ -230,7 +230,10 @@ export function validateJsonSchema(
     }
     for (const [key, child] of Object.entries(record)) {
       const childPath = `${path}/${escapeToken(key)}`;
-      const childSchema = schema.properties?.[key];
+      const childSchema =
+        schema.properties && Object.hasOwn(schema.properties, key)
+          ? schema.properties[key]
+          : undefined;
       if (childSchema) {
         if (child !== undefined) {
           issues.push(

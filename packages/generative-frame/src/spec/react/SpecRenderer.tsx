@@ -370,8 +370,9 @@ function ResolvedElement({
     locale: ctx.locale,
   });
   const rejected = rejectedPropType(
-    ctx.catalog?.propsSchema(element.type),
+    ctx.catalog?.component(element.type)?.props,
     resolved.props,
+    element.props,
   );
   const settled = useLastCommitted(rejected ? undefined : resolved);
   const shown = rejected ? settled : resolved;

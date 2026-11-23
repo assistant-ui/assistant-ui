@@ -50,6 +50,8 @@ const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
   const interrupt: AgUiInterrupt = { id, reason };
   if (typeof raw.message === "string") interrupt.message = raw.message;
   if (typeof raw.toolCallId === "string") interrupt.toolCallId = raw.toolCallId;
+  if (typeof raw.subagentRunId === "string")
+    interrupt.subagentRunId = raw.subagentRunId;
   if (typeof raw.expiresAt === "string") interrupt.expiresAt = raw.expiresAt;
   if (isPlainObject(raw.responseSchema))
     interrupt.responseSchema = raw.responseSchema;

@@ -1,5 +1,19 @@
 # @assistant-ui/react-lexical
 
+## 0.2.25
+
+### Patch Changes
+
+- [#10731](https://github.com/assistant-ui/assistant-ui/pull/10731) [`9ee2ddb`](https://github.com/assistant-ui/assistant-ui/commit/9ee2ddbe2058c7cda3840f4b649713c813a7be68) - `LexicalComposerInput` accepts `formatter={null}` to keep composer text as plain text, so directive-shaped text set through the runtime round-trips unchanged; registered trigger formatters still apply. ([@okisdev](https://github.com/okisdev))
+
+## 0.2.24
+
+### Patch Changes
+
+- [#10553](https://github.com/assistant-ui/assistant-ui/pull/10553) [`d156e79`](https://github.com/assistant-ui/assistant-ui/commit/d156e7987ddf4aca65feb89df8d23f29d8b1bc63) - fix: omit `aria-expanded` from `unstable_useTriggerPopoverAriaProps` and `ComposerPrimitive.Input` so textbox inputs do not emit invalid ARIA attributes when a trigger popover is open ([@chuganzy](https://github.com/chuganzy))
+
+- [#10649](https://github.com/assistant-ui/assistant-ui/pull/10649) [`8b606de`](https://github.com/assistant-ui/assistant-ui/commit/8b606de5b53572fb3da8be799f7324031b885524) - share composition, attachment key, and message id helpers across bindings without changing their behavior. ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.23
 
 ### Patch Changes

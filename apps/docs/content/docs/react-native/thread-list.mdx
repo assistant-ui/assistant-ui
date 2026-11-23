@@ -68,7 +68,7 @@ export function useAppRuntime(): AssistantRuntime {
 }
 ```
 
-Keep the adapter reference stable. Replacing it reloads the list and discards cached threads that the replacement page does not contain. The `runtimeHook` runs for the current thread, so it can use the same message transport or history adapter your single-thread screen already uses.
+Keep the adapter reference stable. Replacing it with a different backing store (or a new object without `storeKey`) reloads the list and discards cached threads that the replacement page does not contain. The `runtimeHook` runs for the current thread, so it can use the same message transport or history adapter your single-thread screen already uses.
 
 ## Share one provider
 

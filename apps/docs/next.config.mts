@@ -663,24 +663,12 @@ const config: NextConfig = {
         destination: "/llms.mdx/elements/:path*",
       },
       {
-        source: "/umami/:path*",
-        destination: "https://assistant-ui-umami.vercel.app/:path*",
-      },
-      {
         source: "/blog/:path.md",
         destination: "/blog/llms.md/:path",
       },
       {
         source: "/blog/:path.mdx",
         destination: "/blog/llms.md/:path",
-      },
-      {
-        source: "/ph/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ph/:path*",
-        destination: "https://us.i.posthog.com/:path*",
       },
     ],
     fallback: [

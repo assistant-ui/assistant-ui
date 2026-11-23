@@ -38,7 +38,6 @@ const renderHtml = (
     styles: [asset("app.css"), asset("generative-ui.css"), asset("main.css")],
     title: "Assistant",
     csp: switchboard.csp,
-    imgSrc: ["https://icons.duckduckgo.com"],
     surface: switchboard.location,
     scriptType: "classic",
     bodyAttributes: { [BOOT_ATTRIBUTE]: JSON.stringify(boot) },

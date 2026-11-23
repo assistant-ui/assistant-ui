@@ -1,5 +1,6 @@
 import * as nodePath from "node:path";
 import {
+  assertGenerativeDirectivePlacement,
   compileGenerative,
   isGenerativeModule,
   type Target,
@@ -104,10 +105,22 @@ export default function generativeLoader(
     return;
   }
 
+  const generative = isGenerativeModule(source);
+  if (!generative) {
+    // A directive that is not the first statement leaves the file uncompiled,
+    // so it fails the build instead of shipping its server code.
+    try {
+      assertGenerativeDirectivePlacement(source, resourcePath);
+    } catch (error) {
+      callback(error);
+      return;
+    }
+  }
+
   // 2) Explicit concrete-build query (used by the indirection).
   const target = queryTarget(this.resourceQuery);
   if (target) {
-    if (!isGenerativeModule(source)) {
+    if (!generative) {
       callback(null, source);
       return;
     }
@@ -126,7 +139,7 @@ export default function generativeLoader(
   }
 
   // 3) Bare import of a generative module → facade.
-  if (isGenerativeModule(source)) {
+  if (generative) {
     callback(null, buildFacade(resourcePath));
     return;
   }

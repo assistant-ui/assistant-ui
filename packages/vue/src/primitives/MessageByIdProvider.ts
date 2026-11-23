@@ -6,27 +6,12 @@ import {
   type SlotsType,
   type VNodeChild,
 } from "vue";
-import {
-  AuiConfig,
-  Derived,
-  type AssistantClient,
-} from "@assistant-ui/store/client";
+import { AuiConfig, Derived } from "@assistant-ui/store/client";
+import { hasMessageId } from "@assistant-ui/core/internal";
 import type { ComposerMethods, MessageMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
-
-const idSets = new WeakMap<readonly { id: string }[], Set<string>>();
-
-const hasMessage = (aui: AssistantClient, id: string) => {
-  const messages = aui.thread.getState().messages;
-  let set = idSets.get(messages);
-  if (!set) {
-    set = new Set(messages.map((message) => message.id));
-    idSets.set(messages, set);
-  }
-  return set.has(id);
-};
 
 /**
  * Scopes the subtree to the thread message with `id`: descendants read the
@@ -56,7 +41,7 @@ export const MessageByIdProvider = defineComponent({
           name: "MessageByIdProvider",
           index: id,
           isCurrent: () => !disposed && id === props.id,
-          isValid: () => hasMessage(aui, id),
+          isValid: () => hasMessageId(aui.thread.getState().messages, id),
         }),
       );
       const composerCache = createLastValidCache<ComposerMethods>(null);
@@ -65,16 +50,18 @@ export const MessageByIdProvider = defineComponent({
           source: "thread",
           query: { type: "id", id },
           get: (aui) =>
-            messageCache.resolve(hasMessage(aui, id), () =>
-              aui.thread.message({ id }),
+            messageCache.resolve(
+              hasMessageId(aui.thread.getState().messages, id),
+              () => aui.thread.message({ id }),
             ),
         }),
         composer: Derived({
           source: "message",
           query: {},
           get: (aui) =>
-            composerCache.resolve(hasMessage(aui, id), () =>
-              aui.thread.message({ id }).composer(),
+            composerCache.resolve(
+              hasMessageId(aui.thread.getState().messages, id),
+              () => aui.thread.message({ id }).composer(),
             ),
         }),
       });

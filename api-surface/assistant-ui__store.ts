@@ -221,7 +221,7 @@ type ThreadViewportAutoScroll = {
   scrollToBottom(behavior?: ScrollBehavior): void;
   messagesPrepended(previousFirstMessageId: string): void;
   setContentInset(inset: number): void;
-  registerContentInset(): {
+  registerContentInset(measure?: () => number): {
     setHeight(height: number): void;
     unregister(): void;
   };

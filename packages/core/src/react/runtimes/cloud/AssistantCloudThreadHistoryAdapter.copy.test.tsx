@@ -419,6 +419,65 @@ describe("Assistant Cloud backend transcript copy", () => {
     ]);
   });
 
+  it("follows has_more past a short inventory page", async () => {
+    makeClient();
+    const { cloud, list, create } = makeCloud();
+    list
+      .mockResolvedValueOnce({
+        messages: [row("stored-0", "cloud-0")],
+        has_more: true,
+        next_cursor: "cursor-0",
+      })
+      .mockResolvedValueOnce({
+        messages: [row("a", "cloud-a")],
+        has_more: false,
+        next_cursor: null,
+      });
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await result.current.unstable_copy!([message("a"), message("b")], ["b"]);
+
+    expect(list.mock.calls).toEqual([
+      ["cloud-thread", { limit: 200 }],
+      ["cloud-thread", { limit: 200, after: "cursor-0" }],
+    ]);
+    // "a" was on the second page, so only "b" is written.
+    expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
+      "b",
+    ]);
+  });
+
+  it("follows next_cursor past an empty inventory page", async () => {
+    makeClient();
+    const { cloud, list, create } = makeCloud();
+    list
+      .mockResolvedValueOnce({
+        messages: [],
+        has_more: true,
+        next_cursor: "cursor-0",
+      })
+      .mockResolvedValueOnce({
+        messages: [row("a", "cloud-a")],
+        has_more: false,
+        next_cursor: null,
+      });
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await result.current.unstable_copy!([message("a"), message("b")], ["b"]);
+
+    expect(list.mock.calls).toEqual([
+      ["cloud-thread", { limit: 200 }],
+      ["cloud-thread", { limit: 200, after: "cursor-0" }],
+    ]);
+    expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
+      "b",
+    ]);
+  });
+
   it("ends the inventory walk when a cursor replays an earlier page", async () => {
     makeClient();
     const { cloud, list, create } = makeCloud();

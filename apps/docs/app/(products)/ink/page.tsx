@@ -116,14 +116,14 @@ const SESSION_LINES: {
   { text: "> search_docs · done", dim: true },
   {
     text: (
-      <span className="inline-block h-[1.1em] w-[0.55em] translate-y-[0.15em] animate-pulse bg-[oklch(0.985_0.002_106)] motion-reduce:animate-none" />
+      <span className="inline-block h-[1.1em] w-[0.55em] translate-y-[0.15em] animate-pulse bg-[oklch(0.985_0.002_var(--tint))] motion-reduce:animate-none" />
     ),
   },
 ];
 
 function RenderedSession() {
   return (
-    <div className="border-foreground/10 flex-1 border bg-[oklch(0.17_0.003_106)] px-4 py-3.5 font-mono text-[12px] leading-[1.8] text-[oklch(0.985_0.002_106)]">
+    <div className="border-foreground/10 flex-1 border bg-[oklch(0.17_0.003_var(--tint))] px-4 py-3.5 font-mono text-[12px] leading-[1.8] text-[oklch(0.985_0.002_var(--tint))]">
       {SESSION_LINES.map((line, index) => (
         <p
           key={index}

@@ -396,6 +396,49 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.attachmentAccept).toBe("image/*");
   });
 
+  it("exposes why browser dictation ended after a blocked microphone", () => {
+    vi.useFakeTimers();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => {
+      consoleError.mockRestore();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    });
+    const listeners = new Map<string, EventListener>();
+    class Recognition {
+      addEventListener(type: string, listener: EventListener) {
+        listeners.set(type, listener);
+      }
+      start() {}
+      stop() {}
+      abort() {}
+    }
+    vi.stubGlobal("window", { SpeechRecognition: Recognition });
+    composer.setDictationAdapter(new WebSpeechDictationAdapter());
+    const listener = vi.fn();
+    composer.subscribe(listener);
+
+    composer.startDictation();
+    listeners.get("error")!(
+      Object.assign(new Event("error"), {
+        error: "not-allowed",
+        message: "Permission denied",
+      }),
+    );
+    listeners.get("end")!(new Event("end"));
+    listener.mockClear();
+    vi.advanceTimersByTime(100);
+
+    expect(composer.dictation).toBeUndefined();
+    expect(composer.lastDictationEnd).toEqual({
+      reason: "error",
+      error: { code: "not-allowed", message: "Permission denied" },
+    });
+    expect(listener).toHaveBeenCalled();
+  });
+
   it("handles rejected dictation shutdowns", async () => {
     const consoleError = vi
       .spyOn(console, "error")

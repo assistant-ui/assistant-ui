@@ -24,6 +24,7 @@ for (const [file, job] of [
   ["code-quality.yaml", "build"],
   ["code-quality.yaml", "lint"],
   ["code-quality.yaml", "typecheck"],
+  ["durable-example-tests.yaml", "server"],
   ["expo-native-bundle.yaml", "bundle"],
   ["perf.yaml", "measure"],
   ["perf-nightly.yaml", "measure"],

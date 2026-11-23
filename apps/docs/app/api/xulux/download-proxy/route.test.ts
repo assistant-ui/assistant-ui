@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -283,5 +283,53 @@ describe("GET /api/xulux/download-proxy access boundary", () => {
     expect(await response.arrayBuffer()).toEqual(
       new Uint8Array([1, 2, 3]).buffer,
     );
+  });
+
+  it("keeps internal error text out of a failed fetch response", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+    mocks.fetchSandboxResource.mockRejectedValue(
+      new Error("connect ECONNREFUSED 10.0.0.12:8443", {
+        cause: new Error("internal host detail"),
+      }),
+    );
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "Proxy fetch failed." });
+    expect(consoleError).toHaveBeenCalled();
+  });
+
+  it("keeps upstream error text out of a non-2xx response", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    mocks.requireSession.mockReturnValue(session);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveSandboxDownloadUrl.mockReturnValue(
+      new URL("https://demo.bl.run/api/download"),
+    );
+    mocks.fetchSandboxResource.mockResolvedValue(
+      new Response("stack trace at /srv/internal/sandbox.ts:42", {
+        status: 500,
+      }),
+    );
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: "Upstream responded 500.",
+    });
+    expect(consoleError).toHaveBeenCalled();
   });
 });

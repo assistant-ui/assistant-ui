@@ -274,8 +274,7 @@ jobs:
     environment: pypi publish
     runs-on: ubuntu-24.04
     permissions:
-      # Required to create GitHub releases.
-      contents: write
+      contents: read
       # Required for PyPI trusted publishing (OIDC).
       id-token: write
     concurrency:
@@ -310,6 +309,37 @@ jobs:
         with:
           packages-dir: ${{ env.PYTHON_PACKAGE_DIR }}/dist
 
+      - name: Recovery guidance
+        if: failure()
+        run: |
+          echo "::error::Publish failed for $PYTHON_PACKAGE_NAME@${VERSION} on release SHA ${RELEASE_SHA}."
+          echo "::error::Rerun this workflow run, or workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  release:
+    name: Create the GitHub release
+    needs:
+      - approve
+      - summary
+      - publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      # Scoped to the release commit so one release's run never cancels another's.
+      group: pypi-release-${{ needs.approve.outputs.release_sha }}
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+      VERSION: ${{ needs.summary.outputs.version }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -343,5 +373,5 @@ jobs:
       - name: Recovery guidance
         if: failure()
         run: |
-          echo "::error::Publish failed for $PYTHON_PACKAGE_NAME@${VERSION} on release SHA ${RELEASE_SHA}."
-          echo "::error::Rerun this workflow run, or workflow_dispatch with releaseSha=${RELEASE_SHA}."
+          echo "::error::Creating the GitHub release failed for $PYTHON_PACKAGE_NAME@${VERSION} on release SHA ${RELEASE_SHA}; the PyPI upload already succeeded."
+          echo "::error::Use \"Re-run failed jobs\" on this run to retry only the release job."

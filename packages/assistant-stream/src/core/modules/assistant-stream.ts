@@ -3,6 +3,7 @@ import type { AssistantStreamChunk, PartInit } from "../AssistantStreamChunk";
 import {
   createMergeStream,
   type MergeStreamFinishOrder,
+  type MergeStreamWriteCounter,
 } from "../utils/stream/merge";
 import { TextStreamControllerImpl, type TextStreamController } from "./text";
 import {
@@ -28,6 +29,8 @@ import { createControllerStreamPair } from "../utils/stream/createControllerStre
 type ToolCallPartInit = {
   toolCallId?: string;
   toolName: string;
+  /** The call is answered outside the frontend, such as by a provider-executed tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
+  providerExecuted?: boolean;
   argsText?: string;
   args?: ReadonlyJSONObject;
   response?: ToolResponseLike<ReadonlyJSONValue>;
@@ -125,7 +128,10 @@ const createCountedPartStream = <TController>(
     controller: ReadableStreamDefaultController<AssistantStreamChunk>,
   ) => TController,
 ) => {
-  let written = 0;
+  const written: { count: number; onWrite: (() => void) | undefined } = {
+    count: 0,
+    onWrite: undefined,
+  };
   const [stream, controller] = createControllerStreamPair<
     AssistantStreamChunk,
     TController
@@ -136,7 +142,8 @@ const createCountedPartStream = <TController>(
       },
       enqueue(chunk) {
         c.enqueue(chunk);
-        written++;
+        written.count++;
+        written.onWrite?.();
       },
       close() {
         c.close();
@@ -146,7 +153,7 @@ const createCountedPartStream = <TController>(
       },
     }),
   );
-  return [stream, controller, () => written] as const;
+  return [stream, controller, written as MergeStreamWriteCounter] as const;
 };
 
 // Shared state between controller instances
@@ -215,7 +222,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     >,
     options?: {
       orderedFinish?: MergeStreamFinishOrder | undefined;
-      written?: () => number;
+      written?: MergeStreamWriteCounter;
       pathTransform?: "merge" | undefined;
     },
   ) {
@@ -245,7 +252,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   private _addPart(
     part: PartInit,
     stream: AssistantStream,
-    written: () => number,
+    written: MergeStreamWriteCounter,
     end?: () => void,
     orderedFinish?: MergeStreamFinishOrder,
   ) {
@@ -363,6 +370,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         type: "tool-call",
         toolName,
         toolCallId,
+        ...(opt.providerExecuted && { providerExecuted: true }),
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
@@ -404,7 +412,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption(options),
       this._finishedPartStream(),
-      () => 1,
+      { count: 1, onWrite: undefined },
     );
   }
 
@@ -412,7 +420,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption(options),
       this._finishedPartStream(),
-      () => 1,
+      { count: 1, onWrite: undefined },
     );
   }
 
@@ -420,7 +428,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption(options),
       this._finishedPartStream(),
-      () => 1,
+      { count: 1, onWrite: undefined },
     );
   }
 

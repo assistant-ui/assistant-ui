@@ -83,6 +83,97 @@ afterEach(() => {
 });
 
 describe("useAgUiRuntime thread switching", () => {
+  it.each([
+    { destination: "existing", reconnect: false },
+    { destination: "new", reconnect: false },
+    { destination: "existing", reconnect: true },
+    { destination: "new", reconnect: true },
+  ])(
+    "releases a drain without a waiter on a $destination thread switch with connect $reconnect",
+    async ({ destination, reconnect }) => {
+      class ReconnectingAgent extends HttpAgent {
+        protected override connect(): never {
+          throw new Error("Unexpected reconnect");
+        }
+      }
+      const agent = reconnect
+        ? new ReconnectingAgent({ url: "https://agent.test" })
+        : new HttpAgent({ url: "https://agent.test" });
+      const oldResponse = deferred<void>();
+      let oldResponseClosed = false;
+      let subscriber!: Subscriber;
+      const runAgent = vi
+        .spyOn(agent, "runAgent")
+        .mockImplementation(async (input, next) => {
+          if (runAgent.mock.calls.length === 1) {
+            subscriber = next as unknown as Subscriber;
+            subscriber.onRunFinishedEvent?.({
+              event: { type: "RUN_FINISHED", runId: input?.runId },
+            });
+            await oldResponse.promise;
+            oldResponseClosed = true;
+          }
+          return { newMessages: [], result: undefined };
+        });
+      const abortRun = vi.spyOn(agent, "abortRun").mockImplementation(() => {});
+      const detach = vi.spyOn(agent, "detachActiveRun").mockResolvedValue();
+      const { result } = renderRuntime(
+        async () => ({
+          messages: [message("loaded")],
+          state: { owner: "new" },
+        }),
+        undefined,
+        agent,
+      );
+      act(() => {
+        result.current.thread.append("old prompt");
+      });
+      await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+      expect(result.current.thread.getState().isRunning).toBe(false);
+
+      try {
+        await act(async () => {
+          await (destination === "existing"
+            ? result.current.threads.switchToThread("thread-a")
+            : result.current.threads.switchToNewThread());
+        });
+        expect(abortRun).toHaveBeenCalledTimes(reconnect ? 0 : 1);
+        expect(detach).toHaveBeenCalledTimes(reconnect ? 1 : 0);
+        const switched = result.current.thread.getState();
+        act(() => {
+          subscriber.onStateSnapshotEvent?.({
+            event: { type: "STATE_SNAPSHOT", snapshot: { owner: "old" } },
+          });
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: "MESSAGES_SNAPSHOT",
+              messages: [
+                { id: "late", role: "assistant", content: "old answer" },
+              ],
+            },
+          });
+          subscriber.onRunStartedEvent?.({});
+        });
+        expect(result.current.thread.getState().messages).toEqual(
+          switched.messages,
+        );
+        expect(result.current.thread.getState().state).toEqual(switched.state);
+        expect(result.current.thread.getState().isRunning).toBe(false);
+
+        await act(async () => {
+          await result.current.thread.append("new prompt");
+        });
+        expect(runAgent).toHaveBeenCalledTimes(2);
+        expect(oldResponseClosed).toBe(false);
+      } finally {
+        await act(async () => {
+          oldResponse.resolve();
+          await runAgent.mock.results[0]!.value;
+        });
+      }
+    },
+  );
+
   it.each(["existing", "new"] as const)(
     "persists a cancelled partial reply before switching to the %s thread",
     async (destination) => {

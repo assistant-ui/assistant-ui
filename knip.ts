@@ -82,6 +82,8 @@ const config: KnipConfig = {
     "templates/**",
     "evals",
     "api-surface",
+    // Holds only the Vercel CLI pin, which the registry deploy workflow runs as a binary.
+    "packages/x-deploy",
   ],
   ignore: [
     "api-surface/**",

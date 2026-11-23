@@ -36,6 +36,28 @@ const createRuntime = (overrides: Partial<ExternalStoreAdapter> = {}) =>
     ...overrides,
   } as ExternalStoreAdapter);
 
+it("keeps redacted reasoning from an external store", () => {
+  const runtime = new ExternalStoreThreadRuntimeCore(modelContextProvider, {
+    messages: [{ id: "a1" }],
+    convertMessage: (raw: { id: string }): ThreadMessageLike => ({
+      id: raw.id,
+      role: "assistant",
+      content: [
+        { type: "text", text: "Before" },
+        { type: "reasoning", text: "", unstable_redacted: true },
+        { type: "text", text: "After" },
+      ],
+    }),
+    onNew: async () => {},
+  } satisfies ExternalStoreAdapter<{ id: string }>);
+
+  expect(runtime.messages[0]?.content).toEqual([
+    { type: "text", text: "Before" },
+    { type: "reasoning", text: "", unstable_redacted: true },
+    { type: "text", text: "After" },
+  ]);
+});
+
 describe("ExternalStoreThreadRuntimeCore message repository", () => {
   const repositoryWithHead = (headId: string) =>
     ExportedMessageRepository.fromBranchableArray(
@@ -2554,7 +2576,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
   });
 });
 
-describe("ExternalStoreThreadRuntimeCore createdAt of converted messages", () => {
+describe("ExternalStoreThreadRuntimeCore createdAt", () => {
   type Raw = { id: string; text: string };
 
   afterEach(() => {
@@ -2571,6 +2593,42 @@ describe("ExternalStoreThreadRuntimeCore createdAt of converted messages", () =>
       }),
       onNew: async () => {},
     }) as ExternalStoreAdapter<Raw>;
+
+  it("keeps an optimistic placeholder's timestamp across equivalent snapshots", () => {
+    vi.useFakeTimers();
+    const firstSeen = new Date("2026-01-01T00:00:00Z");
+    const laterSeen = new Date("2026-01-01T00:01:00Z");
+    vi.setSystemTime(firstSeen);
+    const user = fromThreadMessageLike(
+      { id: "u1", role: "user", content: "hello" },
+      "u1",
+      { type: "complete", reason: "stop" },
+    );
+    const store = { messages: [user], isRunning: true, onNew: async () => {} };
+    const runtime = createRuntime(store);
+    const placeholder = runtime.messages.at(-1)!;
+    expect(placeholder.createdAt).toEqual(firstSeen);
+
+    vi.setSystemTime(laterSeen);
+    runtime.__internal_setAdapter({ ...store, messages: [...store.messages] });
+
+    expect(runtime.messages.at(-1)!.id).toBe(placeholder.id);
+    expect(runtime.messages.at(-1)!.createdAt).toEqual(firstSeen);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: [
+        user,
+        fromThreadMessageLike(
+          { id: "u2", role: "user", content: "next" },
+          "u2",
+          { type: "complete", reason: "stop" },
+        ),
+      ],
+    });
+    expect(runtime.messages.at(-1)!.id).not.toBe(placeholder.id);
+    expect(runtime.messages.at(-1)!.createdAt).toEqual(laterSeen);
+  });
 
   it("keeps the first time an id converts while its source object changes", () => {
     vi.useFakeTimers();

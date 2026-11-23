@@ -1,3 +1,4 @@
+import { agUiWireMessageId } from "./adapter/conversions";
 import { describe, it, expect, vi } from "vitest";
 import { HttpAgent, type AbstractAgent } from "@ag-ui/client";
 import type {
@@ -7,6 +8,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { AgUiThreadController } from "./AgUiThreadController";
+import type { AgUiSubscriber } from "./adapter/subscriber";
 import { makeLogger } from "./logger";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -140,6 +142,252 @@ function deferredHistory(messages: ThreadMessage[] = [storedUser]) {
       }),
   };
 }
+
+describe("AgUiThreadController optimistic assistant identity", () => {
+  it("keeps the assistant id when a run settles without a server id", async () => {
+    let runningAssistant!: ThreadAssistantMessage;
+    const runAgent = vi.fn(
+      async (input: { runId: string }, subscriber: AgUiSubscriber) => {
+        subscriber.onRunStartedEvent?.();
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "partial" },
+        });
+        runningAssistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+        expect(core.isRunning()).toBe(true);
+        expect(runningAssistant.status).toEqual({ type: "running" });
+        expect(runningAssistant.metadata.isOptimistic).toBe(true);
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: " answer" },
+        });
+        expect(core.getMessages().at(-1)).toMatchObject({
+          id: runningAssistant.id,
+          metadata: { isOptimistic: true },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+        subscriber.onRunFinalized?.();
+      },
+    );
+    const { core } = createCore(undefined, {
+      runAgent,
+    } as unknown as AbstractAgent);
+
+    await core.append({ ...userMessage("question"), startRun: true });
+
+    const settled = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(settled.id).toBe(runningAssistant.id);
+    expect(settled.id.startsWith("__optimistic__")).toBe(false);
+    expect(settled.status).toEqual({ type: "complete", reason: "unknown" });
+    expect(settled.metadata.isOptimistic).toBe(false);
+    expect(settled.content).toEqual([{ type: "text", text: "partial answer" }]);
+    expect(core.getMessageRepository().headId).toBe(runningAssistant.id);
+    expect(
+      core.getMessageRepository().messages.map(({ message }) => message.id),
+    ).toEqual([core.getMessages()[0]!.id, runningAssistant.id]);
+  });
+
+  it.each(["text", "tool-call"] as const)(
+    "keeps the local id when adopting the first server id from a %s event",
+    async (eventType) => {
+      let optimisticId!: string;
+      const runAgent = vi.fn(
+        async (_input: unknown, subscriber: AgUiSubscriber) => {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "partial" },
+          });
+          const placeholder = core.getMessages().at(-1)!;
+          optimisticId = placeholder.id;
+          expect(placeholder.metadata.isOptimistic).toBe(true);
+          if (eventType === "text") {
+            subscriber.onTextMessageStartEvent?.({
+              event: { type: "TEXT_MESSAGE_START", messageId: "server-answer" },
+            });
+          } else {
+            subscriber.onToolCallStartEvent?.({
+              event: {
+                type: "TOOL_CALL_START",
+                toolCallId: "call",
+                toolCallName: "lookup",
+                parentMessageId: "server-answer",
+              },
+            });
+          }
+          expect(core.getMessages().at(-1)).toMatchObject({
+            id: optimisticId,
+            metadata: { custom: { agui: { messageId: "server-answer" } } },
+          });
+          expect(
+            core.getMessages().at(-1)!.metadata.isOptimistic,
+          ).toBeUndefined();
+          subscriber.onRunFinalized?.();
+        },
+      );
+      const { core } = createCore(undefined, {
+        runAgent,
+      } as unknown as AbstractAgent);
+
+      await core.append({ ...userMessage("question"), startRun: true });
+
+      expect(core.getMessages().at(-1)!.id).toBe(optimisticId);
+      expect(
+        core
+          .getMessageRepository()
+          .messages.some(({ message }) => message.id === optimisticId),
+      ).toBe(true);
+    },
+  );
+
+  it("recreates an adopted local id without marking it optimistic", async () => {
+    let recreated!: ThreadAssistantMessage;
+    let optimisticId!: string;
+    const runAgent = vi.fn(
+      async (input: { runId: string }, subscriber: AgUiSubscriber) => {
+        const optimistic = core.getMessages().at(-1)!;
+        expect(optimistic.metadata.isOptimistic).toBe(true);
+        optimisticId = optimistic.id;
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "server-answer" },
+        });
+        expect(core.getMessages().at(-1)!.id).toBe(optimisticId);
+
+        core.applyExternalMessages([]);
+        expect(core.getMessageRepository().messages).toEqual([]);
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "server-answer",
+            delta: "answer",
+          },
+        });
+        recreated = core.getMessages().at(-1) as ThreadAssistantMessage;
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+        subscriber.onRunFinalized?.();
+      },
+    );
+    const { core } = createCore(undefined, {
+      runAgent,
+    } as unknown as AbstractAgent);
+
+    await core.append({ ...userMessage("question"), startRun: true });
+
+    expect(recreated).toMatchObject({
+      id: optimisticId,
+      status: { type: "running" },
+      content: [{ type: "text", text: "answer" }],
+      metadata: { isOptimistic: false },
+    });
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: optimisticId,
+      status: { type: "complete" },
+      metadata: {
+        isOptimistic: false,
+        custom: { agui: { messageId: "server-answer" } },
+      },
+    });
+  });
+
+  it("persists and sends the same settled assistant id on the next run", async () => {
+    const append = vi
+      .fn<ThreadHistoryAdapter["append"]>()
+      .mockResolvedValue(undefined);
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const runningIds: string[] = [];
+    const runAgent = vi.fn(
+      async (
+        _input: { messages: { id: string; role: string }[] },
+        subscriber: AgUiSubscriber,
+      ) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "answer" },
+        });
+        runningIds.push(core.getMessages().at(-1)!.id);
+        subscriber.onRunFinalized?.();
+      },
+    );
+    const { core } = createCore(history, {
+      runAgent,
+    } as unknown as AbstractAgent);
+    await core.__internal_load();
+
+    await core.append({ ...userMessage("question"), startRun: true });
+    const settledId = core.getMessages().at(-1)!.id;
+    await vi.waitFor(() =>
+      expect(append).toHaveBeenCalledWith({
+        parentId: core.getMessages()[0]!.id,
+        message: expect.objectContaining({
+          id: runningIds[0],
+          role: "assistant",
+          metadata: expect.objectContaining({ isOptimistic: false }),
+        }),
+      }),
+    );
+    expect(settledId).toBe(runningIds[0]);
+
+    await core.append({
+      ...userMessage("follow-up"),
+      parentId: settledId,
+      startRun: true,
+    });
+
+    const outbound = runAgent.mock.calls[1]![0].messages;
+    expect(outbound).toContainEqual(
+      expect.objectContaining({
+        id: settledId,
+        role: "assistant",
+        content: "answer",
+      }),
+    );
+    expect(outbound.every(({ id }) => !id.startsWith("__optimistic__"))).toBe(
+      true,
+    );
+    expect(
+      append.mock.calls.every(
+        ([{ message, parentId }]) =>
+          !message.id.startsWith("__optimistic__") &&
+          !parentId?.startsWith("__optimistic__"),
+      ),
+    ).toBe(true);
+  });
+
+  it("preserves the optimistic flag through custom metadata merges before and after settle", async () => {
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+      resume: async function* () {
+        yield {
+          content: [{ type: "text", text: "answer" }],
+          metadata: {
+            custom: { source: "stream", agui: { opaqueReasoning: [] } },
+          },
+        };
+        expect(core.getMessages().at(-1)!.metadata.isOptimistic).toBe(true);
+        yield {
+          status: { type: "complete", reason: "unknown" },
+          metadata: { custom: { agui: { interrupts: [] } } },
+        };
+        expect(core.getMessages().at(-1)!.metadata.isOptimistic).toBe(false);
+        yield { metadata: { custom: { source: "finished" } } };
+      },
+    };
+    const { core } = createCore(history);
+
+    await core.resumeInFlightRun([]);
+
+    expect(core.getMessages().at(-1)!.metadata).toMatchObject({
+      isOptimistic: false,
+      custom: {
+        source: "finished",
+        agui: { opaqueReasoning: [], interrupts: [] },
+      },
+    });
+  });
+});
 
 describe("AgUiThreadController late history loading", () => {
   it("drops a queued send when loading is cancelled", async () => {
@@ -791,30 +1039,30 @@ describe("AgUiThreadController resuming a disconnected run", () => {
         core.append({ ...userMessage("question"), startRun: true }),
       ).rejects.toThrow("stream disconnected");
       const userId = core.getMessages()[0]!.id;
+      const firstAssistantId = core.getMessages()[1]!.id;
       expect(core.getMessages()[1]).toMatchObject({
-        id: "assistant-a",
+        id: firstAssistantId,
+        metadata: { custom: { agui: { messageId: "assistant-a" } } },
         content: [{ type: "text", text: "first" }],
       });
 
       await core.resume({
-        parentId: parent === "user" ? userId : "assistant-a",
+        parentId: parent === "user" ? userId : firstAssistantId,
         sourceId: null,
         runConfig: {},
       });
 
       expect(runAgent).toHaveBeenCalledTimes(2);
-      expect(core.getMessages().map((message) => message.id)).toEqual([
-        userId,
-        "assistant-a",
-        "assistant-b",
-      ]);
+      expect(
+        core.getMessages().map((message) => agUiWireMessageId(message)),
+      ).toEqual([userId, "assistant-a", "assistant-b"]);
       expect(core.getMessages().slice(1)).toMatchObject([
         { content: [{ type: "text", text: "first and more" }] },
         { content: [{ type: "text", text: "second answer" }] },
       ]);
       expect(
         core.getMessageRepository().messages.map(({ parentId }) => parentId),
-      ).toEqual([null, userId, "assistant-a"]);
+      ).toEqual([null, userId, firstAssistantId]);
     },
   );
 });

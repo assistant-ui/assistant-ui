@@ -14,7 +14,7 @@ const EMPTY_INTERRUPTS: readonly AgUiInterrupt[] = [];
  * array when no interrupts are pending, so consumers can `.map` without a guard.
  */
 export const useAgUiInterrupts = (): readonly AgUiInterrupt[] =>
-  agUiExtras.use((e) => e.interrupts, EMPTY_INTERRUPTS);
+  agUiExtras.useExtras((e) => e.interrupts, EMPTY_INTERRUPTS);
 
 /**
  * Returns a stable function that sends an A2UI action back to the agent and
@@ -63,7 +63,7 @@ export const useAgUiSteerAway = () => {
 export const useAgUiState = <TState = ReadonlyJSONValue>():
   | TState
   | undefined =>
-  agUiExtras.use((e) => e.state as TState | undefined, undefined);
+  agUiExtras.useExtras((e) => e.state as TState | undefined, undefined);
 
 export const useAgUiSetState = <TState = ReadonlyJSONValue>() => {
   const aui = useAui();

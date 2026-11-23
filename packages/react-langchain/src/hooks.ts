@@ -23,7 +23,7 @@ const EMPTY_SUBGRAPHS: ReadonlyMap<string, SubgraphDiscoverySnapshot> =
  * Read the current LangGraph interrupt state from the runtime extras.
  */
 export const useLangChainInterruptState = () =>
-  langChainExtras.use((e) => e.interrupt, undefined);
+  langChainExtras.useExtras((e) => e.interrupt, undefined);
 
 /**
  * Read every interrupt pending at the current checkpoint, each with `id`
@@ -31,14 +31,14 @@ export const useLangChainInterruptState = () =>
  * (keyed by interrupt id) to resolve several at once.
  */
 export const useLangChainInterrupts = () =>
-  langChainExtras.use(
+  langChainExtras.useExtras(
     (e) => e.interrupts ?? EMPTY_INTERRUPTS,
     EMPTY_INTERRUPTS,
   );
 
 /** Read the last run/hydration error from the runtime extras. */
 export const useLangChainError = () =>
-  langChainExtras.use((e) => e.error, undefined);
+  langChainExtras.useExtras((e) => e.error, undefined);
 
 /**
  * Read the root tool calls assembled by `useStream` from the `tools`
@@ -47,15 +47,24 @@ export const useLangChainError = () =>
  * approval UIs.
  */
 export const useLangChainToolCalls = () =>
-  langChainExtras.use((e) => e.toolCalls ?? EMPTY_TOOL_CALLS, EMPTY_TOOL_CALLS);
+  langChainExtras.useExtras(
+    (e) => e.toolCalls ?? EMPTY_TOOL_CALLS,
+    EMPTY_TOOL_CALLS,
+  );
 
 /** Subagents discovered on the current run (multi-agent graphs). */
 export const useLangChainSubagents = () =>
-  langChainExtras.use((e) => e.subagents ?? EMPTY_SUBAGENTS, EMPTY_SUBAGENTS);
+  langChainExtras.useExtras(
+    (e) => e.subagents ?? EMPTY_SUBAGENTS,
+    EMPTY_SUBAGENTS,
+  );
 
 /** Subgraphs discovered on the current run. */
 export const useLangChainSubgraphs = () =>
-  langChainExtras.use((e) => e.subgraphs ?? EMPTY_SUBGRAPHS, EMPTY_SUBGRAPHS);
+  langChainExtras.useExtras(
+    (e) => e.subgraphs ?? EMPTY_SUBGRAPHS,
+    EMPTY_SUBGRAPHS,
+  );
 
 /**
  * The underlying `useStream` handle, for advanced views — pass it to v1's
@@ -64,7 +73,7 @@ export const useLangChainSubgraphs = () =>
  * `undefined` outside the runtime provider.
  */
 export const useLangChainStream = () =>
-  langChainExtras.use((e) => e.stream, undefined);
+  langChainExtras.useExtras((e) => e.stream, undefined);
 
 /**
  * Returns a function to submit raw state updates to the LangGraph agent,
@@ -149,7 +158,7 @@ export function useLangChainState<T>(
   key: string,
   defaultValue?: T,
 ): T | undefined {
-  return langChainExtras.use((e) => {
+  return langChainExtras.useExtras((e) => {
     const value = e.values[key] as T | undefined;
     return value !== undefined ? value : defaultValue;
   }, defaultValue);

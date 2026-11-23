@@ -51,7 +51,12 @@ export type WriteOptions = {
   createMissing?: boolean;
 };
 
-const FORBIDDEN = new Set(["__proto__", "constructor", "prototype"]);
+/** Keys a spec may not write or name, since they reach an object's prototype. */
+export const FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 
 /**
  * Returns a copy of `doc` with the value at `tokens` added, replaced, or
@@ -82,7 +87,8 @@ function writeAtPointerAt(
     return value;
   }
   const [token, ...rest] = tokens as [string, ...string[]];
-  if (FORBIDDEN.has(token)) throw new Error(`Forbidden path token "${token}"`);
+  if (FORBIDDEN_KEYS.has(token))
+    throw new Error(`Forbidden path token "${token}"`);
   const last = rest.length === 0;
 
   if (Array.isArray(doc)) {

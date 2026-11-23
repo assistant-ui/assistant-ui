@@ -1,3 +1,4 @@
+import { isAllowedRequestContext } from "../request-context";
 import { openai } from "@ai-sdk/openai";
 import {
   streamText,
@@ -25,6 +26,13 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 type FrontendToolDefs = NonNullable<AISDKToolkitToolsOptions["frontend"]>;
 
 export async function POST(req: Request) {
+  if (!isAllowedRequestContext(req)) {
+    return Response.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+
   const {
     messages,
     system,

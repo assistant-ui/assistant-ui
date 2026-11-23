@@ -4,4 +4,5 @@ import { flueExtras } from "./flueExtras";
 import type { FlueRuntimeExtras } from "./types";
 
 /** Read the complete Flue conversation state exposed by the runtime. */
-export const useFlueRuntimeExtras = (): FlueRuntimeExtras => flueExtras.use();
+export const useFlueRuntimeExtras = (): FlueRuntimeExtras =>
+  flueExtras.useExtras();

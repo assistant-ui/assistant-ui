@@ -26,6 +26,8 @@ export type PartInit =
       readonly type: "tool-call";
       readonly toolCallId: string;
       readonly toolName: string;
+      /** The call is answered outside the frontend, such as by a provider-executed tool, so a frontend tool of the same name never executes it, whether or not a result arrives. */
+      readonly providerExecuted?: boolean;
       readonly parentId?: string;
     }
   | {

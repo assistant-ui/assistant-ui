@@ -226,7 +226,7 @@ If you keep an existing `globals.css` from an assistant-ui template, import the 
 
 `renderWebviewHtml` applies a strict policy by default: scripts and inline styles need the page's nonce, stylesheets, fonts and images load only from the extension's own resources (plus `data:` and `blob:`), frames are blocked, and `connect-src` only allows the extension's resources too. The bridge needs no `connect-src` entry, because it does not use the network.
 
-- Remote images and media are blocked, because an image URL in model output loads as soon as the message renders and can carry chat data away. `imgSrc` and `mediaSrc` allow the hosts you trust, such as `https://icons.duckduckgo.com` for the favicons of the `Sources` component.
+- Remote images and media are blocked, because an image URL in model output loads as soon as the message renders and can carry chat data away. `imgSrc` and `mediaSrc` allow the hosts you trust, such as `https://icons.duckduckgo.com` if you pass `duckDuckGoFaviconUrl` to the `Sources` icons.
 - `csp: "relaxed"` allows inline styles, for libraries that inject `<style>` tags without a nonce.
 - `connectSrc`, `frameSrc`, and `scriptSrc` append sources, one host or scheme per entry, and `wasmUnsafeEval: true` allows WebAssembly. `'unsafe-eval'` is never added.
 - `getCspNonce()` from `@assistant-ui/vscode/webview` returns the nonce for a library that injects tags at runtime.

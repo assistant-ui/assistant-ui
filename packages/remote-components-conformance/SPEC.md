@@ -755,7 +755,8 @@ Remotes fetch public endpoints directly. There is no host relay: anything
 that needs the host's data or the user's authority goes through props and
 host callbacks, which the host implements and authorizes.
 
-- Policy is CSP `connect-src`, set from outside:
+- Policy is CSP `connect-src` (plus `img-src` and `media-src` for `"none"`
+  and a list), set from outside:
   - `"public"` (default): `connect-src https: wss:`. Requests are
     credential-less from the host's point of view: the remote runs on its
     own origin (no host cookies) or an opaque one (no cookies at all). CORS
@@ -763,6 +764,14 @@ host callbacks, which the host implements and authorizes.
   - `"none"`: `connect-src 'none'`.
   - a list of origins (`https://api.example.com`, `https://*.example.com`):
     exactly those.
+  - With `"none"` or a list, `img-src` and `media-src` are `'self' data:
+    blob:` plus the listed http(s) origins, so the image and media URLs a
+    page builds at run time can reach only those sources.
+  - Not a data boundary: under `"none"` or a list, a page can still send
+    data in the URL of a script, stylesheet, font, frame, worker or form
+    it adds, through WebRTC, or by navigating. Those stay open so pages
+    keep loading from CDNs (Tailwind, esm.sh). `"none"` keeps an honest
+    page off the network; it does not contain a page written to leak.
 - A page narrows its own policy with a CSP of its own:
   `<meta http-equiv="Content-Security-Policy" content="connect-src
   https://api.example.com">`. The browser enforces every policy, so a page

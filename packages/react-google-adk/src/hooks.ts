@@ -24,11 +24,11 @@ const EMPTY_MESSAGE_METADATA = new Map<string, AdkMessageMetadata>();
 
 /** Returns the name and branch of the currently active ADK agent. */
 export const useAdkAgentInfo = () =>
-  adkExtras.use((e) => e.agentInfo, undefined);
+  adkExtras.useExtras((e) => e.agentInfo, undefined);
 
 /** Returns the accumulated session state delta from ADK events. */
 export const useAdkSessionState = () =>
-  adkExtras.use((e) => e.stateDelta, EMPTY_STATE_DELTA);
+  adkExtras.useExtras((e) => e.stateDelta, EMPTY_STATE_DELTA);
 
 /** Returns a function to send ADK messages. */
 export const useAdkSend = () => {
@@ -39,26 +39,27 @@ export const useAdkSend = () => {
 
 /** Returns the IDs of long-running tools awaiting external input. */
 export const useAdkLongRunningToolIds = () =>
-  adkExtras.use((e) => e.longRunningToolIds, EMPTY_LONG_RUNNING_TOOL_IDS);
+  adkExtras.useExtras((e) => e.longRunningToolIds, EMPTY_LONG_RUNNING_TOOL_IDS);
 
 /** Returns pending tool confirmation requests (from SecurityPlugin etc). */
 export const useAdkToolConfirmations = () =>
-  adkExtras.use((e) => e.toolConfirmations, EMPTY_TOOL_CONFIRMATIONS);
+  adkExtras.useExtras((e) => e.toolConfirmations, EMPTY_TOOL_CONFIRMATIONS);
 
 /** Returns pending auth credential requests from tools. */
 export const useAdkAuthRequests = () =>
-  adkExtras.use((e) => e.authRequests, EMPTY_AUTH_REQUESTS);
+  adkExtras.useExtras((e) => e.authRequests, EMPTY_AUTH_REQUESTS);
 
 /** Returns the accumulated artifact delta (filename → version). */
 export const useAdkArtifacts = () =>
-  adkExtras.use((e) => e.artifactDelta, EMPTY_ARTIFACT_DELTA);
+  adkExtras.useExtras((e) => e.artifactDelta, EMPTY_ARTIFACT_DELTA);
 
 /** Returns whether any agent has escalated (requested human handoff). */
-export const useAdkEscalation = () => adkExtras.use((e) => e.escalated, false);
+export const useAdkEscalation = () =>
+  adkExtras.useExtras((e) => e.escalated, false);
 
 /** Returns per-message metadata (grounding, citation, usage). Keyed by message ID. */
 export const useAdkMessageMetadata = () =>
-  adkExtras.use((e) => e.messageMetadata, EMPTY_MESSAGE_METADATA);
+  adkExtras.useExtras((e) => e.messageMetadata, EMPTY_MESSAGE_METADATA);
 
 // ── Convenience helpers for interactive flows ──
 
@@ -128,7 +129,7 @@ const filterByPrefix = (
   );
 
 const useAdkStateByPrefix = (prefix: string) =>
-  adkExtras.use(
+  adkExtras.useExtras(
     useShallowSelector((e: AdkRuntimeExtras) =>
       filterByPrefix(e.stateDelta, prefix),
     ),

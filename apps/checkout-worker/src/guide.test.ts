@@ -75,7 +75,7 @@ describe("buildGuide", () => {
 
 describe("GET /<link>/guide", () => {
   const get = (query: string) =>
-    worker.fetch(new Request(`https://checkout.test/session/guide?${query}`), {
+    worker.fetch(new Request(`https://checkout.test/session1/guide?${query}`), {
       CHECKOUT: {
         idFromName: () => {
           throw new Error("the guide needs no durable object");

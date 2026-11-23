@@ -31,7 +31,15 @@ case "tool-call":
 Pass `components.ToolFallback` to `Thread` to swap the renderer used whenever a tool call has no dedicated UI. A tool with its own registered renderer still takes precedence over this override, the same way it takes precedence over the built-in `ToolFallback`.
 
 ```tsx
-<Thread components={{ ToolFallback: MyToolCard }} />
+"use client";
+
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+const components = { ToolFallback: MyToolCard };
+
+export function Chat() {
+  return <Thread components={components} />;
+}
 ```
 
 `MyToolCard` receives the same props as `ToolFallback` itself. See the API reference below.

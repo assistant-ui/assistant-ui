@@ -5,6 +5,8 @@ import { withStagedDownload } from "./utils/download";
 import { dlxCommand, type PackageManagerName } from "./utils/package-manager";
 
 export const SKILLS_PACKAGE = "assistant-ui/skills";
+/** The `skills` CLI version that installs {@link SKILLS_PACKAGE}. */
+const SKILLS_CLI_PACKAGE = "skills@1.7.4";
 export const SKILLS_COMMIT = "b0609e66baff7e19f21053d5492464dcc22ec9c3";
 export const SKILLS_PLUGIN_SOURCE = `gh:${SKILLS_PACKAGE}/assistant-ui#${SKILLS_COMMIT}`;
 
@@ -24,7 +26,7 @@ export function buildSkillsAddCommand(
 ): [string, string[]] {
   const { stdinIsTTY = process.stdin.isTTY } = params;
   const [command, dlxArgs] = dlxCommand(pm);
-  const args = [...dlxArgs, "skills", "add", SKILLS_PACKAGE];
+  const args = [...dlxArgs, SKILLS_CLI_PACKAGE, "add", SKILLS_PACKAGE];
 
   // Without a TTY the skills CLI cannot prompt for agent platforms, so skip its
   // confirmation; with a TTY it owns the platform selection interactively.

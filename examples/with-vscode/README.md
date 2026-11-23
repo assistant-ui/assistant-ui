@@ -18,7 +18,7 @@ The webview uses `vscodeFetch` from `@assistant-ui/vscode` to tunnel requests ov
 
 ## HTML and theme
 
-`src/webviews.ts` calls `renderWebviewHtml` with the selected CSP policy and surface (`sidebar`, `panel`, or `editor`). The boot configuration travels in a body attribute. The CSP allows favicons from `https://icons.duckduckgo.com` for the Sources component.
+`src/webviews.ts` calls `renderWebviewHtml` with the selected CSP policy and surface (`sidebar`, `panel`, or `editor`). The boot configuration travels in a body attribute.
 
 `webview/app.css` imports `@assistant-ui/vscode/theme.css` after Tailwind so the kit components follow VS Code colors. `theme-follows` checks the mapped tokens and dark utilities before and after a theme switch, then restores the original theme.
 

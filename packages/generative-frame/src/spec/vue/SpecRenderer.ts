@@ -347,8 +347,9 @@ const ResolvedElement = defineComponent({
       get bindings() {
         const current = resolved();
         return rejectedPropType(
-          ctx.catalog?.propsSchema(props.element.type),
+          ctx.catalog?.component(props.element.type)?.props,
           current.props,
+          props.element.props,
         )
           ? (settled?.bindings ?? {})
           : current.bindings;
@@ -398,8 +399,9 @@ const ResolvedElement = defineComponent({
     return () => {
       const current = resolved();
       const rejected = rejectedPropType(
-        ctx.catalog?.propsSchema(props.element.type),
+        ctx.catalog?.component(props.element.type)?.props,
         current.props,
+        props.element.props,
       );
       if (!rejected) settled = current;
       else if (!ctx.streaming)

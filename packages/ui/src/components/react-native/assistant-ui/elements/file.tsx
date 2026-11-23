@@ -39,7 +39,8 @@ function getFileDataKind(
   sourceType?: "url" | "id",
 ): FileDataKind {
   if (sourceType === "url" && /^data:/i.test(data)) return "data-uri";
-  if (sourceType) return sourceType;
+  // A stored part can carry any value here; only the two literals count.
+  if (sourceType === "url" || sourceType === "id") return sourceType;
   if (/^data:/i.test(data)) return "data-uri";
   if (/^https?:\/\//i.test(data)) return "url";
   return "base64";
@@ -198,34 +199,44 @@ function FileOpen({
   );
 }
 
-const FileImpl: FileMessagePartComponent = ({
-  filename,
-  data,
-  mimeType,
-  sourceType,
-}) => {
-  const kind = getFileDataKind(data, sourceType);
-  const showSize = kind === "base64" || kind === "data-uri";
+const FileImpl: FileMessagePartComponent = (part) => {
+  // History from storage can carry fields of the wrong type; render a generic
+  // file instead of throwing. Without string data there is nothing to size or
+  // open.
+  const data = typeof part.data === "string" ? part.data : undefined;
+  const mimeType =
+    typeof part.mimeType === "string" ? part.mimeType : undefined;
+  const filename =
+    typeof part.filename === "string" ? part.filename : undefined;
+  const sourceType =
+    part.sourceType === "url" || part.sourceType === "id"
+      ? part.sourceType
+      : undefined;
+  const kind =
+    data === undefined ? undefined : getFileDataKind(data, sourceType);
+  const bytes =
+    data === undefined
+      ? undefined
+      : kind === "data-uri"
+        ? getDataUrlSize(data)
+        : kind === "base64"
+          ? getBase64Size(data)
+          : undefined;
 
   return (
     <FileRoot>
       <FileIconDisplay mimeType={mimeType} />
       <View className="min-w-0 flex-1 gap-0.5">
         <FileName>{filename}</FileName>
-        {showSize && (
-          <FileSize
-            bytes={
-              kind === "data-uri" ? getDataUrlSize(data) : getBase64Size(data)
-            }
-            className="text-xs"
-          />
-        )}
+        {bytes !== undefined && <FileSize bytes={bytes} className="text-xs" />}
       </View>
-      <FileOpen
-        data={data}
-        {...(filename !== undefined && { filename })}
-        {...(sourceType !== undefined && { sourceType })}
-      />
+      {data !== undefined && (
+        <FileOpen
+          data={data}
+          {...(filename !== undefined && { filename })}
+          {...(sourceType !== undefined && { sourceType })}
+        />
+      )}
     </FileRoot>
   );
 };

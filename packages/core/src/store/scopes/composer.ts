@@ -8,6 +8,7 @@ import type {
   ComposerSetTextOptions,
   ComposerTextOrigin,
   ComposerSubmission,
+  DictationEnd,
   DictationState,
   SendOptions,
 } from "../../runtime/interfaces/composer-runtime-core";
@@ -58,6 +59,12 @@ export type ComposerState = {
    * Undefined when dictation is not active.
    */
   readonly dictation: DictationState | undefined;
+
+  /**
+   * How the last dictation session ended, with the adapter's error when it
+   * failed. Undefined before the first session ends and while a new one runs.
+   */
+  readonly lastDictationEnd?: DictationEnd | undefined;
 
   /**
    * The currently quoted text, if any.

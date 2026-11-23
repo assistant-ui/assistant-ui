@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { useState } from "react";
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import type { Tool } from "assistant-stream";
 import { ModelContext } from "./model-context-client";
 import type {
@@ -68,19 +68,21 @@ describe("ModelContext", () => {
     }
   });
 
-  it("keeps the same state reference when an extra provider does not change the merged values", async () => {
+  it("keeps the same state reference when an extra provider does not change the merged values", () => {
     const { sub, unmount } = render();
     try {
-      sub
-        .getValue()
-        .register(provider({ config: { modelName: "gpt-6-luna" } }));
-      await tick();
+      flushTapSync(() =>
+        sub
+          .getValue()
+          .register(provider({ config: { modelName: "gpt-6-luna" } })),
+      );
       const before = sub.getValue().getState();
 
-      sub
-        .getValue()
-        .register(provider({ config: { modelName: "gpt-6-luna" } }));
-      await tick();
+      flushTapSync(() =>
+        sub
+          .getValue()
+          .register(provider({ config: { modelName: "gpt-6-luna" } })),
+      );
       const after = sub.getValue().getState();
 
       expect(after).toBe(before);
@@ -257,7 +259,7 @@ describe("ModelContext options", () => {
     }
   });
 
-  it("notifies subscribers when the options change", async () => {
+  it("notifies subscribers when the options change", () => {
     const root = createTapRoot(function Root() {
       const [options, setOptions] = useState<ModelContextOptions>({
         maxSystemLength: 4,
@@ -265,19 +267,18 @@ describe("ModelContext options", () => {
       return { client: useResource(ModelContext(options)), setOptions };
     });
     try {
-      root.getValue().client.register(provider({ system: "keep\n\ntrim" }));
-      await tick();
+      flushTapSync(() =>
+        root.getValue().client.register(provider({ system: "keep\n\ntrim" })),
+      );
       let notified = 0;
       const unsubscribe = root.getValue().client.subscribe!(() => {
         notified++;
       });
 
-      root.getValue().setOptions({ maxSystemLength: 4 });
-      await tick();
+      flushTapSync(() => root.getValue().setOptions({ maxSystemLength: 4 }));
       expect(notified).toBe(0);
 
-      root.getValue().setOptions({ maxSystemLength: 10 });
-      await tick();
+      flushTapSync(() => root.getValue().setOptions({ maxSystemLength: 10 }));
       expect(notified).toBe(1);
       expect(root.getValue().client.getModelContext().system).toBe(
         "keep\n\ntrim",

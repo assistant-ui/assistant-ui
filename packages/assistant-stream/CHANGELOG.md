@@ -1,5 +1,25 @@
 # assistant-stream
 
+## 0.3.59
+
+### Patch Changes
+
+- [#10578](https://github.com/assistant-ui/assistant-ui/pull/10578) [`9906ce6`](https://github.com/assistant-ui/assistant-ui/commit/9906ce658c309e57b138c5232f2fb1b09cdb55f8) - Honor `disabled: true` when a frontend tool is called. Until now `disabled` only kept the tool's schema from the model. A call that names a disabled tool now gets the error result `Tool "<name>" is disabled.` and `execute` and `streamCall` do not run, including for tools that only define `streamCall`. Frame tools behave the same way. Set `disabled: false` to run the tool again. ([@Yonom](https://github.com/Yonom))
+
+- [#10592](https://github.com/assistant-ui/assistant-ui/pull/10592) [`709a0cc`](https://github.com/assistant-ui/assistant-ui/commit/709a0cc74b14b6196b9e9466ecac58b502ae70e5) - Decoding a stream with many open parts is faster. Merging part streams used to touch every open part on each read and on each new part; it now tracks only the parts that have chunks waiting. Each part keeps its own chunk order and its place after earlier part-starts; chunks from different parts that are ready in the same tick may interleave differently. Updating a part in the message accumulator also makes one copy of the parts array instead of three. ([@Yonom](https://github.com/Yonom))
+
+- [#10700](https://github.com/assistant-ui/assistant-ui/pull/10700) [`297420f`](https://github.com/assistant-ui/assistant-ui/commit/297420f1dcaf28965762dd4ceb3e2ae6799d352d) - The parser backend guide recommends Streamfold 0.1.19, the first release with the iterator cleanup and diagnostic fixes its assistant-ui integration relies on. ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.58
+
+### Patch Changes
+
+- [#10597](https://github.com/assistant-ui/assistant-ui/pull/10597) [`f1a812d`](https://github.com/assistant-ui/assistant-ui/commit/f1a812d2d1a6c824ea397d798a9b158f750b7804) - never run a frontend tool's `execute` for a tool call the backend owns. Tool-call parts gain `providerExecuted`: the tool invocation tracker, `ToolExecutionStream` and `unstable_runPendingTools` skip a call that carries it, even when the run ends before the backend's result arrives. UI message streams set it for provider-executed calls, the data stream format carries it from `addToolCallPart({ providerExecuted: true })` to the client, and `@assistant-ui/ai-sdk` sets it from the AI SDK part's `providerExecuted`. A dynamic tool call is marked only when its part carries `providerExecuted: true`, so otherwise it stays client-runnable as it is in the AI SDK. `@assistant-ui/react-langchain` holds a call while the graph is paused on an interrupt, and `@assistant-ui/eve` never hands a call to a frontend tool. ([@Yonom](https://github.com/Yonom))
+
+- [#10574](https://github.com/assistant-ui/assistant-ui/pull/10574) [`7250300`](https://github.com/assistant-ui/assistant-ui/commit/7250300f918ab54bf53d92ef07de3e56ae81ac2e) - assistant-stream: `UIMessageStreamDecoder` forwards a data part's wire `id` to `onData` when the chunk carries one, so an in-place update of a data part is distinguishable from a second part with the same payload. A chunk without an `id` keeps the previous callback shape. ([@egg119](https://github.com/egg119))
+  
+  react-data-stream: `useDataStreamRuntime({ onData })` receives that optional `id`.
+
 ## 0.3.57
 
 ### Patch Changes
