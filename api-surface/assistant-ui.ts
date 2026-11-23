@@ -226,6 +226,16 @@ export const cliSurface: CliSurfaceSnapshot = {
           "hidden": true
         },
         {
+          "flags": "--provider <provider>",
+          "description": "the chat route's model provider (default: openai)",
+          "required": true,
+          "choices": [
+            "openai",
+            "anthropic",
+            "google"
+          ]
+        },
+        {
           "flags": "--use-npm",
           "description": "explicitly use npm"
         },
