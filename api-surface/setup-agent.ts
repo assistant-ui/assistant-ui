@@ -127,6 +127,7 @@ declare namespace Checkout {
     browser?: {
       lastSeenAt: number | null;
       connected: boolean;
+      awakeSince?: number;
     };
     plans: Plan[];
     steps: Step[];

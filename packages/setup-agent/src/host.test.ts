@@ -66,6 +66,7 @@ describe("CheckoutHost", () => {
     expect(host.state.browser).toEqual({
       lastSeenAt: expect.any(Number),
       connected: true,
+      awakeSince: expect.any(Number),
     });
     expect(isAgentPresent(host.state)).toBe(false);
     await host.commands["browser/bye"]();
@@ -99,6 +100,17 @@ describe("CheckoutHost", () => {
     expect(host.state.log.at(-1)?.text).toContain(
       "your coding agent's setup connection stopped over an hour ago",
     );
+  });
+
+  it("counts the page's awake run across a restored host, as after the worker hibernates", async () => {
+    let host = await abandonedHost();
+    for (let minute = 0; minute <= 60; minute++) {
+      await host.commands["browser/heartbeat"]();
+      host = mount(JSON.parse(JSON.stringify(host.snapshot())));
+      vi.advanceTimersByTime(60_000);
+    }
+    await host.commands["browser/heartbeat"]();
+    expect(host.state.status).toBe("cancelled");
   });
 
   it("keeps a setup after a sleep that silenced both the page and the agent", async () => {

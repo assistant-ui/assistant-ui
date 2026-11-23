@@ -252,9 +252,6 @@ const useCheckoutHost = (restored: unknown) => {
     }
   };
 
-  /** Since when the setup page has beaten with no gap over `PAGE_GAP_MS`; kept in memory only, so a restarted host starts counting again. */
-  let pageAwakeSince: number | undefined;
-
   /**
    * Ends a setup whose agent stream has been gone for `AGENT_ABANDON_MS`, so
    * it is not left half-finished. It ends only while the setup page has been
@@ -264,6 +261,7 @@ const useCheckoutHost = (restored: unknown) => {
   const endIfAbandoned = () => {
     if (state.createdAt === null || isClosed(state)) return;
     const { lastSeenAt } = state.agent;
+    const pageAwakeSince = state.browser?.awakeSince;
     const now = Date.now();
     if (
       lastSeenAt === null ||
@@ -491,11 +489,13 @@ const useCheckoutHost = (restored: unknown) => {
     "browser/heartbeat": () => {
       const now = Date.now();
       const previous = state.browser?.lastSeenAt ?? null;
-      if (previous === null || now - previous > PAGE_GAP_MS)
-        pageAwakeSince = now;
-      else pageAwakeSince ??= previous;
+      // Kept in the setup's state, so the run survives the worker hibernating between beats.
+      const awakeSince =
+        previous === null || now - previous > PAGE_GAP_MS
+          ? now
+          : (state.browser?.awakeSince ?? previous);
+      state.browser = { lastSeenAt: now, connected: true, awakeSince };
       endIfAbandoned();
-      state.browser = { lastSeenAt: now, connected: true };
     },
     "browser/bye": () => {
       if (state.browser) state.browser.connected = false;
