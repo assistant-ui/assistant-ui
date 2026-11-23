@@ -2,11 +2,11 @@
   "profile": {
     "you": {
       "name": "You",
-      "avatar": "https://avatar.aiellie.dev/ellie.svg?style=critters"
+      "avatar": "/blocks/avatars/you.svg"
     },
     "assistant": {
       "name": "Assistant",
-      "avatar": "https://images.aiellie.app/s2_AgEAAgA7gvb_2-r-_x1O2P8AIwBkACAAZAAAAAAAegAeALAApQBtAAAAAAABAAE.png"
+      "avatar": "/blocks/avatars/assistant.png"
     }
   },
   "pages": [
