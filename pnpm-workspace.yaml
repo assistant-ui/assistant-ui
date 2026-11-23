@@ -211,5 +211,4 @@ allowBuilds:
   react-grab: false
   ssh2: false
   vue-demi: false
-  workerd@1.20261113.1: true
-  workerd@1.20261019.1: true
+  workerd@1.20261119.1: true
