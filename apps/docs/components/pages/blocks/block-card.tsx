@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Block, UpcomingBlock } from "@/lib/blocks";
+import type { Block } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 
 const FRAME =
@@ -84,32 +84,5 @@ export function BlockCard({
         {description}
       </p>
     </Link>
-  );
-}
-
-export function UpcomingBlockCard({
-  title,
-  description,
-  stack,
-  index,
-}: Omit<UpcomingBlock, "slug"> & { index: number }) {
-  return (
-    <div className="flex flex-col">
-      <div className={cn(FRAME, "grid place-items-center")}>
-        <span className="border-foreground/10 bg-background text-muted-foreground rounded-full border px-2.5 py-0.5 text-xs">
-          Upcoming
-        </span>
-      </div>
-      <div className="mt-4 flex items-baseline gap-2.5">
-        <span className="text-muted-foreground text-xs tabular-nums">
-          {String(index).padStart(2, "0")}
-        </span>
-        <h3 className="min-w-0 text-sm font-medium">{title}</h3>
-        {stack.length > 0 && <BlockStack stack={stack} />}
-      </div>
-      <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
-        {description}
-      </p>
-    </div>
   );
 }

@@ -42,7 +42,6 @@ const MARKS: Record<string, string> = {
   "@ai-sdk/openai": "openai",
   ai: "vercel",
   "class-variance-authority": "cva",
-  "generative-frame": "assistant-ui",
   lexical: "lexical",
   "lucide-react": "lucide",
   next: "next",
