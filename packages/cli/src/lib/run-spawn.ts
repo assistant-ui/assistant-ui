@@ -1,4 +1,5 @@
 import { spawn } from "cross-spawn";
+import type { OutputFilter } from "./shadcn-output";
 
 export class SpawnExitError extends Error {
   code: number;
@@ -42,22 +43,49 @@ let activeSpawns = 0;
 // callers with their own cleanup listeners defer to it instead of racing it.
 export const hasActiveSpawn = (): boolean => activeSpawns > 0;
 
+/**
+ * The environment for a child whose stdout is piped through a filter: it
+ * keeps its colors when our own stdout is a terminal.
+ */
+const filteredEnv = (): NodeJS.ProcessEnv =>
+  process.stdout.isTTY && !process.env.NO_COLOR && !process.env.FORCE_COLOR
+    ? { ...process.env, FORCE_COLOR: "1" }
+    : process.env;
+
 function spawnProcess(
   command: string,
   args: string[],
   cwd: string | undefined,
   captureOutput: boolean,
+  stdoutFilter?: OutputFilter,
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
-      stdio: captureOutput ? ["ignore", "pipe", "pipe"] : "inherit",
+      stdio: captureOutput
+        ? ["ignore", "pipe", "pipe"]
+        : stdoutFilter
+          ? ["inherit", "pipe", "inherit"]
+          : "inherit",
       cwd,
+      ...(stdoutFilter ? { env: filteredEnv() } : {}),
     });
     let forwardedSignal: NodeJS.Signals | null = null;
     let escalated = false;
     let settled = false;
     let stdout = "";
     let stderr = "";
+
+    if (stdoutFilter) {
+      child.stdout?.setEncoding("utf8");
+      child.stdout?.on("data", (chunk: string) => {
+        const shown = stdoutFilter.write(chunk);
+        if (shown) process.stdout.write(shown);
+      });
+      child.stdout?.on("end", () => {
+        const shown = stdoutFilter.end();
+        if (shown) process.stdout.write(shown);
+      });
+    }
 
     if (captureOutput) {
       child.stdout?.setEncoding("utf8");
@@ -134,15 +162,18 @@ export function runSpawn(
   command: string,
   args: string[],
   cwd?: string,
+  { stdoutFilter }: { stdoutFilter?: OutputFilter } = {},
 ): Promise<void> {
-  return spawnProcess(command, args, cwd, false).then(({ code, signal }) => {
-    if (signal != null) {
-      throw new SpawnSignalError(signal, false);
-    }
-    if (code !== 0) {
-      throw new SpawnExitError(code || 1);
-    }
-  });
+  return spawnProcess(command, args, cwd, false, stdoutFilter).then(
+    ({ code, signal }) => {
+      if (signal != null) {
+        throw new SpawnSignalError(signal, false);
+      }
+      if (code !== 0) {
+        throw new SpawnExitError(code || 1);
+      }
+    },
+  );
 }
 
 export function runSpawnCapture(

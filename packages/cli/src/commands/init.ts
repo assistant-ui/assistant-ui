@@ -2,6 +2,7 @@ import { Command, Option } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
+import { createTooltipNoteFilter } from "../lib/shadcn-output";
 import { logger } from "../lib/utils/logger";
 import {
   dlxCommand,
@@ -135,7 +136,9 @@ export const init = new Command()
       const registryUrl = resolveQuickStartRegistryUrl(
         getComponentsJsonStyle(targetDir),
       );
-      await runSpawn(dlxCmd, [...dlxArgs, ...addArgs, registryUrl], targetDir);
+      await runSpawn(dlxCmd, [...dlxArgs, ...addArgs, registryUrl], targetDir, {
+        stdoutFilter: createTooltipNoteFilter(),
+      });
 
       const finish = finishExistingProjectInit(targetDir, fontSnapshots);
 

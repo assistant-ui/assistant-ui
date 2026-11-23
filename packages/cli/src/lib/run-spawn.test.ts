@@ -191,4 +191,34 @@ describe("runSpawn", () => {
       stderr: "warning\n",
     });
   });
+
+  it("pipes stdout through a filter and keeps stdin and stderr on the terminal", async () => {
+    const child = Object.assign(new EventEmitter(), {
+      kill: vi.fn(() => true),
+      stdout: new PassThrough(),
+    });
+    mocks.spawn.mockReturnValue(child);
+    const out: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation(((chunk: unknown) => {
+      out.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write);
+    const result = runSpawn("npx", ["shadcn", "add"], undefined, {
+      stdoutFilter: {
+        write: (chunk) => chunk.replace("drop me\n", ""),
+        end: () => "held\n",
+      },
+    });
+
+    expect(mocks.spawn.mock.lastCall?.[2]).toMatchObject({
+      stdio: ["inherit", "pipe", "inherit"],
+    });
+    child.stdout.write("keep\ndrop me\n");
+    child.stdout.end();
+    await new Promise((resolve) => setImmediate(resolve));
+    child.emit("close", 0, null);
+
+    await expect(result).resolves.toBeUndefined();
+    expect(out.join("")).toBe("keep\nheld\n");
+  });
 });

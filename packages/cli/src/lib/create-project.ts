@@ -8,6 +8,7 @@ import {
 } from "jsonc-parser";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
+import { createTooltipNoteFilter } from "./shadcn-output";
 import {
   dlxCommand,
   SHADCN_PACKAGE,
@@ -656,7 +657,9 @@ async function installShadcnRegistry(
   const addArgs = [...retryArgs, "--yes"];
 
   try {
-    await runSpawn(cmd, addArgs, projectDir);
+    await runSpawn(cmd, addArgs, projectDir, {
+      stdoutFilter: createTooltipNoteFilter(),
+    });
     return undefined;
   } catch (error) {
     if (error instanceof SpawnSignalError) {

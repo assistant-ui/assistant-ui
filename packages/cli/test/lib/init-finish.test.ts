@@ -94,9 +94,9 @@ describe("finishExistingProjectInit", () => {
     expect(lines[0]).toBe(
       `${appDir}/page.tsx now renders <Assistant />. Run the dev server and open /.`,
     );
-    expect(lines.join("\n")).toMatch(
-      /TooltipProvider: not needed[\s\S]*`cn` dependency/,
-    );
+    expect(lines.join("\n")).toContain("`cn` dependency");
+    // shadcn's TooltipProvider note is filtered out of its output, so init has nothing to correct.
+    expect(lines.join("\n")).not.toContain("TooltipProvider");
   });
 
   it("keeps an edited page and says where to render the assistant", () => {

@@ -7,6 +7,7 @@ import {
   resolveRegistryItemUrl,
 } from "../lib/utils/registry";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
+import { createTooltipNoteFilter } from "../lib/shadcn-output";
 import {
   dlxCommand,
   SHADCN_PACKAGE,
@@ -95,7 +96,9 @@ export const add = new Command()
     });
 
     try {
-      await runSpawn(command, args, opts.cwd);
+      await runSpawn(command, args, opts.cwd, {
+        stdoutFilter: createTooltipNoteFilter(),
+      });
     } catch (error) {
       if (error instanceof SpawnSignalError) throw error;
       if (error instanceof SpawnExitError) {

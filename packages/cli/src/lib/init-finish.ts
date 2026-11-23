@@ -274,9 +274,6 @@ export function describeInitFinish(result: InitFinishResult): string[] {
       `Next step: render <Assistant /> (import { Assistant } from "${specifier}") in ${result.page.pagePath} or any page.`,
     );
   }
-  lines.push(
-    "TooltipProvider: not needed. assistant-ui components include their own, so skip the layout change shadcn suggests above.",
-  );
   for (const repair of result.fontRepairs) {
     lines.push(
       repair.value
