@@ -64,6 +64,75 @@ describe("buildGuide", () => {
       );
   });
 
+  it("says the agent started the install itself, and how to stop it", () => {
+    for (const opened of [true, false]) {
+      const text = buildGuide({ started: "agent-stream", opened }).texts[
+        "stream.briefing"
+      ]!;
+      expect(text).toContain(
+        "You started it with {{cmd}} to install what the user asked for",
+      );
+      expect(text).toContain("To stop setup, end this process");
+      expect(text).toContain("Do not pkill by a pattern");
+    }
+  });
+
+  it("gives the user the setup page link to open on their own device when no browser opens here", () => {
+    const guide = buildGuide({ started: "agent-stream", opened: false });
+    expect(guide.texts["stream.briefing"]).toContain(
+      "Give the user {{browserUrl}} now: they can open it on any device",
+    );
+    expect(guide.texts.briefing).toContain(
+      "the user follows it on the setup page from any device",
+    );
+    expect(guide.texts["stream.ask.no-browser"]).toContain(
+      "give them {{page}} to open on any device",
+    );
+    // The user answers in the agent's conversation, never "the terminal" they may not see.
+    for (const context of CONTEXTS)
+      for (const key of [
+        "stream.ask.recently-opened",
+        "stream.ask.browser-closed",
+        "stream.ask.no-browser",
+      ]) {
+        const text = buildGuide(context).texts[key]!;
+        expect(text).toContain("in your own conversation");
+        expect(text).not.toContain("terminal");
+      }
+  });
+
+  it("tells an unattended agent to decide, approve its own plan and list what is left, ahead of every ask", () => {
+    const guide = buildGuide({
+      started: "agent-stream",
+      opened: false,
+      unattended: true,
+    });
+    expect(guide.texts.briefing).toMatch(/^Nobody answers this setup/);
+    expect(guide.texts.briefing).toContain(
+      '"{{cmd}} {{url}} answer plan approve"',
+    );
+    expect(guide.texts.briefing).toContain('a "To finish" list');
+    expect(guide.texts["stream.briefing"]).toContain(
+      "Nobody answers this setup (--unattended)",
+    );
+    expect(
+      buildGuide({ started: "agent-stream", opened: false }).texts.briefing,
+    ).not.toContain("Nobody answers this setup");
+    // Unattended opens no browser, even when the CLI could open one.
+    expect(
+      buildGuide({ started: "agent-stream", opened: true, unattended: true }),
+    ).toEqual(guide);
+  });
+
+  it("offers to go on unattended once nobody has come for a while", () => {
+    const text = buildGuide({ started: "agent-stream", opened: true }).texts[
+      "stream.unattended"
+    ]!;
+    expect(text).toContain("{{minutes}} minutes");
+    expect(text).toContain('"answer plan approve"');
+    expect(text).toContain("Otherwise keep waiting for the user.");
+  });
+
   it("asks contextual entry points before the plan", () => {
     const text = briefing({ started: "user", opened: true });
     expect(text).toContain("only 1–3 sensible alternatives");
@@ -107,7 +176,19 @@ describe("GET /<link>/guide", () => {
       respondToGuideRequest(new URLSearchParams("protocol=1&started=robot"))
         .status,
     ).toBe(400);
-    for (const query of ["", "protocol=abc", "protocol=1.5"])
+    expect(
+      respondToGuideRequest(
+        new URLSearchParams("protocol=1&started=agent-stream&unattended=1"),
+      ).body,
+    ).toEqual(
+      buildGuide({ started: "agent-stream", opened: true, unattended: true }),
+    );
+    for (const query of [
+      "",
+      "protocol=abc",
+      "protocol=1.5",
+      "protocol=1&unattended=yes",
+    ])
       expect(respondToGuideRequest(new URLSearchParams(query)).status).toBe(
         400,
       );

@@ -285,6 +285,7 @@ declare const GUIDE_TEXT_KEYS: readonly [
   "stream.ask.recently-opened",
   "stream.ask.browser-closed",
   "stream.ask.no-browser",
+  "stream.unattended",
   "wait.waiting",
   "done.next",
   "need.plan.question",
@@ -317,6 +318,7 @@ type Guide = {
 type GuideContext = {
   started: "agent" | "agent-stream" | "user";
   opened: boolean;
+  unattended?: boolean;
 };
 
 type GuideStep = {
