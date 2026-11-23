@@ -47,12 +47,6 @@ describe("buildInstallPrompt", () => {
     }
   });
 
-  it("points an agent with nobody to answer at --unattended", () => {
-    expect(buildInstallPrompt(resolveProducts(["assistant-ui"]))).toContain(
-      "With nobody to answer (CI, a background job, an evaluation run), add `--unattended`",
-    );
-  });
-
   it("mounts the Expo thread at the selected entry point instead of a web root component", () => {
     const prompt = buildInstallPrompt(resolveProducts(["assistant-ui"]));
     expect(prompt).toContain(

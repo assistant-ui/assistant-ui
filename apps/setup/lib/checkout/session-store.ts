@@ -120,8 +120,9 @@ export const parseAgentFragment = (
   hash: string,
 ): { link: string; setup?: string } | null => {
   const bare = hash.replace(/^#/, "");
-  // Exactly the 12 characters setup's link ids have, so a page anchor never reads as one.
-  if (/^[A-Za-z0-9]{12}$/.test(bare)) return { link: bare };
+  // A link id is 12 random characters; a page anchor is lowercase words, so it never has a digit or a capital.
+  if (/^[A-Za-z0-9]{12}$/.test(bare) && /[A-Z0-9]/.test(bare))
+    return { link: bare };
   const params = new URLSearchParams(bare);
   const link = params.get("link");
   if (link === null || !LINK_PATTERN.test(link)) return null;

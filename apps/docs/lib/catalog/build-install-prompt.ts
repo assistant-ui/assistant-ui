@@ -10,7 +10,7 @@ import type { CatalogItem } from "./types";
 
 const preamble = (
   setupCommand: string,
-) => `Not in a setup yet? Run \`${setupCommand}\` instead of following this guide by hand. It is assistant-ui's own installer: run it in the background, where it keeps running as the guided setup's stream and points you back here. It asks the user the choices the project does not settle on a setup page they can open on any device, or through you in your own conversation. With nobody to answer (CI, a background job, an evaluation run), add \`--unattended\`: you then decide each choice from the project and finish without waiting. Already in a setup: keep going.
+) => `Not in a setup yet? Run \`${setupCommand}\` instead of following this guide by hand. It is assistant-ui's own installer: run it in the background, where it keeps running as the guided setup's stream and points you back here. It asks the user the choices the project does not settle on a setup page they can open on any device, or through you in your own conversation. Already in a setup: keep going.
 
 ${AGENT_GATE_RULE}
 

@@ -132,7 +132,7 @@ const streamBriefing = (opened: boolean, unattended: boolean) =>
         ? "Setup opens the setup page in the user's browser on this machine when you ask the user something; do not open it yourself. If the user is not at this machine, give them {{browserUrl}} to open on their own device."
         : 'Setup opens no browser from this machine (--no-open, or no screen here). Give the user {{browserUrl}} now: they can open it on any device, such as their laptop or phone, to answer your questions and approve the plan. Or ask them each question in your own conversation and pass their reply with its "answer" command.'
   } On an "input.needed" event, do what its message says; to answer from here, run its "answer" command with the user's reply.
-5. To stop setup, end this process: Ctrl-C, or kill with its pid. Do not pkill by a pattern, which also matches your own shell's command. The setup page then shows you as disconnected; the project is left as it is.
+5. To stop setup, end this process: Ctrl-C, or kill the background job you started it as. Do not pkill by a pattern, which also matches your own shell's command. The setup page then shows you as disconnected; the project is left as it is.
 
 `;
 
@@ -140,7 +140,11 @@ const KEEP_WORKING =
   "Then keep working in the same turn; when you need the answer, block on it{{wait}}. Do not end your turn to wait: nothing on this stream wakes you.";
 
 /** The guide for a CLI, worded for who started the setup and whether a browser opens. */
-export const buildGuide = (context: GuideContext): Guide => {
+export const buildGuide = (requested: GuideContext): Guide => {
+  // Nobody answers an unattended setup, so no browser opens for it either.
+  const context = requested.unattended
+    ? { ...requested, opened: false }
+    : requested;
   const intro: GuideStep[] = [
     { action: "announce-agent" },
     { action: "print", text: "briefing" },

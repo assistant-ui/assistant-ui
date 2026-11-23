@@ -57,6 +57,7 @@ describe("setup session store", () => {
       link: "abcdEFGH1234",
     });
     expect(store.parseAgentFragment("#threadlist")).toBeNull();
+    expect(store.parseAgentFragment("#installation")).toBeNull();
     expect(store.parseAgentFragment("#link=a/b")).toBeNull();
     expect(store.parseAgentFragment("#intro")).toBeNull();
     expect(store.parseAgentFragment("")).toBeNull();

@@ -94,10 +94,11 @@ describe("buildGuide", () => {
         "stream.ask.recently-opened",
         "stream.ask.browser-closed",
         "stream.ask.no-browser",
-      ])
-        expect(buildGuide(context).texts[key]).toContain(
-          "in your own conversation",
-        );
+      ]) {
+        const text = buildGuide(context).texts[key]!;
+        expect(text).toContain("in your own conversation");
+        expect(text).not.toContain("terminal");
+      }
   });
 
   it("tells an unattended agent to decide, approve its own plan and list what is left, ahead of every ask", () => {
@@ -117,6 +118,10 @@ describe("buildGuide", () => {
     expect(
       buildGuide({ started: "agent-stream", opened: false }).texts.briefing,
     ).not.toContain("Nobody answers this setup");
+    // Unattended opens no browser, even when the CLI could open one.
+    expect(
+      buildGuide({ started: "agent-stream", opened: true, unattended: true }),
+    ).toEqual(guide);
   });
 
   it("offers to go on unattended once nobody has come for a while", () => {
