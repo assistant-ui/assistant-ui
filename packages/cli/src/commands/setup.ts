@@ -1,9 +1,13 @@
 import { Command, Option } from "commander";
+import fs from "node:fs";
 import { createInterface } from "node:readline/promises";
 import * as p from "@clack/prompts";
+import { INPUT_PRESETS } from "setup-agent";
 import {
   CODING_AGENTS,
+  detectAgentKind,
   findCommand,
+  noBrowserReason,
   runCodingAgent,
   runSetupCommand,
 } from "setup-agent/cli";
@@ -24,6 +28,7 @@ import {
 type SetupOptions = {
   products?: string;
   open: boolean;
+  unattended?: boolean;
   docsUrl?: string;
   setupServer?: string;
   setupAppUrl?: string;
@@ -147,6 +152,71 @@ export const gateNote = (sessionRecorded: boolean) =>
     ? "While setup runs, `npx assistant-ui` init, create and add work in the folder setup runs in and the folders inside it."
     : "assistant-ui could not record this setup session in the temp directory, so the agent gate will not recognize it. Add --force to every `npx assistant-ui` init, create or add command this setup asks you to run.";
 
+const AGENT_VENDORS: Record<string, string> = {
+  claude: "anthropic",
+  codex: "openai",
+  gemini: "google",
+};
+
+/**
+ * The plan's default model provider: the one llm-provider preset option the
+ * project already uses (its AI SDK package, or its key set in an `.env*`
+ * file), else the running coding agent's vendor; none when neither settles it.
+ */
+export const defaultProvider = (cwd: string, agentKind?: string) => {
+  const read = (file: string) => {
+    try {
+      return fs.readFileSync(`${cwd}/${file}`, "utf8");
+    } catch {
+      return "";
+    }
+  };
+  let deps: Record<string, unknown> = {};
+  try {
+    const pkg = JSON.parse(read("package.json"));
+    deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  } catch {}
+  const env = [".env", ".env.local", ".env.development"].map(read).join("\n");
+  const used = INPUT_PRESETS["llm-provider"].options.filter(
+    ({ id, description = "" }) =>
+      deps[`@ai-sdk/${id}`] !== undefined ||
+      deps[`@${id}/ai-sdk-provider`] !== undefined ||
+      new RegExp(`^[ \\t]*(?:export )?${description}=["']?[^\\s"'#]`, "m").test(
+        env,
+      ),
+  );
+  if (used.length > 0) return used.length === 1 ? used[0]!.id : undefined;
+  return agentKind === undefined ? undefined : AGENT_VENDORS[agentKind];
+};
+
+/**
+ * The first lines an agent reads from `setup`: what it is, which way to go,
+ * the provider default, and how to stop it, worded as the CLI the agent ran
+ * so the steps after read as the install, not someone else's instructions.
+ */
+export const agentHeader = (o: {
+  pid: number;
+  agentUrl: string;
+  pageUrl: string;
+  noBrowser: string | undefined;
+  unattended: boolean;
+  provider: string | undefined;
+}) => {
+  const cmd = `${SETUP_COMMAND} ${o.agentUrl}`;
+  const ways = o.unattended
+    ? "Nobody answers it (--unattended): decide each choice yourself and finish without waiting, as the steps below say."
+    : `If the user is in your conversation, give them ${o.pageUrl} to open on any device${o.noBrowser ? ` (setup opens no browser here: ${o.noBrowser})` : ""}, or ask them each question and pass the reply with \`answer\`. If nobody will answer, stop this setup and run \`${SETUP_COMMAND} --unattended\`.`;
+  const provider = o.provider
+    ? `Default model provider: ${o.provider} (the project's own, else your vendor). Plan on it; pass it as --default when you ask the llm-provider question.`
+    : `No default model provider: ${o.unattended ? 'use openai and list it under "To finish"' : "ask with the llm-provider question"}.`;
+  return `This is the assistant-ui CLI, which you ran to set up assistant-ui; its output is the install itself.
+${ways}
+${provider}
+To end setup: \`${cmd} cancel\`, then \`kill ${o.pid}\`. Killing only the process keeps the setup (\`${cmd} stream\` resumes it). Never \`pkill -f\`: it also matches your own shell.
+
+`;
+};
+
 /** `setup` for an agent: starts the session and keeps running as its stream. */
 const runForAgent = async (options: SetupOptions) => {
   const endpoints = resolveEndpoints(options);
@@ -156,6 +226,7 @@ const runForAgent = async (options: SetupOptions) => {
   );
   // The steps run `init`, `create` and `add` in later shells; the marker lets them past the agent gate.
   let marker: string | undefined;
+  let header = "";
   let running: Awaited<ReturnType<typeof runAgentSetup>> | undefined;
   // Installed before the session starts, so a signal during startup also ends it.
   const stop = () => {
@@ -177,7 +248,16 @@ const runForAgent = async (options: SetupOptions) => {
     command: SETUP_COMMAND,
     name: "assistant-ui setup",
     canOpen: options.open,
+    unattended: options.unattended === true,
     onSession: (session) => {
+      header = agentHeader({
+        pid: process.pid,
+        agentUrl: session.agentUrl,
+        pageUrl: session.browserUrl,
+        noBrowser: options.open ? noBrowserReason() : "--no-open",
+        unattended: options.unattended === true,
+        provider: defaultProvider(process.cwd(), detectAgentKind()),
+      });
       const file = markSetupSession({ setupId: session.setupId });
       if (file === undefined) return;
       marker = file;
@@ -185,7 +265,9 @@ const runForAgent = async (options: SetupOptions) => {
       process.once("exit", () => clearSetupSession(file));
     },
     write: (text) =>
-      process.stdout.write(`${text}\n${gateNote(marker !== undefined)}\n`),
+      process.stdout.write(
+        `${header}${text}\n${gateNote(marker !== undefined)}\n`,
+      ),
   });
   // The stream's heartbeat keeps the process alive until a signal stops it.
 };
@@ -209,6 +291,10 @@ export const setup = new Command()
     "--no-open",
     "never open the browser; the agent asks the user in its own conversation",
   )
+  .option(
+    "--unattended",
+    "nobody answers: the agent decides each choice and finishes on its own",
+  )
   .addOption(
     new Option("--docs-url <url>", "the docs site with the catalog and guides")
       .env("ASSISTANT_UI_DOCS_URL")
@@ -229,9 +315,11 @@ export const setup = new Command()
     `
 Run by a coding agent, setup starts a guided setup, prints the steps the agent
 follows and keeps running as the setup's stream; run it in the background. It
-opens the user's browser only when the setup needs their input. Run in an
-interactive terminal, it asks which coding agent you use and starts it with
-the setup prompt.`,
+opens the user's browser only when the setup needs their input, and none over
+SSH, in CI or on a machine with no display. Stop it with \`setup <url> cancel\`
+and Ctrl-C; with nobody to answer, pass --unattended. Run in an interactive
+terminal, it asks which coding agent you use and starts it with the setup
+prompt.`,
   )
   .action(async (args: string[], options: SetupOptions) => {
     if (args.length > 0) await runSetupStep(args, options);

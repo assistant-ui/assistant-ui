@@ -144,3 +144,23 @@ export const createBrowserGate = ({
     },
   };
 };
+
+/**
+ * Why a browser opened here would not reach the user, or `undefined` when it
+ * would: SSH without a forwarded display, CI, or a Linux/BSD machine with no
+ * display. A `BROWSER` or `SETUP_AGENT_BROWSER` program opens it elsewhere.
+ */
+export const noBrowserReason = (
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+) => {
+  const set = (name: string) =>
+    !["", "0", "false", undefined].includes(env[name]?.trim());
+  if (set("BROWSER") || set("SETUP_AGENT_BROWSER")) return undefined;
+  const display = set("DISPLAY") || set("WAYLAND_DISPLAY");
+  if (!display && (set("SSH_CONNECTION") || set("SSH_TTY"))) return "ssh";
+  if (set("CI")) return "ci";
+  return display || platform === "darwin" || platform === "win32"
+    ? undefined
+    : "no-display";
+};

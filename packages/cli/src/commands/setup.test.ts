@@ -10,7 +10,14 @@ import {
   setupSessionMarkerPath,
   shouldGateAgent,
 } from "../lib/agent-gate";
-import { agentOptions, gateNote, handOffPrompt, setup } from "./setup";
+import {
+  agentHeader,
+  agentOptions,
+  defaultProvider,
+  gateNote,
+  handOffPrompt,
+  setup,
+} from "./setup";
 
 vi.mock("../lib/setup-session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/setup-session")>()),
@@ -110,10 +117,52 @@ describe("setup", () => {
     ]);
   });
 
+  it("names both ways to go, the provider default and a clean stop", () => {
+    const header = agentHeader({
+      pid: 42,
+      agentUrl: "https://c.test/abc",
+      pageUrl: "https://setup.test/#link=abc",
+      noBrowser: "ssh",
+      unattended: false,
+      provider: "anthropic",
+    });
+    expect(header).toContain(
+      "give them https://setup.test/#link=abc to open on any device (setup opens no browser here: ssh)",
+    );
+    expect(header).toContain(
+      "run `npx assistant-ui@latest setup --unattended`",
+    );
+    expect(header).toContain("Default model provider: anthropic");
+    expect(header).toContain(
+      "`npx assistant-ui@latest setup https://c.test/abc cancel`, then `kill 42`",
+    );
+  });
+
+  it("defaults the provider to the project's own, else the coding agent's vendor", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aui-provider-"));
+    try {
+      expect(defaultProvider(dir, "claude")).toBe("anthropic");
+      expect(defaultProvider(dir, "cursor")).toBeUndefined();
+      fs.writeFileSync(
+        path.join(dir, ".env.local"),
+        'XAI_API_KEY=""\nOPENAI_API_KEY=sk\n',
+      );
+      expect(defaultProvider(dir, "claude")).toBe("openai");
+      fs.writeFileSync(
+        path.join(dir, "package.json"),
+        JSON.stringify({ dependencies: { "@ai-sdk/google": "^3" } }),
+      );
+      expect(defaultProvider(dir, "claude")).toBeUndefined();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("offers products and a no-open flag", () => {
     expect(setup.options.map((option) => option.long)).toEqual([
       "--products",
       "--no-open",
+      "--unattended",
       "--docs-url",
       "--setup-server",
       "--setup-app-url",
@@ -140,6 +189,8 @@ describe("setup", () => {
       const printed = String(write.mock.calls[0]?.[0]);
       expect(printed).toContain("https://setup.test/#link=abc&setup=def");
       expect(printed).toContain(gateNote(true));
+      expect(printed).toMatch(/^This is the assistant-ui CLI/);
+      expect(printed).toContain(`kill ${process.pid}`);
       expect(gateNote(true)).not.toContain("--force");
       // `init`, `create` and `add` run in the agent's later shells, which share the temp directory.
       const marker = setupSessionMarkerPath(process.cwd(), "def", tmp);

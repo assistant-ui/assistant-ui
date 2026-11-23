@@ -88,7 +88,7 @@ describe("followSetup", () => {
     vi.useRealTimers();
   });
 
-  const start = async () => {
+  const start = async (unattendedAfterMs?: number) => {
     const fake = fakeClient();
     const lines: StreamEvent[][] = [];
     const open = vi.fn();
@@ -101,6 +101,7 @@ describe("followSetup", () => {
         linkId: "abc",
         answerCommand: ANSWER,
         open,
+        ...(unattendedAfterMs !== undefined && { unattendedAfterMs }),
       },
     });
     const events = () => lines.flat();
@@ -180,6 +181,18 @@ describe("followSetup", () => {
       inputId: "q3",
       answer: "npm",
     });
+    await t.stream.stop();
+  });
+
+  it("offers once to go on unattended when no page joined while a question waited", async () => {
+    const t = await start(180_000);
+    t.ask("Which package manager?");
+    await vi.advanceTimersByTimeAsync(170_000);
+    expect(t.events().some((e) => e.event === "unattended")).toBe(false);
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(t.events().filter((e) => e.event === "unattended")).toEqual([
+      { event: "unattended", minutes: 3, message: "[stream.unattended] 3" },
+    ]);
     await t.stream.stop();
   });
 

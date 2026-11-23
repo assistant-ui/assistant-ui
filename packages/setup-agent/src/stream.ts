@@ -3,7 +3,11 @@ import { detectAgentKind } from "./agents";
 import { createBrowserGate } from "./browser";
 import type { AskReason, BrowserGateAction } from "./browser";
 import type { CheckoutClient } from "./client";
-import { formatTerminalQuestion, terminalQuestion } from "./needs";
+import {
+  formatTerminalQuestion,
+  pendingNeeds,
+  terminalQuestion,
+} from "./needs";
 import type { TerminalQuestion } from "./needs";
 import {
   AGENT_HEARTBEAT_MS,
@@ -33,6 +37,7 @@ export type StreamEvent =
   | { event: "finished"; next: string }
   | { event: "cancelled"; next: string }
   | { event: "setup.created"; products: string[] }
+  | { event: "unattended"; minutes: number; message: string }
   | {
       event: "browser.opened";
       /** The need the tab opened for: an input id, plan or finish. */
@@ -240,6 +245,8 @@ export type FollowSetupOptions = {
     open?: (url: string) => void;
     /** False for `--no-open`: the agent is told to ask instead. */
     canOpen?: boolean;
+    /** After the setup waits on the user this long with no setup page ever joined, offer once to go on unattended. */
+    unattendedAfterMs?: number;
     now?: () => number;
   };
 };
@@ -280,7 +287,24 @@ export const followSetup = async (
     if (pending.length > 0) write(pending);
     pending = [];
   };
+  let waitingSince: number | undefined;
+  const offerUnattended = (state: Checkout.State) => {
+    const after = browser?.unattendedAfterMs;
+    if (after === undefined || waitingSince === -1) return;
+    const now = (browser?.now ?? Date.now)();
+    if (pendingNeeds(state).length === 0 || state.browser?.lastSeenAt)
+      return void (waitingSince = undefined);
+    if (now - (waitingSince ??= now) < after) return;
+    waitingSince = -1;
+    const minutes = Math.round(after / 60_000);
+    pending.push({
+      event: "unattended",
+      minutes,
+      message: renderText(guide, "stream.unattended", { minutes }),
+    });
+  };
   const runGate = (state: Checkout.State) => {
+    offerUnattended(state);
     for (const action of gate?.update(state) ?? []) {
       if (action.type === "open") (browser!.open ?? openUrl)(action.url);
       pending.push(

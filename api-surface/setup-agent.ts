@@ -270,6 +270,7 @@ type FollowSetupOptions = {
     answerCommand: string;
     open?: (url: string) => void;
     canOpen?: boolean;
+    unattendedAfterMs?: number;
     now?: () => number;
   };
 };
@@ -433,6 +434,7 @@ type RunAgentSetupOptions = {
   command: string;
   name?: string;
   canOpen?: boolean;
+  unattended?: boolean;
   open?: (url: string) => void;
   onSession?: (session: SetupSession) => void;
   write?: (text: string) => void;
@@ -491,6 +493,10 @@ type StreamEvent = {
   event: "setup.created";
   products: string[];
 } | {
+  event: "unattended";
+  minutes: number;
+  message: string;
+} | {
   event: "browser.opened";
   id: string;
   url: string;
@@ -517,7 +523,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { CODING_AGENTS, CodingAgent, HELP, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { CODING_AGENTS, CodingAgent, HELP, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, noBrowserReason, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -565,6 +571,8 @@ declare const isValidEntryPointInput: (input: Checkout.InputSeed) => boolean;
 declare const isValidModelAnswer: (input: Checkout.Input, answer: string) => boolean;
 
 declare const main: (argv: readonly string[]) => Promise<void>;
+
+declare const noBrowserReason: (env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform) => "ci" | "no-display" | "ssh" | undefined;
 
 declare const openInputs: (state: Checkout.State) => Checkout.Input[];
 

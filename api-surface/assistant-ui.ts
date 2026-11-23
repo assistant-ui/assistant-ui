@@ -30,6 +30,10 @@ export const cliSurface: CliSurfaceSnapshot = {
           "description": "never open the browser; the agent asks the user in its own conversation"
         },
         {
+          "flags": "--unattended",
+          "description": "nobody answers: the agent decides each choice and finishes on its own"
+        },
+        {
           "flags": "--docs-url <url>",
           "description": "the docs site with the catalog and guides",
           "required": true,

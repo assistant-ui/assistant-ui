@@ -53,7 +53,7 @@ describe("setup-agent/sdk", () => {
         products: [{ slug: "assistant-ui", name: "assistant-ui" }],
         command: "npx my-tool setup",
         name: "my-tool setup",
-        env: {},
+        env: { DISPLAY: ":0" },
         connect,
         open,
         write: (text) => (out += text),
@@ -104,4 +104,72 @@ describe("setup-agent/sdk", () => {
       vi.useRealTimers();
     }
   });
+
+  it.each([
+    [{ SSH_TTY: "/dev/pts/0" }, false, "opened=0", ["input.needed"]],
+    [{ DISPLAY: ":0" }, true, "opened=0&unattended=1", []],
+  ])(
+    "opens no browser for %o (unattended: %s), and relays a question only when someone answers",
+    async (env, unattended, query, events) => {
+      vi.useFakeTimers();
+      try {
+        let state: Checkout.State = {
+          ...initialCheckoutState(),
+          id: "s1",
+          status: "planning",
+          createdAt: 1,
+        };
+        const listeners = new Set<() => void>();
+        const client = {
+          get state() {
+            return state;
+          },
+          subscribe: (listener: () => void) => (
+            listeners.add(listener),
+            () => listeners.delete(listener)
+          ),
+          commands: new Proxy({}, { get: () => async () => {} }),
+          dispose: vi.fn(),
+        } as unknown as CheckoutClient;
+        const open = vi.fn();
+        const lines: { event: string }[] = [];
+        const { session, stream } = await sdk.runAgentSetup({
+          server: "https://checkout.test",
+          setupAppUrl: "https://setup.test",
+          products: [],
+          command: "npx my-tool setup",
+          env,
+          unattended,
+          connect: async () => client,
+          open,
+          write: () => {},
+          stream: { print: (e) => lines.push(...e), agent: { cwd: "/app" } },
+        });
+        expect(String(vi.mocked(fetch).mock.calls.at(-1)?.[0])).toBe(
+          `https://checkout.test/${session.linkId}/guide?protocol=1&started=agent-stream&${query}`,
+        );
+        state = {
+          ...state,
+          inputs: [
+            {
+              id: "q1",
+              phase: "planning",
+              kind: "text",
+              prompt: "Which project?",
+              optional: false,
+              status: "open",
+              createdAt: 1,
+            },
+          ],
+        };
+        for (const listener of listeners) listener();
+        await vi.advanceTimersByTimeAsync(300);
+        expect(lines.map((e) => e.event)).toEqual(events);
+        expect(open).not.toHaveBeenCalled();
+        await stream.stop();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 });
