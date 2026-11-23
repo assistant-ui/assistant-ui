@@ -523,7 +523,10 @@ export const glyphFor = (icon: string | PageIcon | undefined): Glyph => {
         : undefined;
   return (
     (name &&
-      ((icons as Record<string, Glyph>)[name] ?? pageGlyphs.get(name))) ||
+      ((Object.hasOwn(icons, name)
+        ? (icons as Record<string, Glyph>)[name]
+        : undefined) ??
+        pageGlyphs.get(name))) ||
     icons.page
   );
 };

@@ -74,8 +74,8 @@ function quoteIn(message: ThreadMessage | undefined) {
 const quoteFrom = (text: string) => {
   const plain = plainText(text).trim();
   if (plain.length <= 64) return plain;
-  const cut = plain.slice(0, 64);
-  return cut.slice(0, Math.max(cut.lastIndexOf(" "), 24)).trim();
+  const space = plain.lastIndexOf(" ", 64);
+  return space > 0 ? plain.slice(0, space).trim() : plain.slice(0, 64);
 };
 
 const isHeading = (block: Block) =>

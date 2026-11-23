@@ -932,6 +932,7 @@ function $turnInto(node: ElementNode, type: TextBlockType, ids: BlockIds) {
   if (!focus) return;
   focus.append(...node.getChildren());
 
+  if ($isListItemNode(node)) node.setIndent(0);
   const list = node.getParent();
   if ($isListItemNode(node) && $isListNode(list)) {
     const after = node.getNextSiblings();

@@ -6,6 +6,7 @@ import {
   blockAssistantUi,
   blockDependencies,
   readBlockSource,
+  readPublishedDependencies,
 } from "@/components/pages/blocks/block-source";
 import { Dependencies } from "@/components/pages/blocks/dependencies";
 import {
@@ -49,7 +50,9 @@ export default async function BlockPage(props: {
   if (!block) notFound();
 
   const files = await readBlockSource(block.source);
-  const dependencies = blockDependencies(files, docsManifest.dependencies);
+  const dependencies = await readPublishedDependencies(
+    blockDependencies(files, docsManifest.dependencies),
+  );
   const imports = blockAssistantUi(files);
 
   return (

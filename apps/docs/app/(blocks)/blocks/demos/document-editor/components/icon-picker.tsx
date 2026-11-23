@@ -567,6 +567,7 @@ function IconPanel({
           role="group"
           aria-label="Jump to a category"
           className="flex shrink-0 items-center justify-between"
+          onMouseDown={(event) => event.preventDefault()}
         >
           {EMOJI_GROUPS.map((group) => (
             <IconButton

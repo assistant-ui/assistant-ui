@@ -129,6 +129,40 @@ export function blockDependencies(
   return Object.entries(dependencies).map(([name, range]) => ({ name, range }));
 }
 
+export async function readPublishedDependencies(
+  dependencies: readonly BlockDependency[],
+): Promise<BlockDependency[]> {
+  "use cache";
+  cacheLife("max");
+  return publishedDependencies(
+    dependencies,
+    path.join(/* turbopackIgnore: true */ process.cwd(), "node_modules"),
+  );
+}
+
+/**
+ * Swaps each `workspace:` range, which installs only inside this monorepo,
+ * for a caret range on the version the package's manifest under `modulesRoot`
+ * publishes.
+ */
+export async function publishedDependencies(
+  dependencies: readonly BlockDependency[],
+  modulesRoot: string,
+): Promise<BlockDependency[]> {
+  return Promise.all(
+    dependencies.map(async (dependency) => {
+      if (!dependency.range.startsWith("workspace:")) return dependency;
+      const { version } = JSON.parse(
+        await fs.readFile(
+          path.join(modulesRoot, dependency.name, "package.json"),
+          "utf8",
+        ),
+      ) as { version: string };
+      return { ...dependency, range: `^${version}` };
+    }),
+  );
+}
+
 function importKind(name: string, source: string): BlockImportKind {
   if (source.startsWith("@/")) return "component";
   if (/^(?:unstable_)?use[A-Z]/.test(name)) return "hook";

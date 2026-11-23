@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   blockAssistantUi,
   blockDependencies,
+  publishedDependencies,
   readBlockFiles,
 } from "./block-source";
 
@@ -129,6 +130,41 @@ describe("blockDependencies", () => {
     expect(
       blockDependencies([{ path: "app/page.tsx", code: "export {};" }]),
     ).toEqual([]);
+  });
+});
+
+describe("publishedDependencies", () => {
+  let modulesRoot: string;
+
+  beforeEach(async () => {
+    modulesRoot = await mkdtemp(path.join(tmpdir(), "block-modules-"));
+  });
+
+  afterEach(async () => {
+    await rm(modulesRoot, { recursive: true, force: true });
+  });
+
+  it("swaps a workspace range for a caret range on the version the package publishes", async () => {
+    await mkdir(path.join(modulesRoot, "@assistant-ui/react"), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(modulesRoot, "@assistant-ui/react/package.json"),
+      JSON.stringify({ name: "@assistant-ui/react", version: "0.14.2" }),
+    );
+
+    expect(
+      await publishedDependencies(
+        [
+          { name: "@assistant-ui/react", range: "workspace:*" },
+          { name: "react", range: "^19.3.1" },
+        ],
+        modulesRoot,
+      ),
+    ).toEqual([
+      { name: "@assistant-ui/react", range: "^0.14.2" },
+      { name: "react", range: "^19.3.1" },
+    ]);
   });
 });
 

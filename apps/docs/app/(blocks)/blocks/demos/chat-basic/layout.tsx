@@ -10,6 +10,11 @@ const geistMono = Geist_Mono({
   variable: "--font-mono",
 });
 
+const pageFonts = `:root:has(.chat-basic), body:has(.chat-basic) {
+  --font-sans: ${geist.style.fontFamily}, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ${geistMono.style.fontFamily}, ui-monospace, SFMono-Regular, Menlo, monospace;
+}`;
+
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div
@@ -19,6 +24,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         geistMono.variable,
       )}
     >
+      <style>{pageFonts}</style>
       {children}
     </div>
   );

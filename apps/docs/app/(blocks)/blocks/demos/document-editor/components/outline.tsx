@@ -173,7 +173,7 @@ export function Outline() {
         render={
           <nav
             aria-label="On this page"
-            className="absolute top-1/2 left-2 z-20 flex max-h-[calc(100%-13rem)] -translate-y-1/2 flex-col gap-0.5 overflow-hidden"
+            className="absolute top-1/2 left-2 z-20 flex max-h-[calc(100%-13rem)] -translate-y-1/2 [scrollbar-width:none] flex-col gap-0.5 overflow-y-auto"
             onKeyDown={onKeyDown}
           />
         }

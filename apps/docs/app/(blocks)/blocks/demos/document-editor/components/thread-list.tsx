@@ -4,8 +4,9 @@ import {
   AuiIf,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
+  useAuiState,
 } from "@assistant-ui/react";
-import { useRef } from "react";
+import { useRef, type RefObject } from "react";
 import { cn } from "@/lib/utils";
 import { Icon, IconButton, icons, menuRowClass, radius, text } from "./ui";
 
@@ -56,21 +57,33 @@ export function ThreadList({ onPick }: { onPick: () => void }) {
                 <ThreadListItemPrimitive.Title fallback="New chat" />
               </span>
             </ThreadListItemPrimitive.Trigger>
-            {/* The row goes with its chat, so focus moves on before it does. */}
-            <ThreadListItemPrimitive.Delete
-              asChild
-              onClick={() => newChat.current?.focus()}
-            >
-              <IconButton
-                label="Delete this chat"
-                icon={icons.delete}
-                side="top"
-                className="hover:text-destructive absolute end-0.5 size-6 opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 pointer-coarse:size-8 pointer-coarse:opacity-100"
-              />
-            </ThreadListItemPrimitive.Delete>
+            <DeleteChat newChat={newChat} />
           </ThreadListItemPrimitive.Root>
         )}
       </ThreadListPrimitive.Items>
     </ThreadListPrimitive.Root>
+  );
+}
+
+function DeleteChat({
+  newChat,
+}: {
+  newChat: RefObject<HTMLButtonElement | null>;
+}) {
+  const title = useAuiState((s) => s.threadListItem.title) || "New chat";
+
+  return (
+    /* The row goes with its chat, so focus moves on before it does. */
+    <ThreadListItemPrimitive.Delete
+      asChild
+      onClick={() => newChat.current?.focus()}
+    >
+      <IconButton
+        label={`Delete “${title}”`}
+        icon={icons.delete}
+        side="top"
+        className="hover:text-destructive absolute end-0.5 size-6 opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 pointer-coarse:size-8 pointer-coarse:opacity-100"
+      />
+    </ThreadListItemPrimitive.Delete>
   );
 }

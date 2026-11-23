@@ -276,6 +276,7 @@ export function SelectionToolbar() {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.target as Node)) return;
     if (event.key === "Escape") {
       event.preventDefault();
       quiet.current = true;

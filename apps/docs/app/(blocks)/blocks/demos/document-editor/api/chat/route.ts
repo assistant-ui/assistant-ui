@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
 import {
   frontendTools,
@@ -26,11 +27,13 @@ The open page is the "document" interactable: a title and an ordered list of blo
 - To give feedback without changing the text, add comments with update_comments.
 - After a tool call, reply in one or two short sentences that say what you changed. Never paste the page or the new text into the chat.`;
 
-type ChatRequest = {
-  messages: UIMessage[];
-  system?: string;
-  tools?: FrontendTools;
-};
+const bodySchema = z.object({
+  messages: z.array(
+    z.looseObject({ role: z.string(), parts: z.array(z.unknown()) }),
+  ),
+  system: z.string().max(4000).optional(),
+  tools: z.record(z.string(), z.unknown()).optional(),
+});
 
 export async function POST(req: Request) {
   // Any route file under app/ is a public endpoint on the site that serves it, so this one stays off unless switched on.
@@ -38,7 +41,15 @@ export async function POST(req: Request) {
     return new Response("Not found", { status: 404 });
   }
 
-  const { messages, system, tools }: ChatRequest = await req.json();
+  const body = bodySchema.safeParse(await req.json().catch(() => undefined));
+  if (!body.success) {
+    return new Response("The request body is not a chat request.", {
+      status: 400,
+    });
+  }
+  const messages = body.data.messages as unknown as UIMessage[];
+  const tools = body.data.tools as FrontendTools | undefined;
+  const { system } = body.data;
   const aiSDKTools = frontendTools(tools ?? {});
 
   const result = streamText({

@@ -25,6 +25,12 @@ type ThemeMessage = {
 export function BlockThemeListener() {
   useEffect(() => {
     const root = document.documentElement;
+    const initialClasses = ["dark", "light"].map(
+      (name) => [name, root.classList.contains(name)] as const,
+    );
+    const initialStyles = [root, document.body].map(
+      (element) => [element, element.getAttribute("style")] as const,
+    );
     const setMode = (mode: unknown) => {
       if (mode !== "dark" && mode !== "light") return;
       root.classList.toggle("dark", mode === "dark");
@@ -64,6 +70,12 @@ export function BlockThemeListener() {
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("message", onMessage);
+      for (const [name, present] of initialClasses)
+        root.classList.toggle(name, present);
+      for (const [element, style] of initialStyles) {
+        if (style === null) element.removeAttribute("style");
+        else element.setAttribute("style", style);
+      }
     };
   }, []);
 

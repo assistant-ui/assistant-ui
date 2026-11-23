@@ -11,6 +11,11 @@ const geistMono = Geist_Mono({
   variable: "--font-mono",
 });
 
+const pageFonts = `:root:has(.document-editor), body:has(.document-editor) {
+  --font-sans: ${geist.style.fontFamily}, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ${geistMono.style.fontFamily}, ui-monospace, SFMono-Regular, Menlo, monospace;
+}`;
+
 export const metadata: Metadata = { title: "Document editor" };
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -22,6 +27,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         geistMono.variable,
       )}
     >
+      <style>{pageFonts}</style>
       {children}
     </div>
   );

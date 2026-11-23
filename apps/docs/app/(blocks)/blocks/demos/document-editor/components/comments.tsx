@@ -718,13 +718,15 @@ function Message({
   }, [copied]);
 
   const copy = (value: string, done: string) => {
-    navigator.clipboard.writeText(value).then(
-      () => {
-        setCopied(true);
-        announce(done);
-      },
-      () => announce("Could not copy. The browser blocked the clipboard."),
-    );
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(value))
+      .then(
+        () => {
+          setCopied(true);
+          announce(done);
+        },
+        () => announce("Could not copy. The browser blocked the clipboard."),
+      );
   };
 
   const copyLink = () => {
@@ -831,8 +833,9 @@ function ReplyField({
   const listId = useId();
   const optionId = useId();
   const draft = thread.messages.length === 0;
+  const waiting = useIsReplying(thread.id);
   const mention = dismissed ? null : mentionAt(value, caret);
-  const ready = value.trim().length > 0;
+  const ready = value.trim().length > 0 && !waiting;
 
   const accept = (query: MentionQuery) => {
     const inserted = `@${ASSISTANT_NAME} `;
@@ -847,7 +850,7 @@ function ReplyField({
 
   const send = () => {
     const message = value.trim();
-    if (!message) return;
+    if (!message || waiting) return;
     documentActions.addThreadMessage(thread.id, {
       author: "you",
       text: message,

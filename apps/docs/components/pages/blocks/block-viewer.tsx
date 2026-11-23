@@ -179,32 +179,6 @@ function TreeItems({
   );
 }
 
-function usePreviewReady(url: string | null) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (!url) return;
-    let cancelled = false;
-    const probe = async () => {
-      while (!cancelled) {
-        try {
-          await fetch(url, { mode: "no-cors" });
-          if (!cancelled) setReady(true);
-          return;
-        } catch {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-    };
-    void probe();
-    return () => {
-      cancelled = true;
-    };
-  }, [url]);
-
-  return ready;
-}
-
 function BlockCode({
   name,
   files,
@@ -285,7 +259,7 @@ export function BlockViewer({
   const [refreshing, setRefreshing] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
-  const ready = usePreviewReady(previewUrl);
+  const [loaded, setLoaded] = useState(false);
   const [chosenMode, setChosenMode] = useState<BlockTheme["mode"] | null>(null);
   const [choice, setChoice] = useState<BlockThemeChoice>(DEFAULT_THEME_CHOICE);
   const mode = chosenMode ?? (resolvedTheme === "dark" ? "dark" : "light");
@@ -374,7 +348,9 @@ export function BlockViewer({
             </TooltipIconButton>
             <TooltipIconButton
               tooltip="Full screen"
-              onClick={() => void frameRef.current?.requestFullscreen()}
+              onClick={() => {
+                frameRef.current?.requestFullscreen().catch(() => {});
+              }}
               className={control}
             >
               <Maximize />
@@ -391,33 +367,32 @@ export function BlockViewer({
               className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] [&:fullscreen]:bg-background flex h-[min(78vh,720px)] justify-center overflow-hidden rounded-2xl border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-0"
             >
               <div
-                className="bg-background h-full w-full transition-[max-width] duration-200 motion-reduce:transition-none"
+                className="bg-background relative h-full w-full transition-[max-width] duration-200 motion-reduce:transition-none"
                 style={{ maxWidth: width }}
               >
-                {ready ? (
-                  <iframe
-                    key={reloads}
-                    // The address carries only the mode the frame loads with;
-                    // later theme changes are posted, so they never reload it.
-                    ref={(node) => {
-                      iframeRef.current = node;
-                      if (node && !node.getAttribute("src"))
-                        node.src = themedUrl;
-                    }}
-                    title={`${title} preview`}
-                    allow="microphone; clipboard-write"
-                    onLoad={() => {
-                      postTheme();
-                      setRefreshing(false);
-                    }}
-                    className={cn(
-                      "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
-                      refreshing && "opacity-0",
-                    )}
-                  />
-                ) : (
-                  <Skeleton className="h-full w-full rounded-none" />
+                {!loaded && (
+                  <Skeleton className="absolute inset-0 rounded-none" />
                 )}
+                <iframe
+                  key={reloads}
+                  // The address carries only the mode the frame loads with;
+                  // later theme changes are posted, so they never reload it.
+                  ref={(node) => {
+                    iframeRef.current = node;
+                    if (node && !node.getAttribute("src")) node.src = themedUrl;
+                  }}
+                  title={`${title} preview`}
+                  allow="microphone; clipboard-write"
+                  onLoad={() => {
+                    postTheme();
+                    setRefreshing(false);
+                    setLoaded(true);
+                  }}
+                  className={cn(
+                    "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
+                    (refreshing || !loaded) && "opacity-0",
+                  )}
+                />
               </div>
             </div>
           ) : (

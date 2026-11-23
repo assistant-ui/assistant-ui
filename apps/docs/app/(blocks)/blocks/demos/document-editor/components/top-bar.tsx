@@ -103,8 +103,8 @@ function useEditable(editor: LexicalEditor | null) {
   );
 }
 
-function downloadPage(page: Page, live: boolean) {
-  const bridge = live ? getEditorBridge() : null;
+function downloadPage(page: Page) {
+  const bridge = getEditorBridge();
   const blocks =
     bridge?.pageId === page.id
       ? bridge.getDocument().blocks
@@ -318,6 +318,7 @@ function PagePill() {
               Rename
             </MenuItem>
             <MenuItem
+              disabled={!editable}
               onClick={() => {
                 saveOpenPage();
                 documentActions.duplicatePage(page.id);
@@ -326,7 +327,7 @@ function PagePill() {
               <Icon {...icons.duplicate} />
               Duplicate page
             </MenuItem>
-            <MenuItem onClick={() => downloadPage(page, editable)}>
+            <MenuItem disabled={!editable} onClick={() => downloadPage(page)}>
               <Icon {...icons.download} />
               Download
               <span

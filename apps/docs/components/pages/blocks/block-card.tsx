@@ -57,14 +57,14 @@ export function BlockCard({
       <div className={cn(FRAME, "group-hover:border-foreground/25")}>
         <Image
           src={image.light}
-          alt={title}
+          alt=""
           fill
           sizes={IMAGE_SIZES}
           className="object-cover object-top dark:hidden"
         />
         <Image
           src={image.dark}
-          alt={title}
+          alt=""
           fill
           sizes={IMAGE_SIZES}
           className="hidden object-cover object-top dark:block"
