@@ -13,6 +13,7 @@ if (
 ) {
   Blob.prototype.stream = function stream(this: Blob) {
     return new ReadableStream<Uint8Array<ArrayBuffer>>({
+      type: "bytes",
       start: async (controller) => {
         controller.enqueue(new Uint8Array(await this.arrayBuffer()));
         controller.close();
