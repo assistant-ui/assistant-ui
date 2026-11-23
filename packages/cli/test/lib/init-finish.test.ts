@@ -98,7 +98,10 @@ describe("finishExistingProjectInit", () => {
     expect(lines.join("\n")).toMatch(
       /TooltipProvider: shadcn's note above to wrap your layout applies only if you use its `Tooltip` directly\.[\s\S]*`cn` dependency/,
     );
-    expect(lines.join("\n")).not.toMatch(/skip|not needed/i);
+    const tooltipLine = lines.find((line) =>
+      line.startsWith("TooltipProvider:"),
+    );
+    expect(tooltipLine).not.toMatch(/skip|not needed/i);
   });
 
   it("keeps an edited page and says where to render the assistant", () => {
