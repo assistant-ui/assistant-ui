@@ -14,7 +14,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "primitives-chat font-sans antialiased",
+        "chat-basic font-sans antialiased",
         geist.variable,
         geistMono.variable,
       )}

@@ -5,7 +5,7 @@ export const VARIANTS_DEMO_PATH = "/variants-demo";
 /** Pages that only render inside an iframe, so they skip the site's own chrome. */
 export const BLOCK_PREVIEW_PATHS: readonly string[] = [
   "/blocks/demos/document-editor",
-  "/blocks/demos/primitives-chat",
+  "/blocks/demos/chat-basic",
   "/blocks/demos/base",
 ];
 

@@ -148,19 +148,19 @@ export const BLOCKS: readonly Block[] = [
     },
   },
   {
-    slug: "primitives-chat",
-    title: "Primitives chat",
+    slug: "chat-basic",
+    title: "Chat basic",
     description:
       "A whole chat written with every assistant-ui primitive and no component kit.",
     image: {
-      light: "/screenshot/blocks/primitives-chat-light.webp",
-      dark: "/screenshot/blocks/primitives-chat-dark.webp",
+      light: "/screenshot/blocks/chat-basic-light.webp",
+      dark: "/screenshot/blocks/chat-basic-dark.webp",
     },
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/primitives-chat",
-    previewUrl: "/blocks/demos/primitives-chat",
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/chat-basic",
+    previewUrl: "/blocks/demos/chat-basic",
     source: {
-      directory: "apps/docs/app/(blocks)/blocks/demos/primitives-chat",
+      directory: "apps/docs/app/(blocks)/blocks/demos/chat-basic",
       include: ["components", "block.css", "layout.tsx", "page.tsx"],
       entry: "components/chat.tsx",
     },
