@@ -28,7 +28,8 @@ type TrackedRun = {
   parent: ThreadMessage | undefined;
   /** Settles once the run's lease is opened and its writes so far landed. */
   stored: Promise<void>;
-  checkpointed: ThreadMessage["content"];
+  /** The content the last checkpoint stored; undefined before the first, so a run joined with content already present is stored too. */
+  checkpointed: ThreadMessage["content"] | undefined;
   settleTimer: ReturnType<typeof setTimeout> | undefined;
 };
 
@@ -286,7 +287,7 @@ export const useCloudRunLeases = (
         messageId: head.id,
         key,
         parent,
-        checkpointed: head.content,
+        checkpointed: undefined,
         settleTimer: undefined,
         stored: writer.begin(head, parent).then(
           () => undefined,

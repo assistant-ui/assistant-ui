@@ -16,6 +16,7 @@ import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
   useRuntimeAdapters,
+  useThreadReplyState,
   type AssistantRuntime,
   type ThreadMessage,
 } from "@assistant-ui/react";
@@ -27,7 +28,14 @@ type AssistantClient = ReturnType<typeof useAui>;
 
 // Both servers run in memory behind one fetch stub: Assistant Cloud at cloud.test, a DurableAGUI-like server at durable.test.
 
-type Lease = { id: string; status: "running" | "ended"; beatAt: number };
+// A thread run lease, as Assistant Cloud v0.2.12 keeps it: opened on the thread, bound to a row by its first write.
+type Lease = {
+  id: string;
+  status: "running" | "ended";
+  beatAt: number;
+  rowId?: string | null;
+  parentId?: string | null;
+};
 type Row = {
   id: string;
   parent_id: string | null;
@@ -56,8 +64,41 @@ const createCloud = (initialRows: Row[], externalId: string | null) => {
   let created = 0;
   let leases = 0;
   const at = new Date(0).toISOString();
+  const allLeases: Lease[] = rows.flatMap((row) =>
+    row.lease ? [Object.assign(row.lease, { rowId: row.id })] : [],
+  );
   const findLease = (leaseId: string) =>
-    rows.find((row) => row.lease?.id === leaseId)?.lease;
+    allLeases.find((lease) => lease.id === leaseId);
+  // The newest open wins: every other running lease of the thread ends.
+  const openLease = (rowId: string | null, parentId: string | null) => {
+    for (const lease of allLeases)
+      if (lease.status === "running") lease.status = "ended";
+    const lease: Lease = {
+      id: `lease_${++leases}`,
+      status: "running",
+      beatAt: Date.now(),
+      rowId,
+      parentId,
+    };
+    allLeases.push(lease);
+    return lease;
+  };
+  const bind = (lease: Lease, row: Row) => {
+    lease.rowId = row.id;
+    lease.beatAt = Date.now();
+    row.lease = lease;
+  };
+  const threadRun = () => {
+    const lease = allLeases.filter((l) => l.status === "running").at(-1);
+    return lease
+      ? {
+          status: "running",
+          message_id: lease.rowId ?? null,
+          parent_id: lease.parentId ?? null,
+          last_heartbeat_ms_ago: Date.now() - lease.beatAt,
+        }
+      : null;
+  };
   const handle = (tab: string, method: string, path: string, body: any) => {
     calls.push({ tab, method, path, body });
     if (method === "GET" && path === "/threads") {
@@ -99,40 +140,51 @@ const createCloud = (initialRows: Row[], externalId: string | null) => {
           height,
           created_at: at,
           updated_at: at,
-          run: row.lease
-            ? {
-                status: row.lease.status,
-                last_heartbeat_ms_ago: Date.now() - row.lease.beatAt,
-              }
-            : null,
+          run:
+            row.lease?.status === "running"
+              ? {
+                  status: "running",
+                  last_heartbeat_ms_ago: Date.now() - row.lease.beatAt,
+                }
+              : null,
         })),
+        run: threadRun(),
       });
+    }
+    if (method === "POST" && path === "/threads/remote-1/runs") {
+      const lease = openLease(null, body.parent_id ?? null);
+      return json({ lease_id: lease.id, heartbeat_interval_ms: 50 }, 201);
     }
     if (method === "POST" && path === "/threads/remote-1/messages") {
       // Idempotent mirroring: an external id the thread holds rewrites that row.
       const existing = body.external_id
         ? rows.find((row) => row.external_id === body.external_id)
         : undefined;
-      if (existing && body.open_run && existing.lease?.status === "running")
-        return json({ error: "run_in_progress" }, 409);
+      const held = body.lease_id ? findLease(body.lease_id) : undefined;
+      if (body.lease_id) {
+        if (!held) return json({ error: "lease_mismatch" }, 409);
+        if (held.rowId && held.rowId !== existing?.id)
+          return json({ error: "lease_mismatch" }, 409);
+        if (held.status !== "running") return json({ error: "run_ended" }, 409);
+      }
       const parentId = body.parent_external_id
         ? rows.find((row) => row.external_id === body.parent_external_id)?.id
         : body.parent_id;
       const row: Row = existing ?? {
         id: `msg_${++created}`,
-        parent_id: parentId ?? null,
+        parent_id: parentId ?? held?.parentId ?? null,
         format: body.format,
         content: body.content,
         external_id: body.external_id ?? null,
       };
       row.content = body.content;
       if (!existing) rows.push(row);
+      if (held) {
+        bind(held, row);
+        return json({ message_id: row.id }, existing ? 200 : 201);
+      }
       if (!body.open_run) return json({ message_id: row.id });
-      row.lease = {
-        id: `lease_${++leases}`,
-        status: "running",
-        beatAt: Date.now(),
-      };
+      row.lease = openLease(row.id, row.parent_id);
       return json({
         message_id: row.id,
         lease_id: row.lease.id,
@@ -144,11 +196,12 @@ const createCloud = (initialRows: Row[], externalId: string | null) => {
       const row = rows.find((r) => r.id === write[1]);
       if (!row) return json({ error: "Message not found" }, 404);
       if (body.lease_id) {
-        if (!row.lease || row.lease.id !== body.lease_id)
+        const lease = findLease(body.lease_id);
+        if (!lease || (lease.rowId && lease.rowId !== row.id))
           return json({ error: "lease_mismatch" }, 409);
-        if (row.lease.status !== "running")
+        if (lease.status !== "running")
           return json({ error: "run_ended" }, 409);
-        row.lease.beatAt = Date.now();
+        bind(lease, row);
       }
       row.content = body.content;
       return json({});
@@ -163,7 +216,8 @@ const createCloud = (initialRows: Row[], externalId: string | null) => {
     const beat = path.match(/^\/threads\/remote-1\/runs\/([^/]+)\/heartbeat$/);
     if (beat) {
       const lease = findLease(beat[1]!);
-      if (lease?.status === "running") lease.beatAt = Date.now();
+      if (lease?.status !== "running") return json({ error: "run_ended" }, 409);
+      lease.beatAt = Date.now();
       return json({ heartbeat_interval_ms: 50 });
     }
     const end = path.match(/^\/threads\/remote-1\/runs\/([^/]+)\/end$/);
@@ -409,7 +463,7 @@ const openTab = async (tab: string, staleAfter = 30_000): Promise<Tab> => {
           agent,
           ...(history ? { adapters: { history } } : undefined),
         });
-        useDurableTakeover(runtime, history);
+        useDurableTakeover(runtime, history, useThreadReplyState());
         return runtime;
       },
     });
@@ -596,6 +650,11 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
         first.getAui().thread.getState().messages[1]?.content,
       ).toMatchObject([{ type: "reasoning", text: "thinking" }]),
     );
+    // Nothing is stored when the run starts; the first checkpoint stores the reply.
+    expect(assistantRows()).toHaveLength(0);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
     await waitFor(() => expect(assistantRows()).toHaveLength(1));
     const interrupted = assistantRows()[0]!;
     const leaseId = interrupted.lease!.id;
@@ -676,6 +735,11 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     await waitFor(() =>
       expect(shown(tab)).toEqual(["user: hello", "assistant: partial"]),
     );
+    // Nothing is stored when the run starts; the first checkpoint stores the reply.
+    expect(assistantRows()).toHaveLength(0);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
     await waitFor(() => expect(assistantRows()).toHaveLength(1));
     const interrupted = assistantRows()[0]!;
     const leaseId = interrupted.lease!.id;
@@ -801,7 +865,8 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     await waitFor(() =>
       expect(shown(running)).toEqual(["user: hello", "assistant: partial"]),
     );
-    await waitFor(() => expect(assistantRows()).toHaveLength(1));
+    // The running tab holds the thread's lease and has stored no reply yet.
+    expect(assistantRows()).toHaveLength(0);
     // The durable server keys the thread by the AG-UI thread id, which is the cloud thread's external id.
     const threadId = durable.state.starts[0]!.threadId;
     expect(threadId).toBeTruthy();
@@ -813,9 +878,7 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
     // A short staleAfter, so the follower looks at the reply several times while the running tab keeps beating.
     const follower = await openTab("tab-b", 1_000);
     await openThread(follower);
-    await waitFor(() =>
-      expect(follower.getAui().thread.getState().messages).toHaveLength(2),
-    );
+    await waitFor(() => expect(shown(follower)[0]).toBe("user: hello"));
     expect(durable.state.connects).toEqual([]);
 
     await act(async () => {
