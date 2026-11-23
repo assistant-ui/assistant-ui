@@ -51,6 +51,72 @@ export type Block = {
 
 export const BLOCKS: readonly Block[] = [
   {
+    slug: "chat-app",
+    title: "Chat app",
+    description:
+      "The chat from the home page: threads in a sidebar, memory, slash commands, generative UI and a real model.",
+    image: {
+      light: "/screenshot/blocks/chat-app-light.webp",
+      dark: "/screenshot/blocks/chat-app-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/chat-app",
+    previewUrl: "/blocks/demos/chat-app",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/chat-app",
+      include: ["components", "page.tsx"],
+      entry: "components/shell.tsx",
+    },
+    stack: [
+      { name: "AI SDK", package: "ai" },
+      { name: "Base UI", package: "@base-ui/react" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+      { name: "React", package: "react" },
+    ],
+    useCases: [
+      "A full chat product to start from, with threads, memory and an account menu already in place.",
+      "A reference for wiring the kit's elements (markdown, attachments, model picker, context display) into one app.",
+      "Answers that render as interactive UI through generative UI tools.",
+    ],
+    capabilities: [
+      {
+        title: "Threads",
+        description:
+          "A sidebar of threads grouped by date, with new, rename, pin, archive and restore, keyboard shortcuts for each, and a sheet on small screens.",
+      },
+      {
+        title: "Composer",
+        description:
+          "Attachments, voice input, a model picker, slash commands for diagrams, tables and more, and a context usage meter.",
+      },
+      {
+        title: "Messages",
+        description:
+          "Markdown with sources, a trace of tool calls, follow-up suggestions, branches, copy, read aloud and regenerate.",
+      },
+      {
+        title: "Generative UI",
+        description:
+          "The model can answer with widgets drawn from a component catalog instead of plain text.",
+      },
+      {
+        title: "Memory",
+        description:
+          "Facts the assistant keeps about you, stored in the browser, with a view to forget one or clear them all.",
+      },
+      {
+        title: "Account and limits",
+        description:
+          "Sign in from the sidebar, and a daily conversation budget that tells you when it resets.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4, with the assistant-ui kit elements the components import.",
+      "The docs chat runtime and its route. Swap DocsRuntimeProvider in page.tsx for useChatRuntime and your own route to use your model.",
+      "The session, usage and analytics helpers the account and budget components import, or remove those components.",
+    ],
+  },
+  {
     slug: "document-editor",
     title: "Document editor",
     description:
