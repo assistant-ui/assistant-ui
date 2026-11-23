@@ -52,12 +52,6 @@ describe("setup session store", () => {
     expect(store.parseAgentFragment("#link=abcdEFGH1234")).toEqual({
       link: "abcdEFGH1234",
     });
-    // The short link an agent hands the user follows the link's current setup.
-    expect(store.parseAgentFragment("#abcdEFGH1234")).toEqual({
-      link: "abcdEFGH1234",
-    });
-    expect(store.parseAgentFragment("#threadlist")).toBeNull();
-    expect(store.parseAgentFragment("#installation")).toBeNull();
     expect(store.parseAgentFragment("#link=a/b")).toBeNull();
     expect(store.parseAgentFragment("#intro")).toBeNull();
     expect(store.parseAgentFragment("")).toBeNull();
