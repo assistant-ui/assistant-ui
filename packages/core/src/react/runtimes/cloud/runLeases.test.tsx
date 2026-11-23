@@ -346,6 +346,7 @@ describe("cloud run leases", () => {
     });
     await waitFor(() => expect(createCalls(messages)).toHaveLength(2));
     expect(createCalls(messages)[1]).toMatchObject({
+      parent_id: "msg_1",
       lease_id: "lease_1",
       content: { content: [{ type: "text", text: "Joined" }] },
     });
