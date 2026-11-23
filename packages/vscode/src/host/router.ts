@@ -64,6 +64,8 @@ export function serveRoutes(
   }: ServeWebviewRoutesOptions = {},
 ): Disposable {
   const inflight = new Map<string, AbortController>();
+  // Node's Request forwards its controller's abort to `request.signal` only while the Request is reachable.
+  const requests = new WeakMap<AbortController, Request>();
 
   const post = (message: HostToWebviewMessage, controller: AbortController) => {
     Promise.resolve(webview.postMessage(message)).then(
@@ -172,6 +174,7 @@ export function serveRoutes(
           : message.body,
         signal: controller.signal,
       });
+      requests.set(controller, request);
       const response = await dispatch(request, url.pathname);
       if (controller.signal.aborted) {
         void response.body?.cancel().catch(() => undefined);
