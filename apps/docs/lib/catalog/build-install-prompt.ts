@@ -25,7 +25,7 @@ If a step requires assistant-ui cloud login or cloud setup in an active setup wi
 The listed product names are the starting goals. Read each setup guide, inspect the app, and follow dependency order. Explore related products through ${BASE_URL}/catalog.md when useful and include relevant prerequisites in the plan for approval; list membership does not constrain the implementation.`;
 
 /** What the agent gate in the assistant-ui CLI lets a coding agent run, as the steps below need it. */
-export const AGENT_GATE_RULE = `Inside a setup session, run the \`npx assistant-ui@latest\` init, create and add commands below as written. Outside one, the CLI refuses them for a coding agent and points to setup. Follow this guide by hand only when setup cannot run at all: then ask the user, in your own conversation, every choice the project does not settle (above all the model provider and model) before you scaffold, and add \`--force\` to those commands, telling the user that setup could not run.`;
+export const AGENT_GATE_RULE = `Inside a setup session, run the \`npx assistant-ui@latest\` init, create and add commands below as written. Outside one, the CLI refuses them for a coding agent and points to setup. Follow this guide by hand only when setup cannot run at all, and only once the user, told so in your own conversation, explicitly asks you to; then ask them every choice the project does not settle (above all the model provider and model) before you scaffold, and add \`--force\` to those commands.`;
 
 const closing = `When every product is installed, start the dev server and run the verification line under each product. Report the exact error to the user if one fails; do not loop.`;
 
