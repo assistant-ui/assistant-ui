@@ -230,7 +230,15 @@ const gateTarget = (
     : base;
 };
 
-const gated = new WeakSet<Command>();
+const gated = new WeakMap<Command, { projectArgument?: boolean }>();
+
+/**
+ * True when a parsed gated `command` runs as a manual path on purpose: with
+ * `--force`, or inside a setup session for the folder it acts on.
+ */
+export const isManualRunAllowed = (command: Command) =>
+  command.opts().force === true ||
+  isSetupSessionActive({ target: gateTarget(command, gated.get(command)) });
 
 /**
  * Stops `command` when a coding agent types it outside a setup session for
@@ -244,7 +252,7 @@ export const addAgentGate = (
   options: { projectArgument?: boolean } = {},
 ) => {
   if (gated.has(command)) return command;
-  gated.add(command);
+  gated.set(command, options);
   command.addOption(
     new Option(
       "--force",
