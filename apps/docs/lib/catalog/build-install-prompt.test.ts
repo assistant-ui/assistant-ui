@@ -25,9 +25,6 @@ describe("buildInstallPrompt", () => {
       "Not in a setup yet? Run `npx assistant-ui@latest setup --products assistant-ui,cloud`",
     );
     expect(prompt).toContain(
-      "Following this guide by hand instead: ask the user, in your own conversation, every choice the project does not settle before you scaffold, above all the model provider and model. Never pick one for them.",
-    );
-    expect(prompt).toContain(
       "If `setup` isn't a known command (a cached or pnpm release-age-gated version), run `npx -y --prefer-online assistant-ui@latest setup --products assistant-ui,cloud` instead.",
     );
   });

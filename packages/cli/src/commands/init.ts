@@ -21,7 +21,7 @@ import {
 import {
   CHAT_PROVIDER_IDS,
   applyChatProvider,
-  snapshotProjectProviders,
+  snapshotProject,
 } from "../lib/init-provider";
 import type { ChatProvider } from "../lib/init-provider";
 import { create } from "./create";
@@ -72,7 +72,7 @@ export const init = new Command()
   .addOption(
     new Option(
       "--provider <provider>",
-      "the chat route's model provider (default: the one the project already uses, else openai)",
+      "the chat route's model provider (default: openai)",
     ).choices(CHAT_PROVIDER_IDS),
   )
   .option("--use-npm", "explicitly use npm")
@@ -143,7 +143,7 @@ export const init = new Command()
       });
 
       const fontSnapshots = snapshotProjectFonts(targetDir);
-      const providers = snapshotProjectProviders(targetDir);
+      const project = snapshotProject(targetDir);
       await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
       const registryUrl = resolveQuickStartRegistryUrl(
         getComponentsJsonStyle(targetDir),
@@ -153,7 +153,7 @@ export const init = new Command()
         targetDir,
         pm,
         opts.provider as ChatProvider | undefined,
-        providers,
+        project,
       );
 
       const finish = finishExistingProjectInit(targetDir, fontSnapshots);

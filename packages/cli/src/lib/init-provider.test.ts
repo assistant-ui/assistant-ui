@@ -4,10 +4,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyChatProvider,
-  chooseChatProvider,
-  describeProvider,
   providerInstallCommands,
-  snapshotProjectProviders,
+  snapshotProject,
   switchRouteProvider,
 } from "./init-provider";
 
@@ -45,67 +43,22 @@ afterEach(() => {
     fs.rmSync(root, { recursive: true, force: true });
 });
 
-describe("snapshotProjectProviders", () => {
-  it("finds the providers a project's packages and env files already use", () => {
-    const root = project({
-      "package.json": JSON.stringify({
-        dependencies: { "@ai-sdk/google": "^3.0.0" },
-      }),
-      ".env.local":
-        "OPENAI_API_KEY=\n# keys\nexport ANTHROPIC_API_KEY=sk-ant-x\nGOOGLE_GENERATIVE_AI_API_KEY= # unset\n",
-    });
-    expect(snapshotProjectProviders(root)).toEqual({
-      used: ["anthropic", "google"],
+describe("snapshotProject", () => {
+  it("notes an OpenAI package and a chat route the project already had", () => {
+    expect(
+      snapshotProject(
+        project({
+          "package.json": JSON.stringify({
+            devDependencies: { "@ai-sdk/openai": "^3.0.0" },
+          }),
+          "src/app/api/chat/route.ts": "export {}",
+        }),
+      ),
+    ).toEqual({ hadOpenAI: true, hadRoute: true });
+    expect(snapshotProject(project({ "package.json": "{}" }))).toEqual({
       hadOpenAI: false,
       hadRoute: false,
     });
-  });
-
-  it("notes an OpenAI package and a chat route the project already had", () => {
-    const root = project({
-      "package.json": JSON.stringify({
-        devDependencies: { "@ai-sdk/openai": "^3.0.0" },
-      }),
-      "src/app/api/chat/route.ts": "export {}",
-    });
-    expect(snapshotProjectProviders(root)).toEqual({
-      used: ["openai"],
-      hadOpenAI: true,
-      hadRoute: true,
-    });
-  });
-});
-
-describe("chooseChatProvider", () => {
-  it("takes --provider, else the one provider the project uses, else OpenAI", () => {
-    expect(chooseChatProvider("google", ["anthropic"])).toEqual({
-      provider: "google",
-      source: "flag",
-    });
-    expect(chooseChatProvider(undefined, ["anthropic"])).toEqual({
-      provider: "anthropic",
-      source: "project",
-    });
-    expect(chooseChatProvider(undefined, [])).toEqual({
-      provider: "openai",
-      source: "default",
-    });
-    expect(chooseChatProvider(undefined, ["openai", "anthropic"])).toEqual({
-      provider: "openai",
-      source: "default",
-    });
-  });
-
-  it("says why, and names --provider when it fell back to the default", () => {
-    expect(describeProvider("anthropic", "project", ["anthropic"])).toBe(
-      "Chat route: Anthropic (claude-opus-5-5), the provider this project already uses. Set ANTHROPIC_API_KEY in .env.local.",
-    );
-    expect(describeProvider("openai", "default", [])).toContain(
-      "pass --provider anthropic or google for another",
-    );
-    expect(
-      describeProvider("openai", "default", ["openai", "anthropic"]),
-    ).toContain("this project uses OpenAI and Anthropic, so pass --provider");
   });
 });
 
@@ -139,14 +92,15 @@ describe("providerInstallCommands", () => {
 });
 
 describe("applyChatProvider", () => {
-  it("switches the route init scaffolded to the provider the project uses", async () => {
+  it("switches the route init scaffolded to the provider --provider names", async () => {
     const root = project({ "app/api/chat/route.ts": ROUTE });
-    const note = await applyChatProvider(root, "npm", undefined, {
-      used: ["anthropic"],
+    const note = await applyChatProvider(root, "npm", "anthropic", {
       hadOpenAI: false,
       hadRoute: false,
     });
-    expect(note).toContain("Chat route: Anthropic");
+    expect(note).toBe(
+      "Chat route: Anthropic (claude-opus-5-5). Set ANTHROPIC_API_KEY in .env.local.",
+    );
     expect(
       fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
     ).toContain('anthropic("claude-opus-5-5")');
@@ -156,29 +110,24 @@ describe("applyChatProvider", () => {
     ]);
   });
 
-  it("never touches a chat route the project already had", async () => {
+  it("changes nothing without --provider, with openai, or for a route the project already had", async () => {
     const root = project({ "app/api/chat/route.ts": ROUTE });
+    const fresh = { hadOpenAI: false, hadRoute: false };
+    expect(await applyChatProvider(root, "npm", undefined, fresh)).toBe(
+      undefined,
+    );
+    expect(await applyChatProvider(root, "npm", "openai", fresh)).toBe(
+      undefined,
+    );
     expect(
       await applyChatProvider(root, "npm", "anthropic", {
-        used: [],
         hadOpenAI: false,
         hadRoute: true,
       }),
-    ).toBeUndefined();
+    ).toBe(undefined);
     expect(
       fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
     ).toBe(ROUTE);
-    expect(runSpawn).not.toHaveBeenCalled();
-  });
-
-  it("keeps OpenAI with no other signal, and says how to pick another", async () => {
-    const root = project({ "app/api/chat/route.ts": ROUTE });
-    const note = await applyChatProvider(root, "npm", undefined, {
-      used: [],
-      hadOpenAI: false,
-      hadRoute: false,
-    });
-    expect(note).toContain("--provider anthropic or google");
     expect(runSpawn).not.toHaveBeenCalled();
   });
 });
