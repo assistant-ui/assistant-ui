@@ -64,7 +64,7 @@ export const BLOCKS: readonly Block[] = [
     previewUrl: "/blocks/demos/chat-app",
     source: {
       directory: "apps/docs/app/(blocks)/blocks/demos/chat-app",
-      include: ["components", "page.tsx"],
+      include: ["components", "lib", "page.tsx"],
       entry: "components/shell.tsx",
     },
     stack: [

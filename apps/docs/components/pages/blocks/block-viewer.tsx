@@ -433,7 +433,7 @@ export function BlockViewer({
         <TabsContent value="code">
           <BlockCode name={slug} files={files} entry={entry} />
         </TabsContent>
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-sm">
           <span>fig. 01</span>
           {tab === "code" ? (
             <span className="tabular-nums">{files.length} files</span>
