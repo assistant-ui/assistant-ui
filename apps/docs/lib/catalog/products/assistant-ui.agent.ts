@@ -11,10 +11,10 @@ Then follow the section for the agent framework.
 
 Docs: /docs/runtimes/ai-sdk/v7.md
 
-Next.js App Router: run \`npx assistant-ui@latest init --yes\` (the flag is required in a non-interactive shell). It scaffolds:
+Next.js App Router: run \`npx assistant-ui@latest init --yes --provider <openai|anthropic|google>\` with the provider from the model answer (--yes is required in a non-interactive shell). It scaffolds:
 - components/assistant-ui/elements/thread.aui.tsx
 - app/assistant.tsx, which exports <Assistant /> already wrapped in AssistantRuntimeProvider
-- app/api/chat/route.ts, an OpenAI backend using @assistant-ui/ai-sdk
+- app/api/chat/route.ts, a backend using @assistant-ui/ai-sdk on that provider's package; without --provider, init uses the provider the project already has (an @ai-sdk/* package or its API key in an .env file), else OpenAI, and prints which. For another provider, or an older CLI that rejects --provider, run it without the flag and switch the route's provider import and model by hand
 If components.json already exists, init aborts; use \`npx assistant-ui@latest add thread\` and follow /docs/runtimes/ai-sdk/v7.md for the runtime and route.
 
 Vite, React Router, or TanStack Start: init does not support these. Follow the manual setup in /docs/manual-installation.md: install @assistant-ui/react, @assistant-ui/ai-sdk, ai@^7, @ai-sdk/react@^4, and the provider package; add \`"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"\` to components.json registries, creating the file first with \`npx shadcn@latest init --defaults --yes\` if it is missing (init needs Tailwind CSS and an \`@/*\` path alias, and names whichever is absent); run \`npx shadcn@latest add @assistant-ui/thread\`. Then write the two files init would have scaffolded:

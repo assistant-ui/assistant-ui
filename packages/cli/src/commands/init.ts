@@ -18,6 +18,12 @@ import {
   finishExistingProjectInit,
   snapshotProjectFonts,
 } from "../lib/init-finish";
+import {
+  CHAT_PROVIDER_IDS,
+  applyChatProvider,
+  snapshotProjectProviders,
+} from "../lib/init-provider";
+import type { ChatProvider } from "../lib/init-provider";
 import { create } from "./create";
 
 interface ExistingProjectInitPlan {
@@ -62,6 +68,12 @@ export const init = new Command()
       "-p, --preset <name-or-url>",
       "preset name or URL (forwarded to 'assistant-ui create')",
     ).hideHelp(),
+  )
+  .addOption(
+    new Option(
+      "--provider <provider>",
+      "the chat route's model provider (default: the one the project already uses, else openai)",
+    ).choices(CHAT_PROVIDER_IDS),
   )
   .option("--use-npm", "explicitly use npm")
   .option("--use-pnpm", "explicitly use pnpm")
@@ -131,17 +143,25 @@ export const init = new Command()
       });
 
       const fontSnapshots = snapshotProjectFonts(targetDir);
+      const providers = snapshotProjectProviders(targetDir);
       await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
       const registryUrl = resolveQuickStartRegistryUrl(
         getComponentsJsonStyle(targetDir),
       );
       await runSpawn(dlxCmd, [...dlxArgs, ...addArgs, registryUrl], targetDir);
+      const providerNote = await applyChatProvider(
+        targetDir,
+        pm,
+        opts.provider as ChatProvider | undefined,
+        providers,
+      );
 
       const finish = finishExistingProjectInit(targetDir, fontSnapshots);
 
       logger.break();
       logger.success("Project initialized successfully!");
       for (const line of describeInitFinish(finish)) logger.info(line);
+      if (providerNote) logger.info(providerNote);
       logger.info("You can now add more components with 'assistant-ui add'");
     } catch (error) {
       if (error instanceof SpawnSignalError) throw error;

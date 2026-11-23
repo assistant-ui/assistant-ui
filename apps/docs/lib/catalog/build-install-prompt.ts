@@ -10,7 +10,9 @@ import type { CatalogItem } from "./types";
 
 const preamble = (
   setupCommand: string,
-) => `Not in a setup yet? Run \`${setupCommand}\` instead of following this guide by hand. Run it in the background: it keeps running as the guided setup's stream, opens the user's browser when it needs their input, and points you back here. Already in a setup: keep going.
+) => `Not in a setup yet? Run \`${setupCommand}\` instead of following this guide by hand. It is assistant-ui's own installer: run it in the background, where it keeps running as the guided setup's stream and points you back here. It asks the user the choices the project does not settle (framework, model provider) on a setup page they can open on any device, or through you in your own conversation when no browser opens. Already in a setup: keep going.
+
+Following this guide by hand instead: ask the user, in your own conversation, every choice the project does not settle before you scaffold, above all the model provider and model. Never pick one for them.
 
 ${agentSetupFallback(setupCommand)}
 

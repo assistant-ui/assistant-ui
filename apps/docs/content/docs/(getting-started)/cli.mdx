@@ -63,6 +63,7 @@ This will:
 - Run `shadcn init` to configure the project
 - Use `shadcn add` to install the assistant-ui quick-start component
 - Add the default assistant-ui components (thread, composer, etc.) to your project
+- Scaffold `app/api/chat/route.ts` on the model provider `--provider` names (`openai`, `anthropic` or `google`); without it, on the provider the project already uses (an `@ai-sdk/*` provider package, or its API key in an `.env` file), else OpenAI. A chat route the project already has is left as it is.
 
 When `init` sets up an existing project in a non-interactive shell such as CI, pass `--yes`. Without it, `init` exits with an error because it cannot prompt.
 
@@ -84,6 +85,10 @@ Options:
   -y, --yes          skip confirmation prompt. (default: false)
   -o, --overwrite    overwrite existing files. (default: false)
   -c, --cwd <cwd>    the working directory. defaults to the current directory.
+  --provider <provider>
+                     the chat route's model provider (default: the one the
+                     project already uses, else openai) (choices: "openai",
+                     "anthropic", "google")
   --use-npm          explicitly use npm
   --use-pnpm         explicitly use pnpm
   --use-yarn         explicitly use yarn
