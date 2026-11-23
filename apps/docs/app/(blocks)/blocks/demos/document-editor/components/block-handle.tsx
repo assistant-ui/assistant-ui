@@ -357,6 +357,11 @@ export function BlockHandle() {
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [dragging, endDrag]);
 
+  const available = Boolean(anchor && editable && key);
+  useEffect(() => {
+    if (!available) endDrag(false);
+  }, [available, endDrag]);
+
   if (!anchor || !editable || !key) return null;
 
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {

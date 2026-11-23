@@ -390,7 +390,6 @@ function IconPanel({
   );
   const { entries, rows, starts } = useMemo(() => gridOf(sections), [sections]);
   const current = entries[active];
-  const selected = entries.findIndex((entry) => sameIcon(entry.icon, value));
   const browsing = kind === "emoji" && query.trim() === "";
   const noun = KIND_LABELS[kind].toLowerCase();
 
@@ -643,7 +642,7 @@ function IconPanel({
                         role="option"
                         tabIndex={-1}
                         aria-label={entry.label}
-                        aria-selected={cell === selected}
+                        aria-selected={sameIcon(entry.icon, value)}
                         data-cell={cell}
                         data-active={cell === active ? "" : undefined}
                         className={cn(
