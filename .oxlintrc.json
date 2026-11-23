@@ -77,6 +77,7 @@
       "excludeFiles": ["packages/ui/src/components/react/**/*.test.tsx"],
       "plugins": ["typescript", "react", "import", "oxc", "nextjs", "jsx-a11y"],
       "rules": {
+        "react/exhaustive-deps": "error",
         "nextjs/no-img-element": "error",
         "jsx-a11y/alt-text": ["error", { "img": ["Image"] }]
       }
@@ -197,7 +198,6 @@
     {
       "files": [
         "packages/ui/src/components/react/ui/**",
-        "packages/ui/src/components/react/assistant-ui/**",
         "packages/ui/src/components/react/icons/**",
         "templates/*/components/ui/**",
         "templates/*/components/assistant-ui/**",

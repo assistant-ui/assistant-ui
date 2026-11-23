@@ -184,6 +184,7 @@ export function GeoMap({
     if (!leaflet || !map || !mapReady) return;
 
     const { routePoints, validPlaces, validRoutes } = mapContentRef.current;
+    const markers = markersRef.current;
     const layer = leaflet.layerGroup().addTo(map);
     const points: Coordinate[] = [
       ...validPlaces.map((place) => [place.lat, place.lng] as Coordinate),
@@ -215,11 +216,11 @@ export function GeoMap({
         })
         .addTo(layer)
         .on("click", () => selectPlaceRef.current(place));
-      markersRef.current.set(place.id, marker);
+      markers.set(place.id, marker);
     }
 
     return () => {
-      markersRef.current.clear();
+      markers.clear();
       layer.remove();
     };
   }, [contentSignature, mapReady]);
