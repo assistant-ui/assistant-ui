@@ -8,7 +8,6 @@
 "@assistant-ui/react-opencode": patch
 "@assistant-ui/react-streamdown": patch
 "@assistant-ui/react": patch
-"setup-agent": patch
 "@assistant-ui/x-buildutils": patch
 "@assistant-ui/x-generative-compiler": patch
 ---

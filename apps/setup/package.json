@@ -26,7 +26,7 @@
     "remark-gfm": "^4.0.1",
     "setup-agent": "workspace:*",
     "sonner": "^2.0.8",
-    "statewire": "^0.28.2"
+    "statewire": "^0.22.1"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

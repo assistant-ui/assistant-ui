@@ -43,7 +43,7 @@
     "react-textarea-autosize": "^8.5.9",
     "remark-rehype": "^11.1.2",
     "remend": "^1.4.0",
-    "statewire": "^0.28.2",
+    "statewire": "^0.22.1",
     "streamdown": "^2.7.1",
     "vite": "^8.3.8",
     "vue": "^3.5.45",
