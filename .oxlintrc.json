@@ -73,6 +73,15 @@
   ],
   "overrides": [
     {
+      "files": ["packages/ui/src/components/react/**/*.tsx"],
+      "excludeFiles": ["packages/ui/src/components/react/**/*.test.tsx"],
+      "plugins": ["typescript", "react", "import", "oxc", "nextjs", "jsx-a11y"],
+      "rules": {
+        "nextjs/no-img-element": "error",
+        "jsx-a11y/alt-text": ["error", { "img": ["Image"] }]
+      }
+    },
+    {
       "files": ["apps/docs/**/*.tsx"],
       "excludeFiles": ["apps/docs/**/*.test.tsx"],
       "plugins": ["typescript", "react", "import", "oxc", "jsx-a11y"],

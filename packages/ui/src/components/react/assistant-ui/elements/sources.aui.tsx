@@ -101,15 +101,19 @@ const SourceIcon = forwardRef<
   }
 
   return (
-    <img
-      data-slot="source-icon"
-      src={src}
-      alt=""
-      className={cn("size-3 shrink-0 rounded-sm", className)}
-      onError={() => setErrorSrc(src)}
-      {...(props as ComponentProps<"img">)}
-      ref={imageRef}
-    />
+    // A picture wrapper marks a deliberate native img for the Next.js lint, because
+    // next/image cannot load arbitrary runtime URLs and only exists in Next.js.
+    <picture className="contents">
+      <img
+        data-slot="source-icon"
+        src={src}
+        alt=""
+        className={cn("size-3 shrink-0 rounded-sm", className)}
+        onError={() => setErrorSrc(src)}
+        {...(props as ComponentProps<"img">)}
+        ref={imageRef}
+      />
+    </picture>
   );
 });
 

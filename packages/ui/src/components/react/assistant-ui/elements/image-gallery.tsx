@@ -149,13 +149,17 @@ export function ImageGallery({
                   <ImageOffIcon aria-hidden className="size-6" />
                 </span>
               ) : (
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  loading="lazy"
-                  className="size-full object-cover"
-                  onError={() => markFailed(image)}
-                />
+                // A picture wrapper marks a deliberate native img for the Next.js lint, because
+                // next/image cannot load arbitrary runtime URLs and only exists in Next.js.
+                <picture className="contents">
+                  <img
+                    src={image.src}
+                    alt={image.alt}
+                    loading="lazy"
+                    className="size-full object-cover"
+                    onError={() => markFailed(image)}
+                  />
+                </picture>
               )}
               {overflow ? (
                 <span className="bg-foreground/65 text-background absolute inset-0 flex items-center justify-center text-lg font-medium">
@@ -186,12 +190,14 @@ export function ImageGallery({
                   <ImageOffIcon aria-hidden className="size-8" />
                 </div>
               ) : (
-                <img
-                  src={activeImage.src}
-                  alt={activeImage.alt}
-                  className="max-h-[75vh] max-w-full object-contain"
-                  onError={() => markFailed(activeImage)}
-                />
+                <picture className="contents">
+                  <img
+                    src={activeImage.src}
+                    alt={activeImage.alt}
+                    className="max-h-[75vh] max-w-full object-contain"
+                    onError={() => markFailed(activeImage)}
+                  />
+                </picture>
               )}
             </div>
             <div className="flex min-w-0 items-center gap-2">
