@@ -433,7 +433,7 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
     await waitFor(() => handlerSignal!.aborted);
   });
 
-  it("aborts a route waiting on its signal after the request is garbage collected", async () => {
+  it("aborts a route waiting on its signal when a garbage collection runs mid-request", async () => {
     let started = false;
     let routeAborted = false;
     const { fetch } = setup({
