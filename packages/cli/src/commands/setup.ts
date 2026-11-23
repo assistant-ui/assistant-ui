@@ -160,8 +160,9 @@ const AGENT_VENDORS: Record<string, string> = {
 
 /**
  * The plan's default model provider: the one llm-provider preset option the
- * project already uses (its AI SDK package, or its key set in an `.env*`
- * file), else the running coding agent's vendor; none when neither settles it.
+ * project in this folder already uses (its AI SDK package, or its key in
+ * .env, .env.local or .env.development), else the running coding agent's
+ * vendor; none when neither settles it.
  */
 export const defaultProvider = (cwd: string, agentKind?: string) => {
   const read = (file: string) => {
@@ -212,7 +213,7 @@ export const agentHeader = (o: {
   return `This is the assistant-ui CLI, which you ran to set up assistant-ui; its output is the install itself.
 ${ways}
 ${provider}
-To end setup: \`${cmd} cancel\`, then \`kill ${o.pid}\`. Killing only the process keeps the setup (\`${cmd} stream\` resumes it). Never \`pkill -f\`: it also matches your own shell.
+To end setup: \`${cmd} cancel\`, then \`kill ${o.pid}\`. Never \`pkill -f\`: it also matches your own shell.
 
 `;
 };
@@ -316,10 +317,10 @@ export const setup = new Command()
 Run by a coding agent, setup starts a guided setup, prints the steps the agent
 follows and keeps running as the setup's stream; run it in the background. It
 opens the user's browser only when the setup needs their input, and none over
-SSH, in CI or on a machine with no display. Stop it with \`setup <url> cancel\`
-and Ctrl-C; with nobody to answer, pass --unattended. Run in an interactive
-terminal, it asks which coding agent you use and starts it with the setup
-prompt.`,
+SSH, in CI or on a Linux machine with no display (unless BROWSER names one).
+Stop it with \`setup <url> cancel\` and Ctrl-C; with nobody to answer, pass
+--unattended. Run in an interactive terminal, it asks which coding agent you
+use and starts it with the setup prompt.`,
   )
   .action(async (args: string[], options: SetupOptions) => {
     if (args.length > 0) await runSetupStep(args, options);
