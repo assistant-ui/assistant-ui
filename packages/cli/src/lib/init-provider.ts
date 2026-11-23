@@ -134,27 +134,38 @@ export async function applyChatProvider(
   { skipInstall = false }: { skipInstall?: boolean } = {},
 ): Promise<string | undefined> {
   if (provider === undefined || provider === "openai") return undefined;
-  const route = ROUTE_FILES.find((file) =>
-    fs.existsSync(path.join(root, file)),
-  );
-  const file = route === undefined ? undefined : path.join(root, route);
-  const source = file === undefined ? undefined : fs.readFileSync(file, "utf8");
+  const read = (file: string) => {
+    try {
+      return fs.readFileSync(path.join(root, file), "utf8");
+    } catch {
+      return undefined;
+    }
+  };
+  // The route this run wrote: one that is new or changed since the snapshot.
+  const route = ROUTE_FILES.find((file) => {
+    const source = read(file);
+    return source !== undefined && source !== snapshot.routes[file];
+  });
   const switched =
-    route === undefined || snapshot.routes[route] === source
+    route === undefined
       ? undefined
-      : switchRouteProvider(source!, provider);
-  if (switched === undefined)
+      : switchRouteProvider(read(route)!, provider);
+  if (route === undefined || switched === undefined)
     return `--provider ${provider} did not apply: ${route ?? "app/api/chat/route.ts"} is not a route init scaffolded in this run, so switch its provider yourself.`;
+  const file = path.join(root, route);
+  assertSafeProjectFile(file, root);
   const [add, remove] = providerInstallCommands(
     pm,
     provider,
     snapshot.hadOpenAI,
   );
   if (!skipInstall) await runSpawn(add![0], add![1], root);
-  assertSafeProjectFile(file!, root);
-  fs.writeFileSync(file!, switched);
+  fs.writeFileSync(file, switched);
   if (remove !== undefined && !skipInstall)
     await runSpawn(remove[0], remove[1], root);
   const { name, pkg, model, key } = CHAT_PROVIDERS[provider];
-  return `Chat route: ${name} (${model}).${skipInstall ? ` Install ${pkg} (--skip-install left it out).` : ""} Set ${key} in .env.local.`;
+  const leftOut = skipInstall
+    ? ` Install ${pkg}${remove === undefined ? "" : ` and remove ${CHAT_PROVIDERS.openai.pkg}`} yourself (--skip-install ran no package manager).`
+    : "";
+  return `Chat route: ${name} (${model}).${leftOut} Set ${key} in .env.local.`;
 }

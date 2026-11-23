@@ -58,6 +58,20 @@ describe("snapshotProject", () => {
       hadOpenAI: true,
       routes: { "src/app/api/chat/route.ts": "export {}" },
     });
+    for (const section of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+    ])
+      expect(
+        snapshotProject(
+          project({
+            "package.json": JSON.stringify({
+              [section]: { "@ai-sdk/openai": "^3.0.0" },
+            }),
+          }),
+        ).hadOpenAI,
+      ).toBe(true);
     expect(snapshotProject(project({ "package.json": "{}" }))).toEqual({
       hadOpenAI: false,
       routes: {},
@@ -118,8 +132,11 @@ describe("applyChatProvider", () => {
       skipInstall: true,
     });
     expect(note).toContain(
-      "Install @ai-sdk/anthropic (--skip-install left it out).",
+      "Install @ai-sdk/anthropic and remove @ai-sdk/openai yourself (--skip-install ran no package manager).",
     );
+    expect(
+      fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
+    ).toContain('anthropic("claude-opus-5-5")');
     expect(runSpawn).not.toHaveBeenCalled();
   });
 
@@ -132,6 +149,23 @@ describe("applyChatProvider", () => {
     expect(
       fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
     ).toBe(ROUTE);
+  });
+
+  it("switches the route this run wrote, not an older one beside it", async () => {
+    const root = project({
+      "app/api/chat/route.ts": "export const POST = mine;",
+      "src/app/api/chat/route.ts": ROUTE,
+    });
+    await applyChatProvider(root, "npm", "anthropic", {
+      hadOpenAI: true,
+      routes: { "app/api/chat/route.ts": "export const POST = mine;" },
+    });
+    expect(
+      fs.readFileSync(path.join(root, "src/app/api/chat/route.ts"), "utf8"),
+    ).toContain('anthropic("claude-opus-5-5")');
+    expect(
+      fs.readFileSync(path.join(root, "app/api/chat/route.ts"), "utf8"),
+    ).toBe("export const POST = mine;");
   });
 
   it("switches a route the scaffold replaced with --overwrite", async () => {
