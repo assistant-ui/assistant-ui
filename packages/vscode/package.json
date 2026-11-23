@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/vscode",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Run assistant-ui inside VS Code extension webviews by tunnelling fetch to the extension host",
   "keywords": [
     "vscode",
@@ -61,7 +61,7 @@
     "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.37"
+    "@assistant-ui/core": "^0.3.38"
   },
   "peerDependencies": {
     "@assistant-ui/store": "workspace:^",
