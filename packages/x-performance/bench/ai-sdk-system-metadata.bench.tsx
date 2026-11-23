@@ -20,6 +20,9 @@ const helpers = {
   addToolOutput: async () => {},
   addToolApprovalResponse: async () => {},
   stop: async () => {},
+  experimental_queuedMessages: [],
+  experimental_removeQueuedMessage: () => {},
+  experimental_sendQueuedMessageNow: async () => {},
 };
 
 describe("ai-sdk: system-message metadata conversion through the runtime", () => {

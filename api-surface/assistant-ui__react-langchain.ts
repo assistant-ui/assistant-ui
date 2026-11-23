@@ -4,6 +4,8 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { JSONSchema7 } from "json-schema";
 
+import "react";
+
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;
@@ -2619,7 +2621,7 @@ declare const groupUIMessagesByParent: <T extends {
 }>(value: unknown) => Map<string, T[]>;
 
 declare namespace entry_root_exports {
-  export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
+  export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
 }
 
 declare const normalizeToolCallArgs: (args: unknown) => ReadonlyJSONObject;
@@ -2672,9 +2674,9 @@ declare const useLangChainStream: () => import("@langchain/react").AnyStream | u
 
 declare const useLangChainStreamingTiming: (messages: readonly LangChainBaseMessage[], isRunning: boolean) => Record<string, MessageTiming>;
 
-declare const useLangChainSubagents: () => ReadonlyMap<string, SubagentDiscoverySnapshot>;
+declare const useLangChainSubagents: () => ReadonlyMap<string, SubagentDiscoverySnapshot$1>;
 
-declare const useLangChainSubgraphs: () => ReadonlyMap<string, SubgraphDiscoverySnapshot>;
+declare const useLangChainSubgraphs: () => ReadonlyMap<string, SubgraphDiscoverySnapshot$1>;
 
 declare const useLangChainSubmit: () => (values: Record<string, unknown> | null | undefined, options?: Record<string, unknown>) => Promise<void>;
 

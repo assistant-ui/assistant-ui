@@ -4,6 +4,8 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { JSONSchema7 } from "json-schema";
 
+import "react";
+
 type AppendMessage = Omit<ThreadMessage, "id"> & {
   parentId: string | null;
   sourceId: string | null;

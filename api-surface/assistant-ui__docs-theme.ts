@@ -263,11 +263,11 @@ declare const assistantUiMdxComponents: {
   ThemeImage: typeof ThemeImage;
 };
 
-declare const createDocsLayout$1: (config: DocsConfig$1, options: createDocsLayout$1.Options) => (_param30: {
+declare const createDocsLayout: (config: DocsConfig$1, options: createDocsLayout.Options) => (_param30: {
   children: ReactNode;
 }) => import("react").JSX.Element;
 
-declare namespace createDocsLayout$1 {
+declare namespace createDocsLayout {
   interface Options {
     name: string;
     locale?: string;
@@ -285,7 +285,7 @@ declare namespace createDocsLayout$1 {
   }
 }
 
-declare const createDocsMetadata$1: (config: DocsConfig$1) => Record<string, unknown>;
+declare const createDocsMetadata: (config: DocsConfig$1) => Record<string, unknown>;
 
 declare namespace entry_mdx_exports {
   export { Callout, CalloutProps, CalloutType, Card, CardProps, Cards, Code, CodeBlock, CodeBlockProps, CodeGroup, File, Files, Folder, Heading, Kbd, Pre, Step, Steps, Tab, TabProps, Table, Tabs, TabsProps, ThemeImage, assistantUiCodeBlock, assistantUiMdxComponents };
@@ -296,7 +296,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_next_exports {
-  export { createDocsLayout$1 as createDocsLayout, createDocsMetadata$1 as createDocsMetadata };
+  export { createDocsLayout, createDocsMetadata };
 }
 
 declare namespace entry_provider_exports {
