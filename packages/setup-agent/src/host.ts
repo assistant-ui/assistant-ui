@@ -406,6 +406,7 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/ack": ({ messageId }) => {
       requireOpen();
+      touchAgent();
       const message = state.log.find(
         (entry) => entry.id === messageId && entry.role === "user",
       );
@@ -524,6 +525,7 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/add-step": ({ title, detail, product, active }) => {
       requireInstalling();
+      touchAgent();
       if (product !== undefined && product.trim() === "") {
         throw reject(
           "invalid-input",
@@ -543,6 +545,7 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/step": ({ stepId, status, note }) => {
       requireInstalling();
+      touchAgent();
       const step = findStep(stepId);
       updateStep(step, status, note);
     },

@@ -145,6 +145,20 @@ describe("CheckoutHost", () => {
     expect(host.state.status).toBe("installing");
   });
 
+  it("keeps a setup whose agent keeps working through steps while the page watches", async () => {
+    const host = await abandonedHost();
+    const { stepId } = (await host.commands["agent/add-step"]({
+      title: "Install",
+    })) as { stepId: string };
+    for (let minute = 0; minute < 120; minute++) {
+      await host.commands["browser/heartbeat"]();
+      if (minute % 30 === 0)
+        await host.commands["agent/step"]({ stepId, status: "active" });
+      vi.advanceTimersByTime(60_000);
+    }
+    expect(host.state.status).toBe("installing");
+  });
+
   it("keeps a setup whose agent stream keeps beating while the page watches", async () => {
     const host = await abandonedHost();
     for (let minute = 0; minute < 120; minute++) {
