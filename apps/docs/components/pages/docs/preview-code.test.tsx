@@ -7,7 +7,6 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { Blob } from "node:buffer";
 import { afterEach, expect, it, vi } from "vitest";
 import { PreviewCodeClient } from "./preview-code";
 import { SampleFrame } from "./samples/sample-frame";
@@ -38,8 +37,6 @@ afterEach(() => {
 });
 
 it("loads highlighting only when a code panel opens while keeping source and copy available", async () => {
-  // jsdom's Blob has no stream(), which Shiki's inlined WASM loader reads.
-  vi.stubGlobal("Blob", Blob);
   const writeText = vi.fn(async (_text: string) => {});
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
