@@ -16,7 +16,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 PKG="packages/$(basename "$HERE")"
-PW_VERSION="$(node -p 'require("@playwright/test/package.json").version' 2>/dev/null || echo 1.64.1)"
+PW_VERSION="$(node -p 'require("@playwright/test/package.json").version' 2>/dev/null || echo 1.65.1)"
 IMAGE="mcr.microsoft.com/playwright:v${PW_VERSION}-noble"
 PNPM_VERSION="$(node -p 'require(process.argv[1]).packageManager.split("@")[1]' "$ROOT/package.json")"
 # One volume per checkout, so parallel worktrees do not share sources.
