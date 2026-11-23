@@ -377,7 +377,9 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
  * that predate it ignore it, and newer CLIs fall back when it is missing.
  * Model key deposits need the input's redeem key hash, which every CLI
  * since setup-agent 0.0.7 sends. Links match the setup page's
- * alphabet, and a setup idle for `ROOM_IDLE_MS` is deleted.
+ * alphabet, and a setup idle for `ROOM_IDLE_MS` is deleted. A setup whose
+ * agent stream has been silent for the host's `AGENT_ABANDON_MS` ends on
+ * the next heartbeat that reaches it.
  */
 export default {
   fetch: async (request: Request, env: Env) => {

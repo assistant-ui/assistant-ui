@@ -42,6 +42,13 @@ const RUNS_WHEN_FULL = new Set<string>([
   "browser/bye",
 ]);
 
+/**
+ * How long a setup waits for its agent's stream to come back before it ends.
+ * A stream sends a heartbeat every few seconds while it runs, so silence this
+ * long means the agent stopped it, or its machine or sandbox went away.
+ */
+export const AGENT_ABANDON_MS = 60 * 60 * 1000;
+
 const capStateSize = <T extends object>(state: object, handlers: T): T =>
   Object.fromEntries(
     Object.entries(handlers).map(([name, handler]) => [
@@ -237,6 +244,23 @@ const useCheckoutHost = (restored: unknown) => {
         input.answeredAt = Date.now();
       }
     }
+  };
+
+  /**
+   * Ends a setup whose agent stream has been gone for `AGENT_ABANDON_MS`, so
+   * it is not left half-finished. Runs on the heartbeats and hellos that
+   * reach the setup, before they count as the agent's presence.
+   */
+  const endIfAbandoned = () => {
+    if (state.createdAt === null || isClosed(state)) return;
+    const { lastSeenAt } = state.agent;
+    if (lastSeenAt === null || Date.now() - lastSeenAt < AGENT_ABANDON_MS)
+      return;
+    state.status = "cancelled";
+    dismissOpenInputs();
+    log(
+      "Setup ended: your coding agent's setup connection stopped over an hour ago. Ask your agent to run setup again.",
+    );
   };
 
   const log = (text: string, stepId?: string) => {
@@ -438,17 +462,20 @@ const useCheckoutHost = (restored: unknown) => {
       if (kind !== undefined) state.agent.kind = kind;
     },
     "agent/hello": ({ cwd, kind } = {}) => {
+      endIfAbandoned();
       touchAgent();
       if (cwd !== undefined) state.agent.cwd = cwd;
       if (kind !== undefined) state.agent.kind = kind;
     },
     "agent/heartbeat": () => {
+      endIfAbandoned();
       touchAgent();
     },
     "agent/bye": () => {
       state.agent.connected = false;
     },
     "browser/heartbeat": () => {
+      endIfAbandoned();
       state.browser = { lastSeenAt: Date.now(), connected: true };
     },
     "browser/bye": () => {

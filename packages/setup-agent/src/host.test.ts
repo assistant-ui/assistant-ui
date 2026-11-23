@@ -1,7 +1,7 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { StatewireSendError } from "statewire";
-import { CheckoutHost } from "./host";
+import { AGENT_ABANDON_MS, CheckoutHost } from "./host";
 
 const MAX_STATE_BYTES = 512 * 1024;
 import { isPresetId, presetInput } from "./presets";
@@ -70,6 +70,40 @@ describe("CheckoutHost", () => {
     expect(isAgentPresent(host.state)).toBe(false);
     await host.commands["browser/bye"]();
     expect(host.state.browser!.connected).toBe(false);
+  });
+
+  it("ends a setup whose agent stream has been gone an hour, on the next heartbeat", async () => {
+    vi.useFakeTimers({ now: 1_000_000 });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const host = await approvedHost();
+    await host.commands["agent/ask"]({ prompt: "Which folder?" });
+    await host.commands["agent/bye"]();
+    vi.advanceTimersByTime(AGENT_ABANDON_MS - 1_000);
+    await host.commands["browser/heartbeat"]();
+    expect(host.state.status).toBe("installing");
+
+    vi.advanceTimersByTime(2_000);
+    await host.commands["browser/heartbeat"]();
+    expect(host.state.status).toBe("cancelled");
+    expect(openInputs(host.state)).toEqual([]);
+    expect(host.state.log.at(-1)?.text).toContain(
+      "your coding agent's setup connection stopped over an hour ago",
+    );
+  });
+
+  it("keeps a setup whose agent stream keeps beating", async () => {
+    vi.useFakeTimers({ now: 1_000_000 });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const host = await approvedHost();
+    for (let i = 0; i < 4; i++) {
+      vi.advanceTimersByTime(AGENT_ABANDON_MS / 2);
+      await host.commands["agent/heartbeat"]();
+    }
+    expect(host.state.status).toBe("installing");
   });
 
   it("restores a snapshot from before browser presence with the page absent", () => {
