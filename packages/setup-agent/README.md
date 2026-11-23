@@ -33,7 +33,7 @@ The browser sends the setup `id` and the displayed plan `revision` with each `ch
 
 ## Waiting
 
-Nothing wakes a coding agent that ends its turn: the stream prints to a background process the agent only reads between commands. So the briefing tells the agent to run the setup to the end in one turn and to block on every answer with `wait <input-id>`, `plan --wait` or `ask --wait`. Those waits return after 100 seconds, under the two minutes Claude Code gives a shell command by default, with `{"ok":false,"status":"waiting","waitingFor":"q1","next":"<command>"}`; the agent runs `next` again. `--timeout <seconds>` sets another limit, and `0` waits as long as it takes. `wait start` has no limit by default, since waiting for the user's next setup is idle time. The agent ends its turn only to ask the user in its own conversation, and after `done`.
+Nothing wakes a coding agent that ends its turn: the stream prints to a background process the agent only reads between commands. So the briefing tells the agent to run the setup to the end in one turn and to block on every answer with `wait <input-id>`, `plan --wait` or `ask --wait`. Those waits return after 100 seconds, under the two minutes Claude Code gives a shell command by default, with `{"ok":false,"status":"waiting","waitingFor":"q1","next":"<command>"}`; the agent runs `next` again. `--timeout <seconds>` sets another limit, and `0` waits as long as it takes. `wait start` has no limit by default, since waiting for the user to open this setup's page is idle time; on a finished or cancelled setup it returns at once. The agent ends its turn only to ask the user in its own conversation, and after `done`.
 
 ## Inputs
 
