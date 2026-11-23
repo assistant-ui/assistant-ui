@@ -72,19 +72,27 @@ describe("CheckoutHost", () => {
     expect(host.state.browser!.connected).toBe(false);
   });
 
-  it("ends a setup whose agent stream has been gone an hour, on the next heartbeat", async () => {
+  const abandonedHost = async () => {
     vi.useFakeTimers({ now: 1_000_000 });
     onTestFinished(() => {
       vi.useRealTimers();
     });
     const host = await approvedHost();
     await host.commands["agent/ask"]({ prompt: "Which folder?" });
-    await host.commands["agent/bye"]();
-    vi.advanceTimersByTime(AGENT_ABANDON_MS - 1_000);
+    return host;
+  };
+
+  it("ends a setup once the setup page has stayed awake an hour with its agent stream gone", async () => {
+    const host = await abandonedHost();
+    // A background tab beats about once a minute.
+    for (let minute = 0; minute < 59; minute++) {
+      await host.commands["browser/heartbeat"]();
+      vi.advanceTimersByTime(60_000);
+    }
     await host.commands["browser/heartbeat"]();
     expect(host.state.status).toBe("installing");
 
-    vi.advanceTimersByTime(2_000);
+    vi.advanceTimersByTime(60_000);
     await host.commands["browser/heartbeat"]();
     expect(host.state.status).toBe("cancelled");
     expect(openInputs(host.state)).toEqual([]);
@@ -93,15 +101,29 @@ describe("CheckoutHost", () => {
     );
   });
 
-  it("keeps a setup whose agent stream keeps beating", async () => {
-    vi.useFakeTimers({ now: 1_000_000 });
-    onTestFinished(() => {
-      vi.useRealTimers();
-    });
-    const host = await approvedHost();
-    for (let i = 0; i < 4; i++) {
-      vi.advanceTimersByTime(AGENT_ABANDON_MS / 2);
+  it("keeps a setup after a sleep that silenced both the page and the agent", async () => {
+    const host = await abandonedHost();
+    await host.commands["browser/heartbeat"]();
+    vi.advanceTimersByTime(3 * AGENT_ABANDON_MS);
+    // The page wakes first, then the stream.
+    await host.commands["browser/heartbeat"]();
+    vi.advanceTimersByTime(5_000);
+    await host.commands["browser/heartbeat"]();
+    await host.commands["agent/heartbeat"]();
+    expect(host.state.status).toBe("installing");
+    // And the stream alone never ends it.
+    vi.advanceTimersByTime(3 * AGENT_ABANDON_MS);
+    await host.commands["agent/hello"]({ cwd: "/app" });
+    await host.commands["agent/heartbeat"]();
+    expect(host.state.status).toBe("installing");
+  });
+
+  it("keeps a setup whose agent stream keeps beating while the page watches", async () => {
+    const host = await abandonedHost();
+    for (let minute = 0; minute < 120; minute++) {
+      await host.commands["browser/heartbeat"]();
       await host.commands["agent/heartbeat"]();
+      vi.advanceTimersByTime(60_000);
     }
     expect(host.state.status).toBe("installing");
   });

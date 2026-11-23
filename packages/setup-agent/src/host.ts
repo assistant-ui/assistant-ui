@@ -48,6 +48,12 @@ const RUNS_WHEN_FULL = new Set<string>([
  * long means the agent stopped it, or its machine or sandbox went away.
  */
 export const AGENT_ABANDON_MS = 60 * 60 * 1000;
+/**
+ * A gap between two setup page heartbeats longer than this means the page's
+ * machine slept or the tab was gone. Longer than the minute a browser
+ * throttles a background tab's timers to.
+ */
+const PAGE_GAP_MS = 5 * 60 * 1000;
 
 const capStateSize = <T extends object>(state: object, handlers: T): T =>
   Object.fromEntries(
@@ -246,15 +252,25 @@ const useCheckoutHost = (restored: unknown) => {
     }
   };
 
+  /** Since when the setup page has beaten with no gap over `PAGE_GAP_MS`; kept in memory only, so a restarted host starts counting again. */
+  let pageAwakeSince: number | undefined;
+
   /**
    * Ends a setup whose agent stream has been gone for `AGENT_ABANDON_MS`, so
-   * it is not left half-finished. Runs on the heartbeats and hellos that
-   * reach the setup, before they count as the agent's presence.
+   * it is not left half-finished. It ends only while the setup page has been
+   * awake that whole time: a laptop that slept with both the agent and the
+   * page on it shows the same silence, and its setup resumes on wake.
    */
   const endIfAbandoned = () => {
     if (state.createdAt === null || isClosed(state)) return;
     const { lastSeenAt } = state.agent;
-    if (lastSeenAt === null || Date.now() - lastSeenAt < AGENT_ABANDON_MS)
+    const now = Date.now();
+    if (
+      lastSeenAt === null ||
+      pageAwakeSince === undefined ||
+      now - lastSeenAt < AGENT_ABANDON_MS ||
+      now - pageAwakeSince < AGENT_ABANDON_MS
+    )
       return;
     state.status = "cancelled";
     dismissOpenInputs();
@@ -462,21 +478,24 @@ const useCheckoutHost = (restored: unknown) => {
       if (kind !== undefined) state.agent.kind = kind;
     },
     "agent/hello": ({ cwd, kind } = {}) => {
-      endIfAbandoned();
       touchAgent();
       if (cwd !== undefined) state.agent.cwd = cwd;
       if (kind !== undefined) state.agent.kind = kind;
     },
     "agent/heartbeat": () => {
-      endIfAbandoned();
       touchAgent();
     },
     "agent/bye": () => {
       state.agent.connected = false;
     },
     "browser/heartbeat": () => {
+      const now = Date.now();
+      const previous = state.browser?.lastSeenAt ?? null;
+      if (previous === null || now - previous > PAGE_GAP_MS)
+        pageAwakeSince = now;
+      else pageAwakeSince ??= previous;
       endIfAbandoned();
-      state.browser = { lastSeenAt: Date.now(), connected: true };
+      state.browser = { lastSeenAt: now, connected: true };
     },
     "browser/bye": () => {
       if (state.browser) state.browser.connected = false;
