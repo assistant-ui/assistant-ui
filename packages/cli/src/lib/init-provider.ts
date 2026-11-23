@@ -5,7 +5,7 @@ import { assertSafeProjectFile } from "./safe-project-file";
 import type { PackageManagerName } from "./utils/package-manager";
 
 /** The model providers `init` can scaffold the chat route with. */
-export const CHAT_PROVIDERS = {
+const CHAT_PROVIDERS = {
   openai: {
     name: "OpenAI",
     pkg: "@ai-sdk/openai",
@@ -143,7 +143,7 @@ export function providerInstallCommands(
 }
 
 /** Where the scaffolded chat route is, relative to the project root. */
-export const findChatRoute = (root: string) =>
+const findChatRoute = (root: string) =>
   ROUTE_FILES.find((file) => fs.existsSync(path.join(root, file)));
 
 /** What `init` prints about the chat route's provider. */
