@@ -48,11 +48,11 @@ The [thread detail view](/docs/cloud/dashboard/threads) renders the conversation
 
 ## Interrupted runs
 
-A run lives in the tab that streams it. When a run starts, the cloud adapter opens the thread's run lease and stores nothing yet. While the run streams, it sends heartbeats on the interval the server sets (20 seconds by default), also while the tab is in the background, and every 20 seconds it checkpoints the reply once the reply has content: the first checkpoint stores the reply, later ones update it. The runtime's settled write stores or updates the reply and ends the run with a `done`, `cancelled` or `error` reason. A run that dies before its first write leaves no message. This covers the `aui/v0` history path (the local runtime, AG-UI and external store runtimes) and the AI SDK runtime, as long as each thread message maps to one AI SDK message. The endpoints are in the [Messages API reference](/docs/cloud/api/messages#run-leases).
+A run lives in the tab that streams it. When a run starts, the cloud adapter opens the thread's run lease and stores nothing yet. While the run streams, it sends heartbeats on the interval the server sets (20 seconds by default), also while the tab is in the background, and every 20 seconds it checkpoints the reply once the reply has content: the first checkpoint stores the reply, later ones update it. The runtime's settled write stores or updates the reply and ends the run with a `done`, `cancelled` or `error` reason. A run that dies before its first write leaves no message. Thread run leases need Assistant Cloud v0.2.12 or newer; against an older server, opening the run fails with an error that names the version. This covers the `aui/v0` history path (the local runtime, AG-UI and external store runtimes) and the AI SDK runtime, as long as each thread message maps to one AI SDK message. The endpoints are in the [Messages API reference](/docs/cloud/api/messages#run-leases).
 
 A thread has one running lease at a time, and the newest run wins: starting a run ends the thread's other running lease, and the older tab stops writing its reply.
 
-The server never expires a run. Other tabs read how long ago its last heartbeat was, and treat a run that went `staleAfter` without one (30 seconds by default) as interrupted. That is what a run whose tab closed or lost its connection looks like.
+The server ends a run only after six hours without a heartbeat. Other tabs read how long ago its last heartbeat was, and treat a run that went `staleAfter` without one (30 seconds by default) as interrupted. That is what a run whose tab closed or lost its connection looks like.
 
 ```tsx
 const adapter = useCloudThreadListAdapter({ cloud, staleAfter: 60_000 });

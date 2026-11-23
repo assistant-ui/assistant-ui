@@ -187,6 +187,7 @@ describe("AssistantCloudThreadMessages paging", () => {
     });
     await expect(messages.list("thread-1")).resolves.toEqual({
       messages: [],
+      run: null,
       has_more: true,
       next_cursor: "message-9",
     });
@@ -194,6 +195,7 @@ describe("AssistantCloudThreadMessages paging", () => {
     makeRequest.mockResolvedValueOnce({ messages: [] });
     await expect(messages.list("thread-1")).resolves.toEqual({
       messages: [],
+      run: null,
     });
 
     makeRequest.mockResolvedValueOnce({ messages: [], has_more: "yes" });

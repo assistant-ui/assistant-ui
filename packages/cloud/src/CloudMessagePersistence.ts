@@ -58,8 +58,9 @@ export type CloudMessagePersistenceOptions = {
   /**
    * Milliseconds without a heartbeat after which a running lease reads as
    * stale, which is what a run whose tab went away looks like. Default
-   * 30 000. The server never expires a run: a late run that beats again
-   * reads as running again, and its writes still land.
+   * 30 000. The server ends a run only after six hours without a beat: a
+   * late run that beats again before then reads as running again, and its
+   * writes still land.
    */
   staleAfter?: number | undefined;
 };
@@ -87,7 +88,7 @@ const lostLeaseCode = (error: unknown): string | undefined =>
     ? error.code
     : undefined;
 
-// A server before v0.2.11 has no `POST /threads/:id/runs` route.
+// A server before v0.2.12 has no `POST /threads/:id/runs` route.
 const isThreadRunMissing = (error: unknown) =>
   error instanceof CloudAPIError &&
   (error.status === 404 || error.status === 405);
@@ -169,7 +170,7 @@ export class CloudMessagePersistence {
    * other running lease of the thread: the newest run wins.
    *
    * Resolves false, opening nothing, when the reply is already stored or its
-   * id cannot be an external id. Rejects against a server before v0.2.11,
+   * id cannot be an external id. Rejects against a server before v0.2.12,
    * which has no thread run leases.
    */
   async beginRun(
@@ -185,6 +186,20 @@ export class CloudMessagePersistence {
       !fitsExternalId(messageId)
     )
       return isOpen(this.runs.get(messageId));
+    return this.openThreadRun(threadId, messageId, parentId, false);
+  }
+
+  /**
+   * Opens the thread's run lease for `messageId`. Resolves false when a reset
+   * overtook the open, or, unless `storing`, when the reply was stored
+   * meanwhile; `storing` is the append that stores the reply itself.
+   */
+  private async openThreadRun(
+    threadId: string,
+    messageId: string,
+    parentId: string | null,
+    storing: boolean,
+  ): Promise<boolean> {
     const runs = this.runs;
     const task = (async () => {
       const resolvedParentId = parentId
@@ -195,13 +210,14 @@ export class CloudMessagePersistence {
         .catch((error: unknown) => {
           throw isThreadRunMissing(error)
             ? new Error(
-                "Assistant Cloud has no thread run leases. This client needs Assistant Cloud v0.2.11 or newer.",
+                "Assistant Cloud has no thread run leases. This client needs Assistant Cloud v0.2.12 or newer.",
                 { cause: error },
               )
             : error;
         });
       // A reset while the open was in flight drops the lease with the old mapping.
-      if (this.runs !== runs || this.idMapping.has(messageId)) return false;
+      if (this.runs !== runs || (!storing && this.idMapping.has(messageId)))
+        return false;
       this.openRun(threadId, messageId, lease);
       return true;
     })();
@@ -249,18 +265,45 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
     run?: CloudMessageRunPhase,
   ): Promise<void> {
+    const mapping = this.idMapping;
+    // A write behind an in-flight store waits on that store below; any other waits for a run that is opening.
     const begin = this.runBegins.get(messageId);
-    if (begin) await begin.catch(() => undefined);
+    if (begin && !(this.idMapping.get(messageId) instanceof Promise)) {
+      await begin.catch(() => undefined);
+      // A reset while the run opened drops the write with the old mapping.
+      if (this.idMapping !== mapping) return;
+    }
     if (this.runs.get(messageId) === "lost") return;
-    // A run's first write stores its reply as the holder of the thread's lease; a reply appended as running opens one.
-    if (
-      !this.idMapping.has(messageId) &&
-      (isOpen(this.runs.get(messageId)) ||
-        (run === "running" &&
-          (await this.beginRun(threadId, messageId, parentId))))
-    ) {
-      await this.storeRun(threadId, messageId, parentId, format, content, run);
-      return;
+    if (!this.idMapping.has(messageId)) {
+      // A run's first write stores its reply as the holder of the thread's lease.
+      if (isOpen(this.runs.get(messageId))) {
+        await this.storeRun(
+          threadId,
+          messageId,
+          parentId,
+          format,
+          content,
+          run,
+        );
+        return;
+      }
+      // A reply appended as running opens the thread's lease, then stores itself as its holder.
+      if (
+        run === "running" &&
+        !this.runs.has(messageId) &&
+        fitsExternalId(messageId)
+      ) {
+        await this.storeRun(
+          threadId,
+          messageId,
+          parentId,
+          format,
+          content,
+          run,
+          true,
+        );
+        return;
+      }
     }
     const cloud = this.getCloud();
     const existing = this.idMapping.get(messageId);
@@ -408,7 +451,11 @@ export class CloudMessagePersistence {
     }
   }
 
-  /** The first write of a reply whose run holds a thread lease: it stores the row as the lease holder. */
+  /**
+   * The first write of a reply whose run holds a thread lease: it stores the
+   * row as the lease holder. With `openFirst` it opens that lease first. The
+   * store is mapped at once, so writes made meanwhile wait on it.
+   */
   private async storeRun(
     threadId: string,
     messageId: string,
@@ -416,32 +463,59 @@ export class CloudMessagePersistence {
     format: string,
     content: ReadonlyJSONObject,
     phase: CloudMessageRunPhase = "done",
+    openFirst = false,
   ): Promise<void> {
     const mapping = this.idMapping;
-    const remote = this.serializeRun(messageId, async () => {
-      const open = this.runs.get(messageId);
-      if (!isOpen(open)) throw new Error("The run lease was lost.");
-      const parent_id = parentId ? await this.resolveParentId(parentId) : null;
-      const created = await this.leaseWrite(messageId, () =>
-        this.getCloud().threads.messages.create(threadId, {
-          parent_id,
-          external_id: messageId,
-          format,
-          content,
-          lease_id: open.leaseId,
-        }),
-      );
-      if (!created) throw new Error("The run lease was lost.");
-      await this.afterLeaseWrite(messageId, open, phase);
-      return created.message_id;
-    });
-    mapping.set(messageId, remote);
+    let remote: Promise<string | undefined> | undefined;
+    const store = () =>
+      this.serializeRun(messageId, async () => {
+        const open = this.runs.get(messageId);
+        if (!isOpen(open)) throw new Error("The run lease was lost.");
+        const parent_id = parentId
+          ? await this.resolveParentId(parentId)
+          : null;
+        const created = await this.leaseWrite(messageId, () =>
+          this.getCloud().threads.messages.create(threadId, {
+            parent_id,
+            external_id: messageId,
+            format,
+            content,
+            lease_id: open.leaseId,
+          }),
+        );
+        if (!created) throw new Error("The run lease was lost.");
+        // The row exists from here on, even if ending the run fails.
+        if (mapping.get(messageId) === remote)
+          mapping.set(messageId, created.message_id);
+        await this.afterLeaseWrite(messageId, open, phase);
+        return created.message_id;
+      });
+    remote = openFirst
+      ? this.openThreadRun(threadId, messageId, parentId, true).then(
+          (opened) => (opened ? store() : undefined),
+        )
+      : store();
+    this.failedAppends.delete(messageId);
+    mapping.set(messageId, remote as Promise<string>);
     try {
       const remoteId = await remote;
-      if (mapping.get(messageId) === remote) mapping.set(messageId, remoteId);
+      if (mapping.get(messageId) !== remote) return;
+      // A reset before the lease opened stores nothing.
+      if (remoteId === undefined) mapping.delete(messageId);
+      else mapping.set(messageId, remoteId);
     } catch (error) {
-      if (mapping.get(messageId) === remote) mapping.delete(messageId);
-      if (this.runs.get(messageId) !== "lost") throw error;
+      const unstored = mapping.get(messageId) === remote;
+      if (unstored) mapping.delete(messageId);
+      if (this.runs.get(messageId) === "lost") return;
+      // A reply whose store failed is stored again before a child that names it, as a plain append's is.
+      if (unstored && this.idMapping === mapping)
+        this.failedAppends.set(messageId, {
+          threadId,
+          parentId,
+          format,
+          content,
+        });
+      throw error;
     }
   }
 
@@ -709,12 +783,13 @@ export class CloudMessagePersistence {
     let after: string | undefined;
 
     while (true) {
-      const readAt = Date.now();
       const page = await cloud.threads.messages.list(threadId, {
         ...(format ? { format } : undefined),
         limit: CLOUD_MESSAGE_PAGE_SIZE,
         ...(after ? { after } : undefined),
       });
+      // The server measured the run's quiet time when it answered.
+      const readAt = Date.now();
       if (after === undefined && this.idMapping === idMapping)
         this.recordThreadRun(threadId, page.run ?? null, readAt);
       // A cursor the server cannot resolve drops the keyset filter and replays

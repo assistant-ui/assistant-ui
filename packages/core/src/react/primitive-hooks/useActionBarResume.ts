@@ -4,12 +4,12 @@ import { actionBarResumeDisabled } from "../../store/primitive-predicates";
 import { reportRunFailure } from "../../utils/report-run-failure";
 
 /**
- * @deprecated Use `useThreadResume`. A run that stops before it stores a
- * reply leaves the thread ending with the user's message, which the thread
- * resumes without a branch; a reply that stored content before its run
- * stopped is an ordinary error, answered again with Regenerate. This hook
- * stays enabled only for an empty stale reply a client before v0.3.35 stored,
- * and answers it on a new branch as before.
+ * @deprecated Use `ThreadPrimitive.Resume`. A run that stops before it
+ * stores a reply now leaves the thread ending with the user's message, which
+ * the thread resumes; a reply that stored content before its run stopped is
+ * an ordinary error, answered again with Regenerate. This hook stays enabled
+ * only for an empty stale reply that an earlier client stored, and answers it
+ * in place.
  */
 export const useActionBarResume = () => {
   const aui = useAui();

@@ -24,10 +24,10 @@ export type AssistantCloudThreadRunOpenBody = {
  * Run leases on threads. A thread holds at most one running lease: opening
  * one ends the thread's other running lease, so the newest run wins and the
  * older holder's next beat or write answers `409 run_ended`. A lease runs
- * until its holder ends it; the server never expires one. The holder
- * heartbeats on the server's `heartbeat_interval_ms`, and message lists
- * report the thread's running lease with how long ago it last beat, so
- * readers can tell a run whose tab went away. The holder's first message
+ * until its holder ends it, or the server ends it after six hours without
+ * a beat. The holder heartbeats on the server's `heartbeat_interval_ms`,
+ * and message lists report the thread's running lease with how long ago it
+ * last beat, so readers can tell a run whose tab went away. The holder's first message
  * write with the `lease_id` stores the reply and binds the lease to it.
  */
 export class AssistantCloudThreadRuns {

@@ -41,6 +41,8 @@ export const subscribeThreadReplyState = (
   set.add(listener);
   return () => {
     set.delete(listener);
-    if (set.size === 0) listeners.delete(threadItemId);
+    // An older cleanup called again leaves a newer listener set in place.
+    if (set.size === 0 && listeners.get(threadItemId) === set)
+      listeners.delete(threadItemId);
   };
 };

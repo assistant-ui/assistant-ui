@@ -164,11 +164,13 @@ describe("CloudMessagePersistence run leases", () => {
     await expect(placeholder).rejects.toThrow("network");
     await final;
 
+    // The run's lease is still open, so the final answer stores the row as its holder.
     expect(messages.create).toHaveBeenLastCalledWith("t1", {
       parent_id: null,
       external_id: "local-a",
       format: "aui/v0",
       content: done,
+      lease_id: "lease_1",
     });
     expect(await persistence.getRemoteId("local-a")).toBe("msg_2");
   });
@@ -192,6 +194,9 @@ describe("CloudMessagePersistence run leases", () => {
       "running",
     );
     const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    // The lease opens and the first store is in flight before the reset.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(messages.create).toHaveBeenCalledTimes(1);
     persistence.reset();
     rejectCreate(new Error("network"));
     await expect(placeholder).rejects.toThrow("network");
@@ -256,6 +261,7 @@ describe("CloudMessagePersistence run leases", () => {
 
     expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
       content: done,
+      lease_id: "lease_1",
     });
   });
 
@@ -309,7 +315,7 @@ describe("CloudMessagePersistence run leases", () => {
     expect(order).toEqual(["partial", "done"]);
   });
 
-  it("writes the final answer over an in-flight running append that got no lease", async () => {
+  it("writes the final answer over an in-flight running append as the lease holder", async () => {
     const { cloud, messages } = createCloud();
     let resolveCreate!: (value: unknown) => void;
     messages.create.mockReturnValueOnce(
@@ -334,6 +340,7 @@ describe("CloudMessagePersistence run leases", () => {
     expect(messages.create).toHaveBeenCalledTimes(1);
     expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
       content: done,
+      lease_id: "lease_1",
     });
   });
 
@@ -575,7 +582,7 @@ describe("CloudMessagePersistence run leases", () => {
 
     await expect(
       persistence.append("t1", "local-a", null, "aui/v0", running, "running"),
-    ).rejects.toThrow(/needs Assistant Cloud v0\.2\.11 or newer/);
+    ).rejects.toThrow(/needs Assistant Cloud v0\.2\.12 or newer/);
     expect(messages.create).not.toHaveBeenCalled();
     expect(persistence.hasOpenRun("local-a")).toBe(false);
   });

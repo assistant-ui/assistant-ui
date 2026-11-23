@@ -320,9 +320,11 @@ export const useCloudRunLeases = (
     return () => {
       disposed = true;
       if (threadItemId !== undefined) {
-        if (refreshers.get(threadItemId) === refresh)
+        // Another tracker mounted on the same thread since keeps its reply state.
+        if (refreshers.get(threadItemId) === refresh) {
           refreshers.delete(threadItemId);
-        setThreadReplyState(threadItemId, undefined);
+          setThreadReplyState(threadItemId, undefined);
+        }
       }
       if (replyTimer !== undefined) clearTimeout(replyTimer);
       if (poll) clearTimeout(poll.timer);

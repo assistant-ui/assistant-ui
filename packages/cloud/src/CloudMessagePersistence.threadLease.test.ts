@@ -108,7 +108,7 @@ describe("CloudMessagePersistence thread leases", () => {
     runs.open.mockRejectedValue(apiError(404));
     const persistence = new CloudMessagePersistence(cloud);
     await expect(persistence.beginRun("t1", "a1", null)).rejects.toThrow(
-      /needs Assistant Cloud v0\.2\.11 or newer/,
+      /needs Assistant Cloud v0\.2\.12 or newer/,
     );
     expect(persistence.hasOpenRun("a1")).toBe(false);
   });
@@ -150,5 +150,50 @@ describe("CloudMessagePersistence thread leases", () => {
     messages.list.mockResolvedValue({ messages: [], run: null });
     await persistence.load("t1");
     expect(persistence.threadRunOf("t1")?.run).toBeNull();
+  });
+  it("keeps the stored reply mapped when ending its run fails after the first write", async () => {
+    const { cloud, messages, runs } = createCloud();
+    runs.end.mockRejectedValueOnce(apiError(503));
+    const persistence = new CloudMessagePersistence(cloud);
+
+    await persistence.beginRun("t1", "a1", null);
+    await expect(
+      persistence.append("t1", "a1", null, "aui/v0", done, "done"),
+    ).rejects.toThrow("http 503");
+    expect(await persistence.getRemoteId("a1")).toBe("msg_a");
+
+    await persistence.update("t1", "a1", "aui/v0", done);
+    expect(messages.create).toHaveBeenCalledTimes(1);
+    expect(messages.update).toHaveBeenCalledWith("t1", "msg_a", {
+      content: done,
+    });
+  });
+
+  it("stores nothing when a reset lands while a running reply's lease opens", async () => {
+    const { cloud, messages, runs } = createCloud();
+    let resolveOpen!: (value: typeof lease) => void;
+    runs.open.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOpen = resolve;
+      }),
+    );
+    const persistence = new CloudMessagePersistence(cloud);
+
+    const first = persistence.append(
+      "t1",
+      "a1",
+      null,
+      "aui/v0",
+      partial,
+      "running",
+    );
+    const final = persistence.append("t1", "a1", null, "aui/v0", done, "done");
+    persistence.reset();
+    resolveOpen(lease);
+    await Promise.all([first, final]);
+
+    expect(messages.create).not.toHaveBeenCalled();
+    expect(persistence.isPersisted("a1")).toBe(false);
+    expect(persistence.hasOpenRun("a1")).toBe(false);
   });
 });

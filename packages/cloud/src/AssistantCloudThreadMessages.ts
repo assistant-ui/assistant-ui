@@ -27,7 +27,7 @@ export type CloudMessage = {
 };
 
 export type CloudMessageRun = {
-  /** A lease runs until its holder ends it; the server never expires one. */
+  /** A lease runs until its holder ends it, or six hours without a beat. */
   status: "running" | "ended";
   /** Time since the lease's last heartbeat, measured by the server when it listed the message. */
   last_heartbeat_ms_ago: number;

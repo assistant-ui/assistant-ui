@@ -255,7 +255,7 @@ Any message in the thread can be updated, including one that later messages foll
 
 ## Run leases
 
-A run lease marks a thread as being answered. A thread holds one running lease at a time: opening one ends the thread's other running lease, so the newest run wins, and the older holder's next beat or write answers `409 run_ended`. A lease stays `running` until its holder ends it; the server never expires one. The holder sends a heartbeat every `heartbeat_interval_ms` (server config, 20 seconds by default) and should schedule beats from that value, not a constant. Readers decide from `last_heartbeat_ms_ago` when a quiet run counts as interrupted; the assistant-ui client uses 30 seconds by default (`staleAfter`). A late run that beats or writes again is still running.
+A run lease marks a thread as being answered. A thread holds one running lease at a time: opening one ends the thread's other running lease, so the newest run wins, and the older holder's next beat or write answers `409 run_ended`. A lease stays `running` until its holder ends it, or until it goes six hours without a heartbeat, when the server ends it as `expired`. The holder sends a heartbeat every `heartbeat_interval_ms` (server config, 20 seconds by default) and should schedule beats from that value, not a constant. Readers decide from `last_heartbeat_ms_ago` when a quiet run counts as interrupted; the assistant-ui client uses 30 seconds by default (`staleAfter`). A late run that beats or writes again is still running.
 
 ```http
 POST /v1/threads/{thread_id}/runs

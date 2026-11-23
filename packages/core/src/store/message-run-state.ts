@@ -14,7 +14,7 @@ const RUN_STATES: Readonly<Record<string, MessageRunState>> = {
 };
 
 /** Whether a reply has nothing to show: no parts, or only blank text and reasoning. */
-const isEmptyReply = (message: Pick<ThreadMessage, "content">) =>
+export const isEmptyReply = (message: Pick<ThreadMessage, "content">) =>
   message.content.every(
     (part) =>
       (part.type === "text" || part.type === "reasoning") &&

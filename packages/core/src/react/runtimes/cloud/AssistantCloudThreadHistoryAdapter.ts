@@ -117,13 +117,7 @@ const runStatusOf = (state: CloudRunState | undefined) =>
 // A run another session drives is the newest message of its branch, so it sits on the first page.
 const RUN_STATE_PAGE_SIZE = 20;
 
-/** Whether a reply has nothing to show: no parts, or only blank text and reasoning. */
-export const isEmptyReply = (message: Pick<ThreadMessage, "content">) =>
-  message.content.every(
-    (part) =>
-      (part.type === "text" || part.type === "reasoning") &&
-      part.text.trim() === "",
-  );
+export { isEmptyReply } from "../../../store/message-run-state";
 
 const endPhaseOf = (message: ThreadMessage): CloudMessageRunPhase => {
   const { status } = message;
@@ -713,11 +707,12 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     if (!remoteThreadId) return undefined;
     const remoteId =
       context.persistence.getResolvedRemoteId(messageId) ?? messageId;
-    const readAt = Date.now();
     const { messages, run } = await context.cloud.threads.messages.list(
       remoteThreadId,
       { limit: RUN_STATE_PAGE_SIZE },
     );
+    // The server measured the run's quiet time when it answered.
+    const readAt = Date.now();
     this.assertCurrentScope(context);
     context.persistence.recordThreadRun(remoteThreadId, run ?? null, readAt);
     const row = messages.find((message) => message.id === remoteId);

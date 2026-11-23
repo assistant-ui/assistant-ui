@@ -15,6 +15,7 @@ import { createSettleOutsideAct } from "@assistant-ui/x-react18/testing";
 import { AssistantCloud } from "assistant-cloud";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
+import { agUiWireMessageId } from "./runtime/adapter/conversions";
 
 // A thread switch settles once React renders the new main thread.
 const settleOutsideAct = createSettleOutsideAct(act, waitFor);
@@ -231,7 +232,7 @@ afterEach(() => {
 });
 
 describe("useAgUiRuntime with Assistant Cloud run leases", () => {
-  it("opens the thread's lease when the run starts and stores the reply under the agent's id when it finishes", async () => {
+  it("opens the thread's lease when the run starts and stores the reply when it finishes", async () => {
     const server = createServer([]);
     const { agent, getAui } = await renderApp(server);
     await act(async () => {
@@ -254,9 +255,11 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
       ).toBe(true),
     );
     const [reply] = replyCreates(server.calls);
+    const message = getAui().thread.getState().messages[1]!;
+    expect(agUiWireMessageId(message)).toBe("agent-msg-1");
     expect(reply!.body).toMatchObject({
       parent_id: "msg_1",
-      external_id: "agent-msg-1",
+      external_id: message.id,
       lease_id: "lease_1",
     });
     expect(replyCreates(server.calls)).toHaveLength(1);
