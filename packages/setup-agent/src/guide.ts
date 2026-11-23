@@ -51,6 +51,11 @@ export const GUIDE_TEXT_KEYS = [
 ] as const;
 export type GuideTextKey = (typeof GUIDE_TEXT_KEYS)[number];
 
+/** Texts added within protocol 1: a server from before them leaves them out, and the CLI reads them as empty. */
+const LATER_TEXT_KEYS: ReadonlySet<GuideTextKey> = new Set([
+  "stream.unattended",
+]);
+
 /** All a guide can make the CLI do: print one of its texts, print the setup's state, or announce the agent. */
 const LOCAL_ACTIONS = ["print", "print-status", "announce-agent"] as const;
 
@@ -105,7 +110,10 @@ export const parseGuide = (value: unknown): Guide => {
   const texts = guide.texts as Record<string, unknown> | undefined;
   const parsed = {} as Record<GuideTextKey, string>;
   for (const key of GUIDE_TEXT_KEYS) {
-    const text = texts?.[key];
+    const text =
+      texts?.[key] === undefined && LATER_TEXT_KEYS.has(key)
+        ? ""
+        : texts?.[key];
     if (typeof text !== "string") throw new Error(`the guide has no "${key}"`);
     parsed[key] = sanitizeTerminalText(text);
   }

@@ -65,6 +65,18 @@ describe("parseGuide", () => {
   });
 });
 
+describe("parseGuide from an older server", () => {
+  it("reads a text added within the protocol as empty when the server leaves it out", () => {
+    const { "stream.unattended": _, ...texts } = testGuide.texts;
+    const guide = parseGuide({ ...testGuide, texts });
+    expect(guide.texts["stream.unattended"]).toBe("");
+    const { "wait.waiting": __, ...missing } = testGuide.texts;
+    expect(() => parseGuide({ ...testGuide, texts: missing })).toThrow(
+      'the guide has no "wait.waiting"',
+    );
+  });
+});
+
 describe("loadGuide", () => {
   it("asks the setup URL for its protocol and refuses redirects", async () => {
     const fetch = serve(() => Response.json(testGuide));
