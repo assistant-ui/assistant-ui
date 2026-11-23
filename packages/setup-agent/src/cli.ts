@@ -1093,7 +1093,7 @@ export const runSetupCommand = async (
       case "cancel": {
         const { id } = requireState(client);
         if (id !== null) await commands["checkout/cancel"]({ id });
-        print({ ok: id !== null, status: requireState(client).status });
+        print({ ok: id !== null });
         break;
       }
       case "log": {
