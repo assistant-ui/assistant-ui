@@ -298,6 +298,59 @@ describe("cloud run leases", () => {
     expect(createCalls(messages)).toHaveLength(2);
   });
 
+  it("stores a running reply first seen with content on the first checkpoint", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { cloud, messages, threadRuns } = makeCloud();
+    const { getAui, getRuntime } = await renderRuntime(cloud);
+    await act(async () => {
+      getAui().thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        startRun: false,
+      });
+    });
+    await waitFor(() => expect(createCalls(messages)).toHaveLength(1));
+    const user = getAui().thread.getState().messages[0]!;
+
+    // A run joined mid-stream: its reply arrives already running, with content.
+    await act(async () => {
+      getRuntime().thread.import({
+        headId: "joined",
+        messages: [
+          { parentId: null, message: user },
+          {
+            parentId: user.id,
+            message: {
+              id: "joined",
+              role: "assistant",
+              createdAt: new Date(),
+              content: [{ type: "text", text: "Joined" }],
+              status: { type: "running" },
+              metadata: {
+                unstable_state: null,
+                unstable_annotations: [],
+                unstable_data: [],
+                steps: [],
+                custom: {},
+              },
+            },
+          },
+        ],
+      });
+    });
+    await waitFor(() => expect(threadRuns.open).toHaveBeenCalled());
+    expect(createCalls(messages)).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    await waitFor(() => expect(createCalls(messages)).toHaveLength(2));
+    expect(createCalls(messages)[1]).toMatchObject({
+      lease_id: "lease_1",
+      content: { content: [{ type: "text", text: "Joined" }] },
+    });
+  });
+
   it("leaves no message when the run dies before its first write", async () => {
     const { cloud, messages, threadRuns } = makeCloud();
     const { runs, getAui, unmount } = await renderRuntime(cloud);
