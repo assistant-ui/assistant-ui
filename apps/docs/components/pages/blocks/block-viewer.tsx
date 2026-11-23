@@ -383,7 +383,8 @@ export function BlockViewer({
                   }}
                   title={`${title} preview`}
                   allow="microphone; clipboard-write"
-                  onLoad={() => {
+                  onLoad={(event) => {
+                    if (!event.currentTarget.getAttribute("src")) return;
                     postTheme();
                     setRefreshing(false);
                     setLoaded(true);

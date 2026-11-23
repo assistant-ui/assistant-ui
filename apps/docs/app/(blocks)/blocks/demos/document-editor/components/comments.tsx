@@ -820,6 +820,8 @@ function mentionAt(value: string, caret: number): MentionQuery | null {
   return { start: caret - query.length - 1 };
 }
 
+const replyDrafts = new Map<string, string>();
+
 function ReplyField({
   thread,
   fieldRef,
@@ -827,7 +829,11 @@ function ReplyField({
   thread: CommentThread;
   fieldRef: RefObject<HTMLTextAreaElement | null>;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setDraft] = useState(() => replyDrafts.get(thread.id) ?? "");
+  const setValue = (next: string) => {
+    replyDrafts.set(thread.id, next);
+    setDraft(next);
+  };
   const [caret, setCaret] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const listId = useId();
@@ -840,7 +846,11 @@ function ReplyField({
   const accept = (query: MentionQuery) => {
     const inserted = `@${ASSISTANT_NAME} `;
     const position = query.start + inserted.length;
-    setValue(value.slice(0, query.start) + inserted + value.slice(caret));
+    setValue(
+      value.slice(0, query.start) +
+        inserted +
+        value.slice(caret).replace(/^[a-z]*/i, ""),
+    );
     setCaret(position);
     requestAnimationFrame(() => {
       fieldRef.current?.focus({ preventScroll: true });

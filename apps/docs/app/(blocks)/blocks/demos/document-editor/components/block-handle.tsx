@@ -201,6 +201,7 @@ export function BlockHandle() {
   const grip = useRef<HTMLButtonElement>(null);
   const menuOpenRef = useRef(false);
   const press = useRef<{
+    pointerId: number;
     x: number;
     y: number;
     key: NodeKey;
@@ -211,11 +212,13 @@ export function BlockHandle() {
   const skipClick = useRef(false);
   const acted = useRef(false);
   const copyTimer = useRef(0);
+  const menuSession = useRef(0);
 
   const key = heldKey ?? hoverKey ?? caretKey;
 
   const openMenu = useCallback((open: boolean) => {
     window.clearTimeout(copyTimer.current);
+    menuSession.current += 1;
     if (open) setCopied(null);
     menuOpenRef.current = open;
     setMenuOpen(open);
@@ -357,8 +360,9 @@ export function BlockHandle() {
   if (!anchor || !editable || !key) return null;
 
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || press.current) return;
     press.current = {
+      pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
       key,
@@ -371,7 +375,7 @@ export function BlockHandle() {
 
   const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const pressed = press.current;
-    if (!pressed) return;
+    if (pressed?.pointerId !== event.pointerId) return;
     const { clientX, clientY } = event;
     if (!pressed.dragging) {
       if (Math.hypot(clientX - pressed.x, clientY - pressed.y) < DRAG_START) {
@@ -422,8 +426,9 @@ export function BlockHandle() {
     });
   };
 
-  const onPointerUp = () => {
-    if (!press.current?.dragging) {
+  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (press.current?.pointerId !== event.pointerId) return;
+    if (!press.current.dragging) {
       press.current = null;
       return;
     }
@@ -433,6 +438,10 @@ export function BlockHandle() {
       skipClick.current = false;
     }, 0);
     endDrag(true);
+  };
+
+  const onPointerEnd = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (press.current?.pointerId === event.pointerId) endDrag(false);
   };
 
   const typeOf = () =>
@@ -489,12 +498,14 @@ export function BlockHandle() {
     // is saved. The link needs both.
     saveOpenPage();
     const id = idsOf(editor).get(key);
+    const session = menuSession.current;
     let result: "done" | "failed" = id ? "done" : "failed";
     try {
       if (id) await navigator.clipboard.writeText(getBlockLink(id));
     } catch {
       result = "failed";
     }
+    if (session !== menuSession.current) return;
     setCopied(result);
     window.clearTimeout(copyTimer.current);
     copyTimer.current = window.setTimeout(() => openMenu(false), COPIED_SHOWN);
@@ -529,8 +540,8 @@ export function BlockHandle() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => endDrag(false)}
-        onLostPointerCapture={() => endDrag(false)}
+        onPointerCancel={onPointerEnd}
+        onLostPointerCapture={onPointerEnd}
         onClick={onClick}
         onKeyDown={onKeyDown}
         onFocus={() => setHeldKey(key)}

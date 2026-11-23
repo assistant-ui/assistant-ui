@@ -150,7 +150,9 @@ export function Outline() {
     const index = ticks.findIndex((tick) => tick === document.activeElement);
     if (index < 0) return;
     event.preventDefault();
-    ticks[step(index, ticks.length)]?.focus();
+    const next = step(index, ticks.length);
+    ticks[next]?.focus();
+    listRef.current?.children[next]?.scrollIntoView({ block: "nearest" });
   };
 
   const centerCurrent = () => {

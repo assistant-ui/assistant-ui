@@ -156,10 +156,10 @@ const matcher =
 
 // A "/" at the start of a line or after a space, then what was typed after
 // it. Spaces are let through so that "/heading 1" finds its row.
-const matchSlash = matcher(/(?:^|\s)(\/((?:[^\s/]+ ?){0,3}))$/);
+const matchSlash = matcher(/(?:^|\s)(\/((?:[^\s/]+(?: |$)){0,3}))$/);
 
 // An "@" in the same places, then the words of a page title.
-const matchAt = matcher(/(?:^|\s)(@((?:[^\s@]+ ?){0,4}))$/);
+const matchAt = matcher(/(?:^|\s)(@((?:[^\s@]+(?: |$)){0,4}))$/);
 
 const EDGE = 12;
 const SHORTEST = 176;
@@ -358,24 +358,29 @@ function BlockMenu() {
       triggerFn={matchSlash}
       options={options}
       anchorClassName="z-50"
-      menuRenderFn={(
-        anchor,
-        { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
-      ) =>
-        anchor.current && options.length > 0
-          ? createPortal(
-              <TypeaheadList
-                options={options}
-                selectedIndex={selectedIndex}
-                maxHeight={maxHeight}
-                className="w-80"
-                onHighlight={setHighlightedIndex}
-                onSelect={selectOptionAndCleanUp}
-              />,
-              anchor.current,
-            )
-          : null
-      }
+      // Lexical passes the arrow and Escape keys on to the editor for an empty
+      // list only when the menu has its default renderer.
+      {...(options.length > 0
+        ? {
+            menuRenderFn: (
+              anchor,
+              { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
+            ) =>
+              anchor.current
+                ? createPortal(
+                    <TypeaheadList
+                      options={options}
+                      selectedIndex={selectedIndex}
+                      maxHeight={maxHeight}
+                      className="w-80"
+                      onHighlight={setHighlightedIndex}
+                      onSelect={selectOptionAndCleanUp}
+                    />,
+                    anchor.current,
+                  )
+                : null,
+          }
+        : {})}
     />
   );
 }
@@ -456,24 +461,27 @@ function PageMenu() {
       triggerFn={matchAt}
       options={options}
       anchorClassName="z-50"
-      menuRenderFn={(
-        anchor,
-        { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
-      ) =>
-        anchor.current && options.length > 0
-          ? createPortal(
-              <TypeaheadList
-                options={options}
-                selectedIndex={selectedIndex}
-                maxHeight={maxHeight}
-                className="w-64"
-                onHighlight={setHighlightedIndex}
-                onSelect={selectOptionAndCleanUp}
-              />,
-              anchor.current,
-            )
-          : null
-      }
+      {...(options.length > 0
+        ? {
+            menuRenderFn: (
+              anchor,
+              { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
+            ) =>
+              anchor.current
+                ? createPortal(
+                    <TypeaheadList
+                      options={options}
+                      selectedIndex={selectedIndex}
+                      maxHeight={maxHeight}
+                      className="w-64"
+                      onHighlight={setHighlightedIndex}
+                      onSelect={selectOptionAndCleanUp}
+                    />,
+                    anchor.current,
+                  )
+                : null,
+          }
+        : {})}
     />
   );
 }

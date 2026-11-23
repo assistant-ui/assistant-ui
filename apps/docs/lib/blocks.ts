@@ -149,7 +149,7 @@ export const BLOCKS: readonly Block[] = [
     slug: "chat-basic",
     title: "Chat basic",
     description:
-      "A whole chat written with every assistant-ui primitive and no component kit.",
+      "A whole chat written with every assistant-ui primitive, using only the shadcn/ui tooltip and resizable components.",
     image: {
       light: "/screenshot/blocks/chat-basic-light.webp",
       dark: "/screenshot/blocks/chat-basic-dark.webp",

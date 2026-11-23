@@ -451,7 +451,7 @@
           { "type": "check", "text": "Collect feedback in one place" },
           { "type": "check", "text": "Share the numbers with the team" }
         ],
-        "text": "I turned the page into a launch checklist in three stages. Undo in the page brings the old list back."
+        "text": "I turned the page into a launch checklist in three stages. In Manual, Undo in the page brings the old list back."
       }
     ],
     "commentReplies": {

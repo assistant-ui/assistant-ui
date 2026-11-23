@@ -102,6 +102,7 @@ async function listSourceFiles(
 
 const PACKAGE_IMPORT =
   /from\s+"((?:@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*)(?:\/[^"]*)?"/g;
+const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
 /**
  * A block's runtime dependencies, from its manifest. A block without one, a
@@ -115,9 +116,11 @@ export function blockDependencies(
   const manifest = files.find((file) => file.path === "package.json");
   if (!manifest) {
     const names = new Set(
-      files.flatMap((file) =>
-        [...file.code.matchAll(PACKAGE_IMPORT)].map(([, name = ""]) => name),
-      ),
+      files
+        .filter((file) => !TEST_FILE.test(file.path))
+        .flatMap((file) =>
+          [...file.code.matchAll(PACKAGE_IMPORT)].map(([, name = ""]) => name),
+        ),
     );
     return [...names]
       .sort()

@@ -1478,6 +1478,7 @@ function followBlockLink(again = false) {
   );
   if (!page) return;
   if (page.id !== state.currentPageId) {
+    followedLink = null;
     documentActions.selectPage(page.id);
     return;
   }
@@ -1971,7 +1972,6 @@ function DocumentBridge({
       beforeEdit.current = stream.current.entries.map(
         (item) => item.next ?? item.page,
       );
-      openReview();
     } else if (wasInFlight.current && !inFlight && failed) {
       // The interactable holds the list as far as the call got, which lacks
       // every block the call had yet to repeat.
@@ -1993,7 +1993,6 @@ function DocumentBridge({
     initialBlocks,
     isRunning,
     land,
-    openReview,
     page.title,
     setState,
     show,

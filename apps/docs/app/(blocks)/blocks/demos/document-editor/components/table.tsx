@@ -481,6 +481,7 @@ export function TableControls() {
       if (!over || onHandle(over)) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
+        if (openRef.current) return;
         const cell = over.closest(".doc-td");
         // Between two cells, on a border, the handles stay as they are.
         if (!cell && over.closest(".doc-table-wrap")) return;

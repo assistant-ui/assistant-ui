@@ -615,6 +615,23 @@ describe("two tabs on one save", () => {
     expect(contentOf(saved().getState(), "home")).toEqual(written("From A"));
   });
 
+  it("saves the other tab's review with the other tab's copy of the open page", () => {
+    const { a, b, saved } = openTabs();
+    a.actions.setPageContent("home", written("From A"));
+    a.actions.recordEdit({
+      pageId: "home",
+      before: [],
+      after: written("From A").blocks,
+    });
+    b.hear();
+
+    b.actions.renamePage("notes", "Renamed");
+    expect(saved().getState().pendingReview?.pageId).toBe("home");
+
+    b.actions.selectPage("notes");
+    expect(b.getState().pendingReview?.pageId).toBe("home");
+  });
+
   it("saves its own copy of the open page once it edits that page", () => {
     const { a, b, saved } = openTabs();
     a.actions.setPageContent("home", written("From A"));
@@ -835,6 +852,19 @@ describe("a streamed edit", () => {
       before[1],
     ]);
     expect(stream.active).toBe(false);
+  });
+
+  it("keeps the old text when the same partial text is received again", () => {
+    const partial = [{ id: "a", type: "paragraph" as const, text: "N" }];
+    let stream = receive(settled(before), partial, true);
+    stream = receive(stream, partial, true);
+
+    expect(displayBlocks(stream)[0]?.text).toBe("Old text");
+    expect(remaining(stream)).toBe(0);
+    expect(streamMarks(stream).working).toEqual(["a"]);
+
+    stream = receive(stream, [...partial, { id: "b" }], true);
+    expect(remaining(stream)).toBe(1);
   });
 
   it("takes a ticked checkbox as a change even when the text is the same", () => {

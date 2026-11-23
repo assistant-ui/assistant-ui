@@ -59,7 +59,7 @@ One review holds the edits of one request. Editing the page by hand, or asking f
 
 ## Run it with a real model
 
-1. Copy `.env.example` to `.env.local` and set both values:
+1. Copy `.env.example` to `.env.local` in the Next.js project root (`apps/docs/.env.local` in this repository) and set both values:
 
    ```sh
    OPENAI_API_KEY=sk-...
@@ -80,7 +80,7 @@ One review holds the edits of one request. Editing the page by hand, or asking f
 
    Use the address your app serves `api/chat/route.ts` at. Inside the assistant-ui docs app that is `/blocks/demos/document-editor/api/chat`.
 
-3. Delete `scriptedModel` and `planReply` from `page.tsx`, and `assistant.replies` from `data.json`.
+3. Delete `useScriptedRuntime`, `scriptedModel` and `planReply` from `page.tsx`, and `assistant.replies` from `data.json`. Keep `ChatList`, `attachments` and `useDictationAdapter` if your runtime reuses them.
 
 History, Add files and the microphone come from the scripted runtime's thread list and its attachment and dictation adapters, so pass the same adapters to your runtime to keep them. The microphone hides when there is no dictation adapter. The route already passes a quoted passage to the model with `injectQuoteContext`.
 

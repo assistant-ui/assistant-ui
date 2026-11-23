@@ -126,6 +126,18 @@ describe("blockDependencies", () => {
     ]);
   });
 
+  it("leaves out the packages only its tests import", () => {
+    expect(
+      blockDependencies([
+        { path: "lib/document.ts", code: 'import { z } from "zod";' },
+        {
+          path: "lib/document.test.ts",
+          code: 'import { it } from "vitest";\nimport { z } from "zod";',
+        },
+      ]),
+    ).toEqual([{ name: "zod", range: "" }]);
+  });
+
   it("lists nothing for a block without a manifest or imports", () => {
     expect(
       blockDependencies([{ path: "app/page.tsx", code: "export {};" }]),

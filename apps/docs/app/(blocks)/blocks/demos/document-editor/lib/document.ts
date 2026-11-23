@@ -657,7 +657,9 @@ export function receive(
     const last =
       stream.received.get(block.id) ??
       (found ? stream.received.get(found.id) : undefined);
-    const moved = last !== content;
+    // The last block may only be paused, so nothing but a later block shows
+    // that it is whole.
+    const open = last !== content || index === incoming.length - 1;
 
     if (block.type === "table") {
       if (found) reached.add(found.id);
@@ -667,12 +669,12 @@ export function receive(
           : undefined;
       if (held && sameRows(held.page, block)) {
         entries.push({ ...held, arriving: false });
-      } else if (held && inFlight && (moved || rowsSoFar(held.page, block))) {
+      } else if (held && inFlight && (open || rowsSoFar(held.page, block))) {
         entries.push({ ...held, arriving: true });
       } else {
         entries.push({
           ...entry(block),
-          arriving: inFlight && moved,
+          arriving: inFlight && open,
           ...(inFlight && !held && { growing: true as const }),
         });
       }
@@ -680,7 +682,7 @@ export function receive(
     }
 
     if (!found || !previous) {
-      const arriving = inFlight && moved;
+      const arriving = inFlight && open;
       const blank = { ...block, text: "" };
       entries.push(
         arriving
@@ -701,7 +703,7 @@ export function receive(
       !!goal.checked === !!block.checked
     ) {
       entries.push({ ...previous, arriving: false, changing: false });
-    } else if (inFlight && (moved || sameSoFar)) {
+    } else if (inFlight && (open || sameSoFar)) {
       entries.push({ ...previous, arriving: true, changing: !sameSoFar });
     } else {
       entries.push(typeOver(previous, block));
@@ -1502,7 +1504,7 @@ const keepUnchanged = <T extends { id: string }>(
     : kept;
 };
 
-/** `state`, with one page's content and the threads on it as `source` has them. */
+/** `state`, with one page's content, threads and review as `source` has them. */
 const withPageFrom = (
   state: DocumentStoreState,
   source: DocumentStoreState,
@@ -1520,6 +1522,11 @@ const withPageFrom = (
       ...state.threads.filter((thread) => !onPage(thread)),
       ...source.threads.filter(onPage),
     ],
+    pendingReview:
+      source.pendingReview?.pageId === pageId ||
+      state.pendingReview?.pageId === pageId
+        ? source.pendingReview
+        : state.pendingReview,
   };
 };
 

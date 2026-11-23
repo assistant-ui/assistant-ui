@@ -256,6 +256,8 @@ export function EditReview() {
     scroller.addEventListener("scroll", follow, { passive: true });
     scroller.addEventListener("wheel", stopSeeking, { passive: true });
     scroller.addEventListener("touchmove", stopSeeking, { passive: true });
+    scroller.addEventListener("pointerdown", stopSeeking, { passive: true });
+    scroller.addEventListener("keydown", stopSeeking, { passive: true });
     const unregister = editor.registerUpdateListener(schedule);
     return () => {
       cancelAnimationFrame(frame);
@@ -264,6 +266,8 @@ export function EditReview() {
       scroller.removeEventListener("scroll", follow);
       scroller.removeEventListener("wheel", stopSeeking);
       scroller.removeEventListener("touchmove", stopSeeking);
+      scroller.removeEventListener("pointerdown", stopSeeking);
+      scroller.removeEventListener("keydown", stopSeeking);
       unregister();
     };
   }, [anchor, editor, review, scroller]);
