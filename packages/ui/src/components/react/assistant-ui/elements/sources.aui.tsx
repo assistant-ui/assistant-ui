@@ -102,7 +102,7 @@ const SourceIcon = forwardRef<
 
   return (
     // A picture wrapper marks a deliberate native img for the Next.js lint, because
-    // next/image cannot load arbitrary runtime URLs and only exists in Next.js.
+    // next/image needs per-host config for runtime URLs and only exists in Next.js.
     <picture className="contents">
       <img
         data-slot="source-icon"
