@@ -498,7 +498,11 @@ const useCheckoutHost = (restored: unknown) => {
       endIfAbandoned();
     },
     "browser/bye": () => {
-      if (state.browser) state.browser.connected = false;
+      if (state.browser) {
+        state.browser.connected = false;
+        // A page that left is not awake through what follows.
+        delete state.browser.awakeSince;
+      }
     },
     "agent/plan": ({ markdown }) => {
       requireStarted();

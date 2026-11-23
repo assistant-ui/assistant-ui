@@ -113,6 +113,21 @@ describe("CheckoutHost", () => {
     expect(host.state.status).toBe("cancelled");
   });
 
+  it("starts the page's awake run again after the page said goodbye", async () => {
+    const host = await abandonedHost();
+    for (let minute = 0; minute < 50; minute++) {
+      await host.commands["browser/heartbeat"]();
+      vi.advanceTimersByTime(60_000);
+    }
+    await host.commands["browser/bye"]();
+    vi.advanceTimersByTime(60_000);
+    for (let minute = 0; minute < 20; minute++) {
+      await host.commands["browser/heartbeat"]();
+      vi.advanceTimersByTime(60_000);
+    }
+    expect(host.state.status).toBe("installing");
+  });
+
   it("keeps a setup after a sleep that silenced both the page and the agent", async () => {
     const host = await abandonedHost();
     await host.commands["browser/heartbeat"]();
