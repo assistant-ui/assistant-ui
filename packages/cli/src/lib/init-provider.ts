@@ -51,8 +51,15 @@ export function snapshotProject(root: string): ProjectSnapshot {
     ) as {
       dependencies?: Record<string, unknown>;
       devDependencies?: Record<string, unknown>;
+      optionalDependencies?: Record<string, unknown>;
+      peerDependencies?: Record<string, unknown>;
     };
-    deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    deps = {
+      ...pkg.dependencies,
+      ...pkg.devDependencies,
+      ...pkg.optionalDependencies,
+      ...pkg.peerDependencies,
+    };
   } catch {
     // No readable package.json: nothing to keep.
   }
@@ -124,6 +131,7 @@ export async function applyChatProvider(
   pm: PackageManagerName,
   provider: ChatProvider | undefined,
   snapshot: ProjectSnapshot,
+  { skipInstall = false }: { skipInstall?: boolean } = {},
 ): Promise<string | undefined> {
   if (provider === undefined || provider === "openai") return undefined;
   const route = ROUTE_FILES.find((file) =>
@@ -142,10 +150,11 @@ export async function applyChatProvider(
     provider,
     snapshot.hadOpenAI,
   );
-  await runSpawn(add![0], add![1], root);
+  if (!skipInstall) await runSpawn(add![0], add![1], root);
   assertSafeProjectFile(file!, root);
   fs.writeFileSync(file!, switched);
-  if (remove !== undefined) await runSpawn(remove[0], remove[1], root);
-  const { name, model, key } = CHAT_PROVIDERS[provider];
-  return `Chat route: ${name} (${model}). Set ${key} in .env.local.`;
+  if (remove !== undefined && !skipInstall)
+    await runSpawn(remove[0], remove[1], root);
+  const { name, pkg, model, key } = CHAT_PROVIDERS[provider];
+  return `Chat route: ${name} (${model}).${skipInstall ? ` Install ${pkg} (--skip-install left it out).` : ""} Set ${key} in .env.local.`;
 }

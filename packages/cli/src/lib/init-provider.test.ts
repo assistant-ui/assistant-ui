@@ -49,7 +49,7 @@ describe("snapshotProject", () => {
       snapshotProject(
         project({
           "package.json": JSON.stringify({
-            devDependencies: { "@ai-sdk/openai": "^3.0.0" },
+            optionalDependencies: { "@ai-sdk/openai": "^3.0.0" },
           }),
           "src/app/api/chat/route.ts": "export {}",
         }),
@@ -110,6 +110,17 @@ describe("applyChatProvider", () => {
       ["npm", ["install", "@ai-sdk/anthropic"], root],
       ["npm", ["uninstall", "@ai-sdk/openai"], root],
     ]);
+  });
+
+  it("switches the route but runs no package manager with --skip-install", async () => {
+    const root = project({ "app/api/chat/route.ts": ROUTE });
+    const note = await applyChatProvider(root, "npm", "anthropic", fresh, {
+      skipInstall: true,
+    });
+    expect(note).toContain(
+      "Install @ai-sdk/anthropic (--skip-install left it out).",
+    );
+    expect(runSpawn).not.toHaveBeenCalled();
   });
 
   it("leaves the working OpenAI route when the provider install fails", async () => {

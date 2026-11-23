@@ -154,6 +154,7 @@ export const init = new Command()
         pm,
         opts.provider as ChatProvider | undefined,
         project,
+        { skipInstall: opts.skipInstall === true },
       );
 
       const finish = finishExistingProjectInit(targetDir, fontSnapshots);
