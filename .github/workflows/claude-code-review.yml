@@ -9,6 +9,10 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
 
 env:
+  # Model access: see the "Get a short-lived model key" step.
+  BILLING_API: https://api.assistant-billing.dev
+  BILLING_PROJECT: proj_0ltyjcuaxpv1
+  BILLING_GATEWAY: https://gateway.assistant-billing.dev
   # Shared action configuration
   TRACK_PROGRESS: 'true'
   USE_STICKY_COMMENT: 'true'
@@ -84,11 +88,30 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
           fetch-depth: 1
 
+      # Reviews run on a short-lived key instead of a stored credential: the
+      # job trades its GitHub OIDC token at assistant-billing for a key that
+      # expires in minutes, works once per token, and only reaches the
+      # messages endpoints of the billing gateway, which meters the run.
+      - name: Get a short-lived model key
+        id: model-key
+        run: |
+          OIDC=$(curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$BILLING_API" | jq -r .value)
+          echo "::add-mask::$OIDC"
+          KEY=$(curl -fsS -X POST "$BILLING_API/oidc/github/token" \
+            -H "Authorization: Bearer $OIDC" -H "content-type: application/json" \
+            -d "{\"project_id\":\"$BILLING_PROJECT\"}" | jq -r .key)
+          echo "::add-mask::$KEY"
+          [[ "$KEY" == temp_ab_* ]] || { echo "::error::assistant-billing refused the key exchange"; exit 1; }
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+
       - name: Review
         id: review
         uses: anthropics/claude-code-action@58985842b834ed26087302ba27d07bc24ca8697a # ratchet:anthropics/claude-code-action@v1.0.244
+        env:
+          ANTHROPIC_BASE_URL: ${{ env.BILLING_GATEWAY }}
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ steps.model-key.outputs.key }}
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}

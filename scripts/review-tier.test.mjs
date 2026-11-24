@@ -2226,7 +2226,12 @@ test("Claude fork review validates the relay before the review job and rechecks 
     review,
     /group: claude-code-review-fork-\$\{\{ needs\.claude-fork-review-validate\.outputs\.number \}\}-\$\{\{ needs\.claude-fork-review-validate\.outputs\.head_sha \}\}\n      cancel-in-progress: true/,
   );
-  assert.doesNotMatch(review, /: write|download-artifact/);
+  // The only write the review job holds is id-token, which mints the job's
+  // OIDC token for the model key exchange and grants nothing on GitHub.
+  assert.doesNotMatch(
+    review.replace(/^      id-token: write$/m, ""),
+    /: write|download-artifact/,
+  );
   const publish = job("claude-fork-review-publish");
   assert.match(
     publish,
