@@ -1,6 +1,15 @@
 import { downloadTemplate } from "giget";
 
-export const DOWNLOAD_TIMEOUT_MS = 30_000;
+function resolveDownloadTimeoutMs(): number {
+  const override = process.env.ASSISTANT_UI_DOWNLOAD_TIMEOUT;
+  if (override) {
+    const parsed = parseInt(override, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return 120_000;
+}
+
+export const DOWNLOAD_TIMEOUT_MS = resolveDownloadTimeoutMs();
 
 export function resolveGitHubAuthToken(): string | undefined {
   const token =

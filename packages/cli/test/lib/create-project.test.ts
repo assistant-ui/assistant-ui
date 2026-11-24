@@ -11,6 +11,7 @@ import {
   scaffoldProject,
   transformProject,
 } from "../../src/lib/create-project";
+import { DOWNLOAD_TIMEOUT_MS } from "../../src/lib/utils/download";
 
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn<(...args: Parameters<typeof spawn>) => EventEmitter>(),
@@ -157,6 +158,7 @@ describe("downloadProject", () => {
         dir: expect.stringContaining(".assistant-ui-download-"),
         force: true,
         silent: true,
+        preferOffline: true,
       }),
     );
     expect(fs.existsSync(destDir)).toBe(true);
@@ -166,6 +168,8 @@ describe("downloadProject", () => {
     const destDir = path.join(testDir, "dest");
     await downloadProject("examples/with-tanstack", destDir);
 
+    const [, options] = vi.mocked(downloadTemplate).mock.calls[0]!;
+    expect(options).not.toHaveProperty("preferOffline");
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/examples/with-tanstack",
       expect.objectContaining({
@@ -221,7 +225,7 @@ describe("downloadProject", () => {
     });
     try {
       const rejection = expect(result).rejects.toThrow("Download timed out");
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
       await rejection;
       fs.rmSync(destDir, { recursive: true, force: true });
     } finally {
@@ -253,7 +257,7 @@ describe("downloadProject", () => {
       timeout: 1_000,
     });
     const rejection = expect(result).rejects.toThrow("Download timed out");
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
     await rejection;
 
     cleanupPendingProjectDownloads();
@@ -282,7 +286,7 @@ describe("downloadProject", () => {
       timeout: 1_000,
     });
     const rejection = expect(result).rejects.toThrow("Download timed out");
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
     await rejection;
 
     const exitListener = process

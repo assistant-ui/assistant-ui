@@ -150,8 +150,15 @@ export async function downloadProject(
     downloadStarted = true;
     await withStagedDownload(
       source,
-      { dir: currentStagingDir, force: true, silent: true },
-      "Download timed out. This may be due to GitHub rate limiting or a network issue. Try again in a few minutes.",
+      {
+        dir: currentStagingDir,
+        force: true,
+        silent: true,
+        // Use the cache on a cold run when a pinned release tag is known, so
+        // subsequent cold runs skip the monorepo tarball download entirely.
+        ...(ref ? { preferOffline: true } : {}),
+      },
+      "Download timed out. The monorepo tarball (~58 MB) can take longer on slow connections. Set ASSISTANT_UI_DOWNLOAD_TIMEOUT (ms) to override the limit or try again.",
       removeStagingDir,
       async (download) => {
         await download;
