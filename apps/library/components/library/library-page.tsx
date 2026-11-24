@@ -159,6 +159,7 @@ export function LibraryPage({
   description,
   search = true,
   sections = NO_SECTIONS,
+  action,
   children,
 }: {
   title: string;
@@ -169,6 +170,8 @@ export function LibraryPage({
   search?: boolean;
   /** The sections the filter can turn on and off, on a page that has several. */
   sections?: readonly string[];
+  /** A control beside the search, for what the page can make. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   const { query, setQuery } = useLibrary();
@@ -195,8 +198,9 @@ export function LibraryPage({
             {description}
           </p>
           {search ? (
-            <div className="mt-3 @lg:col-start-2 @lg:row-start-1 @lg:mt-0">
-              <InputGroup className="h-8 @lg:w-64 pointer-coarse:h-10">
+            <div className="mt-3 flex items-center gap-2 @lg:col-start-2 @lg:row-start-1 @lg:mt-0">
+              {action}
+              <InputGroup className="h-8 min-w-0 flex-1 @lg:w-64 @lg:flex-none pointer-coarse:h-10">
                 <InputGroupAddon>
                   <HugeiconsIcon
                     icon={Search01Icon}

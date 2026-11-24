@@ -22,6 +22,13 @@ import type {
   LibraryItem,
   LibraryMark,
 } from "./catalog";
+import {
+  LIBRARY_THEMES,
+  themeApplyCommand,
+  themeBuilderHref,
+  themeOverridesCss,
+  themeSummary,
+} from "./themes";
 
 /** An address on the docs site, which is where every item's own page is. */
 const docsUrl = (path: string) => `${BASE_URL}${path}`;
@@ -703,11 +710,40 @@ const skillAgents: LibraryItem[] = SKILL_AGENTS.map(
   },
 );
 
+const themes: LibraryItem[] = LIBRARY_THEMES.map((theme) => {
+  const command = themeApplyCommand(theme.preset);
+  const css = theme.overrides && themeOverridesCss(theme.overrides);
+  return {
+    id: `themes/${theme.slug}`,
+    category: "themes",
+    section: theme.section,
+    name: theme.name,
+    description: themeSummary(theme.settings),
+    // A theme with a code has a page on shadcn's builder; the rest open in ours.
+    ...(theme.code
+      ? {
+          href: `https://ui.shadcn.com/create?preset=${theme.code}`,
+          external: true,
+        }
+      : { href: themeBuilderHref(theme.slug), external: false }),
+    install: { kind: "command", command },
+    prompt: agentSetupPrompt(
+      [],
+      css
+        ? `Apply the ${theme.name} theme with \`${command}\`, then add this to the global stylesheet: ${css}`
+        : `Apply the ${theme.name} theme with \`${command}\``,
+    ),
+    ...(css && { css }),
+    preview: { kind: "theme", slug: theme.slug },
+  };
+});
+
 export const getLibraryItems = (): LibraryItem[] => [
   ...elements,
   ...ui,
   ...primitives,
   ...blocks,
+  ...themes,
   ...templates,
   ...repositoryStarters.filter((item) => item.section === "Templates"),
   ...examples,

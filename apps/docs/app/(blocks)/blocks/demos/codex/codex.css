@@ -1,0 +1,121 @@
+/*
+ * The block's own styles. Menus and popovers render in the body, outside the
+ * block's root element, so the theme is set on the page that holds the block.
+ */
+
+/*
+ * Theme: the shadcn/ui preset nearest to the look, which is the Mira style on
+ * the neutral base with the blue accent, Hugeicons and Inter. The values below
+ * are that preset's. What the look needs beyond it follows as overrides.
+ */
+:root:has(.codex) {
+  --radius: 10px;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.488 0.243 264.376);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+
+:root.dark:has(.codex) {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.424 0.199 265.638);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+/*
+ * Overrides: what the preset cannot express. The app sits on pure black with
+ * a sidebar one step lighter, the composer and its menus are raised greys, and
+ * the blue stays bright in the dark. `--composer` and `--strip` are the
+ * block's own names, for the message box and the strip above it.
+ */
+:root:has(.codex) {
+  --primary: oklch(0.623 0.214 259.815);
+  --primary-foreground: oklch(1 0 0);
+  --sidebar: oklch(0.975 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --composer: oklch(0.962 0 0);
+  --strip: oklch(0.982 0 0);
+  --border: oklch(0.915 0 0);
+  --accent: oklch(0.945 0 0);
+}
+
+:root.dark:has(.codex) {
+  --background: oklch(0 0 0);
+  --sidebar: oklch(0.135 0 0);
+  --card: oklch(0.205 0 0);
+  --popover: oklch(0.2 0 0);
+  --muted: oklch(0.23 0 0);
+  --muted-foreground: oklch(0.63 0 0);
+  --composer: oklch(0.225 0 0);
+  --strip: oklch(0.165 0 0);
+  --border: oklch(1 0 0 / 8%);
+  --accent: oklch(0.27 0 0);
+}
+
+/* Medium text is a little lighter than the default 500. */
+:root:has(.codex) {
+  --font-weight-medium: 450;
+  --font-weight-normal: 400;
+}
+
+/*
+ * Fonts: Inter and Geist Mono, loaded in layout.tsx, which also sets
+ * `--font-sans` and `--font-mono` on the page because menus and tooltips
+ * render in the body, outside the block's root element.
+ */
+:root:has(.codex),
+body:has(.codex) {
+  /* The docs site's `font-sans` and `font-mono` classes read these names. */
+  --font-public-sans: var(--font-sans);
+  --font-jetbrains-mono: var(--font-mono);
+  --font-geist-sans: var(--font-sans);
+}
+
+body:has(.codex) {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Anything that can be clicked shows the hand. */
+:root:has(.codex)
+  :where(button, [role="button"], [role^="menuitem"], a[href]):not(
+    :disabled,
+    [aria-disabled="true"],
+    [data-disabled]
+  ) {
+  cursor: pointer;
+}
+
+.codex {
+  height: 100%;
+}

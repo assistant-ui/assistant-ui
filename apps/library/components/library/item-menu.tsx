@@ -4,6 +4,7 @@ import {
   Add01Icon,
   ComputerTerminal01Icon,
   Copy01Icon,
+  PaintBoardIcon,
   ShoppingCart01Icon,
   ShoppingCartRemove01Icon,
   Tick02Icon,
@@ -81,6 +82,18 @@ export function ItemMenu({ item }: { item: LibraryItem }) {
               aria-hidden
             />
             Copy install command
+          </MenuItem>
+        ) : null}
+        {item.css ? (
+          <MenuItem
+            onClick={() => copyWithToast(item.css!, "Theme CSS copied.")}
+          >
+            <HugeiconsIcon
+              icon={PaintBoardIcon}
+              strokeWidth={1.5}
+              aria-hidden
+            />
+            Copy theme CSS
           </MenuItem>
         ) : null}
         <MenuItem onClick={() => copyWithToast(item.prompt, "Prompt copied.")}>

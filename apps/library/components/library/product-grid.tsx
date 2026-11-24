@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { DesignSpecimen, PrimitiveSample } from "./component-previews";
 import { ItemMark } from "./item-mark";
 import { ItemMenu } from "./item-menu";
+import { ThemePreview } from "./theme-preview";
 
 const IMAGE_SIZES = "(min-width: 1024px) 420px, (min-width: 640px) 50vw, 100vw";
 
@@ -113,6 +114,9 @@ function Preview({ item }: { item: LibraryItem }) {
         <ElementDemo demo={preview.slug} />
       </LazyDemo>
     );
+  }
+  if (preview?.kind === "theme") {
+    return <ThemePreview slug={preview.slug} />;
   }
   if (preview?.kind === "specimen") {
     return (

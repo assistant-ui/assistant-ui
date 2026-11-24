@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { copyWithToast } from "./item-menu";
 import { LibraryPage } from "./library-page";
 
-function CopyLine({
+export function CopyLine({
   label,
   value,
   copied,

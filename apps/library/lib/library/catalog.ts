@@ -13,6 +13,11 @@ export const LIBRARY_CATEGORIES = [
     description: "Whole app surfaces with an assistant built in.",
   },
   {
+    id: "themes",
+    label: "Themes",
+    description: "Presets for a project's style, colors, icons, and fonts.",
+  },
+  {
     id: "starters",
     label: "Starters",
     description: "Templates and example apps the CLI scaffolds.",
@@ -56,6 +61,7 @@ export const LIBRARY_CATEGORY_IDS = LIBRARY_CATEGORIES.map(
 export const GALLERY_CATEGORIES: readonly LibraryCategoryId[] = [
   "components",
   "blocks",
+  "themes",
 ];
 
 export const isLibraryCategoryId = (
@@ -69,7 +75,7 @@ export const libraryCategoryHref = (id: LibraryCategoryId) => `/${id}`;
 export const libraryCategoryAt = (
   pathname: string,
 ): LibraryCategoryId | null => {
-  const segment = pathname.slice(1);
+  const segment = pathname.split("/")[1] ?? "";
   return isLibraryCategoryId(segment) ? segment : null;
 };
 
@@ -99,6 +105,7 @@ export type LibraryPreview =
   | { kind: "demo"; slug: string }
   | { kind: "specimen"; slug: string }
   | { kind: "sample"; slug: string }
+  | { kind: "theme"; slug: string }
   | { kind: "image"; light: string; dark: string };
 
 export const LIBRARY_MARKS = [
@@ -130,6 +137,8 @@ export type LibraryItem = {
   install?: LibraryInstall;
   /** What a person pastes to their coding agent. */
   prompt: string;
+  /** Rules the item has a person add to their global stylesheet. */
+  css?: string;
   /** The item running, or a screenshot of it. */
   preview?: LibraryPreview;
   /** Takes both columns of a gallery, for a preview that needs the room. */

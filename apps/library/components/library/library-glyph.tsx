@@ -51,6 +51,22 @@ function GlyphBlocks() {
   );
 }
 
+function GlyphThemes() {
+  return (
+    <GlyphSvg>
+      <circle cx="10.5" cy="12" r="5" className={FAINT} />
+      <circle cx="16" cy="12" r="5" className={DIM} />
+      <circle
+        {...motion("pop", 120)}
+        cx="21.5"
+        cy="12"
+        r="5"
+        className={cn("fill-foreground/35 stroke-none", ACCENT_FILL)}
+      />
+    </GlyphSvg>
+  );
+}
+
 function GlyphRuntimes() {
   return (
     <GlyphSvg>
@@ -173,6 +189,7 @@ function GlyphSkills() {
 const GLYPHS: Record<LibraryCategoryId, () => ReactNode> = {
   components: GlyphElements,
   blocks: GlyphBlocks,
+  themes: GlyphThemes,
   starters: GlyphExamples,
   runtimes: GlyphRuntimes,
   integrations: GlyphIntegrations,
