@@ -132,6 +132,8 @@ const runForPerson = async (options: SetupOptions) => {
 /** `setup <url> <command> ...`: one setup command, run as `npx setup-agent <url> <command>` would. */
 const runSetupStep = async (args: string[], options: SetupOptions) => {
   const endpoints = resolveEndpoints(options);
+  // resolveEndpoints already limited the page to the official one or this
+  // machine, and runSetupCommand does the same for the setup URL.
   await runSetupCommand(args, {
     command: SETUP_COMMAND,
     browser: { setupAppUrl: endpoints.setupAppUrl, canOpen: options.open },

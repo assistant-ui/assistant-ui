@@ -129,6 +129,48 @@ describe("resolveEndpoints", () => {
     expect(DEFAULT_DOCS_URL).toBe("https://www.assistant-ui.com");
   });
 
+  it("refuses a setup server or page that is neither official nor on this machine", () => {
+    expect(() =>
+      resolveEndpoints({ setupServer: "https://staging.example.test" }, {}),
+    ).toThrow("is not a setup server this CLI knows");
+    expect(() =>
+      resolveEndpoints(
+        {},
+        { ASSISTANT_UI_SETUP_SERVER: "https://checkout.look-alike.test" },
+      ),
+    ).toThrow("is not a setup server this CLI knows");
+    expect(() =>
+      resolveEndpoints({ setupAppUrl: "https://setup.look-alike.test" }, {}),
+    ).toThrow("is not a setup page this CLI knows");
+  });
+
+  it("accepts the official setup server and page and hosts on this machine", () => {
+    expect(
+      resolveEndpoints(
+        {
+          setupServer: "https://checkout.assistant-ui.com/",
+          setupAppUrl: "https://setup.assistant-ui.com/",
+        },
+        {},
+      ),
+    ).toMatchObject({
+      setupServer: "https://checkout.assistant-ui.com",
+      setupAppUrl: "https://setup.assistant-ui.com",
+    });
+    expect(
+      resolveEndpoints(
+        {
+          setupServer: "http://127.0.0.1:8791",
+          setupAppUrl: "http://localhost:3011",
+        },
+        {},
+      ),
+    ).toMatchObject({
+      setupServer: "http://127.0.0.1:8791",
+      setupAppUrl: "http://localhost:3011",
+    });
+  });
+
   it("refuses plain http off this machine", () => {
     expect(() => resolveEndpoints({ docsUrl: "http://evil.test" }, {})).toThrow(
       "https",
