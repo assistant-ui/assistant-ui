@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "pnpm install --frozen-lockfile --filter=@assistant-ui/monorepo --filter=@assistant-ui/setup-app...",
+  "installCommand": "pnpm install --frozen-lockfile --filter=@assistant-ui/monorepo --filter=@assistant-ui/setup-app... --filter=@assistant-ui/react-devtools...",
   "buildCommand": "cd ../.. && pnpm_config_verify_deps_before_run=false pnpm turbo build --filter=@assistant-ui/setup-app",
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh"
 }
