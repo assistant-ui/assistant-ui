@@ -251,10 +251,6 @@ const REPOSITORY_EXAMPLES: readonly (readonly [
   ["waterfall", "A trace waterfall built on the store and tap packages."],
   ["with-a2a", "A2A (Agent-to-Agent) protocol integration."],
   [
-    "with-codex",
-    "A coding agent's chat in the look of Codex, with its own thread shell.",
-  ],
-  [
     "with-agent-document-editor",
     "A rich text document that you and an assistant edit together.",
   ],

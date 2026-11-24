@@ -88,7 +88,7 @@ export function LibrarySidebar() {
               onClick={closeSheet}
               className="text-foreground focus-visible:ring-sidebar-ring flex h-8 min-w-0 items-center rounded-md px-2 font-medium tracking-tight outline-none focus-visible:ring-1"
             >
-              <span className="truncate">Agentbase</span>
+              <span className="truncate">assistant ui</span>
             </Link>
             <TooltipIconButton
               tooltip="Search the library"
