@@ -24,6 +24,17 @@ python server/agent.py
 OPENAI_API_KEY=sk-xxx python server/agent.py
 ```
 
+On Windows PowerShell, use a virtual environment and invoke its Python directly:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r server/requirements.txt
+.\.venv\Scripts\python.exe server/agent.py
+```
+
+For OpenAI mode, set `$env:OPENAI_API_KEY` in the same PowerShell session
+before running the last command.
+
 The agent will start at `http://localhost:8000/agent`. It listens on `127.0.0.1` and allows CORS only from `http://localhost:3000`; set `HOST` (for example `HOST=0.0.0.0`) and `CORS_ORIGINS` (a comma separated list of origins) to override them.
 
 ### 2. Configure Environment
