@@ -198,7 +198,7 @@ export const projectProviders = (cwd: string): string[] => {
  * The header line on the model provider: keep the one the project uses, and
  * fall back to the llm-provider default only when it uses none.
  */
-export const providerLine = (providers: string[], unattended: boolean) => {
+const providerLine = (providers: string[], unattended: boolean) => {
   if (providers.length > 0) {
     const names = providers.join(" and ");
     const one = providers.length === 1;
