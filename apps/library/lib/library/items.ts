@@ -5,14 +5,23 @@ import { join } from "node:path";
 import matter from "gray-matter";
 import { agentSetupPrompt, pageSetupPrompt } from "@/lib/agent-setup-prompt";
 import { getSkills } from "@/lib/agent-skills";
-import { getElement } from "@/components/pages/elements/registry";
+import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
+import {
+  ELEMENTS,
+  elementRegistryName,
+} from "@/components/pages/elements/registry";
 import { BLOCKS } from "@/lib/blocks";
 import { ELEMENT_INDEX } from "@/lib/catalog/element-index";
 import { BASE_URL } from "@/lib/constants";
 import { elementProductSlug } from "@/lib/catalog/products/elements";
 import { generativeFrame } from "@/lib/catalog/products/generative-frame";
 import { safeContentFrame } from "@/lib/catalog/products/safe-content-frame";
-import type { LibraryCategoryId, LibraryItem, LibraryMark } from "./catalog";
+import type {
+  ComponentSection,
+  LibraryCategoryId,
+  LibraryItem,
+  LibraryMark,
+} from "./catalog";
 
 /** An address on the docs site, which is where every item's own page is. */
 const docsUrl = (path: string) => `${BASE_URL}${path}`;
@@ -25,28 +34,98 @@ const lead = (text: string): string => {
   return clause.endsWith(".") ? clause : `${clause}.`;
 };
 
-const components: LibraryItem[] = ELEMENT_INDEX.map(
-  ([slug, title, registryItem, runtimeWired]) => {
-    const element = getElement(slug);
+const ELEMENTS_SECTION: ComponentSection = "Elements";
+const AUI_CONNECTED: ComponentSection = "AUI connected";
+const UI: ComponentSection = "UI";
+const PRIMITIVES: ComponentSection = "Primitives";
+
+const SETUP_ELEMENTS = new Set(ELEMENT_INDEX.map(([slug]) => slug));
+
+const elements: LibraryItem[] = ELEMENTS.map((element) => {
+  const { slug } = element;
+  const path = `/elements/${slug}`;
+  return {
+    id: `components/${slug}`,
+    category: "components",
+    // The docs catalog groups its runtime-wired elements under this same label.
+    section:
+      element.section === AUI_CONNECTED ? AUI_CONNECTED : ELEMENTS_SECTION,
+    name: element.title,
+    description: element.description,
+    href: docsUrl(path),
+    external: true,
+    install: element.generative
+      ? { kind: "npm", names: ["@assistant-ui/generative-ui", "zod"] }
+      : {
+          kind: "shadcn",
+          names: [`@assistant-ui/${elementRegistryName(element)}`],
+        },
+    // The setup command knows the elements in its index; the rest are set up
+    // from their page.
+    prompt: SETUP_ELEMENTS.has(slug)
+      ? agentSetupPrompt([elementProductSlug(slug)])
+      : pageSetupPrompt(path),
+    preview: { kind: "demo", slug },
+    ...(element.wide && { wide: true }),
+    ...(element.connection && { connection: element.connection }),
+  };
+});
+
+const DESIGN_DIR = join(
+  process.cwd(),
+  "..",
+  "docs",
+  "content",
+  "design",
+  "components",
+);
+
+/** The registry items a design component's page installs; none when the page gives its source to copy. */
+const designRegistryItems = (slug: string): string[] => {
+  const file = join(DESIGN_DIR, `${slug}.mdx`);
+  if (!existsSync(file)) return [];
+  const names = /<InstallCommand shadcn=\{\[([^\]]*)\]\}/.exec(
+    readFileSync(file, "utf8"),
+  )?.[1];
+  return [...(names ?? "").matchAll(/"([^"]+)"/g)].map(
+    ([, name]) => `@assistant-ui/${name}`,
+  );
+};
+
+const ui: LibraryItem[] = DESIGN_COMPONENTS.map(
+  ({ slug, name, description }) => {
+    const href = docsUrl(`/design/components/${slug}`);
+    const names = designRegistryItems(slug);
     return {
-      id: `components/${slug}`,
+      id: `ui/${slug}`,
       category: "components",
-      name: title,
-      description:
-        element?.description ??
-        (runtimeWired
-          ? "Wired to the assistant-ui runtime."
-          : "Driven by props, with no runtime required."),
-      href: docsUrl(`/elements/${slug}`),
+      section: UI,
+      name,
+      description,
+      href,
       external: true,
-      install: { kind: "shadcn", names: [`@assistant-ui/${registryItem}`] },
-      prompt: agentSetupPrompt([elementProductSlug(slug)]),
-      preview: { kind: "demo", slug },
-      ...(element?.wide && { wide: true }),
-      ...(element?.connection && { connection: element.connection }),
+      ...(names.length > 0 && { install: { kind: "shadcn" as const, names } }),
+      prompt: agentSetupPrompt([], `Add the ${name} component from ${href}`),
+      preview: { kind: "specimen", slug },
     };
   },
 );
+
+/** The pages of content/docs/primitives, in the order its sidebar lists them. */
+const PRIMITIVE_PAGES = [
+  "composer",
+  "thread",
+  "message",
+  "action-bar",
+  "branch-picker",
+  "thread-list",
+  "assistant-modal",
+  "attachment",
+  "suggestion",
+  "selection-toolbar",
+  "error",
+  "chain-of-thought",
+] as const;
 
 const blocks: LibraryItem[] = BLOCKS.map((block) => ({
   id: `blocks/${block.slug}`,
@@ -412,6 +491,26 @@ const fromDocs = (
     ];
   });
 
+const primitives: LibraryItem[] = PRIMITIVE_PAGES.flatMap((slug) => {
+  const page = readDocsPage(`primitives/${slug}`);
+  if (!page) return [];
+  const path = `/docs/primitives/${slug}`;
+  return [
+    {
+      id: `primitives/${slug}`,
+      category: "components" as const,
+      section: PRIMITIVES,
+      name: page.title,
+      description: page.description ? lead(page.description) : "",
+      href: docsUrl(path),
+      external: true,
+      install: { kind: "npm" as const, names: ["@assistant-ui/react"] },
+      prompt: pageSetupPrompt(path),
+      preview: { kind: "sample" as const, slug },
+    },
+  ];
+});
+
 const PI_PACKAGE = "@assistant-ui/react-pi";
 
 const pi: LibraryItem = {
@@ -495,8 +594,119 @@ const skills: LibraryItem[] = getSkills().map((skill) => ({
   prompt: `install the assistant-ui ${skill.name} skill with \`${skillCommand(skill.name)}\``,
 }));
 
+const SKILL_AGENTS: readonly (readonly [
+  name: string,
+  slug: string,
+  directory: string,
+])[] = [
+  ["AdaL", "adal", ".adal/skills"],
+  ["AiderDesk", "aider-desk", ".aider-desk/skills"],
+  ["Amp", "amp", ".agents/skills"],
+  ["Antigravity", "antigravity", ".agents/skills"],
+  ["Antigravity CLI", "antigravity-cli", ".agents/skills"],
+  ["AstrBot", "astrbot", "data/skills"],
+  ["Augment", "augment", ".augment/skills"],
+  ["Autohand Code CLI", "autohand-code", ".autohand/skills"],
+  ["Claude Code", "claude-code", ".claude/skills"],
+  ["Cline", "cline", ".agents/skills"],
+  ["Code Studio", "codestudio", ".codestudio/skills"],
+  ["CodeArts Agent", "codearts-agent", ".codeartsdoer/skills"],
+  ["CodeBuddy", "codebuddy", ".codebuddy/skills"],
+  ["Codemaker", "codemaker", ".codemaker/skills"],
+  ["Codex", "codex", ".agents/skills"],
+  ["Command Code", "command-code", ".commandcode/skills"],
+  ["Continue", "continue", ".continue/skills"],
+  ["Cortex Code", "cortex", ".cortex/skills"],
+  ["Crush", "crush", ".crush/skills"],
+  ["Cursor", "cursor", ".agents/skills"],
+  ["Deep Agents", "deepagents", ".agents/skills"],
+  ["Devin for Terminal", "devin", ".devin/skills"],
+  ["Dexto", "dexto", ".agents/skills"],
+  ["Droid", "droid", ".agents/skills"],
+  ["Eve", "eve", "agent/skills"],
+  ["Firebender", "firebender", ".agents/skills"],
+  ["ForgeCode", "forgecode", ".forge/skills"],
+  ["fx", "fx", ".agents/skills"],
+  ["Gemini CLI", "gemini-cli", ".agents/skills"],
+  ["GitHub Copilot", "github-copilot", ".agents/skills"],
+  ["Goose", "goose", ".goose/skills"],
+  ["Grok Build", "grok", ".grok/skills"],
+  ["Hermes Agent", "hermes-agent", ".hermes/skills"],
+  ["IBM Bob", "bob", ".bob/skills"],
+  ["iFlow CLI", "iflow-cli", ".iflow/skills"],
+  ["inference.sh", "inference-sh", ".inferencesh/skills"],
+  ["Jazz", "jazz", ".jazz/skills"],
+  ["Junie", "junie", ".junie/skills"],
+  ["Kilo Code", "kilo", ".agents/skills"],
+  ["Kimchi", "kimchi", ".kimchi/skills"],
+  ["Kimi Code CLI", "kimi-code-cli", ".agents/skills"],
+  ["Kiro CLI", "kiro-cli", ".kiro/skills"],
+  ["Kode", "kode", ".kode/skills"],
+  ["Lingma", "lingma", ".lingma/skills"],
+  ["Loaf", "loaf", ".agents/skills"],
+  ["MCPJam", "mcpjam", ".mcpjam/skills"],
+  ["MiniMax Code", "minimax-code", ".minimax/skills"],
+  ["Mistral Vibe", "mistral-vibe", ".vibe/skills"],
+  ["Moxby", "moxby", ".moxby/skills"],
+  ["Mux", "mux", ".mux/skills"],
+  ["Neovate", "neovate", ".neovate/skills"],
+  ["Ona", "ona", ".ona/skills"],
+  ["OpenClaw", "openclaw", "skills"],
+  ["OpenCode", "opencode", ".agents/skills"],
+  ["OpenHands", "openhands", ".openhands/skills"],
+  ["Pi", "pi", ".agents/skills"],
+  ["Pochi", "pochi", ".pochi/skills"],
+  ["Posit Assistant", "posit-assistant", ".posit/assistant/skills"],
+  ["PromptScript", "promptscript", ".agents/skills"],
+  ["Qoder", "qoder", ".qoder/skills"],
+  ["Qoder CN", "qoder-cn", ".qoder/skills"],
+  ["Qwen Code", "qwen-code", ".qwen/skills"],
+  ["Reasonix", "reasonix", ".reasonix/skills"],
+  ["Replit", "replit", ".agents/skills"],
+  ["Roo Code", "roo", ".roo/skills"],
+  ["Rovo Dev", "rovodev", ".rovodev/skills"],
+  ["Sarvam Code", "sarvam-code", ".agents/skills"],
+  ["Tabnine CLI", "tabnine-cli", ".tabnine/agent/skills"],
+  ["Terramind", "terramind", ".terramind/skills"],
+  ["Tinycloud", "tinycloud", ".tinycloud/skills"],
+  ["Trae", "trae", ".trae/skills"],
+  ["Trae CN", "trae-cn", ".trae/skills"],
+  ["Universal", "universal", ".agents/skills"],
+  ["Warp", "warp", ".agents/skills"],
+  ["Windsurf", "windsurf", ".windsurf/skills"],
+  ["ZCode", "zcode", ".zcode/skills"],
+  ["Zed", "zed", ".agents/skills"],
+  ["Zencoder", "zencoder", ".zencoder/skills"],
+  ["Zenflow", "zenflow", ".zencoder/skills"],
+];
+
+const SKILL_AGENTS_DOCS =
+  "https://github.com/vercel-labs/skills/blob/main/docs/agents.md";
+
+const agentCommand = (slug: string) =>
+  `npx skills add assistant-ui/skills -a ${slug}`;
+
+const skillAgents: LibraryItem[] = SKILL_AGENTS.map(
+  ([name, slug, directory]) => {
+    const command = agentCommand(slug);
+    return {
+      id: `skills/${slug}`,
+      category: "skills",
+      section: "Agents",
+      name,
+      description: `Installs into ${directory}.`,
+      href: SKILL_AGENTS_DOCS,
+      external: true,
+      install: { kind: "command", command },
+      prompt: `install the assistant-ui skills into ${name} with \`${command}\``,
+    };
+  },
+);
+
 export const getLibraryItems = (): LibraryItem[] => [
-  ...components,
+  ...elements,
+  ...ui,
+  ...primitives,
   ...blocks,
   ...templates,
   ...repositoryStarters.filter((item) => item.section === "Templates"),
@@ -511,4 +721,5 @@ export const getLibraryItems = (): LibraryItem[] => [
   ...devtools,
   variants,
   ...skills,
+  ...skillAgents,
 ];

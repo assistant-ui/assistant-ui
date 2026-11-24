@@ -8,11 +8,14 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { demoFrameClass } from "@/components/demo/utils/canvas";
 import { ElementDemo } from "@/components/pages/elements/element-demos";
 import {
+  COMPONENT_SECTIONS,
   GALLERY_CATEGORIES,
   installLabel,
+  sectionAnchor,
   type LibraryItem,
 } from "@/lib/library/catalog";
 import { cn } from "@/lib/utils";
+import { DesignSpecimen, PrimitiveSample } from "./component-previews";
 import { ItemMark } from "./item-mark";
 import { ItemMenu } from "./item-menu";
 
@@ -95,12 +98,42 @@ function LazyDemo({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Fits a docs sample to its card: the sample's own frame loses its margin,
+ * border, and padding, and scrolls inside the card when it is taller.
+ */
+const sampleClassName =
+  "flex size-full min-w-0 overflow-auto [&_.not-prose]:my-0 [&>.not-prose]:m-auto! [&>.not-prose]:w-full [&>.not-prose>div]:border-0 [&>.not-prose>div]:p-0";
+
 function Preview({ item }: { item: LibraryItem }) {
   const { preview } = item;
   if (preview?.kind === "demo") {
     return (
       <LazyDemo>
         <ElementDemo demo={preview.slug} />
+      </LazyDemo>
+    );
+  }
+  if (preview?.kind === "specimen") {
+    return (
+      <LazyDemo>
+        <div className={sampleClassName}>
+          <DesignSpecimen slug={preview.slug} />
+        </div>
+      </LazyDemo>
+    );
+  }
+  if (preview?.kind === "sample") {
+    return (
+      <LazyDemo>
+        <div
+          className={cn(
+            sampleClassName,
+            "[&>.not-prose]:h-full [&>.not-prose>div]:h-full!",
+          )}
+        >
+          <PrimitiveSample slug={preview.slug} />
+        </div>
       </LazyDemo>
     );
   }
@@ -255,17 +288,82 @@ function ProductCards({ items }: { items: readonly LibraryItem[] }) {
   );
 }
 
-function ProductGallery({ items }: { items: readonly LibraryItem[] }) {
+function GalleryGrid({ items }: { items: readonly LibraryItem[] }) {
   return (
-    <div className="@container">
-      <ul
-        role="list"
-        className="grid grid-cols-1 gap-x-6 gap-y-10 @2xl:grid-cols-2"
-      >
-        {items.map((item) => (
-          <GalleryCard key={item.id} item={item} />
-        ))}
-      </ul>
+    <ul
+      role="list"
+      className="grid grid-cols-1 gap-x-6 gap-y-10 @2xl:grid-cols-2"
+    >
+      {items.map((item) => (
+        <GalleryCard key={item.id} item={item} />
+      ))}
+    </ul>
+  );
+}
+
+const sectionOrder = (section: string | undefined) =>
+  COMPONENT_SECTIONS.findIndex((known) => known === section);
+
+/**
+ * Previews in two columns. Items that name sections are listed under a heading
+ * for each, with links at the top that jump to them.
+ */
+function ProductGallery({ items }: { items: readonly LibraryItem[] }) {
+  const sections = [...new Set(items.map((item) => item.section))]
+    .filter((section) => section !== undefined)
+    .toSorted((a, b) => sectionOrder(a) - sectionOrder(b));
+
+  if (sections.length === 0) {
+    return (
+      <div className="@container">
+        <GalleryGrid items={items} />
+      </div>
+    );
+  }
+
+  const listed = sections.map((section) => ({
+    section,
+    items: items.filter((item) => item.section === section),
+  }));
+
+  return (
+    <div className="@container flex flex-col gap-10">
+      {listed.length > 1 ? (
+        <nav aria-label="Sections">
+          <ul role="list" className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            {listed.map(({ section, items }) => (
+              <li key={section}>
+                <a
+                  href={`#${sectionAnchor(section)}`}
+                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground flex items-baseline gap-1.5 rounded-sm underline-offset-4 outline-none focus-visible:underline"
+                >
+                  {section}
+                  <span className="text-xs tabular-nums">{items.length}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
+      {listed.map(({ section, items }) => (
+        <section
+          key={section}
+          id={sectionAnchor(section)}
+          aria-labelledby={`${sectionAnchor(section)}-heading`}
+          className="flex scroll-mt-20 flex-col gap-5"
+        >
+          <h2
+            id={`${sectionAnchor(section)}-heading`}
+            className="font-strong flex items-baseline gap-2 text-sm"
+          >
+            {section}
+            <span className="text-muted-foreground font-regular text-xs tabular-nums">
+              {items.length}
+            </span>
+          </h2>
+          <GalleryGrid items={items} />
+        </section>
+      ))}
     </div>
   );
 }

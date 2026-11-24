@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Search01Icon, ShoppingCart01Icon } from "@hugeicons/core-free-icons";
+import {
+  ComputerTerminal01Icon,
+  Search01Icon,
+  ShoppingCart01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +29,7 @@ import {
 import {
   LIBRARY_CATEGORIES,
   LIBRARY_PATH,
+  SETUP_PATH,
   libraryCategoryAt,
   libraryCategoryHref,
 } from "@/lib/library/catalog";
@@ -41,8 +46,8 @@ const noop = () => {};
 
 /**
  * The sidebar in the left panel: the name, which is the way home, with a search
- * at its right that opens a field under the row; then the cart, and the
- * library's categories under their label, which goes home too. The category
+ * at its right that opens a field under the row; then setup and the cart, and
+ * the library's categories under their label, which goes home too. The category
  * being shown is marked. The panels frame
  * shows and hides it, so the kit sidebar's own context is here only for its
  * parts to read: held open, its wrapper kept out of the layout with
@@ -131,6 +136,30 @@ export function LibrarySidebar() {
           <SidebarGroup className="pb-0">
             <SidebarGroupContent>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={pathname === SETUP_PATH}
+                    render={
+                      <Link
+                        href={SETUP_PATH}
+                        aria-current={
+                          pathname === SETUP_PATH ? "page" : undefined
+                        }
+                        onClick={closeSheet}
+                      />
+                    }
+                  >
+                    <span className="flex w-[1.667rem] shrink-0 justify-center">
+                      <HugeiconsIcon
+                        icon={ComputerTerminal01Icon}
+                        strokeWidth={1.5}
+                        aria-hidden
+                        className="text-muted-foreground group-data-active/menu-button:text-current"
+                      />
+                    </span>
+                    <span className="truncate">Setup</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     aria-label={`Open cart, ${cartCountLabel(cartCount)}`}

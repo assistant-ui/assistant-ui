@@ -1,10 +1,11 @@
 export const LIBRARY_PATH = "/";
+export const SETUP_PATH = "/setup";
 
 export const LIBRARY_CATEGORIES = [
   {
     id: "components",
     label: "Components",
-    description: "Chat UI parts from the shadcn registry.",
+    description: "Chat elements, UI components, and unstyled primitives.",
   },
   {
     id: "blocks",
@@ -39,7 +40,8 @@ export const LIBRARY_CATEGORIES = [
   {
     id: "skills",
     label: "Skills",
-    description: "Instructions for coding agents.",
+    description:
+      "Instructions for coding agents, and the agents they install into.",
   },
 ] as const;
 
@@ -74,6 +76,20 @@ export const libraryCategoryAt = (
 export const getLibraryCategory = (id: LibraryCategoryId): LibraryCategory =>
   LIBRARY_CATEGORIES.find((category) => category.id === id)!;
 
+/** The sections of the components page, in the order it shows them. */
+export const COMPONENT_SECTIONS = [
+  "Elements",
+  "AUI connected",
+  "UI",
+  "Primitives",
+] as const;
+
+export type ComponentSection = (typeof COMPONENT_SECTIONS)[number];
+
+/** Where a section's heading sits on its page. */
+export const sectionAnchor = (section: string) =>
+  section.toLowerCase().replaceAll(" ", "-");
+
 export type LibraryInstall =
   | { kind: "shadcn"; names: readonly string[] }
   | { kind: "npm"; names: readonly string[] }
@@ -81,6 +97,8 @@ export type LibraryInstall =
 
 export type LibraryPreview =
   | { kind: "demo"; slug: string }
+  | { kind: "specimen"; slug: string }
+  | { kind: "sample"; slug: string }
   | { kind: "image"; light: string; dark: string };
 
 export const LIBRARY_MARKS = [
