@@ -68,7 +68,7 @@ const unattendedRules = `Nobody answers this setup: it runs unattended (--unatte
 - Submit the plan with "{{cmd}} {{url}} plan --file <path>" (without --wait), then approve it yourself with "{{cmd}} {{url}} answer plan approve".
 - Skip every step that needs a person, such as signing in to assistant-ui cloud or a model API key (run no "env" command), and leave the code ready for it.
 - Once the install is done and verified, run "done" with a summary, then "{{cmd}} {{url}} answer finish close", then stop setup.
-- End your reply with a "To finish" list: every step you skipped and every choice the user may want to change, such as "Add ANTHROPIC_API_KEY to .env.local".
+- End your reply with a "To finish" list: every step you skipped and every choice the user may want to change, such as "Add OPENAI_API_KEY to .env.local", naming the key of the provider you used.
 Where the rest of this guide says to ask the user or wait for an answer, follow these rules instead.
 
 `;
