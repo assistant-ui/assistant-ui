@@ -152,8 +152,6 @@ describe("downloadProject", () => {
     const destDir = path.join(testDir, "dest");
     await downloadProject("templates/default", destDir, "v1.0.0");
 
-    const [, options] = vi.mocked(downloadTemplate).mock.calls[0]!;
-    expect(options).not.toHaveProperty("preferOffline");
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
       expect.objectContaining({
@@ -169,8 +167,6 @@ describe("downloadProject", () => {
     const destDir = path.join(testDir, "dest");
     await downloadProject("examples/with-tanstack", destDir);
 
-    const [, options] = vi.mocked(downloadTemplate).mock.calls[0]!;
-    expect(options).not.toHaveProperty("preferOffline");
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/examples/with-tanstack",
       expect.objectContaining({

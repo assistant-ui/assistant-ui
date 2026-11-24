@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveDownloadTimeoutMs } from "../../src/lib/utils/download";
+import { resolveDownloadTimeoutMs } from "./download";
 
 describe("resolveDownloadTimeoutMs", () => {
   it("defaults to 120 s", () => {
