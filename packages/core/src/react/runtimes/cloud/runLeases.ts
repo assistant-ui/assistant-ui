@@ -158,7 +158,11 @@ export const useCloudRunLeases = (
     const replyScope = threadReplyScopeOf(aui);
 
     // Re-reads a thread another session is answering until its reply shows or its run goes quiet.
-    const watchThreadRun = (head: ThreadMessage, staleInMs: number) => {
+    const watchThreadRun = (
+      head: ThreadMessage,
+      key: string,
+      staleInMs: number,
+    ) => {
       if (poll) return;
       const delay = Math.min(
         POLL_MAX_MS,
@@ -167,12 +171,15 @@ export const useCloudRunLeases = (
       poll = {
         messageId: head.id,
         timer: setTimeout(() => {
-          void refresh()
-            .catch(() => undefined)
-            .then(() => {
-              poll = undefined;
-              if (!disposed) check();
-            });
+          void (async () => {
+            // A short read first: the whole thread is read again only once the run stored its reply or stopped.
+            await adapter.readRunState(head.id).catch(() => undefined);
+            if (disposed) return;
+            if (!adapter.replyRunPending(head, key))
+              await refresh().catch(() => undefined);
+            poll = undefined;
+            if (!disposed) check();
+          })();
         }, delay),
       };
     };
@@ -197,10 +204,11 @@ export const useCloudRunLeases = (
         !thread.isRunning &&
         !thread.isLoading
       ) {
-        const run = adapter.replyRunOf(head, writer.keyOf(head));
+        const key = writer.keyOf(head);
+        const run = adapter.replyRunOf(head, key);
         if (run?.status === "in-progress") {
           state = "in-progress";
-          watchThreadRun(head, run.staleInMs);
+          watchThreadRun(head, key ?? head.id, run.staleInMs);
           // Turns interrupted the moment the run would cross staleAfter, even between polls.
           replyTimer = setTimeout(check, run.staleInMs + POLL_STALE_MARGIN_MS);
         } else if (run !== undefined) {

@@ -711,6 +711,23 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     head: ThreadMessage,
     key: string = head.id,
   ): CloudRunState | null | undefined {
+    const read = this.replyRunReadOf(key);
+    if (!read) return read;
+    return read.persistence.runStateOf(read.run, read.sinceReadMs) ?? null;
+  }
+
+  /** Whether the run answering `head` is live and has stored no reply yet, as the last read saw it. */
+  public replyRunPending(head: ThreadMessage, key: string = head.id): boolean {
+    const read = this.replyRunReadOf(key);
+    return (
+      !!read &&
+      read.run.message_id === null &&
+      read.persistence.runStateOf(read.run, read.sinceReadMs)?.status ===
+        "in-progress"
+    );
+  }
+
+  private replyRunReadOf(key: string) {
     const threadListItem = this.runThreadListItem();
     const remoteThreadId = threadListItem?.getState().remoteId;
     if (!threadListItem || !remoteThreadId) return undefined;
@@ -718,8 +735,12 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
     const read = persistence.threadRunOf(remoteThreadId);
     if (!read || !persistence.isPersisted(key)) return undefined;
     const headId = persistence.getResolvedRemoteId(key) ?? key;
-    if (read.run?.parent_id !== headId) return null;
-    return persistence.runStateOf(read.run, Date.now() - read.readAt) ?? null;
+    if (!read.run || read.run.parent_id !== headId) return null;
+    return {
+      persistence,
+      run: read.run,
+      sinceReadMs: Date.now() - read.readAt,
+    };
   }
 
   /** The item whose persistence holds the thread's rows: the one a formatted runtime pinned, else the live one. */
