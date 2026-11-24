@@ -237,7 +237,6 @@ test("CODEOWNERS is rendered exactly from the real policy", () => {
 
 # CI and policy
 /.github/ @assistant-ui/owners
-/templates/cloud-harness/vendor/ @assistant-ui/owners
 /CONTRIBUTING.md @assistant-ui/owners
 /AGENTS.md @assistant-ui/owners
 /scripts/review-tier.mjs @assistant-ui/owners
@@ -322,7 +321,6 @@ test("ruleset updates replace only review floors and required checks", () => {
                     "/api-surface/*.ts",
                     "!/api-surface/assistant-ui__docs-theme.ts",
                     "/.github/**",
-                    "/templates/cloud-harness/vendor/**",
                     "/CONTRIBUTING.md",
                     "/AGENTS.md",
                     "/scripts/review-tier.mjs",
@@ -378,7 +376,6 @@ test("contract review floors group each owner team's paths and contract docs", (
         "/api-surface/*.ts",
         "!/api-surface/assistant-ui__docs-theme.ts",
         "/.github/**",
-        "/templates/cloud-harness/vendor/**",
         "/CONTRIBUTING.md",
         "/AGENTS.md",
         "/scripts/review-tier.mjs",
