@@ -104,6 +104,236 @@ const PACKAGE_IMPORT =
   /from\s+"((?:@[a-z0-9][\w.-]*\/)?[a-z0-9][\w.-]*)(?:\/[^"]*)?"/g;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
 
+const ELEMENT_IMPORT = /components\/assistant-ui\/elements\/([A-Za-z0-9._-]+)/g;
+
+/**
+ * A primitive the element is built on. A match means the block renders that
+ * primitive, which is not the same as importing the element.
+ */
+const ELEMENT_MARKERS: readonly {
+  slug: string;
+  name: string;
+  pattern: RegExp;
+}[] = [
+  {
+    slug: "message-pair",
+    name: "MessagePrimitive",
+    pattern: /\bMessagePrimitive\b/,
+  },
+  {
+    slug: "message-branches",
+    name: "BranchPickerPrimitive",
+    pattern: /\bBranchPickerPrimitive\b/,
+  },
+  {
+    slug: "message-actions",
+    name: "ActionBarPrimitive",
+    pattern: /\bActionBarPrimitive\b/,
+  },
+  {
+    slug: "error-state",
+    name: "ErrorPrimitive",
+    pattern: /\bErrorPrimitive\b/,
+  },
+  {
+    slug: "message-queue",
+    name: "QueueItemPrimitive",
+    pattern: /\bQueueItemPrimitive\b/,
+  },
+  {
+    slug: "message-queue",
+    name: "ComposerPrimitive.Queue",
+    pattern: /\bComposerPrimitive\.Queue\b/,
+  },
+  {
+    slug: "edit-message",
+    name: "ActionBarPrimitive.Edit",
+    pattern: /\bActionBarPrimitive\.Edit\b/,
+  },
+  {
+    slug: "regenerate-menu",
+    name: "ActionBarPrimitive.Reload",
+    pattern: /\bActionBarPrimitive\.Reload\b/,
+  },
+  {
+    slug: "read-aloud",
+    name: "ActionBarPrimitive.Speak",
+    pattern: /\bActionBarPrimitive\.Speak\b/,
+  },
+  {
+    slug: "read-aloud",
+    name: "WebSpeechSynthesisAdapter",
+    pattern: /\bWebSpeechSynthesisAdapter\b/,
+  },
+  {
+    slug: "composer",
+    name: "ComposerPrimitive",
+    pattern: /\bComposerPrimitive\b/,
+  },
+  {
+    slug: "composer-attachments",
+    name: "ComposerPrimitive.AddAttachment",
+    pattern: /\bComposerPrimitive\.AddAttachment\b/,
+  },
+  {
+    slug: "composer-attachments",
+    name: "ComposerPrimitive.Attachments",
+    pattern: /\bComposerPrimitive\.Attachments\b/,
+  },
+  {
+    slug: "composer-attachments",
+    name: "ComposerPrimitive.AttachmentDropzone",
+    pattern: /\bComposerPrimitive\.AttachmentDropzone\b/,
+  },
+  {
+    slug: "composer-voice",
+    name: "ComposerPrimitive.Dictate",
+    pattern: /\bComposerPrimitive\.Dictate\b/,
+  },
+  {
+    slug: "composer-voice",
+    name: "WebSpeechDictationAdapter",
+    pattern: /\bWebSpeechDictationAdapter\b/,
+  },
+  {
+    slug: "scroll-anchor",
+    name: "ThreadPrimitive.ScrollToBottom",
+    pattern: /\bThreadPrimitive\.ScrollToBottom\b/,
+  },
+  {
+    slug: "empty-state",
+    name: "ThreadPrimitive.Suggestions",
+    pattern: /\bThreadPrimitive\.Suggestions\b/,
+  },
+  { slug: "thread", name: "ThreadPrimitive", pattern: /\bThreadPrimitive\b/ },
+  {
+    slug: "assistant-modal",
+    name: "AssistantModalPrimitive",
+    pattern: /\bAssistantModalPrimitive\b/,
+  },
+  {
+    slug: "thread-list",
+    name: "ThreadListPrimitive",
+    pattern: /\bThreadListPrimitive\b/,
+  },
+  {
+    slug: "follow-up-suggestions",
+    name: "SuggestionPrimitive",
+    pattern: /\bSuggestionPrimitive\b/,
+  },
+  {
+    slug: "follow-up-suggestions",
+    name: "ThreadPrimitive.Suggestion",
+    pattern: /\bThreadPrimitive\.Suggestion\b/,
+  },
+  {
+    slug: "reasoning",
+    name: "ChainOfThoughtPrimitive",
+    pattern: /\bChainOfThoughtPrimitive\b/,
+  },
+  {
+    slug: "attachment",
+    name: "AttachmentPrimitive",
+    pattern: /\bAttachmentPrimitive\b/,
+  },
+  {
+    slug: "quote",
+    name: "SelectionToolbarPrimitive",
+    pattern: /\bSelectionToolbarPrimitive\b/,
+  },
+  {
+    slug: "quote",
+    name: "ComposerPrimitive.Quote",
+    pattern: /\bComposerPrimitive\.Quote\b/,
+  },
+  {
+    slug: "quote",
+    name: "MessagePrimitive.Quote",
+    pattern: /\bMessagePrimitive\.Quote\b/,
+  },
+  {
+    slug: "markdown-text",
+    name: "MarkdownTextPrimitive",
+    pattern: /\bMarkdownTextPrimitive\b/,
+  },
+  {
+    slug: "image",
+    name: "MessagePartPrimitive.Image",
+    pattern: /\bMessagePartPrimitive\.Image\b/,
+  },
+  {
+    slug: "composer-trigger-popover",
+    name: "ComposerPrimitive.TriggerPopover",
+    pattern: /\bComposerPrimitive\.TriggerPopover\b/,
+  },
+  {
+    slug: "generative-ui",
+    name: "MessagePrimitive.GenerativeUI",
+    pattern: /\bMessagePrimitive\.GenerativeUI\b/,
+  },
+  {
+    slug: "generative-ui",
+    name: "GenerativeUIComponentRegistry",
+    pattern: /\bGenerativeUIComponentRegistry\b/,
+  },
+];
+
+export type ElementCatalogEntry = {
+  slug: string;
+  file?: string;
+};
+
+export type BlockElementUse = {
+  slug: string;
+  /** `element` imports the catalog component. `primitive` renders the primitive it is built on. */
+  kind: "element" | "primitive";
+  /** The imported file, or the primitives the block renders. */
+  names: readonly string[];
+};
+
+function remember(map: Map<string, string[]>, slug: string, name: string) {
+  const names = map.get(slug) ?? [];
+  if (!names.includes(name)) names.push(name);
+  map.set(slug, names);
+}
+
+/** Catalog entries a block renders, in catalog order. An imported element is not also listed as its primitive. */
+export function blockElements(
+  files: readonly BlockFile[],
+  catalog: readonly ElementCatalogEntry[],
+): BlockElementUse[] {
+  const imported = new Map<string, string[]>();
+  const primitives = new Map<string, string[]>();
+  const byFile = new Map(
+    catalog.flatMap((entry) =>
+      entry.file
+        ? [[entry.file.replace(/\.tsx$/, ""), entry.slug] as const]
+        : [],
+    ),
+  );
+
+  for (const file of files) {
+    if (TEST_FILE.test(file.path)) continue;
+    for (const marker of ELEMENT_MARKERS) {
+      if (marker.pattern.test(file.code))
+        remember(primitives, marker.slug, marker.name);
+    }
+    for (const [, fileName = ""] of file.code.matchAll(ELEMENT_IMPORT)) {
+      const stem = fileName.replace(/\.tsx$/, "");
+      const slug = byFile.get(stem);
+      if (slug) remember(imported, slug, stem);
+    }
+  }
+
+  return catalog.flatMap((entry): BlockElementUse[] => {
+    const element = imported.get(entry.slug);
+    if (element) return [{ slug: entry.slug, kind: "element", names: element }];
+    const names = primitives.get(entry.slug);
+    if (!names) return [];
+    return [{ slug: entry.slug, kind: "primitive", names }];
+  });
+}
+
 /**
  * A block's runtime dependencies, from its manifest. A block without one, a
  * demo inside the docs app, lists the packages its files import, at the
