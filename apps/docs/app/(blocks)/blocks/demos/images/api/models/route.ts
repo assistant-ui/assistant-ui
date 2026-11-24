@@ -23,7 +23,9 @@ export type ImageModel = {
 };
 
 async function read<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`);
+  const response = await fetch(`${API}${path}`, {
+    signal: AbortSignal.timeout(10_000),
+  });
   if (!response.ok) throw new Error(`Modelpedia answered ${response.status}.`);
   return response.json() as Promise<T>;
 }
@@ -47,7 +49,10 @@ async function imageModels(): Promise<ImageModel[]> {
   const page = (offset: number) =>
     read<Page<Listed[]>>(`/models?limit=${PAGE}&offset=${offset}`);
   const [providers, first] = await Promise.all([
-    read<{ data: { id: string; name: string }[] }>("/providers"),
+    // Provider names are only labels; without them the list shows the provider ids.
+    read<{ data: { id: string; name: string }[] }>("/providers").catch(() => ({
+      data: [],
+    })),
     page(0),
   ]);
   const rest = await Promise.all(
@@ -72,7 +77,8 @@ export async function GET() {
   await connection();
   try {
     return Response.json({ models: await imageModels() });
-  } catch {
+  } catch (error) {
+    console.error("[blocks/images/api/models]", error);
     return new Response("The list of image models could not be read.", {
       status: 502,
     });

@@ -91,7 +91,10 @@ const listRow = `hover:bg-accent flex h-8 items-center gap-2 px-2 transition-col
 const iconButton = `text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 dark:hover:bg-foreground/[0.09] flex size-7 shrink-0 items-center justify-center rounded-full transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none [&_svg]:size-3.5 ${focusRing}`;
 
 /* The button at the end of a chat's row, shown while the row is in use. */
-const rowAction = `${iconButton} absolute end-1 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100`;
+const rowAction = cn(
+  iconButton,
+  "absolute end-1 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100",
+);
 
 /*
  * A menu: a glass popup with the float shadow, 13px text and 26px rows (36px

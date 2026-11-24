@@ -86,11 +86,32 @@ describe("GET /blocks/demos/images/api/models", () => {
     });
   });
 
+  it("lists the models by provider id when the provider names fail", async () => {
+    modelpedia([[listed("gpt-image-2", { model_type: "image" })]]);
+    const models = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) =>
+      String(input).endsWith("/providers")
+        ? new Response("down", { status: 503 })
+        : models(input, init),
+    );
+
+    const response = await GET();
+
+    expect(await response.json()).toEqual({
+      models: [
+        { id: "openai/gpt-image-2", name: "GPT-IMAGE-2", provider: "openai" },
+      ],
+    });
+  });
+
   it("answers 502 when Modelpedia fails", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     fetchMock.mockResolvedValue(new Response("down", { status: 503 }));
 
     const response = await GET();
 
     expect(response.status).toBe(502);
+    expect(logged).toHaveBeenCalledOnce();
+    logged.mockRestore();
   });
 });

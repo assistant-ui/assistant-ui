@@ -170,7 +170,9 @@ export function Surface({
   const [draft, setDraft] = useState<Mark | null>(null);
 
   useImperativeHandle(ref, () => ({
-    markup: () => marksRef.current?.innerHTML ?? "",
+    // HTML writes a non-breaking space as `&nbsp;`, which an SVG image, being XML, cannot read.
+    markup: () =>
+      (marksRef.current?.innerHTML ?? "").replaceAll("&nbsp;", "&#160;"),
   }));
 
   const pointOf = (event: PointerEvent<SVGSVGElement>): Point => {
@@ -218,7 +220,7 @@ export function Surface({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finish}
-      onPointerCancel={finish}
+      onPointerCancel={() => setDraft(null)}
       className={cn(
         "absolute inset-0 size-full touch-none select-none",
         tool === "none"

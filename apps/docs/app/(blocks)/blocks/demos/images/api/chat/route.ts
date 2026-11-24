@@ -154,7 +154,8 @@ export async function POST(req: Request) {
   if (!asked) {
     return new Response("Describe the picture first.", { status: 400 });
   }
-  const settings = settingsSchema.parse(metadata?.custom ?? {});
+  const settings =
+    settingsSchema.safeParse(metadata?.custom).data ?? settingsSchema.parse({});
   if (!settings.model.startsWith(PROVIDER)) {
     return new Response(
       `This route holds an OpenAI key, and ${settings.model} runs somewhere else. Add a call for its provider to use it.`,

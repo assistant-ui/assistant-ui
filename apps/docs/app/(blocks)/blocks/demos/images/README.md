@@ -9,6 +9,7 @@ Each chat is one picture and the changes asked of it. A new chat shows the galle
 | Concern | Where it lives |
 |---|---|
 | Runtime, thread, replies, message box | `components/images.tsx` |
+| What each request sends, and the settings an editor change is made again with | `components/request.ts` |
 | The sidebar and its list of chats, with Back and Forward and search, shared by the blocks | `../chat-sidebar.tsx` |
 | Gallery tabs, template tiles and dialog, My images | `components/gallery.tsx` |
 | Model picker | `components/models.tsx` |
@@ -41,13 +42,14 @@ Every picture costs money. Put your own sign-in and rate limit in front of the r
 
 `api/models/route.ts` reads the [Modelpedia API](https://modelpedia.dev/docs/api), which is free and needs no key. Modelpedia has no filter for what a model makes, so the route reads the whole list, keeps the models that make images, and holds the result for a day.
 
-The picker lists all of them, grouped by provider. The image route holds a key for one provider, OpenAI, so only its models can be picked; the rest are marked as needing their own key. To run another provider's models, add a call for it in `api/chat/route.ts` and widen `canRun` in `components/models.tsx`.
+The picker lists all of them, grouped by provider. The image route holds a key for one provider, OpenAI, and calls its Images API, so only OpenAI's image models (`gpt-image` and `dall-e`) can be picked; OpenAI's chat models that make pictures are listed but cannot be picked, and the other providers are marked as needing their own key. To run another provider's models, add a call for it in `api/chat/route.ts` and widen `canRun` in `components/models.tsx`.
 
 ## How a picture is made
 
 - A template is a prompt: using one writes its prompt in the message box, to send as it is or with your own details added.
 - The model and the settings ride along as the message's run config, which the transport sends as the request's `metadata`.
 - The transport sends only the newest request and the newest picture, so a long chat does not post every picture again.
+- Making a picture again uses what the menu holds now, except for a change from the editor, which is made again with the settings it was sent with.
 - The route calls OpenAI's Images API itself, because complexity and partial images are settings the AI SDK's image call does not send. Each picture comes back as a file part.
 - A request in a chat that already holds a picture sends that picture as the starting point, along with any pictures attached to the request.
 

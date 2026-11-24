@@ -32,7 +32,6 @@ import {
   MicOff01Icon,
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
-import type { UIMessage } from "ai";
 import { Image } from "@/components/assistant-ui/elements/image";
 import { ImageGallery } from "@/components/assistant-ui/elements/image-gallery";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
@@ -42,6 +41,7 @@ import { EditorFrame, useEditor } from "./editor";
 import { Gallery } from "./gallery";
 import { ModelPicker } from "./models";
 import { AddMenu } from "./settings";
+import { createRequestBody } from "./request";
 import { OptionsProvider, addMade, shapeOf, useOptions } from "./state";
 import {
   Icon,
@@ -58,27 +58,6 @@ import { User } from "./user";
 /* -------------------------------------------------------------------------- */
 /* Runtime: each chat is one picture and the changes asked of it              */
 /* -------------------------------------------------------------------------- */
-
-const isPicture = (part: UIMessage["parts"][number]) =>
-  part.type === "file" && part.mediaType.startsWith("image/");
-
-/*
- * The route needs the newest request and the newest picture, which a
- * follow-up changes. Earlier pictures stay in the page, so a long chat does
- * not send every one of them again.
- */
-function newest(messages: readonly UIMessage[]) {
-  const asked = messages.findLast((message) => message.role === "user");
-  const pictured = messages.findLast(
-    (message) => message.role === "assistant" && message.parts.some(isPicture),
-  );
-  return [
-    ...(pictured
-      ? [{ ...pictured, parts: pictured.parts.filter(isPicture).slice(-1) }]
-      : []),
-    ...(asked ? [asked] : []),
-  ];
-}
 
 const subscribeNever = () => () => {};
 
@@ -157,16 +136,7 @@ export function Images() {
     () =>
       new AssistantChatTransport({
         api: "/blocks/demos/images/api/chat",
-        prepareSendMessagesRequest: (options) => ({
-          body: {
-            ...options.body,
-            id: options.id,
-            messages: newest(options.messages),
-            trigger: options.trigger,
-            messageId: options.messageId,
-            metadata: options.requestMetadata,
-          },
-        }),
+        prepareSendMessagesRequest: createRequestBody(),
       }),
   );
   const [attachments] = useState(() => new SimpleImageAttachmentAdapter());

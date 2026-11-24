@@ -182,6 +182,25 @@ describe("POST /blocks/demos/images/api/chat", () => {
     });
   });
 
+  it("uses the default settings when they arrive in the wrong shape", async () => {
+    fetchMock.mockResolvedValue(answer(["QUJD"]));
+
+    const response = await POST(
+      request({
+        messages: [{ role: "user", parts: [text("a fox")] }],
+        metadata: { custom: "large" },
+      }),
+    );
+    await chunks(response);
+
+    expect(response.status).toBe(200);
+    expect(sent().body).toMatchObject({
+      model: "gpt-image-2.6-flare",
+      size: "auto",
+      n: 1,
+    });
+  });
+
   it("changes the newest picture in the chat on a follow-up", async () => {
     fetchMock.mockResolvedValue(answer(["QUJD"]));
     const older = "data:image/webp;base64,T0xE";

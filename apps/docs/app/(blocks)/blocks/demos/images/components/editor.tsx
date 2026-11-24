@@ -227,6 +227,8 @@ function Editor({ picture }: { picture: Picture }) {
   const surface = useRef<SurfaceHandle>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const sent = useRef(false);
+  // Set while the drawing is turned into a picture, so a second press does not send it twice.
+  const drawing = useRef(false);
 
   const [size, setSize] = useState<Size | null>(null);
   const [room, setRoom] = useState<Size | null>(null);
@@ -239,6 +241,8 @@ function Editor({ picture }: { picture: Picture }) {
   const [undone, setUndone] = useState<readonly Mark[]>([]);
   // The note of each pin, in the order the pins were placed.
   const [notes, setNotes] = useState<readonly string[]>([]);
+  const [undoneNotes, setUndoneNotes] = useState<readonly string[]>([]);
+  const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState<{ at: Point; text: string } | null>(
     null,
   );
@@ -281,6 +285,7 @@ function Editor({ picture }: { picture: Picture }) {
     setMarks([]);
     setUndone([]);
     setNotes([]);
+    setUndoneNotes([]);
     setTyping(null);
     setRequest("");
   };
@@ -288,6 +293,7 @@ function Editor({ picture }: { picture: Picture }) {
   const add = (mark: Mark) => {
     setMarks((previous) => [...previous, mark]);
     setUndone([]);
+    setUndoneNotes([]);
   };
 
   const undo = () => {
@@ -295,7 +301,10 @@ function Editor({ picture }: { picture: Picture }) {
     if (!last) return;
     setMarks(marks.slice(0, -1));
     setUndone([...undone, last]);
-    if (last.kind === "pin") setNotes(notes.slice(0, -1));
+    if (last.kind === "pin") {
+      setNotes(notes.slice(0, -1));
+      setUndoneNotes([...undoneNotes, notes.at(-1) ?? ""]);
+    }
   };
 
   const redo = () => {
@@ -303,7 +312,10 @@ function Editor({ picture }: { picture: Picture }) {
     if (!last) return;
     setUndone(undone.slice(0, -1));
     setMarks([...marks, last]);
-    if (last.kind === "pin") setNotes([...notes, ""]);
+    if (last.kind === "pin") {
+      setNotes([...notes, undoneNotes.at(-1) ?? ""]);
+      setUndoneNotes(undoneNotes.slice(0, -1));
+    }
   };
 
   const commitText = () => {
@@ -343,12 +355,17 @@ function Editor({ picture }: { picture: Picture }) {
   };
 
   const sendDrawn = async () => {
-    if (!size || !mode) return;
+    if (!size || !mode || drawing.current) return;
+    drawing.current = true;
+    setSending(true);
     const overlay = await rasterize(
       surface.current?.markup() ?? "",
       size,
       mode === "erase",
-    );
+    ).finally(() => {
+      drawing.current = false;
+      setSending(false);
+    });
     if (mode === "comment")
       return send(
         `Apply each numbered note at its marker on the picture:\n${notes
@@ -365,6 +382,7 @@ function Editor({ picture }: { picture: Picture }) {
   };
 
   const canSend =
+    !sending &&
     marks.length > 0 &&
     (mode !== "comment" || notes.every((note) => note.trim()));
 

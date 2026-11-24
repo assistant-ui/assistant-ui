@@ -33,9 +33,15 @@ const readModels = () =>
       response.ok ? response.json() : Promise.reject(response),
     )
     .then((body: { models: ImageModel[] }) =>
-      body.models.some((model) => model.id === MODEL) ? body.models : OWN,
+      body.models.some((model) => model.id === MODEL)
+        ? body.models
+        : [...OWN, ...body.models],
     )
-    .catch(() => OWN));
+    .catch(() => {
+      // A later picker asks again.
+      listed = undefined;
+      return OWN;
+    }));
 
 function useImageModels() {
   const [models, setModels] = useState(OWN);
@@ -54,7 +60,12 @@ function useImageModels() {
 }
 
 /* The route holds a key for one provider, so only that provider's models can be picked. */
-const canRun = (model: ImageModel) => model.id.startsWith(`${PROVIDER}/`);
+const keyed = (model: ImageModel) => model.id.startsWith(`${PROVIDER}/`);
+
+/* The route calls OpenAI's Images API, which runs its image models and not the chat models that also make pictures. */
+const IMAGES_API = new RegExp(`^${PROVIDER}/(gpt-image|dall-e)`);
+
+const canRun = (model: ImageModel) => keyed(model) && IMAGES_API.test(model.id);
 
 type Group = { provider: string; runs: boolean; models: ModelOption[] };
 
@@ -74,7 +85,7 @@ export function ModelPicker() {
       };
       const group = byProvider.get(entry.provider) ?? {
         provider: entry.provider,
-        runs,
+        runs: keyed(entry),
         models: [],
       };
       group.models.push(option);

@@ -173,8 +173,8 @@ export const BLOCKS: readonly Block[] = [
       entry: "components/images.tsx",
     },
     stack: [
+      { name: "assistant-ui", package: "@assistant-ui/react" },
       { name: "AI SDK", package: "ai" },
-      { name: "OpenAI", package: "@ai-sdk/openai" },
       { name: "shadcn/ui", package: "shadcn" },
       { name: "Tailwind CSS", package: "tailwindcss" },
     ],

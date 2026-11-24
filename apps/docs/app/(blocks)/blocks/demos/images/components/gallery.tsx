@@ -130,9 +130,14 @@ function TemplateDialog({
   // The last template stays drawn while the dialog closes.
   const [shown, setShown] = useState<Template | null>(template);
   const [orientation, setOrientation] = useState<string>("auto");
-  if (template && template !== shown) {
-    setShown(template);
-    setOrientation(template.ratio);
+  // Each opening starts from the template's own orientation, even when the same one opens again.
+  const [opened, setOpened] = useState<Template | null>(null);
+  if (template !== opened) {
+    setOpened(template);
+    if (template) {
+      setShown(template);
+      setOrientation(template.ratio);
+    }
   }
 
   return (
