@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "pnpm install --frozen-lockfile --filter=@assistant-ui/monorepo --filter=with-expo...",
   "buildCommand": "cd ../.. && pnpm turbo build --filter=@assistant-ui/react-native --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/metro && cd examples/with-expo && pnpm run export:web",
   "outputDirectory": "dist",
   "rewrites": [
@@ -14,5 +14,10 @@
       "destination": "/showcase/:slug.html"
     }
   ],
-  "framework": null
+  "framework": null,
+  "build": {
+    "env": {
+      "pnpm_config_verify_deps_before_run": "false"
+    }
+  }
 }

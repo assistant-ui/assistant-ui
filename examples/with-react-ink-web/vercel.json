@@ -15,5 +15,10 @@
         }
       ]
     }
-  ]
+  ],
+  "build": {
+    "env": {
+      "pnpm_config_verify_deps_before_run": "false"
+    }
+  }
 }

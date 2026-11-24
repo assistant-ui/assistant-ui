@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh"
+  "installCommand": "pnpm install --frozen-lockfile --filter=@assistant-ui/monorepo --filter=with-react-hook-form...",
+  "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh",
+  "build": {
+    "env": {
+      "pnpm_config_verify_deps_before_run": "false"
+    }
+  }
 }
