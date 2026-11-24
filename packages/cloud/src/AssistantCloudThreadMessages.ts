@@ -22,7 +22,10 @@ export type CloudMessage = {
   format: "aui/v0" | string;
   content: ReadonlyJSONObject;
   external_id?: string | null | undefined;
-  /** Present only on the message the thread's running lease is bound to. */
+  /**
+   * Present only on the message the thread's running lease is bound to.
+   * Servers before v0.2.12 also report a message's latest ended lease.
+   */
   run?: CloudMessageRun | undefined;
 };
 
@@ -146,7 +149,7 @@ const decodeCloudThreadRun = (value: unknown): CloudThreadRun | null => {
 };
 
 /** Reads the lease fields of a response that granted or renewed one. */
-const decodeCloudRunLease = (
+export const decodeCloudRunLease = (
   response: Record<string, unknown>,
 ): CloudRunLease => ({
   lease_id: readCloudString(response.lease_id, "lease_id"),

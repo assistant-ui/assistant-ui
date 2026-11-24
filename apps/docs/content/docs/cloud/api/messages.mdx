@@ -16,7 +16,7 @@ A message is one stored node in a thread's conversation tree. The browser reache
 | `format` | string | The stored message format, such as `aui/v0`, `ai-sdk/v5`, or `ai-sdk/v6`. |
 | `content` | object | The format's message payload. Its serialized JSON is at most 1,048,576 characters. |
 | `height` | integer | The message's depth in the tree. Assistant Cloud calculates it from the parent. |
-| `run` | object | Present on a message that had a [run lease](#run-leases): its running lease, or else its latest ended one. `status` is `running` or `ended`, and `last_heartbeat_ms_ago` is the time since the lease's last heartbeat, measured by the server. |
+| `run` | object | Present only on the message the thread's running [run lease](#run-leases) is bound to, as `{ "status": "running", "last_heartbeat_ms_ago": number }`, the time since the lease's last heartbeat or write, measured by the server. The thread-level `run` on the [list](#list-messages) response also covers a run that has not stored its reply yet. Servers before v0.2.12 also reported a message's latest ended lease, with `status: "ended"`. |
 
 ## Create a message
 
@@ -33,7 +33,7 @@ POST /v1/threads/{thread_id}/messages
 | `format` | string | yes | 1 to 255 characters. It is stored as sent. Read conversion recognizes `aui/v0`, `ai-sdk/v5`, and `ai-sdk/v6`. |
 | `content` | object | yes | The serialized JSON is at most 1,048,576 characters. Its `role` controls user activity tracking and the title trigger. |
 | `open_run` | `true` | no | Opens a [run lease](#run-leases) on the stored message in the same transaction, for clients before thread leases. The response adds `lease_id` and `heartbeat_interval_ms`. |
-| `lease_id` | string | no | Writes the message that `external_id` names as the holder of this lease, storing it under `parent_id` (or the lease's parent) when it does not exist yet. Requires `external_id`; cannot be combined with `open_run`. |
+| `lease_id` | string | no | Writes the message that `external_id` names as the holder of this lease, storing it when it does not exist yet: under the message that `parent_external_id` or a non-null `parent_id` names, else under the message the lease was opened for. Requires `external_id`; cannot be combined with `open_run`. |
 
 Unknown fields are refused.
 
@@ -85,7 +85,7 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
 | `404` | `{ "error": "Project not found" }` | The project no longer exists. |
 | `409` | `{ "error": "Message role cannot change" }` | An `external_id` repeat changes the stored message role. |
-| `409` | `{ "error": "run_in_progress" }` | `open_run` was sent for a message that already has a running lease. Nothing is stored. |
+| `409` | `{ "error": "run_in_progress" }` | Servers before v0.2.12 only: `open_run` was sent for a message that already has a running lease. From v0.2.12, `open_run` follows newest wins and takes that run over. |
 | `409` | `{ "error": "run_ended" }` or `{ "error": "lease_mismatch" }` | `lease_id` names an ended run, or no run of this message. Nothing is written. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
@@ -255,7 +255,7 @@ Any message in the thread can be updated, including one that later messages foll
 
 ## Run leases
 
-A run lease marks a thread as being answered. A thread holds one running lease at a time: opening one ends the thread's other running lease, so the newest run wins, and the older holder's next beat or write answers `409 run_ended`. A lease stays `running` until its holder ends it, or until it goes six hours without a heartbeat, when the server ends it as `expired`. The holder sends a heartbeat every `heartbeat_interval_ms` (server config, 20 seconds by default) and should schedule beats from that value, not a constant. Readers decide from `last_heartbeat_ms_ago` when a quiet run counts as interrupted; the assistant-ui client uses 30 seconds by default (`staleAfter`). A late run that beats or writes again is still running.
+Thread run leases need Assistant Cloud v0.2.12 or newer. A run lease marks a thread as being answered. A thread holds one running lease at a time: opening one ends the thread's other running lease, so the newest run wins, and the older holder's next beat or write answers `409 run_ended`. A lease stays `running` until its holder ends it, or until it goes six hours without a heartbeat, when the server ends it. The holder sends a heartbeat every `heartbeat_interval_ms` (server config, 20 seconds by default) and should schedule beats from that value, not a constant. Readers decide from `last_heartbeat_ms_ago` when a quiet run counts as interrupted; the assistant-ui client uses 30 seconds by default (`staleAfter`). A late run that beats or writes again before the server ends it, and before a newer run takes the thread, is still running.
 
 ```http
 POST /v1/threads/{thread_id}/runs

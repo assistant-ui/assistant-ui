@@ -61,8 +61,10 @@ older holder's next beat or write answers `409 run_ended`. A lease runs
 until its holder ends it, or the server ends it after six hours without
 a beat. The holder heartbeats on the server's `heartbeat_interval_ms`,
 and message lists report the thread's running lease with how long ago it
-last beat, so readers can tell a run whose tab went away. The holder's first message
-write with the `lease_id` stores the reply and binds the lease to it.
+last beat or wrote, so readers can tell a run whose tab went away. The
+holder's first message write with the `lease_id` stores the reply and binds
+the lease to it. A message create with `open_run`, which clients before
+thread leases send, also opens the thread's lease, bound to that message.
 
 <ParametersTable {...assistantCloud_AssistantCloudThreadRuns} />
 
