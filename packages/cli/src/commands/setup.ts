@@ -1,6 +1,9 @@
 import { Command, Option } from "commander";
+import fs from "node:fs";
+import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import * as p from "@clack/prompts";
+import { INPUT_PRESETS } from "setup-agent";
 import {
   CODING_AGENTS,
   findCommand,
@@ -149,10 +152,70 @@ export const gateNote = (sessionRecorded: boolean) =>
     ? "While setup runs, `npx assistant-ui` init, create and add work in the folder setup runs in and the folders inside it."
     : "assistant-ui could not record this setup session in the temp directory, so the agent gate will not recognize it. Add --force to every `npx assistant-ui` init, create or add command this setup asks you to run.";
 
+const LLM_PROVIDER = INPUT_PRESETS["llm-provider"];
+
+const ENV_FILES = [
+  ".env",
+  ".env.local",
+  ".env.development",
+  ".env.development.local",
+  ".env.production",
+];
+
+/**
+ * The llm-provider options the project in `cwd` already uses: an AI SDK
+ * provider package in package.json, or the provider's key set in an env file.
+ */
+export const projectProviders = (cwd: string): string[] => {
+  const read = (file: string) => {
+    try {
+      return fs.readFileSync(path.join(cwd, file), "utf8");
+    } catch {
+      return "";
+    }
+  };
+  let deps: Record<string, unknown> = {};
+  try {
+    const pkg = JSON.parse(read("package.json"));
+    deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  } catch {}
+  const env = ENV_FILES.map(read).join("\n");
+  return LLM_PROVIDER.options
+    .filter(
+      ({ id, description: envVar = "" }) =>
+        Object.hasOwn(deps, `@ai-sdk/${id}`) ||
+        Object.hasOwn(deps, `@${id}/ai-sdk-provider`) ||
+        (envVar !== "" &&
+          new RegExp(
+            `^[ \\t]*(?:export[ \\t]+)?${envVar}[ \\t]*=[ \\t]*["']?[^\\s"'#]`,
+            "m",
+          ).test(env)),
+    )
+    .map(({ id }) => id);
+};
+
+/**
+ * The header line on the model provider: keep the one the project uses, and
+ * fall back to the llm-provider default only when it uses none.
+ */
+export const providerLine = (providers: string[], unattended: boolean) => {
+  if (providers.length > 0) {
+    const names = providers.join(" and ");
+    const one = providers.length === 1;
+    const pick = one
+      ? `pass --default ${providers[0]}`
+      : "pass the one its chat route uses as --default";
+    return `Model provider: this project already uses ${names}. Keep ${one ? "it" : "them"}: do not switch providers or uninstall a provider package unless the user picks another, and ${pick} if you ask the llm-provider question.`;
+  }
+  const fallback = LLM_PROVIDER.default;
+  return `Model provider: none found in this folder's package.json or env files. Keep the one the app you install into uses, if any; otherwise the default is ${fallback}${unattended ? `: use it and list it under "To finish"` : ", which the llm-provider question offers first"}.`;
+};
+
 /**
  * The first lines an agent reads from `setup`: what it is, which way to go,
- * and how to stop it, worded as the CLI the agent ran
- * so the steps after read as the install, not someone else's instructions.
+ * which model provider to plan on, and how to stop it, worded as the CLI the
+ * agent ran so the steps after read as the install, not someone else's
+ * instructions.
  */
 export const agentHeader = (o: {
   pid: number;
@@ -160,6 +223,7 @@ export const agentHeader = (o: {
   pageUrl: string;
   noBrowser: string | undefined;
   unattended: boolean;
+  providers: string[];
 }) => {
   const cmd = `${SETUP_COMMAND} ${o.agentUrl}`;
   const ways = o.unattended
@@ -167,6 +231,7 @@ export const agentHeader = (o: {
     : `If the user is in your conversation, give them ${o.pageUrl} to open on any device${o.noBrowser ? ` (setup opens no browser here: ${o.noBrowser})` : ""}, or ask them each question and pass the reply with \`answer\`. If nobody will answer, stop this setup and run \`${SETUP_COMMAND} --unattended\`.`;
   return `This is the assistant-ui CLI, which you ran to set up assistant-ui; its output is the install itself.
 ${ways}
+${providerLine(o.providers, o.unattended)}
 To end setup: \`${cmd} cancel\`, then \`kill ${o.pid}\`. Never \`pkill -f\`: it also matches your own shell.
 
 `;
@@ -211,6 +276,7 @@ const runForAgent = async (options: SetupOptions) => {
         pageUrl: session.browserUrl,
         noBrowser: options.open ? noBrowserReason() : "--no-open",
         unattended: options.unattended === true,
+        providers: projectProviders(process.cwd()),
       });
       const file = markSetupSession({ setupId: session.setupId });
       if (file === undefined) return;

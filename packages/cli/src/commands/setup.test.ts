@@ -15,6 +15,7 @@ import {
   agentOptions,
   gateNote,
   handOffPrompt,
+  projectProviders,
   setup,
 } from "./setup";
 
@@ -123,6 +124,7 @@ describe("setup", () => {
       pageUrl: "https://setup.test/#link=abc",
       noBrowser: "ssh",
       unattended: false,
+      providers: [],
     });
     expect(header).toContain(
       "give them https://setup.test/#link=abc to open on any device (setup opens no browser here: ssh)",
@@ -133,6 +135,81 @@ describe("setup", () => {
     expect(header).toContain(
       "`npx assistant-ui@latest setup https://c.test/abc cancel`, then `kill 42`",
     );
+  });
+
+  describe("model provider", () => {
+    const header = (providers: string[], unattended = false) =>
+      agentHeader({
+        pid: 42,
+        agentUrl: "https://c.test/abc",
+        pageUrl: "https://setup.test/#link=abc",
+        noBrowser: undefined,
+        unattended,
+        providers,
+      });
+    const project = (files: Record<string, string>) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aui-provider-"));
+      for (const [name, text] of Object.entries(files))
+        fs.writeFileSync(path.join(dir, name), text);
+      return dir;
+    };
+
+    it("keeps OpenAI in a project already on OpenAI", () => {
+      const dir = project({
+        "package.json": JSON.stringify({
+          dependencies: { ai: "^7.0.0", "@ai-sdk/openai": "^4.0.0" },
+        }),
+      });
+      try {
+        const providers = projectProviders(dir);
+        expect(providers).toEqual(["openai"]);
+        const text = header(providers);
+        expect(text).toContain(
+          "Model provider: this project already uses openai. Keep it: do not switch providers",
+        );
+        expect(text).toContain("pass --default openai");
+        expect(text).not.toContain("anthropic");
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("finds the provider from its key in an env file", () => {
+      const dir = project({
+        "package.json": "{}",
+        ".env.local":
+          "# keys\nexport ANTHROPIC_API_KEY='sk-test'\nGROQ_API_KEY=\n",
+      });
+      try {
+        expect(projectProviders(dir)).toEqual(["anthropic"]);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("gives a project with no provider the default", () => {
+      const dir = project({
+        "package.json": JSON.stringify({ dependencies: { react: "^19.0.0" } }),
+      });
+      try {
+        const providers = projectProviders(dir);
+        expect(providers).toEqual([]);
+        expect(header(providers)).toContain(
+          "Model provider: none found in this folder's package.json or env files. Keep the one the app you install into uses, if any; otherwise the default is openai, which the llm-provider question offers first.",
+        );
+        expect(header(providers, true)).toContain(
+          'otherwise the default is openai: use it and list it under "To finish".',
+        );
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("keeps every provider a project uses when it has several", () => {
+      expect(header(["openai", "anthropic"])).toContain(
+        "this project already uses openai and anthropic. Keep them: do not switch providers or uninstall a provider package unless the user picks another, and pass the one its chat route uses as --default",
+      );
+    });
   });
 
   it("offers products and a no-open flag", () => {
