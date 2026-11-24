@@ -1,5 +1,11 @@
 # @assistant-ui/react-opencode
 
+## 0.2.37
+
+### Patch Changes
+
+- [#10781](https://github.com/assistant-ui/assistant-ui/pull/10781) [`361e21c`](https://github.com/assistant-ui/assistant-ui/commit/361e21c652878437291df8d0665620a8aeeb36f7) - An assistant message the user stops now ends as cancelled instead of failing with an "Aborted" error, so stopping a run no longer shows an error message. ([@micheal0034](https://github.com/micheal0034))
+
 ## 0.2.36
 
 ### Patch Changes

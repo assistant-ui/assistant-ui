@@ -1,5 +1,12 @@
 # @assistant-ui/react-a2a
 
+## 0.2.55
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @assistant-ui/generative-ui@0.0.13
+
 ## 0.2.54
 
 ### Patch Changes

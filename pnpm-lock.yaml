@@ -5319,7 +5319,7 @@ importers:
         specifier: ^0.3.38
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.12
+        specifier: ^0.0.13
         version: link:../generative-ui
       '@assistant-ui/tap':
         specifier: workspace:^
@@ -5368,7 +5368,7 @@ importers:
         specifier: ^0.3.38
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.12
+        specifier: ^0.0.13
         version: link:../generative-ui
       '@assistant-ui/tap':
         specifier: workspace:^
@@ -5567,7 +5567,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.12
+        specifier: ^0.0.13
         version: link:../generative-ui
     devDependencies:
       '@assistant-ui/react':
