@@ -1,5 +1,17 @@
 # assistant-ui
 
+## 0.0.137
+
+### Patch Changes
+
+- [#10796](https://github.com/assistant-ui/assistant-ui/pull/10796) [`fc4dc13`](https://github.com/assistant-ui/assistant-ui/commit/fc4dc133395450405052b06d92adb53139041177) - When `init` or `create` runs without a terminal and no coding agent is detected (an agent the CLI does not recognize, CI, or a script), it now prints the note recommending `npx assistant-ui@latest setup` before it starts instead of after it finishes, and ends with a one-line pointer to it. Inside a setup session for the folder it acts on, or with `--force`, the note is left out. ([@Yonom](https://github.com/Yonom))
+
+- [#10800](https://github.com/assistant-ui/assistant-ui/pull/10800) [`9862b16`](https://github.com/assistant-ui/assistant-ui/commit/9862b16800b6f94812fbdfc6a51be087b517ea14) - `init` no longer tells you to skip shadcn's note about wrapping the layout in `TooltipProvider` right after passing that note along. It now says the note applies only if you use shadcn's `Tooltip` directly, since assistant-ui components render their own provider. ([@Yonom](https://github.com/Yonom))
+
+- [#10797](https://github.com/assistant-ui/assistant-ui/pull/10797) [`a926a19`](https://github.com/assistant-ui/assistant-ui/commit/a926a19a80d1220925b36628f1a62614a7c767f9) - `setup` run by a coding agent now opens with what it is, which way to go (give the user the setup page link, or rerun with `--unattended` when nobody will answer), and how to stop it (`setup <url> cancel`). `--unattended` has the agent decide each choice and finish on its own. Over SSH without a forwarded display, in CI, or on a Linux or BSD machine with no display, setup opens no browser unless `BROWSER` or `SETUP_AGENT_BROWSER` names one. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`4a0d2a5`](https://github.com/assistant-ui/assistant-ui/commit/4a0d2a5b9f04c8fb7ff9cd224827a958096b52dc), [`f91eb36`](https://github.com/assistant-ui/assistant-ui/commit/f91eb36ee688059c9eed90cc85b223f7bb035c11), [`a926a19`](https://github.com/assistant-ui/assistant-ui/commit/a926a19a80d1220925b36628f1a62614a7c767f9)]:
+  - setup-agent@0.2.3
+
 ## 0.0.136
 
 ### Patch Changes

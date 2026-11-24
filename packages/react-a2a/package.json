@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.2.54",
+  "version": "0.2.55",
   "description": "A2A (Agent-to-Agent) v1.0 protocol adapter for assistant-ui",
   "keywords": [
     "a2a",
@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.38",
-    "@assistant-ui/generative-ui": "^0.0.12",
+    "@assistant-ui/generative-ui": "^0.0.13",
     "assistant-stream": "^0.3.59"
   },
   "peerDependencies": {

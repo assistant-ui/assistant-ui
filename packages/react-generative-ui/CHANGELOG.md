@@ -1,5 +1,12 @@
 # @assistant-ui/react-generative-ui
 
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @assistant-ui/generative-ui@0.0.13
+
 ## 0.1.11
 
 ### Patch Changes
