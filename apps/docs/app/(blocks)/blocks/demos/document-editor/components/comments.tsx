@@ -53,7 +53,6 @@ import {
   PopoverContent,
   PopoverTrigger,
   Tooltip,
-  field,
   denseGlass,
   floating,
   iconButtonClass,
@@ -245,16 +244,28 @@ function AuthorAvatar({
   size,
 }: {
   author: CommentAuthor;
-  size?: "xs" | "sm";
+  /** `face` is the 28px picture beside a comment and in the margin. */
+  size?: "xs" | "sm" | "face";
 }) {
   if (author === "assistant") {
-    return (
+    return size === "face" ? (
+      <span className="bg-muted text-foreground flex size-7 shrink-0 items-center justify-center rounded-full">
+        <Icon {...icons.bot} />
+      </span>
+    ) : (
       <Icon {...icons.bot} className={size === "xs" ? "size-3" : "size-3.5"} />
     );
   }
   const { name, avatar } = PROFILE[author];
-  return <Avatar src={avatar} name={name} size={size ?? "xs"} decorative />;
+  return size === "face" ? (
+    <Avatar src={avatar} name={name} decorative className="size-7" />
+  ) : (
+    <Avatar src={avatar} name={name} size={size ?? "xs"} decorative />
+  );
 }
+
+/** A comment's own small round buttons: resolve, react and more. */
+const commentAction = "size-6 pointer-coarse:size-8";
 
 const REACTION_NAMES: Record<(typeof REACTION_EMOJI)[number], string> = {
   "👍": "Thumbs up",
@@ -491,14 +502,16 @@ function useLayout(
   return layout;
 }
 
-const CARD_WIDTH = 360;
+const CARD_WIDTH = 320;
 const CARD_GAP = 8;
 const MIN_CARD_HEIGHT = 160;
-const MARKER_SIZE = 24;
+const MARKER_SIZE = 28;
 const SCROLLBAR_ALLOWANCE = 16;
 /** The strip at the top of the page that the floating pills take. */
 const PILLS_ROOM = 60;
 const ASSISTANT_BAR = "[data-assistant-bar]";
+/** Holds the page and the assistant bar, which sits outside the page's own frame. */
+const DOCUMENT_FRAME = "[data-document-frame]";
 
 /** Beside the highlight when the margin has room, in the column otherwise. */
 function placeCard(spot: Spot, layout: Layout) {
@@ -609,6 +622,7 @@ function ReactionPicker({
             label="React"
             icon={icons.smile}
             side="top"
+            className={commentAction}
             data-comment-react=""
           />
         }
@@ -658,7 +672,7 @@ function Reactions({
   if (counts.length === 0) return null;
 
   return (
-    <ul aria-label="Reactions" className="mt-1.5 flex flex-wrap gap-1">
+    <ul aria-label="Reactions" className="mt-1 flex flex-wrap gap-1">
       {counts.map(({ emoji, count, mine }) => (
         <li key={emoji}>
           <button
@@ -666,7 +680,7 @@ function Reactions({
             aria-pressed={mine}
             aria-label={`${reactionName(emoji)}, ${count}`}
             className={cn(
-              "focus-visible:border-ring flex h-6 items-center gap-1 rounded-full border border-transparent bg-(--reaction) px-2 tabular-nums transition-[background-color,border-color,scale] duration-150 outline-none active:scale-[0.96] aria-pressed:border-(--reaction-active-line) aria-pressed:bg-(--reaction-active) motion-reduce:transition-none motion-reduce:active:scale-100 pointer-coarse:h-8",
+              "border-border/60 text-muted-foreground hover:bg-accent focus-visible:border-ring aria-pressed:text-foreground flex h-6 items-center gap-1 rounded-full border px-1.5 tabular-nums transition-[background-color,border-color,scale] duration-150 outline-none active:scale-[0.96] aria-pressed:border-(--reaction-active-line) aria-pressed:bg-(--reaction-active) motion-reduce:transition-none motion-reduce:active:scale-100 pointer-coarse:h-8",
               text.small,
             )}
             onClick={(event) => {
@@ -737,35 +751,28 @@ function Message({
   };
 
   return (
-    <li data-comment-message="" className="group/message flex gap-2.5">
-      <span className="flex h-7 items-center pointer-coarse:h-9">
-        <AuthorAvatar author={message.author} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex h-7 items-center gap-2 pointer-coarse:h-9">
-          <span className={cn("truncate", weight.strong)}>
+    <li data-comment-message="" className="flex gap-2.5">
+      <AuthorAvatar author={message.author} size="face" />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex h-7 items-center gap-1.5 pointer-coarse:h-9">
+          <span className={cn("text-foreground truncate", weight.strong)}>
             {authorName(message.author)}
           </span>
           {now > 0 ? (
             <time
               dateTime={new Date(message.createdAt).toISOString()}
-              className={cn("text-muted-foreground shrink-0", text.small)}
+              className="text-muted-foreground shrink-0"
             >
               {relativeTime(now, message.createdAt)}
             </time>
           ) : null}
-          <div
-            className={cn(
-              "ms-auto flex shrink-0 items-center transition-opacity duration-150 motion-reduce:transition-none",
-              first ||
-                "opacity-0 group-focus-within/message:opacity-100 group-hover/message:opacity-100 has-[[data-popup-open]]:opacity-100 pointer-coarse:opacity-100",
-            )}
-          >
+          <div className="ms-auto flex shrink-0 items-center">
             {first ? (
               <IconButton
                 label="Resolve"
                 icon={icons.tick}
                 side="top"
+                className={commentAction}
                 onClick={onResolve}
               />
             ) : null}
@@ -777,6 +784,7 @@ function Message({
                     label={copied ? "Copied" : "More"}
                     icon={copied ? icons.tick : icons.more}
                     side="top"
+                    className={cn(commentAction, "border-border")}
                   />
                 }
               />
@@ -893,7 +901,7 @@ function ReplyField({
 
   return (
     <form
-      className="relative"
+      className="relative flex items-end gap-2.5"
       onSubmit={(event) => {
         event.preventDefault();
         send();
@@ -928,21 +936,18 @@ function ReplyField({
           </div>
         </div>
       ) : null}
-      <div
-        className={cn(
-          field,
-          radius.md,
-          "focus-within:border-ring flex items-end gap-1 border border-transparent py-1 ps-3 pe-1 transition-colors motion-reduce:transition-none",
-        )}
-      >
+      <span className="flex h-8 items-center pointer-coarse:h-9">
+        <AuthorAvatar author="you" size="face" />
+      </span>
+      <div className="border-input focus-within:border-ring flex min-w-0 flex-1 items-end gap-1 rounded-2xl border ps-3 pe-1 transition-colors motion-reduce:transition-none">
         <textarea
           ref={fieldRef}
           rows={1}
           value={value}
           placeholder={
             draft
-              ? `Add a comment or @${ASSISTANT_NAME}`
-              : `Reply or @${ASSISTANT_NAME}`
+              ? `Add a comment, or @${ASSISTANT_NAME}…`
+              : `Reply, or @${ASSISTANT_NAME}…`
           }
           aria-label={draft ? "Add a comment" : "Reply to this comment"}
           {...(mention
@@ -954,7 +959,7 @@ function ReplyField({
                 "aria-activedescendant": optionId,
               }
             : {})}
-          className="placeholder:text-muted-foreground field-sizing-content max-h-32 min-h-7 min-w-0 flex-1 resize-none bg-transparent py-1 outline-none"
+          className="placeholder:text-muted-foreground field-sizing-content max-h-32 min-h-[1.875rem] min-w-0 flex-1 resize-none bg-transparent py-1.5 outline-none pointer-coarse:text-base"
           onChange={(event) => {
             setValue(event.target.value);
             setCaret(event.target.selectionStart);
@@ -967,7 +972,7 @@ function ReplyField({
           type="submit"
           disabled={!ready}
           aria-label={draft ? "Send comment" : "Send reply"}
-          className="bg-foreground text-background focus-visible:border-ring flex size-7 shrink-0 items-center justify-center rounded-full border border-transparent transition-[opacity,scale] duration-150 outline-none active:scale-[0.96] disabled:opacity-30 motion-reduce:transition-none motion-reduce:active:scale-100 pointer-coarse:size-9"
+          className="bg-foreground text-background focus-visible:border-ring my-[3px] flex size-6 shrink-0 items-center justify-center rounded-full border border-transparent transition-[opacity,scale] duration-150 outline-none active:scale-[0.96] disabled:opacity-0 motion-reduce:transition-none motion-reduce:active:scale-100 pointer-coarse:size-8"
         >
           <Icon {...icons.send} />
         </button>
@@ -1011,7 +1016,8 @@ function ThreadCard({
   useLayoutEffect(() => {
     const card = cardRef.current;
     if (!card || !scroller) return;
-    const bar = scroller.parentElement?.querySelector(ASSISTANT_BAR) ?? null;
+    const bar =
+      scroller.closest(DOCUMENT_FRAME)?.querySelector(ASSISTANT_BAR) ?? null;
     const fit = () => fitCard(card, scroller, bar, spot, beside);
     let frame = 0;
     const schedule = () => {
@@ -1135,41 +1141,17 @@ function ThreadCard({
       className={cn(
         floating,
         denseGlass,
-        radius.lg,
-        text.body,
-        "text-popover-foreground flex flex-col gap-2 p-2 transition-[opacity,scale] duration-150 motion-reduce:transition-none starting:scale-[0.98] starting:opacity-0",
+        radius.xl,
+        text.bodySm,
+        "text-popover-foreground flex flex-col gap-3 p-3 transition-[opacity,scale] duration-150 motion-reduce:transition-none starting:scale-[0.98] starting:opacity-0",
         className,
       )}
     >
-      <div className="flex items-center gap-0.5 ps-1.5">
-        <span
-          aria-hidden
-          className="h-4 w-0.5 shrink-0 rounded-full bg-(--comment-active)"
-        />
-        <p
-          className={cn(
-            "text-muted-foreground min-w-0 flex-1 truncate ps-2",
-            text.bodySm,
-          )}
-        >
-          {thread.quote}
-        </p>
-        <IconButton
-          label={draft ? "Discard comment" : "Close"}
-          icon={icons.close}
-          side="top"
-          onClick={() => {
-            documentActions.setActiveThread(null, threadId);
-            if (draft) editor.focus();
-            else markerOf(threadId)?.focus({ preventScroll: true });
-          }}
-        />
-      </div>
       {draft && !waiting ? null : (
         <ol
           ref={listRef}
           aria-label="Comments"
-          className="flex max-h-72 min-h-0 flex-col gap-3 overflow-y-auto px-1.5 py-1"
+          className="flex max-h-72 min-h-0 flex-col gap-3 overflow-y-auto"
         >
           {thread.messages.map((message) => (
             <Message
@@ -1188,7 +1170,7 @@ function ThreadCard({
               role="status"
               className="text-muted-foreground flex h-7 items-center gap-2.5 pointer-coarse:h-9"
             >
-              <AuthorAvatar author="assistant" />
+              <AuthorAvatar author="assistant" size="face" />
               <span className="shimmer motion-reduce:animate-none">
                 {authorName("assistant")} is replying
               </span>
@@ -1334,7 +1316,8 @@ export function CommentThreads() {
                           aria-expanded={expanded}
                           style={{ top }}
                           className={cn(
-                            "border-background focus-visible:border-ring absolute z-10 flex rounded-full border-2 transition-[scale,box-shadow,opacity] duration-150 outline-none hover:scale-110 active:scale-[0.96] aria-expanded:shadow-[0_0_0_2px_var(--comment-active)] motion-reduce:transition-none motion-reduce:hover:scale-100",
+                            floating,
+                            "focus-visible:outline-ring absolute z-10 flex rounded-full rounded-es-sm p-0.5 transition-[scale,box-shadow,opacity] duration-150 outline-none hover:scale-105 focus-visible:outline-2 active:scale-[0.96] aria-expanded:shadow-[0_0_0_2px_var(--comment-active)] motion-reduce:transition-none motion-reduce:hover:scale-100",
                             wide
                               ? "right-3.5"
                               : "pointer-events-none -right-0.5 scale-75 opacity-0 focus-visible:opacity-100",
@@ -1348,7 +1331,7 @@ export function CommentThreads() {
                             documentActions.setActiveThread(thread.id);
                           }}
                         >
-                          <AuthorAvatar author={author} />
+                          <AuthorAvatar author={author} size="face" />
                         </button>
                       </Tooltip>
                     );
@@ -1388,5 +1371,215 @@ export function CommentThreads() {
         {announcement}
       </div>
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* The Comments panel: every open thread on the page, down its right side.    */
+/* -------------------------------------------------------------------------- */
+
+/** Scrolls the page to a thread's words and opens its card there. */
+function openThreadOnPage(editor: LexicalEditor | null, thread: CommentThread) {
+  documentActions.setCommentsPanelOpen(false);
+  const words = editor ? getMarkElements(editor, thread.markId)[0] : undefined;
+  words?.scrollIntoView({
+    block: "center",
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth",
+  });
+  focusRequest = thread.id;
+  documentActions.setActiveThread(thread.id);
+}
+
+function PanelRow({
+  thread,
+  now,
+  current,
+  onOpen,
+}: {
+  thread: CommentThread;
+  now: number;
+  current: boolean;
+  onOpen: () => void;
+}) {
+  const [first, ...replies] = thread.messages;
+  if (!first) return null;
+
+  return (
+    <li>
+      <button
+        type="button"
+        aria-current={current ? "true" : undefined}
+        onClick={onOpen}
+        className={cn(
+          radius.sm,
+          text.bodySm,
+          "hover:bg-accent focus-visible:bg-accent aria-[current]:bg-accent flex w-full gap-2.5 p-2 text-start outline-none",
+        )}
+      >
+        <span className="flex size-6 shrink-0 items-center justify-center">
+          <AuthorAvatar author={first.author} size="sm" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex items-baseline gap-1.5">
+            <span className={cn("text-foreground truncate", weight.strong)}>
+              {authorName(first.author)}
+            </span>
+            <span className="text-muted-foreground shrink-0">
+              {relativeTime(now, first.createdAt)}
+            </span>
+          </span>
+          {thread.quote ? (
+            <span className="text-muted-foreground truncate border-s-2 border-(--comment-active) ps-1.5">
+              {thread.quote}
+            </span>
+          ) : null}
+          <span className="text-foreground line-clamp-3 wrap-break-word">
+            {first.text}
+          </span>
+          {replies.length > 0 ? (
+            <span className="text-muted-foreground">
+              {replies.length} {replies.length === 1 ? "reply" : "replies"}
+            </span>
+          ) : null}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+/**
+ * Opened from the comments pill. Lists the page's open threads, newest
+ * first, and search narrows them by what was said or what it was said about.
+ * Picking one closes the panel and opens the thread at its words.
+ */
+export function CommentsPanel() {
+  const open = useDocumentStore((state) => state.commentsPanelOpen);
+  if (!open) return null;
+  return <CommentsPanelBody />;
+}
+
+function CommentsPanelBody() {
+  const editor = useActiveEditor();
+  const page = useCurrentPage();
+  const threads = useDocumentStore((state) => state.threads);
+  const activeThreadId = useDocumentStore((state) => state.activeThreadId);
+  const now = useNow();
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const panelRef = useRef<HTMLElement>(null);
+  const headingId = useId();
+
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
+
+  const wanted = query.trim().toLowerCase();
+  const shown = threads
+    .filter(
+      (thread) =>
+        thread.pageId === page.id &&
+        !thread.resolved &&
+        thread.messages.length > 0 &&
+        (!wanted ||
+          thread.quote.toLowerCase().includes(wanted) ||
+          thread.messages.some((message) =>
+            message.text.toLowerCase().includes(wanted),
+          )),
+    )
+    .sort(
+      (a, b) =>
+        (b.messages[0]?.createdAt ?? 0) - (a.messages[0]?.createdAt ?? 0),
+    );
+
+  const close = () => {
+    documentActions.setCommentsPanelOpen(false);
+    document.querySelector<HTMLElement>("[data-comments-pill]")?.focus();
+  };
+
+  return (
+    <aside
+      ref={panelRef}
+      tabIndex={-1}
+      aria-labelledby={headingId}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || searching) return;
+        event.preventDefault();
+        close();
+      }}
+      className={cn(
+        floating,
+        denseGlass,
+        radius.xl,
+        text.body,
+        "text-popover-foreground absolute end-3 top-15 bottom-3 z-40 flex w-80 max-w-[calc(100%-1.5rem)] flex-col outline-none",
+      )}
+    >
+      <div className="flex h-12 shrink-0 items-center gap-0.5 ps-4 pe-2">
+        <h2
+          id={headingId}
+          className={cn(
+            "text-foreground min-w-0 flex-1 truncate",
+            weight.strong,
+            searching && "sr-only",
+          )}
+        >
+          Comments
+        </h2>
+        {searching ? (
+          <input
+            autoFocus
+            type="search"
+            aria-label="Search comments"
+            placeholder="Search comments"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              setQuery("");
+              setSearching(false);
+              panelRef.current?.focus();
+            }}
+            className={cn(
+              "text-foreground placeholder:text-muted-foreground h-8 min-w-0 flex-1 bg-transparent outline-none pointer-coarse:text-base",
+              text.bodySm,
+            )}
+          />
+        ) : null}
+        <IconButton
+          label="Search"
+          icon={icons.search}
+          active={searching}
+          onClick={() => {
+            setQuery("");
+            setSearching((on) => !on);
+          }}
+        />
+        <IconButton label="Close" icon={icons.close} onClick={close} />
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-2 pt-0">
+        {shown.length > 0 ? (
+          <ul className="flex flex-col gap-0.5">
+            {shown.map((thread) => (
+              <PanelRow
+                key={thread.id}
+                thread={thread}
+                now={now}
+                current={thread.id === activeThreadId}
+                onOpen={() => openThreadOnPage(editor, thread)}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className={cn("text-muted-foreground px-2 py-1", text.bodySm)}>
+            {wanted
+              ? `No comments match “${query.trim()}”.`
+              : "No comments yet. Select some words on the page and choose Comment."}
+          </p>
+        )}
+      </div>
+    </aside>
   );
 }

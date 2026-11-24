@@ -38,6 +38,8 @@ const GAP = 8;
 /** The strip at the top of the page that the floating pills take. */
 const PILLS_ROOM = 60;
 const ASSISTANT_BAR = "[data-assistant-bar]";
+/** Holds the page and the assistant bar, which sits outside the page's own frame. */
+const DOCUMENT_FRAME = "[data-document-frame]";
 const FIELDS = 'input, textarea, select, [contenteditable="true"]';
 
 const SHORTCUTS = {
@@ -186,7 +188,7 @@ export function EditReview() {
       }
       // The bar is another element once it is minimized or opened again.
       const found =
-        scroller.parentElement?.querySelector(ASSISTANT_BAR) ?? null;
+        scroller.closest(DOCUMENT_FRAME)?.querySelector(ASSISTANT_BAR) ?? null;
       if (found !== bar) {
         if (bar) sizes?.unobserve(bar);
         moves.disconnect();

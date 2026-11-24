@@ -49,6 +49,8 @@ const seed = (): DocumentStoreState => ({
   editMode: "manual",
   pendingReview: null,
   activeThreadId: null,
+  commentsPanelOpen: false,
+  home: false,
   assistantRequests: 0,
   assistantReference: null,
   assistantUnseen: false,

@@ -56,8 +56,8 @@ export const BLOCKS: readonly Block[] = [
     description:
       "A pages app with a floating assistant that edits the page you are on and waits for you to accept each change.",
     image: {
-      light: "/screenshot/blocks/document-editor-light.webp",
-      dark: "/screenshot/blocks/document-editor-dark.webp",
+      light: "/screenshot/blocks/document-editor-light-v2.webp",
+      dark: "/screenshot/blocks/document-editor-dark-v2.webp",
     },
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/document-editor",
@@ -65,6 +65,7 @@ export const BLOCKS: readonly Block[] = [
     source: {
       directory: "apps/docs/app/(blocks)/blocks/demos/document-editor",
       include: [
+        "../chat-sidebar.tsx",
         "api",
         "components",
         "lib",

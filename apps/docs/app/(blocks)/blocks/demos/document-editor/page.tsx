@@ -12,7 +12,10 @@ import {
   useLocalRuntime,
   useRemoteThreadListRuntime,
   WebSpeechDictationAdapter,
+  WebSpeechSynthesisAdapter,
   type ChatModelAdapter,
+  type FeedbackAdapter,
+  type RunConfig,
   type ThreadMessage,
 } from "@assistant-ui/react";
 import {
@@ -352,6 +355,39 @@ function planReply(
   }
 }
 
+/** Whether the message asks for the new page it was sent from the home with. */
+const startsPage = (runConfig: RunConfig) =>
+  runConfig.custom?.["newPage"] === true;
+
+/** Lays out a page asked for on the home, with sections to fill in. */
+function planNewPage(
+  prompt: string,
+  bridge: EditorBridge | null,
+): ScriptStep[] {
+  if (!bridge)
+    return [say("The page is still loading. Try again in a moment.")];
+  const write = (blocks: Block[]): ScriptStep => ({
+    type: "tool",
+    toolName: UPDATE_DOCUMENT_TOOL,
+    args: { id: bridge.documentId, blocks: { set: blocks } },
+  });
+  const topic = plainText(prompt)
+    .trim()
+    .replace(/[.!?]+$/, "");
+  return [
+    write(
+      seedBlocks(
+        script.newPage.blocks.map((block) => ({
+          ...block,
+          text: block.text.replace("{topic}", topic),
+        })),
+        `s-${mintId()}`,
+      ),
+    ),
+    say(script.newPage.starter.replace("{topic}", topic)),
+  ];
+}
+
 const LEFT_PAGE =
   "You left the page before I finished, so I left it as it was.";
 
@@ -366,15 +402,18 @@ const chunks = (text: string, size: number) =>
  * the page registered run on them exactly as they would for a model.
  */
 const scriptedModel: ChatModelAdapter = {
-  async *run({ messages, abortSignal, context }) {
+  async *run({ messages, abortSignal, context, runConfig }) {
     const bridge = getEditorBridge();
     const message = lastUser(messages);
     const files = (message?.attachments ?? []).map((file) => file.name);
+    const newPage = startsPage(runConfig);
     const steps = [
       ...(files.length > 0
         ? [say(script.attached.replace("{files}", listed(files)))]
         : []),
-      ...planReply(textIn(message), quoteIn(message), bridge),
+      ...(newPage
+        ? planNewPage(textIn(message), bridge)
+        : planReply(textIn(message), quoteIn(message), bridge)),
     ];
 
     const stream = createAssistantStream(async (controller) => {
@@ -445,7 +484,23 @@ const attachments = new CompositeAttachmentAdapter([
   new SimpleTextAttachmentAdapter(),
 ]);
 
+/** Good and Bad on a reply are kept on the message; nothing is sent. */
+const feedback: FeedbackAdapter = { submit: () => {} };
+
 const subscribeToNothing = () => () => {};
+
+/** Reading a reply aloud is a browser feature, so the server answers no. */
+function useSpeechAdapter() {
+  const supported = useSyncExternalStore(
+    subscribeToNothing,
+    () => "speechSynthesis" in window,
+    () => false,
+  );
+  return useMemo(
+    () => (supported ? new WebSpeechSynthesisAdapter() : undefined),
+    [supported],
+  );
+}
 
 /** Speech recognition is a browser feature, so the server answers no. */
 function useDictationAdapter() {
@@ -466,8 +521,14 @@ function useScriptedRuntime() {
     adapter,
     runtimeHook: function RuntimeHook() {
       const dictation = useDictationAdapter();
+      const speech = useSpeechAdapter();
       return useLocalRuntime(scriptedModel, {
-        adapters: { attachments, ...(dictation && { dictation }) },
+        adapters: {
+          attachments,
+          feedback,
+          ...(dictation && { dictation }),
+          ...(speech && { speech }),
+        },
       });
     },
   });
