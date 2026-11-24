@@ -147,6 +147,47 @@ describe("thread reply state", () => {
     },
   );
 
+  it("reads a thread another tab is answering with short reads, and reads it whole once the reply is stored", async () => {
+    const cloud = makeCloud([userRow], threadRun(0));
+    const list = vi.mocked(cloud.threads.messages.list);
+    const { hooks, getAui } = await renderRuntime(cloud, { staleAfter: 3_000 });
+    await waitFor(() => expect(hooks.replyState).toBe("in-progress"));
+    const fullReads = () =>
+      list.mock.calls.filter(([, query]) => query?.limit !== 20).length;
+    const loads = fullReads();
+
+    await waitFor(
+      () =>
+        expect(list.mock.calls.some(([, query]) => query?.limit === 20)).toBe(
+          true,
+        ),
+      { timeout: 5_000 },
+    );
+    expect(fullReads()).toBe(loads);
+    expect(hooks.replyState).toBe("in-progress");
+
+    const reply: CloudMessage = {
+      id: "msg_2",
+      parent_id: "msg_1",
+      height: 1,
+      created_at: at,
+      updated_at: at,
+      format: "aui/v0",
+      content: {
+        role: "assistant",
+        content: [{ type: "text", text: "answer" }],
+        status: { type: "complete", reason: "stop" },
+      },
+    };
+    list.mockResolvedValue({ messages: [reply, userRow], run: null });
+    await waitFor(
+      () => expect(getAui().thread.getState().messages).toHaveLength(2),
+      { timeout: 8_000 },
+    );
+    expect(fullReads()).toBeGreaterThan(loads);
+    expect(hooks.replyState).toBeUndefined();
+  }, 15_000);
+
   it.each(["first", "second"] as const)(
     "keeps one provider's reply state when the %s provider on the same thread unmounts",
     async (which) => {
@@ -199,6 +240,7 @@ describe("thread reply state store", () => {
     setThreadReplyState(scope, "t1", "in-progress");
     expect(heard).toHaveBeenCalledTimes(1);
     newer();
+    expect(getThreadReplyState(scope, "t1")).toBe("in-progress");
     expect(getThreadReplyState(scope, undefined)).toBeUndefined();
   });
 });

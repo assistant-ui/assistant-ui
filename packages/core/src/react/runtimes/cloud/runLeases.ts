@@ -27,7 +27,6 @@ type TrackedRun = {
   /** The persistence key of the message: its id, or its format-native message's id. */
   key: string;
   parent: ThreadMessage | undefined;
-  /** Settles once the run's lease is opened and its writes so far landed. */
   stored: Promise<void>;
   /** The content the last checkpoint stored; undefined before the first, so a run joined with content already present is stored too. */
   checkpointed: ThreadMessage["content"] | undefined;
@@ -86,10 +85,8 @@ const findMessage = (
  * message. A lease the persistence lost (ended elsewhere, or superseded by a
  * newer run) gets no more writes.
  *
- * Other tabs read the lease: a reply already stored shows as in progress, or
- * as an ordinary interrupted reply once its run went `staleAfter` without a
- * beat. A thread whose last message is the user's reads `in-progress` while
- * a fresh lease answers it, and `interrupted` once none does
+ * A thread whose last message is the user's reads `in-progress` while a
+ * fresh thread lease answers it, and `interrupted` once none does
  * (`useThreadReplyState`).
  *
  * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
@@ -163,7 +160,11 @@ export const useCloudRunLeases = (
     const replyScope = threadReplyScopeOf(aui);
 
     // Re-reads a thread another session is answering until its reply shows or its run goes quiet.
-    const watchThreadRun = (head: ThreadMessage, staleInMs: number) => {
+    const watchThreadRun = (
+      head: ThreadMessage,
+      key: string,
+      staleInMs: number,
+    ) => {
       if (poll) return;
       const delay = Math.min(
         POLL_MAX_MS,
@@ -172,12 +173,15 @@ export const useCloudRunLeases = (
       poll = {
         messageId: head.id,
         timer: setTimeout(() => {
-          void refresh()
-            .catch(() => undefined)
-            .then(() => {
-              poll = undefined;
-              if (!disposed) check();
-            });
+          void (async () => {
+            // A short read first: the whole thread is read again only once the run stored its reply or stopped.
+            await adapter.readRunState(head.id).catch(() => undefined);
+            if (disposed) return;
+            if (!adapter.replyRunPending(head, key))
+              await refresh().catch(() => undefined);
+            poll = undefined;
+            if (!disposed) check();
+          })();
         }, delay),
       };
     };
@@ -202,10 +206,11 @@ export const useCloudRunLeases = (
         !thread.isRunning &&
         !thread.isLoading
       ) {
-        const run = adapter.replyRunOf(head, writer.keyOf(head));
+        const key = writer.keyOf(head);
+        const run = adapter.replyRunOf(head, key);
         if (run?.status === "in-progress") {
           state = "in-progress";
-          watchThreadRun(head, run.staleInMs);
+          watchThreadRun(head, key ?? head.id, run.staleInMs);
           // Turns interrupted the moment the run would cross staleAfter, even between polls.
           replyTimer = setTimeout(check, run.staleInMs + POLL_STALE_MARGIN_MS);
         } else if (run !== undefined) {

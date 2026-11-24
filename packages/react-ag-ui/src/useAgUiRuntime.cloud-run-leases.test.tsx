@@ -199,7 +199,6 @@ const renderApp = async (
       </AssistantRuntimeProvider>
     );
   };
-  // Each app reaches the server through its own fetch, so two apps act as two tabs.
   vi.stubGlobal("fetch", server.fetchMock);
   const view = render(<App />);
   await act(async () => {

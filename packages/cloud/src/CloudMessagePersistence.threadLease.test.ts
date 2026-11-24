@@ -36,6 +36,7 @@ describe("CloudMessagePersistence thread leases", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("opens the thread's lease without storing a row, then the first write stores the reply as the holder", async () => {
@@ -115,7 +116,7 @@ describe("CloudMessagePersistence thread leases", () => {
 
   it("drops the reply when a newer run superseded the lease before the first write", async () => {
     const { cloud, messages, runs } = createCloud();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     messages.create.mockRejectedValue(apiError(409, "run_ended"));
     const persistence = new CloudMessagePersistence(cloud);
     await persistence.beginRun("t1", "a1", null);
@@ -127,7 +128,6 @@ describe("CloudMessagePersistence thread leases", () => {
     await persistence.append("t1", "a1", null, "aui/v0", done, "done");
     expect(messages.create).toHaveBeenCalledTimes(1);
     expect(runs.end).not.toHaveBeenCalled();
-    warn.mockRestore();
   });
 
   it("records the thread's run from the first page of a load", async () => {
@@ -150,6 +150,38 @@ describe("CloudMessagePersistence thread leases", () => {
     messages.list.mockResolvedValue({ messages: [], run: null });
     await persistence.load("t1");
     expect(persistence.threadRunOf("t1")?.run).toBeNull();
+  });
+
+  it("keeps the run from the first page when later pages carry another", async () => {
+    const { cloud, messages } = createCloud();
+    const run = {
+      status: "running",
+      message_id: null,
+      parent_id: "msg_1",
+      last_heartbeat_ms_ago: 1_000,
+    };
+    const row = (id: string) => ({
+      id,
+      parent_id: null,
+      height: 0,
+      created_at: new Date(0),
+      updated_at: new Date(0),
+      format: "aui/v0",
+      content: {},
+    });
+    messages.list
+      .mockResolvedValueOnce({
+        messages: [row("msg_2")],
+        run,
+        has_more: true,
+        next_cursor: "msg_2",
+      })
+      .mockResolvedValueOnce({ messages: [row("msg_1")], run: null });
+    const persistence = new CloudMessagePersistence(cloud);
+    await persistence.load("t1");
+
+    expect(messages.list).toHaveBeenCalledTimes(2);
+    expect(persistence.threadRunOf("t1")?.run).toEqual(run);
   });
 
   it("forgets the thread's run on reset", async () => {

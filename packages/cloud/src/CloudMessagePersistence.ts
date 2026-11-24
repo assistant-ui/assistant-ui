@@ -115,11 +115,12 @@ type FailedAppend = {
  * lease to it, so a run that never writes leaves no message. A message
  * appended as running opens the lease itself. Heartbeats renew a lease on
  * the server's interval until a write with an end reason ends it. Heartbeats
- * keep running while the page is in the background. The server never
- * expires a lease; readers show a run as stale once it has gone `staleAfter`
- * without a beat, and a late run keeps writing its own message. A lease that
- * is lost (ended elsewhere or refused) is final: the message gets no further
- * writes from this persistence.
+ * keep running while the page is in the background. The server ends a lease
+ * only after six hours without a beat, or when a newer run opens the
+ * thread's lease; readers show a run as stale once it has gone `staleAfter`
+ * without a beat, and a late run keeps writing its own message until then. A
+ * lease that is lost (ended elsewhere, superseded or refused) is final: the
+ * message gets no further writes from this persistence.
  */
 export class CloudMessagePersistence {
   private idMapping = new Map<string, string | Promise<string>>();
@@ -170,9 +171,9 @@ export class CloudMessagePersistence {
    * write with `append` stores its row as the lease holder. Opening ends any
    * other running lease of the thread: the newest run wins.
    *
-   * Resolves false, opening nothing, when the reply is already stored or its
-   * id cannot be an external id. Rejects against a server before v0.2.12,
-   * which has no thread run leases.
+   * Resolves whether the reply holds an open lease; false, opening nothing,
+   * when it is stored without one or its id cannot be an external id.
+   * Rejects against a server before v0.2.12, which has no thread run leases.
    */
   async beginRun(
     threadId: string,
@@ -231,7 +232,7 @@ export class CloudMessagePersistence {
     }
   }
 
-  /** The thread's running lease as the latest `load` read it; undefined before a load. */
+  /** The thread's running lease as the latest `load` or `recordThreadRun` read it; undefined before either. */
   threadRunOf(threadId: string): CloudThreadRunRead | undefined {
     return this.threadRuns.get(threadId);
   }
@@ -256,7 +257,8 @@ export class CloudMessagePersistence {
    * @param run - `running` stores the message with an open run lease that is
    *   kept alive by heartbeats until a write with an end reason closes it.
    *   Once the lease is lost (it was ended elsewhere or the server refused
-   *   it), later writes for the message are dropped.
+   *   it), later writes for the message are dropped. An id that cannot be
+   *   an external id (1 to 255 characters) gets no lease.
    */
   async append(
     threadId: string,
