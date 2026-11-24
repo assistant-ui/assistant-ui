@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 import { A2AIcon } from "@/components/icons/a2a";
 import { AguiIcon } from "@/components/icons/agui";
 import { ClaudeIcon } from "@/components/icons/claude";
@@ -13,6 +14,7 @@ import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 import { BASE_URL } from "@/lib/constants";
 import type { LibraryItem, LibraryMark } from "@/lib/library/catalog";
+import { AGENT_ICONS } from "./agent-icons";
 import { ItemGlyph } from "./item-glyph";
 
 const MARKS: Record<LibraryMark, ComponentType<{ className?: string }>> = {
@@ -60,6 +62,31 @@ export function ItemMark({ item }: { item: LibraryItem }) {
           sizes="44px"
           className="hidden object-cover object-top dark:block"
         />
+      </span>
+    );
+  }
+
+  const agent = AGENT_ICONS[item.id];
+  if (agent) {
+    return (
+      <span className="border-foreground/10 bg-background rounded-document grid size-11 shrink-0 place-items-center border">
+        {agent.svg ? (
+          <span
+            className="text-foreground size-6 [&_svg]:size-full"
+            dangerouslySetInnerHTML={{ __html: agent.svg }}
+          />
+        ) : agent.emoji ? (
+          <span className="text-xl leading-none">{agent.emoji}</span>
+        ) : agent.src ? (
+          <img
+            src={agent.src}
+            alt=""
+            className={cn(
+              "size-6 object-contain",
+              agent.invert && "dark:invert",
+            )}
+          />
+        ) : null}
       </span>
     );
   }
