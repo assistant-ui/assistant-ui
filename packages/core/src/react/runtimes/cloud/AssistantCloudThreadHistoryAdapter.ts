@@ -115,7 +115,7 @@ const runStatusOf = (state: CloudRunState | undefined) =>
       : runInProgressStatus(state.staleInMs);
 
 // A run another session drives is the newest message of its branch, so it sits on the first page.
-const RUN_STATE_PAGE_SIZE = 20;
+export const RUN_STATE_PAGE_SIZE = 20;
 
 const endPhaseOf = (message: ThreadMessage): CloudMessageRunPhase => {
   const { status } = message;
