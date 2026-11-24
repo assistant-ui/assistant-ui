@@ -202,6 +202,25 @@ describe("findCommand and runCodingAgent", () => {
     },
   );
 
+  it("skips a directory with the command's name", async () => {
+    const root = await mkdtemp(join(tmpdir(), "setup-agent-dir-"));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
+    const first = join(root, "first");
+    const second = join(root, "second");
+    await mkdir(join(first, "fake-agent"), { recursive: true });
+    await mkdir(second, { recursive: true });
+    await writeFile(join(second, "fake-agent"), "#!/bin/sh\nexit 0\n");
+    await chmod(join(second, "fake-agent"), 0o755);
+    expect(
+      findCommand(
+        ["fake-agent"],
+        { PATH: [first, second].join(delimiter), PATHEXT: "" },
+        join(root, "project"),
+        join(root, "home"),
+      ),
+    ).toBe(join(second, "fake-agent"));
+  });
+
   it("reports an agent it cannot start as not installed", async () => {
     expect(
       await runCodingAgent(

@@ -1,5 +1,5 @@
 import spawn from "cross-spawn";
-import { accessSync, constants, realpathSync } from "node:fs";
+import { accessSync, constants, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
@@ -268,6 +268,8 @@ export const findCommand = (
         const path = join(directory, command + extension);
         try {
           accessSync(path, constants.X_OK);
+          // A directory passes X_OK too; spawning it fails.
+          if (!statSync(path).isFile()) continue;
         } catch {
           continue;
         }
