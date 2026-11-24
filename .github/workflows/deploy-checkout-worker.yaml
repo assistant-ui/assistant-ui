@@ -247,9 +247,15 @@ jobs:
           install: false
           # No cache (`cache` defaults to false) - this job holds the Cloudflare deploy token
 
+      # Only the root and the worker's workspace install, so another app's
+      # dependencies cannot block a deploy. `{.}...` also installs the root's
+      # workspace dependencies, without which verifyDepsBeforeRun reinstalls the
+      # whole workspace before each later pnpm command. Scripts are skipped
+      # because the root prepare script builds react-devtools, which this
+      # install leaves out.
       - name: Install dependencies
         if: steps.target.outputs.deploy == 'true'
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter "{.}..." --filter "checkout-worker..." --ignore-scripts
 
       - name: Build workspace dependencies
         if: steps.target.outputs.deploy == 'true'
@@ -320,4 +326,5 @@ jobs:
           DEPLOY_SHA: ${{ steps.target.outputs.sha || env.PLANNED_SHA }}
         run: |
           echo "::error::The checkout worker deploy failed for ${DEPLOY_SHA}, so setup.assistant-ui.com still serves the previous version."
-          echo "::error::Rerun this job, or run Deploy Checkout Worker via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
+          echo "::error::For a transient failure, rerun this job. A rerun replays this workflow revision, so after a fix to this workflow lands, run Deploy Checkout Worker via workflow_dispatch with releaseSha=${DEPLOY_SHA} instead."
+          echo "::error::If ${DEPLOY_SHA} itself cannot install, build or deploy, rerunning or dispatching it again fails the same way: land the fix on the default branch, and the next release that publishes setup-agent deploys it."
