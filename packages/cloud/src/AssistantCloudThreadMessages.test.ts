@@ -324,6 +324,11 @@ describe("AssistantCloudThreadMessages run leases", () => {
       parent_id: "msg_1",
       last_heartbeat_ms_ago: 500,
     });
+    makeRequest.mockResolvedValueOnce({
+      messages: [],
+      run: { status: "running", parent_id: "msg_1", last_heartbeat_ms_ago: 0 },
+    });
+    await expect(messages.list("t1")).rejects.toThrow("run.message_id");
     makeRequest.mockResolvedValueOnce({ messages: [], run: null });
     expect((await messages.list("t1")).run).toBeNull();
     makeRequest.mockResolvedValueOnce({ messages: [] });

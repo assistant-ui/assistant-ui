@@ -1,10 +1,9 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import { readCloudNumber, readCloudRecord } from "./cloudResponse";
 import {
-  readCloudNumber,
-  readCloudRecord,
-  readCloudString,
-} from "./cloudResponse";
-import type { CloudRunLease } from "./AssistantCloudThreadMessages";
+  type CloudRunLease,
+  decodeCloudRunLease,
+} from "./AssistantCloudThreadMessages";
 
 /** Why a run ended. */
 export type CloudRunEndReason = "done" | "cancelled" | "error";
@@ -27,8 +26,10 @@ export type AssistantCloudThreadRunOpenBody = {
  * until its holder ends it, or the server ends it after six hours without
  * a beat. The holder heartbeats on the server's `heartbeat_interval_ms`,
  * and message lists report the thread's running lease with how long ago it
- * last beat, so readers can tell a run whose tab went away. The holder's first message
- * write with the `lease_id` stores the reply and binds the lease to it.
+ * last beat or wrote, so readers can tell a run whose tab went away. The
+ * holder's first message write with the `lease_id` stores the reply and binds
+ * the lease to it. A message create with `open_run`, which clients before
+ * thread leases send, also opens the thread's lease, bound to that message.
  */
 export class AssistantCloudThreadRuns {
   private cloud: AssistantCloudAPI;
@@ -59,13 +60,7 @@ export class AssistantCloudThreadRuns {
       ),
       "run open response",
     );
-    return {
-      lease_id: readCloudString(response.lease_id, "lease_id"),
-      heartbeat_interval_ms: readCloudNumber(
-        response.heartbeat_interval_ms,
-        "heartbeat_interval_ms",
-      ),
-    };
+    return decodeCloudRunLease(response);
   }
 
   /**
