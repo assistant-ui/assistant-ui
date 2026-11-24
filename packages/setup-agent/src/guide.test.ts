@@ -248,6 +248,12 @@ describe("setup-agent <url>", () => {
   });
 
   it("asks for the no-browser wording unless the stream can open the setup page", async () => {
+    for (const name of ["SSH_CONNECTION", "SSH_TTY", "CI", "BROWSER"])
+      vi.stubEnv(name, "");
+    vi.stubEnv("DISPLAY", ":0");
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
     const { runSetupCommand } = await import("./cli");
     const cases: [string[], Parameters<typeof runSetupCommand>[1], string][] = [
       [[], {}, "0"],

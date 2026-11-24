@@ -3,6 +3,7 @@ import {
   BROWSER_CLOSE_GRACE_MS,
   BROWSER_REOPEN_GUARD_MS,
   createBrowserGate,
+  noBrowserReason,
 } from "./browser";
 import { initialCheckoutState } from "./protocol";
 import type { Checkout } from "./protocol";
@@ -189,4 +190,19 @@ describe("createBrowserGate", () => {
       }),
     ]);
   });
+});
+
+it("opens no browser over SSH, in CI or with no display, unless a browser program is named", () => {
+  expect(noBrowserReason({}, "darwin")).toBeUndefined();
+  expect(noBrowserReason({ DISPLAY: ":0" }, "linux")).toBeUndefined();
+  expect(noBrowserReason({}, "linux")).toBe("no-display");
+  expect(noBrowserReason({ SSH_TTY: "/dev/pts/0" }, "darwin")).toBe("ssh");
+  expect(
+    noBrowserReason({ SSH_TTY: "x", DISPLAY: "localhost:10" }, "linux"),
+  ).toBeUndefined();
+  expect(noBrowserReason({ CI: "true", DISPLAY: ":0" }, "linux")).toBe("ci");
+  expect(noBrowserReason({ CI: "false" }, "darwin")).toBeUndefined();
+  expect(
+    noBrowserReason({ BROWSER: "browser.sh", SSH_TTY: "x" }, "linux"),
+  ).toBeUndefined();
 });

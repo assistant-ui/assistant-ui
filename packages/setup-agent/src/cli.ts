@@ -36,6 +36,7 @@ import {
 import type { Checkout } from "./protocol";
 import { answerNeed } from "./needs";
 import { answerFields, followSetup, shellWord } from "./stream";
+import { noBrowserReason } from "./browser";
 import { loadGuide, renderText } from "./guide";
 import type { Guide } from "./guide";
 
@@ -91,6 +92,7 @@ Commands (the url always comes first):
                                     Set a step to pending|active|done|skipped|blocked.
   done [--summary <text>] [--preview <url>]
                                     Mark every remaining step done and propose closing; the user closes it.
+  cancel                            End this setup for good; a running stream waits for the next one.
 `;
 
 /** Characters a setup URL may hold: an origin and a path, nothing a shell or a reader treats as more than an address. */
@@ -172,6 +174,7 @@ export {
   runCodingAgent,
 } from "./agents";
 export type { CodingAgent } from "./agents";
+export { noBrowserReason } from "./browser";
 
 const flagText = (flags: Parsed["flags"], name: string) => {
   const value = flags.get(name);
@@ -753,7 +756,10 @@ const runStream = async (
           setupAppUrl: parseSetupUrl(setupAppUrl),
           linkId,
           answerCommand: `${options.command ?? DEFAULT_COMMAND} ${shellWord(url)} answer`,
-          canOpen: (options.browser?.canOpen ?? true) && !flags.has("no-open"),
+          canOpen:
+            (options.browser?.canOpen ?? true) &&
+            !flags.has("no-open") &&
+            noBrowserReason() === undefined,
         },
       }),
   });
@@ -810,7 +816,8 @@ export const runSetupCommand = async (
         ((options.browser?.setupAppUrl ?? flagText(flags, "setup-app-url")) !==
           undefined &&
           (options.browser?.canOpen ?? true) &&
-          !flags.has("no-open")),
+          !flags.has("no-open") &&
+          noBrowserReason() === undefined),
     }));
   const waitCommand = (target: string) =>
     `${options.command ?? DEFAULT_COMMAND} ${shellWord(url)} wait ${target}`;
@@ -1081,6 +1088,12 @@ export const runSetupCommand = async (
         const messageId = rest[0] ?? fail("usage: ack <message-id>");
         await commands["agent/ack"]({ messageId });
         print({ ok: true });
+        break;
+      }
+      case "cancel": {
+        const { id } = requireState(client);
+        if (id !== null) await commands["checkout/cancel"]({ id });
+        print({ ok: id !== null });
         break;
       }
       case "log": {

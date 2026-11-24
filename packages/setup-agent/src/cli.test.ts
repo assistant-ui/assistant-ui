@@ -93,6 +93,23 @@ describe("waiting on the user", () => {
     return { state, printed, answer };
   };
 
+  it("ends the current setup on cancel", async () => {
+    const cancel = vi.fn(async () => {});
+    connectCheckoutMock.mockResolvedValue({
+      state: { ...initialCheckoutState(), id: "setup-a", createdAt: 1 },
+      subscribe: () => () => {},
+      commands: { "checkout/cancel": cancel },
+      dispose: vi.fn(),
+    } as unknown as Awaited<ReturnType<typeof connectCheckout>>);
+    const stdout = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    onTestFinished(() => {
+      stdout.mockRestore();
+      connectCheckoutMock.mockReset();
+    });
+    await main([URL, "cancel"]);
+    expect(cancel).toHaveBeenCalledWith({ id: "setup-a" });
+  });
+
   it("hands the turn back with the command to run again before an agent shell kills the wait", async () => {
     const t = connect();
     const run = main([URL, "wait", "q1"]);
