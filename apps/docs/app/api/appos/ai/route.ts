@@ -1,12 +1,16 @@
 // The AI gateway for appOS apps embedded on the Examples pages. The embed
-// (appos-host's aiGateway) posts each of the app's model calls here as
+// (@assistant-ui/appos's aiGateway) posts each of the app's model calls here as
 // { model?, options } and reads NDJSON stream parts back (aiResponse).
 //
 // The app asks for a model, but this route is public, so it picks the
 // docs' default public model and ignores the hint. It shares the public
 // assistant's anonymous session and rate limits with /api/chat.
 import { wrapLanguageModel, type LanguageModelMiddleware } from "ai";
-import { AiError, aiErrorResponse, aiResponse } from "appos-host/server";
+import {
+  AiError,
+  aiErrorResponse,
+  aiResponse,
+} from "@assistant-ui/appos/server";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { resolveChatModel } from "@/lib/ai/provider";

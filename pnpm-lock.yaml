@@ -423,6 +423,9 @@ importers:
       '@assistant-ui/ai-sdk':
         specifier: workspace:*
         version: link:../../packages/ai-sdk
+      '@assistant-ui/appos':
+        specifier: 0.0.1
+        version: 0.0.1(react@19.3.1)
       '@assistant-ui/docs-theme':
         specifier: workspace:*
         version: link:../../packages/docs-theme
@@ -558,9 +561,6 @@ importers:
       ai:
         specifier: ^7.0.153
         version: 7.0.153(zod@4.6.7)
-      appos-host:
-        specifier: github:assistant-ui/appOS#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host
-        version: git+https://github.com/assistant-ui/appOS.git#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host(react@19.3.1)
       assistant-cloud:
         specifier: workspace:*
         version: link:../../packages/cloud
@@ -8282,6 +8282,14 @@ packages:
   '@asamuzakjp/dom-selector@10.0.5':
     resolution: {integrity: sha512-EgmJ7oEaGQECTn3H3wmnQpEy4hKY66VvM7VQndwPIQob3p877BgbyOUE3EX0LgXQCciF2H8KMdR+RznqjMNOLw==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
+
+  '@assistant-ui/appos@0.0.1':
+    resolution: {integrity: sha512-Si2bVFKqppLEm0xEP5bY7064YiM2+tBsi1U5YWDDjmjzgik7rbkaCBGtkPFn8YJrheYWishb/iT6MybFWVTSjg==}
+    peerDependencies:
+      react: ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@assistant-ui/react-harness-sdk@file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz':
     resolution: {integrity: sha512-jlkOynD0nTlLvDRO1TVz3689HqMk0hR3WAaSicvNlH2NmaYMCUSNmBfytvQs1tjK7EnzwSNdGuYi+X5uxojjPA==, tarball: file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz}
@@ -16201,15 +16209,6 @@ packages:
 
   anynum@1.0.1:
     resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
-
-  appos-host@git+https://github.com/assistant-ui/appOS.git#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host:
-    resolution: {commit: ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652, path: packages/appos-host, repo: https://github.com/assistant-ui/appOS.git, type: git}
-    version: 0.0.1
-    peerDependencies:
-      react: ^19.0.0
-    peerDependenciesMeta:
-      react:
-        optional: true
 
   archiver@8.0.0:
     resolution: {integrity: sha512-fV1orZfsnPn9BaSByR/qE67rJCLJEy2Ox5bq7nJh+jquWaNh6Sfec75kJ2T6PtdGUbPQlrVoSVCEOa5SdiTQ1g==}
@@ -25002,6 +25001,13 @@ snapshots:
       css-tree: 3.2.1
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.3
+
+  '@assistant-ui/appos@0.0.1(react@19.3.1)':
+    dependencies:
+      esbuild: 0.28.2
+      wbn: 0.0.10
+    optionalDependencies:
+      react: 19.3.1
 
   '@assistant-ui/react-harness-sdk@file:templates/cloud-harness/vendor/assistant-ui-react-harness-sdk-0.0.2.tgz(@assistant-ui/core@packages+core)(@assistant-ui/react@packages+react)(@assistant-ui/store@packages+store)(@assistant-ui/tap@packages+tap)(harness-sdk@file:templates/cloud-harness/vendor/harness-sdk-0.3.1.tgz(@assistant-ui/tap@packages+tap)(ai@7.0.153(zod@4.6.7))(react@19.3.1)(statewire@file:templates/cloud-harness/vendor/statewire-0.19.3.tgz(@assistant-ui/tap@packages+tap)(react@19.3.1)))(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)':
     dependencies:
@@ -34521,13 +34527,6 @@ snapshots:
       picomatch: 2.3.2
 
   anynum@1.0.1: {}
-
-  appos-host@git+https://github.com/assistant-ui/appOS.git#ce3abafb8bb8aaf4fbb59c757e7b8141a4b30652&path:packages/appos-host(react@19.3.1):
-    dependencies:
-      esbuild: 0.28.2
-      wbn: 0.0.10
-    optionalDependencies:
-      react: 19.3.1
 
   archiver@8.0.0:
     dependencies:

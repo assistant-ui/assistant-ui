@@ -1,6 +1,6 @@
 // Builds the appOS example apps and packs them into unsigned web bundles the
 // Examples pages embed with <AppOSApp>. The examples are plain Next.js apps:
-// appOS's build adapter (appos-host/next, set through NEXT_ADAPTER_PATH)
+// appOS's build adapter (@assistant-ui/appos/next, set through NEXT_ADAPTER_PATH)
 // writes each one's .next/appos/, an appOS app folder. An unsigned bundle's
 // identity is its URL, so it is served from the docs site itself:
 // public/appos/<name>.<hash>.wbn. The hashed names land in
@@ -11,9 +11,11 @@ import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pack } from "appos-host/pack";
+import { pack } from "@assistant-ui/appos/pack";
 
-const adapter = createRequire(import.meta.url).resolve("appos-host/next");
+const adapter = createRequire(import.meta.url).resolve(
+  "@assistant-ui/appos/next",
+);
 
 const docs = fileURLToPath(new URL("..", import.meta.url));
 const repo = join(docs, "../..");

@@ -31,16 +31,6 @@ jobs:
           cache: false
           install: false
 
-      - name: Let git read the private appOS repo
-        env:
-          APPOS_READ_TOKEN: ${{ secrets.APPOS_READ_TOKEN }}
-        run: |
-          if [ -n "$APPOS_READ_TOKEN" ]; then
-            git config --global url."https://x-access-token:$APPOS_READ_TOKEN@github.com/assistant-ui/appOS".insteadOf "https://github.com/assistant-ui/appOS"
-          else
-            echo "::warning::APPOS_READ_TOKEN is not available (fork pull requests get no secrets), so pnpm cannot fetch appos-host from the private appOS repo and the install will fail."
-          fi
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
