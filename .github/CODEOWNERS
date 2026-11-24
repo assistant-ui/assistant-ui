@@ -15,6 +15,7 @@
 
 # CI and policy
 /.github/ @assistant-ui/owners
+/templates/cloud-harness/vendor/ @assistant-ui/owners
 /CONTRIBUTING.md @assistant-ui/owners
 /AGENTS.md @assistant-ui/owners
 /scripts/review-tier.mjs @assistant-ui/owners
