@@ -1,3 +1,4 @@
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import type { RouteTrace } from "./repo-source-traces.mts";
 
@@ -5,6 +6,30 @@ export type HighlighterTraceGap = {
   readonly filePath: string;
   readonly missingFiles: readonly string[];
 };
+
+// A trace may name a package file through a pnpm symlink, while require.resolve
+// returns the real path, so both sides are compared as real paths.
+export function toRealTraces(routeTraces: readonly RouteTrace[]): RouteTrace[] {
+  const realpaths = new Map<string, string>();
+  const toRealpath = (file: string) => {
+    let real = realpaths.get(file);
+    if (real === undefined) {
+      try {
+        real = realpathSync(file);
+      } catch {
+        real = file;
+      }
+      realpaths.set(file, real);
+    }
+    return real;
+  };
+  return routeTraces.map((trace) => ({
+    filePath: trace.filePath,
+    files: trace.files.map((file) =>
+      toRealpath(path.resolve(path.dirname(trace.filePath), file)),
+    ),
+  }));
+}
 
 const resolveTracedFiles = (trace: RouteTrace) =>
   new Set(

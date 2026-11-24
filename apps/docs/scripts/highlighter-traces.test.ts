@@ -1,8 +1,19 @@
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   findHighlighterTraceGaps,
   findRoutesWithoutHighlighter,
   formatHighlighterTraceGaps,
+  shipsHighlighter,
+  toRealTraces,
 } from "./highlighter-traces.mts";
 import type { RouteTrace } from "./repo-source-traces.mts";
 
@@ -11,9 +22,17 @@ const highlighterFile = path.join(
   modules,
   "@farming-labs+next@0.2.152/node_modules/@farming-labs/next/dist/mdx-plugins/rehype-code.mjs",
 );
+const themes = path.join(
+  modules,
+  "@shikijs+themes@4.5.0/node_modules/@shikijs/themes/dist",
+);
+const latteTheme = path.join(themes, "catppuccin-latte.mjs");
+const mochaTheme = path.join(themes, "catppuccin-mocha.mjs");
 const runtimeFiles = [
   path.join(modules, "shiki@4.5.0/node_modules/shiki/dist/index.mjs"),
   path.join(modules, "shiki@4.5.0/node_modules/shiki/dist/wasm.mjs"),
+  latteTheme,
+  mochaTheme,
 ];
 
 const trace = (name: string, files: readonly string[]): RouteTrace => {
@@ -37,15 +56,22 @@ describe("findHighlighterTraceGaps", () => {
     ).toEqual([]);
   });
 
-  it("reports a bundle that ships the highlighter without a runtime file", () => {
-    const partial = trace("mcp", [highlighterFile, runtimeFiles[0]!]);
+  it.each([
+    ["light", latteTheme],
+    ["dark", mochaTheme],
+  ])(
+    "reports a bundle that ships the highlighter without the %s theme",
+    (_, theme) => {
+      const partial = trace("mcp", [
+        highlighterFile,
+        ...runtimeFiles.filter((file) => file !== theme),
+      ]);
 
-    expect(
-      findHighlighterTraceGaps([partial], highlighterFile, runtimeFiles),
-    ).toEqual([
-      { filePath: partial.filePath, missingFiles: [runtimeFiles[1]] },
-    ]);
-  });
+      expect(
+        findHighlighterTraceGaps([partial], highlighterFile, runtimeFiles),
+      ).toEqual([{ filePath: partial.filePath, missingFiles: [theme] }]);
+    },
+  );
 
   it("ignores a bundle that does not ship the highlighter", () => {
     expect(
@@ -55,6 +81,67 @@ describe("findHighlighterTraceGaps", () => {
         runtimeFiles,
       ),
     ).toEqual([]);
+  });
+});
+
+describe("toRealTraces", () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = realpathSync(
+      mkdtempSync(path.join(os.tmpdir(), "highlighter-traces-")),
+    );
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("matches a highlighter that a trace names through a pnpm symlink", () => {
+    const store = path.join(
+      root,
+      "node_modules/.pnpm/@farming-labs+next@0.2.152/node_modules/@farming-labs/next",
+    );
+    const realHighlighter = path.join(
+      store,
+      "dist/mdx-plugins/rehype-code.mjs",
+    );
+    mkdirSync(path.dirname(realHighlighter), { recursive: true });
+    writeFileSync(realHighlighter, "");
+    const link = path.join(root, "apps/docs/node_modules/@farming-labs/next");
+    mkdirSync(path.dirname(link), { recursive: true });
+    symlinkSync(store, link, "junction");
+    const filePath = path.join(
+      root,
+      "apps/docs/.next/server/app/api/mcp/route.js.nft.json",
+    );
+    const linked: RouteTrace = {
+      filePath,
+      files: [
+        path.relative(
+          path.dirname(filePath),
+          path.join(link, "dist/mdx-plugins/rehype-code.mjs"),
+        ),
+      ],
+    };
+
+    expect(shipsHighlighter(linked, realHighlighter)).toBe(false);
+    expect(toRealTraces([linked])).toEqual([
+      { filePath, files: [realHighlighter] },
+    ]);
+  });
+
+  it("keeps the path of a traced file that is not on disk", () => {
+    const filePath = path.join(
+      root,
+      "apps/docs/.next/server/app/api/mcp/route.js.nft.json",
+    );
+
+    expect(
+      toRealTraces([{ filePath, files: ["../../../../missing.mjs"] }]),
+    ).toEqual([
+      { filePath, files: [path.join(root, "apps/docs/.next/missing.mjs")] },
+    ]);
   });
 });
 
@@ -79,13 +166,13 @@ describe("formatHighlighterTraceGaps", () => {
 
     expect(
       formatHighlighterTraceGaps(root, [
-        { filePath: partial.filePath, missingFiles: [runtimeFiles[1]!] },
+        { filePath: partial.filePath, missingFiles: [latteTheme] },
       ]),
     ).toBe(
       [
         "1 server bundle ships the code highlighter without the Shiki files it imports at runtime:",
         `${path.join("app", "api", "mcp", "route.js.nft.json")}:`,
-        `  ${path.relative(root, runtimeFiles[1]!)}`,
+        `  ${path.relative(root, latteTheme)}`,
       ].join("\n"),
     );
   });
