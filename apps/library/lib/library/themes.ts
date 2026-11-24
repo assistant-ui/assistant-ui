@@ -255,24 +255,30 @@ const product = (
   };
 };
 
-const CODEX_SETTINGS: ThemeSettings = {
-  ...DEFAULT_SETTINGS,
-  style: "mira",
-  theme: "blue",
-  chartColor: "blue",
-  iconLibrary: "hugeicons",
-  font: "inter",
-};
-
 export const LIBRARY_THEMES: readonly LibraryTheme[] = [
-  {
-    // A preset alone, with no colors of its own over it yet.
-    slug: "codex",
-    name: "Codex",
-    section: "Products",
-    preset: themePresetUrl(CODEX_SETTINGS),
-    settings: CODEX_SETTINGS,
-  },
+  // The surface, ink and accent are the ones Codex's own light theme names;
+  // the greys between them, and the dark variant, are mixed from those.
+  product(
+    "codex",
+    "Codex",
+    {
+      style: "mira",
+      theme: "blue",
+      chartColor: "blue",
+      iconLibrary: "hugeicons",
+      font: "geist",
+    },
+    {
+      background: ["#ffffff", "#000000"],
+      foreground: ["#171717", "#ededed"],
+      mutedForeground: ["#737373", "#9a9a9a"],
+      border: ["#ebebeb", "#1f1f1f"],
+      primary: ["#006aff", "#006aff"],
+      primaryForeground: ["#ffffff", "#ffffff"],
+      muted: ["#f3f3f3", "#1c1c1c"],
+      surface: ["#ffffff", "#161616"],
+    },
+  ),
   product(
     "chatgpt",
     "ChatGPT",

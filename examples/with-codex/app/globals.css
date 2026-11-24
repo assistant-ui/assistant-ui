@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "tw-shimmer";
+
+@source "../../../packages/ui/src";
+
+/* Dark follows the system, as the app does with its variant set to match. */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme inline {
+  --font-sans: var(--font-geist), Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-weight-medium: 450;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-composer: var(--composer);
+  --color-strip: var(--strip);
+  --color-diff-added: var(--diff-added);
+  --color-diff-removed: var(--diff-removed);
+  --color-skill: var(--skill);
+}
+
+/*
+ * Theme: the shadcn/ui preset nearest to the look, which is the Mira style on
+ * the neutral base with the blue accent, Hugeicons and Geist. These are that
+ * preset's values, as `shadcn init` writes them.
+ */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.488 0.243 264.376);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.985 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.424 0.199 265.638);
+    --primary-foreground: oklch(0.97 0.014 254.604);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --sidebar: oklch(0.205 0 0);
+  }
+}
+
+/*
+ * Overrides: what the preset cannot express, from Codex's own theme. Its
+ * light variant names four colors: the surface, the ink, the accent, and the
+ * colors of a diff and of a skill. The greys between surface and ink are
+ * mixed from those two, and the dark variant turns them around on black.
+ * `--composer` and `--strip` are this app's own names, for the message box
+ * and the strip above it.
+ */
+:root {
+  --surface: #ffffff;
+  --ink: #171717;
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: #006aff;
+  --primary-foreground: #ffffff;
+  --ring: #006aff;
+  --diff-added: #28a948;
+  --diff-removed: #eb001d;
+  --skill: #924ff7;
+  --muted: color-mix(in oklab, var(--ink) 5%, var(--surface));
+  --muted-foreground: color-mix(in oklab, var(--ink) 60%, var(--surface));
+  --accent: color-mix(in oklab, var(--ink) 6%, var(--surface));
+  --accent-foreground: var(--ink);
+  --border: color-mix(in oklab, var(--ink) 9%, var(--surface));
+  --input: color-mix(in oklab, var(--ink) 12%, var(--surface));
+  --sidebar: color-mix(in oklab, var(--ink) 2.5%, var(--surface));
+  --strip: color-mix(in oklab, var(--ink) 2.5%, var(--surface));
+  --composer: color-mix(in oklab, var(--ink) 5%, var(--surface));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #000000;
+    --ink: #ededed;
+    --popover: color-mix(in oklab, var(--ink) 21%, var(--surface));
+    --muted: color-mix(in oklab, var(--ink) 24%, var(--surface));
+    --muted-foreground: color-mix(in oklab, var(--ink) 67%, var(--surface));
+    --accent: color-mix(in oklab, var(--ink) 29%, var(--surface));
+    --border: color-mix(in oklab, var(--ink) 20%, var(--surface));
+    --input: color-mix(in oklab, var(--ink) 24%, var(--surface));
+    --sidebar: color-mix(in oklab, var(--ink) 14%, var(--surface));
+    --strip: color-mix(in oklab, var(--ink) 17%, var(--surface));
+    --composer: color-mix(in oklab, var(--ink) 24%, var(--surface));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  /* Anything that can be clicked shows the hand. */
+  :where(button, [role="button"], [role^="menuitem"], a[href]):not(
+    :disabled,
+    [aria-disabled="true"],
+    [data-disabled]
+  ) {
+    cursor: pointer;
+  }
+}

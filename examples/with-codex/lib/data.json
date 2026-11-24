@@ -1,0 +1,12 @@
+{
+  "projects": [
+    { "name": "agentbase", "branches": ["main", "feat/thread-list"] },
+    { "name": "design", "branches": ["main"] },
+    { "name": "elements", "branches": ["main", "feat/composer", "fix/menu"] },
+    { "name": "storefront", "branches": ["main", "fix/cart-rounding"] }
+  ],
+  "environments": [
+    { "id": "local", "label": "This computer" },
+    { "id": "cloud", "label": "Cloud", "note": "Default environment" }
+  ]
+}

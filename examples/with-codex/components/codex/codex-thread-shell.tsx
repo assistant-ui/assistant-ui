@@ -44,7 +44,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import data from "./data.json";
+import data from "@/lib/data.json";
 
 /* -------------------------------------------------------------------------- */
 /* Pieces the shell and the thread both draw with                             */
@@ -177,6 +177,95 @@ export function MenuSubTrigger({
   );
 }
 
+/** A menu whose rows narrow as its search field is typed in. */
+export function SearchMenu(props: MenuPrimitive.Root.Props) {
+  const [query, setQuery] = useState("");
+  return (
+    <MenuPrimitive.FilterProvider
+      autoHighlight
+      value={query}
+      onValueChange={setQuery}
+    >
+      <MenuPrimitive.Root {...props} />
+    </MenuPrimitive.FilterProvider>
+  );
+}
+
+/** The same, for a menu that opens beside a row of another. */
+export function SearchMenuSub(props: MenuPrimitive.SubmenuRoot.Props) {
+  const [query, setQuery] = useState("");
+  return (
+    <MenuPrimitive.FilterProvider
+      autoHighlight
+      value={query}
+      onValueChange={setQuery}
+    >
+      <MenuPrimitive.SubmenuRoot {...props} />
+    </MenuPrimitive.FilterProvider>
+  );
+}
+
+/** The rows a search field narrows, and the line shown when none are left. */
+export function MenuList({ className, ...props }: MenuPrimitive.List.Props) {
+  return (
+    <MenuPrimitive.List
+      className={cn("flex min-h-0 flex-col outline-none", className)}
+      {...props}
+    />
+  );
+}
+
+export function MenuEmpty(props: MenuPrimitive.Empty.Props) {
+  return (
+    <MenuPrimitive.Empty
+      className="text-muted-foreground px-2 py-1 empty:hidden"
+      {...props}
+    />
+  );
+}
+
+/** A field at the top of a searchable menu. */
+export function MenuSearch({
+  className,
+  ...props
+}: ComponentProps<typeof MenuPrimitive.Input>) {
+  return (
+    <div className="border-border text-muted-foreground mx-1 mb-1 flex h-8 shrink-0 items-center gap-2 border-b px-1">
+      <Icon icon={Search01Icon} className="size-4 shrink-0" />
+      <MenuPrimitive.Input
+        className={cn(
+          "text-foreground placeholder:text-muted-foreground h-full min-w-0 flex-1 bg-transparent outline-none",
+          className,
+        )}
+        {...props}
+      />
+    </div>
+  );
+}
+
+/** A row that turns something on or off, with a switch at its end. */
+export function MenuSwitch({
+  className,
+  children,
+  ...props
+}: MenuPrimitive.CheckboxItem.Props) {
+  return (
+    <MenuPrimitive.CheckboxItem
+      closeOnClick={false}
+      className={cn(menuItem, "group/switch", className)}
+      {...props}
+    >
+      {children}
+      <span
+        aria-hidden
+        className="bg-foreground/20 group-data-checked/switch:bg-foreground ms-auto flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors motion-reduce:transition-none"
+      >
+        <span className="bg-background size-3 rounded-full transition-transform group-data-checked/switch:translate-x-3 motion-reduce:transition-none" />
+      </span>
+    </MenuPrimitive.CheckboxItem>
+  );
+}
+
 export function MenuLabel(props: ComponentProps<"p">) {
   return <p className="text-muted-foreground px-2 py-1" {...props} />;
 }
@@ -202,6 +291,9 @@ type Shell = {
   /** The project new chats work in, or none. */
   project: Project | null;
   setProject: (project: Project | null) => void;
+  /** The branch of that project the work starts from. */
+  branch: string | null;
+  setBranch: (branch: string) => void;
 };
 
 const ShellContext = createContext<Shell | null>(null);
@@ -521,6 +613,7 @@ export function CodexThreadShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [branch, setBranch] = useState<string | null>(null);
 
   const shell = useMemo<Shell>(
     () => ({
@@ -528,9 +621,15 @@ export function CodexThreadShell({ children }: { children: ReactNode }) {
       toggleSidebar: () => setSidebarOpen((open) => !open),
       openSheet: () => setSheetOpen(true),
       project,
-      setProject,
+      // A project opens on its first branch.
+      setProject: (next) => {
+        setProject(next);
+        setBranch(next?.branches[0] ?? null);
+      },
+      branch,
+      setBranch,
     }),
-    [sidebarOpen, project],
+    [sidebarOpen, project, branch],
   );
 
   /* Opening a chat from the sheet puts the sheet away. */

@@ -32,13 +32,16 @@ import {
   CloudIcon,
   ComputerTerminal01Icon,
   Copy01Icon,
+  CubeIcon,
   Folder01Icon,
   GitBranchIcon,
+  GitForkIcon,
   Idea01Icon,
   LaptopIcon,
   Menu01Icon,
   Mic01Icon,
   MicOff01Icon,
+  MoreHorizontalIcon,
   PencilEdit02Icon,
   RefreshIcon,
   SecurityCheckIcon,
@@ -58,27 +61,33 @@ import {
   Icon,
   Menu,
   MenuChoice,
+  MenuEmpty,
   MenuItem,
   MenuLabel,
+  MenuList,
   MenuPopup,
   MenuRadioGroup,
   MenuSeparator,
+  MenuSearch,
   MenuSub,
   MenuSubTrigger,
+  MenuSwitch,
   MenuTrigger,
+  SearchMenu,
+  SearchMenuSub,
   Tip,
   focusRing,
   iconButton,
   useCodexShell,
 } from "./codex-thread-shell";
-import data from "./data.json";
+import data from "@/lib/data.json";
 import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL,
   EFFORTS,
   MODELS,
   RECOMMENDED_MODEL,
-} from "./models";
+} from "@/lib/models";
 
 /* -------------------------------------------------------------------------- */
 /* Shared styles                                                              */
@@ -140,7 +149,7 @@ export function Codex() {
 }
 
 function ThreadHeader() {
-  const { sidebarOpen, toggleSidebar, openSheet, project } = useCodexShell();
+  const { sidebarOpen, toggleSidebar, openSheet, branch } = useCodexShell();
   const title = useAuiState((s) => s.threadListItem.title);
   const empty = useAuiState((s) => s.thread.isEmpty);
 
@@ -169,11 +178,11 @@ function ThreadHeader() {
       <h1 className="min-w-0 flex-1 truncate font-medium">
         {empty ? <span className="sr-only">New chat</span> : title}
       </h1>
-      {project && (
+      {branch && (
         <span className="text-muted-foreground flex shrink-0 items-center gap-1.5 font-mono text-xs">
           <Icon icon={GitBranchIcon} className="size-3.5" />
           <span className="sr-only">Branch </span>
-          {project.branch}
+          {branch}
         </span>
       )}
     </header>
@@ -202,13 +211,13 @@ const ENVIRONMENT_ICONS: Record<string, IconSvgElement> = {
   cloud: CloudIcon,
 };
 
-/* Where the agent would run. The block keeps the choice; it runs nothing. */
+/* Where the agent would run. The example keeps the choice; it runs nothing. */
 function EnvironmentMenu() {
   const [value, setValue] = useState(data.environments[0]?.id ?? "");
   const current = data.environments.find((entry) => entry.id === value);
 
   return (
-    <Menu>
+    <SearchMenu>
       <MenuTrigger className={textControl}>
         <Icon
           icon={ENVIRONMENT_ICONS[value] ?? LaptopIcon}
@@ -217,20 +226,23 @@ function EnvironmentMenu() {
         {current?.label}
       </MenuTrigger>
       <MenuPopup side="top" className="min-w-60">
-        <MenuLabel>Work in</MenuLabel>
-        <MenuRadioGroup value={value} onValueChange={setValue}>
-          {data.environments.map((entry) => (
-            <MenuChoice key={entry.id} value={entry.id}>
-              <Icon icon={ENVIRONMENT_ICONS[entry.id] ?? LaptopIcon} />
-              {entry.label}
-              {"note" in entry && (
-                <span className="text-muted-foreground">{entry.note}</span>
-              )}
-            </MenuChoice>
-          ))}
-        </MenuRadioGroup>
+        <MenuSearch placeholder="Work in" aria-label="Work in" />
+        <MenuList>
+          <MenuRadioGroup value={value} onValueChange={setValue}>
+            {data.environments.map((entry) => (
+              <MenuChoice key={entry.id} value={entry.id}>
+                <Icon icon={ENVIRONMENT_ICONS[entry.id] ?? LaptopIcon} />
+                {entry.label}
+                {"note" in entry && (
+                  <span className="text-muted-foreground">{entry.note}</span>
+                )}
+              </MenuChoice>
+            ))}
+          </MenuRadioGroup>
+          <MenuEmpty>Nothing matches</MenuEmpty>
+        </MenuList>
       </MenuPopup>
-    </Menu>
+    </SearchMenu>
   );
 }
 
@@ -238,7 +250,7 @@ function ProjectMenu() {
   const { project, setProject } = useCodexShell();
 
   return (
-    <Menu>
+    <SearchMenu>
       <MenuTrigger
         className={cn(textControl, !project && "text-muted-foreground")}
       >
@@ -246,31 +258,105 @@ function ProjectMenu() {
         {project ? project.name : "Choose project"}
       </MenuTrigger>
       <MenuPopup side="top" className="min-w-60">
-        <MenuLabel>Projects</MenuLabel>
-        <MenuRadioGroup
-          value={project?.name ?? ""}
-          onValueChange={(name) =>
-            setProject(
-              data.projects.find((entry) => entry.name === name) ?? null,
-            )
-          }
+        <MenuSearch
+          placeholder="Search projects"
+          aria-label="Search projects"
+        />
+        <MenuList>
+          <MenuRadioGroup
+            value={project?.name ?? ""}
+            onValueChange={(name) =>
+              setProject(
+                data.projects.find((entry) => entry.name === name) ?? null,
+              )
+            }
+          >
+            {data.projects.map((entry) => (
+              <MenuChoice key={entry.name} value={entry.name}>
+                <Icon icon={Folder01Icon} />
+                {entry.name}
+              </MenuChoice>
+            ))}
+          </MenuRadioGroup>
+          <MenuEmpty>No project matches</MenuEmpty>
+        </MenuList>
+      </MenuPopup>
+    </SearchMenu>
+  );
+}
+
+/*
+ * What a chosen project adds: whether the work gets a worktree of its own,
+ * and the branch it starts from. The example keeps both; it checks out nothing.
+ */
+function SettingsMenu() {
+  const { project, branch, setBranch } = useCodexShell();
+  const [worktree, setWorktree] = useState(true);
+  if (!project) return null;
+
+  return (
+    <Menu>
+      <Tip label="Additional settings" side="top">
+        <MenuTrigger
+          className={cn(
+            iconButton,
+            "data-popup-open:bg-foreground/[0.07] size-7 rounded-full",
+          )}
         >
-          {data.projects.map((entry) => (
-            <MenuChoice key={entry.name} value={entry.name}>
-              <Icon icon={Folder01Icon} />
-              {entry.name}
-            </MenuChoice>
-          ))}
-        </MenuRadioGroup>
-        {project && (
-          <>
-            <MenuSeparator />
-            <MenuItem onClick={() => setProject(null)}>
-              <Icon icon={Cancel01Icon} />
-              No project
-            </MenuItem>
-          </>
-        )}
+          <Icon icon={MoreHorizontalIcon} />
+        </MenuTrigger>
+      </Tip>
+      <MenuPopup side="top" className="min-w-60">
+        <MenuLabel>Additional settings</MenuLabel>
+        <MenuSwitch checked={worktree} onCheckedChange={setWorktree}>
+          <Icon icon={GitForkIcon} />
+          New worktree
+        </MenuSwitch>
+        <MenuSub>
+          <MenuSubTrigger>
+            <Icon icon={CubeIcon} />
+            Environment
+            <span className="text-muted-foreground min-w-0 flex-1 truncate ps-4 text-end">
+              No environment
+            </span>
+          </MenuSubTrigger>
+          <MenuPopup side="right" sideOffset={6} alignOffset={-4}>
+            <MenuRadioGroup value="none">
+              <MenuChoice value="none">No environment</MenuChoice>
+            </MenuRadioGroup>
+          </MenuPopup>
+        </MenuSub>
+        <SearchMenuSub>
+          <MenuSubTrigger>
+            <Icon icon={GitBranchIcon} />
+            Branch
+            <span className="text-muted-foreground min-w-0 flex-1 truncate ps-4 text-end font-mono text-xs">
+              {branch}
+            </span>
+          </MenuSubTrigger>
+          <MenuPopup
+            side="right"
+            sideOffset={6}
+            alignOffset={-4}
+            className="min-w-60"
+          >
+            <MenuSearch
+              placeholder="Search branches"
+              aria-label="Search branches"
+            />
+            <MenuList>
+              <MenuRadioGroup value={branch ?? ""} onValueChange={setBranch}>
+                {project.branches.map((entry) => (
+                  <MenuChoice key={entry} value={entry}>
+                    <Icon icon={GitBranchIcon} />
+                    <span className="font-mono text-xs">{entry}</span>
+                  </MenuChoice>
+                ))}
+              </MenuRadioGroup>
+              <MenuEmpty>No branch matches</MenuEmpty>
+            </MenuList>
+          </MenuPopup>
+        </SearchMenuSub>
       </MenuPopup>
     </Menu>
   );
@@ -300,8 +386,8 @@ const APPROVALS = [
 ] as const;
 
 /*
- * How much the agent may do without asking. The block keeps the choice; the
- * chat route behind the preview has no actions that need approval.
+ * How much the agent may do without asking. The example keeps the choice; its
+ * chat route has no actions that need approval.
  */
 function ApprovalMenu() {
   const [value, setValue] = useState<string>(APPROVALS[0].value);
@@ -425,6 +511,7 @@ function Composer() {
       <div className="mx-3.5 flex items-center gap-0.5 rounded-t-2xl bg-(--strip) px-1.5 pt-1.5 pb-5">
         <EnvironmentMenu />
         <ProjectMenu />
+        <SettingsMenu />
       </div>
       <ComposerPrimitive.AttachmentDropzone className="data-[dragging=true]:border-primary/60 -mt-3.5 flex flex-col gap-0.5 rounded-[1.125rem] border border-transparent bg-(--composer) p-2 transition-colors motion-reduce:transition-none">
         <div className="flex flex-wrap gap-2 px-1.5 pt-1 empty:hidden">
