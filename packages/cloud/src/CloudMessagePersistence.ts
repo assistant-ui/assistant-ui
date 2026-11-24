@@ -4,6 +4,7 @@ import type {
   CloudMessage,
   CloudMessageRun,
   CloudRunLease,
+  CloudThreadRun,
 } from "./AssistantCloudThreadMessages";
 import { CloudAPIError } from "./AssistantCloudAPI";
 import type { CloudRunEndReason } from "./AssistantCloudThreadRuns";
@@ -68,6 +69,13 @@ export type CloudRunState =
   | { status: "in-progress"; staleInMs: number }
   | { status: "stale" };
 
+/** A thread's running lease as the latest message list read it, and when that list was read. */
+export type CloudThreadRunRead = {
+  run: CloudThreadRun | null;
+  /** `Date.now()` when the list was read. */
+  readAt: number;
+};
+
 /** 409 codes after which the lease is gone for good: nothing more is written for its message. */
 const LOST_LEASE_CODES = new Set(["run_ended", "lease_mismatch"]);
 
@@ -111,6 +119,7 @@ export class CloudMessagePersistence {
   /** Every message this persistence opened a lease for; a repeated append of one writes its row instead of storing another. */
   private runs = new Map<string, Run>();
   private runWrites = new Map<string, Promise<unknown>>();
+  private threadRuns = new Map<string, CloudThreadRunRead>();
   /** Writes waiting on an in-flight create, chained so they apply in append order. */
   private pendingWrites = new Map<string, Promise<void>>();
   /** The deletes each write waiting on an in-flight create saw start; each resolves to whether it deleted the message. */
@@ -144,6 +153,20 @@ export class CloudMessagePersistence {
     return quietMs >= this.staleAfter
       ? { status: "stale" }
       : { status: "in-progress", staleInMs: this.staleAfter - quietMs };
+  }
+
+  /** The thread's running lease as the latest `load` read it; undefined before a load. */
+  threadRunOf(threadId: string): CloudThreadRunRead | undefined {
+    return this.threadRuns.get(threadId);
+  }
+
+  /** Records a thread's running lease read by a message list outside `load`. */
+  recordThreadRun(
+    threadId: string,
+    run: CloudThreadRun | null,
+    readAt = Date.now(),
+  ): void {
+    this.threadRuns.set(threadId, { run, readAt });
   }
 
   /**
@@ -564,6 +587,10 @@ export class CloudMessagePersistence {
         limit: CLOUD_MESSAGE_PAGE_SIZE,
         ...(after ? { after } : undefined),
       });
+      // The server measured the run's quiet time when it answered.
+      const readAt = Date.now();
+      if (after === undefined && this.idMapping === idMapping)
+        this.recordThreadRun(threadId, page.run ?? null, readAt);
       // A cursor the server cannot resolve drops the keyset filter and replays
       // an earlier page, so already-seen rows end the walk instead of repeating.
       const fresh = page.messages.filter((m) => !seen.has(m.id));
@@ -603,6 +630,7 @@ export class CloudMessagePersistence {
   reset() {
     this.idMapping = new Map();
     this.failedAppends = new Map();
+    this.threadRuns = new Map();
     this.pendingWrites = new Map();
     this.waiters = new Map();
     for (const run of this.runs.values())

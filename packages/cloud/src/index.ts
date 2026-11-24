@@ -2,12 +2,14 @@ export type {
   CloudMessage,
   CloudMessageRun,
   CloudRunLease,
+  CloudThreadRun,
   AssistantCloudThreadMessageFeedbackBody,
   AssistantCloudThreadMessageFeedbackResponse,
 } from "./AssistantCloudThreadMessages";
 export type {
   AssistantCloudThreadRuns,
   AssistantCloudRunHeartbeatResponse,
+  AssistantCloudThreadRunOpenBody,
   CloudRunEndReason,
 } from "./AssistantCloudThreadRuns";
 export type {
