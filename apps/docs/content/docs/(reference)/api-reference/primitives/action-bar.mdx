@@ -125,26 +125,20 @@ const AssistantMessageBar = () => (
 
 ### Resume
 
-{ActionBarPrimitiveDocs.Resume?.deprecated && (
-  <Callout type="warn">
-    <strong>Deprecated.</strong> {ActionBarPrimitiveDocs.Resume.deprecated}
-  </Callout>
-)}
+<Callout type="warn">
+  <strong>Deprecated.</strong> Use `ThreadPrimitive.Resume`. A run that stops before it
+stores a reply now leaves the thread ending with the user's message, which
+the thread resumes without a branch; a reply that stored content before
+its run stopped is an ordinary error, answered again with Regenerate. This
+button stays enabled only for an empty stale reply that an earlier client
+stored, and answers it in place.
+</Callout>
 
 {ActionBarPrimitiveDocs.Resume?.description}
 
 {ActionBarPrimitiveDocs.Resume?.element && (
   <p>This primitive renders a <code>{`<${ActionBarPrimitiveDocs.Resume?.element}>`}</code> element unless <code>asChild</code> is set.</p>
 )}
-
-```tsx
-<MessagePrimitive.Error>
-  <ErrorPrimitive.Root>
-    <ErrorPrimitive.Message />
-    <ActionBarPrimitive.Resume>Resume</ActionBarPrimitive.Resume>
-  </ErrorPrimitive.Root>
-</MessagePrimitive.Error>
-```
 
 <ParametersTable {...ActionBarPrimitiveResumeProps} />
 

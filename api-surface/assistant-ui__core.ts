@@ -5604,6 +5604,8 @@ declare namespace ThreadPrimitiveUnstable_MessageById {
 
 declare const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props>;
 
+type ThreadReplyScope = object;
+
 type ThreadReplyState = "in-progress" | "interrupted";
 
 type ThreadRow = {
@@ -6961,11 +6963,11 @@ declare namespace entry_internal_exports {
 }
 
 declare namespace entry_react_internal_exports {
-  export { useLatestRef };
+  export { useLatestRef, useThreadResume };
 }
 
 declare namespace entry_store_internal_exports {
-  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarRefreshRunDisabled, actionBarReloadDisabled, actionBarResumeDisabled, actionBarSpeakDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerResumeDisabled, composerSendDisabled, isDevelopment, messageErrorText, suggestionSendMode, suggestionTriggerDisabled, threadListItemUnarchiveDisabled, threadListLoadMoreDisabled, useThreadSelectionEvents };
+  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarRefreshRunDisabled, actionBarReloadDisabled, actionBarResumeDisabled, actionBarSpeakDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerResumeDisabled, composerSendDisabled, isDevelopment, messageErrorText, setThreadReplyState, suggestionSendMode, suggestionTriggerDisabled, threadListItemUnarchiveDisabled, threadListLoadMoreDisabled, threadReplyScopeOf, threadResumeDisabled, useThreadSelectionEvents };
 }
 
 declare function invokeUserCallback<TArgs extends readonly unknown[]>(tag: string, name: string, callback: ((...args: TArgs) => unknown) | undefined, ...args: TArgs): void | Promise<void>;
@@ -7054,6 +7056,8 @@ declare const runtimeAdapterTransformScopes: (scopes: ScopesConfig, parent: Assi
 
 declare const scanPendingToolCalls: <TMessage, TToolCall>(messages: readonly TMessage[], getMessage: (message: TMessage) => PendingToolCallMessage<TToolCall>, getToolCallId: (toolCall: TToolCall) => string) => TToolCall[];
 
+declare const setThreadReplyState: (scope: ThreadReplyScope, threadItemId: string, state: ThreadReplyState | undefined) => void;
+
 declare const shallowArrayEqual: (a: readonly unknown[], b: readonly unknown[]) => boolean;
 
 declare const shouldContinue: (result: ThreadAssistantMessage, humanToolNames: string[] | undefined) => boolean;
@@ -7100,6 +7104,10 @@ declare const symbolInnerMessage: unique symbol;
 declare const threadListItemUnarchiveDisabled: (s: AssistantState) => boolean;
 
 declare const threadListLoadMoreDisabled: (s: AssistantState) => boolean;
+
+declare const threadReplyScopeOf: (aui: AssistantClient) => ThreadReplyScope;
+
+declare const threadResumeDisabled: (s: AssistantState) => boolean;
 
 declare const toAssistantError: (error: unknown) => AssistantError;
 
@@ -7392,6 +7400,11 @@ declare const useThreadMessageIds: () => readonly string[];
 declare const useThreadMessages: () => readonly MessageState[];
 
 declare const useThreadReplyState: () => ThreadReplyState | undefined;
+
+declare const useThreadResume: () => {
+  resume: () => void;
+  disabled: boolean;
+};
 
 declare const useThreadSelectionEvents: (mainThreadId: string) => void;
 
