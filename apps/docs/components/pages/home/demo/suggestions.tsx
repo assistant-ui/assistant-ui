@@ -25,24 +25,30 @@ const SUGGESTIONS = [
     prompt:
       "I don't get the Monty Hall problem. Explain why switching doors is better, and let me play some rounds myself so I can see how staying and switching compare.",
   },
-  { label: "Weather in Tokyo", prompt: "What's the weather in Tokyo?" },
   {
-    label: "Switch to dark mode",
-    prompt: "Switch this page to dark mode.",
+    label: "Weather in Tokyo",
+    prompt:
+      "Show the weather in Tokyo, with the current conditions and the forecast.",
   },
   {
     label: "Diagram a streaming chat app",
     prompt:
-      "Draw the request flow of a streaming chat app as a mermaid sequence diagram, then explain it briefly.",
+      "Draw the request flow of a streaming chat app as a sequence diagram, from the browser to the model and back.",
   },
   {
-    label: "Add a thread list",
-    prompt: "How do I add a thread list to an assistant-ui app?",
-  },
-  {
-    label: "Remember my stack",
+    label: "Compare three laptops",
     prompt:
-      "Remember that I build with Next.js and prefer TypeScript examples.",
+      "I'm choosing a laptop for a computer science degree with a budget of about $1,500. Compare the MacBook Air, the Dell XPS 14, and the ThinkPad X1 Carbon on performance, battery life, weight, ports, and Linux support in a table, and say which you would pick.",
+  },
+  {
+    label: "Split a dinner bill",
+    prompt:
+      "Four of us had dinner and the bill came to $186.40 before tip. One person had a $14 salad and wants to pay for that plus tip. Split the rest evenly, and let me change the tip between 15% and 25% to see what each person owes.",
+  },
+  {
+    label: "Fix a flat tire",
+    prompt:
+      "My bike's rear tire is flat. Show the repair as numbered steps, each with a short title and what to watch for: taking the rear wheel off, patching the tube, and putting the wheel back on. I have tire levers, a patch kit, and a floor pump.",
   },
 ];
 
