@@ -6,6 +6,11 @@ import type {
   AssistantCloudThreadHistoryAdapter,
   CloudRunWriter,
 } from "./AssistantCloudThreadHistoryAdapter";
+import {
+  setThreadReplyState,
+  threadReplyScopeOf,
+  type ThreadReplyState,
+} from "../../../store/thread-reply-state";
 
 const CHECKPOINT_INTERVAL_MS = 20_000;
 const POLL_MIN_MS = 2_000;
@@ -78,6 +83,10 @@ const findMessage = (
  * ends the lease. A lease the persistence lost (ended elsewhere or refused)
  * gets no more checkpoints.
  *
+ * A thread whose last message is the user's reads `in-progress` while a
+ * fresh thread lease answers it, and `interrupted` once none does
+ * (`useThreadReplyState`).
+ *
  * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
  * thread message maps to exactly one format-native message; their runtime
  * shows the loaded run state and re-reads the thread on refresh.
@@ -142,6 +151,73 @@ export const useCloudRunLeases = (
       };
     };
 
+    let replyTimer: ReturnType<typeof setTimeout> | undefined;
+    const threadItemId = aui.threadListItem.source
+      ? aui.threadListItem.getState().id
+      : undefined;
+    const replyScope = threadReplyScopeOf(aui);
+
+    // Re-reads a thread another session is answering until its reply shows or its run goes quiet.
+    const watchThreadRun = (
+      head: ThreadMessage,
+      key: string,
+      staleInMs: number,
+    ) => {
+      if (poll) return;
+      const delay = Math.min(
+        POLL_MAX_MS,
+        Math.max(POLL_MIN_MS, staleInMs + POLL_STALE_MARGIN_MS),
+      );
+      poll = {
+        messageId: head.id,
+        timer: setTimeout(() => {
+          void (async () => {
+            // A short read first: the whole thread is read again only once the run stored its reply or stopped.
+            await adapter.readRunState(head.id).catch(() => undefined);
+            if (disposed) return;
+            if (!adapter.replyRunPending(head, key))
+              await refresh().catch(() => undefined);
+            poll = undefined;
+            if (!disposed) check();
+          })();
+        }, delay),
+      };
+    };
+
+    // The run answering the last message, when no reply on the branch shows it.
+    const updateReplyState = (
+      writer: CloudRunWriter | undefined,
+      branch: readonly ThreadMessage[],
+    ) => {
+      if (threadItemId === undefined) return;
+      if (replyTimer !== undefined) {
+        clearTimeout(replyTimer);
+        replyTimer = undefined;
+      }
+      let state: ThreadReplyState | undefined;
+      const head = branch.at(-1);
+      const thread = getOwnThread(aui)?.getState();
+      if (
+        writer &&
+        head?.role === "user" &&
+        thread &&
+        !thread.isRunning &&
+        !thread.isLoading
+      ) {
+        const key = writer.keyOf(head);
+        const run = adapter.replyRunOf(head, key);
+        if (run?.status === "in-progress") {
+          state = "in-progress";
+          watchThreadRun(head, key ?? head.id, run.staleInMs);
+          // Turns interrupted the moment the run would cross staleAfter, even between polls.
+          replyTimer = setTimeout(check, run.staleInMs + POLL_STALE_MARGIN_MS);
+        } else if (run !== undefined) {
+          state = "interrupted";
+        }
+      }
+      setThreadReplyState(replyScope, threadItemId, state);
+    };
+
     const write = (run: TrackedRun, message: ThreadMessage) =>
       run.stored
         .then(() => run.writer.write(message, run.parent))
@@ -172,10 +248,11 @@ export const useCloudRunLeases = (
         (message) => getMessageRunState(message) === "in-progress",
       );
       if (remoteRun) watchRemoteRun(remoteRun);
-      else if (poll) {
+      else if (poll && poll.messageId !== head?.id) {
         clearTimeout(poll.timer);
         poll = undefined;
       }
+      updateReplyState(writer, branch);
       const parent = branch.at(-2);
       if (tracked && tracked.messageId !== head?.id) {
         const from = tracked.messageId;
@@ -242,14 +319,17 @@ export const useCloudRunLeases = (
       clearInterval(checkpoint);
       return;
     }
-    const threadItemId = aui.threadListItem.getState().id;
-    refreshers.set(threadItemId, refresh);
+    if (threadItemId !== undefined) refreshers.set(threadItemId, refresh);
     const unsubscribe = thread.subscribe(check);
     check();
     return () => {
       disposed = true;
-      if (refreshers.get(threadItemId) === refresh)
-        refreshers.delete(threadItemId);
+      if (threadItemId !== undefined) {
+        if (refreshers.get(threadItemId) === refresh)
+          refreshers.delete(threadItemId);
+        setThreadReplyState(replyScope, threadItemId, undefined);
+      }
+      if (replyTimer !== undefined) clearTimeout(replyTimer);
       if (poll) clearTimeout(poll.timer);
       unsubscribe();
       clearInterval(checkpoint);
