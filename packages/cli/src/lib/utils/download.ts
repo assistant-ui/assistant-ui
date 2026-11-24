@@ -1,10 +1,16 @@
 import { downloadTemplate } from "giget";
 
-function resolveDownloadTimeoutMs(): number {
-  const override = process.env.ASSISTANT_UI_DOWNLOAD_TIMEOUT;
+// setTimeout clamps larger delays to 1 ms.
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
+export function resolveDownloadTimeoutMs(
+  override = process.env.ASSISTANT_UI_DOWNLOAD_TIMEOUT,
+): number {
   if (override) {
     const parsed = Number(override);
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= MAX_TIMER_DELAY_MS) {
+      return parsed;
+    }
   }
   return 120_000;
 }
