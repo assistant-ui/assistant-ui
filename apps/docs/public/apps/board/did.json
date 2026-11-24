@@ -1,0 +1,24 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/multikey/v1"
+  ],
+  "id": "did:web:assistant-ui.com:apps:board",
+  "verificationMethod": [
+    {
+      "id": "did:web:assistant-ui.com:apps:board#key-1",
+      "type": "Multikey",
+      "controller": "did:web:assistant-ui.com:apps:board",
+      "publicKeyMultibase": "z6Mkjmc2fjhYjtYfbBtVnqGbtcTAhAoofWNB8AbG9x5H5z3e"
+    }
+  ],
+  "authentication": ["did:web:assistant-ui.com:apps:board#key-1"],
+  "assertionMethod": ["did:web:assistant-ui.com:apps:board#key-1"],
+  "service": [
+    {
+      "id": "did:web:assistant-ui.com:apps:board#updates",
+      "type": "AppOSUpdates",
+      "serviceEndpoint": "https://appos.assistant-ui.workers.dev/apps/board/did-web/updates.json"
+    }
+  ]
+}

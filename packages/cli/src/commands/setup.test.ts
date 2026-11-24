@@ -10,7 +10,13 @@ import {
   setupSessionMarkerPath,
   shouldGateAgent,
 } from "../lib/agent-gate";
-import { agentOptions, gateNote, handOffPrompt, setup } from "./setup";
+import {
+  agentHeader,
+  agentOptions,
+  gateNote,
+  handOffPrompt,
+  setup,
+} from "./setup";
 
 vi.mock("../lib/setup-session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/setup-session")>()),
@@ -110,10 +116,30 @@ describe("setup", () => {
     ]);
   });
 
+  it("names both ways to go and a clean stop", () => {
+    const header = agentHeader({
+      pid: 42,
+      agentUrl: "https://c.test/abc",
+      pageUrl: "https://setup.test/#link=abc",
+      noBrowser: "ssh",
+      unattended: false,
+    });
+    expect(header).toContain(
+      "give them https://setup.test/#link=abc to open on any device (setup opens no browser here: ssh)",
+    );
+    expect(header).toContain(
+      "run `npx assistant-ui@latest setup --unattended`",
+    );
+    expect(header).toContain(
+      "`npx assistant-ui@latest setup https://c.test/abc cancel`, then `kill 42`",
+    );
+  });
+
   it("offers products and a no-open flag", () => {
     expect(setup.options.map((option) => option.long)).toEqual([
       "--products",
       "--no-open",
+      "--unattended",
       "--docs-url",
       "--setup-server",
       "--setup-app-url",
@@ -140,6 +166,8 @@ describe("setup", () => {
       const printed = String(write.mock.calls[0]?.[0]);
       expect(printed).toContain("https://setup.test/#link=abc&setup=def");
       expect(printed).toContain(gateNote(true));
+      expect(printed).toMatch(/^This is the assistant-ui CLI/);
+      expect(printed).toContain(`kill ${process.pid}`);
       expect(gateNote(true)).not.toContain("--force");
       // `init`, `create` and `add` run in the agent's later shells, which share the temp directory.
       const marker = setupSessionMarkerPath(process.cwd(), "def", tmp);

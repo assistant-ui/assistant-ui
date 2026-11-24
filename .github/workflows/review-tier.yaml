@@ -38,6 +38,19 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ (github.event_name == 'workflow_run' && format('relay-{0}-{1}', github.event.workflow_run.head_repository.full_name, github.event.workflow_run.head_branch)) || github.event.merge_group.head_sha || github.run_id }}
       cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
+    # Once the policy app key moves into this environment and its branch policy
+    # admits main and its merge queue refs only, a workflow on another branch
+    # cannot read it. workflow_run runs on the default branch whatever the pull
+    # request's base or head, so every relayed pull request event and every
+    # relayed fork review is admitted.
+    # merge_group runs the workflow file from the queued commit, so a queued
+    # change to this job can read the key; the approvals a pull request needs
+    # before it enters the queue are the control on that path.
+    # deployment: false uses the environment's secrets and branch policy
+    # without recording a deployment on every run.
+    environment:
+      name: review-policy
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

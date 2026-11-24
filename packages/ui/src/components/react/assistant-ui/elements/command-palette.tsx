@@ -12,6 +12,8 @@ export interface PaletteCommand {
   keys: readonly string[];
 }
 
+const optionId = (listId: string, id: string) => `${listId}-${id}`;
+
 export function CommandPalette({
   commands,
   query,
@@ -39,7 +41,6 @@ export function CommandPalette({
   onRun?: (id: string) => void;
 }) {
   const listId = useId();
-  const optionId = (id: string) => `${listId}-${id}`;
   const matches = commands.filter((command) =>
     command.label.toLowerCase().includes(query.toLowerCase()),
   );
@@ -62,7 +63,7 @@ export function CommandPalette({
   // focus scrolls; the list is short enough to walk the active row out of view.
   useEffect(() => {
     document
-      .getElementById(optionId(activeId))
+      .getElementById(optionId(listId, activeId))
       ?.scrollIntoView({ block: "nearest" });
   }, [activeId, listId]);
 
@@ -107,7 +108,7 @@ export function CommandPalette({
           aria-autocomplete="list"
           aria-activedescendant={
             ordered.some((command) => command.id === activeId)
-              ? optionId(activeId)
+              ? optionId(listId, activeId)
               : undefined
           }
           className="text-foreground/85 placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-[13.5px] outline-none"
@@ -178,7 +179,7 @@ export function CommandPalette({
                 return onRun ? (
                   <button
                     key={command.id}
-                    id={optionId(command.id)}
+                    id={optionId(listId, command.id)}
                     type="button"
                     role="option"
                     tabIndex={-1}
@@ -192,7 +193,7 @@ export function CommandPalette({
                 ) : (
                   <div
                     key={command.id}
-                    id={optionId(command.id)}
+                    id={optionId(listId, command.id)}
                     role="option"
                     aria-selected={command.id === activeId}
                     className={className}

@@ -7,7 +7,7 @@ import {
 } from "@/components/assistant-ui/elements/attachment.aui";
 import { File, getFileHref } from "@/components/assistant-ui/elements/file";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
-import { Image } from "@/components/assistant-ui/elements/image";
+import { Image as MessageImage } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
@@ -771,7 +771,7 @@ const AssistantMessage: FC = () => {
               case "image":
                 return (
                   <div data-slot="aui_assistant-message-image" className="py-1">
-                    <Image {...part} />
+                    <MessageImage {...part} />
                   </div>
                 );
               case "indicator":
@@ -881,7 +881,7 @@ const MessageFile: FileMessagePartComponent = (part) => {
       : null;
   if (!image) return <File {...part} />;
   return (
-    <Image
+    <MessageImage
       type="image"
       image={image}
       status={part.status}
@@ -898,7 +898,7 @@ const UserFilePart: FileMessagePartComponent = (part) => (
 
 const UserImagePart: ImageMessagePartComponent = (part) => (
   <div data-slot="aui_user-message-image" className="py-1">
-    <Image {...part} />
+    <MessageImage {...part} />
   </div>
 );
 

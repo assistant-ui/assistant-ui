@@ -275,7 +275,7 @@ export function describeInitFinish(result: InitFinishResult): string[] {
     );
   }
   lines.push(
-    "TooltipProvider: not needed. assistant-ui components include their own, so skip the layout change shadcn suggests above.",
+    "TooltipProvider: shadcn's note above to wrap your layout applies only if you use its `Tooltip` directly. assistant-ui components render their own, so the assistant works without it.",
   );
   for (const repair of result.fontRepairs) {
     lines.push(

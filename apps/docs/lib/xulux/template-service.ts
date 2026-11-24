@@ -303,7 +303,7 @@ export async function createTemplatePreview(
           retryHint:
             "Check validationWarnings for the specific fields that failed. " +
             "Call read_template for this template and use configRoots schemas to correct the config. " +
-            "Pass only hostUi, assistant, and brandTheme at the top level.",
+            "Pass only the top-level roots that configRoots lists for this template.",
         };
       }
       const data = (await response.json()) as TemplatePreviewSession;

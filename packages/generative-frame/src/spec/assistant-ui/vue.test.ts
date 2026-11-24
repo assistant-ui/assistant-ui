@@ -17,13 +17,21 @@ import { createSpecToolkit } from "./vue";
 const mocks = vi.hoisted(() => ({
   messages: [] as unknown[],
   append: vi.fn(),
+  composerText: "",
+  setText: vi.fn(),
   providers: new Set<{ getModelContext(): { system?: string } }>(),
 }));
 
 vi.mock("@assistant-ui/vue", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/vue")>()),
   useAui: () => ({
-    thread: { append: mocks.append },
+    thread: {
+      append: mocks.append,
+      composer: () => ({
+        getState: () => ({ text: mocks.composerText }),
+        setText: mocks.setText,
+      }),
+    },
     modelContext: {
       register: (provider: { getModelContext(): { system?: string } }) => {
         mocks.providers.add(provider);
@@ -43,6 +51,8 @@ afterEach(() => {
   document.body.replaceChildren();
   mocks.messages = [];
   mocks.providers.clear();
+  mocks.composerText = "";
+  mocks.setText.mockReset();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -619,9 +629,10 @@ describe("createSpecToolkit for Vue", () => {
     expect(container.textContent).toBe("b");
   });
 
-  it("shares the user's choice before sendMessage starts a request, and never sends from watch", async () => {
+  it("puts sendMessage text in the composer after the user's draft, shares the choice, and never runs from watch", async () => {
     let system: string | undefined;
-    mocks.append.mockImplementation(() => {
+    mocks.composerText = "Draft";
+    mocks.setText.mockImplementation(() => {
       system = [...mocks.providers]
         .map((provider) => provider.getModelContext().system)
         .join("");
@@ -662,8 +673,10 @@ describe("createSpecToolkit for Vue", () => {
     container.querySelector("button")!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("n=1"));
     await nextTick();
-    expect(mocks.append).toHaveBeenCalledExactlyOnceWith("Tell me more");
+    expect(mocks.setText).toHaveBeenCalledExactlyOnceWith("Draft Tell me more");
+    expect(mocks.append).not.toHaveBeenCalled();
     expect(system).toContain('<ui_choices>{"text":"A"}</ui_choices>');
+    mocks.composerText = "";
   });
 
   it("fails a watch-triggered send before later actions run", async () => {
@@ -712,6 +725,7 @@ describe("createSpecToolkit for Vue", () => {
     container.querySelector("button")!.click();
     await vi.advanceTimersByTimeAsync(500);
     expect(mocks.append).not.toHaveBeenCalled();
+    expect(mocks.setText).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledExactlyOnceWith(
       "[generative-frame]",
       expect.stringContaining("sendMessage runs only from an event"),
@@ -763,6 +777,7 @@ describe("createSpecToolkit for Vue", () => {
     container.querySelector("button")!.click();
     await vi.advanceTimersByTimeAsync(500);
     expect(mocks.append).not.toHaveBeenCalled();
+    expect(mocks.setText).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledExactlyOnceWith(
       "[generative-frame]",
       expect.stringContaining("sendMessage needs a non-empty string"),

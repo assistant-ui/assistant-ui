@@ -182,6 +182,8 @@ export namespace Checkout {
       lastSeenAt: number | null;
       /** False once the page said goodbye; heartbeats set it again. */
       connected: boolean;
+      /** When the page's current run of heartbeats began, with no gap long enough to be a sleep. Absent on hosts older than abandoned-setup ending. */
+      awakeSince?: number;
     };
     /** Every revision in order; the last one is current. */
     plans: Plan[];

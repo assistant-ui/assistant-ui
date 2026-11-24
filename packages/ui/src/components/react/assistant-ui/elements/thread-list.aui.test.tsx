@@ -541,6 +541,7 @@ describe("ThreadList rename", () => {
 
     const input = await openRename(container);
     expect(input.value).toBe("Trip planning");
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 13]);
 
     fireEvent.change(input, { target: { value: "  Trip notes  " } });
     fireEvent.keyDown(input, { key: "Enter" });

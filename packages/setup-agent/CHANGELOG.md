@@ -1,5 +1,11 @@
 # setup-agent
 
+## 0.2.2
+
+### Patch Changes
+
+- [#10791](https://github.com/assistant-ui/assistant-ui/pull/10791) [`75d755f`](https://github.com/assistant-ui/assistant-ui/commit/75d755fb31ec9b7e15fde96ea9b4057cc567fefc) - `connectCheckout` (and every `setup-agent` command) attaches to the setup over a WebSocket where the runtime has a global `WebSocket` (Node 22 and later), as the setup page already does, so the setup server's Durable Object can hibernate between messages instead of staying awake for an open SSE stream. Node 20 keeps using SSE. ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.1
 
 ### Patch Changes

@@ -109,7 +109,7 @@ The most repeated correction on this site is that there are too many lines. Add 
 - **Section boundaries are the only lines a page needs by default.** A `border-t` between sections is the base structure. Treat every other line as a candidate for deletion.
 - **Rows are separated by spacing and a hover fill** (`hover:bg-foreground/[0.025]`), not by dividers. Do not put a hairline between every row of a long list.
 - **Never nest rules three levels deep.** If a structure seems to need a rule inside a rule inside a rule, change the structure.
-- A hairline is `border-foreground/10`. Do not stack a border, a ring, and a shadow on one edge.
+- A hairline is `border-foreground/10`. The `--border` token resolves to the same ink at 10%, so a bare `border` draws the same line. Do not stack a border, a ring, and a shadow on one edge.
 - Prefer a change of density over a box. A field panel (`bg-foreground/[0.025]`, dark `/[0.04]`) groups machine content with no border at all.
 - Shadows are zeroed globally. Only a floating surface has one.
 
@@ -154,9 +154,9 @@ Use these names. Do not invent a sibling, do not extrapolate one from another pr
 
 **Layout**: `PageFrame` with `pad` of `hero`, `heroBody`, or `sub`, and `PageCopy`, both in `components/shared/page-frame.tsx`.
 
-**Motion** (`apps/docs/styles/animate.css`): `hero-word`, `hero-word-ink`, `hero-caret`, `hero-rise`, `hero-glint`, `code-cascade`, `line-hot`, `stage-progress`, `search-reveal`, and the `nav-glyph-*` keyframes selected by `[data-glyph-motion]`. Motion explains a state change, preserves continuity, or confirms an action. It never gates reading. Every one of these is disabled under `prefers-reduced-motion`, and any new keyframe must be too.
+**Motion** (`apps/docs/styles/animate.css`): the `hero-word`, `hero-word-ink`, `hero-caret`, `hero-rise`, and `hero-glint` classes, the `code-cascade` lines and `line-hot`, the `stage-progress` keyframes, `[data-search-reveal]`, the `[data-gf-streaming]` reveal, and the `nav-glyph-*` keyframes selected by `[data-glyph-motion]`. Blue in any of them is `var(--color-blue-500)`, never a hex value. Motion explains a state change, preserves continuity, or confirms an action. It never gates reading. Every one of these is disabled under `prefers-reduced-motion`, and any new keyframe must be too.
 
-**Components**: `packages/ui/src/components/react/ui/{base,radix}`, shipped as identical twins. Base is the standard and the radix twin mirrors it markup for markup. A new component lands in both or it does not land. Chat surfaces build on the assistant-ui primitives, not on a parallel widget.
+**Components**: `packages/ui/src/components/react/ui/{base,radix}`. Base is the standard. A primitive that imports no Base UI or Radix module lives once in `base/` and the registry serves that file to both flavors; one that does gets a `radix/` twin that mirrors it markup for markup. A new component lands on both flavors or it does not land. Chat surfaces build on the assistant-ui primitives, not on a parallel widget.
 
 ## Traps
 

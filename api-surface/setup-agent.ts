@@ -2,6 +2,8 @@ import "react";
 
 import { StatewireClient } from "statewire";
 
+declare const AGENT_ABANDON_MS: number;
+
 declare const AGENT_HEARTBEAT_MS = 5000;
 
 declare const AGENT_PRESENCE_MS = 15000;
@@ -125,6 +127,7 @@ declare namespace Checkout {
     browser?: {
       lastSeenAt: number | null;
       connected: boolean;
+      awakeSince?: number;
     };
     plans: Plan[];
     steps: Step[];
@@ -285,6 +288,7 @@ declare const GUIDE_TEXT_KEYS: readonly [
   "stream.ask.recently-opened",
   "stream.ask.browser-closed",
   "stream.ask.no-browser",
+  "stream.unattended",
   "wait.waiting",
   "done.next",
   "need.plan.question",
@@ -317,6 +321,7 @@ type Guide = {
 type GuideContext = {
   started: "agent" | "agent-stream" | "user";
   opened: boolean;
+  unattended?: boolean;
 };
 
 type GuideStep = {
@@ -428,6 +433,7 @@ type RunAgentSetupOptions = {
   command: string;
   name?: string;
   canOpen?: boolean;
+  unattended?: boolean;
   open?: (url: string) => void;
   onSession?: (session: SetupSession) => void;
   write?: (text: string) => void;
@@ -512,7 +518,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { CODING_AGENTS, CodingAgent, HELP, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { CODING_AGENTS, CodingAgent, HELP, RunSetupCommandOptions, askSeed, detectAgentKind, diffEvents, findCommand, isDirectInvocation, main, noBrowserReason, parseSetupUrl, runCodingAgent, runSetupCommand, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -530,7 +536,7 @@ declare const finishProposed: (state: Checkout.State) => boolean;
 declare const followedUpSinceProposal: (state: Checkout.State) => boolean;
 
 declare namespace entry_host_exports {
-  export { Checkout, CheckoutHost };
+  export { AGENT_ABANDON_MS, Checkout, CheckoutHost };
 }
 
 declare namespace entry_root_exports {
@@ -560,6 +566,8 @@ declare const isValidEntryPointInput: (input: Checkout.InputSeed) => boolean;
 declare const isValidModelAnswer: (input: Checkout.Input, answer: string) => boolean;
 
 declare const main: (argv: readonly string[]) => Promise<void>;
+
+declare const noBrowserReason: (env?: NodeJS.ProcessEnv, platform?: NodeJS.Platform) => "ci" | "no-display" | "ssh" | undefined;
 
 declare const openInputs: (state: Checkout.State) => Checkout.Input[];
 

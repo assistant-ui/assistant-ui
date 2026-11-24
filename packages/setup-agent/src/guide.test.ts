@@ -65,6 +65,18 @@ describe("parseGuide", () => {
   });
 });
 
+describe("parseGuide from an older server", () => {
+  it("reads a text added within the protocol as empty when the server leaves it out", () => {
+    const { "stream.unattended": _, ...texts } = testGuide.texts;
+    const guide = parseGuide({ ...testGuide, texts });
+    expect(guide.texts["stream.unattended"]).toBe("");
+    const { "wait.waiting": __, ...missing } = testGuide.texts;
+    expect(() => parseGuide({ ...testGuide, texts: missing })).toThrow(
+      'the guide has no "wait.waiting"',
+    );
+  });
+});
+
 describe("loadGuide", () => {
   it("asks the setup URL for its protocol and refuses redirects", async () => {
     const fetch = serve(() => Response.json(testGuide));
@@ -72,6 +84,19 @@ describe("loadGuide", () => {
     expect(fetch).toHaveBeenCalledWith(
       `${URL}/guide?protocol=1&started=user&opened=1`,
       expect.objectContaining({ redirect: "error" }),
+    );
+  });
+
+  it("asks for the unattended wording only when nobody answers", async () => {
+    const fetch = serve(() => Response.json(testGuide));
+    await loadGuide(URL, {
+      started: "agent-stream",
+      opened: false,
+      unattended: true,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      `${URL}/guide?protocol=1&started=agent-stream&opened=0&unattended=1`,
+      expect.anything(),
     );
   });
 
@@ -223,6 +248,12 @@ describe("setup-agent <url>", () => {
   });
 
   it("asks for the no-browser wording unless the stream can open the setup page", async () => {
+    for (const name of ["SSH_CONNECTION", "SSH_TTY", "CI", "BROWSER"])
+      vi.stubEnv(name, "");
+    vi.stubEnv("DISPLAY", ":0");
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
     const { runSetupCommand } = await import("./cli");
     const cases: [string[], Parameters<typeof runSetupCommand>[1], string][] = [
       [[], {}, "0"],

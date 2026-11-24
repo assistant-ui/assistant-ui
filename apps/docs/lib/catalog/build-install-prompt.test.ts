@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CATALOG_ITEMS, resolveProducts } from "./index";
-import { buildInstallPrompt } from "./build-install-prompt";
+import { AGENT_GATE_RULE, buildInstallPrompt } from "./build-install-prompt";
 
 describe("buildInstallPrompt", () => {
   it("explores named products and prerequisites without the retired product or app-setting prompts", () => {
@@ -25,8 +25,29 @@ describe("buildInstallPrompt", () => {
       "Not in a setup yet? Run `npx assistant-ui@latest setup --products assistant-ui,cloud`",
     );
     expect(prompt).toContain(
+      "With nobody to answer (CI, a background job, an evaluation run), add `--unattended`.",
+    );
+    expect(prompt).toContain(
       "If `setup` isn't a known command (a cached or pnpm release-age-gated version), run `npx -y --prefer-online assistant-ui@latest setup --products assistant-ui,cloud` instead.",
     );
+  });
+
+  it("states what the agent gate allows before any init, create or add command, for every product", () => {
+    for (const item of CATALOG_ITEMS) {
+      const prompt = buildInstallPrompt([item]);
+      const commands = [
+        ...prompt.matchAll(
+          /npx assistant-ui@latest (?:init|create|add)\b[^`]*/g,
+        ),
+      ];
+      if (commands.length === 0) continue;
+      expect(prompt.indexOf(AGENT_GATE_RULE)).toBeGreaterThan(-1);
+      for (const command of commands) {
+        expect(command.index).toBeGreaterThan(prompt.indexOf(AGENT_GATE_RULE));
+        // --force stays the rule's deliberate escape hatch, never a step's default.
+        expect(command[0]).not.toContain("--force");
+      }
+    }
   });
 
   it("mounts the Expo thread at the selected entry point instead of a web root component", () => {

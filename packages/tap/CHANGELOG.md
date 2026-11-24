@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.27
+
+### Patch Changes
+
+- [#10742](https://github.com/assistant-ui/assistant-ui/pull/10742) [`74199f8`](https://github.com/assistant-ui/assistant-ui/commit/74199f892e29cc9377eb13b515de64a0ccadaf08) - Development warnings and tap checks now work in browser builds where the bundler replaces `process.env.NODE_ENV` without defining a `process` global. ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.9.26
 
 ### Patch Changes
