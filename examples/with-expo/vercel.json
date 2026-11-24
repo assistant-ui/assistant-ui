@@ -14,5 +14,10 @@
       "destination": "/showcase/:slug.html"
     }
   ],
-  "framework": null
+  "framework": null,
+  "build": {
+    "env": {
+      "pnpm_config_verify_deps_before_run": "false"
+    }
+  }
 }
