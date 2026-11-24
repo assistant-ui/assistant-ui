@@ -24,7 +24,8 @@ export namespace ActionBarPrimitiveResume {
  * the thread resumes without a branch; a reply that stored content before
  * its run stopped is an ordinary error, answered again with Regenerate. This
  * button stays enabled only for an empty stale reply that an earlier client
- * stored, and answers it in place.
+ * stored, and answers it in place; a runtime that cannot delete messages
+ * starts a new branch.
  */
 export const ActionBarPrimitiveResume = createActionButton(
   "ActionBarPrimitive.Resume",

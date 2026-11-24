@@ -112,9 +112,14 @@ describe("Thread run states", () => {
       within(box).getByRole<HTMLButtonElement>("button", { name: "Refresh" })
         .disabled,
     ).toBe(true);
+    const actionBar = document.querySelector<HTMLElement>(
+      ".aui-assistant-action-bar-root",
+    )!;
     expect(
-      document.querySelector(".aui-assistant-action-bar-root"),
-    ).not.toBeNull();
+      within(actionBar).getByRole<HTMLButtonElement>("button", {
+        name: "Refresh",
+      }).disabled,
+    ).toBe(false);
   });
 
   it("resumes an empty stale assistant reply in place", async () => {

@@ -9,7 +9,7 @@ import { reportRunFailure } from "../../utils/report-run-failure";
  * the thread resumes; a reply that stored content before its run stopped is
  * an ordinary error, answered again with Regenerate. This hook stays enabled
  * only for an empty stale reply that an earlier client stored, and answers it
- * in place.
+ * in place; a runtime that cannot delete messages starts a new branch.
  */
 export const useActionBarResume = () => {
   const aui = useAui();
