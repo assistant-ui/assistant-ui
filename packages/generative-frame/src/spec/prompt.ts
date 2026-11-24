@@ -135,7 +135,7 @@ const actionSection = (
     '- `setState` — params `{ path: string; value?: unknown }`. Writes `value` at the JSON Pointer `path` in state. Built in. Append with `{ "action": "setState", "params": { "path": "/items/-", "value": … } }`; inside `repeat`, remove with `{ "action": "setState", "params": { "path": "/items", "value": { "$calc": "without(${/items}, ${$index})" } } }`.',
     ...(hostApi.prompt
       ? [
-          "- `sendMessage` — params `{ text: string }`. Sends `text` as the user's next message, as if they typed it. Use it behind a button for a follow-up the user asks for. Built in.",
+          "- `sendMessage` — params `{ text: string }`. Offers `text` as the user's next message, which the host may put in the composer for the user to review and send. Use it behind a button for a follow-up the user asks for. Built in.",
         ]
       : []),
     ...(hostApi.clipboard

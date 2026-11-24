@@ -1,5 +1,15 @@
 # @assistant-ui/store
 
+## 0.3.25
+
+### Patch Changes
+
+- [#10766](https://github.com/assistant-ui/assistant-ui/pull/10766) [`ca7c132`](https://github.com/assistant-ui/assistant-ui/commit/ca7c132a2e734d3ceeeca3b164f693aabebebb51) - Preserve a reader's upward scroll when a thread viewport footer shrinks. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10696](https://github.com/assistant-ui/assistant-ui/pull/10696) [`c21c46d`](https://github.com/assistant-ui/assistant-ui/commit/c21c46d0cdef039ec1377eefa3f01507df22453c) - Recheck viewport position when the content inset changes. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#10775](https://github.com/assistant-ui/assistant-ui/pull/10775) [`e1efac0`](https://github.com/assistant-ui/assistant-ui/commit/e1efac0c22e9799f3d0e0422dc6abdbe8c1c5c09) - feat: warn once in development when the deprecated `useAui({ ... })` overload is called, pointing to `AuiConfig` with `<AssistantRuntimeProvider config>` or `<AuiProvider extends config>`; the overload's JSDoc example now shows the replacement ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.24
 
 ### Patch Changes

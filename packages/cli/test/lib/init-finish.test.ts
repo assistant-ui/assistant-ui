@@ -95,8 +95,12 @@ describe("finishExistingProjectInit", () => {
       `${appDir}/page.tsx now renders <Assistant />. Run the dev server and open /.`,
     );
     expect(lines.join("\n")).toMatch(
-      /TooltipProvider: not needed[\s\S]*`cn` dependency/,
+      /TooltipProvider: shadcn's note above to wrap your layout applies only if you use its `Tooltip` directly\.[\s\S]*`cn` dependency/,
     );
+    const tooltipLine = lines.find((line) =>
+      line.startsWith("TooltipProvider:"),
+    );
+    expect(tooltipLine).not.toMatch(/skip|not needed/i);
   });
 
   it("keeps an edited page and says where to render the assistant", () => {

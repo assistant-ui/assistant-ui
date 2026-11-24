@@ -1,5 +1,11 @@
 # @assistant-ui/docs-theme
 
+## 0.0.6
+
+### Patch Changes
+
+- [#10789](https://github.com/assistant-ui/assistant-ui/pull/10789) [`dc9cad2`](https://github.com/assistant-ui/assistant-ui/commit/dc9cad2b4b10c80478a2c28b9ee3e3484d158ec1) - Pin the Farming Labs Docs and Theme peers back to 0.2.141, because 0.2.148's code highlighter cannot be bundled by Turbopack. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.5
 
 ### Patch Changes

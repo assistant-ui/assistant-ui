@@ -11,6 +11,7 @@ const PLACEHOLDERS: Partial<Record<GuideTextKey, string[]>> = {
   "stream.ask.recently-opened": ["agoSeconds", "wait", "question"],
   "stream.ask.browser-closed": ["question"],
   "stream.ask.no-browser": ["page", "question"],
+  "stream.unattended": ["minutes"],
   "need.finish.question-preview": ["preview"],
   "need.product.add": ["product"],
 };

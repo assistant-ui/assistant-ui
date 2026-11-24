@@ -2,6 +2,8 @@ import "react";
 
 import { StatewireClient } from "statewire";
 
+declare const AGENT_ABANDON_MS: number;
+
 declare const AGENT_HEARTBEAT_MS = 5000;
 
 declare const AGENT_PRESENCE_MS = 15000;
@@ -125,6 +127,7 @@ declare namespace Checkout {
     browser?: {
       lastSeenAt: number | null;
       connected: boolean;
+      awakeSince?: number;
     };
     plans: Plan[];
     steps: Step[];
@@ -285,6 +288,7 @@ declare const GUIDE_TEXT_KEYS: readonly [
   "stream.ask.recently-opened",
   "stream.ask.browser-closed",
   "stream.ask.no-browser",
+  "stream.unattended",
   "wait.waiting",
   "done.next",
   "need.plan.question",
@@ -317,6 +321,7 @@ type Guide = {
 type GuideContext = {
   started: "agent" | "agent-stream" | "user";
   opened: boolean;
+  unattended?: boolean;
 };
 
 type GuideStep = {
@@ -530,7 +535,7 @@ declare const finishProposed: (state: Checkout.State) => boolean;
 declare const followedUpSinceProposal: (state: Checkout.State) => boolean;
 
 declare namespace entry_host_exports {
-  export { Checkout, CheckoutHost };
+  export { AGENT_ABANDON_MS, Checkout, CheckoutHost };
 }
 
 declare namespace entry_root_exports {

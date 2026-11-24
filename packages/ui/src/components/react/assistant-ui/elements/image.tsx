@@ -271,30 +271,34 @@ function ImagePreview({
           <ImageOffIcon className="text-muted-foreground size-8" />
         </div>
       ) : (
-        <img
-          ref={imgRef}
-          src={src}
-          alt={alt}
-          className={cn(
-            fixedRatio
-              ? cn("block h-full w-full", {
-                  "object-cover": fit === "cover",
-                  "object-contain": fit === "contain",
-                })
-              : "block h-auto w-full object-contain",
-            !loaded && "invisible",
-            className,
-          )}
-          onLoad={(e) => {
-            if (typeof src === "string") setLoadedSrc(src);
-            onLoad?.(e);
-          }}
-          onError={(e) => {
-            if (typeof src === "string") setErrorSrc(src);
-            onError?.(e);
-          }}
-          {...props}
-        />
+        // A picture wrapper marks a deliberate native img for the Next.js lint, because
+        // next/image needs per-host config for runtime URLs and only exists in Next.js.
+        <picture className="contents">
+          <img
+            ref={imgRef}
+            src={src}
+            alt={alt}
+            className={cn(
+              fixedRatio
+                ? cn("block h-full w-full", {
+                    "object-cover": fit === "cover",
+                    "object-contain": fit === "contain",
+                  })
+                : "block h-auto w-full object-contain",
+              !loaded && "invisible",
+              className,
+            )}
+            onLoad={(e) => {
+              if (typeof src === "string") setLoadedSrc(src);
+              onLoad?.(e);
+            }}
+            onError={(e) => {
+              if (typeof src === "string") setErrorSrc(src);
+              onError?.(e);
+            }}
+            {...props}
+          />
+        </picture>
       )}
     </div>
   );
@@ -332,13 +336,15 @@ function ImageSource({
       {...props}
     >
       {showIcon ? (
-        <img
-          data-slot="image-source-icon"
-          src={iconUrl}
-          alt=""
-          className="size-4 shrink-0 rounded-sm"
-          onError={() => setFailedIconUrl(iconUrl)}
-        />
+        <picture className="contents">
+          <img
+            data-slot="image-source-icon"
+            src={iconUrl}
+            alt=""
+            className="size-4 shrink-0 rounded-sm"
+            onError={() => setFailedIconUrl(iconUrl)}
+          />
+        </picture>
       ) : (
         <span
           data-slot="image-source-icon-fallback"
@@ -479,16 +485,18 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
             onClick={handleClose}
             aria-label="Zoomed image"
           >
-            <img
-              data-slot="image-zoom-content"
-              src={src}
-              alt={alt}
-              className="aui-image-zoom-content fade-in zoom-in-95 animate-in max-h-[90%] max-w-[90%] cursor-zoom-out object-contain duration-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClose();
-              }}
-            />
+            <picture className="contents">
+              <img
+                data-slot="image-zoom-content"
+                src={src}
+                alt={alt}
+                className="aui-image-zoom-content fade-in zoom-in-95 animate-in max-h-[90%] max-w-[90%] cursor-zoom-out object-contain duration-200"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClose();
+                }}
+              />
+            </picture>
             <button
               ref={closeRef}
               type="button"

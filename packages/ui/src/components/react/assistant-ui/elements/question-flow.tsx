@@ -60,16 +60,16 @@ export function QuestionFlow({
   const questionPrefix = useId();
   const optionListRef = useRef<HTMLDivElement>(null);
   const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
+  const forwardedRef = props.ref;
   const setReceiptRef = useCallback(
     (node: HTMLDivElement | null) => {
       receiptRef.current = node;
-      const { ref } = props;
-      if (typeof ref === "function") return ref(node);
-      if (ref && typeof ref === "object")
-        (ref as { current: HTMLDivElement | null }).current = node;
+      if (typeof forwardedRef === "function") return forwardedRef(node);
+      if (forwardedRef && typeof forwardedRef === "object")
+        (forwardedRef as { current: HTMLDivElement | null }).current = node;
       return undefined;
     },
-    [props.ref, receiptRef],
+    [forwardedRef, receiptRef],
   );
   const currentIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
   const currentStep = steps[currentIndex];

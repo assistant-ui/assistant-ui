@@ -20,6 +20,7 @@ import {
   type A2uiSurfaceState,
 } from "@assistant-ui/generative-ui/a2ui";
 import jsonpatch, { type Operation } from "fast-json-patch";
+import { IncrementalJsonObjectParser } from "assistant-stream/utils";
 import { readMcpAppResourceUri, toolContentText } from "../mcp-tool-result";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import { withAgUiPartMessageMetadata } from "./conversions";
@@ -85,6 +86,12 @@ type ToolCallState = {
   toolCallName: string;
   argsText: string;
   argsTextScanner?: JSONContainerScanner | undefined;
+  // Incremental parse of argsText while the container is still streaming, so
+  // tool UIs can render from partial arguments (#10784). Seeded only for
+  // calls the stream builds up from an empty argsText; the scanner stays the
+  // authority on validity and completion, and the close path still does one
+  // exact JSON.parse.
+  argsParser?: IncrementalJsonObjectParser | undefined;
   parsedArgs: Record<string, unknown> | undefined;
   result: unknown;
   isError: boolean | undefined;
@@ -1418,15 +1425,31 @@ export class RunAggregator {
     if (!entry) return;
     if (!entry.argsTextScanner) {
       entry.argsTextScanner = createJSONContainerScanner();
+      if (entry.argsText === "") {
+        entry.argsParser = IncrementalJsonObjectParser.from();
+      }
     }
     entry.argsText += delta;
     const shouldParse = scanJSONContainerDelta(entry.argsTextScanner, delta);
     if (!shouldParse) {
       if (entry.argsTextScanner.state === "invalid") {
         entry.parsedArgs = undefined;
+        return;
+      }
+      // The container already closed: the close path published exact args.
+      if (entry.argsTextScanner.state === "complete") return;
+      // Still streaming a well-formed container: publish the args parsed so
+      // far so tool UIs can render partial arguments instead of an empty
+      // object until the closing brace arrives (#10784).
+      if (entry.argsParser) {
+        entry.argsParser = entry.argsParser.append(delta);
+        entry.parsedArgs = entry.argsParser.currentArgs as
+          | Record<string, unknown>
+          | undefined;
       }
       return;
     }
+    entry.argsParser = undefined;
     try {
       const parsed = JSON.parse(entry.argsText);
       if (parsed && typeof parsed === "object") {

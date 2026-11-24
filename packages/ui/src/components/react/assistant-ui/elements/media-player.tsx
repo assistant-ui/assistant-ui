@@ -200,11 +200,15 @@ export function AudioPlayer({
       {...props}
     >
       {canPreload(artwork, mediaOrigins) ? (
-        <img
-          src={artwork}
-          alt=""
-          className="size-10 shrink-0 rounded-lg object-cover"
-        />
+        // A picture wrapper marks a deliberate native img for the Next.js lint, because
+        // next/image needs per-host config for runtime URLs and only exists in Next.js.
+        <picture className="contents">
+          <img
+            src={artwork}
+            alt=""
+            className="size-10 shrink-0 rounded-lg object-cover"
+          />
+        </picture>
       ) : null}
       <button
         type="button"

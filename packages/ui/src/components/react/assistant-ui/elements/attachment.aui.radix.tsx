@@ -47,17 +47,21 @@ type AttachmentPreviewProps = {
 const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src, name }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   return (
-    <img
-      src={src}
-      alt={`Preview of ${name}`}
-      className={cn(
-        "block h-auto max-h-[80vh] w-auto max-w-full rounded-sm object-contain transition-opacity duration-300 motion-reduce:transition-none",
-        isLoaded
-          ? "aui-attachment-preview-image-loaded opacity-100"
-          : "aui-attachment-preview-image-loading opacity-0",
-      )}
-      onLoad={() => setIsLoaded(true)}
-    />
+    // A picture wrapper marks a deliberate native img for the Next.js lint, because
+    // next/image needs per-host config for runtime URLs and only exists in Next.js.
+    <picture className="contents">
+      <img
+        src={src}
+        alt={`Preview of ${name}`}
+        className={cn(
+          "block h-auto max-h-[80vh] w-auto max-w-full rounded-sm object-contain transition-opacity duration-300 motion-reduce:transition-none",
+          isLoaded
+            ? "aui-attachment-preview-image-loaded opacity-100"
+            : "aui-attachment-preview-image-loading opacity-0",
+        )}
+        onLoad={() => setIsLoaded(true)}
+      />
+    </picture>
   );
 };
 

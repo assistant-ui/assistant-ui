@@ -42,6 +42,19 @@ const RUNS_WHEN_FULL = new Set<string>([
   "browser/bye",
 ]);
 
+/**
+ * How long a setup waits for its agent's stream to come back before it ends.
+ * A stream sends a heartbeat every few seconds while it runs, so silence this
+ * long means the agent stopped it, or its machine or sandbox went away.
+ */
+export const AGENT_ABANDON_MS = 60 * 60 * 1000;
+/**
+ * A gap between two setup page heartbeats longer than this means the page's
+ * machine slept or the tab was gone. Longer than the minute a browser
+ * throttles a background tab's timers to.
+ */
+const PAGE_GAP_MS = 5 * 60 * 1000;
+
 const capStateSize = <T extends object>(state: object, handlers: T): T =>
   Object.fromEntries(
     Object.entries(handlers).map(([name, handler]) => [
@@ -239,6 +252,31 @@ const useCheckoutHost = (restored: unknown) => {
     }
   };
 
+  /**
+   * Ends a setup whose agent stream has been gone for `AGENT_ABANDON_MS`, so
+   * it is not left half-finished. It ends only while the setup page has been
+   * awake that whole time: a laptop that slept with both the agent and the
+   * page on it shows the same silence, and its setup resumes on wake.
+   */
+  const endIfAbandoned = () => {
+    if (state.createdAt === null || isClosed(state)) return;
+    const { lastSeenAt } = state.agent;
+    const pageAwakeSince = state.browser?.awakeSince;
+    const now = Date.now();
+    if (
+      lastSeenAt === null ||
+      pageAwakeSince === undefined ||
+      now - lastSeenAt < AGENT_ABANDON_MS ||
+      now - pageAwakeSince < AGENT_ABANDON_MS
+    )
+      return;
+    state.status = "cancelled";
+    dismissOpenInputs();
+    log(
+      "Setup ended: your coding agent's setup connection stopped over an hour ago. Ask your agent to run setup again.",
+    );
+  };
+
   const log = (text: string, stepId?: string) => {
     state.log.push({
       id: `l${state.log.length + 1}`,
@@ -368,6 +406,7 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/ack": ({ messageId }) => {
       requireOpen();
+      touchAgent();
       const message = state.log.find(
         (entry) => entry.id === messageId && entry.role === "user",
       );
@@ -449,7 +488,17 @@ const useCheckoutHost = (restored: unknown) => {
       state.agent.connected = false;
     },
     "browser/heartbeat": () => {
-      state.browser = { lastSeenAt: Date.now(), connected: true };
+      const now = Date.now();
+      const previous = state.browser?.lastSeenAt ?? null;
+      // Kept in the setup's state, so the run survives the worker hibernating between beats.
+      const awakeSince =
+        previous === null ||
+        !state.browser?.connected ||
+        now - previous > PAGE_GAP_MS
+          ? now
+          : (state.browser.awakeSince ?? previous);
+      state.browser = { lastSeenAt: now, connected: true, awakeSince };
+      endIfAbandoned();
     },
     "browser/bye": () => {
       if (state.browser) state.browser.connected = false;
@@ -474,6 +523,7 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/add-step": ({ title, detail, product, active }) => {
       requireInstalling();
+      touchAgent();
       if (product !== undefined && product.trim() === "") {
         throw reject(
           "invalid-input",
@@ -493,6 +543,7 @@ const useCheckoutHost = (restored: unknown) => {
     },
     "agent/step": ({ stepId, status, note }) => {
       requireInstalling();
+      touchAgent();
       const step = findStep(stepId);
       updateStep(step, status, note);
     },

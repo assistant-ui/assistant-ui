@@ -13,6 +13,7 @@ import type {
 } from "../../assistant-ui/extension";
 import type { Catalog } from "../catalog";
 import { SpecRenderer } from "../react/native";
+import { fillComposer } from "../../assistant-ui/fillComposer";
 import { specToolkitFor, type SpecToolkitOptions } from "./toolkit";
 
 function useMessages() {
@@ -43,7 +44,7 @@ export type NativeSpecToolkit = Omit<WidgetToolkitExtension, "entries"> & {
 
 function useSendMessage() {
   const aui = useAui();
-  return useCallback((text: string) => aui.thread.append(text), [aui]);
+  return useCallback((text: string) => fillComposer(aui, text), [aui]);
 }
 
 function useModelContext(source: ModelContextSource) {

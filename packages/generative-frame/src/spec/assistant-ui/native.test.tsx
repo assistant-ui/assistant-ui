@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { Text, View } from "react-native";
 import type { Tools } from "@assistant-ui/react-native";
@@ -15,11 +15,20 @@ import {
 const mocks = vi.hoisted(() => ({
   messages: [] as unknown[],
   argsStatus: "complete",
+  append: vi.fn(),
+  setText: vi.fn(),
+  composerText: "",
 }));
 
 vi.mock("@assistant-ui/react-native", () => ({
   useAui: () => ({
-    thread: { append: () => undefined },
+    thread: {
+      append: mocks.append,
+      composer: () => ({
+        getState: () => ({ text: mocks.composerText }),
+        setText: mocks.setText,
+      }),
+    },
     modelContext: { register: () => () => undefined },
   }),
   useAuiState: (selector: (state: unknown) => unknown) =>
@@ -280,6 +289,55 @@ describe("createSpecToolkit for React Native", () => {
     ).resolves.toMatchObject({ ok: true });
     expect(setup("backend")["render_spec"]!.type).toBe("backend");
   });
+});
+
+it("puts sendMessage text in the composer after the user's draft", async () => {
+  mocks.composerText = "Draft";
+  const buttons = defineCatalog({
+    components: {
+      Button: {
+        description: "A button",
+        props: {
+          type: "object",
+          properties: { label: { type: "string" } },
+          required: ["label"],
+        },
+        events: ["press"],
+      },
+    },
+  });
+  const RenderSpec = (
+    createSpecToolkit(buttons, {
+      components: {
+        Button: ({ props, emit }: SpecComponentProps<{ label: string }>) => (
+          <Text onPress={() => emit("press")}>{props.label}</Text>
+        ),
+      },
+    }).entries({ execution: "backend", display: "standalone" }) as Record<
+      string,
+      Entry
+    >
+  )["render_spec"]!.render;
+  const spec = {
+    root: "b",
+    elements: {
+      b: {
+        type: "Button",
+        props: { label: "Go" },
+        on: { press: { action: "sendMessage", params: { text: "Book it" } } },
+      },
+    },
+    state: {},
+  };
+  const view = render(
+    <RenderSpec args={{ title: "s", spec }} toolCallId="s" />,
+  );
+  await act(async () => {
+    fireEvent.click(view.getByText("Go"));
+  });
+  expect(mocks.setText).toHaveBeenCalledExactlyOnceWith("Draft Book it");
+  expect(mocks.append).not.toHaveBeenCalled();
+  mocks.composerText = "";
 });
 
 it("does not dispatch a root watch while mounting a stateless backend spec", () => {
