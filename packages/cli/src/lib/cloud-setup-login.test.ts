@@ -362,8 +362,10 @@ describe("cloud setup device login", () => {
     "https://checkout.look-alike.test/session",
     "https://checkout.assistant-ui.com.evil.test/session",
   ])("rejects a setup server that is not a real one: %s", async (url) => {
+    const connections = fixture.transport.mock.calls.length;
     await expect(connectCloudLoginSetup(url)).rejects.toThrow(
       "is not a setup server this CLI knows",
     );
+    expect(fixture.transport.mock.calls.length).toBe(connections);
   });
 });
