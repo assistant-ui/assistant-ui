@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   AssistantChatTransport,
   getThreadMessageTokenUsage,
@@ -22,7 +15,6 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   SimpleImageAttachmentAdapter,
-  ThreadListItemPrimitive,
   ThreadListPrimitive,
   ThreadPrimitive,
   WebSpeechDictationAdapter,
@@ -37,26 +29,16 @@ import {
   ArrowDown02Icon,
   ArrowUp02Icon,
   Cancel01Icon,
-  Delete01Icon,
   Download01Icon,
   Image01Icon,
-  LayoutAlignLeftIcon,
   Mic01Icon,
   MicOff01Icon,
   RefreshIcon,
-  SidebarLeftIcon,
 } from "@hugeicons/core-free-icons";
 import type { UIMessage } from "ai";
-import { usePanelRef, type Layout } from "react-resizable-panels";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { ChatList, ChatSidebar, ChatSidebarTrigger } from "../../chat-sidebar";
 import { Gallery, RatioChoices, RatioGlyph } from "./gallery";
 import {
   OptionsProvider,
@@ -78,10 +60,8 @@ import {
   MenuTrigger,
   Tip,
   field,
-  focusRing,
   iconButton,
   inkButton,
-  listRow,
   rItem,
   rSurface,
   textButton,
@@ -172,44 +152,8 @@ function Bookkeeping() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Frame: the sidebar, and the one page beside it                             */
+/* Frame: the shared sidebar of chats, and the one page beside it             */
 /* -------------------------------------------------------------------------- */
-
-/**
- * The sidebar opens and closes in one step, from the button, the shortcut or
- * a drag past its minimum width. This plays that step back as a 200ms slide.
- */
-function useSnapAnimation() {
-  const groupRef = useRef<HTMLDivElement>(null);
-  const layoutRef = useRef<Layout | null>(null);
-
-  const onLayoutChange = useCallback((layout: Layout) => {
-    const previous = layoutRef.current;
-    layoutRef.current = layout;
-    const group = groupRef.current;
-    if (!previous || !group) return;
-
-    const snapped = Object.keys(layout).some(
-      (id) => (previous[id] ?? 0) > 0 !== (layout[id] ?? 0) > 0,
-    );
-    if (!snapped) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    for (const id of Object.keys(layout)) {
-      const panel = group.querySelector<HTMLElement>(`:scope > [id="${id}"]`);
-      const from = previous[id];
-      const to = layout[id];
-      if (!panel || from === undefined || to === undefined) continue;
-      for (const animation of panel.getAnimations()) animation.cancel();
-      panel.animate([{ flexGrow: from }, { flexGrow: to }], {
-        duration: 200,
-        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-      });
-    }
-  }, []);
-
-  return { elementRef: groupRef, onLayoutChange };
-}
 
 export function Images() {
   const [transport] = useState(
@@ -234,109 +178,31 @@ export function Images() {
     transport,
     adapters: { attachments, dictation },
   });
-  const isMobile = useIsMobile();
-  const sidebarRef = usePanelRef();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const snap = useSnapAnimation();
-
-  const toggleSidebar = useCallback(() => {
-    const sidebar = sidebarRef.current;
-    if (!sidebar) return;
-    if (sidebar.isCollapsed()) sidebar.expand();
-    else sidebar.collapse();
-  }, [sidebarRef]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
-        return;
-      if (event.key?.toLowerCase() !== "b") return;
-      event.preventDefault();
-      toggleSidebar();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleSidebar]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Bookkeeping />
       <OptionsProvider>
-        <TooltipProvider delay={300}>
-          <ResizablePanelGroup
-            {...snap}
-            className="bg-background text-foreground text-sm"
-          >
-            {/* A phone has no room for the sidebar; the header keeps New image. */}
-            {!isMobile && (
-              <>
-                <ResizablePanel
-                  id="sidebar"
-                  panelRef={sidebarRef}
-                  collapsible
-                  collapsedSize={0}
-                  defaultSize="15rem"
-                  minSize="12rem"
-                  maxSize="24rem"
-                  groupResizeBehavior="preserve-pixel-size"
-                  onResize={(size) => setSidebarOpen(size.inPixels > 0)}
-                  style={{ overflow: "hidden" }}
-                >
-                  <aside
-                    inert={!sidebarOpen}
-                    className="flex h-full min-w-48 flex-col"
-                  >
-                    <Sidebar onSidebarToggle={toggleSidebar} />
-                  </aside>
-                </ResizablePanel>
-                <ResizableHandle
-                  disabled={!sidebarOpen}
-                  // Hidden once the sidebar has finished sliding shut.
-                  className={
-                    sidebarOpen
-                      ? ""
-                      : "pointer-events-none invisible transition-[visibility] delay-200 motion-reduce:delay-0"
-                  }
-                />
-              </>
-            )}
-            <ResizablePanel id="main" className="flex min-w-0 flex-col">
-              <Header
-                onSidebarToggle={
-                  isMobile || sidebarOpen ? undefined : toggleSidebar
-                }
-              />
-              <Thread />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </TooltipProvider>
+        <ChatSidebar
+          title="Images"
+          list={<ChatList label="New image" heading="Recent" />}
+          footer={<User />}
+        >
+          <Header />
+          <Thread />
+        </ChatSidebar>
       </OptionsProvider>
     </AssistantRuntimeProvider>
   );
 }
 
-function Header({
-  onSidebarToggle,
-}: {
-  /** Set while the sidebar is hidden, when the header holds its button. */
-  onSidebarToggle: (() => void) | undefined;
-}) {
+function Header() {
   const title = useAuiState((s) => s.threadListItem.title);
   const empty = useAuiState((s) => s.thread.isEmpty);
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 px-3">
-      {onSidebarToggle && (
-        <Tip label="Show the sidebar">
-          <button
-            type="button"
-            onClick={onSidebarToggle}
-            className={cn(iconButton, "-ms-1")}
-          >
-            <Icon icon={LayoutAlignLeftIcon} />
-          </button>
-        </Tip>
-      )}
+      <ChatSidebarTrigger />
       <p className="min-w-0 flex-1 truncate font-medium">
         {empty ? "" : title || "New image"}
       </p>
@@ -346,77 +212,6 @@ function Header({
         </ThreadListPrimitive.New>
       </Tip>
     </header>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Sidebar: new image, the pictures made so far, and the person at the foot   */
-/* -------------------------------------------------------------------------- */
-
-function Sidebar({ onSidebarToggle }: { onSidebarToggle: () => void }) {
-  return (
-    <ThreadListPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-12 shrink-0 items-center px-2">
-        <span className="px-2 text-lg font-medium">Images</span>
-        <Tip label="Hide the sidebar">
-          <button
-            type="button"
-            onClick={onSidebarToggle}
-            className={cn(iconButton, "ms-auto")}
-          >
-            <Icon icon={SidebarLeftIcon} />
-          </button>
-        </Tip>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-        <ThreadListPrimitive.New
-          className={cn(listRow, "data-active:bg-accent mb-2 font-medium")}
-        >
-          <Icon icon={Add01Icon} className="size-4" />
-          New image
-        </ThreadListPrimitive.New>
-        <AuiIf condition={(s) => s.threads.threadIds.length > 0}>
-          <p className="text-muted-foreground px-2 pb-1">Recent</p>
-        </AuiIf>
-        <ThreadListPrimitive.Items>
-          {() => <ThreadListItem />}
-        </ThreadListPrimitive.Items>
-      </div>
-      <div className="shrink-0 p-2">
-        <User />
-      </div>
-    </ThreadListPrimitive.Root>
-  );
-}
-
-function ThreadListItem() {
-  return (
-    <ThreadListItemPrimitive.Root
-      className={cn(
-        "group hover:bg-accent data-active:bg-accent relative flex h-8 items-center transition-colors motion-reduce:transition-none",
-        rItem,
-      )}
-    >
-      <ThreadListItemPrimitive.Trigger
-        className={cn(
-          "h-full min-w-0 flex-1 truncate ps-2 pe-8 text-start",
-          rItem,
-          focusRing,
-        )}
-      >
-        <ThreadListItemPrimitive.Title fallback="New image" />
-      </ThreadListItemPrimitive.Trigger>
-      <Tip label="Delete">
-        <ThreadListItemPrimitive.Delete
-          className={cn(
-            iconButton,
-            "absolute end-1 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
-          )}
-        >
-          <Icon icon={Delete01Icon} />
-        </ThreadListItemPrimitive.Delete>
-      </Tip>
-    </ThreadListItemPrimitive.Root>
   );
 }
 

@@ -160,6 +160,7 @@ export const BLOCKS: readonly Block[] = [
     source: {
       directory: "apps/docs/app/(blocks)/blocks/demos/images",
       include: [
+        "../chat-sidebar.tsx",
         "api",
         "components",
         ".env.example",
@@ -256,6 +257,7 @@ export const BLOCKS: readonly Block[] = [
     source: {
       directory: "apps/docs/app/(blocks)/blocks/demos/tasks",
       include: [
+        "../chat-sidebar.tsx",
         "api",
         "components",
         ".env.example",
@@ -348,7 +350,13 @@ export const BLOCKS: readonly Block[] = [
     previewUrl: "/blocks/demos/chat-basic",
     source: {
       directory: "apps/docs/app/(blocks)/blocks/demos/chat-basic",
-      include: ["components", "block.css", "layout.tsx", "page.tsx"],
+      include: [
+        "../chat-sidebar.tsx",
+        "components",
+        "block.css",
+        "layout.tsx",
+        "page.tsx",
+      ],
       entry: "components/chat.tsx",
     },
     stack: [

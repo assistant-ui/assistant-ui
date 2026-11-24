@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -34,8 +32,6 @@ import {
   SimpleTextAttachmentAdapter,
   SuggestionPrimitive,
   Suggestions,
-  ThreadListItemMorePrimitive,
-  ThreadListItemPrimitive,
   ThreadListPrimitive,
   ThreadPrimitive,
   WebSpeechDictationAdapter,
@@ -67,23 +63,18 @@ import { createAssistantStream } from "assistant-stream";
 import {
   Add01Icon,
   Alert02Icon,
-  Archive02Icon,
   ArrowDown02Icon,
   ArrowLeft01Icon,
-  ArrowLeft02Icon,
   ArrowRight01Icon,
-  ArrowRight02Icon,
   ArrowUp02Icon,
   Attachment01Icon,
   BubbleChatIcon,
   CheckmarkCircle02Icon,
   Cancel01Icon,
   Copy01Icon,
-  Delete01Icon,
   Download01Icon,
   Idea01Icon,
   Image01Icon,
-  LayoutAlignLeftIcon,
   Mic01Icon,
   MicOff01Icon,
   MoreHorizontalIcon,
@@ -94,32 +85,23 @@ import {
   QuoteDownIcon,
   RefreshIcon,
   Search01Icon,
-  SidebarLeftIcon,
   SunCloud01Icon,
   StopIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
   Tick02Icon,
-  Unarchive03Icon,
   VolumeHighIcon,
   VolumeMute02Icon,
   Wrench01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import { usePanelRef, type Layout } from "react-resizable-panels";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { ChatList, ChatSidebar, ChatSidebarTrigger } from "../../chat-sidebar";
 
 /* -------------------------------------------------------------------------- */
 /* Runtime: a scripted model, so the chat runs without a key or a server.     */
@@ -780,131 +762,26 @@ const menu =
 const menuItem =
   "data-highlighted:bg-accent data-highlighted:text-accent-foreground relative flex h-6.5 shrink-0 items-center gap-1.5 rounded-[calc(var(--radius)-4px)] px-2 outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 pointer-coarse:h-9 [&_svg]:size-3.5 [&_svg]:shrink-0";
 
-const menuItemDestructive =
-  "text-destructive data-highlighted:bg-destructive/5 data-highlighted:text-destructive";
-
 const menuSeparator = "bg-border mx-2 my-1 h-px shrink-0";
 
 /* -------------------------------------------------------------------------- */
 /* App                                                                        */
 /* -------------------------------------------------------------------------- */
 
-/**
- * The sidebar opens and closes in one step, from the button, the shortcut or
- * a drag past its minimum width. This plays that step back as a 200ms slide.
- */
-function useSnapAnimation() {
-  const groupRef = useRef<HTMLDivElement>(null);
-  const layoutRef = useRef<Layout | null>(null);
-
-  const onLayoutChange = useCallback((layout: Layout) => {
-    const previous = layoutRef.current;
-    layoutRef.current = layout;
-    const group = groupRef.current;
-    if (!previous || !group) return;
-
-    const snapped = Object.keys(layout).some(
-      (id) => (previous[id] ?? 0) > 0 !== (layout[id] ?? 0) > 0,
-    );
-    if (!snapped) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    for (const id of Object.keys(layout)) {
-      const panel = group.querySelector<HTMLElement>(`:scope > [id="${id}"]`);
-      const from = previous[id];
-      const to = layout[id];
-      if (!panel || from === undefined || to === undefined) continue;
-      for (const animation of panel.getAnimations()) animation.cancel();
-      panel.animate([{ flexGrow: from }, { flexGrow: to }], {
-        duration: 200,
-        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-      });
-    }
-  }, []);
-
-  return { elementRef: groupRef, onLayoutChange };
-}
-
 export function Chat() {
   const runtime = useScriptedRuntime();
   const [floating, setFloating] = useState(false);
-  const isMobile = useIsMobile();
-  const sidebarRef = usePanelRef();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const snap = useSnapAnimation();
-
-  const toggleSidebar = useCallback(() => {
-    const sidebar = sidebarRef.current;
-    if (!sidebar) return;
-    if (sidebar.isCollapsed()) sidebar.expand();
-    else sidebar.collapse();
-  }, [sidebarRef]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
-        return;
-      if (event.key?.toLowerCase() !== "b") return;
-      event.preventDefault();
-      toggleSidebar();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleSidebar]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <TooltipProvider delay={300}>
-        <ResizablePanelGroup
-          {...snap}
-          className="bg-background text-foreground text-sm"
-        >
-          {/* A phone has no room for the sidebar; the header keeps New chat. */}
-          {!isMobile && (
-            <>
-              <ResizablePanel
-                id="sidebar"
-                panelRef={sidebarRef}
-                collapsible
-                collapsedSize={0}
-                defaultSize="15rem"
-                minSize="12rem"
-                maxSize="24rem"
-                groupResizeBehavior="preserve-pixel-size"
-                onResize={(size) => setSidebarOpen(size.inPixels > 0)}
-                style={{ overflow: "hidden" }}
-              >
-                <aside
-                  inert={!sidebarOpen}
-                  className="h-full min-w-48 overflow-y-auto p-2"
-                >
-                  <SidebarBar onSidebarToggle={toggleSidebar} />
-                  <ThreadList />
-                </aside>
-              </ResizablePanel>
-              <ResizableHandle
-                disabled={!sidebarOpen}
-                // Hidden once the sidebar has finished sliding shut.
-                className={
-                  sidebarOpen
-                    ? ""
-                    : "pointer-events-none invisible transition-[visibility] delay-200 motion-reduce:delay-0"
-                }
-              />
-            </>
-          )}
-          <ResizablePanel id="main" className="flex min-w-0 flex-col">
-            <Header
-              floating={floating}
-              onFloatingChange={setFloating}
-              onSidebarToggle={
-                isMobile || sidebarOpen ? undefined : toggleSidebar
-              }
-            />
-            {floating ? <FloatingChat /> : <Thread />}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </TooltipProvider>
+      <ChatSidebar
+        title="Chats"
+        history
+        list={<ChatList label="New chat" archive />}
+      >
+        <Header floating={floating} onFloatingChange={setFloating} />
+        {floating ? <FloatingChat /> : <Thread />}
+      </ChatSidebar>
     </AssistantRuntimeProvider>
   );
 }
@@ -912,29 +789,16 @@ export function Chat() {
 function Header({
   floating,
   onFloatingChange,
-  onSidebarToggle,
 }: {
   floating: boolean;
   onFloatingChange: (floating: boolean) => void;
-  /** Set while the sidebar is hidden, when the header holds its button. */
-  onSidebarToggle: (() => void) | undefined;
 }) {
   const title = useAuiState((s) => s.threadListItem.title);
   const label = floating ? "Dock the chat" : "Float the chat";
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-      {onSidebarToggle && (
-        <Tip label="Show the sidebar">
-          <button
-            type="button"
-            onClick={onSidebarToggle}
-            className={cn(iconButton, "-ms-1")}
-          >
-            <Icon icon={LayoutAlignLeftIcon} />
-          </button>
-        </Tip>
-      )}
+      <ChatSidebarTrigger />
       <h1 className="min-w-0 flex-1 truncate font-medium">
         {title || "New chat"}
       </h1>
@@ -958,216 +822,6 @@ function Header({
         </button>
       </Tip>
     </header>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Sidebar bar: back and forward through the chats you opened                 */
-/* -------------------------------------------------------------------------- */
-
-/** The chats opened in this session, in order, like a browser's history. */
-function useChatHistory() {
-  const aui = useAui();
-  const current = useAuiState((s) => s.threads.mainThreadId);
-  const known = useAuiState((s) =>
-    [
-      ...s.threads.threadIds,
-      ...s.threads.archivedThreadIds,
-      s.threads.newThreadId ?? "",
-    ].join("\n"),
-  );
-  const [history, setHistory] = useState(() => ({
-    entries: [current],
-    index: 0,
-  }));
-  const pending = useRef<number | null>(null);
-
-  useEffect(() => {
-    const target = pending.current;
-    pending.current = null;
-    setHistory((previous) => {
-      if (target !== null && previous.entries[target] === current)
-        return { ...previous, index: target };
-      if (previous.entries[previous.index] === current) return previous;
-      return {
-        entries: [...previous.entries.slice(0, previous.index + 1), current],
-        index: previous.index + 1,
-      };
-    });
-  }, [current]);
-
-  // A deleted chat stays in the list and is stepped over.
-  const ids = known.split("\n");
-  const find = (step: -1 | 1) => {
-    for (
-      let index = history.index + step;
-      index >= 0 && index < history.entries.length;
-      index += step
-    ) {
-      const id = history.entries[index];
-      if (id !== undefined && id !== current && ids.includes(id)) return index;
-    }
-    return null;
-  };
-  const go = (step: -1 | 1) => {
-    const index = find(step);
-    const id = index === null ? undefined : history.entries[index];
-    if (index === null || id === undefined) return;
-    pending.current = index;
-    aui.threads().switchToThread(id);
-  };
-
-  return {
-    canGoBack: find(-1) !== null,
-    canGoForward: find(1) !== null,
-    goBack: () => go(-1),
-    goForward: () => go(1),
-  };
-}
-
-function SidebarBar({ onSidebarToggle }: { onSidebarToggle: () => void }) {
-  const { canGoBack, canGoForward, goBack, goForward } = useChatHistory();
-
-  return (
-    <div className="mb-1 flex h-8 items-center gap-0.5">
-      <Tip label="Back">
-        <button
-          type="button"
-          disabled={!canGoBack}
-          onClick={goBack}
-          className={iconButton}
-        >
-          <Icon icon={ArrowLeft02Icon} className="rtl:rotate-180" />
-        </button>
-      </Tip>
-      <Tip label="Forward">
-        <button
-          type="button"
-          disabled={!canGoForward}
-          onClick={goForward}
-          className={iconButton}
-        >
-          <Icon icon={ArrowRight02Icon} className="rtl:rotate-180" />
-        </button>
-      </Tip>
-      <Tip label="Hide the sidebar">
-        <button
-          type="button"
-          onClick={onSidebarToggle}
-          className={cn(iconButton, "ms-auto")}
-        >
-          <Icon icon={SidebarLeftIcon} />
-        </button>
-      </Tip>
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* ThreadList, ThreadListItem, ThreadListItemMore                             */
-/* -------------------------------------------------------------------------- */
-
-function ThreadList() {
-  return (
-    <ThreadListPrimitive.Root className="flex flex-col gap-0.5">
-      <span className="mb-1 flex h-8 w-fit items-center px-2 text-lg font-medium">
-        Chats
-      </span>
-      <ThreadListPrimitive.New
-        className={cn(listRow, "data-active:bg-accent mb-1 font-medium")}
-      >
-        <Icon icon={Add01Icon} className="size-4" />
-        New chat
-      </ThreadListPrimitive.New>
-      <ThreadListPrimitive.Items>
-        {() => <ThreadListItem />}
-      </ThreadListPrimitive.Items>
-      <AuiIf condition={(s) => s.threads.hasMore}>
-        <ThreadListPrimitive.LoadMore
-          className={cn(
-            listRow,
-            "text-muted-foreground hover:text-foreground disabled:opacity-50",
-          )}
-        >
-          <Icon icon={ArrowDown02Icon} className="size-4" />
-          Show older chats
-        </ThreadListPrimitive.LoadMore>
-      </AuiIf>
-      <AuiIf condition={(s) => s.threads.archivedThreadIds.length > 0}>
-        <p className={cn("text-muted-foreground mt-4 px-2 pb-1", textControl)}>
-          Archived
-        </p>
-        <ThreadListPrimitive.Items archived>
-          {() => <ThreadListItem />}
-        </ThreadListPrimitive.Items>
-      </AuiIf>
-    </ThreadListPrimitive.Root>
-  );
-}
-
-function ThreadListItem() {
-  const archived = useAuiState((s) => s.threadListItem.status === "archived");
-
-  return (
-    <ThreadListItemPrimitive.Root
-      className={cn(
-        "group hover:bg-accent data-active:bg-accent has-data-[state=open]:bg-accent relative flex h-8 items-center transition-colors motion-reduce:transition-none",
-        rItem,
-      )}
-    >
-      <ThreadListItemPrimitive.Trigger
-        className={cn(
-          "h-full min-w-0 flex-1 truncate ps-2 pe-8 text-start",
-          rItem,
-          focusRing,
-        )}
-      >
-        <ThreadListItemPrimitive.Title fallback="New chat" />
-      </ThreadListItemPrimitive.Trigger>
-      <ThreadListItemMorePrimitive.Root>
-        <Tip label="Chat options">
-          <ThreadListItemMorePrimitive.Trigger
-            className={cn(
-              iconButton,
-              "absolute end-1 size-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
-            )}
-          >
-            <Icon icon={MoreHorizontalIcon} />
-          </ThreadListItemMorePrimitive.Trigger>
-        </Tip>
-        <ThreadListItemMorePrimitive.Content
-          side="bottom"
-          align="start"
-          sideOffset={4}
-          className={menu}
-        >
-          {archived ? (
-            <ThreadListItemPrimitive.Unarchive asChild>
-              <ThreadListItemMorePrimitive.Item className={menuItem}>
-                <Icon icon={Unarchive03Icon} />
-                Restore
-              </ThreadListItemMorePrimitive.Item>
-            </ThreadListItemPrimitive.Unarchive>
-          ) : (
-            <ThreadListItemPrimitive.Archive asChild>
-              <ThreadListItemMorePrimitive.Item className={menuItem}>
-                <Icon icon={Archive02Icon} />
-                Archive
-              </ThreadListItemMorePrimitive.Item>
-            </ThreadListItemPrimitive.Archive>
-          )}
-          <ThreadListItemMorePrimitive.Separator className={menuSeparator} />
-          <ThreadListItemPrimitive.Delete asChild>
-            <ThreadListItemMorePrimitive.Item
-              className={cn(menuItem, menuItemDestructive)}
-            >
-              <Icon icon={Delete01Icon} />
-              Delete
-            </ThreadListItemMorePrimitive.Item>
-          </ThreadListItemPrimitive.Delete>
-        </ThreadListItemMorePrimitive.Content>
-      </ThreadListItemMorePrimitive.Root>
-    </ThreadListItemPrimitive.Root>
   );
 }
 

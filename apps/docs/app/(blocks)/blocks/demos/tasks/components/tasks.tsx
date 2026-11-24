@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -33,20 +32,11 @@ import {
   ArrowUp02Icon,
   Attachment01Icon,
   Cancel01Icon,
-  LayoutAlignLeftIcon,
   Mic01Icon,
   MicOff01Icon,
-  SidebarLeftIcon,
 } from "@hugeicons/core-free-icons";
-import { usePanelRef, type Layout } from "react-resizable-panels";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { ChatSidebar, ChatSidebarTrigger } from "../../chat-sidebar";
 import data from "../data.json";
 import toolkit from "../toolkit";
 import {
@@ -169,42 +159,6 @@ function Housekeeping() {
 /* Frame: the schedule, and the one page beside it                            */
 /* -------------------------------------------------------------------------- */
 
-/**
- * The sidebar opens and closes in one step, from the button, the shortcut or
- * a drag past its minimum width. This plays that step back as a 200ms slide.
- */
-function useSnapAnimation() {
-  const groupRef = useRef<HTMLDivElement>(null);
-  const layoutRef = useRef<Layout | null>(null);
-
-  const onLayoutChange = useCallback((layout: Layout) => {
-    const previous = layoutRef.current;
-    layoutRef.current = layout;
-    const group = groupRef.current;
-    if (!previous || !group) return;
-
-    const snapped = Object.keys(layout).some(
-      (id) => (previous[id] ?? 0) > 0 !== (layout[id] ?? 0) > 0,
-    );
-    if (!snapped) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    for (const id of Object.keys(layout)) {
-      const panel = group.querySelector<HTMLElement>(`:scope > [id="${id}"]`);
-      const from = previous[id];
-      const to = layout[id];
-      if (!panel || from === undefined || to === undefined) continue;
-      for (const animation of panel.getAnimations()) animation.cancel();
-      panel.animate([{ flexGrow: from }, { flexGrow: to }], {
-        duration: 200,
-        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-      });
-    }
-  }, []);
-
-  return { elementRef: groupRef, onLayoutChange };
-}
-
 export function Tasks() {
   const [transport] = useState(
     () => new AssistantChatTransport({ api: "/blocks/demos/tasks/api/chat" }),
@@ -221,81 +175,19 @@ export function Tasks() {
     transport,
     adapters: { attachments, dictation },
   });
-  const isMobile = useIsMobile();
-  const sidebarRef = usePanelRef();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const snap = useSnapAnimation();
-
-  const toggleSidebar = useCallback(() => {
-    const sidebar = sidebarRef.current;
-    if (!sidebar) return;
-    if (sidebar.isCollapsed()) sidebar.expand();
-    else sidebar.collapse();
-  }, [sidebarRef]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
-        return;
-      if (event.key?.toLowerCase() !== "b") return;
-      event.preventDefault();
-      toggleSidebar();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleSidebar]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Housekeeping />
-      <TooltipProvider delay={300}>
-        <ResizablePanelGroup
-          {...snap}
-          className="bg-background text-foreground text-sm"
-        >
-          {/* A phone has no room for the sidebar; the header keeps New task. */}
-          {!isMobile && (
-            <>
-              <ResizablePanel
-                id="sidebar"
-                panelRef={sidebarRef}
-                collapsible
-                collapsedSize={0}
-                defaultSize="16rem"
-                minSize="12rem"
-                maxSize="24rem"
-                groupResizeBehavior="preserve-pixel-size"
-                onResize={(size) => setSidebarOpen(size.inPixels > 0)}
-                style={{ overflow: "hidden" }}
-              >
-                <aside
-                  inert={!sidebarOpen}
-                  className="flex h-full min-w-48 flex-col"
-                >
-                  <Sidebar onSidebarToggle={toggleSidebar} />
-                </aside>
-              </ResizablePanel>
-              <ResizableHandle
-                disabled={!sidebarOpen}
-                // Hidden once the sidebar has finished sliding shut.
-                className={
-                  sidebarOpen
-                    ? ""
-                    : "pointer-events-none invisible transition-[visibility] delay-200 motion-reduce:delay-0"
-                }
-              />
-            </>
-          )}
-          <ResizablePanel id="main" className="flex min-w-0 flex-col">
-            <Header
-              onSidebarToggle={
-                isMobile || sidebarOpen ? undefined : toggleSidebar
-              }
-            />
-            <Page />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </TooltipProvider>
+      <ChatSidebar
+        title="Tasks"
+        width="16rem"
+        list={<Schedule />}
+        footer={<User />}
+      >
+        <Header />
+        <Page />
+      </ChatSidebar>
     </AssistantRuntimeProvider>
   );
 }
@@ -309,27 +201,12 @@ function useNewTask() {
   };
 }
 
-function Header({
-  onSidebarToggle,
-}: {
-  /** Set while the sidebar is hidden, when the header holds its button. */
-  onSidebarToggle: (() => void) | undefined;
-}) {
+function Header() {
   const newTask = useNewTask();
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 px-3">
-      {onSidebarToggle && (
-        <Tip label="Show the sidebar">
-          <button
-            type="button"
-            onClick={onSidebarToggle}
-            className={cn(iconButton, "-ms-1")}
-          >
-            <Icon icon={LayoutAlignLeftIcon} />
-          </button>
-        </Tip>
-      )}
+      <ChatSidebarTrigger />
       <Tip label="New task">
         <button
           type="button"
@@ -344,7 +221,7 @@ function Header({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Sidebar: the schedule, soonest first, and the person at the foot           */
+/* The schedule, soonest first, which the sidebar lists                       */
 /* -------------------------------------------------------------------------- */
 
 const GROUPS = ["Today", "Tomorrow", "Later", "Paused", "Done"] as const;
@@ -396,7 +273,7 @@ function useNow() {
   return useSyncExternalStore(subscribeTick, readTick, () => 0);
 }
 
-function Sidebar({ onSidebarToggle }: { onSidebarToggle: () => void }) {
+function Schedule() {
   const tasks = useTasks();
   const selected = useSelected();
   const now = useNow();
@@ -404,59 +281,42 @@ function Sidebar({ onSidebarToggle }: { onSidebarToggle: () => void }) {
   const slots = tasks.map((task) => slot(task, now)).sort(byNext);
 
   return (
-    <nav aria-label="Schedule" className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-12 shrink-0 items-center px-2">
-        <span className="px-2 text-lg font-medium">Tasks</span>
-        <Tip label="Hide the sidebar">
-          <button
-            type="button"
-            onClick={onSidebarToggle}
-            className={cn(iconButton, "ms-auto")}
-          >
-            <Icon icon={SidebarLeftIcon} />
-          </button>
-        </Tip>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-        <button
-          type="button"
-          onClick={newTask}
-          aria-current={selected === null ? "page" : undefined}
-          className={cn(listRow, "aria-[current]:bg-accent mb-2 font-medium")}
-        >
-          <Icon icon={Add01Icon} className="size-4" />
-          New task
-        </button>
-        {GROUPS.map((group) => {
-          const rows = slots.filter((entry) => entry.group === group);
-          if (rows.length === 0) return null;
-          return (
-            <section key={group} className="flex flex-col gap-0.5 pb-2">
-              <h2 className="text-muted-foreground px-2 pb-1">{group}</h2>
-              {rows.map(({ task, at }) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  onClick={() => select(task.id)}
-                  aria-current={selected === task.id ? "page" : undefined}
-                  className={cn(listRow, "aria-[current]:bg-accent text-start")}
-                >
-                  <span className="min-w-0 flex-1 truncate">{task.title}</span>
-                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                    {at}
-                  </span>
-                </button>
-              ))}
-            </section>
-          );
-        })}
-        {tasks.length === 0 && (
-          <p className="text-muted-foreground px-2">Nothing scheduled yet.</p>
-        )}
-      </div>
-      <div className="shrink-0 p-2">
-        <User />
-      </div>
+    <nav aria-label="Schedule" className="flex flex-col gap-0.5">
+      <button
+        type="button"
+        onClick={newTask}
+        aria-current={selected === null ? "page" : undefined}
+        className={cn(listRow, "aria-[current]:bg-accent mb-2 font-medium")}
+      >
+        <Icon icon={Add01Icon} className="size-4" />
+        New task
+      </button>
+      {GROUPS.map((group) => {
+        const rows = slots.filter((entry) => entry.group === group);
+        if (rows.length === 0) return null;
+        return (
+          <section key={group} className="flex flex-col gap-0.5 pb-2">
+            <h2 className="text-muted-foreground px-2 pb-1">{group}</h2>
+            {rows.map(({ task, at }) => (
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => select(task.id)}
+                aria-current={selected === task.id ? "page" : undefined}
+                className={cn(listRow, "aria-[current]:bg-accent text-start")}
+              >
+                <span className="min-w-0 flex-1 truncate">{task.title}</span>
+                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                  {at}
+                </span>
+              </button>
+            ))}
+          </section>
+        );
+      })}
+      {tasks.length === 0 && (
+        <p className="text-muted-foreground px-2">Nothing scheduled yet.</p>
+      )}
     </nav>
   );
 }

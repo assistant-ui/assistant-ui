@@ -8,7 +8,8 @@ Each chat is one picture and the changes asked of it. A new chat shows the galle
 
 | Concern | Where it lives |
 |---|---|
-| Runtime, sidebar, thread, message box | `components/images.tsx` |
+| Runtime, thread, message box | `components/images.tsx` |
+| The sidebar and its list of chats, shared by the blocks | `../chat-sidebar.tsx` |
 | Gallery tabs, template tiles and dialog, My images | `components/gallery.tsx` |
 | The person at the foot of the sidebar, usage | `components/user.tsx` |
 | Choices for the next picture, and the pictures made | `components/state.tsx` |

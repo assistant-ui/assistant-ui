@@ -6,7 +6,8 @@ Scheduled tasks made by describing them, built from assistant-ui primitives: a s
 
 | Concern | Where it lives |
 |---|---|
-| Runtime, sidebar, page, messages, message box | `components/tasks.tsx` |
+| Runtime, schedule, page, messages, message box | `components/tasks.tsx` |
+| The sidebar that holds the schedule, shared by the blocks | `../chat-sidebar.tsx` |
 | A task up close, and the receipt a tool call leaves in the chat | `components/task.tsx` |
 | Tasks, runs, the schedule and the open task | `components/store.ts` |
 | The person at the foot of the sidebar, usage | `components/user.tsx` |
