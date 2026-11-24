@@ -468,7 +468,7 @@ function Composer() {
        * drops a pick made after it has unmounted, as a closed menu's has.
        */}
       <ComposerPrimitive.AddAttachment ref={addImages} hidden />
-      <ComposerPrimitive.AttachmentDropzone className="bg-background border-border/60 data-[dragging=true]:border-foreground/40 relative flex flex-col rounded-[1.75rem] border p-1.5 shadow-(--float-shadow) transition-colors motion-reduce:transition-none">
+      <ComposerPrimitive.AttachmentDropzone className="bg-background/70 border-border/60 data-[dragging=true]:border-foreground/40 relative flex flex-col rounded-[1.75rem] border p-1.5 shadow-(--float-shadow) backdrop-blur-sm transition-colors motion-reduce:transition-none">
         <AuiIf condition={(s) => s.composer.dictation != null}>
           <DictationStatus />
         </AuiIf>
