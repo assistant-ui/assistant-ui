@@ -117,6 +117,8 @@ const runStatusOf = (state: CloudRunState | undefined) =>
 // A run another session drives is the newest message of its branch, so it sits on the first page.
 export const RUN_STATE_PAGE_SIZE = 20;
 
+export { isEmptyReply } from "../../../store/message-run-state";
+
 const endPhaseOf = (message: ThreadMessage): CloudMessageRunPhase => {
   const { status } = message;
   if (status?.type !== "incomplete") return "done";
@@ -147,6 +149,11 @@ const runPhaseOf = (
 export type CloudRunWriter = {
   /** The message's persistence key, or undefined when it cannot be stored as one row. */
   keyOf(message: ThreadMessage): string | undefined;
+  /** Opens the thread's run lease for a reply that is not stored yet. */
+  begin(
+    message: ThreadMessage,
+    parent: ThreadMessage | undefined,
+  ): Promise<unknown>;
   /** Whether the row can be chained under its parent yet; always, when absent. */
   canStore?(parent: ThreadMessage | undefined): boolean;
   /** Stores the message (appending it on first write), with its run phase read from its status. */
@@ -501,6 +508,21 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
         if (key === undefined) return false;
         return key === null || !!pinnedPersistence()?.isPersisted(key);
       },
+      async begin(message, parent) {
+        const inner = onlyInner(message);
+        const parentId = innerParentKey(parent);
+        const pinned = resolvePinned();
+        if (inner === undefined || parentId === undefined || !pinned)
+          return false;
+        const context = adapter.captureScope(pinned);
+        const { remoteId } = await pinned.initialize();
+        adapter.assertCurrentScope(context);
+        return context.persistence.beginRun(
+          remoteId,
+          formatAdapter.getId(inner),
+          parentId,
+        );
+      },
       async write(message, parent) {
         const inner = onlyInner(message);
         const parentId = innerParentKey(parent);
@@ -765,6 +787,17 @@ export class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter 
 
   private threadMessageRunWriter: CloudRunWriter = {
     keyOf: (message) => message.id,
+    begin: async (message, parent) => {
+      const threadListItem = this.aui.threadListItem;
+      const context = this.captureScope(threadListItem);
+      const { remoteId } = await threadListItem.initialize();
+      this.assertCurrentScope(context);
+      return context.persistence.beginRun(
+        remoteId,
+        message.id,
+        parent?.id ?? null,
+      );
+    },
     write: (message, parent) =>
       this.update({ parentId: parent?.id ?? null, message }),
     hasOpenRun: (key) => this.getPersistence().hasOpenRun(key),

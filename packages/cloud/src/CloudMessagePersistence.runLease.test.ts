@@ -24,7 +24,7 @@ const createCloud = () => {
       heartbeat_interval_ms: 20_000,
     }),
     end: vi.fn().mockResolvedValue(undefined),
-    open: vi.fn(),
+    open: vi.fn().mockResolvedValue(run),
   };
   const cloud = { threads: { messages, runs } } as unknown as AssistantCloud;
   return { cloud, messages, runs };
@@ -59,7 +59,7 @@ describe("CloudMessagePersistence run leases", () => {
       external_id: "local-a",
       format: "aui/v0",
       content: running,
-      open_run: true,
+      lease_id: "lease_1",
     });
     expect(persistence.hasOpenRun("local-a")).toBe(true);
 
@@ -164,11 +164,13 @@ describe("CloudMessagePersistence run leases", () => {
     await expect(placeholder).rejects.toThrow("network");
     await final;
 
+    // The run's lease is still open, so the final answer stores the row as its holder.
     expect(messages.create).toHaveBeenLastCalledWith("t1", {
       parent_id: null,
       external_id: "local-a",
       format: "aui/v0",
       content: done,
+      lease_id: "lease_1",
     });
     expect(await persistence.getRemoteId("local-a")).toBe("msg_2");
   });
@@ -192,6 +194,9 @@ describe("CloudMessagePersistence run leases", () => {
       "running",
     );
     const final = persistence.append("t1", "local-a", null, "aui/v0", done);
+    // The lease opens and the first store is in flight before the reset.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(messages.create).toHaveBeenCalledTimes(1);
     persistence.reset();
     rejectCreate(new Error("network"));
     await expect(placeholder).rejects.toThrow("network");
@@ -256,6 +261,7 @@ describe("CloudMessagePersistence run leases", () => {
 
     expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
       content: done,
+      lease_id: "lease_1",
     });
   });
 
@@ -309,7 +315,7 @@ describe("CloudMessagePersistence run leases", () => {
     expect(order).toEqual(["partial", "done"]);
   });
 
-  it("writes the final answer over an in-flight running append that got no lease", async () => {
+  it("writes the final answer over an in-flight running append as the lease holder", async () => {
     const { cloud, messages } = createCloud();
     let resolveCreate!: (value: unknown) => void;
     messages.create.mockReturnValueOnce(
@@ -334,6 +340,7 @@ describe("CloudMessagePersistence run leases", () => {
     expect(messages.create).toHaveBeenCalledTimes(1);
     expect(messages.update).toHaveBeenCalledWith("t1", "msg_1", {
       content: done,
+      lease_id: "lease_1",
     });
   });
 
@@ -435,13 +442,10 @@ describe("CloudMessagePersistence run leases", () => {
   });
 
   it("schedules heartbeats from the server's interval, not a client constant", async () => {
-    const { cloud, messages, runs } = createCloud();
-    messages.create.mockResolvedValueOnce({
-      message_id: "msg_1",
-      run: {
-        lease_id: "lease_1",
-        heartbeat_interval_ms: 20_000,
-      },
+    const { cloud, runs } = createCloud();
+    runs.open.mockResolvedValueOnce({
+      lease_id: "lease_1",
+      heartbeat_interval_ms: 20_000,
     });
     runs.heartbeat.mockResolvedValueOnce({
       heartbeat_interval_ms: 45_000,
@@ -545,12 +549,6 @@ describe("CloudMessagePersistence run leases", () => {
         25_000,
       ),
     ).toEqual({ status: "stale" });
-    expect(
-      persistence.runStateOf({
-        status: "ended",
-        last_heartbeat_ms_ago: 90_000,
-      }),
-    ).toBeUndefined();
     expect(persistence.runStateOf(undefined)).toBeUndefined();
 
     const patient = new CloudMessagePersistence(cloud, { staleAfter: 120_000 });
@@ -577,30 +575,16 @@ describe("CloudMessagePersistence run leases", () => {
     expect(persistence.hasOpenRun("local-a")).toBe(true);
   });
 
-  it("stores the message without a lease on a server that predates run leases", async () => {
-    const { cloud, messages } = createCloud();
-    messages.create
-      .mockRejectedValueOnce(new CloudAPIError("bad request", 400))
-      .mockResolvedValueOnce({ message_id: "msg_1" });
+  it("rejects a running append with a clear error on a server without thread leases", async () => {
+    const { cloud, messages, runs } = createCloud();
+    runs.open.mockRejectedValueOnce(new CloudAPIError("Not found", 404));
     const persistence = new CloudMessagePersistence(cloud);
 
-    await persistence.append(
-      "t1",
-      "local-a",
-      null,
-      "aui/v0",
-      running,
-      "running",
-    );
-
-    expect(messages.create).toHaveBeenLastCalledWith("t1", {
-      parent_id: null,
-      external_id: "local-a",
-      format: "aui/v0",
-      content: running,
-    });
+    await expect(
+      persistence.append("t1", "local-a", null, "aui/v0", running, "running"),
+    ).rejects.toThrow(/needs Assistant Cloud v0\.2\.12 or newer/);
+    expect(messages.create).not.toHaveBeenCalled();
     expect(persistence.hasOpenRun("local-a")).toBe(false);
-    expect(persistence.getResolvedRemoteId("local-a")).toBe("msg_1");
   });
 
   it("rethrows other create failures of a running append", async () => {
@@ -719,7 +703,7 @@ describe("CloudMessagePersistence run leases", () => {
         external_id: "ui-1",
         format: "ai-sdk/v6",
         content: { parts: partial.parts },
-        open_run: true,
+        lease_id: "lease_1",
       });
 
       await formatted.update!(

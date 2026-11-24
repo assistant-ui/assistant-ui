@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // Contract test at the public seam: the real AssistantCloud SDK and useCloudThreadListRuntime, with
-// the run tracker's early create of the running reply rejected while the run settles. The settled
-// answer reaches cloud history and loads back, for a completed reply, a model error and Stop.
+// the reply's first store as the holder of the thread's run lease rejected after the run settles.
+// The settled answer reaches cloud history and loads back, for a completed reply, a model error and
+// Stop.
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
@@ -26,7 +27,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("cloud history after a failed early store of a running reply", () => {
+describe("cloud history after a failed first store of a reply", () => {
   it.each(["success", "error", "stop"])(
     "preserves a %s reply after one failed create",
     async (ending) => {
@@ -81,7 +82,14 @@ describe("cloud history after a failed early store of a running reply", () => {
             return json({ message_id: id });
           }
           if (path.endsWith("/messages") && method === "GET")
-            return json({ messages: [...rows].reverse() });
+            return json({ messages: [...rows].reverse(), run: null });
+          if (path === "/v1/threads/remote-1/runs" && method === "POST")
+            return json({ lease_id: "lease_1", heartbeat_interval_ms: 20_000 });
+          if (
+            path.startsWith("/v1/threads/remote-1/runs/") &&
+            method === "POST"
+          )
+            return json({ heartbeat_interval_ms: 20_000 });
           if (path.includes("/messages/") && method === "PUT") {
             const row = rows.find((row) => path.endsWith(`/${row.id}`));
             if (!row) throw new Error("update of missing row");
@@ -154,7 +162,6 @@ describe("cloud history after a failed early store of a running reply", () => {
         aui.thread.append("hello");
       });
       await flush();
-      await waitFor(() => expect(rejectCreate).toBeDefined());
       await waitFor(() =>
         expect(textOf(runtime.thread.getState().messages.at(-1))).toBe(
           "the answer",
@@ -166,6 +173,8 @@ describe("cloud history after a failed early store of a running reply", () => {
       });
       await flush();
       expect(runtime.thread.getState().isRunning).toBe(false);
+      // The settled write is the reply's first store; it is still in flight.
+      await waitFor(() => expect(rejectCreate).toBeDefined());
       await act(async () => {
         rejectCreate!(new TypeError("Failed to fetch"));
       });

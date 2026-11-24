@@ -7,6 +7,7 @@ import {
   useAuiState,
   useCloudThreadListRuntime,
   useRuntimeAdapters,
+  useThreadReplyState,
 } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { DurableHttpAgent } from "@/lib/durable-agent";
@@ -42,7 +43,7 @@ function useDurableThreadRuntime() {
     agent,
     ...(history ? { adapters: { history } } : undefined),
   });
-  useDurableTakeover(runtime, history);
+  useDurableTakeover(runtime, history, useThreadReplyState());
   return runtime;
 }
 
