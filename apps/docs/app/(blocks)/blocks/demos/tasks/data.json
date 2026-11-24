@@ -1,0 +1,21 @@
+{
+  "model": "gpt-6-luna",
+  "examples": [
+    {
+      "title": "Morning headlines",
+      "prompt": "Every weekday at 8, give me three headlines worth knowing and one sentence on each."
+    },
+    {
+      "title": "Weekly review",
+      "prompt": "Every Friday at 4 in the afternoon, ask me three questions that help me review my week."
+    },
+    {
+      "title": "Stretch reminder",
+      "prompt": "Every day at 3 in the afternoon, give me a two-minute stretch I can do at my desk."
+    },
+    {
+      "title": "One-off nudge",
+      "prompt": "Tomorrow at 9, remind me to book the dentist and suggest what to say on the call."
+    }
+  ]
+}

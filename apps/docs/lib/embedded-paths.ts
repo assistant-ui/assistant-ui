@@ -6,6 +6,8 @@ export const VARIANTS_DEMO_PATH = "/variants-demo";
 export const BLOCK_PREVIEW_PATHS: readonly string[] = [
   "/blocks/demos/document-editor",
   "/blocks/demos/chat-basic",
+  "/blocks/demos/images",
+  "/blocks/demos/tasks",
 ];
 
 export const EMBEDDED_PATHS: readonly string[] = [

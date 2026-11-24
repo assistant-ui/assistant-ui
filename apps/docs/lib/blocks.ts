@@ -146,6 +146,195 @@ export const BLOCKS: readonly Block[] = [
     },
   },
   {
+    slug: "images",
+    title: "Images",
+    description:
+      "An image maker: a gallery of templates, a message box that sets the shape and the detail, and a sidebar of the pictures you have made.",
+    image: {
+      light: "/screenshot/blocks/images-light.webp",
+      dark: "/screenshot/blocks/images-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/images",
+    previewUrl: "/blocks/demos/images",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/images",
+      include: [
+        "api",
+        "components",
+        ".env.example",
+        "README.md",
+        "block.css",
+        "data.json",
+        "layout.tsx",
+        "page.tsx",
+      ],
+      entry: "components/images.tsx",
+    },
+    stack: [
+      { name: "AI SDK", package: "ai" },
+      { name: "OpenAI", package: "@ai-sdk/openai" },
+      { name: "shadcn/ui", package: "shadcn" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+    ],
+    useCases: [
+      "An image tool where each chat is one picture and the changes asked of it.",
+      "A starting page of templates that set up a request before a word is typed.",
+      "A shell to copy for any single-page tool: a sidebar of chats, the page, and the person at the foot.",
+    ],
+    capabilities: [
+      {
+        title: "Templates",
+        description:
+          "A gallery of tiles. A tile opens its picture, its prompt and a shape to make it in, and using it writes the prompt in the message box.",
+      },
+      {
+        title: "Message box",
+        description:
+          "One row: add, the words, the level of detail, dictate and send. The add menu holds the aspect ratio, and the choices ride along as the message's run config.",
+      },
+      {
+        title: "Changes",
+        description:
+          "A follow-up message changes the newest picture in the chat, which goes back to the model with the request.",
+      },
+      {
+        title: "Reference pictures",
+        description:
+          "Pictures added by button or by drop sit in a strip above the message box and are sent as a starting point.",
+      },
+      {
+        title: "Chat list",
+        description:
+          "The sidebar lists each chat under its first request, with new and delete, kept in memory.",
+      },
+      {
+        title: "My images",
+        description:
+          "A tab of every picture made on this visit, each with a download button.",
+      },
+      {
+        title: "Usage",
+        description:
+          "The person at the foot of the sidebar opens a count of pictures made and tokens used.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
+      "The shadcn/ui tooltip, dialog and resizable components.",
+      "An OpenAI key with access to an image model. The model's name is in data.json.",
+      "Your own sign-in and rate limit in front of the route before you deploy it, because every picture costs money.",
+    ],
+    env: {
+      note: "The route answers 404 until it is switched on, and 401 without a key.",
+      variables: [
+        {
+          name: "OPENAI_API_KEY",
+          required: true,
+          description: "The key the route makes pictures with.",
+        },
+        {
+          name: "BLOCKS_LIVE_API",
+          required: true,
+          description: 'Set to "true" to let the route run.',
+        },
+      ],
+    },
+  },
+  {
+    slug: "tasks",
+    title: "Tasks",
+    description:
+      "Scheduled tasks made by describing them: a schedule in the sidebar, each task's runs on the page, and a message box that is always there.",
+    image: {
+      light: "/screenshot/blocks/tasks-light.webp",
+      dark: "/screenshot/blocks/tasks-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/tasks",
+    previewUrl: "/blocks/demos/tasks",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/tasks",
+      include: [
+        "api",
+        "components",
+        ".env.example",
+        "README.md",
+        "block.css",
+        "data.json",
+        "layout.tsx",
+        "page.tsx",
+        "toolkit.tsx",
+      ],
+      entry: "components/tasks.tsx",
+    },
+    stack: [
+      { name: "AI SDK", package: "ai" },
+      { name: "OpenAI", package: "@ai-sdk/openai" },
+      { name: "shadcn/ui", package: "shadcn" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+    ],
+    useCases: [
+      "Reminders and recurring briefings that a person sets up in plain words.",
+      "A starting point for any tool where the model edits app state through tools and the page shows the result.",
+      "A reference for a toolkit whose tools run in the browser and draw their own receipts.",
+    ],
+    capabilities: [
+      {
+        title: "Made by describing",
+        description:
+          "Say what should happen and when. The model works out the time and the repeat and calls a tool that creates the task.",
+      },
+      {
+        title: "Schedule",
+        description:
+          "The sidebar groups tasks by when they next run: today, tomorrow, later, paused and done.",
+      },
+      {
+        title: "Runs",
+        description:
+          "While the page is open, a task whose time has come sends its instruction to the model, which can search the web, and the result is kept under the task.",
+      },
+      {
+        title: "Changes by chat",
+        description:
+          "With a task open, a message such as move it to nine renames, reschedules, pauses, runs or deletes it through the same tools.",
+      },
+      {
+        title: "Message box",
+        description:
+          "Always at the foot of the page, with files by button or by drop, dictation, and send and stop.",
+      },
+      {
+        title: "Usage",
+        description:
+          "The person at the foot of the sidebar opens a count of tasks, runs and the tokens the runs used.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
+      "The shadcn/ui tooltip, dialog and resizable components.",
+      "The assistant-ui build plugin, withAui, which compiles the toolkit file.",
+      "An OpenAI key. The model's name is in data.json.",
+      "Your own scheduler to run tasks while the page is closed, and your own sign-in and rate limit in front of the routes before you deploy them.",
+    ],
+    env: {
+      note: "The routes answer 404 until they are switched on, and 401 without a key.",
+      variables: [
+        {
+          name: "OPENAI_API_KEY",
+          required: true,
+          description: "The key the routes call the model with.",
+        },
+        {
+          name: "BLOCKS_LIVE_API",
+          required: true,
+          description: 'Set to "true" to let the routes run.',
+        },
+      ],
+    },
+  },
+  {
     slug: "chat-basic",
     title: "Chat basic",
     description:
