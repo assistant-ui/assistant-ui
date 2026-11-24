@@ -19,8 +19,11 @@ pnpm add @assistant-ui/docs-theme @farming-labs/docs@0.2.152 @farming-labs/theme
 Add your framework's adapter at the same version: `@farming-labs/next`,
 `@farming-labs/tanstack-start`, or `@farming-labs/farmjs`.
 
-The Farming Labs Docs and Theme peers accept `^0.2.141`; existing sites on
-0.2.141 can keep that version. Development and the assistant-ui site use 0.2.152.
+The Farming Labs Docs and Theme peers accept 0.2.141 through 0.2.147 and
+`^0.2.152`; existing sites on 0.2.141 can keep that version. They exclude 0.2.148
+through 0.2.151, whose Next adapter fails in deployed functions with
+`MODULE_NOT_FOUND` for `@shikijs/langs/dist/index.mjs`. Development and the
+assistant-ui site use 0.2.152.
 Keep Docs, Theme, and your adapter on the same version. The 0.2.141 floor provides
 the theme options, shared-layout page features, theme-supplied MDX components,
 and focused `@farming-labs/docs/config` entry this package uses.
