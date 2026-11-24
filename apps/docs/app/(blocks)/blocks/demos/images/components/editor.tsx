@@ -122,16 +122,10 @@ export function EditorFrame({ children }: { children: ReactNode }) {
     <EditorContext.Provider value={editing}>
       {isMobile ? (
         <>
-          {children}
-          {editor && (
-            <div
-              role="dialog"
-              aria-label="Edit the picture"
-              className="bg-background fixed inset-0 z-40 flex flex-col"
-            >
-              {editor}
-            </div>
-          )}
+          <div className="contents" inert={Boolean(editor)}>
+            {children}
+          </div>
+          {editor && <EditorSheet>{editor}</EditorSheet>}
         </>
       ) : (
         <ResizablePanelGroup className="min-h-0 flex-1">
@@ -218,6 +212,32 @@ const barField =
 
 const barSend =
   "flex h-8 shrink-0 items-center gap-1 rounded-[10px] bg-white px-3 font-medium text-neutral-900 outline-hidden transition-opacity focus-visible:ring-1 focus-visible:ring-white/60 disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none";
+
+/* On a phone the editor covers the chat: it takes the focus when it opens and gives it back when it closes. */
+function EditorSheet({ children }: { children: ReactNode }) {
+  const sheet = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const before = document.activeElement;
+    sheet.current?.focus();
+    return () => {
+      if (before instanceof HTMLElement) before.focus();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={sheet}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit the picture"
+      tabIndex={-1}
+      className="bg-background fixed inset-0 z-40 flex flex-col outline-none"
+    >
+      {children}
+    </div>
+  );
+}
 
 function Editor({ picture }: { picture: Picture }) {
   const aui = useAui();

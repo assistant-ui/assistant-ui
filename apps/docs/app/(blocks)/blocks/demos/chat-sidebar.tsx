@@ -196,6 +196,8 @@ export function ChatSidebar({
   children: ReactNode;
 }) {
   const isMobile = useIsMobile();
+  // Held here, above the phone and desktop layouts, so switching between them keeps the chats opened.
+  const chatHistory = useChatHistory();
   const sidebarRef = usePanelRef();
   const [open, setOpen] = useState(defaultOpen);
   const opened = useRef(defaultOpen);
@@ -257,7 +259,7 @@ export function ChatSidebar({
                   <div className="flex h-12 shrink-0 items-center gap-0.5 px-2">
                     {historyNav ??
                       (history ? (
-                        <HistoryButtons />
+                        <HistoryNav {...chatHistory} />
                       ) : (
                         <TitleRow title={title} search={search} />
                       ))}
@@ -462,10 +464,6 @@ function useChatHistory() {
   };
 }
 
-function HistoryButtons() {
-  return <HistoryNav {...useChatHistory()} />;
-}
-
 /** Back and Forward, for `historyNav`: through whatever the block lists. */
 export function HistoryNav({
   canGoBack,
@@ -528,8 +526,11 @@ export function ChatList({
   const none = useAuiState(
     (s) =>
       wanted !== "" &&
-      !s.threads.threadItems.some((item) =>
-        (item.title || label).toLowerCase().includes(wanted),
+      !s.threads.threadItems.some(
+        (item) =>
+          // Without `archive`, the list shows no archived chats, so they cannot count as a match.
+          (archive || item.status !== "archived") &&
+          (item.title || label).toLowerCase().includes(wanted),
       ),
   );
 
