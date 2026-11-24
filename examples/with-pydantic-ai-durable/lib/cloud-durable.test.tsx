@@ -16,6 +16,7 @@ import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
   useRuntimeAdapters,
+  useThreadReplyState,
   type AssistantRuntime,
   type ThreadMessage,
 } from "@assistant-ui/react";
@@ -462,7 +463,7 @@ const openTab = async (tab: string, staleAfter = 30_000): Promise<Tab> => {
           agent,
           ...(history ? { adapters: { history } } : undefined),
         });
-        useDurableTakeover(runtime, history);
+        useDurableTakeover(runtime, history, useThreadReplyState());
         return runtime;
       },
     });

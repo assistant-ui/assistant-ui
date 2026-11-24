@@ -88,10 +88,8 @@ const findMessage = (
  *
  * Other tabs read the lease: a reply already stored shows as in progress, or
  * as an ordinary interrupted reply once its run went `staleAfter` without a
- * beat.
- *
- * A thread whose last message is the user's reads `in-progress` while a
- * fresh thread lease answers it, and `interrupted` once none does
+ * beat. A thread whose last message is the user's reads `in-progress` while
+ * a fresh lease answers it, and `interrupted` once none does
  * (`useThreadReplyState`).
  *
  * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
