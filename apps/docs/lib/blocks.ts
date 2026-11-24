@@ -149,7 +149,7 @@ export const BLOCKS: readonly Block[] = [
     slug: "images",
     title: "Images",
     description:
-      "An image maker: a gallery of templates, a message box that sets the shape and the detail, and a sidebar of the pictures you have made.",
+      "An image maker: a gallery of templates, a message box with a model picker and the settings of a picture, an editor beside the chat, and a sidebar of chats that starts closed.",
     image: {
       light: "/screenshot/blocks/images-light.webp",
       dark: "/screenshot/blocks/images-dark.webp",
@@ -187,17 +187,37 @@ export const BLOCKS: readonly Block[] = [
       {
         title: "Templates",
         description:
-          "A gallery of tiles. A tile opens its picture, its prompt and a shape to make it in, and using it writes the prompt in the message box.",
+          "A gallery of tiles. A tile opens its picture, its prompt and an orientation to make it in, and using it writes the prompt in the message box.",
       },
       {
         title: "Message box",
         description:
-          "One row: add, the words, the level of detail, dictate and send. The add menu holds the aspect ratio, and the choices ride along as the message's run config.",
+          "One row: add, the words, the model, dictate and send. The model and the settings ride along as the message's run config.",
+      },
+      {
+        title: "Model picker",
+        description:
+          "The Model selector element, listing every image model Modelpedia knows, grouped by provider and searchable. Models of a provider the route has no key for are listed but cannot be picked.",
+      },
+      {
+        title: "Settings",
+        description:
+          "The add menu holds orientation, size, quality, complexity, number of images, output format, background, moderation and partial images, each a submenu showing what is chosen.",
+      },
+      {
+        title: "Pictures",
+        description:
+          "One picture uses the Image element, with zoom, download, copy and make again. Several share the Image gallery element and one full-screen view.",
       },
       {
         title: "Changes",
         description:
           "A follow-up message changes the newest picture in the chat, which goes back to the model with the request.",
+      },
+      {
+        title: "Editor",
+        description:
+          "Edit opens a picture in a panel beside the chat: draw or write on it, pin numbered notes, brush an area to erase, remove the background, or remake it in another shape. Each change is sent as a message and its result takes the picture's place.",
       },
       {
         title: "Reference pictures",
@@ -207,12 +227,12 @@ export const BLOCKS: readonly Block[] = [
       {
         title: "Chat list",
         description:
-          "The sidebar lists each chat under its first request, with new and delete, kept in memory.",
+          "The sidebar starts closed and lists each chat under its first request, with new and delete, kept in memory.",
       },
       {
         title: "My images",
         description:
-          "A tab of every picture made on this visit, each with a download button.",
+          "A tab of every picture made on this visit, in the Image gallery element.",
       },
       {
         title: "Usage",
@@ -222,8 +242,8 @@ export const BLOCKS: readonly Block[] = [
     ],
     requirements: [
       "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
-      "The shadcn/ui tooltip, dialog and resizable components.",
-      "An OpenAI key with access to an image model. The model's name is in data.json.",
+      "The shadcn/ui tooltip, dialog, popover, command and resizable components.",
+      "An OpenAI key with access to an image model. The model a visit starts on is in data.json.",
       "Your own sign-in and rate limit in front of the route before you deploy it, because every picture costs money.",
     ],
     env: {
@@ -332,6 +352,99 @@ export const BLOCKS: readonly Block[] = [
           name: "BLOCKS_LIVE_API",
           required: true,
           description: 'Set to "true" to let the routes run.',
+        },
+      ],
+    },
+  },
+  {
+    slug: "agents",
+    title: "Agents",
+    description:
+      "An agent builder in one thread: templates to start from, a message box that makes an agent from a description, and the agent as a card in the chat.",
+    image: {
+      light: "/screenshot/blocks/agents-light.webp",
+      dark: "/screenshot/blocks/agents-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/agents",
+    previewUrl: "/blocks/demos/agents",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/agents",
+      include: [
+        "api",
+        "components",
+        ".env.example",
+        "README.md",
+        "block.css",
+        "data.json",
+        "layout.tsx",
+        "page.tsx",
+        "toolkit.tsx",
+      ],
+      entry: "components/agents.tsx",
+    },
+    stack: [
+      { name: "AI SDK", package: "ai" },
+      { name: "OpenAI", package: "@ai-sdk/openai" },
+      { name: "shadcn/ui", package: "shadcn" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+    ],
+    useCases: [
+      "A setup page where a person describes an agent and the model writes its instructions and picks its tools.",
+      "A gallery of ready-made agents that open as they are and change by chat.",
+      "A reference for a tool call that draws its result while the arguments are still streaming.",
+    ],
+    capabilities: [
+      {
+        title: "Templates",
+        description:
+          "A list of agents from data.json. One opens in a dialog with its model, connectors, tools, skills and schedule, and is used as it is, with no model call.",
+      },
+      {
+        title: "Config in four forms",
+        description:
+          "The dialog and the card write the agent as YAML, TypeScript, Python or curl, in the shape of a Claude Managed Agents create call, ready to copy.",
+      },
+      {
+        title: "Made by describing",
+        description:
+          "Say what the agent is for. The model writes its name and instructions, picks a model, connectors, tools and skills from the lists in data.json, and sets a schedule when you give one.",
+      },
+      {
+        title: "Agent card",
+        description:
+          "The agent is drawn in the thread while the model writes it: what it runs on, what it can reach, and its instructions, which fold when they are long.",
+      },
+      {
+        title: "Changes by chat",
+        description:
+          "A message such as add Slack or make it shorter changes the open agent. The card moves to the newest change and earlier ones keep one line.",
+      },
+      {
+        title: "Message box",
+        description:
+          "Always at the foot of the page, with files by button or by drop, dictation, and send and stop.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
+      "The shadcn/ui tooltip and dialog components, and Base UI for the tabs and menus.",
+      "The assistant-ui build plugin, withAui, which compiles the toolkit file.",
+      "An OpenAI key for the model that writes the agents. Its name is in data.json.",
+      "Your own agent platform to create and run the agent, and your own sign-in and rate limit in front of the route before you deploy it.",
+    ],
+    env: {
+      note: "The route answers 404 until it is switched on, and 401 without a key.",
+      variables: [
+        {
+          name: "OPENAI_API_KEY",
+          required: true,
+          description: "The key the route calls the model with.",
+        },
+        {
+          name: "BLOCKS_LIVE_API",
+          required: true,
+          description: 'Set to "true" to let the route run.',
         },
       ],
     },

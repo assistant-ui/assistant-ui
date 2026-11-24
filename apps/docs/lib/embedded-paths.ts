@@ -8,6 +8,7 @@ export const BLOCK_PREVIEW_PATHS: readonly string[] = [
   "/blocks/demos/chat-basic",
   "/blocks/demos/images",
   "/blocks/demos/tasks",
+  "/blocks/demos/agents",
 ];
 
 export const EMBEDDED_PATHS: readonly string[] = [

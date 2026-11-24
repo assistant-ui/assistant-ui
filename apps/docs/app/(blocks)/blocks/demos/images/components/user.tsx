@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { MODEL, clearMade, useMade } from "./state";
+import { clearMade, useMade, useOptions } from "./state";
 import {
   Icon,
   Menu,
@@ -34,6 +34,7 @@ const count = (value: number) => value.toLocaleString("en-US");
 
 export function User() {
   const made = useMade();
+  const { model } = useOptions();
   const [usageOpen, setUsageOpen] = useState(false);
 
   return (
@@ -90,7 +91,11 @@ export function User() {
               label="Tokens used"
               value={count(made.reduce((sum, item) => sum + item.tokens, 0))}
             />
-            <Row label="Model" value={MODEL} mono />
+            <Row
+              label="Model"
+              value={model.slice(model.indexOf("/") + 1)}
+              mono
+            />
           </dl>
         </DialogContent>
       </Dialog>

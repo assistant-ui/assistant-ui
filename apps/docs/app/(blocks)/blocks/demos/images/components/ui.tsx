@@ -2,7 +2,7 @@
 
 import type { ComponentProps, ReactElement } from "react";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
-import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
   Tooltip,
@@ -46,6 +46,24 @@ export function Tip({
       <TooltipTrigger render={children} aria-label={label} />
       <TooltipContent side={side}>{label}</TooltipContent>
     </Tooltip>
+  );
+}
+
+/* A small outline in the shape of the orientation it stands for. */
+export function RatioGlyph({ shape }: { shape: string }) {
+  const [width, height] = shape.split(" / ").map(Number);
+  const wide = (width ?? 1) >= (height ?? 1);
+
+  return (
+    <span aria-hidden className="flex size-3.5 items-center justify-center">
+      <span
+        style={{ aspectRatio: shape }}
+        className={cn(
+          "rounded-[3px] border-[1.5px] border-current",
+          wide ? "w-full" : "h-full",
+        )}
+      />
+    </span>
   );
 }
 
@@ -131,6 +149,30 @@ export function MenuChoice({
         <Icon icon={Tick02Icon} />
       </MenuPrimitive.RadioItemIndicator>
     </MenuPrimitive.RadioItem>
+  );
+}
+
+export const MenuSub = MenuPrimitive.SubmenuRoot;
+
+/** A row that opens a menu beside it, with what is chosen there at its end. */
+export function MenuSubTrigger({
+  value,
+  className,
+  children,
+  ...props
+}: MenuPrimitive.SubmenuTrigger.Props & { value: string }) {
+  return (
+    <MenuPrimitive.SubmenuTrigger
+      className={cn(menuItem, "data-popup-open:bg-accent", className)}
+      {...props}
+    >
+      {children}
+      <span className="text-muted-foreground ms-auto ps-6">{value}</span>
+      <Icon
+        icon={ArrowRight01Icon}
+        className="text-muted-foreground -me-1 rtl:rotate-180"
+      />
+    </MenuPrimitive.SubmenuTrigger>
   );
 }
 

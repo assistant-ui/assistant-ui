@@ -1,0 +1,97 @@
+/*
+ * The block's own styles. Menus and popovers render in the body, outside the
+ * block's root element, so the theme is set on the page that holds the block.
+ */
+
+/* Theme: shadcn/ui neutral. */
+:root:has(.agents-block) {
+  --radius: 14px;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  /* Glass: the translucent, blurred surface of anything that floats. */
+  --glass: oklch(1 0 0 / 60%);
+  --glass-hover: oklch(0.145 0 0 / 6%);
+  --glass-muted-foreground: oklch(0.442 0 0);
+  --glass-blur: 4px;
+  --float-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+:root.dark:has(.agents-block) {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --glass: oklch(0.145 0 0 / 70%);
+  --glass-hover: oklch(0.985 0 0 / 9%);
+  --glass-muted-foreground: oklch(0.871 0 0);
+}
+
+/* Medium text is a little lighter than the default 500. */
+:root:has(.agents-block) {
+  --font-weight-medium: 430;
+  --font-weight-normal: 400;
+}
+
+/*
+ * Fonts: Geist and Geist Mono, loaded in layout.tsx, which also sets
+ * `--font-sans` and `--font-mono` on the page because menus and tooltips
+ * render in the body, outside the block's root element.
+ */
+:root:has(.agents-block),
+body:has(.agents-block) {
+  /* The docs site's `font-sans` and `font-mono` classes read these names. */
+  --font-public-sans: var(--font-sans);
+  --font-jetbrains-mono: var(--font-mono);
+  --font-geist-sans: var(--font-sans);
+}
+
+body:has(.agents-block) {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Anything that can be clicked shows the hand. */
+:root:has(.agents-block)
+  :where(button, [role="button"], [role="menuitem"], a[href]):not(
+    :disabled,
+    [aria-disabled="true"],
+    [data-disabled]
+  ) {
+  cursor: pointer;
+}
+
+.agents-block {
+  height: 100%;
+}

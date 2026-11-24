@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import { useAui } from "@assistant-ui/react";
-import { Download01Icon } from "@hugeicons/core-free-icons";
+import { ImageGallery } from "@/components/assistant-ui/elements/image-gallery";
 import {
   Dialog,
   DialogContent,
@@ -12,27 +12,24 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import {
-  RATIOS,
+  ORIENTATIONS,
   TEMPLATES,
-  TRENDING,
+  shapeOf,
   tileSrc,
   useMade,
   useOptions,
   type Template,
 } from "./state";
 import {
-  Icon,
   Menu,
   MenuChoice,
   MenuPopup,
   MenuRadioGroup,
   MenuTrigger,
-  Tip,
+  RatioGlyph,
   field,
   focusRing,
-  iconButton,
   inkButton,
-  rItem,
   rSurface,
   textButton,
 } from "./ui";
@@ -43,7 +40,6 @@ import {
 
 const TABS = [
   { value: "templates", label: "Templates" },
-  { value: "trending", label: "Trending" },
   { value: "mine", label: "My images" },
 ] as const;
 
@@ -71,9 +67,6 @@ export function Gallery() {
         </Tabs.List>
         <Tabs.Panel value="templates" className="outline-none">
           <Templates />
-        </Tabs.Panel>
-        <Tabs.Panel value="trending" className="outline-none">
-          <Trending />
         </Tabs.Panel>
         <Tabs.Panel value="mine" className="outline-none">
           <Mine />
@@ -121,8 +114,8 @@ function Templates() {
 }
 
 /*
- * A template up close: its picture, its prompt, and the shape to make it
- * in. Using it writes the prompt in the message box, to send as it is or
+ * A template up close: its picture, its prompt, and the orientation to make
+ * it in. Using it writes the prompt in the message box, to send as it is or
  * with your own details added.
  */
 function TemplateDialog({
@@ -133,13 +126,13 @@ function TemplateDialog({
   onClose: () => void;
 }) {
   const aui = useAui();
-  const { setRatio, inputRef } = useOptions();
+  const { setSetting, inputRef } = useOptions();
   // The last template stays drawn while the dialog closes.
   const [shown, setShown] = useState<Template | null>(template);
-  const [ratio, setOwnRatio] = useState<string>("auto");
+  const [orientation, setOrientation] = useState<string>("auto");
   if (template && template !== shown) {
     setShown(template);
-    setOwnRatio(template.ratio);
+    setOrientation(template.ratio);
   }
 
   return (
@@ -174,20 +167,28 @@ function TemplateDialog({
               </DialogDescription>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">
-                  Aspect ratio
+                  Orientation
                 </span>
                 <Menu>
                   <MenuTrigger className={cn(textButton, field, "h-8 px-3")}>
-                    <RatioGlyph
-                      shape={
-                        RATIOS.find((entry) => entry.value === ratio)?.shape ??
-                        "1 / 1"
-                      }
-                    />
-                    {RATIOS.find((entry) => entry.value === ratio)?.label}
+                    <RatioGlyph shape={shapeOf(orientation)} />
+                    {
+                      ORIENTATIONS.find((entry) => entry.value === orientation)
+                        ?.label
+                    }
                   </MenuTrigger>
                   <MenuPopup align="end">
-                    <RatioChoices value={ratio} onValueChange={setOwnRatio} />
+                    <MenuRadioGroup
+                      value={orientation}
+                      onValueChange={setOrientation}
+                    >
+                      {ORIENTATIONS.map((entry) => (
+                        <MenuChoice key={entry.value} value={entry.value}>
+                          {entry.shape && <RatioGlyph shape={entry.shape} />}
+                          {entry.label}
+                        </MenuChoice>
+                      ))}
+                    </MenuRadioGroup>
                   </MenuPopup>
                 </Menu>
               </div>
@@ -195,7 +196,7 @@ function TemplateDialog({
                 type="button"
                 onClick={() => {
                   aui.composer.setText(shown.prompt);
-                  setRatio(ratio);
+                  setSetting("orientation", orientation);
                   onClose();
                 }}
                 className={cn(inkButton, "mt-auto h-9 px-4 text-sm")}
@@ -210,78 +211,7 @@ function TemplateDialog({
   );
 }
 
-/* The rows of a ratio menu, in the message box and in the template dialog. */
-export function RatioChoices({
-  value,
-  onValueChange,
-}: {
-  value: string;
-  onValueChange: (value: string) => void;
-}) {
-  return (
-    <MenuRadioGroup value={value} onValueChange={onValueChange}>
-      {RATIOS.map((entry) => (
-        <MenuChoice key={entry.value} value={entry.value}>
-          <RatioGlyph shape={entry.shape} />
-          {entry.label}
-        </MenuChoice>
-      ))}
-    </MenuRadioGroup>
-  );
-}
-
-/* A small outline in the shape of the ratio it stands for. */
-export function RatioGlyph({ shape }: { shape: string }) {
-  const [width, height] = shape.split(" / ").map(Number);
-  const wide = (width ?? 1) >= (height ?? 1);
-
-  return (
-    <span aria-hidden className="flex size-3.5 items-center justify-center">
-      <span
-        style={{ aspectRatio: shape }}
-        className={cn(
-          "rounded-[3px] border-[1.5px] border-current",
-          wide ? "w-full" : "h-full",
-        )}
-      />
-    </span>
-  );
-}
-
-/* Prompts worth trying: one puts its words in the message box, ready to change or send. */
-function Trending() {
-  const aui = useAui();
-  const { inputRef } = useOptions();
-
-  return (
-    <ul className="grid gap-2 sm:grid-cols-2">
-      {TRENDING.map((entry) => (
-        <li key={entry.title}>
-          <button
-            type="button"
-            onClick={() => {
-              aui.composer.setText(entry.prompt);
-              inputRef.current?.focus();
-            }}
-            className={cn(
-              field,
-              rSurface,
-              "hover:bg-foreground/[0.07] flex h-full w-full flex-col gap-1 p-4 text-start transition-colors motion-reduce:transition-none",
-              focusRing,
-            )}
-          >
-            <span className="font-medium">{entry.title}</span>
-            <span className="text-muted-foreground leading-[1.375rem]">
-              {entry.prompt}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/* Every picture made on this visit, newest first. */
+/* Every picture made on this visit, newest first, with one full-screen view to move through them. */
 function Mine() {
   const made = useMade();
 
@@ -293,36 +223,15 @@ function Mine() {
     );
 
   return (
-    <ul className={grid}>
-      {made.map((picture) => (
-        <li
-          key={picture.id}
-          className={cn(
-            field,
-            rSurface,
-            "group relative aspect-square overflow-hidden",
-          )}
-        >
-          <img
-            src={picture.src}
-            alt={picture.prompt}
-            className="size-full object-cover"
-          />
-          <Tip label="Download">
-            <a
-              href={picture.src}
-              download="picture.webp"
-              className={cn(
-                iconButton,
-                rItem,
-                "bg-background/90 text-foreground hover:bg-background absolute end-2 top-2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100",
-              )}
-            >
-              <Icon icon={Download01Icon} />
-            </a>
-          </Tip>
-        </li>
-      ))}
-    </ul>
+    <ImageGallery
+      images={made.map((picture) => ({
+        id: picture.id,
+        src: picture.src,
+        alt: picture.prompt,
+        caption: picture.prompt,
+      }))}
+      maxVisible={made.length}
+      className="max-w-none *:gap-3 *:@2xl:grid-cols-4 *:@5xl:grid-cols-5"
+    />
   );
 }

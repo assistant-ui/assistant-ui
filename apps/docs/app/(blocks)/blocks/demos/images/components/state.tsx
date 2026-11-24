@@ -13,45 +13,160 @@ import {
 import data from "../data.json";
 
 /* -------------------------------------------------------------------------- */
-/* What the block offers: its templates, sizes and levels of detail           */
+/* What the block offers: its templates, and the settings of a picture        */
 /* -------------------------------------------------------------------------- */
 
 export type Template = (typeof data.templates)[number];
 
-export const MODEL = data.model;
+/** The model a visit starts on, as `provider/id`; the route knows only this provider. */
+export const PROVIDER = "openai";
+export const MODEL = `${PROVIDER}/${data.model}`;
 export const TEMPLATES: readonly Template[] = data.templates;
-export const TRENDING = data.trending;
 
 /** Where a template's tile picture is served from. */
 export const tileSrc = (id: string) => `/blocks/images/${id}.webp`;
 
-export const RATIOS = [
+export type Choice = {
+  value: string;
+  label: string;
+  note?: string;
+  /** The outline drawn beside an orientation. */
+  shape?: string;
+};
+
+export type SettingKey =
+  | "orientation"
+  | "size"
+  | "quality"
+  | "complexity"
+  | "count"
+  | "format"
+  | "background"
+  | "moderation"
+  | "partials";
+
+export type Setting = {
+  key: SettingKey;
+  label: string;
+  choices: readonly Choice[];
+};
+
+export type Settings = Record<SettingKey, string>;
+
+export const ORIENTATIONS: readonly Choice[] = [
   { value: "auto", label: "Auto", shape: "1 / 1" },
-  { value: "1:1", label: "1:1", shape: "1 / 1" },
-  { value: "2:3", label: "2:3", shape: "2 / 3" },
-  { value: "3:2", label: "3:2", shape: "3 / 2" },
-  { value: "16:9", label: "16:9", shape: "16 / 9" },
-  { value: "9:16", label: "9:16", shape: "9 / 16" },
-] as const;
+  { value: "1:1", label: "Square", note: "1:1", shape: "1 / 1" },
+  { value: "2:3", label: "Portrait", note: "2:3", shape: "2 / 3" },
+  { value: "3:2", label: "Landscape", note: "3:2", shape: "3 / 2" },
+  { value: "16:9", label: "Wide", note: "16:9", shape: "16 / 9" },
+  { value: "9:16", label: "Tall", note: "9:16", shape: "9 / 16" },
+];
 
-export const QUALITIES = [
-  { value: "low", label: "Low", note: "Fastest" },
-  { value: "medium", label: "Medium", note: "Balanced" },
-  { value: "high", label: "High", note: "Most detail" },
-] as const;
+/* What the plus menu sets, in its order. */
+export const SETTINGS: readonly Setting[] = [
+  { key: "orientation", label: "Orientation", choices: ORIENTATIONS },
+  {
+    key: "size",
+    label: "Size",
+    choices: [
+      { value: "standard", label: "Standard", note: "Up to 1536 px" },
+      { value: "large", label: "Large", note: "Up to 2560 px" },
+    ],
+  },
+  {
+    key: "quality",
+    label: "Quality",
+    choices: [
+      { value: "low", label: "Low", note: "Fastest" },
+      { value: "medium", label: "Medium", note: "Balanced" },
+      { value: "high", label: "High", note: "Most detail" },
+    ],
+  },
+  {
+    key: "complexity",
+    label: "Complexity",
+    choices: [
+      { value: "auto", label: "Auto" },
+      { value: "low", label: "Low" },
+      { value: "medium", label: "Medium" },
+      { value: "high", label: "High" },
+    ],
+  },
+  {
+    key: "count",
+    label: "Images",
+    choices: [
+      { value: "1", label: "1" },
+      { value: "2", label: "2" },
+      { value: "3", label: "3" },
+      { value: "4", label: "4" },
+    ],
+  },
+  {
+    key: "format",
+    label: "Output",
+    choices: [
+      { value: "webp", label: "WebP" },
+      { value: "png", label: "PNG" },
+      { value: "jpeg", label: "JPEG" },
+    ],
+  },
+  {
+    key: "background",
+    label: "Background",
+    choices: [
+      { value: "auto", label: "Auto" },
+      { value: "opaque", label: "Opaque" },
+      { value: "transparent", label: "Transparent" },
+    ],
+  },
+  {
+    key: "moderation",
+    label: "Moderation",
+    choices: [
+      { value: "auto", label: "Auto" },
+      { value: "low", label: "Low", note: "Less strict" },
+    ],
+  },
+  {
+    key: "partials",
+    label: "Partial images",
+    choices: [
+      { value: "0", label: "Off" },
+      { value: "1", label: "1" },
+      { value: "2", label: "2" },
+      { value: "3", label: "3" },
+    ],
+  },
+];
 
-export const shapeOf = (ratio: string) =>
-  RATIOS.find((entry) => entry.value === ratio)?.shape ?? "1 / 1";
+export const DEFAULTS: Settings = {
+  orientation: "auto",
+  size: "standard",
+  quality: "medium",
+  complexity: "auto",
+  count: "1",
+  format: "webp",
+  background: "auto",
+  moderation: "auto",
+  partials: "0",
+};
+
+export const shapeOf = (orientation: string) =>
+  ORIENTATIONS.find((entry) => entry.value === orientation)?.shape ?? "1 / 1";
 
 /* -------------------------------------------------------------------------- */
 /* The choices the next picture is made with                                  */
 /* -------------------------------------------------------------------------- */
 
 type Options = {
-  ratio: string;
-  setRatio: (ratio: string) => void;
-  quality: string;
-  setQuality: (quality: string) => void;
+  model: string;
+  setModel: (model: string) => void;
+  settings: Settings;
+  setSetting: (key: SettingKey, value: string) => void;
+  resetSettings: () => void;
+  /** What rides along with a request as its run config, for the route to read. */
+  runConfig: { custom: Settings & { model: string } };
   /** The message box, which a chosen prompt hands the focus to. */
   inputRef: RefObject<HTMLTextAreaElement | null>;
 };
@@ -59,19 +174,28 @@ type Options = {
 const OptionsContext = createContext<Options | null>(null);
 
 export function OptionsProvider({ children }: { children: ReactNode }) {
-  const [ratio, setRatio] = useState<string>("auto");
-  const [quality, setQuality] = useState<string>("medium");
+  const [model, setModel] = useState(MODEL);
+  const [settings, setSettings] = useState(DEFAULTS);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const options = useMemo<Options>(
     () => ({
-      ratio,
-      setRatio,
-      quality,
-      setQuality,
+      model,
+      setModel,
+      settings,
+      setSetting: (key, value) =>
+        setSettings((previous) => {
+          const next = { ...previous, [key]: value };
+          // A JPEG has no transparency to keep.
+          if (next.format === "jpeg" && next.background === "transparent")
+            next.background = "auto";
+          return next;
+        }),
+      resetSettings: () => setSettings(DEFAULTS),
+      runConfig: { custom: { ...settings, model } },
       inputRef,
     }),
-    [ratio, quality],
+    [model, settings],
   );
 
   return (

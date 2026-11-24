@@ -3,26 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import {
-  blockAssistantUi,
-  blockDependencies,
+  blockElements,
   readBlockSource,
-  readPublishedDependencies,
 } from "@/components/pages/blocks/block-source";
-import { Dependencies } from "@/components/pages/blocks/dependencies";
-import {
-  AssistantUi,
-  Capabilities,
-  EnvironmentVariables,
-  Requirements,
-  UseCases,
-} from "@/components/pages/blocks/sections";
+import { BlockElements } from "@/components/pages/blocks/sections";
 import { BlockViewer } from "@/components/pages/blocks/block-viewer";
+import { ELEMENTS } from "@/components/pages/elements/registry";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { BLOCKS, getBlock } from "@/lib/blocks";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
-import docsManifest from "@/package.json";
 
 export function generateStaticParams() {
   return BLOCKS.map((block) => ({ slug: block.slug }));
@@ -50,10 +41,11 @@ export default async function BlockPage(props: {
   if (!block) notFound();
 
   const files = await readBlockSource(block.source);
-  const dependencies = await readPublishedDependencies(
-    blockDependencies(files, docsManifest.dependencies),
-  );
-  const imports = blockAssistantUi(files);
+  const bySlug = new Map(ELEMENTS.map((element) => [element.slug, element]));
+  const elements = blockElements(files, ELEMENTS).flatMap((match) => {
+    const element = bySlug.get(match.slug);
+    return element ? [{ ...element, ...match }] : [];
+  });
 
   return (
     <PageFrame pad="sub">
@@ -92,24 +84,11 @@ export default async function BlockPage(props: {
         />
       </div>
 
-      <div className="mt-16 flex flex-col md:mt-20">
-        <UseCases useCases={block.useCases} />
-        <Capabilities capabilities={block.capabilities} />
-        <AssistantUi imports={imports} />
-        <Dependencies dependencies={dependencies} />
-        <Requirements requirements={block.requirements} />
-        {block.env && (
-          <EnvironmentVariables
-            env={block.env}
-            example={
-              files.find((file) => file.path === ".env.example")?.code ??
-              block.env.variables
-                .map((variable) => `${variable.name}=`)
-                .join("\n")
-            }
-          />
-        )}
-      </div>
+      {elements.length > 0 && (
+        <div className="mt-16 md:mt-20">
+          <BlockElements elements={elements} />
+        </div>
+      )}
     </PageFrame>
   );
 }

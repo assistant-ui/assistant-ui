@@ -1,16 +1,6 @@
 import type { ReactNode } from "react";
-import type {
-  BlockImport,
-  BlockImportKind,
-} from "@/components/pages/blocks/block-source";
-import { CodeBlock } from "@/components/ui/code-block";
-import type { Block } from "@/lib/blocks";
-import { cn } from "@/lib/utils";
-
-const box = "border-foreground/10 overflow-hidden rounded-2xl border";
-const cells = "-mr-px -mb-px grid";
-const cell = "border-foreground/10 border-r border-b p-5";
-const rows = "border-foreground/10 divide-foreground/10 divide-y border-t";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 export function BlockSection({
   id,
@@ -35,135 +25,83 @@ export function BlockSection({
   );
 }
 
-function Index({ value }: { value: number }) {
+export type BlockElementLink = {
+  slug: string;
+  title: string;
+  description: string;
+  section: string;
+  kind: "element" | "primitive";
+  names: readonly string[];
+};
+
+function ElementList({ elements }: { elements: readonly BlockElementLink[] }) {
+  const groups: { label: string; elements: BlockElementLink[] }[] = [];
+  for (const element of elements) {
+    const group = groups.at(-1);
+    if (group?.label === element.section) group.elements.push(element);
+    else groups.push({ label: element.section, elements: [element] });
+  }
+
   return (
-    <span className="text-muted-foreground text-xs tabular-nums">
-      {String(value).padStart(2, "0")}
-    </span>
+    <div className="flex flex-col gap-8">
+      {groups.map((group) => (
+        <div key={group.label}>
+          <h3 className="text-muted-foreground text-[13px]">{group.label}</h3>
+          <ul className="mt-1">
+            {group.elements.map((element) => (
+              <li key={element.slug}>
+                <Link
+                  href={`/elements/${element.slug}`}
+                  className="hover:bg-foreground/[0.025] group -mx-3 grid items-start gap-x-6 px-3 py-2.5 transition-colors md:grid-cols-[16rem_minmax(0,1fr)]"
+                >
+                  <span className="min-w-0">
+                    <span className="text-sm font-medium">
+                      {element.title}
+                      <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
+                    </span>
+                    <span className="text-muted-foreground mt-1 block font-mono text-[12px] [font-variant-ligatures:none]">
+                      {element.names.join(", ")}
+                    </span>
+                  </span>
+                  <span className="text-muted-foreground text-[13px] leading-relaxed">
+                    {element.description}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
   );
 }
 
-export function UseCases({ useCases }: Pick<Block, "useCases">) {
-  return (
-    <BlockSection id="use-cases" label="Use cases">
-      <ol className={rows}>
-        {useCases.map((useCase, index) => (
-          <li key={useCase} className="flex items-baseline gap-6 py-4">
-            <Index value={index + 1} />
-            <p className="max-w-2xl text-[15px] leading-relaxed">{useCase}</p>
-          </li>
-        ))}
-      </ol>
-    </BlockSection>
-  );
-}
-
-export function Capabilities({ capabilities }: Pick<Block, "capabilities">) {
-  return (
-    <BlockSection id="capabilities" label="Capabilities">
-      <div className={box}>
-        <dl className={cn(cells, "sm:grid-cols-2 lg:grid-cols-3")}>
-          {capabilities.map((capability) => (
-            <div key={capability.title} className={cell}>
-              <dt className="text-sm font-medium">{capability.title}</dt>
-              <dd className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-                {capability.description}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </BlockSection>
-  );
-}
-
-const KINDS: readonly { kind: BlockImportKind; label: string }[] = [
-  { kind: "hook", label: "Hooks" },
-  { kind: "primitive", label: "Primitives" },
-  { kind: "component", label: "Components" },
-  { kind: "runtime", label: "Runtime" },
-  { kind: "type", label: "Types" },
-];
-
-export function AssistantUi({ imports }: { imports: readonly BlockImport[] }) {
-  const groups = KINDS.map((group) => ({
-    ...group,
-    items: imports.filter((entry) => entry.kind === group.kind),
-  })).filter((group) => group.items.length > 0);
-
-  return (
-    <BlockSection id="from-assistant-ui" label="From assistant-ui">
-      <dl className={rows}>
-        {groups.map((group) => (
-          <div
-            key={group.kind}
-            className="grid gap-x-12 gap-y-1.5 py-4 md:grid-cols-[14rem_minmax(0,1fr)]"
-          >
-            <dt className="flex items-baseline gap-2.5 text-sm font-medium">
-              {group.label}
-              <span className="text-muted-foreground text-xs font-normal tabular-nums">
-                {group.items.length}
-              </span>
-            </dt>
-            <dd className="min-w-0">
-              <ul className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[13px] [font-variant-ligatures:none]">
-                {group.items.map((entry) => (
-                  <li key={`${entry.source} ${entry.name}`}>
-                    {entry.name}
-                    {entry.parts.length > 0 && (
-                      <span className="text-muted-foreground text-xs">
-                        {entry.parts.map((part) => ` .${part}`).join("")}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </BlockSection>
-  );
-}
-
-export function Requirements({ requirements }: Pick<Block, "requirements">) {
-  return (
-    <BlockSection id="requirements" label="Requirements">
-      <div className={box}>
-        <ol className={cn(cells, "md:grid-cols-3")}>
-          {requirements.map((requirement, index) => (
-            <li key={requirement} className={cell}>
-              <Index value={index + 1} />
-              <p className="mt-3 text-sm leading-relaxed">{requirement}</p>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </BlockSection>
-  );
-}
-
-export function EnvironmentVariables({
-  env,
-  example,
+export function BlockElements({
+  elements,
 }: {
-  env: NonNullable<Block["env"]>;
-  example: string;
+  elements: readonly BlockElementLink[];
 }) {
+  const imported = elements.filter((element) => element.kind === "element");
+  const primitives = elements.filter((element) => element.kind === "primitive");
+
   return (
-    <BlockSection id="environment-variables" label="Environment variables">
-      <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">
-        {env.note}
-      </p>
-      <CodeBlock
-        className="mt-6 mb-0 max-w-2xl rounded-2xl"
-        title=".env.example"
-        copyText={example}
-      >
-        <pre>
-          <code>{example}</code>
-        </pre>
-      </CodeBlock>
-    </BlockSection>
+    <>
+      {imported.length > 0 && (
+        <BlockSection id="elements" label="Uses the element">
+          <ElementList elements={imported} />
+        </BlockSection>
+      )}
+      {primitives.length > 0 && (
+        <BlockSection id="primitives" label="Uses the primitive">
+          <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">
+            This block renders the primitive. The link opens the element built
+            on it.
+          </p>
+          <div className="mt-6">
+            <ElementList elements={primitives} />
+          </div>
+        </BlockSection>
+      )}
+    </>
   );
 }

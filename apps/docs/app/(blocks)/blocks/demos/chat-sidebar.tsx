@@ -163,6 +163,7 @@ export function ChatSidebar({
   title,
   history = false,
   width = "15rem",
+  defaultOpen = true,
   list,
   footer,
   children,
@@ -172,6 +173,8 @@ export function ChatSidebar({
   history?: boolean;
   /** How wide the sidebar starts. */
   width?: string;
+  /** Whether the sidebar starts open. */
+  defaultOpen?: boolean;
   /** What the sidebar lists: `<ChatList>`, or a list of the block's own. */
   list: ReactNode;
   /** Stays at the foot of the sidebar, under the list. */
@@ -181,15 +184,18 @@ export function ChatSidebar({
 }) {
   const isMobile = useIsMobile();
   const sidebarRef = usePanelRef();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
+  const opened = useRef(defaultOpen);
   const snap = useSnapAnimation();
 
   const toggle = useCallback(() => {
     const sidebar = sidebarRef.current;
     if (!sidebar) return;
-    if (sidebar.isCollapsed()) sidebar.expand();
-    else sidebar.collapse();
-  }, [sidebarRef]);
+    if (!sidebar.isCollapsed()) sidebar.collapse();
+    // A sidebar that started closed has no earlier width to open to.
+    else if (opened.current) sidebar.expand();
+    else sidebar.resize(width);
+  }, [sidebarRef, width]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -220,11 +226,14 @@ export function ChatSidebar({
                 panelRef={sidebarRef}
                 collapsible
                 collapsedSize={0}
-                defaultSize={width}
+                defaultSize={defaultOpen ? width : 0}
                 minSize="12rem"
                 maxSize="24rem"
                 groupResizeBehavior="preserve-pixel-size"
-                onResize={(size) => setOpen(size.inPixels > 0)}
+                onResize={(size) => {
+                  if (size.inPixels > 0) opened.current = true;
+                  setOpen(size.inPixels > 0);
+                }}
                 style={{ overflow: "hidden" }}
               >
                 <aside

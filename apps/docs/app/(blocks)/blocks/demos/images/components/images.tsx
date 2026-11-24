@@ -25,46 +25,33 @@ import {
 } from "@assistant-ui/react";
 import {
   Add01Icon,
-  ArrowDown01Icon,
   ArrowDown02Icon,
   ArrowUp02Icon,
   Cancel01Icon,
-  Download01Icon,
-  Image01Icon,
   Mic01Icon,
   MicOff01Icon,
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import type { UIMessage } from "ai";
+import { Image } from "@/components/assistant-ui/elements/image";
+import { ImageGallery } from "@/components/assistant-ui/elements/image-gallery";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
 import { cn } from "@/lib/utils";
 import { ChatList, ChatSidebar, ChatSidebarTrigger } from "../../chat-sidebar";
-import { Gallery, RatioChoices, RatioGlyph } from "./gallery";
-import {
-  OptionsProvider,
-  QUALITIES,
-  RATIOS,
-  addMade,
-  shapeOf,
-  useOptions,
-} from "./state";
+import { EditorFrame, useEditor } from "./editor";
+import { Gallery } from "./gallery";
+import { ModelPicker } from "./models";
+import { AddMenu } from "./settings";
+import { OptionsProvider, addMade, shapeOf, useOptions } from "./state";
 import {
   Icon,
-  Menu,
-  MenuChoice,
-  MenuItem,
-  MenuLabel,
-  MenuPopup,
-  MenuRadioGroup,
-  MenuSeparator,
-  MenuTrigger,
   Tip,
   field,
+  focusRing,
   iconButton,
   inkButton,
   rItem,
   rSurface,
-  textButton,
 } from "./ui";
 import { User } from "./user";
 
@@ -112,11 +99,20 @@ function useDictationAdapter() {
   );
 }
 
+type Part = ThreadMessage["content"][number];
+
 const textOf = (message: ThreadMessage | undefined) =>
   (message?.content ?? [])
     .flatMap((part) => (part.type === "text" ? [part.text] : []))
     .join("\n")
     .trim();
+
+const picturesOf = (parts: readonly Part[]) =>
+  parts.flatMap((part) =>
+    part.type === "file" && part.mimeType.startsWith("image/")
+      ? [part.data]
+      : [],
+  );
 
 const titleOf = (text: string) =>
   text.length > 60 ? `${text.slice(0, 57).trimEnd()}...` : text;
@@ -136,16 +132,17 @@ function Bookkeeping() {
 
     const reply = messages.at(-1);
     if (reply?.role !== "assistant") return;
-    const picture = reply.content.find(
-      (part) => part.type === "file" && part.mimeType.startsWith("image/"),
+    const prompt = textOf(messages.at(-2));
+    const tokens = getThreadMessageTokenUsage(reply)?.totalTokens ?? 0;
+    picturesOf(reply.content).forEach((src, index) =>
+      // The reply's tokens are counted once, on its first picture.
+      addMade({
+        id: `${reply.id}:${index}`,
+        src,
+        prompt,
+        tokens: index === 0 ? tokens : 0,
+      }),
     );
-    if (picture?.type !== "file") return;
-    addMade({
-      id: reply.id,
-      src: picture.data,
-      prompt: textOf(messages.at(-2)),
-      tokens: getThreadMessageTokenUsage(reply)?.totalTokens ?? 0,
-    });
   });
 
   return null;
@@ -185,11 +182,14 @@ export function Images() {
       <OptionsProvider>
         <ChatSidebar
           title="Images"
+          defaultOpen={false}
           list={<ChatList label="New image" heading="Recent" />}
           footer={<User />}
         >
-          <Header />
-          <Thread />
+          <EditorFrame>
+            <Header />
+            <Thread />
+          </EditorFrame>
         </ChatSidebar>
       </OptionsProvider>
     </AssistantRuntimeProvider>
@@ -207,7 +207,7 @@ function Header() {
         {empty ? "" : title || "New image"}
       </p>
       <Tip label="New image">
-        <ThreadListPrimitive.New className={cn(iconButton, "md:hidden")}>
+        <ThreadListPrimitive.New className={iconButton}>
           <Icon icon={Add01Icon} />
         </ThreadListPrimitive.New>
       </Tip>
@@ -290,38 +290,94 @@ function UserMessage() {
   );
 }
 
+/*
+ * A reply is its pictures: one stands alone with its actions, several share
+ * a grid and one full-screen view. Until the first arrives, the reply holds
+ * its place in the shape that was asked for.
+ */
 function AssistantMessage() {
-  const { ratio } = useOptions();
+  const aui = useAui();
+  const editor = useEditor();
+  const { runConfig } = useOptions();
+  const parts = useAuiState((s) => s.message.parts);
+  const running = useAuiState((s) => s.message.status?.type === "running");
+  const blocked = useAuiState(
+    (s) =>
+      s.message.status?.type === "incomplete" &&
+      s.message.status.reason === "content-filter",
+  );
+  const asked = useAuiState((s) =>
+    textOf(s.thread.messages[s.message.index - 1]),
+  );
+  const pictures = useMemo(() => picturesOf(parts), [parts]);
+  const [single] = pictures;
+  const preview = useMemo(() => previewOf(parts), [parts]);
+  const alt = asked || "The picture that was made";
+  const makeAgain = () => aui.message.reload({ runConfig });
 
   return (
     <MessagePrimitive.Root className="flex flex-col items-start gap-2">
-      <MessagePrimitive.Parts>
-        {({ part }) =>
-          part.type === "file" && part.mimeType.startsWith("image/") ? (
-            <Picture src={part.data} />
-          ) : part.type === "text" ? (
-            <p className="leading-[1.375rem]">{part.text}</p>
-          ) : null
-        }
-      </MessagePrimitive.Parts>
-      <AuiIf
-        condition={(s) =>
-          s.message.status?.type === "running" && s.message.parts.length === 0
-        }
-      >
-        {/* The space the picture will take, in the shape that was asked for. */}
-        <div
-          role="status"
-          style={{ aspectRatio: shapeOf(ratio) }}
-          className={cn(
-            field,
-            rSurface,
-            "text-muted-foreground flex max-h-[60dvh] w-80 max-w-full animate-pulse items-end p-4 motion-reduce:animate-none",
-          )}
-        >
-          Making your picture
-        </div>
-      </AuiIf>
+      {pictures.length > 1 ? (
+        <>
+          <ImageGallery
+            images={pictures.map((src, index) => ({
+              id: String(index),
+              src,
+              alt: `${alt} (${index + 1} of ${pictures.length})`,
+              caption: asked,
+            }))}
+            maxVisible={pictures.length}
+            // Two or four pictures sit two to a row.
+            className={cn(
+              "max-w-xl",
+              pictures.length !== 3 && "*:@sm:grid-cols-2",
+            )}
+          />
+          <ActionBarPrimitive.Root hideWhenRunning className="flex gap-0.5">
+            <Tip label="Make them again">
+              <button type="button" className={iconButton} onClick={makeAgain}>
+                <Icon icon={RefreshIcon} />
+              </button>
+            </Tip>
+          </ActionBarPrimitive.Root>
+        </>
+      ) : single ? (
+        <>
+          <Image.Root size="lg" className={rSurface}>
+            <Image.Zoom src={single} alt={alt}>
+              <Image.Preview
+                src={single}
+                alt={alt}
+                className="max-h-[60dvh] w-auto max-w-full"
+              />
+            </Image.Zoom>
+            <button
+              type="button"
+              onClick={() => editor.open({ src: single, prompt: asked })}
+              className={cn(
+                "absolute start-3 bottom-3 flex h-8 items-center rounded-full bg-black/75 px-3.5 text-sm font-medium text-white transition-colors hover:bg-black/90 motion-reduce:transition-none",
+                focusRing,
+              )}
+            >
+              Edit
+            </button>
+          </Image.Root>
+          <ActionBarPrimitive.Root hideWhenRunning>
+            <Image.Actions
+              part={{ type: "image", image: single }}
+              onRegenerate={makeAgain}
+              className="p-0"
+            />
+          </ActionBarPrimitive.Root>
+        </>
+      ) : running ? (
+        <Pending preview={preview} />
+      ) : null}
+      {blocked && (
+        <Image.Root size="sm" className={rSurface}>
+          <Image.ContentFilterError reason="The provider blocked this request." />
+        </Image.Root>
+      )}
       <MessagePrimitive.Error>
         <ErrorPrimitive.Root
           className={cn(
@@ -336,73 +392,60 @@ function AssistantMessage() {
   );
 }
 
-/* A picture that was made, with the request that made it as its description. */
-function Picture({ src }: { src: string }) {
-  const aui = useAui();
-  const { ratio, quality } = useOptions();
-  const asked = useAuiState((s) =>
-    textOf(s.thread.messages[s.message.index - 1]),
+/* The newest partial picture the route has sent ahead of the finished one. */
+const previewOf = (parts: readonly Part[]) => {
+  const partial = parts.findLast(
+    (part) => part.type === "data" && part.name === "partial",
   );
+  const url: unknown = partial?.type === "data" ? partial.data?.url : undefined;
+  return typeof url === "string" ? url : undefined;
+};
+
+/* The place a picture will take: a partial one as it arrives, or the shape that was asked for. */
+function Pending({ preview }: { preview: string | undefined }) {
+  const { settings } = useOptions();
+
+  if (preview)
+    return (
+      <Image.Root size="lg" role="status" className={rSurface}>
+        <Image.Preview
+          src={preview}
+          alt="Your picture so far"
+          className="max-h-[60dvh] w-auto max-w-full animate-pulse motion-reduce:animate-none"
+        />
+      </Image.Root>
+    );
 
   return (
-    <>
-      <img
-        src={src}
-        alt={asked || "The picture that was made"}
-        className={cn(
-          rSurface,
-          "border-border/60 max-h-[60dvh] w-auto max-w-full border",
-        )}
-      />
-      <ActionBarPrimitive.Root hideWhenRunning className="flex gap-0.5">
-        <Tip label="Download">
-          <a href={src} download="picture.webp" className={iconButton}>
-            <Icon icon={Download01Icon} />
-          </a>
-        </Tip>
-        <Tip label="Make it again">
-          <button
-            type="button"
-            className={iconButton}
-            onClick={() =>
-              aui.message.reload({
-                runConfig: {
-                  custom: { ...(ratio !== "auto" && { ratio }), quality },
-                },
-              })
-            }
-          >
-            <Icon icon={RefreshIcon} />
-          </button>
-        </Tip>
-      </ActionBarPrimitive.Root>
-    </>
+    <Image.Root
+      role="status"
+      style={{ aspectRatio: shapeOf(settings.orientation) }}
+      className={cn(rSurface, "max-h-[60dvh] w-80 max-w-full")}
+    >
+      <Image.Generating className="size-full" />
+    </Image.Root>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Message box: what to make, in what shape, with how much detail             */
+/* Message box: what to make, with which model and settings                   */
 /* -------------------------------------------------------------------------- */
 
 /*
- * One row: add, the words, how much detail, dictate, send. Pictures attached
- * as a starting point sit in a muted strip that tucks behind the box.
+ * One row: add and settings, the words, the model, dictate, send. Pictures
+ * attached as a starting point sit in a muted strip that tucks behind the box.
  */
 function Composer() {
   const aui = useAui();
-  const { ratio, quality, inputRef } = useOptions();
+  const { runConfig, inputRef } = useOptions();
   const empty = useAuiState((s) => s.thread.isEmpty);
   const attached = useAuiState((s) => s.composer.attachments.length > 0);
   const addImages = useRef<HTMLButtonElement>(null);
 
   return (
     <ComposerPrimitive.Root
-      // The choices ride along with the message as its run config, which the route reads.
-      onSubmit={() =>
-        aui.composer.setRunConfig({
-          custom: { ...(ratio !== "auto" && { ratio }), quality },
-        })
-      }
+      // The model and the settings ride along with the message as its run config, which the route reads.
+      onSubmit={() => aui.composer.setRunConfig(runConfig)}
       className="flex flex-col"
     >
       <div
@@ -429,17 +472,17 @@ function Composer() {
         <AuiIf condition={(s) => s.composer.dictation != null}>
           <DictationStatus />
         </AuiIf>
-        <div className="flex items-end gap-0.5">
+        {/* A phone has no room for the words beside the controls, so they take a row of their own above. */}
+        <div className="flex items-end gap-0.5 max-sm:flex-wrap">
           <AddMenu onAddImages={() => addImages.current?.click()} />
           <ComposerPrimitive.Input
             ref={inputRef}
             rows={1}
             placeholder={empty ? "Describe a new image" : "Describe a change"}
             aria-label="Describe the picture"
-            className="placeholder:text-muted-foreground/70 max-h-40 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-1.5 text-base leading-6 outline-none"
+            className="placeholder:text-muted-foreground/70 max-h-40 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-1.5 text-base leading-6 outline-none max-sm:order-first max-sm:basis-full max-sm:px-3"
           />
-          {ratio !== "auto" && <RatioMenu />}
-          <QualityMenu />
+          <ModelPicker />
           <DictationButton />
           <AuiIf condition={(s) => s.thread.isRunning}>
             <Tip label="Stop" side="top">
@@ -461,33 +504,6 @@ function Composer() {
         </div>
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
-  );
-}
-
-/* What a request can carry, and the shape to make it in. The plus turns to a cross while its menu is open. */
-function AddMenu({ onAddImages }: { onAddImages: () => void }) {
-  const { ratio, setRatio } = useOptions();
-
-  return (
-    <Menu>
-      <Tip label="Add" side="top">
-        <MenuTrigger className={cn(iconButton, "group size-9")}>
-          <Icon
-            icon={Add01Icon}
-            className="size-5 transition-transform duration-200 ease-out group-aria-expanded:rotate-45 motion-reduce:transition-none"
-          />
-        </MenuTrigger>
-      </Tip>
-      <MenuPopup side="top" className="min-w-48">
-        <MenuItem onClick={onAddImages}>
-          <Icon icon={Image01Icon} />
-          Add images
-        </MenuItem>
-        <MenuSeparator />
-        <MenuLabel>Aspect ratio</MenuLabel>
-        <RatioChoices value={ratio} onValueChange={setRatio} />
-      </MenuPopup>
-    </Menu>
   );
 }
 
@@ -564,48 +580,5 @@ function Attachment({ removable = false }: { removable?: boolean }) {
         </Tip>
       )}
     </AttachmentPrimitive.Root>
-  );
-}
-
-function RatioMenu() {
-  const { ratio, setRatio } = useOptions();
-  const current = RATIOS.find((entry) => entry.value === ratio);
-
-  return (
-    <Menu>
-      <MenuTrigger className={cn(textButton, "text-muted-foreground h-9")}>
-        <RatioGlyph shape={current?.shape ?? "1 / 1"} />
-        {current?.label}
-      </MenuTrigger>
-      <MenuPopup side="top" align="end">
-        <MenuLabel>Aspect ratio</MenuLabel>
-        <RatioChoices value={ratio} onValueChange={setRatio} />
-      </MenuPopup>
-    </Menu>
-  );
-}
-
-function QualityMenu() {
-  const { quality, setQuality } = useOptions();
-  const current = QUALITIES.find((entry) => entry.value === quality);
-
-  return (
-    <Menu>
-      <MenuTrigger className={cn(textButton, "text-muted-foreground h-9")}>
-        {current?.label}
-        <Icon icon={ArrowDown01Icon} className="size-3.5" />
-      </MenuTrigger>
-      <MenuPopup side="top" align="end">
-        <MenuLabel>Detail</MenuLabel>
-        <MenuRadioGroup value={quality} onValueChange={setQuality}>
-          {QUALITIES.map((entry) => (
-            <MenuChoice key={entry.value} value={entry.value}>
-              {entry.label}
-              <span className="text-muted-foreground">{entry.note}</span>
-            </MenuChoice>
-          ))}
-        </MenuRadioGroup>
-      </MenuPopup>
-    </Menu>
   );
 }

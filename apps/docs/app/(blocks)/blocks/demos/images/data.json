@@ -121,39 +121,5 @@
       "prompt": "A picture sized for a social post, with a short line of text that reads at phone size.",
       "tile": "A social media post layout, a photo of a breakfast table from above with coffee and toast, large rounded white words SLOW MORNINGS across the middle, on a sage green backdrop"
     }
-  ],
-  "trending": [
-    {
-      "title": "Risograph print",
-      "prompt": "A two-colour risograph print of a bicycle leaning on a fruit stall, with visible grain and slightly misaligned layers."
-    },
-    {
-      "title": "Clay diorama",
-      "prompt": "A tiny handmade clay diorama of a ramen shop at night, photographed close with soft daylight."
-    },
-    {
-      "title": "Blueprint",
-      "prompt": "A technical blueprint drawing of a paper aeroplane, white lines on deep blue, with measured labels."
-    },
-    {
-      "title": "Paper cut",
-      "prompt": "A layered paper-cut scene of a fox in a birch forest, with soft shadows between the layers."
-    },
-    {
-      "title": "Linocut",
-      "prompt": "A black linocut print of a sailing boat in rough sea on cream paper, with bold carved lines."
-    },
-    {
-      "title": "Wooden toy",
-      "prompt": "A close-up photo of a wooden toy version of a city tram on a plain table."
-    },
-    {
-      "title": "Watercolour map",
-      "prompt": "A hand-painted watercolour map of an imaginary island, with small labels and a compass rose."
-    },
-    {
-      "title": "Neon night",
-      "prompt": "A photo of a corner bookshop at night, lit only by pink and blue neon signs on wet streets."
-    }
   ]
 }
