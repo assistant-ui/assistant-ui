@@ -1,0 +1,306 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "tw-shimmer";
+
+@source "../../../packages/ui/src";
+
+/*
+ * Dark follows the system unless the page carries `.light` or `.dark`, which
+ * the theme switch sets and the layout renders from its cookie.
+ */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not(.light, .light *)) {
+      @slot;
+    }
+  }
+}
+
+/*
+ * Motion follows the system unless the page carries `.reduce-motion` or
+ * `.allow-motion`, which the Appearance settings set.
+ */
+@custom-variant motion-reduce {
+  &:where(.reduce-motion, .reduce-motion *) {
+    @slot;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:where(:not(.allow-motion, .allow-motion *)) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant motion-safe {
+  &:where(.allow-motion, .allow-motion *) {
+    @slot;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    &:where(:not(.reduce-motion, .reduce-motion *)) {
+      @slot;
+    }
+  }
+}
+
+/* shadcn's Base UI components name an orientation this way. */
+@custom-variant data-horizontal (&[data-orientation="horizontal"]);
+@custom-variant data-vertical (&[data-orientation="vertical"]);
+
+@theme inline {
+  --font-sans: var(--font-geist), Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-weight-medium: 450;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.25rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-composer: var(--composer);
+  --color-strip: var(--strip);
+  --color-diff-added: var(--diff-added);
+  --color-diff-removed: var(--diff-removed);
+  --color-skill: var(--skill);
+}
+
+/*
+ * Theme: the shadcn/ui preset nearest to the look, which is the Mira style on
+ * the neutral base, with Hugeicons and Geist. These are that preset's values,
+ * as `shadcn init` writes them.
+ */
+:root {
+  --radius: 0.75rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.985 0 0);
+}
+
+:root {
+  @variant dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --sidebar: oklch(0.205 0 0);
+  }
+}
+
+/*
+ * Overrides: what the preset cannot express, from the app's own theme. Its
+ * light variant names four colors: the surface, the ink, the brand, and the
+ * colors of a diff and of a skill. The greys between surface and ink are
+ * mixed from those two, and the dark variant turns them around on black.
+ * Primary is the ink; `--brand` is the one place the brand's blue lives.
+ * `--tint` is one hue for every neutral, as on assistant-ui.com/design: with
+ * `--tint-on` at 1 the surface and the ink take a trace of it, and the greys
+ * mixed from them follow. At 0, the default, they are plain grey.
+ * `--composer` and `--strip` are this app's own names, for the message box
+ * and the strip above it. The Appearance settings override `--surface`,
+ * `--ink`, `--muted`, `--border`, `--brand` and the tint from a cookie.
+ */
+:root {
+  --tint: 106;
+  --tint-on: 0;
+  --surface: oklch(
+    calc(1 - 0.008 * var(--tint-on)) calc(0.002 * var(--tint-on)) var(--tint)
+  );
+  --ink: oklch(0.2046 calc(0.006 * var(--tint-on)) var(--tint));
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--surface);
+  --brand: #006aff;
+  --brand-foreground: #ffffff;
+  --diff-added: #28a948;
+  --diff-removed: #eb001d;
+  --skill: #924ff7;
+  --muted: color-mix(in oklab, var(--ink) 5%, var(--surface));
+  --muted-foreground: color-mix(in oklab, var(--ink) 60%, var(--surface));
+  --accent: color-mix(in oklab, var(--ink) 6%, var(--surface));
+  --accent-foreground: var(--ink);
+  --border: color-mix(in oklab, var(--ink) 9%, var(--surface));
+  --input: color-mix(in oklab, var(--ink) 12%, var(--surface));
+  --sidebar: color-mix(in oklab, var(--ink) 2.5%, var(--surface));
+  --strip: color-mix(in oklab, var(--ink) 2.5%, var(--surface));
+  --composer: color-mix(in oklab, var(--ink) 5%, var(--surface));
+}
+
+:root {
+  @variant dark {
+    --surface: oklch(
+      calc(0.17 * var(--tint-on)) calc(0.003 * var(--tint-on)) var(--tint)
+    );
+    --ink: oklch(0.9461 calc(0.004 * var(--tint-on)) var(--tint));
+    --popover: color-mix(in oklab, var(--ink) 21%, var(--surface));
+    --muted: color-mix(in oklab, var(--ink) 24%, var(--surface));
+    --muted-foreground: color-mix(in oklab, var(--ink) 67%, var(--surface));
+    --accent: color-mix(in oklab, var(--ink) 29%, var(--surface));
+    --border: color-mix(in oklab, var(--ink) 20%, var(--surface));
+    --input: color-mix(in oklab, var(--ink) 24%, var(--surface));
+    --sidebar: color-mix(in oklab, var(--ink) 14%, var(--surface));
+    --strip: color-mix(in oklab, var(--ink) 17%, var(--surface));
+    --composer: color-mix(in oklab, var(--ink) 24%, var(--surface));
+  }
+}
+
+/*
+ * A see-through sidebar: the app's left panel gives up its solid fill for a
+ * blurred, partly clear one, and what it holds stops painting its own.
+ */
+html.translucent-sidebar .base-shell > #panel-left {
+  background-color: color-mix(in oklab, var(--sidebar) 70%, transparent);
+  backdrop-filter: blur(24px) saturate(1.5);
+}
+
+html.translucent-sidebar .base-shell > #panel-left .bg-background {
+  background-color: transparent;
+}
+
+/* Asked to move less, everything settles at once, whatever set it moving. */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html {
+    scrollbar-color: var(--border) transparent;
+    scrollbar-width: thin;
+    overscroll-behavior-y: none;
+    scroll-behavior: smooth;
+  }
+
+/*
+ * Motion the color picker asks for by name: how long a small change takes
+ * and its easing, and two icons trading places in one grid cell.
+ */
+:root {
+  --duration-150: 150ms;
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility icon-swap {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--duration-150) var(--ease-move),
+    scale var(--duration-150) var(--ease-move);
+}
+
+@utility icon-swap-in {
+  opacity: 1;
+  scale: 1;
+}
+
+@utility icon-swap-out {
+  opacity: 0;
+  scale: 0.5;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  /* Anything that can be clicked shows the hand. */
+  :where(button, [role="button"], [role^="menuitem"], a[href]):not(
+    :disabled,
+    [aria-disabled="true"],
+    [data-disabled]
+  ) {
+    cursor: pointer;
+  }
+}
+
+/*
+ * A field sits on the page's background inside a border, and shows no ring,
+ * focused or invalid: its border says so instead. That goes for the group
+ * around a field with buttons in it too. Left out of the layers, so these
+ * also win over the fill and ring utilities a component puts on its own
+ * input.
+ */
+:where([data-slot="input"], [data-slot="input-group"]) {
+  background-color: var(--background);
+  border-color: var(--input);
+}
+
+:where(
+  [data-slot="input"]:focus-visible,
+  [data-slot="input-group"]:has(:focus-visible)
+) {
+  border-color: var(--ring);
+}
+
+:where(
+  [data-slot="input"][aria-invalid="true"],
+  [data-slot="input-group"]:has([aria-invalid="true"])
+) {
+  border-color: var(--destructive);
+}
+
+:where(input, textarea, select, [data-slot="input-group"]) {
+  box-shadow: none;
+  outline: none;
+}

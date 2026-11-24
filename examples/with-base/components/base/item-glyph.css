@@ -1,0 +1,90 @@
+/*
+ * How the parts of an item glyph move. A part names its motion in
+ * `data-glyph-motion`; the motions play while the element that carries
+ * `data-item-glyph-host` is hovered or has the keyboard focus inside it.
+ */
+
+@keyframes item-glyph-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes item-glyph-pop {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes item-glyph-shift {
+  50% {
+    transform: translate(var(--glyph-dx, 0), var(--glyph-dy, 0));
+  }
+}
+
+@keyframes item-glyph-bob {
+  40% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes item-glyph-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes item-glyph-settle {
+  40% {
+    transform: translateY(0.8px);
+  }
+}
+
+[data-glyph-motion] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+[data-glyph-motion="draw"] {
+  --glyph-animation: item-glyph-draw 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  stroke-dasharray: 100;
+}
+
+[data-glyph-motion="pop"] {
+  --glyph-animation: item-glyph-pop 0.4s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+[data-glyph-motion="shift"] {
+  --glyph-animation: item-glyph-shift 0.7s ease-in-out both;
+}
+
+[data-glyph-motion="bob"] {
+  --glyph-animation: item-glyph-bob 0.6s ease-in-out both;
+}
+
+[data-glyph-motion="drop"] {
+  --glyph-animation: item-glyph-drop 0.5s cubic-bezier(0.3, 1.35, 0.5, 1) both;
+}
+
+[data-glyph-motion="settle"] {
+  --glyph-animation: item-glyph-settle 0.35s ease-out both;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-item-glyph-host]:hover [data-glyph-motion] {
+    animation: var(--glyph-animation);
+    animation-delay: var(--glyph-delay, 0ms);
+  }
+}
+
+[data-item-glyph-host]:has(:focus-visible) [data-glyph-motion] {
+  animation: var(--glyph-animation);
+  animation-delay: var(--glyph-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(.allow-motion) [data-glyph-motion] {
+    animation: none !important;
+  }
+}
