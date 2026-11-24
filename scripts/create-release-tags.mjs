@@ -291,7 +291,10 @@ export const githubClient = ({
   owner,
   repo,
   fetch = globalThis.fetch,
-  pushRef = gitPushRef({ token, remote: `https://github.com/${owner}/${repo}.git` }),
+  pushRef = gitPushRef({
+    token,
+    remote: `https://github.com/${owner}/${repo}.git`,
+  }),
 }) => {
   const request = async (method, apiPath, body) => {
     const response = await fetch(`https://api.github.com${apiPath}`, {

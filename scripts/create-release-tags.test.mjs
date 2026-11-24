@@ -602,7 +602,10 @@ test("a refused release names the request id and the permissions the endpoint ac
     (error) => {
       assert.equal(error.status, 403);
       assert.match(error.message, /x-github-request-id: 0400:1A2B3C:4D5E6F/);
-      assert.match(error.message, /x-accepted-github-permissions: contents=write/);
+      assert.match(
+        error.message,
+        /x-accepted-github-permissions: contents=write/,
+      );
       return true;
     },
   );
