@@ -1,0 +1,125 @@
+{
+  "model": "gpt-image-2.6-flare",
+  "templates": [
+    {
+      "id": "poster",
+      "title": "Poster",
+      "tint": "#d98a5b",
+      "ratio": "2:3",
+      "prompt": "A poster with one strong picture and large, clear type. Keep the layout simple enough to read from across a room, and use only the wording given.",
+      "tile": "A screen-printed concert poster for a made-up band called NIGHT HERON, a heron standing in reeds under a huge orange moon, bold condensed lettering, three flat ink colours, on a warm terracotta backdrop"
+    },
+    {
+      "id": "interior",
+      "title": "Interior design",
+      "tint": "#cfa9d6",
+      "ratio": "3:2",
+      "prompt": "A room, shown as a finished interior. Keep the furniture in proportion and the light believable, and follow the style, size and budget described.",
+      "tile": "An isometric cutaway of a small sunlit reading room with a green armchair, tall bookshelves, a rug and a hanging plant, soft clay render style, floating on a lilac backdrop"
+    },
+    {
+      "id": "logo",
+      "title": "Logo",
+      "tint": "#c9d6df",
+      "ratio": "1:1",
+      "prompt": "A logo mark that stays recognisable small and large. Use flat shapes and at most two colours, and spell any name exactly as given.",
+      "tile": "A flat one-colour logo mark of a paper boat inside a circle, thick even lines, deep teal on a pale blue-grey backdrop, centred, no lettering"
+    },
+    {
+      "id": "illustration",
+      "title": "Illustration",
+      "tint": "#c3bfe6",
+      "ratio": "1:1",
+      "prompt": "An illustration in one consistent style. Tell the scene clearly, keep the colours to a small palette, and leave lettering out unless asked.",
+      "tile": "A warm gouache illustration of a child in a yellow raincoat and a shaggy dog sharing an umbrella, soft textured brushwork, on a lavender backdrop"
+    },
+    {
+      "id": "portrait",
+      "title": "Portrait",
+      "tint": "#b7b0a8",
+      "ratio": "2:3",
+      "prompt": "A portrait with soft, even light and a plain backdrop. Keep the face natural and unretouched, framed from the shoulders up.",
+      "tile": "A studio portrait photo of a man in his sixties with a grey beard and round glasses, wearing a navy sweater, soft window light, plain warm grey backdrop, shoulders up, natural skin"
+    },
+    {
+      "id": "icon",
+      "title": "Icon set",
+      "tint": "#17524f",
+      "ratio": "1:1",
+      "prompt": "A small set of icons drawn to one grid, with one line weight and one colour, so they read as a family.",
+      "tile": "Four simple rounded icons in a two by two grid, a kite, a teapot, a cactus and a comet, cream coloured flat shapes on a deep teal backdrop, even spacing"
+    },
+    {
+      "id": "product",
+      "title": "Product photo",
+      "tint": "#f0c9d6",
+      "ratio": "1:1",
+      "prompt": "A product on a clean set, lit like a studio photo. Keep the product true to its description and the background quiet.",
+      "tile": "A studio product photo of a ribbed glass bottle of hand soap with a brass pump on a pale pink set, soft shadow, morning light, minimal styling"
+    },
+    {
+      "id": "merch",
+      "title": "Merch",
+      "tint": "#3d74c7",
+      "ratio": "1:1",
+      "prompt": "A design shown on merchandise, such as a shirt, tote or mug. Keep the artwork inside the printable area and the item realistic.",
+      "tile": "A white tote bag hanging from a wooden peg, printed with a playful drawing of an octopus juggling oranges, against a bright blue wall, product photo"
+    },
+    {
+      "id": "infographic",
+      "title": "Infographic",
+      "tint": "#b9cfe6",
+      "ratio": "2:3",
+      "prompt": "An infographic that explains one idea in a few labelled steps. Use the facts given and nothing else, with short labels.",
+      "tile": "A clean infographic style drawing of the water cycle with a mountain, a river, the sea and clouds joined by three curved arrows, flat shapes, soft blue palette, no lettering"
+    },
+    {
+      "id": "flyer",
+      "title": "Flyer",
+      "tint": "#45464f",
+      "ratio": "2:3",
+      "prompt": "A flyer for an event or notice. Lead with the headline, then the date and place, using only the details given.",
+      "tile": "A photocopied street flyer pinned to a cork board that reads PLANT SWAP in heavy black letters above a black and white photo of a potted fern, and SATURDAY 10 AM below it, on a charcoal backdrop"
+    },
+    {
+      "id": "book",
+      "title": "Book cover",
+      "tint": "#6f8fc9",
+      "ratio": "2:3",
+      "prompt": "A book cover with the title and author set clearly. Suggest the mood of the story without showing its plot.",
+      "tile": "A hardback novel standing upright, its cover a painted lighthouse on a cliff at dusk with the title THE LONG TIDE in elegant serif capitals, on a soft blue backdrop"
+    },
+    {
+      "id": "album",
+      "title": "Album cover",
+      "tint": "#c5b9e0",
+      "ratio": "1:1",
+      "prompt": "A square album cover. Let one image carry the mood, and keep any title small and exactly as given.",
+      "tile": "A square album cover with an abstract iridescent liquid chrome shape in violet, lime and black, slightly blurred, with small type reading SLOW ORBIT in one corner, on a pale violet backdrop"
+    },
+    {
+      "id": "packaging",
+      "title": "Packaging",
+      "tint": "#e8b093",
+      "ratio": "1:1",
+      "prompt": "Packaging for a product, shown as the finished box, bag or bottle. Keep the label wording exactly as given.",
+      "tile": "A small paper box of loose leaf tea with a minimal label reading FERN and a simple green leaf drawing, standing on a peach backdrop, soft studio light"
+    },
+    {
+      "id": "ad",
+      "title": "Ad",
+      "tint": "#cf8fa8",
+      "ratio": "1:1",
+      "prompt": "An advert with one message and one clear call to act. Use only the wording given and leave room around it.",
+      "tile": "An advert style photo of a hand holding a bright orange sparkling drink can against a hot pink backdrop, with hand lettered words TRY IT COLD in the corner"
+    },
+    {
+      "id": "social",
+      "title": "Social post",
+      "tint": "#b3ccb0",
+      "ratio": "1:1",
+      "prompt": "A picture sized for a social post, with a short line of text that reads at phone size.",
+      "tile": "A social media post layout, a photo of a breakfast table from above with coffee and toast, large rounded white words SLOW MORNINGS across the middle, on a sage green backdrop"
+    }
+  ]
+}

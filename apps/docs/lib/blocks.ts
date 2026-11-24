@@ -146,6 +146,123 @@ export const BLOCKS: readonly Block[] = [
     },
   },
   {
+    slug: "images",
+    title: "Images",
+    description:
+      "An image maker that turns a template or a message into a picture you edit beside the chat.",
+    image: {
+      light: "/screenshot/blocks/images-light-v2.webp",
+      dark: "/screenshot/blocks/images-dark-v2.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/images",
+    previewUrl: "/blocks/demos/images",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/images",
+      include: [
+        "../chat-sidebar.tsx",
+        "api",
+        "components",
+        ".env.example",
+        "README.md",
+        "block.css",
+        "data.json",
+        "layout.tsx",
+        "page.tsx",
+      ],
+      entry: "components/images.tsx",
+    },
+    stack: [
+      { name: "AI SDK", package: "ai" },
+      { name: "OpenAI", package: "@ai-sdk/openai" },
+      { name: "shadcn/ui", package: "shadcn" },
+      { name: "Tailwind CSS", package: "tailwindcss" },
+    ],
+    useCases: [
+      "An image tool where each chat is one picture and the changes asked of it.",
+      "A starting page of templates that set up a request before a word is typed.",
+      "A shell to copy for any single-page tool: a sidebar of chats, the page, and the person at the foot.",
+    ],
+    capabilities: [
+      {
+        title: "Templates",
+        description:
+          "A gallery of tiles. A tile opens its picture, its prompt and an orientation to make it in, and using it writes the prompt in the message box.",
+      },
+      {
+        title: "Message box",
+        description:
+          "One row: add, the words, the model, dictate and send. The model and the settings ride along as the message's run config.",
+      },
+      {
+        title: "Model picker",
+        description:
+          "The Model selector element, listing every image model Modelpedia knows, grouped by provider and searchable. Models of a provider the route has no key for are listed but cannot be picked.",
+      },
+      {
+        title: "Settings",
+        description:
+          "The add menu holds orientation, size, quality, complexity, number of images, output format, background, moderation and partial images, each a submenu showing what is chosen.",
+      },
+      {
+        title: "Pictures",
+        description:
+          "One picture uses the Image element, with zoom, download, copy and make again. Several share the Image gallery element and one full-screen view.",
+      },
+      {
+        title: "Changes",
+        description:
+          "A follow-up message changes the newest picture in the chat, which goes back to the model with the request.",
+      },
+      {
+        title: "Editor",
+        description:
+          "Edit opens a picture in a panel beside the chat: draw or write on it, pin numbered notes, brush an area to erase, remove the background, or remake it in another shape. Each change is sent as a message and its result takes the picture's place.",
+      },
+      {
+        title: "Reference pictures",
+        description:
+          "Pictures added by button or by drop sit in a strip above the message box and are sent as a starting point.",
+      },
+      {
+        title: "Chat list",
+        description:
+          "The sidebar starts closed and lists each chat under its first request, with new and delete, kept in memory.",
+      },
+      {
+        title: "My images",
+        description:
+          "A tab of every picture made on this visit, in the Image gallery element.",
+      },
+      {
+        title: "Usage",
+        description:
+          "The person at the foot of the sidebar opens a count of pictures made and tokens used.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
+      "The shadcn/ui tooltip, dialog, popover, command and resizable components.",
+      "An OpenAI key with access to an image model. The model a visit starts on is in data.json.",
+      "Your own sign-in and rate limit in front of the route before you deploy it, because every picture costs money.",
+    ],
+    env: {
+      note: "The route answers 404 until it is switched on, and 401 without a key.",
+      variables: [
+        {
+          name: "OPENAI_API_KEY",
+          required: true,
+          description: "The key the route makes pictures with.",
+        },
+        {
+          name: "BLOCKS_LIVE_API",
+          required: true,
+          description: 'Set to "true" to let the route run.',
+        },
+      ],
+    },
+  },
+  {
     slug: "chat-basic",
     title: "Chat basic",
     description:
