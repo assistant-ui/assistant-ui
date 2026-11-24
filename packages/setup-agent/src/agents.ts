@@ -1,6 +1,7 @@
 import spawn from "cross-spawn";
-import { accessSync, constants } from "node:fs";
-import { delimiter, join } from "node:path";
+import { accessSync, constants, realpathSync } from "node:fs";
+import { homedir } from "node:os";
+import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
 /**
  * A coding agent a person can hand a setup to. `launch` is set when the
@@ -191,30 +192,95 @@ export const isDirectInvocation = (
   stdin.isTTY === true &&
   stdout.isTTY === true;
 
-/** The first of `commands` found on PATH, or `undefined`. */
+const isWithin = (parent: string, child: string) => {
+  const path = relative(parent, child);
+  return (
+    path === "" ||
+    (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+  );
+};
+
+const real = (path: string) => {
+  try {
+    return realpathSync(path);
+  } catch {
+    return undefined;
+  }
+};
+
+const hasNodeModules = (path: string) =>
+  path
+    .split(/[\\/]/)
+    .some((segment) => segment.toLowerCase() === "node_modules");
+
+/**
+ * True for a PATH directory a project could have planted: one inside the
+ * working directory, or any `node_modules` directory (npx and package scripts
+ * put `node_modules/.bin` first). Checked as written and with symlinks
+ * resolved, so a link from outside the project into it doesn't pass.
+ */
+const isProjectDirectory = (directory: string, cwd: string, home: string) => {
+  const resolved = real(directory);
+  if (resolved === undefined) return true;
+  return (
+    hasNodeModules(directory) ||
+    hasNodeModules(resolved) ||
+    isInProject(directory, cwd, home)
+  );
+};
+
+/**
+ * True for a path inside the working directory, as written or with symlinks
+ * resolved. Run from the home directory or above it, nothing counts as inside,
+ * or every bin directory would.
+ */
+const isInProject = (path: string, cwd: string, home: string) => {
+  const root = real(cwd) ?? cwd;
+  if (isWithin(root, real(home) ?? home)) return false;
+  const resolved = real(path) ?? path;
+  return [path, resolved].some(
+    (candidate) => isWithin(cwd, candidate) || isWithin(root, candidate),
+  );
+};
+
+/**
+ * The absolute path of the first of `commands` found on PATH, or `undefined`.
+ * Directories a project could control are skipped, so a project can't plant
+ * its own `claude` ahead of the user's.
+ */
 export const findCommand = (
   commands: readonly string[],
   env: NodeJS.ProcessEnv = process.env,
+  cwd: string = process.cwd(),
+  home: string = homedir(),
 ): string | undefined => {
-  // Empty entries (the working directory) are skipped on purpose: a project
-  // must not be able to plant its own `claude` next to the user.
-  const directories = (env.PATH ?? "").split(delimiter).filter(Boolean);
+  // Relative entries (the working directory among them) are never searched.
+  const directories = (env.PATH ?? "")
+    .split(delimiter)
+    .filter((directory) => directory && isAbsolute(directory));
   const extensions =
     process.platform === "win32"
       ? (env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";")
       : [""];
-  return commands.find((command) =>
-    directories.some((directory) =>
-      extensions.some((extension) => {
+  for (const command of commands) {
+    for (const directory of directories) {
+      for (const extension of extensions) {
+        const path = join(directory, command + extension);
         try {
-          accessSync(join(directory, command + extension), constants.X_OK);
-          return true;
+          accessSync(path, constants.X_OK);
         } catch {
-          return false;
+          continue;
         }
-      }),
-    ),
-  );
+        // The directory, then where the binary really lives. A global npm
+        // install links bin/<agent> into lib/node_modules, so only
+        // containment in the project counts for the binary.
+        if (isProjectDirectory(directory, cwd, home)) continue;
+        if (isInProject(path, cwd, home)) continue;
+        return path;
+      }
+    }
+  }
+  return undefined;
 };
 
 /**

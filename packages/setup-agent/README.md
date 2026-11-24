@@ -27,6 +27,8 @@ A setup opens `waiting` with its products and nothing else: no steps, no questio
 
 The URL is the browser's link to its agent, not one setup. A finished or cancelled setup stays on the link until the agent replaces it with a new `checkout/create` carrying a new `id` (only the agent creates setups; the browser never sends it), or until it has been idle for about a day and is deleted. On replacement, the plans, steps, inputs and log start over, the agent's presence carries across when it is still connected, and the stream prints `setup.created` with the new products. The agent keeps the stream running after `finished` or `cancelled` and blocks on `wait start`, which returns once the next setup begins planning; a setup already closed when the wait begins is skipped rather than reported.
 
+`npx setup-agent <url>` talks only to `https://checkout.assistant-ui.com` (`OFFICIAL_SETUP_SERVERS`) or a server on this machine, and `--setup-app-url` opens only `https://setup.assistant-ui.com` or this machine. A CLI that embeds setup passes its own `servers` to `runSetupCommand`. When the CLI starts a coding agent itself, it runs the agent's absolute path and skips `PATH` entries a project could plant a binary in: relative entries, any `node_modules` directory, and directories inside the working directory.
+
 The browser sends the setup `id` and the displayed plan `revision` with each `checkout/plan` decision. The host rejects a mismatched setup or revision with `stale-plan`, so a queued decision cannot approve or revise a newer plan. Older clients may omit these fields and retain their existing behavior. The guard requires a host running this version of `setup-agent`.
 
 ## Waiting

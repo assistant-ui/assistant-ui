@@ -135,6 +135,42 @@ describe("setup", () => {
     );
   });
 
+  it("refuses a step command whose setup page is not the official one or local", async () => {
+    vi.stubEnv("ASSISTANT_UI_SETUP_APP_URL", "https://setup.look-alike.test");
+    try {
+      await expect(
+        setup.parseAsync(["https://checkout.assistant-ui.com/abc", "status"], {
+          from: "user",
+        }),
+      ).rejects.toThrow("is not a setup page this CLI knows");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("run by an agent, refuses a custom setup server before it creates a setup", async () => {
+    const env = { ...process.env };
+    vi.mocked(runAgentSetup).mockClear();
+    process.env = { PATH: env.PATH, CLAUDECODE: "1" };
+    try {
+      await expect(
+        setup.parseAsync(
+          ["--no-open", "--setup-server", "https://staging.example.test"],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("is not a setup server this CLI knows");
+      await expect(
+        setup.parseAsync(
+          ["--no-open", "--setup-app-url", "https://setup.look-alike.test"],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("is not a setup page this CLI knows");
+      expect(runAgentSetup).not.toHaveBeenCalled();
+    } finally {
+      process.env = env;
+    }
+  });
+
   it("offers products and a no-open flag", () => {
     expect(setup.options.map((option) => option.long)).toEqual([
       "--products",

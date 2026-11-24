@@ -1,6 +1,13 @@
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { describe, expect, it, onTestFinished } from "vitest";
 import {
   CODING_AGENTS,
@@ -94,9 +101,15 @@ describe("findCommand and runCodingAgent", () => {
       onTestFinished(() => {
         process.env.PATH = path;
       });
-      expect(findCommand(["missing-agent", "fake-agent"])).toBe("fake-agent");
-      expect(findCommand(["other-agent", "fake-agent"])).toBe("other-agent");
-      expect(findCommand(["fake-agent", "other-agent"])).toBe("fake-agent");
+      expect(findCommand(["missing-agent", "fake-agent"])).toBe(
+        join(directory, "fake-agent"),
+      );
+      expect(findCommand(["other-agent", "fake-agent"])).toBe(
+        join(directory, "other-agent"),
+      );
+      expect(findCommand(["fake-agent", "other-agent"])).toBe(
+        join(directory, "fake-agent"),
+      );
       expect(findCommand(["fake-agent"], { PATH: "" })).toBeUndefined();
       expect(findCommand(["missing-agent"])).toBeUndefined();
       const code = await runCodingAgent(
@@ -112,6 +125,80 @@ describe("findCommand and runCodingAgent", () => {
         "hello",
       );
       expect(code).toBe(7);
+    },
+  );
+
+  it("skips PATH entries a project could plant a command in", async () => {
+    // PATHEXT names the executable on Windows; elsewhere the name is bare.
+    const windows = process.platform === "win32";
+    const file = windows ? "fake-agent.CMD" : "fake-agent";
+    const env = (...entries: string[]) => ({
+      PATH: entries.join(delimiter),
+      ...(windows && { PATHEXT: ".CMD" }),
+    });
+    const root = await mkdtemp(join(tmpdir(), "setup-agent-path-"));
+    onTestFinished(() => rm(root, { recursive: true, force: true }));
+    const user = join(root, "user", "bin");
+    const project = join(root, "project");
+    const planted = join(project, "node_modules", ".bin");
+    const local = join(project, "bin");
+    const global = join(root, "global", "lib", "Node_Modules", ".bin");
+    for (const directory of [user, planted, local, global]) {
+      await mkdir(directory, { recursive: true });
+      await writeFile(join(directory, file), "#!/bin/sh\nexit 0\n");
+      await chmod(join(directory, file), 0o755);
+    }
+    const home = join(root, "home");
+    const find = (...entries: string[]) =>
+      findCommand(["fake-agent"], env(...entries), project, home);
+    expect(find(planted, user)).toBe(join(user, file));
+    expect(find(local, user)).toBe(join(user, file));
+    expect(find("node_modules/.bin", "bin", user)).toBe(join(user, file));
+    expect(find(planted, local)).toBeUndefined();
+    // Any node_modules directory is skipped, whatever its case.
+    expect(find(global, user)).toBe(join(user, file));
+    expect(find(global)).toBeUndefined();
+    // Run from the home directory, its bin directories still count.
+    expect(findCommand(["fake-agent"], env(local), project, project)).toBe(
+      join(local, file),
+    );
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "skips a symlink into the project, and finds a global npm install",
+    async () => {
+      const root = await mkdtemp(join(tmpdir(), "setup-agent-link-"));
+      onTestFinished(() => rm(root, { recursive: true, force: true }));
+      const project = join(root, "project");
+      const local = join(project, "bin");
+      await mkdir(local, { recursive: true });
+      await writeFile(join(local, "fake-agent"), "#!/bin/sh\nexit 0\n");
+      await chmod(join(local, "fake-agent"), 0o755);
+      const linkedDirectory = join(root, "linked-bin");
+      await symlink(local, linkedDirectory);
+      const linkedBinary = join(root, "user-bin");
+      await mkdir(linkedBinary);
+      await symlink(
+        join(local, "fake-agent"),
+        join(linkedBinary, "fake-agent"),
+      );
+      const home = join(root, "home");
+      // A global npm install: bin/<agent> links into lib/node_modules.
+      const npmPackage = join(root, "prefix", "lib", "node_modules", "pkg");
+      const npmBin = join(root, "prefix", "bin");
+      await mkdir(npmPackage, { recursive: true });
+      await mkdir(npmBin, { recursive: true });
+      await writeFile(join(npmPackage, "cli.js"), "#!/bin/sh\nexit 0\n");
+      await chmod(join(npmPackage, "cli.js"), 0o755);
+      await symlink(join(npmPackage, "cli.js"), join(npmBin, "fake-agent"));
+      expect(findCommand(["fake-agent"], { PATH: npmBin }, project, home)).toBe(
+        join(npmBin, "fake-agent"),
+      );
+      for (const entry of [linkedDirectory, linkedBinary]) {
+        expect(
+          findCommand(["fake-agent"], { PATH: entry }, project, home),
+        ).toBeUndefined();
+      }
     },
   );
 
