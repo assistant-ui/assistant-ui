@@ -1,0 +1,34 @@
+/* Tokens the library's menu and panels read. Every value derives from the site
+   palette, so both follow the theme and the tint. */
+@theme inline {
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --font-weight-regular: 400;
+  --font-weight-strong: 430;
+  --color-glass: var(--glass);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --shadow-float: var(--float-shadow);
+}
+
+:root {
+  --glass: color-mix(in oklab, var(--popover) 72%, transparent);
+  --glass-blur: 16px;
+  --glass-hover: color-mix(in oklab, var(--foreground) 7%, transparent);
+  --glass-muted-foreground: color-mix(
+    in oklab,
+    var(--foreground) 62%,
+    transparent
+  );
+  --destructive-subtle: color-mix(
+    in oklab,
+    var(--destructive) 10%,
+    transparent
+  );
+  --float-shadow:
+    0 1px 2px oklch(0 0 0 / 6%), 0 8px 24px -6px oklch(0 0 0 / 14%);
+}
+
+.dark {
+  --float-shadow:
+    0 1px 2px oklch(0 0 0 / 30%), 0 8px 24px -6px oklch(0 0 0 / 50%);
+}
