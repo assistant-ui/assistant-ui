@@ -30,7 +30,7 @@
     "@ai-sdk/otel": "^1.0.153",
     "@ai-sdk/react": "^4.0.157",
     "@assistant-ui/ai-sdk": "workspace:*",
-    "@assistant-ui/appos": "0.0.1",
+    "@assistant-ui/appos": "^0.0.1",
     "@assistant-ui/docs-theme": "workspace:*",
     "@assistant-ui/generative-ui": "workspace:*",
     "@assistant-ui/next": "workspace:*",

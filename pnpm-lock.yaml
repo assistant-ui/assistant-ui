@@ -424,7 +424,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ai-sdk
       '@assistant-ui/appos':
-        specifier: 0.0.1
+        specifier: ^0.0.1
         version: 0.0.1(react@19.3.1)
       '@assistant-ui/docs-theme':
         specifier: workspace:*
