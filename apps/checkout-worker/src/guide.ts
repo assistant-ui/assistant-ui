@@ -44,7 +44,7 @@ const streamSection = (streaming: boolean, noOpen: boolean) =>
     ? `The command that printed this is the stream. Keep it running in the background until the setup ends: the browser shows you as connected only while it runs. New output does not wake you: read its new lines between your other commands. Each new line is a JSON array of events: ${EVENT_LIST}, plus:
 - "browser.opened" ({id, message}): setup opened the setup page in the user's browser for a question. Tell the user once, in your own conversation, that it waits there, and keep working in the same turn.
 - "input.needed" ({id, message, question, options?, answer}): the user is not on the setup page right now. Do what its message says: run "wait <id>" for their answer in the browser, or ask the user in your own conversation with that question and options, then run its "answer" command with their reply. Answered either way, the setup goes on.
-If this command stops, start it again in the background with
+If this command stops while the setup is still open, start it again in the background with
   {{cmd}} {{url}} stream${noOpen ? " --no-open" : ""}
 The URL is the user's link to you from their browser for this one setup; another setup starts with a new link.`
     : `First, start a persistent Monitor on

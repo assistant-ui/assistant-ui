@@ -92,7 +92,7 @@ Commands (the url always comes first):
                                     Set a step to pending|active|done|skipped|blocked.
   done [--summary <text>] [--preview <url>]
                                     Mark every remaining step done and propose closing; the user closes it.
-  cancel                            End this setup for good; a running stream waits for the next one.
+  cancel                            End this setup for good; a running stream stops with it.
 `;
 
 /** Characters a setup URL may hold: an origin and a path, nothing a shell or a reader treats as more than an address. */

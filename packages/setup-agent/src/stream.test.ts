@@ -262,4 +262,23 @@ describe("stopWhenClosed", () => {
       }
     },
   );
+
+  it("does not stop once the caller cancels it within the delay", async () => {
+    vi.useFakeTimers();
+    try {
+      const stop = vi.fn();
+      const cancel = stopWhenClosed(
+        {
+          state: { ...initialCheckoutState(), id: "c1", status: "done" },
+          subscribe: () => () => {},
+        },
+        stop,
+      );
+      cancel();
+      await vi.advanceTimersByTimeAsync(250);
+      expect(stop).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

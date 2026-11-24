@@ -351,15 +351,17 @@ export const stopWhenClosed = (
   stop: () => void,
   delayMs = 250,
 ) => {
-  let stopping = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const check = () => {
     const state = client.state;
-    if (stopping || state === undefined || !isClosed(state)) return;
-    stopping = true;
+    if (timer !== undefined || state === undefined || !isClosed(state)) return;
     unsubscribe();
-    setTimeout(stop, delayMs);
+    timer = setTimeout(stop, delayMs);
   };
   const unsubscribe = client.subscribe(check);
   check();
-  return unsubscribe;
+  return () => {
+    unsubscribe();
+    clearTimeout(timer);
+  };
 };

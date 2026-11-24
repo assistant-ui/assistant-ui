@@ -282,7 +282,7 @@ describe("CheckoutHost", () => {
     },
   );
 
-  it.each([null, "", 7])(
+  it.each([undefined, null, "", 7])(
     "refuses a create with id %j, so it can't leave the link open to another create",
     async (id) => {
       const host = mount();
