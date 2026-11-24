@@ -119,13 +119,10 @@ jobs:
         if: steps.selection.outputs.run == 'true'
         run: uv sync --all-extras
 
-      - name: Configure Redis for assistant-stream tests
-        if: matrix.package == 'assistant-stream' && steps.selection.outputs.run == 'true'
-        run: echo "REDIS_URL=redis://127.0.0.1:6379" >> "$GITHUB_ENV"
-
       - name: Run tests
         if: steps.selection.outputs.run == 'true'
         env:
           # The Postgres thread store cases skip without a database.
           DATABASE_URL: ${{ matrix.package == 'assistant-stream' && 'postgresql://postgres:postgres@127.0.0.1:5432/assistant_stream' || '' }}
+          REDIS_URL: ${{ matrix.package == 'assistant-stream' && 'redis://127.0.0.1:6379' || '' }}
         run: uv run pytest
