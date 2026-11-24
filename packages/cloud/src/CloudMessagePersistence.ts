@@ -155,7 +155,7 @@ export class CloudMessagePersistence {
       : { status: "in-progress", staleInMs: this.staleAfter - quietMs };
   }
 
-  /** The thread's running lease as the latest `load` read it; undefined before a load. */
+  /** The thread's running lease as the latest `load` or `recordThreadRun` read it; undefined before either. */
   threadRunOf(threadId: string): CloudThreadRunRead | undefined {
     return this.threadRuns.get(threadId);
   }
