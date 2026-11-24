@@ -25,17 +25,21 @@ const handoffIdentity = (
 
 /**
  * The user's confirmation, bound to the agent it was given for. If the agent
- * the page shows changes, the confirmation no longer counts.
+ * the page shows changes, the confirmation is dropped, and changing back
+ * does not restore it.
  */
 export const useHandoffConsent = (
   checkout: Pick<CheckoutContextValue, "state" | "url">,
 ) => {
-  const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
   const identity = handoffIdentity(checkout);
+  const [consent, setConsent] = useState({ identity, confirmed: false });
+  if (consent.identity !== identity) {
+    setConsent({ identity, confirmed: false });
+  }
   return {
-    confirmed: confirmedFor === identity,
+    confirmed: consent.identity === identity && consent.confirmed,
     setConfirmed: (checked: boolean) =>
-      setConfirmedFor(checked ? identity : null),
+      setConsent({ identity, confirmed: checked }),
   };
 };
 

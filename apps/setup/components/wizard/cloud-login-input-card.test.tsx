@@ -129,6 +129,13 @@ describe("CloudLoginInputCard", () => {
         name: "I started this setup from my own coding agent.",
       }).checked,
     ).toBe(false);
+    // Changing back to the first agent does not bring the confirmation back.
+    rerender(
+      <WizardHost>
+        <InputCard input={input()} checkout={first} />
+      </WizardHost>,
+    );
+    expect(signIn().disabled).toBe(true);
   });
   it("treats a bound return as waiting, never as an authenticated answer", async () => {
     const request = input();
