@@ -157,7 +157,7 @@ export namespace Checkout {
 
   export type State = {
     version: 2;
-    /** The id the browser gave the current checkout; a create with another id replaces it on the same link. */
+    /** The id the agent's CLI gave the setup when it created it; a link holds one setup, so it never changes. */
     id: string | null;
     status: Status;
     completion?: Completion;

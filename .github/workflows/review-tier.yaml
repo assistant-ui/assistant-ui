@@ -1,19 +1,10 @@
 name: Review Tier
 
+# Pull request and review events reach this workflow through Review Tier Relay,
+# an unprivileged pull_request workflow, so no pull_request_target run ever holds
+# these credentials. The relay only names a pull request; this workflow runs
+# base-branch code and re-reads that pull request from the API.
 on:
-  pull_request_target:
-    types:
-      [
-        opened,
-        synchronize,
-        reopened,
-        edited,
-        labeled,
-        unlabeled,
-        ready_for_review,
-        converted_to_draft,
-        closed,
-      ]
   issues:
     types: [labeled, unlabeled]
   workflow_run:
@@ -38,27 +29,32 @@ permissions:
 jobs:
   evaluate:
     name: Evaluate review tier
-    # Each run cancels the one in progress, which the pull request shows as a failed check, so label and edit events start one only for what the evaluator reads, a tier label a person changes, or a person's edit.
+    # The relay filters label and edit events; this job only checks that the relay succeeded.
     if: >-
       vars.REVIEW_POLICY_APP_ID != '' &&
-      (github.event_name != 'pull_request_target' ||
-        (((github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
-            github.event.label.name == 'behavior-change' ||
-            startsWith(github.event.label.name, 'review-tier/override: ') ||
-            (startsWith(github.event.label.name, 'tier/') && github.event.sender.type != 'Bot')) &&
-          (github.event.action != 'edited' ||
-            github.event.changes.title || github.event.changes.base ||
-            github.event.sender.type != 'Bot' ||
-            contains(github.event.pull_request.labels.*.name, 'tier/3')))) &&
       (github.event_name != 'issues' || github.event.label.name == 'decision: accepted') &&
       (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    # Relayed runs are not checks on the pull request, so a newer relay for the same branch cancels the older evaluation; the newer one re-reads all state. Fork relays carry no pull request number, so they group by head repository and branch.
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event.workflow_run.pull_requests[0].number && format('relay-{0}', github.event.workflow_run.pull_requests[0].number)) || github.event.merge_group.head_sha || github.run_id }}
-      cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
+      group: ${{ github.workflow }}-${{ (github.event_name == 'workflow_run' && format('relay-{0}-{1}', github.event.workflow_run.head_repository.full_name, github.event.workflow_run.head_branch)) || github.event.merge_group.head_sha || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
+    # Once the policy app key moves into this environment and its branch policy
+    # admits main and its merge queue refs only, a workflow on another branch
+    # cannot read it. workflow_run runs on the default branch whatever the pull
+    # request's base or head, so every relayed pull request event and every
+    # relayed fork review is admitted.
+    # merge_group runs the workflow file from the queued commit, so a queued
+    # change to this job can read the key; the approvals a pull request needs
+    # before it enters the queue are the control on that path.
+    # deployment: false uses the environment's secrets and branch policy
+    # without recording a deployment on every run.
+    environment:
+      name: review-policy
+      deployment: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # These events run with repository credentials, so only base-branch code is checked out and executed.
+      # These events run with repository credentials, so only base-branch code is checked out and executed. workflow_run always runs the default branch's workflow and ref.
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
@@ -87,17 +83,18 @@ jobs:
           permission-metadata: read
           permission-pull-requests: write
 
+      # The relay can run code from the pull request, so its artifact is untrusted: it lands outside the checkout, where it cannot replace scripts or dependencies, and review-tier.mjs accepts only digits from it.
       - name: Download the relayed pull request number
         if: github.event_name == 'workflow_run'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
         with:
           name: review-tier-pr
-          path: review-tier-pr
+          path: ${{ runner.temp }}/review-tier-pr
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
       - name: Evaluate and publish
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          REVIEW_TIER_RELAY_FILE: review-tier-pr/number
+          REVIEW_TIER_RELAY_FILE: ${{ runner.temp }}/review-tier-pr/number
         run: node scripts/review-tier.mjs

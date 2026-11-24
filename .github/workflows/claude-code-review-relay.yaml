@@ -1,0 +1,39 @@
+name: Claude Code Review Relay
+
+# Runs in the fork PR's own context with no secrets and no token permissions,
+# and records only the PR number. claude-code-review-fork.yml then runs from
+# the default branch, validates the number against the API and the commit this
+# run used, and does the review. A PR can edit this file, so nothing it
+# uploads is trusted beyond being a candidate PR number.
+on:
+  pull_request:
+    branches: [main]
+    # labeled: a maintainer adds claude-review to bypass the review budget.
+    types: [opened, synchronize, ready_for_review, reopened, labeled]
+
+permissions: {}
+
+jobs:
+  relay:
+    name: Relay fork pull request
+    if: >-
+      github.event.pull_request.draft == false
+      && github.event.pull_request.head.repo.full_name != github.repository
+      && github.event.sender.type != 'Bot'
+      && (github.event.action != 'labeled' || github.event.label.name == 'claude-review')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record the pull request number
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p claude-review-pr
+          printf '%s\n' "$PR_NUMBER" > claude-review-pr/number
+
+      - name: Upload the pull request number
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: claude-review-pr
+          path: claude-review-pr/
+          retention-days: 1

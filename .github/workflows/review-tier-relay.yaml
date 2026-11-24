@@ -1,6 +1,24 @@
 name: Review Tier Relay
 
+# Runs in the pull request's own context, fork pull requests included, with no
+# secrets and no token permissions. It only records which pull request changed;
+# Review Tier re-reads everything else from the API on the trusted base branch.
+# A pull request can edit this file, so Review Tier treats the relayed number as
+# untrusted input: digits only, and the pull request's state comes from the API.
 on:
+  pull_request:
+    types:
+      [
+        opened,
+        synchronize,
+        reopened,
+        edited,
+        labeled,
+        unlabeled,
+        ready_for_review,
+        converted_to_draft,
+        closed,
+      ]
   pull_request_review:
     types: [submitted, dismissed]
 
@@ -10,9 +28,46 @@ jobs:
   relay:
     name: Relay review event
     if: >-
-      github.event.action == 'dismissed' ||
-      github.event.review.state == 'approved' ||
-      github.event.review.state == 'changes_requested'
+      github.event_name == 'pull_request_review' &&
+      (github.event.action == 'dismissed' ||
+        github.event.review.state == 'approved' ||
+        github.event.review.state == 'changes_requested')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Record the pull request number
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p review-tier-pr
+          printf '%s\n' "$PR_NUMBER" > review-tier-pr/number
+
+      - name: Upload the pull request number
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: review-tier-pr
+          path: review-tier-pr/
+          retention-days: 1
+
+  # Label and edit events relay only for what the evaluator reads: a tier label a
+  # person changes, an override or behavior-change label, or a person's edit.
+  # Drafts relay only when they close or become drafts, which re-evaluates the
+  # author's other pull requests.
+  relay-pull-request:
+    name: Relay pull request event
+    if: >-
+      github.event_name == 'pull_request' &&
+      (!github.event.pull_request.draft ||
+        github.event.action == 'closed' ||
+        github.event.action == 'converted_to_draft') &&
+      ((github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
+        github.event.label.name == 'behavior-change' ||
+        startsWith(github.event.label.name, 'review-tier/override: ') ||
+        (startsWith(github.event.label.name, 'tier/') && github.event.sender.type != 'Bot')) &&
+      (github.event.action != 'edited' ||
+        github.event.changes.title || github.event.changes.base ||
+        github.event.sender.type != 'Bot' ||
+        contains(github.event.pull_request.labels.*.name, 'tier/3'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "pnpm install --frozen-lockfile --filter=@assistant-ui/monorepo --filter=@assistant-ui/shadcn-registry...",
   "headers": [
     {
       "source": "/files/(.*)",
@@ -53,5 +53,10 @@
       "destination": "/:path*.json"
     }
   ],
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "build": {
+    "env": {
+      "pnpm_config_verify_deps_before_run": "false"
+    }
+  }
 }

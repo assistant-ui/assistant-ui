@@ -1,5 +1,13 @@
 # @assistant-ui/react-ag-ui
 
+## 0.1.13
+
+### Patch Changes
+
+- [#10785](https://github.com/assistant-ui/assistant-ui/pull/10785) [`88c701d`](https://github.com/assistant-ui/assistant-ui/commit/88c701d6c249fddca40769ea71e4da38ef15a59d) - Tool UIs on the AG-UI runtime now receive partially parsed `args` while a tool call's arguments are streaming, instead of an empty object until the argument JSON closes. The aggregator feeds each `TOOL_CALL_ARGS` delta into the shared incremental JSON object parser, so tool UIs that render from their arguments (generative UI, forms, long text fields) build up progressively, matching the AI SDK runtime. ([@egg119](https://github.com/egg119))
+- Updated dependencies []:
+  - @assistant-ui/generative-ui@0.0.13
+
 ## 0.1.12
 
 ### Patch Changes

@@ -57,6 +57,13 @@ const pullRequestStateQuery = `query ReviewTierPullRequestState($owner: String!,
   }
 }`;
 
+// Relayed events carry only a pull request number; whether the pull request closed or became a draft comes from the API, never from the untrusted relay.
+const relayedPullRequestQuery = `query ReviewTierRelayedPullRequest($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) { state isDraft author { login } }
+  }
+}`;
+
 const reviewsQuery = `query ReviewTierReviews($owner: String!, $name: String!, $number: Int!, $after: String!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
@@ -935,6 +942,7 @@ export async function main({
   let mergeGroup = false;
   let siblingAuthor = null;
   let excludedNumber;
+  let relayedNumber;
   if (values.length) {
     numbers = [pullRequestNumber(values[0])];
   } else {
@@ -942,20 +950,6 @@ export async function main({
       ? JSON.parse(readFile(env.GITHUB_EVENT_PATH, "utf8"))
       : {};
     switch (env.GITHUB_EVENT_NAME) {
-      case "pull_request_target":
-        if (
-          event.action === "closed" ||
-          event.action === "converted_to_draft"
-        ) {
-          siblingAuthor = event.pull_request.user?.login ?? null;
-          if (siblingAuthor === null) return 0;
-          excludedNumber = pullRequestNumber(event.pull_request.number);
-        } else if (event.pull_request.draft) {
-          return 0;
-        } else {
-          numbers = [pullRequestNumber(event.pull_request.number)];
-        }
-        break;
       case "merge_group": {
         const match =
           /^refs\/heads\/gh-readonly-queue\/.+\/pr-(\d+)-[a-f\d]+$/i.exec(
@@ -977,14 +971,12 @@ export async function main({
         listOpen = true;
         break;
       case "workflow_run":
-        numbers = [
-          pullRequestNumber(
-            readFile(
-              env.REVIEW_TIER_RELAY_FILE ?? "review-tier-pr/number",
-              "utf8",
-            ).trim(),
-          ),
-        ];
+        relayedNumber = pullRequestNumber(
+          readFile(
+            env.REVIEW_TIER_RELAY_FILE ?? "review-tier-pr/number",
+            "utf8",
+          ).trim(),
+        );
         break;
       case "workflow_dispatch":
         if (event.inputs?.pr) {
@@ -1005,6 +997,25 @@ export async function main({
   if (!client) {
     if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is required.");
     client = createGitHubClient({ token: env.GITHUB_TOKEN });
+  }
+  if (relayedNumber !== undefined) {
+    const [owner, name] = policy.repository.split("/");
+    const relayed = (
+      await client.graphql(relayedPullRequestQuery, {
+        owner,
+        name,
+        number: relayedNumber,
+      })
+    ).repository.pullRequest;
+    if (!relayed) return 0;
+    if (relayed.state === "OPEN" && !relayed.isDraft) {
+      numbers = [relayedNumber];
+    } else {
+      // A closed or drafted pull request no longer counts toward its author's open work, so their other pull requests are re-evaluated instead.
+      siblingAuthor = relayed.author?.login ?? null;
+      if (siblingAuthor === null) return 0;
+      excludedNumber = relayedNumber;
+    }
   }
   let people;
   if (siblingAuthor !== null) {

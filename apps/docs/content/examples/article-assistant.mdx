@@ -1,0 +1,110 @@
+---
+title: Article Assistant Example
+description: An AssistantModal that answers questions about the page you're reading. A Next.js example with suggested questions and a system prompt grounded in the article, built on assistant-ui.
+---
+
+## Overview
+
+The Article Assistant puts a chat on top of a news article. A floating button opens an `AssistantModal`, the empty thread suggests four questions, and the agent answers from the article text in its system prompt. When the article doesn't cover a question, the assistant says so instead of guessing. The article is made up.
+
+## Features
+
+- **Assistant Modal**: the chat opens over the page from a floating button, so the article stays in view
+- **Suggestions**: `AuiConfig` with `Suggestions` shows starter questions in the empty thread
+- **Grounded Answers**: the system prompt holds the full article and tells the agent to answer only from it
+- **Honest Gaps**: questions the article doesn't answer get "The article doesn't say."
+- **AI SDK Runtime**: `useChatRuntime` with `AssistantChatTransport`, and a route handler that calls `streamText` with a plain model string
+
+## Quick Start
+
+```bash
+npx assistant-ui add assistant-modal
+```
+
+## Code
+
+The page renders the article on the server. A client component puts the runtime, the suggestions and the modal around it:
+
+```tsx title="components/assistant.tsx"
+"use client";
+
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Suggestions,
+} from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
+
+const SUGGESTIONS = [
+  {
+    title: "How did Gerald end up",
+    label: "on the electoral roll?",
+    prompt: "How did Gerald end up on the electoral roll?",
+  },
+  // ...
+];
+
+export function Assistant({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
+  const config = AuiConfig({ suggestions: Suggestions(SUGGESTIONS) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+      <AssistantModal />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The route handler holds the system prompt, with the article in it. The model is a plain string, which the AI SDK's default provider resolves:
+
+```ts title="app/api/chat/route.ts"
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { articleText } from "@/lib/article";
+
+const INSTRUCTIONS = `You are the reading assistant for one article, shown behind this chat. Answer questions about that article only.
+
+Rules:
+- Base every answer on the article text below. Quote or paraphrase it, and name who said what.
+- If the answer is not in the article, say so plainly ("The article doesn't say."). Do not guess.
+- Keep answers short: a few sentences or a short list.
+
+<article>
+${articleText}
+</article>`;
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    abortSignal: req.signal,
+    model: "openai/gpt-5",
+    system: INSTRUCTIONS,
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### Key Concepts
+
+| Concept | Purpose |
+|---------|---------|
+| `AssistantModal` | Floating launcher and chat window over the page |
+| `AuiConfig` | Config for the runtime provider, here holding the suggestions |
+| `Suggestions` | Starter prompts shown in the empty thread |
+| `system` | The route's system prompt, holding the article it answers from |
+| `useChatRuntime` | assistant-ui runtime for an AI SDK chat transport |
+
+### Customization Tips
+
+- Replace `articleText` with the content of your own page, or build it from the DOM
+- Change `SUGGESTIONS` to questions your readers ask
+- Loosen the rules in `INSTRUCTIONS` if the assistant may use outside knowledge
+- Name any model the AI Gateway serves in `model`
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-article-assistant" />

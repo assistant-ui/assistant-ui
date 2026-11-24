@@ -8,7 +8,9 @@ const marker = "<!-- claude-review-budget -->";
 
 // Counts runs in the last 24h whose review job ran (any state but skipped).
 // The budget job is named `<job>-budget (<author>)` so a later run can tell
-// whose PR each review was for; fork runs have no pull_requests entry.
+// whose PR each review was for; relayed runs have no pull_requests entry, and
+// their head repository is this one, because workflow_run runs the default
+// branch.
 export async function countReviews(
   github,
   { repo, event, runId, job, author },
@@ -19,12 +21,12 @@ export async function countReviews(
   for (let page = 1; ; page++) {
     const { data } = await github.rest(
       "GET",
-      `repos/${repo}/actions/workflows/claude-code-review.yml/runs?event=${event}&created=${encodeURIComponent(`>=${since}`)}&per_page=100&page=${page}`,
+      `repos/${repo}/actions/workflows/claude-code-review-fork.yml/runs?event=${event}&created=${encodeURIComponent(`>=${since}`)}&per_page=100&page=${page}`,
     );
     // The API returns at most 1000 filtered runs; past that, fail closed.
     if (data.total_count > 1000) return { author: Infinity, repo: Infinity };
     for (const run of data.workflow_runs) {
-      if (run.id === runId || run.head_repository?.full_name === repo) continue;
+      if (run.id === runId) continue;
       const { data: jobs } = await github.rest(
         "GET",
         `repos/${repo}/actions/runs/${run.id}/jobs?filter=latest`,

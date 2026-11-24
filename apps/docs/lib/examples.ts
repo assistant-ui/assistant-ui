@@ -116,6 +116,15 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui",
   },
   {
+    title: "Article Assistant",
+    image: "/screenshot/examples/article-assistant.png",
+    description:
+      "AssistantModal that answers questions about the page you're reading.",
+    link: "/examples/article-assistant",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-article-assistant",
+  },
+  {
     title: "Interactables",
     image: "/screenshot/examples/interactables.png",
     description:

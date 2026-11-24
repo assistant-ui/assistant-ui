@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --frozen-lockfile --filter @assistant-ui/docs-site...",
+  "installCommand": "git config --global url.\"https://x-access-token:$APPOS_READ_TOKEN@github.com/assistant-ui/appOS\".insteadOf https://github.com/assistant-ui/appOS && pnpm install --frozen-lockfile --filter @assistant-ui/docs-site...",
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh"
 }

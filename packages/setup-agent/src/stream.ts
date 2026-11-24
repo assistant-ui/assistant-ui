@@ -8,6 +8,7 @@ import type { TerminalQuestion } from "./needs";
 import {
   AGENT_HEARTBEAT_MS,
   classifyChoiceAnswer,
+  isClosed,
   parseMultipleAnswer,
 } from "./protocol";
 import type { Checkout } from "./protocol";
@@ -337,5 +338,30 @@ export const followSetup = async (
         flush();
         await client.commands["agent/bye"]().catch(() => {});
       })()),
+  };
+};
+
+/**
+ * Calls `stop` once the setup is finished or cancelled. A link holds one
+ * setup, so nothing else will arrive on its stream. The call waits a moment
+ * so the stream prints its last events first.
+ */
+export const stopWhenClosed = (
+  client: Pick<CheckoutClient, "state" | "subscribe">,
+  stop: () => void,
+  delayMs = 250,
+) => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const check = () => {
+    const state = client.state;
+    if (timer !== undefined || state === undefined || !isClosed(state)) return;
+    unsubscribe();
+    timer = setTimeout(stop, delayMs);
+  };
+  const unsubscribe = client.subscribe(check);
+  check();
+  return () => {
+    unsubscribe();
+    clearTimeout(timer);
   };
 };

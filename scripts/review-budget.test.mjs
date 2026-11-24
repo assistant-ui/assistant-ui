@@ -5,18 +5,19 @@ import { countReviews } from "./review-budget.mjs";
 const repo = "assistant-ui/assistant-ui";
 const opts = {
   repo,
-  event: "pull_request_target",
+  event: "workflow_run",
   runId: 999,
   job: "claude-fork-review",
   author: "alice",
 };
 
 let id = 0;
-const run = (author, conclusion = "success", fork = true) => ({
+// workflow_run runs the default branch, so every run's head repository is this one.
+const run = (author, conclusion = "success") => ({
   run: {
     id: ++id,
     actor: { login: "someone" },
-    head_repository: { full_name: fork ? `${author}/x` : repo },
+    head_repository: { full_name: repo },
   },
   jobs: [
     { name: `claude-fork-review-budget (${author})`, conclusion: "success" },
@@ -54,16 +55,16 @@ test("counts reviews per author and repo-wide", async () => {
   assert.deepEqual(await countReviews(github, opts), { author: 3, repo: 4 });
 });
 
-test("ignores skipped reviews, same-repo runs and the current run", async () => {
+test("ignores skipped reviews and the current run", async () => {
   const current = run("alice");
   current.run.id = 999;
   const github = mock([
     run("alice", "skipped"),
-    run("alice", "success", false),
     current,
     run("alice"),
+    run("bob"),
   ]);
-  assert.deepEqual(await countReviews(github, opts), { author: 1, repo: 1 });
+  assert.deepEqual(await countReviews(github, opts), { author: 1, repo: 2 });
   assert.ok(!github.calls.some((c) => c.includes("/runs/999/")));
 });
 
@@ -93,7 +94,7 @@ test("pages past 100 runs and filters by the last 24h", async () => {
   );
   assert.match(
     github.calls[0],
-    /event=pull_request_target&created=%3E%3D2026-11-18T12%3A00%3A00\.000Z/,
+    /event=workflow_run&created=%3E%3D2026-11-18T12%3A00%3A00\.000Z/,
   );
   assert.ok(github.calls.some((c) => c.includes("page=2")));
 });

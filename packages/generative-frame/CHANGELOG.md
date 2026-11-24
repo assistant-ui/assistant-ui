@@ -1,5 +1,11 @@
 # generative-frame
 
+## 0.0.12
+
+### Patch Changes
+
+- [#10609](https://github.com/assistant-ui/assistant-ui/pull/10609) [`7a89603`](https://github.com/assistant-ui/assistant-ui/commit/7a89603ccf7ab5e36c0a91fac49bb1818ca5b8d5) - fix: the spec toolkits' default `sendMessage` puts its text in the thread composer for the user to review and send, as widget and MCP App prompts do. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.11
 
 ### Patch Changes
