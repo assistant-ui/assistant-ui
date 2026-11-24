@@ -325,13 +325,12 @@ export function blockElements(
     }
   }
 
-  return catalog.flatMap((entry) => {
+  return catalog.flatMap((entry): BlockElementUse[] => {
     const element = imported.get(entry.slug);
-    if (element)
-      return [{ slug: entry.slug, kind: "element" as const, names: element }];
+    if (element) return [{ slug: entry.slug, kind: "element", names: element }];
     const names = primitives.get(entry.slug);
     if (!names) return [];
-    return [{ slug: entry.slug, kind: "primitive" as const, names }];
+    return [{ slug: entry.slug, kind: "primitive", names }];
   });
 }
 
