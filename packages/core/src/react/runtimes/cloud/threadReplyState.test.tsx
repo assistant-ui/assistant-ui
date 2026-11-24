@@ -13,6 +13,7 @@ import {
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
+import { RUN_STATE_PAGE_SIZE } from "./AssistantCloudThreadHistoryAdapter";
 import { useThreadReplyState } from "../../primitive-hooks/useThreadReplyState";
 import {
   getThreadReplyState,
@@ -153,14 +154,18 @@ describe("thread reply state", () => {
     const { hooks, getAui } = await renderRuntime(cloud, { staleAfter: 3_000 });
     await waitFor(() => expect(hooks.replyState).toBe("in-progress"));
     const fullReads = () =>
-      list.mock.calls.filter(([, query]) => query?.limit !== 20).length;
+      list.mock.calls.filter(
+        ([, query]) => query?.limit !== RUN_STATE_PAGE_SIZE,
+      ).length;
     const loads = fullReads();
 
     await waitFor(
       () =>
-        expect(list.mock.calls.some(([, query]) => query?.limit === 20)).toBe(
-          true,
-        ),
+        expect(
+          list.mock.calls.some(
+            ([, query]) => query?.limit === RUN_STATE_PAGE_SIZE,
+          ),
+        ).toBe(true),
       { timeout: 5_000 },
     );
     expect(fullReads()).toBe(loads);

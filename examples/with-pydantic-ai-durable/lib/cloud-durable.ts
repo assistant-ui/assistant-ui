@@ -175,8 +175,8 @@ export const decideDurableThread = (
 // Loads that returned the thread as stored because the durable server could not be read; the takeover tries those again.
 const failedLookups = new WeakSet<object>();
 const LOOKUP_RETRY_MS = 5_000;
-// Runtimes with a takeover in flight, shared across effect runs, so a remount or a reply state change never starts a second one.
-const takingOver = new WeakSet<object>();
+// The takeover in flight for each runtime, shared across effect runs: a remount or a reply state change waits for it and checks again instead of starting a second one.
+const takingOver = new WeakMap<object, Promise<void>>();
 // Loads a thread that ends with the user's message as one to resume; only the takeover asks for it.
 const TAKE_OVER = Symbol("takeOver");
 type TakeOverHistory = ThreadHistoryAdapter & {
@@ -283,7 +283,12 @@ export const useDurableTakeover = (
     let checkedId: string | undefined;
     let retry: ReturnType<typeof setTimeout> | undefined;
     const check = () => {
-      if (disposed || takingOver.has(runtime)) return;
+      if (disposed) return;
+      const pending = takingOver.get(runtime);
+      if (pending) {
+        void pending.then(check);
+        return;
+      }
       const { isRunning, isLoading, messages } = thread.getState();
       if (isRunning || isLoading) return;
       const userIndex = lastIndexOf(messages, (m) => m.role === "user");
@@ -294,8 +299,7 @@ export const useDurableTakeover = (
       const unanswered = state === "missing" && replyState === "interrupted";
       if (state !== "stale" && !unanswered) return;
       checkedId = last.id;
-      takingOver.add(runtime);
-      void (async () => {
+      const task = (async () => {
         try {
           const takeOver = (history as TakeOverHistory)[TAKE_OVER];
           const repository = await (unanswered && takeOver
@@ -318,6 +322,7 @@ export const useDurableTakeover = (
           takingOver.delete(runtime);
         }
       })();
+      takingOver.set(runtime, task);
     };
     const unsubscribe = thread.subscribe(check);
     check();
