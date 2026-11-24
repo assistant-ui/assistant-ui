@@ -24,7 +24,7 @@ Before enabling the check, a repository administrator configures these GitHub se
 
 1. Create the `deepsec` environment and restrict deployments to the selected branch `main`. Add a budgeted AI Gateway key as its **environment secret** `DEEPSEC_GATEWAY_KEY`. Remove any repository-level copy and rotate the key if it was previously available to PR workflows.
 2. Create the `deepsec-triage` environment with the security team as required reviewers, **Prevent self-review** enabled, and the same branch restriction.
-3. Require the **Review changed files** status check in the `main` ruleset. A skipped review (drafts, forks, Dependabot, scanning disabled) passes it.
+3. Require the **Review changed files** status check in the `main` ruleset. A skipped review (drafts, forks, Dependabot, merge queue runs, scanning disabled) passes it.
 4. Set the **repository variable** `DEEPSEC_ENABLED` to `true`. To disable scanning, remove the variable and revoke the key.
 
 **Review changed files** passes when the scan is clean. A scanner error fails it, and the run keeps encrypted diagnostics and findings from completed batches when available. A finding fails it and requests a review from the security team. Contributors can send the workflow run URL to security@assistant-ui.com. The team downloads the artifact from that run and decrypts it with `gpg --decrypt review.md.gpg` or `gpg --decrypt diagnostics.log.gpg`. CI uses the public key from the trusted checkout.

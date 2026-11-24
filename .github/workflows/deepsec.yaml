@@ -4,6 +4,8 @@ on:
   pull_request_target:
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review]
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
@@ -12,13 +14,14 @@ env:
   REPORT_APPROVED: 'any(.[]; .state == "approved" and .comment == $id and any(.environments[]; .name == "deepsec-triage"))'
 
 concurrency:
-  group: deepsec-${{ github.event.pull_request.number }}
+  group: deepsec-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   scan:
     name: Scan changed files
     if: >-
+      github.event_name == 'pull_request_target' &&
       vars.DEEPSEC_ENABLED == 'true' &&
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
