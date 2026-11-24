@@ -136,11 +136,8 @@ const decodeCloudThreadRun = (value: unknown): CloudThreadRun | null => {
   const run = readCloudRecord(value, "run");
   return {
     status: readCloudEnum(run.status, "run.status", ["running"] as const),
-    message_id: readCloudNullableString(
-      run.message_id ?? null,
-      "run.message_id",
-    ),
-    parent_id: readCloudNullableString(run.parent_id ?? null, "run.parent_id"),
+    message_id: readCloudNullableString(run.message_id, "run.message_id"),
+    parent_id: readCloudNullableString(run.parent_id, "run.parent_id"),
     last_heartbeat_ms_ago: readCloudNumber(
       run.last_heartbeat_ms_ago,
       "run.last_heartbeat_ms_ago",
