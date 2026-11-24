@@ -28,10 +28,10 @@ pnpm build
 
 ## How this demo is hosted
 
-The docs page runs this same app as an appOS app, with no changes to its code. appOS's Next.js build adapter (`appos-host/next`, set through `NEXT_ADAPTER_PATH`) writes the build as an appOS app folder:
+The docs page runs this same app as an appOS app, with no changes to its code. appOS's Next.js build adapter (`@assistant-ui/appos/next`, set through `NEXT_ADAPTER_PATH`) writes the build as an appOS app folder:
 
 - the prerendered page and its assets go in the bundle;
 - the route handler runs in the app's own sandboxed origin;
 - the model string goes to appOS's AI gateway in place of Vercel's, so the app holds no key.
 
-`apps/docs/scripts/build-appos-examples.mjs` builds and packs the app into a `.wbn` bundle. `<AppOSApp>` from `appos-host` embeds it, and `apps/docs/app/api/appos/ai` serves its model calls. `app/manifest.ts` is the app's manifest. Dark mode uses shadcn's class-based `.dark`: the page passes the docs theme as `colorScheme`, and appOS's sandbox puts the `dark` class on `<html>` before the app's first paint. `appos-host` installs from the [appOS repo](https://github.com/assistant-ui/appOS) by commit.
+`apps/docs/scripts/build-appos-examples.mjs` builds and packs the app into a `.wbn` bundle. `<AppOSApp>` from `@assistant-ui/appos` embeds it, and `apps/docs/app/api/appos/ai` serves its model calls. `app/manifest.ts` is the app's manifest. Dark mode uses shadcn's class-based `.dark`: the page passes the docs theme as `colorScheme`, and appOS's sandbox puts the `dark` class on `<html>` before the app's first paint. It installs from npm as `@assistant-ui/appos`.

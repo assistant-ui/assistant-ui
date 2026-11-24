@@ -5,7 +5,7 @@ import {
   aiGateway,
   type AiService,
   type AiStreamPart,
-} from "appos-host";
+} from "@assistant-ui/appos";
 import { useTheme } from "next-themes";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { ensureAnonymousSession } from "@/lib/anonymous-session-client";
@@ -25,7 +25,7 @@ const ai: AiService = async function* (request) {
 /** A local appOS sandbox for development, e.g. http://{key}.localhost:10032; default the hosted one. */
 const sandbox = process.env.NEXT_PUBLIC_APPOS_SANDBOX;
 
-/** The Article Assistant example, embedded with appos-host. */
+/** The Article Assistant example, embedded with @assistant-ui/appos. */
 export function ArticleAssistantExample({ src }: { src: string }) {
   // The docs' theme toggle (next-themes): the app follows it, live. The
   // server doesn't know the theme, so "system" until hydrated.
