@@ -36,6 +36,7 @@ describe("CloudMessagePersistence thread leases", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("opens the thread's lease without storing a row, then the first write stores the reply as the holder", async () => {
@@ -115,7 +116,7 @@ describe("CloudMessagePersistence thread leases", () => {
 
   it("drops the reply when a newer run superseded the lease before the first write", async () => {
     const { cloud, messages, runs } = createCloud();
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     messages.create.mockRejectedValue(apiError(409, "run_ended"));
     const persistence = new CloudMessagePersistence(cloud);
     await persistence.beginRun("t1", "a1", null);
@@ -127,7 +128,6 @@ describe("CloudMessagePersistence thread leases", () => {
     await persistence.append("t1", "a1", null, "aui/v0", done, "done");
     expect(messages.create).toHaveBeenCalledTimes(1);
     expect(runs.end).not.toHaveBeenCalled();
-    warn.mockRestore();
   });
 
   it("records the thread's run from the first page of a load", async () => {

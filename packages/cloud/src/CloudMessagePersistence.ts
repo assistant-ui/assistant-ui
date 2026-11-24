@@ -171,8 +171,10 @@ export class CloudMessagePersistence {
    * write with `append` stores its row as the lease holder. Opening ends any
    * other running lease of the thread: the newest run wins.
    *
-   * Resolves false, opening nothing, when the reply is already stored or its
-   * id cannot be an external id. Rejects against a server before v0.2.12,
+   * Resolves whether the reply holds an open lease: true when this
+   * persistence already holds one for it, false, opening nothing, when the
+   * reply is already stored without one or its id cannot be an external id
+   * (empty or over 255 characters). Rejects against a server before v0.2.12,
    * which has no thread run leases.
    */
   async beginRun(
@@ -257,7 +259,9 @@ export class CloudMessagePersistence {
    * @param run - `running` stores the message with an open run lease that is
    *   kept alive by heartbeats until a write with an end reason closes it.
    *   Once the lease is lost (it was ended elsewhere or the server refused
-   *   it), later writes for the message are dropped.
+   *   it), later writes for the message are dropped. A message whose id
+   *   cannot be an external id (empty or over 255 characters) is stored
+   *   without a lease.
    */
   async append(
     threadId: string,
