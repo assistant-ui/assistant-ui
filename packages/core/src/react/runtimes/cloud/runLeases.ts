@@ -27,7 +27,6 @@ type TrackedRun = {
   /** The persistence key of the message: its id, or its format-native message's id. */
   key: string;
   parent: ThreadMessage | undefined;
-  /** Settles once the run's lease is opened and its writes so far landed. */
   stored: Promise<void>;
   /** The content the last checkpoint stored; undefined before the first, so a run joined with content already present is stored too. */
   checkpointed: ThreadMessage["content"] | undefined;
@@ -86,10 +85,8 @@ const findMessage = (
  * message. A lease the persistence lost (ended elsewhere, or superseded by a
  * newer run) gets no more writes.
  *
- * Other tabs read the lease: a reply already stored shows as in progress, or
- * as an ordinary interrupted reply once its run went `staleAfter` without a
- * beat. A thread whose last message is the user's reads `in-progress` while
- * a fresh lease answers it, and `interrupted` once none does
+ * A thread whose last message is the user's reads `in-progress` while a
+ * fresh thread lease answers it, and `interrupted` once none does
  * (`useThreadReplyState`).
  *
  * Runtimes that persist through `withFormat` (the AI SDK) are covered when a
