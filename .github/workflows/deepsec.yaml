@@ -3,21 +3,23 @@ name: DeepSec
 on:
   pull_request_target:
     branches: [main]
-    types: [opened, reopened, synchronize, ready_for_review, edited]
+    types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
   contents: read
 
+env:
+  REPORT_APPROVED: 'any(.[]; .state == "approved" and .comment == $id and any(.environments[]; .name == "deepsec-triage"))'
+
 concurrency:
-  group: deepsec-${{ (github.event.action != 'edited' || github.event.changes.base) && github.event.pull_request.number || github.run_id }}
+  group: deepsec-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  review:
-    name: Review changed files
+  scan:
+    name: Scan changed files
     if: >-
       vars.DEEPSEC_ENABLED == 'true' &&
-      (github.event.action != 'edited' || github.event.changes.base) &&
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login != 'dependabot[bot]' &&
@@ -79,11 +81,11 @@ jobs:
 
   triage:
     name: Security triage
-    needs: review
-    if: needs.review.outputs.report != ''
+    needs: scan
+    if: needs.scan.outputs.report != ''
     environment:
       name: deepsec-triage
-      url: ${{ needs.review.outputs.report-url }}
+      url: ${{ needs.scan.outputs.report-url }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -92,11 +94,37 @@ jobs:
       - name: Verify approval for this report
         env:
           GH_TOKEN: ${{ github.token }}
-          REPORT_ID: ${{ needs.review.outputs.report }}
+          REPORT_ID: ${{ needs.scan.outputs.report }}
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" |
-            jq -e --arg id "$REPORT_ID" 'any(.[]; .state == "approved" and .comment == $id and any(.environments[]; .name == "deepsec-triage"))' >/dev/null || {
+            jq -e --arg id "$REPORT_ID" "$REPORT_APPROVED" >/dev/null || {
               echo "::error::The security team must approve this report with its artifact ID in the deployment review."
               exit 1
             }
+
+  review:
+    name: Review changed files
+    needs: scan
+    if: "!cancelled() && needs.scan.result != 'skipped'"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Require a clean scan or an approved report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCAN_RESULT: ${{ needs.scan.result }}
+          REPORT_ID: ${{ needs.scan.outputs.report }}
+        run: |
+          set -euo pipefail
+          if [[ "$SCAN_RESULT" != success ]]; then
+            echo "::error::Scan changed files did not finish. Check its log; the security team can decrypt its diagnostics artifact when one was saved."
+            exit 1
+          fi
+          if [[ -n "$REPORT_ID" ]] && ! gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/approvals" |
+            jq -e --arg id "$REPORT_ID" "$REPORT_APPROVED" >/dev/null; then
+            echo "::error::DeepSec reported a finding in artifact $REPORT_ID. After the security team approves that report in Security triage, re-run this job."
+            exit 1
+          fi

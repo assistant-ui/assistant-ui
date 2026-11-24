@@ -18,17 +18,18 @@ The affected package, component or service, its version or deployment if you kno
 
 ## Pull request security review
 
-DeepSec reviews changed files on ready, same-repository PRs to `main`, including PRs retargeted there. Forks and Dependabot PRs skip it. The workflow runs from the default branch. It gives the read-only Pi reviewer a copy of regular files from the event's head commit and compares that commit with its merge base. Vercel AI Gateway handles model calls.
+DeepSec reviews changed files on ready, same-repository PRs to `main`. Forks and Dependabot PRs skip it. A PR retargeted to `main` is reviewed after its next push, or after it is closed and reopened. The workflow runs from the default branch. It gives the read-only Pi reviewer a copy of regular files from the event's head commit and compares that commit with its merge base. A file the PR deletes, or replaces with a symbolic link or submodule, is reviewed from its merge-base copy under `.deepsec-deleted/`, so a PR cannot add a directory with that name. Vercel AI Gateway handles model calls.
 
-Before enabling the check, a repository administrator configures these GitHub Actions settings:
+Before enabling the check, a repository administrator configures these GitHub settings:
 
 1. Create the `deepsec` environment and restrict deployments to the selected branch `main`. Add a budgeted AI Gateway key as its **environment secret** `DEEPSEC_GATEWAY_KEY`. Remove any repository-level copy and rotate the key if it was previously available to PR workflows.
-2. Create the `deepsec-triage` environment with the security team as required reviewers and the same branch restriction.
-3. Set the **repository variable** `DEEPSEC_ENABLED` to `true`. To disable scanning, remove the variable and revoke the key.
+2. Create the `deepsec-triage` environment with the security team as required reviewers, **Prevent self-review** enabled, and the same branch restriction.
+3. Require the **Review changed files** status check in the `main` ruleset. A skipped review (drafts, forks, Dependabot, scanning disabled) passes it.
+4. Set the **repository variable** `DEEPSEC_ENABLED` to `true`. To disable scanning, remove the variable and revoke the key.
 
-A clean scan passes. A scanner error fails the job and attaches encrypted diagnostics and findings from completed batches when available. A finding requests a review from the security team. Contributors can send the workflow run URL to security@assistant-ui.com. The team downloads the artifact from that run and decrypts it with `gpg --decrypt review.md.gpg` or `gpg --decrypt diagnostics.log.gpg`. CI uses the public key from the trusted checkout.
+**Review changed files** passes when the scan is clean. A scanner error fails it, and the run keeps encrypted diagnostics and findings from completed batches when available. A finding fails it and requests a review from the security team. Contributors can send the workflow run URL to security@assistant-ui.com. The team downloads the artifact from that run and decrypts it with `gpg --decrypt review.md.gpg` or `gpg --decrypt diagnostics.log.gpg`. CI uses the public key from the trusted checkout.
 
-For a false positive, the security reviewer approves the pending `deepsec-triage` deployment, entering the artifact ID from the upload step as the approval comment. This clears only that report. Rerun the entire workflow to produce a fresh report if its artifact has expired. For a confirmed finding, reject the deployment and use the private reporting process above.
+For a false positive, the security reviewer approves the pending `deepsec-triage` deployment, entering the artifact ID from the upload step as the approval comment, then re-runs the failed **Review changed files** job. This clears only that report. Rerun the entire workflow to produce a fresh report if its artifact has expired. For a confirmed finding, reject the deployment and use the private reporting process above.
 
 ## What happens next
 

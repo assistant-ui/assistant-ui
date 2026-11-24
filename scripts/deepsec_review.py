@@ -4,6 +4,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+DELETED = b".deepsec-deleted"
+DELETED_CONTEXT = """\
+Files under `.deepsec-deleted/` are not in this pull request's head. Each one is the merge-base copy of a file that the pull request deletes or replaces with a symbolic link or submodule, stored at its original path below `.deepsec-deleted/`. Review each one as a removal made by this pull request: report a finding when removing the file weakens the security of the code that remains, for example a removed authorization check, input validation, sanitizer, security header or CI restriction. Do not report vulnerabilities that exist only in the removed code.
+"""
+
 
 def manifest_name(raw):
     name = raw.decode("utf-8")
@@ -22,43 +27,62 @@ def prepare(repo, base, head, destination):
     def git(*args):
         return subprocess.check_output(["git", *args], cwd=repo)
 
-    changed = set(
-        git(
-            "diff", "--name-only", "--no-renames", "--diff-filter=AMT", "-z", base, head, "--"
-        ).split(b"\0")
-    )
-    tree = git("ls-tree", "-rz", head)
+    def changed(statuses):
+        return set(
+            git(
+                "diff",
+                "--name-only",
+                "--no-renames",
+                f"--diff-filter={statuses}",
+                "-z",
+                base,
+                head,
+                "--",
+            ).split(b"\0")
+        ) - {b""}
+
     source = destination / "source"
     source.mkdir()
     targets = []
+    # The head tree supplies every file; the merge base supplies only the files the PR removes.
+    exports = [(head, b"", changed("AMT"), True), (base, DELETED + b"/", changed("DT"), False)]
 
     # Read raw blobs so Git filters, executable bits and symbolic links never enter the scanner workspace.
     with subprocess.Popen(
         ["git", "cat-file", "--batch"], cwd=repo, stdin=subprocess.PIPE, stdout=subprocess.PIPE
     ) as blobs:
         try:
-            for entry in tree.split(b"\0"):
-                if not entry:
+            for commit, prefix, selected, everything in exports:
+                if not (everything or selected):
                     continue
-                info, name = entry.split(b"\t", 1)
-                mode, _, oid = info.split()
-                if mode not in (b"100644", b"100755"):
-                    continue
-                if any(part.lower() in (b"", b".", b"..", b".git") for part in name.split(b"/")):
-                    raise ValueError("Invalid path in the PR tree.")
-                path = source / os.fsdecode(name)
-                path.parent.mkdir(parents=True, exist_ok=True)
-                blobs.stdin.write(oid + b"\n")
-                blobs.stdin.flush()
-                returned_oid, kind, size = blobs.stdout.readline().split()
-                if returned_oid != oid or kind != b"blob":
-                    raise ValueError("Git did not return the requested blob.")
-                with path.open("xb") as output:
-                    output.write(blobs.stdout.read(int(size)))
-                if blobs.stdout.read(1) != b"\n":
-                    raise ValueError("Git returned an incomplete blob.")
-                if name in changed:
-                    targets.append(manifest_name(name))
+                for entry in git("ls-tree", "-rz", commit).split(b"\0"):
+                    if not entry:
+                        continue
+                    info, name = entry.split(b"\t", 1)
+                    mode, _, oid = info.split()
+                    if mode not in (b"100644", b"100755") or not (everything or name in selected):
+                        continue
+                    if any(
+                        part.lower() in (b"", b".", b"..", b".git") for part in name.split(b"/")
+                    ):
+                        raise ValueError("Invalid path in the PR tree.")
+                    if everything and name.split(b"/", 1)[0] == DELETED:
+                        raise ValueError(
+                            "The PR tree contains `.deepsec-deleted`, which the review reserves for deleted files. Rename it."
+                        )
+                    path = source / os.fsdecode(prefix + name)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    blobs.stdin.write(oid + b"\n")
+                    blobs.stdin.flush()
+                    returned_oid, kind, size = blobs.stdout.readline().split()
+                    if returned_oid != oid or kind != b"blob":
+                        raise ValueError("Git did not return the requested blob.")
+                    with path.open("xb") as output:
+                        output.write(blobs.stdout.read(int(size)))
+                    if blobs.stdout.read(1) != b"\n":
+                        raise ValueError("Git returned an incomplete blob.")
+                    if name in selected:
+                        targets.append(manifest_name(prefix + name))
         finally:
             blobs.stdin.close()
         if blobs.wait():
@@ -66,6 +90,11 @@ def prepare(repo, base, head, destination):
     (destination / "files.txt").write_text(
         "".join(name + "\n" for name in targets), encoding="utf-8"
     )
+    if (source / os.fsdecode(DELETED)).is_dir():
+        # DeepSec adds data/<project>/INFO.md to each review prompt and names the project after --root.
+        info = destination / "data" / source.name / "INFO.md"
+        info.parent.mkdir(parents=True)
+        info.write_text(DELETED_CONTEXT, encoding="utf-8")
 
 
 def classify(status, root):
