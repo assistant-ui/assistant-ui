@@ -56,8 +56,8 @@ export const BLOCKS: readonly Block[] = [
     description:
       "A pages app with a floating assistant that edits the page you are on and waits for you to accept each change.",
     image: {
-      light: "/screenshot/blocks/document-editor-light.webp",
-      dark: "/screenshot/blocks/document-editor-dark.webp",
+      light: "/screenshot/blocks/document-editor-light-v3.webp",
+      dark: "/screenshot/blocks/document-editor-dark-v3.webp",
     },
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/document-editor",
@@ -65,6 +65,7 @@ export const BLOCKS: readonly Block[] = [
     source: {
       directory: "apps/docs/app/(blocks)/blocks/demos/document-editor",
       include: [
+        "../chat-sidebar.tsx",
         "api",
         "components",
         "lib",
@@ -149,10 +150,10 @@ export const BLOCKS: readonly Block[] = [
     slug: "images",
     title: "Images",
     description:
-      "An image maker: a gallery of templates, a message box with a model picker and the settings of a picture, an editor beside the chat, and a sidebar of chats that starts closed.",
+      "An image maker that turns a template or a message into a picture you edit beside the chat.",
     image: {
-      light: "/screenshot/blocks/images-light.webp",
-      dark: "/screenshot/blocks/images-dark.webp",
+      light: "/screenshot/blocks/images-light-v2.webp",
+      dark: "/screenshot/blocks/images-dark-v2.webp",
     },
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/images",
@@ -263,200 +264,13 @@ export const BLOCKS: readonly Block[] = [
     },
   },
   {
-    slug: "tasks",
-    title: "Tasks",
-    description:
-      "Scheduled tasks made by describing them: a schedule in the sidebar, each task's runs on the page, and a message box that is always there.",
-    image: {
-      light: "/screenshot/blocks/tasks-light.webp",
-      dark: "/screenshot/blocks/tasks-dark.webp",
-    },
-    githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/tasks",
-    previewUrl: "/blocks/demos/tasks",
-    source: {
-      directory: "apps/docs/app/(blocks)/blocks/demos/tasks",
-      include: [
-        "../chat-sidebar.tsx",
-        "api",
-        "components",
-        ".env.example",
-        "README.md",
-        "block.css",
-        "data.json",
-        "layout.tsx",
-        "page.tsx",
-        "toolkit.tsx",
-      ],
-      entry: "components/tasks.tsx",
-    },
-    stack: [
-      { name: "AI SDK", package: "ai" },
-      { name: "OpenAI", package: "@ai-sdk/openai" },
-      { name: "shadcn/ui", package: "shadcn" },
-      { name: "Tailwind CSS", package: "tailwindcss" },
-    ],
-    useCases: [
-      "Reminders and recurring briefings that a person sets up in plain words.",
-      "A starting point for any tool where the model edits app state through tools and the page shows the result.",
-      "A reference for a toolkit whose tools run in the browser and draw their own receipts.",
-    ],
-    capabilities: [
-      {
-        title: "Made by describing",
-        description:
-          "Say what should happen and when. The model works out the time and the repeat and calls a tool that creates the task.",
-      },
-      {
-        title: "Schedule",
-        description:
-          "The sidebar groups tasks by when they next run: today, tomorrow, later, paused and done.",
-      },
-      {
-        title: "Runs",
-        description:
-          "While the page is open, a task whose time has come sends its instruction to the model, which can search the web, and the result is kept under the task.",
-      },
-      {
-        title: "Changes by chat",
-        description:
-          "With a task open, a message such as move it to nine renames, reschedules, pauses, runs or deletes it through the same tools.",
-      },
-      {
-        title: "Message box",
-        description:
-          "Always at the foot of the page, with files by button or by drop, dictation, and send and stop.",
-      },
-      {
-        title: "Usage",
-        description:
-          "The person at the foot of the sidebar opens a count of tasks, runs and the tokens the runs used.",
-      },
-    ],
-    requirements: [
-      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
-      "The shadcn/ui tooltip, dialog and resizable components.",
-      "The assistant-ui build plugin, withAui, which compiles the toolkit file.",
-      "An OpenAI key. The model's name is in data.json.",
-      "Your own scheduler to run tasks while the page is closed, and your own sign-in and rate limit in front of the routes before you deploy them.",
-    ],
-    env: {
-      note: "The routes answer 404 until they are switched on, and 401 without a key.",
-      variables: [
-        {
-          name: "OPENAI_API_KEY",
-          required: true,
-          description: "The key the routes call the model with.",
-        },
-        {
-          name: "BLOCKS_LIVE_API",
-          required: true,
-          description: 'Set to "true" to let the routes run.',
-        },
-      ],
-    },
-  },
-  {
-    slug: "agents",
-    title: "Agents",
-    description:
-      "An agent builder in one thread: templates to start from, a message box that makes an agent from a description, and the agent as a card in the chat.",
-    image: {
-      light: "/screenshot/blocks/agents-light.webp",
-      dark: "/screenshot/blocks/agents-dark.webp",
-    },
-    githubLink:
-      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/agents",
-    previewUrl: "/blocks/demos/agents",
-    source: {
-      directory: "apps/docs/app/(blocks)/blocks/demos/agents",
-      include: [
-        "api",
-        "components",
-        ".env.example",
-        "README.md",
-        "block.css",
-        "data.json",
-        "layout.tsx",
-        "page.tsx",
-        "toolkit.tsx",
-      ],
-      entry: "components/agents.tsx",
-    },
-    stack: [
-      { name: "AI SDK", package: "ai" },
-      { name: "OpenAI", package: "@ai-sdk/openai" },
-      { name: "shadcn/ui", package: "shadcn" },
-      { name: "Tailwind CSS", package: "tailwindcss" },
-    ],
-    useCases: [
-      "A setup page where a person describes an agent and the model writes its instructions and picks its tools.",
-      "A gallery of ready-made agents that open as they are and change by chat.",
-      "A reference for a tool call that draws its result while the arguments are still streaming.",
-    ],
-    capabilities: [
-      {
-        title: "Templates",
-        description:
-          "A list of agents from data.json. One opens in a dialog with its model, connectors, tools, skills and schedule, and is used as it is, with no model call.",
-      },
-      {
-        title: "Config in four forms",
-        description:
-          "The dialog and the card write the agent as YAML, TypeScript, Python or curl, in the shape of a Claude Managed Agents create call, ready to copy.",
-      },
-      {
-        title: "Made by describing",
-        description:
-          "Say what the agent is for. The model writes its name and instructions, picks a model, connectors, tools and skills from the lists in data.json, and sets a schedule when you give one.",
-      },
-      {
-        title: "Agent card",
-        description:
-          "The agent is drawn in the thread while the model writes it: what it runs on, what it can reach, and its instructions, which fold when they are long.",
-      },
-      {
-        title: "Changes by chat",
-        description:
-          "A message such as add Slack or make it shorter changes the open agent. The card moves to the newest change and earlier ones keep one line.",
-      },
-      {
-        title: "Message box",
-        description:
-          "Always at the foot of the page, with files by button or by drop, dictation, and send and stop.",
-      },
-    ],
-    requirements: [
-      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes use.",
-      "The shadcn/ui tooltip and dialog components, and Base UI for the tabs and menus.",
-      "The assistant-ui build plugin, withAui, which compiles the toolkit file.",
-      "An OpenAI key for the model that writes the agents. Its name is in data.json.",
-      "Your own agent platform to create and run the agent, and your own sign-in and rate limit in front of the route before you deploy it.",
-    ],
-    env: {
-      note: "The route answers 404 until it is switched on, and 401 without a key.",
-      variables: [
-        {
-          name: "OPENAI_API_KEY",
-          required: true,
-          description: "The key the route calls the model with.",
-        },
-        {
-          name: "BLOCKS_LIVE_API",
-          required: true,
-          description: 'Set to "true" to let the route run.',
-        },
-      ],
-    },
-  },
-  {
     slug: "chat-basic",
     title: "Chat basic",
     description:
       "A whole chat written with every assistant-ui primitive, using only the shadcn/ui tooltip and resizable components.",
     image: {
-      light: "/screenshot/blocks/chat-basic-light.webp",
-      dark: "/screenshot/blocks/chat-basic-dark.webp",
+      light: "/screenshot/blocks/chat-basic-light-v3.webp",
+      dark: "/screenshot/blocks/chat-basic-dark-v3.webp",
     },
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/chat-basic",
@@ -534,6 +348,107 @@ export const BLOCKS: readonly Block[] = [
       "A model of your own. The chat answers from a script, so replace scriptedModel with a ChatModelAdapter or another assistant-ui runtime.",
       "A browser with speech synthesis for reading a reply aloud.",
     ],
+  },
+  {
+    slug: "generative-frame",
+    title: "Generative frame",
+    description:
+      "A chat whose answers are live UI the model builds as it streams, from assistant-ui's components or as HTML in a sandboxed frame.",
+    image: {
+      light: "/screenshot/blocks/generative-frame-light.webp",
+      dark: "/screenshot/blocks/generative-frame-dark.webp",
+    },
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/generative-frame",
+    previewUrl: "/blocks/demos/generative-frame",
+    source: {
+      directory: "apps/docs/app/(blocks)/blocks/demos/generative-frame",
+      include: [
+        "api",
+        "components",
+        ".env.example",
+        "README.md",
+        "block.css",
+        "data.json",
+        "layout.tsx",
+        "page.tsx",
+      ],
+      entry: "components/generative-frame.tsx",
+    },
+    stack: [
+      { name: "generative-frame", package: "@assistant-ui/react" },
+      { name: "Generative UI", package: "@assistant-ui/react" },
+      { name: "AI SDK", package: "ai" },
+      { name: "OpenAI", package: "@ai-sdk/openai" },
+    ],
+    useCases: [
+      "Answers that are easier to use than to read: calculators, charts, quizzes, timers and small games.",
+      "A chat where a person asks for a change to a widget and the same widget updates.",
+      "A starting point for model-written UI that runs sandboxed, away from the page and its data.",
+    ],
+    capabilities: [
+      {
+        title: "Two ways to draw",
+        description:
+          "Plans, comparisons, guides and forms come as a spec drawn with assistant-ui's generative UI vocabulary, with no model code running. Calculators, games and drawings come as HTML in a sandboxed frame.",
+      },
+      {
+        title: "Built as it streams",
+        description:
+          "A spec draws each element as its patch arrives. A frame renders its code as it is written, keeps finished parts in place, and runs scripts once the code is whole.",
+      },
+      {
+        title: "Changes in place",
+        description:
+          "Asking for a change edits the widget already in the chat, so the new version replaces the old one instead of piling up below it.",
+      },
+      {
+        title: "Errors the model sees",
+        description:
+          "A widget's result waits for its frame. A script error or a blank render goes back to the model, which can fix it.",
+      },
+      {
+        title: "Theme in the frame",
+        description:
+          "Each frame reads the block's colors, including a chart palette, and follows light and dark as the page switches.",
+      },
+      {
+        title: "Widgets that talk back",
+        description:
+          "A widget can put a prompt in the message box for the person to send, such as a follow-up from a quiz.",
+      },
+      {
+        title: "Gallery",
+        description:
+          "A new chat shows fifteen answers drawn live and usable in place: specs such as a budget, a trip plan and an RSVP form, and widgets such as a focus timer and a quiz. Start sends a tile's prompt and the chat builds it as it streams.",
+      },
+      {
+        title: "Message box",
+        description:
+          "One row: add files, the words, dictate and send. A status line under the reply says what is happening until the closing words arrive.",
+      },
+    ],
+    requirements: [
+      "React 19 and Tailwind CSS 4. The block's CSS file sets the shadcn/ui neutral colors the classes and the frames use.",
+      "The shadcn/ui tooltip component, for the labels on the icon buttons.",
+      "An OpenAI key. The model is named in data.json.",
+      "Your own sign-in and rate limit in front of the route before you deploy it.",
+    ],
+    env: {
+      note: "The route answers 404 until it is switched on, and 401 without a key.",
+      variables: [
+        {
+          name: "OPENAI_API_KEY",
+          required: true,
+          description: "The key the route calls the model with.",
+        },
+        {
+          name: "BLOCKS_LIVE_API",
+          required: true,
+          description: 'Set to "true" to let the route run.',
+        },
+      ],
+    },
   },
 ];
 

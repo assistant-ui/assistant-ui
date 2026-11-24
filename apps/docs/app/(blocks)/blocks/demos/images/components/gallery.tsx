@@ -49,7 +49,7 @@ const grid =
 export function Gallery() {
   return (
     <div className="mx-auto w-full max-w-6xl pt-2">
-      <h1 className="pb-5 text-3xl font-medium tracking-tight">Images</h1>
+      <h1 className="pb-5 text-xl font-medium tracking-tight">Images</h1>
       <Tabs.Root defaultValue="templates">
         <Tabs.List className="flex gap-1 pb-4">
           {TABS.map((tab) => (

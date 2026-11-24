@@ -520,6 +520,26 @@
         { "from": "is next", "to": "comes next" },
         { "from": "answered twice", "to": "answered more than once" }
       ]
+    },
+    "newPage": {
+      "starter": "I started a page for \u201c{topic}\u201d with a few sections to fill in. This preview answers from a script, so it lays the page out instead of writing it. With a real model, the page would be written for you.",
+      "blocks": [
+        { "type": "paragraph", "text": "What this page is for: {topic}." },
+        { "type": "h2", "text": "Overview" },
+        {
+          "type": "paragraph",
+          "text": "A few lines on the background and the goal."
+        },
+        { "type": "h2", "text": "Details" },
+        { "type": "bullet", "text": "The first thing to note" },
+        { "type": "bullet", "text": "The second thing to note" },
+        { "type": "h2", "text": "Next steps" },
+        { "type": "check", "text": "Decide the first step" },
+        { "type": "check", "text": "Share the page" }
+      ]
     }
+  },
+  "home": {
+    "heading": "Start a page"
   }
 }

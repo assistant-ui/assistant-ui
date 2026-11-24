@@ -11,6 +11,7 @@ import {
   type MouseEvent,
 } from "react";
 import { cn } from "@/lib/utils";
+import { ChatSidebarTrigger } from "../../chat-sidebar";
 import {
   BLOCK_LABELS,
   type BlockType,
@@ -34,6 +35,7 @@ import {
 import { PagesMenu } from "./pages-menu";
 import {
   type Glyph,
+  glyphFor,
   Icon,
   IconButton,
   Menu,
@@ -355,6 +357,10 @@ function PagePill() {
                 <PagesMenu />
               </SubMenuContent>
             </SubMenu>
+            <MenuItem onClick={() => documentActions.goHome()}>
+              <Icon {...glyphFor("home")} />
+              Home
+            </MenuItem>
             <MenuSeparator />
             <MenuItem
               destructive
@@ -445,7 +451,7 @@ function InsertPill() {
 function CommentsPill() {
   const threads = useDocumentStore((state) => state.threads);
   const currentPageId = useDocumentStore((state) => state.currentPageId);
-  const visible = useDocumentStore((state) => state.commentsVisible);
+  const panelOpen = useDocumentStore((state) => state.commentsPanelOpen);
   const open = useMemo(
     () =>
       threads.filter(
@@ -459,23 +465,26 @@ function CommentsPill() {
 
   return (
     <Pill variant="top" className="pointer-events-auto shrink-0">
-      <Tooltip label={visible ? "Hide comments" : "Show comments"}>
+      <Tooltip label="Comments">
         <button
           type="button"
-          aria-label={
-            open > 0 ? `Floating comments, ${open} open` : "Floating comments"
-          }
-          aria-pressed={visible}
+          data-comments-pill
+          aria-label={open > 0 ? `Comments, ${open} open` : "Comments"}
+          aria-expanded={panelOpen}
           className={
             open > 0
               ? cn(
                   textButtonClass,
                   topPill.text,
-                  "text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground gap-1 px-2",
+                  "text-muted-foreground hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground gap-1 px-2",
                 )
-              : cn(iconButtonClass, topPill.icon)
+              : cn(
+                  iconButtonClass,
+                  topPill.icon,
+                  "aria-expanded:bg-accent aria-expanded:text-foreground",
+                )
           }
-          onClick={() => documentActions.toggleCommentsVisible()}
+          onClick={() => documentActions.setCommentsPanelOpen(!panelOpen)}
         >
           <Icon {...icons.comment} />
           {open > 0 ? (
@@ -494,6 +503,9 @@ export function TopBar() {
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-2 p-3">
       <div className="flex min-w-0 items-center gap-2">
+        <Pill variant="top" className="pointer-events-auto empty:hidden">
+          <ChatSidebarTrigger />
+        </Pill>
         <PagePill />
         <InsertPill />
       </div>

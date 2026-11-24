@@ -94,7 +94,7 @@
  * as `shadcn init` writes them.
  */
 :root {
-  --radius: 0.75rem;
+  --radius: 0.875rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -225,11 +225,11 @@ html.reduce-motion *::after {
   scroll-behavior: auto !important;
 }
 html {
-    scrollbar-color: var(--border) transparent;
-    scrollbar-width: thin;
-    overscroll-behavior-y: none;
-    scroll-behavior: smooth;
-  }
+  scrollbar-color: var(--border) transparent;
+  scrollbar-width: thin;
+  overscroll-behavior-y: none;
+  scroll-behavior: smooth;
+}
 
 /*
  * Motion the color picker asks for by name: how long a small change takes

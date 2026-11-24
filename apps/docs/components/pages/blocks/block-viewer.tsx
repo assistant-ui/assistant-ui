@@ -6,12 +6,15 @@ import { useTheme } from "next-themes";
 import {
   ChevronRight,
   ExternalLink,
+  File,
+  Folder,
   Maximize,
   Monitor,
   RotateCw,
   Smartphone,
   Tablet,
 } from "lucide-react";
+import { usePanelRef } from "react-resizable-panels";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import type { BlockFile } from "@/components/pages/blocks/block-source";
 import {
@@ -24,6 +27,11 @@ import {
 import { DeferredHighlight } from "@/components/shared/deferred-highlight";
 import { LiveDot } from "@/components/shared/live-dot";
 import { CodeBlock } from "@/components/ui/code-block";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Block } from "@/lib/blocks";
@@ -52,24 +60,41 @@ const LANGUAGES: Record<string, string> = {
 };
 
 const VIEWPORTS = [
-  { id: "desktop", label: "Desktop", icon: Monitor, width: "100%" },
-  { id: "tablet", label: "Tablet", icon: Tablet, width: "768px" },
-  { id: "mobile", label: "Mobile", icon: Smartphone, width: "375px" },
+  { id: "desktop", label: "Desktop", icon: Monitor, size: "100%" },
+  { id: "tablet", label: "Tablet", icon: Tablet, size: "768px" },
+  { id: "mobile", label: "Mobile", icon: Smartphone, size: "375px" },
 ] as const;
 
 type Viewport = (typeof VIEWPORTS)[number]["id"];
 
-const control = "size-7";
+const control = "size-6 rounded-sm";
+
+const divider = "bg-foreground/10 mx-0.5 h-4 w-px shrink-0";
+
+const dots =
+  "bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_16%,transparent)_1px,transparent_1px)] [background-size:20px_20px]";
 
 const IMAGE_SIZES = "(min-width: 1280px) 1248px, 100vw";
 
 const treeRow =
-  "hover:bg-foreground/[0.04] focus-visible:outline-ring flex w-full items-center gap-1.5 rounded-sm py-1.5 pe-2 text-left font-sans text-xs [font-variant-ligatures:none] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 motion-reduce:transition-none [@media(pointer:coarse)]:py-2";
+  "hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] flex h-8 w-full items-center gap-2 pe-3 text-left text-sm whitespace-nowrap outline-none transition-colors motion-reduce:transition-none [&_svg]:size-4 [&_svg]:shrink-0";
 
 function languageOf(filePath: string) {
   return (
     LANGUAGES[filePath.slice(filePath.lastIndexOf(".") + 1)] ?? "plaintext"
   );
+}
+
+/**
+ * Paths are relative to the block's directory, and a shared file such as
+ * `../chat-sidebar.tsx` sits one level up. When one does, the block's own
+ * files are shown inside a folder named after the block, beside it.
+ */
+function shownPaths(name: string, files: readonly BlockFile[]) {
+  if (!files.some((file) => file.path.startsWith("../")))
+    return (filePath: string) => filePath;
+  return (filePath: string) =>
+    filePath.startsWith("../") ? filePath.slice(3) : `${name}/${filePath}`;
 }
 
 function buildTree(paths: readonly string[]): TreeNode[] {
@@ -121,7 +146,7 @@ function TreeItems({
   onToggle: (path: string) => void;
 }) {
   return (
-    <ul>
+    <ul className="flex flex-col gap-1">
       {nodes.map((node) => {
         const open = !closed.has(node.path);
         const isSelected = node.path === selected;
@@ -133,16 +158,17 @@ function TreeItems({
                   type="button"
                   aria-expanded={open}
                   onClick={() => onToggle(node.path)}
-                  className={cn(treeRow, "text-foreground/70")}
-                  style={{ paddingInlineStart: `${depth * 0.75 + 0.375}rem` }}
+                  className={treeRow}
+                  style={{ paddingInlineStart: `${depth * 1.25 + 1}rem` }}
                 >
                   <ChevronRight
                     aria-hidden
                     className={cn(
-                      "text-muted-foreground size-3.5 shrink-0 transition-transform motion-reduce:transition-none",
+                      "transition-transform motion-reduce:transition-none",
                       open && "rotate-90",
                     )}
                   />
+                  <Folder aria-hidden />
                   <span className="truncate">{node.name}</span>
                 </button>
                 {open && (
@@ -163,12 +189,12 @@ function TreeItems({
                 onClick={() => onSelect(node.path)}
                 className={cn(
                   treeRow,
-                  isSelected
-                    ? "bg-foreground/[0.06] text-foreground font-medium"
-                    : "text-foreground/70",
+                  isSelected && "bg-foreground/[0.08] font-medium",
                 )}
-                style={{ paddingInlineStart: `${depth * 0.75 + 1.625}rem` }}
+                style={{ paddingInlineStart: `${depth * 1.25 + 1}rem` }}
               >
+                <ChevronRight aria-hidden className="invisible" />
+                <File aria-hidden />
                 <span className="truncate">{node.name}</span>
               </button>
             )}
@@ -188,9 +214,10 @@ function BlockCode({
   files: readonly BlockFile[];
   entry: string;
 }) {
-  const [selected, setSelected] = useState(entry);
+  const shown = shownPaths(name, files);
+  const [selected, setSelected] = useState(() => shown(entry));
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
-  const file = files.find((item) => item.path === selected) ?? files[0];
+  const file = files.find((item) => shown(item.path) === selected) ?? files[0];
 
   const toggle = (path: string) =>
     setClosed((current) => {
@@ -200,19 +227,19 @@ function BlockCode({
     });
 
   return (
-    <div className="border-foreground/10 grid overflow-hidden rounded-2xl border [--code-height:min(70vh,600px)] md:grid-cols-[15rem_minmax(0,1fr)]">
-      <div className="flex min-w-0 flex-col">
-        <div className="border-foreground/10 text-muted-foreground flex h-9 shrink-0 items-center border-b px-3.5 text-[11px] font-medium tracking-wide [font-variant-ligatures:none]">
-          <span className="truncate">{name}</span>
+    <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] flex flex-col overflow-hidden rounded-xl border md:h-(--height) md:flex-row">
+      <div className="border-foreground/10 flex min-w-0 flex-col border-b md:w-72 md:shrink-0 md:border-e md:border-b-0">
+        <div className="border-foreground/10 text-muted-foreground flex h-12 shrink-0 items-center border-b px-4 text-sm font-medium">
+          Files
         </div>
         <nav
-          aria-label="Files"
-          className="max-h-56 overflow-y-auto p-2 md:max-h-(--code-height)"
+          aria-label={`${name} files`}
+          className="max-h-56 overflow-auto py-2 md:max-h-none md:flex-1"
         >
           <TreeItems
-            nodes={buildTree(files.map((item) => item.path))}
+            nodes={buildTree(files.map((item) => shown(item.path)))}
             depth={0}
-            selected={file?.path ?? selected}
+            selected={file ? shown(file.path) : selected}
             closed={closed}
             onSelect={setSelected}
             onToggle={toggle}
@@ -222,11 +249,16 @@ function BlockCode({
       {file && (
         <CodeBlock
           key={file.path}
-          className="bg-background my-0 rounded-none border-0 border-l"
-          title={file.path}
+          className="[&>figcaption>span]:text-foreground/80 my-0 min-w-0 flex-1 rounded-none border-0 bg-transparent dark:bg-transparent [&>figcaption]:h-12 [&>figcaption]:ps-4 [&>figcaption]:pe-3 [&>figcaption>span]:text-[13px]"
+          title={
+            <span className="flex items-center gap-2">
+              <File aria-hidden className="size-4 shrink-0 opacity-70" />
+              <span className="truncate">{shown(file.path)}</span>
+            </span>
+          }
           copyText={file.code}
           lineNumbers
-          viewportClassName="h-(--code-height) overflow-y-auto"
+          viewportClassName="h-[min(60vh,560px)] overflow-y-auto md:h-[calc(var(--height)-3rem)]"
         >
           <DeferredHighlight
             language={languageOf(file.path)}
@@ -258,6 +290,7 @@ export function BlockViewer({
   const [reloads, setReloads] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
+  const panelRef = usePanelRef();
   const { resolvedTheme } = useTheme();
   const [loaded, setLoaded] = useState(false);
   const [chosenMode, setChosenMode] = useState<BlockTheme["mode"] | null>(null);
@@ -274,21 +307,23 @@ export function BlockViewer({
     );
   };
   useEffect(postTheme);
-  const width = VIEWPORTS.find((item) => item.id === viewport)?.width;
 
   return (
     <Tabs
       value={tab}
       onValueChange={(value) => setTab(value as Tab)}
-      className="gap-3"
+      className="gap-4 [--height:clamp(480px,calc(100svh-17rem),760px)]"
     >
-      <div className="flex items-center justify-between gap-3">
-        <TabsList variant="default">
+      <div className="flex items-center gap-2">
+        <TabsList
+          variant="default"
+          className="*:h-6 *:rounded-sm *:px-2 *:text-xs group-data-[orientation=horizontal]/tabs:h-8"
+        >
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="code">Code</TabsTrigger>
         </TabsList>
-        {previewUrl && tab === "preview" && (
-          <div className="border-foreground/10 flex h-9 items-center gap-0.5 rounded-lg border px-1">
+        {previewUrl && (
+          <div className="border-foreground/10 ms-auto flex h-8 items-center gap-1 rounded-md border p-[3px]">
             <div
               role="group"
               aria-label="Preview width"
@@ -299,7 +334,11 @@ export function BlockViewer({
                   key={item.id}
                   tooltip={item.label}
                   aria-pressed={viewport === item.id}
-                  onClick={() => setViewport(item.id)}
+                  onClick={() => {
+                    setTab("preview");
+                    setViewport(item.id);
+                    panelRef.current?.resize(item.size);
+                  }}
                   className={cn(
                     control,
                     viewport === item.id &&
@@ -309,6 +348,7 @@ export function BlockViewer({
                   <item.icon />
                 </TooltipIconButton>
               ))}
+              <div aria-hidden className={divider} />
             </div>
             <ThemePicker
               theme={{ mode, ...choice }}
@@ -322,21 +362,7 @@ export function BlockViewer({
               }}
               className={control}
             />
-            <TooltipIconButton
-              tooltip="Refresh preview"
-              disabled={refreshing}
-              onClick={() => {
-                setRefreshing(true);
-                setTimeout(() => setReloads((count) => count + 1), 150);
-              }}
-              className={control}
-            >
-              <RotateCw
-                className={cn(
-                  refreshing && "animate-spin motion-reduce:animate-none",
-                )}
-              />
-            </TooltipIconButton>
+            <div aria-hidden className={divider} />
             <TooltipIconButton
               tooltip="Open preview in a new tab"
               onClick={() =>
@@ -349,11 +375,29 @@ export function BlockViewer({
             <TooltipIconButton
               tooltip="Full screen"
               onClick={() => {
+                setTab("preview");
                 frameRef.current?.requestFullscreen().catch(() => {});
               }}
               className={control}
             >
               <Maximize />
+            </TooltipIconButton>
+            <div aria-hidden className={divider} />
+            <TooltipIconButton
+              tooltip="Refresh preview"
+              disabled={refreshing}
+              onClick={() => {
+                setTab("preview");
+                setRefreshing(true);
+                setTimeout(() => setReloads((count) => count + 1), 150);
+              }}
+              className={control}
+            >
+              <RotateCw
+                className={cn(
+                  refreshing && "animate-spin motion-reduce:animate-none",
+                )}
+              />
             </TooltipIconButton>
           </div>
         )}
@@ -364,40 +408,68 @@ export function BlockViewer({
           {previewUrl ? (
             <div
               ref={frameRef}
-              className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] [&:fullscreen]:bg-background flex h-[min(78vh,720px)] justify-center overflow-hidden rounded-2xl border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-0"
+              className="[&:fullscreen]:bg-background relative h-[min(70vh,560px)] md:h-(--height) [&:fullscreen]:h-screen"
             >
               <div
-                className="bg-background relative h-full w-full transition-[max-width] duration-200 motion-reduce:transition-none"
-                style={{ maxWidth: width }}
-              >
-                {!loaded && (
-                  <Skeleton className="absolute inset-0 rounded-none" />
+                aria-hidden
+                className={cn(
+                  "absolute inset-0 md:end-4 [:fullscreen_&]:hidden",
+                  dots,
                 )}
-                <iframe
-                  key={reloads}
-                  // The address carries only the mode the frame loads with;
-                  // later theme changes are posted, so they never reload it.
-                  ref={(node) => {
-                    iframeRef.current = node;
-                    if (node && !node.getAttribute("src")) node.src = themedUrl;
+              />
+              <ResizablePanelGroup
+                orientation="horizontal"
+                className="relative z-10"
+              >
+                <ResizablePanel
+                  panelRef={panelRef}
+                  defaultSize="100%"
+                  minSize="320px"
+                  onResize={(size) => {
+                    if (size.asPercentage > 99) setViewport("desktop");
                   }}
-                  title={`${title} preview`}
-                  allow="microphone; clipboard-write"
-                  onLoad={(event) => {
-                    if (!event.currentTarget.getAttribute("src")) return;
-                    postTheme();
-                    setRefreshing(false);
-                    setLoaded(true);
-                  }}
-                  className={cn(
-                    "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
-                    (refreshing || !loaded) && "opacity-0",
+                  className="border-foreground/10 bg-background relative overflow-hidden rounded-xl border [:fullscreen_&]:rounded-none [:fullscreen_&]:border-0"
+                >
+                  {!loaded && (
+                    <Skeleton className="absolute inset-0 rounded-none" />
                   )}
+                  <iframe
+                    key={reloads}
+                    // The address carries only the mode the frame loads with;
+                    // later theme changes are posted, so they never reload it.
+                    ref={(node) => {
+                      iframeRef.current = node;
+                      if (node && !node.getAttribute("src"))
+                        node.src = themedUrl;
+                    }}
+                    title={`${title} preview`}
+                    allow="microphone; clipboard-write"
+                    onLoad={(event) => {
+                      if (!event.currentTarget.getAttribute("src")) return;
+                      postTheme();
+                      setRefreshing(false);
+                      setLoaded(true);
+                    }}
+                    className={cn(
+                      "h-full w-full border-none transition-opacity duration-200 motion-reduce:transition-none",
+                      (refreshing || !loaded) && "opacity-0",
+                    )}
+                  />
+                </ResizablePanel>
+                <ResizableHandle
+                  aria-label="Resize preview"
+                  className="after:bg-foreground/15 hover:after:bg-foreground/25 relative hidden w-3 bg-transparent p-0 after:start-auto after:end-0 after:top-1/2 after:bottom-auto after:h-8 after:w-1.5 after:translate-x-[-1px] after:-translate-y-1/2 after:rounded-full after:transition-all hover:after:h-10 motion-reduce:after:transition-none md:flex [:fullscreen_&]:hidden"
                 />
-              </div>
+                <ResizablePanel defaultSize="0%" minSize="0%" />
+              </ResizablePanelGroup>
             </div>
           ) : (
-            <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden rounded-2xl border bg-[radial-gradient(color-mix(in_oklab,var(--foreground)_14%,transparent)_1px,transparent_1px)] [background-size:14px_14px]">
+            <div
+              className={cn(
+                "border-foreground/10 relative aspect-[16/10] overflow-hidden rounded-xl border",
+                dots,
+              )}
+            >
               <Image
                 src={image.light}
                 alt={title}

@@ -2294,6 +2294,8 @@ function ShortcutsPlugin({
 /** The gap kept between the caret and the assistant bar that floats over it. */
 const CARET_ROOM = 24;
 const ASSISTANT_BAR = "[data-assistant-bar]";
+/** Holds the page and the assistant bar, which sits outside the page's own frame. */
+const DOCUMENT_FRAME = "[data-document-frame]";
 
 // Lexical scrolls the caret to the edge of the page, which is under the
 // assistant bar, so typing at the end of a page scrolls a little further.
@@ -2318,7 +2320,9 @@ function CaretRoomPlugin() {
             ? node
             : node.parentElement
           )?.getBoundingClientRect();
-        const bar = scroller.parentElement?.querySelector(ASSISTANT_BAR);
+        const bar = scroller
+          .closest(DOCUMENT_FRAME)
+          ?.querySelector(ASSISTANT_BAR);
         if (!caret || !bar) return;
         const over =
           caret.bottom + CARET_ROOM - bar.getBoundingClientRect().top;

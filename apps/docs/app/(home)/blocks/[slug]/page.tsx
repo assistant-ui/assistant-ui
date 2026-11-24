@@ -10,10 +10,8 @@ import { BlockElements } from "@/components/pages/blocks/sections";
 import { BlockViewer } from "@/components/pages/blocks/block-viewer";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
 import { BLOCKS, getBlock } from "@/lib/blocks";
 import { createOgMetadata } from "@/lib/og";
-import { cn } from "@/lib/utils";
 
 export function generateStaticParams() {
   return BLOCKS.map((block) => ({ slug: block.slug }));
@@ -48,32 +46,35 @@ export default async function BlockPage(props: {
   });
 
   return (
-    <PageFrame pad="sub">
-      <Link
-        href="/blocks"
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-      >
-        <ArrowLeft className="size-3.5" />
-        Blocks
-      </Link>
-
-      <header className="mt-8 max-w-2xl">
-        <h1 className={typePage}>{block.title}</h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>{block.description}</p>
-        <p className="mt-6 text-[13px]">
-          <a
-            href={block.githubLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground group transition-colors"
+    <PageFrame pad="sub" className="pt-6 md:pt-8">
+      <header className="flex flex-col gap-x-6 gap-y-1 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
+          <Link
+            href="/blocks"
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[13px] transition-colors"
           >
-            source
-            <ArrowUpRight className="ms-1 mb-0.5 inline size-3 opacity-0 transition-opacity group-hover:opacity-70" />
-          </a>
-        </p>
+            <ArrowLeft className="size-3.5" />
+            Blocks
+          </Link>
+          <h1 className="font-display tracking-section mt-2 text-2xl font-[550]">
+            {block.title}
+          </h1>
+          <p className="text-muted-foreground mt-1 max-w-[60ch] text-[14px] leading-relaxed text-pretty">
+            {block.description}
+          </p>
+        </div>
+        <a
+          href={block.githubLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-foreground group shrink-0 text-[13px] transition-colors"
+        >
+          source
+          <ArrowUpRight className="ms-1 mb-0.5 inline size-3 opacity-0 transition-opacity group-hover:opacity-70" />
+        </a>
       </header>
 
-      <div className="mt-10">
+      <div className="mt-5">
         <BlockViewer
           slug={block.slug}
           title={block.title}
@@ -85,7 +86,7 @@ export default async function BlockPage(props: {
       </div>
 
       {elements.length > 0 && (
-        <div className="mt-16 md:mt-20">
+        <div className="mt-4">
           <BlockElements elements={elements} />
         </div>
       )}

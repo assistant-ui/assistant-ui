@@ -36,7 +36,11 @@ import {
   MicOff01Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
-import { ChatSidebar, ChatSidebarTrigger } from "../../chat-sidebar";
+import {
+  ChatSidebar,
+  ChatSidebarTrigger,
+  HistoryNav,
+} from "../../chat-sidebar";
 import data from "../data.json";
 import toolkit from "../toolkit";
 import {
@@ -175,6 +179,7 @@ export function Tasks() {
     transport,
     adapters: { attachments, dictation },
   });
+  const [query, setQuery] = useState("");
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
@@ -182,7 +187,9 @@ export function Tasks() {
       <ChatSidebar
         title="Tasks"
         width="16rem"
-        list={<Schedule />}
+        historyNav={<TaskHistoryNav />}
+        search={{ query, onQueryChange: setQuery, label: "Search tasks" }}
+        list={<Schedule query={query} />}
         footer={<User />}
       >
         <Header />
@@ -273,12 +280,76 @@ function useNow() {
   return useSyncExternalStore(subscribeTick, readTick, () => 0);
 }
 
-function Schedule() {
+const OVERVIEW = "overview";
+
+/**
+ * Back and Forward through the tasks opened in this visit, and the overview,
+ * like a browser's history. A deleted task is stepped over.
+ */
+function TaskHistoryNav() {
+  const tasks = useTasks();
+  const here = useSelected() ?? OVERVIEW;
+  const [history, setHistory] = useState(() => ({ entries: [here], index: 0 }));
+  const pending = useRef<number | null>(null);
+
+  useEffect(() => {
+    const target = pending.current;
+    pending.current = null;
+    setHistory((previous) => {
+      if (target !== null && previous.entries[target] === here)
+        return { ...previous, index: target };
+      if (previous.entries[previous.index] === here) return previous;
+      return {
+        entries: [...previous.entries.slice(0, previous.index + 1), here],
+        index: previous.index + 1,
+      };
+    });
+  }, [here]);
+
+  const find = (step: -1 | 1) => {
+    for (
+      let index = history.index + step;
+      index >= 0 && index < history.entries.length;
+      index += step
+    ) {
+      const id = history.entries[index];
+      if (
+        id !== undefined &&
+        id !== here &&
+        (id === OVERVIEW || tasks.some((task) => task.id === id))
+      )
+        return index;
+    }
+    return null;
+  };
+  const go = (step: -1 | 1) => {
+    const index = find(step);
+    const id = index === null ? undefined : history.entries[index];
+    if (index === null || id === undefined) return;
+    pending.current = index;
+    select(id === OVERVIEW ? null : id);
+  };
+
+  return (
+    <HistoryNav
+      canGoBack={find(-1) !== null}
+      canGoForward={find(1) !== null}
+      goBack={() => go(-1)}
+      goForward={() => go(1)}
+    />
+  );
+}
+
+function Schedule({ query }: { query: string }) {
   const tasks = useTasks();
   const selected = useSelected();
   const now = useNow();
   const newTask = useNewTask();
-  const slots = tasks.map((task) => slot(task, now)).sort(byNext);
+  const wanted = query.trim().toLowerCase();
+  const slots = tasks
+    .filter((task) => !wanted || task.title.toLowerCase().includes(wanted))
+    .map((task) => slot(task, now))
+    .sort(byNext);
 
   return (
     <nav aria-label="Schedule" className="flex flex-col gap-0.5">
@@ -316,6 +387,11 @@ function Schedule() {
       })}
       {tasks.length === 0 && (
         <p className="text-muted-foreground px-2">Nothing scheduled yet.</p>
+      )}
+      {tasks.length > 0 && slots.length === 0 && (
+        <p className="text-muted-foreground px-2">
+          No tasks match “{query.trim()}”.
+        </p>
       )}
     </nav>
   );

@@ -9,6 +9,7 @@ export const BLOCK_PREVIEW_PATHS: readonly string[] = [
   "/blocks/demos/images",
   "/blocks/demos/tasks",
   "/blocks/demos/agents",
+  "/blocks/demos/generative-frame",
 ];
 
 export const EMBEDDED_PATHS: readonly string[] = [

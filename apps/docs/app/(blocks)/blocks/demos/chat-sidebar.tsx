@@ -28,6 +28,7 @@ import {
   Delete01Icon,
   LayoutAlignLeftIcon,
   MoreHorizontalIcon,
+  Search01Icon,
   SidebarLeftIcon,
   Unarchive03Icon,
 } from "@hugeicons/core-free-icons";
@@ -162,6 +163,8 @@ function useSnapAnimation() {
 export function ChatSidebar({
   title,
   history = false,
+  historyNav,
+  search,
   width = "15rem",
   defaultOpen = true,
   list,
@@ -171,6 +174,13 @@ export function ChatSidebar({
   title: string;
   /** Back and Forward through the chats opened, above the title. */
   history?: boolean;
+  /**
+   * Back and Forward through something other than chats, as `<HistoryNav>`.
+   * Like `history`, it sits above the title.
+   */
+  historyNav?: ReactNode;
+  /** A search button beside the title. The list filters itself by `query`. */
+  search?: SidebarSearch;
   /** How wide the sidebar starts. */
   width?: string;
   /** Whether the sidebar starts open. */
@@ -242,11 +252,12 @@ export function ChatSidebar({
                   className="flex h-full min-w-48 flex-col"
                 >
                   <div className="flex h-12 shrink-0 items-center gap-0.5 px-2">
-                    {history ? (
-                      <HistoryButtons />
-                    ) : (
-                      <span className={sidebarTitle}>{title}</span>
-                    )}
+                    {historyNav ??
+                      (history ? (
+                        <HistoryButtons />
+                      ) : (
+                        <TitleRow title={title} search={search} />
+                      ))}
                     <Tip label="Hide the sidebar">
                       <button
                         type="button"
@@ -258,16 +269,21 @@ export function ChatSidebar({
                     </Tip>
                   </div>
                   <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-                    {history && (
-                      <span
-                        className={cn(
-                          sidebarTitle,
-                          "mb-1 flex h-8 shrink-0 items-center",
-                        )}
-                      >
-                        {title}
-                      </span>
-                    )}
+                    {(history || historyNav) &&
+                      (search ? (
+                        <div className="mb-1 flex h-8 shrink-0 items-center gap-0.5">
+                          <TitleRow title={title} search={search} />
+                        </div>
+                      ) : (
+                        <span
+                          className={cn(
+                            sidebarTitle,
+                            "mb-1 flex h-8 shrink-0 items-center",
+                          )}
+                        >
+                          {title}
+                        </span>
+                      ))}
                     {list}
                   </div>
                   {footer && <div className="shrink-0 p-2">{footer}</div>}
@@ -308,6 +324,74 @@ export function ChatSidebarTrigger() {
         <Icon icon={LayoutAlignLeftIcon} />
       </button>
     </Tip>
+  );
+}
+
+type SidebarSearch = {
+  query: string;
+  onQueryChange: (query: string) => void;
+  /** What the field is for, such as "Search pages". */
+  label: string;
+};
+
+/**
+ * The sidebar's title, with a search button beside it when there is
+ * `search`. The button turns the title into the field; Escape clears it.
+ */
+function TitleRow({
+  title,
+  search,
+}: {
+  title: string;
+  search: SidebarSearch | undefined;
+}) {
+  const [searching, setSearching] = useState(false);
+  if (!search) return <span className={sidebarTitle}>{title}</span>;
+
+  const close = () => {
+    search.onQueryChange("");
+    setSearching(false);
+  };
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-0.5">
+      {searching ? (
+        <input
+          autoFocus
+          type="search"
+          aria-label={search.label}
+          placeholder={search.label}
+          value={search.query}
+          onChange={(event) => search.onQueryChange(event.target.value)}
+          onBlur={() => {
+            if (!search.query) setSearching(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            close();
+          }}
+          className={cn(
+            "placeholder:text-muted-foreground h-8 min-w-0 flex-1 bg-transparent px-2 outline-none",
+            rItem,
+            focusRing,
+          )}
+        />
+      ) : (
+        <>
+          <span className={sidebarTitle}>{title}</span>
+          <Tip label={search.label}>
+            <button
+              type="button"
+              onClick={() => setSearching(true)}
+              className={cn(iconButton, "ms-auto")}
+            >
+              <Icon icon={Search01Icon} />
+            </button>
+          </Tip>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -376,8 +460,21 @@ function useChatHistory() {
 }
 
 function HistoryButtons() {
-  const { canGoBack, canGoForward, goBack, goForward } = useChatHistory();
+  return <HistoryNav {...useChatHistory()} />;
+}
 
+/** Back and Forward, for `historyNav`: through whatever the block lists. */
+export function HistoryNav({
+  canGoBack,
+  canGoForward,
+  goBack,
+  goForward,
+}: {
+  canGoBack: boolean;
+  canGoForward: boolean;
+  goBack: () => void;
+  goForward: () => void;
+}) {
   return (
     <>
       <Tip label="Back">
@@ -413,6 +510,7 @@ export function ChatList({
   label,
   heading,
   archive = false,
+  query = "",
 }: {
   /** What a new chat is called: on the first row, and on a chat not yet named. */
   label: string;
@@ -420,7 +518,18 @@ export function ChatList({
   heading?: string;
   /** Gives each chat a menu to archive or delete it, and lists the archived. */
   archive?: boolean;
+  /** Shows only the chats whose names hold it, from `<ChatSidebar search>`. */
+  query?: string;
 }) {
+  const wanted = query.trim().toLowerCase();
+  const none = useAuiState(
+    (s) =>
+      wanted !== "" &&
+      !s.threads.threadItems.some((item) =>
+        (item.title || label).toLowerCase().includes(wanted),
+      ),
+  );
+
   return (
     <ThreadListPrimitive.Root className="flex flex-col gap-0.5">
       <ThreadListPrimitive.New
@@ -434,8 +543,13 @@ export function ChatList({
           <p className="text-muted-foreground px-2 pt-1 pb-1">{heading}</p>
         </AuiIf>
       )}
+      {none && (
+        <p className="text-muted-foreground px-2 pt-1">
+          No chats match “{query.trim()}”.
+        </p>
+      )}
       <ThreadListPrimitive.Items>
-        {() => <ChatRow label={label} archive={archive} />}
+        {() => <ChatRow label={label} archive={archive} wanted={wanted} />}
       </ThreadListPrimitive.Items>
       <AuiIf condition={(s) => s.threads.hasMore}>
         <ThreadListPrimitive.LoadMore
@@ -454,7 +568,7 @@ export function ChatList({
             Archived
           </p>
           <ThreadListPrimitive.Items archived>
-            {() => <ChatRow label={label} archive />}
+            {() => <ChatRow label={label} archive wanted={wanted} />}
           </ThreadListPrimitive.Items>
         </AuiIf>
       )}
@@ -462,7 +576,23 @@ export function ChatList({
   );
 }
 
-function ChatRow({ label, archive }: { label: string; archive: boolean }) {
+function ChatRow({
+  label,
+  archive,
+  wanted,
+}: {
+  label: string;
+  archive: boolean;
+  /** The search, lowercased. A chat whose name lacks it is left out. */
+  wanted: string;
+}) {
+  const shown = useAuiState(
+    (s) =>
+      !wanted ||
+      (s.threadListItem.title || label).toLowerCase().includes(wanted),
+  );
+  if (!shown) return null;
+
   return (
     <ThreadListItemPrimitive.Root
       className={cn(

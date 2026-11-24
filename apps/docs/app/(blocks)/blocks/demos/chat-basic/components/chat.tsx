@@ -514,7 +514,8 @@ type ListParams = Parameters<RemoteThreadListAdapter["list"]>[0];
 type ListPage = Awaited<ReturnType<RemoteThreadListAdapter["list"]>>;
 
 class ScriptedThreadList extends InMemoryThreadListAdapter {
-  private olderShown = 0;
+  // The first page holds some older chats, so Show older chats sits under them.
+  private olderShown = OLDER_PAGE;
 
   constructor() {
     super();
@@ -771,13 +772,15 @@ const menuSeparator = "bg-border mx-2 my-1 h-px shrink-0";
 export function Chat() {
   const runtime = useScriptedRuntime();
   const [floating, setFloating] = useState(false);
+  const [query, setQuery] = useState("");
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <ChatSidebar
         title="Chats"
         history
-        list={<ChatList label="New chat" archive />}
+        search={{ query, onQueryChange: setQuery, label: "Search chats" }}
+        list={<ChatList label="New chat" archive query={query} />}
       >
         <Header floating={floating} onFloatingChange={setFloating} />
         {floating ? <FloatingChat /> : <Thread />}

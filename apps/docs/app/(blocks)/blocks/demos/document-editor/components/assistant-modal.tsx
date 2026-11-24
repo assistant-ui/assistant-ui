@@ -5,30 +5,39 @@ import {
   AssistantModalPrimitive,
   AttachmentPrimitive,
   AuiIf,
+  BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
   useAui,
+  useAuiEvent,
   useAuiState,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import {
   ArrowDown02Icon,
+  ArrowLeft01Icon,
   BubbleChatAddIcon,
   DragDropHorizontalIcon,
   RefreshIcon,
+  ThumbsDownIcon,
+  VolumeHighIcon,
 } from "@hugeicons/core-free-icons";
 import {
   ArrowDownIcon,
+  ChevronLeftIcon,
   GripHorizontalIcon,
   RefreshCwIcon,
   SquarePenIcon,
+  ThumbsDownIcon as LucideThumbsDownIcon,
+  Volume2Icon,
 } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   useSyncExternalStore,
@@ -42,6 +51,7 @@ import { cn } from "@/lib/utils";
 import data from "../data.json";
 import {
   documentActions,
+  documentStore,
   EDIT_MODES,
   FOLLOW_UPS,
   PROFILE,
@@ -50,6 +60,7 @@ import {
   useDocumentStore,
   type EditMode,
 } from "../lib/document";
+import { startDescribedPage } from "./home";
 import { ThreadList } from "./thread-list";
 import {
   Avatar,
@@ -58,6 +69,7 @@ import {
   denseGlass,
   field,
   floating,
+  focusBorder,
   Icon,
   IconButton,
   iconButtonClass,
@@ -92,6 +104,9 @@ const moveIcon: Glyph = {
 };
 const retryIcon: Glyph = { huge: RefreshIcon, lucide: RefreshCwIcon };
 const scrollDownIcon: Glyph = { huge: ArrowDown02Icon, lucide: ArrowDownIcon };
+const previousIcon: Glyph = { huge: ArrowLeft01Icon, lucide: ChevronLeftIcon };
+const badIcon: Glyph = { huge: ThumbsDownIcon, lucide: LucideThumbsDownIcon };
+const readAloudIcon: Glyph = { huge: VolumeHighIcon, lucide: Volume2Icon };
 
 type ToolLine = { icon: Glyph; running: string; done: string; stopped: string };
 
@@ -118,20 +133,9 @@ const SUGGESTION_ICONS = [
   { glyph: icons.comment, tint: "rose" },
 ] as const;
 
-const EDIT_MODE_COPY: Record<
-  EditMode,
-  { label: string; icon: Glyph; description: string }
-> = {
-  auto: {
-    label: "Auto",
-    icon: icons.auto,
-    description: "Edits land on the page as they are written.",
-  },
-  manual: {
-    label: "Manual",
-    icon: icons.manual,
-    description: "Each edit waits for you to accept or undo it.",
-  },
+const EDIT_MODE_COPY: Record<EditMode, { label: string; icon: Glyph }> = {
+  auto: { label: "Auto", icon: icons.auto },
+  manual: { label: "Manual", icon: icons.manual },
 };
 
 const quiet = `text-muted-foreground flex items-center gap-2 ${text.bodySm}`;
@@ -143,6 +147,18 @@ const markdown =
   "flex flex-col gap-2 wrap-break-word [&_a]:underline [&_a]:underline-offset-2 [&_code]:bg-foreground/6 [&_code]:rounded-[6px] [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.8125rem] [&_li]:ps-0.5 [&_ol]:flex [&_ol]:list-decimal [&_ol]:flex-col [&_ol]:gap-1 [&_ol]:ps-5 [&_strong]:font-(--weight-strong) [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-1 [&_ul]:ps-5 [&_li]:marker:text-muted-foreground";
 
 const quoted = `text-muted-foreground border-border border-s-2 ps-2 ${text.bodySm}`;
+
+/** The 32px round buttons of the composer's row. */
+const round = "size-8 pointer-coarse:size-9";
+
+/** An outlined round button, beside the waveform while dictating. */
+const outlined = `${round} border-border text-foreground`;
+
+/** The bar's corners, which the composer's drop area follows at the bottom. */
+const BAR_RADIUS = "rounded-[calc(var(--radius)+10px)]";
+
+/** The menus, popovers and tooltips the bar opens, which render outside it. */
+const ITS_OWN = "[role='menu'], [role='dialog'], [role='tooltip']";
 
 /* -------------------------------------------------------------------------- */
 /* The bar's size, kept for the visit in sessionStorage.                      */
@@ -518,9 +534,17 @@ export function AssistantModal() {
   const input = useRef<HTMLTextAreaElement>(null);
   const launcher = useRef<HTMLButtonElement>(null);
   const opened = useRef(false);
+  // A click on the round button means typing next, so the caret goes in.
+  const launched = useRef(false);
   const focusWasInside = useRef(false);
+  // Opened out to show the chat, or folded to the header over the composer.
+  const [expanded, setExpanded] = useState(true);
+  const bodyId = useId();
   const geometry = useBarGeometry(bar, slot);
   const { offset, size } = geometry;
+
+  // A message sent, or a reply started from the page, opens the chat out.
+  useAuiEvent("thread.runStart", () => setExpanded(true));
 
   const requests = useDocumentStore((state) => state.assistantRequests);
   const answered = useRef(requests);
@@ -528,6 +552,7 @@ export function AssistantModal() {
     if (requests === answered.current) return;
     answered.current = requests;
     setOpen(true);
+    setExpanded(true);
     // The editor takes the focus back once its own update has finished.
     const frame = requestAnimationFrame(() => input.current?.focus());
     return () => cancelAnimationFrame(frame);
@@ -598,6 +623,8 @@ export function AssistantModal() {
             bar.current?.contains(document.activeElement),
           );
           stopDictation();
+        } else {
+          setExpanded(true);
         }
         setOpen(next);
       }}
@@ -621,21 +648,34 @@ export function AssistantModal() {
                   floating,
                   denseGlass,
                   text.body,
-                  "text-popover-foreground w-full rounded-[calc(var(--radius)+10px)] p-1.5 sm:max-w-(--bar-width)",
+                  BAR_RADIUS,
+                  "text-popover-foreground w-full sm:max-w-(--bar-width)",
                 ]
               : "items-end",
           )}
         >
-          {open && <Header grip={geometry.grip} input={input} />}
+          {open && (
+            <Header
+              grip={geometry.grip}
+              input={input}
+              expanded={expanded}
+              bodyId={bodyId}
+              onToggle={() => setExpanded((showing) => !showing)}
+            />
+          )}
           {/* The thread is laid out in the bar, not placed over the page. */}
           <div
             ref={setSlot}
+            id={bodyId}
             style={
-              open && size.height !== null ? { height: size.height } : undefined
+              open && expanded && size.height !== null
+                ? { height: size.height }
+                : undefined
             }
             className={cn(
               "flex min-h-0 flex-col [&>[data-radix-popper-content-wrapper]]:static! [&>[data-radix-popper-content-wrapper]]:flex [&>[data-radix-popper-content-wrapper]]:min-h-0 [&>[data-radix-popper-content-wrapper]]:min-w-0! [&>[data-radix-popper-content-wrapper]]:flex-auto [&>[data-radix-popper-content-wrapper]]:transform-none! [&>[data-radix-popper-content-wrapper]]:flex-col",
               size.height === null && "max-h-[60vh]",
+              !expanded && "hidden",
             )}
           />
           {slot && (
@@ -645,10 +685,19 @@ export function AssistantModal() {
               className="flex min-h-0 flex-auto flex-col outline-none"
               onOpenAutoFocus={(event) => {
                 event.preventDefault();
-                if (opened.current) input.current?.focus();
+                if (opened.current || launched.current) input.current?.focus();
                 opened.current = true;
+                launched.current = false;
               }}
               onCloseAutoFocus={(event) => event.preventDefault()}
+              // A press back on the page folds the chat to the bar.
+              onPointerDownOutside={(event) => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+                if (bar.current?.contains(target) || target.closest(ITS_OWN))
+                  return;
+                setExpanded(false);
+              }}
               onEscapeKeyDown={(event) => {
                 // Escape in the composer stops a reply before it minimises.
                 if (running || !bar.current?.contains(document.activeElement))
@@ -660,12 +709,18 @@ export function AssistantModal() {
           )}
           {open ? (
             <>
-              <FollowUps input={input} />
+              {expanded && <FollowUps input={input} />}
               <Composer input={input} />
-              <ResizeHandles geometry={geometry} />
+              <ResizeHandles geometry={geometry} expanded={expanded} />
             </>
           ) : (
-            <Launcher ref={launcher} unseen={unseen} />
+            <Launcher
+              ref={launcher}
+              unseen={unseen}
+              onLaunch={() => {
+                launched.current = true;
+              }}
+            />
           )}
         </AssistantModalPrimitive.Anchor>
       </div>
@@ -677,14 +732,17 @@ export function AssistantModal() {
 function Launcher({
   ref,
   unseen,
+  onLaunch,
 }: {
   ref: RefObject<HTMLButtonElement | null>;
   unseen: boolean;
+  onLaunch: () => void;
 }) {
   return (
     <Tooltip label="Open the assistant" side="top">
       <AssistantModalPrimitive.Trigger
         ref={ref}
+        onClick={onLaunch}
         aria-label={
           unseen
             ? "Open the assistant. There is something new."
@@ -706,9 +764,15 @@ function Launcher({
 function Header({
   grip,
   input,
+  expanded,
+  bodyId,
+  onToggle,
 }: {
   grip: Geometry["grip"];
   input: ComposerInput;
+  expanded: boolean;
+  bodyId: string;
+  onToggle: () => void;
 }) {
   const aui = useAui();
   const stopDictation = useStopDictation();
@@ -723,13 +787,30 @@ function Header({
   const title = named || asked;
 
   return (
-    <div className="flex min-h-8 shrink-0 items-center gap-0.5 pb-1">
+    <div className="flex h-11 shrink-0 items-center gap-0.5 px-2">
       <AssistantModalPrimitive.Trigger asChild>
-        <IconButton label="Minimise" icon={icons.chevronDown} side="top" />
+        <IconButton label="Minimise" icon={icons.divider} side="top" />
       </AssistantModalPrimitive.Trigger>
-      <span className={cn("min-w-0 flex-1 truncate px-1", weight.label)}>
-        {title ? title.slice(0, 60) : "New chat"}
-      </span>
+      {/* The chat's name opens the chat out, and folds it away. */}
+      <Tooltip label={expanded ? "Fold the chat" : "Show the chat"} side="top">
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-controls={bodyId}
+          onClick={onToggle}
+          className={cn(
+            focusBorder,
+            weight.label,
+            "hover:text-foreground flex h-7 min-w-0 flex-1 items-center rounded-full px-1.5 text-start transition-colors motion-reduce:transition-none",
+            // Quieter over the chat than on its own.
+            expanded ? "text-muted-foreground" : "text-foreground",
+          )}
+        >
+          <span className="truncate">
+            {title ? title.slice(0, 60) : "New chat"}
+          </span>
+        </button>
+      </Tooltip>
       <History input={input} disabled={running} />
       {!empty && (
         <IconButton
@@ -813,19 +894,28 @@ function History({
  * The edges and corners that resize the bar. The one at the top is a button,
  * so the arrow keys resize too; the others are for a pointer only.
  */
-function ResizeHandles({ geometry }: { geometry: Geometry }) {
+function ResizeHandles({
+  geometry,
+  expanded,
+}: {
+  geometry: Geometry;
+  /** Folded, the bar has no chat to make taller, so only its width changes. */
+  expanded: boolean;
+}) {
   return (
     <>
-      <button
-        type="button"
-        aria-label="Resize the assistant. Arrow keys change its size, Home puts it back."
-        className="group/resize absolute inset-x-2 -top-1 flex h-2 cursor-ns-resize touch-none items-center justify-center outline-none pointer-coarse:-top-3 pointer-coarse:h-4"
-        onKeyDown={geometry.resizeKeys}
-        {...geometry.resizer(TOP)}
-      >
-        <span className="bg-border group-focus-visible/resize:bg-ring h-1 w-8 rounded-full opacity-0 transition-opacity duration-150 group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100" />
-      </button>
-      {HANDLES.map((handle) => (
+      {expanded && (
+        <button
+          type="button"
+          aria-label="Resize the assistant. Arrow keys change its size, Home puts it back."
+          className="group/resize absolute inset-x-2 -top-1 flex h-2 cursor-ns-resize touch-none items-center justify-center outline-none pointer-coarse:-top-3 pointer-coarse:h-4"
+          onKeyDown={geometry.resizeKeys}
+          {...geometry.resizer(TOP)}
+        >
+          <span className="bg-border group-focus-visible/resize:bg-ring h-1 w-8 rounded-full opacity-0 transition-opacity duration-150 group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100" />
+        </button>
+      )}
+      {HANDLES.filter((handle) => expanded || handle.y === 0).map((handle) => (
         <div
           key={handle.className}
           aria-hidden
@@ -842,13 +932,16 @@ function ResizeHandles({ geometry }: { geometry: Geometry }) {
 /* -------------------------------------------------------------------------- */
 
 function Thread({ input }: { input: ComposerInput }) {
+  // The suggestions are about the open page, so the home offers none.
+  const home = useDocumentStore((state) => state.home);
+
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-auto flex-col overflow-y-auto">
       <AuiIf condition={(s) => s.thread.isEmpty}>
-        <SuggestionList input={input} />
+        {home ? null : <SuggestionList input={input} />}
       </AuiIf>
       <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport className="flex min-h-0 flex-auto flex-col gap-4 overflow-y-auto overscroll-contain px-2 pt-2">
+        <ThreadPrimitive.Viewport className="flex min-h-0 flex-auto flex-col gap-4 overflow-y-auto overscroll-contain px-3 pt-1">
           <ThreadPrimitive.Messages>
             {() => <Message />}
           </ThreadPrimitive.Messages>
@@ -873,7 +966,7 @@ function Thread({ input }: { input: ComposerInput }) {
 
 function SuggestionList({ input }: { input: ComposerInput }) {
   return (
-    <div className="mt-auto flex flex-col pb-1.5">
+    <div className="mt-auto flex flex-col px-1.5 pb-1.5">
       <ThreadPrimitive.Suggestions>
         {({ suggestion }) => {
           const index = data.assistant.suggestions.indexOf(suggestion.prompt);
@@ -910,14 +1003,15 @@ function SuggestionList({ input }: { input: ComposerInput }) {
 function FollowUps({ input }: { input: ComposerInput }) {
   const lastEdit = useDocumentStore((state) => state.lastEdit);
   const pageId = useDocumentStore((state) => state.currentPageId);
+  const home = useDocumentStore((state) => state.home);
   const idle = useAuiState((s) => !s.thread.isEmpty && !s.thread.isRunning);
-  if (!idle || lastEdit?.pageId !== pageId) return null;
+  if (home || !idle || lastEdit?.pageId !== pageId) return null;
 
   return (
     <div
       role="group"
       aria-label="Suggested next steps"
-      className="flex shrink-0 flex-wrap gap-1.5 px-0.5 pt-1 pb-1.5"
+      className="flex shrink-0 flex-wrap gap-1.5 px-3 pt-1 pb-2"
     >
       {FOLLOW_UPS[lastEdit.kind].map((prompt) => (
         <ThreadPrimitive.Suggestion
@@ -1032,6 +1126,18 @@ function AssistantMessage() {
           <ActionBarPrimitive.Reload asChild>
             <IconButton label="Retry" icon={retryIcon} side="bottom" />
           </ActionBarPrimitive.Reload>
+          <ActionBarPrimitive.FeedbackPositive asChild>
+            <IconButton
+              label="Good response"
+              icon={icons.feedback}
+              side="bottom"
+            />
+          </ActionBarPrimitive.FeedbackPositive>
+          <ActionBarPrimitive.FeedbackNegative asChild>
+            <IconButton label="Bad response" icon={badIcon} side="bottom" />
+          </ActionBarPrimitive.FeedbackNegative>
+          <ReadAloudButton />
+          <BranchPicker />
         </ActionBarPrimitive.Root>
       </div>
     </MessagePrimitive.Root>
@@ -1049,6 +1155,53 @@ function CopyButton() {
         side="bottom"
       />
     </ActionBarPrimitive.Copy>
+  );
+}
+
+/** Reads the reply aloud, where the browser can speak; again, it stops. */
+function ReadAloudButton() {
+  const supported = useAuiState((s) => s.thread.capabilities.speech);
+  const speaking = useAuiState((s) => s.message.speech != null);
+  if (!supported) return null;
+
+  return speaking ? (
+    <ActionBarPrimitive.StopSpeaking asChild>
+      <IconButton
+        label="Stop reading"
+        icon={icons.stop}
+        side="bottom"
+        active
+        className="[&>svg]:size-3 [&>svg]:fill-current"
+      />
+    </ActionBarPrimitive.StopSpeaking>
+  ) : (
+    <ActionBarPrimitive.Speak asChild>
+      <IconButton label="Read aloud" icon={readAloudIcon} side="bottom" />
+    </ActionBarPrimitive.Speak>
+  );
+}
+
+/** After a retry, the earlier replies stay one arrow away. */
+function BranchPicker() {
+  return (
+    <BranchPickerPrimitive.Root
+      hideWhenSingleBranch
+      className={cn("text-muted-foreground flex items-center", text.small)}
+    >
+      <BranchPickerPrimitive.Previous asChild>
+        <IconButton label="Previous reply" icon={previousIcon} side="bottom" />
+      </BranchPickerPrimitive.Previous>
+      <span className="tabular-nums">
+        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      </span>
+      <BranchPickerPrimitive.Next asChild>
+        <IconButton
+          label="Next reply"
+          icon={icons.chevronRight}
+          side="bottom"
+        />
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
   );
 }
 
@@ -1165,70 +1318,254 @@ function Attachment({ removable = false }: { removable?: boolean }) {
 /* Composer.                                                                  */
 /* -------------------------------------------------------------------------- */
 
-function Composer({ input }: { input: ComposerInput }) {
+/** How long a reply has been in the making, as words. */
+function elapsedText(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  return minutes > 0 ? `${minutes}m ${seconds % 60}s` : `${seconds}s`;
+}
+
+/** Seconds since the reply being written was started; null when none is. */
+function useWorkingFor() {
   const running = useAuiState((s) => s.thread.isRunning);
+  const [started, setStarted] = useState<number | null>(null);
+  const [now, setNow] = useState(0);
+
+  useAuiEvent("thread.runStart", () => {
+    setStarted(Date.now());
+    setNow(Date.now());
+  });
+
+  useEffect(() => {
+    if (!running) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+
+  return running && started !== null
+    ? Math.max(0, Math.round((now - started) / 1000))
+    : null;
+}
+
+/**
+ * The composer: one row of add, the message, the edit permissions, the
+ * microphone and send. While dictating, the message takes a line of its own
+ * and the row becomes cancel, the waveform, stop and send.
+ */
+function Composer({ input }: { input: ComposerInput }) {
+  const aui = useAui();
+  const running = useAuiState((s) => s.thread.isRunning);
+  const supported = useAuiState((s) => s.thread.capabilities.dictation);
+  const listening = useAuiState((s) => s.composer.dictation != null);
+  const workingFor = useWorkingFor();
+  const home = useDocumentStore((state) => state.home);
+  // What was typed before dictating, which cancelling puts back.
+  const typed = useRef("");
+  const restore = useRef<string | null>(null);
+
+  // Stopping settles after the last words arrive, so the text is put back
+  // once the dictation has ended.
+  useEffect(() => {
+    if (listening || restore.current === null) return;
+    aui.composer().setText(restore.current);
+    restore.current = null;
+  }, [aui, listening]);
+
+  // Asked on the home, the message starts a page of its own first.
+  const startPage = (event: { preventDefault: () => void }) => {
+    if (!documentStore.getState().home) return;
+    event.preventDefault();
+    void startDescribedPage(aui);
+  };
+
+  const send = (
+    <ComposerPrimitive.Send
+      asChild
+      onClick={(event) => {
+        handFocusTo(input, event);
+        startPage(event);
+      }}
+    >
+      <IconButton
+        label="Send"
+        icon={icons.send}
+        side="top"
+        className={cn(round, primaryButton)}
+      />
+    </ComposerPrimitive.Send>
+  );
 
   return (
-    <ComposerPrimitive.Root className="flex shrink-0 flex-col">
+    <ComposerPrimitive.Root
+      className="flex shrink-0 flex-col"
+      onSubmit={startPage}
+    >
       <ComposerPrimitive.AttachmentDropzone
         className={cn(
-          field,
-          radius.xl,
-          "has-[textarea:focus-visible]:border-ring data-[dragging=true]:border-ring flex flex-col border border-transparent transition-colors data-[dragging=true]:border-dashed motion-reduce:transition-none",
+          "border-foreground/8 data-[dragging=true]:bg-accent/60 data-[dragging=true]:outline-ring flex flex-col rounded-b-[calc(var(--radius)+10px)] border-t transition-colors data-[dragging=true]:outline-2 data-[dragging=true]:-outline-offset-4 data-[dragging=true]:outline-dashed motion-reduce:transition-none",
         )}
       >
         <Reference />
         <MicrophoneBlocked />
-        <div className="flex flex-wrap gap-1.5 px-1.5 pt-1.5 empty:hidden">
+        <div className="flex flex-wrap gap-1.5 px-2.5 pt-2 empty:hidden">
           <ComposerPrimitive.Attachments>
             {() => <Attachment removable />}
           </ComposerPrimitive.Attachments>
         </div>
-        <ComposerPrimitive.Input
-          ref={input}
-          rows={1}
-          placeholder={running ? "Working" : "Ask the assistant"}
-          aria-label="Message the assistant"
-          className="placeholder:text-muted-foreground max-h-32 min-h-8 w-full resize-none bg-transparent px-3 pt-2 pb-1 text-sm leading-5 outline-none pointer-coarse:text-base"
-        />
-        <div className="flex items-center gap-0.5 p-1">
-          <ComposerPrimitive.AddAttachment asChild>
-            <IconButton label="Add files" icon={icons.attach} side="top" />
-          </ComposerPrimitive.AddAttachment>
-          <PermissionsMenu />
-          <span className="min-w-0 flex-1" />
-          <Dictation input={input} />
-          {running ? (
-            <ComposerPrimitive.Cancel
-              asChild
-              onClick={(event) => handFocusTo(input, event)}
-            >
+        <div className="flex flex-wrap items-end gap-0.5 p-2">
+          {!listening && (
+            <ComposerPrimitive.AddAttachment asChild>
               <IconButton
-                label="Stop"
-                icon={icons.stop}
+                label="Add files"
+                icon={icons.add}
                 side="top"
-                className={cn(
-                  primaryButton,
-                  "[&>svg]:size-3 [&>svg]:fill-current",
-                )}
+                className={cn(round, "text-foreground")}
               />
-            </ComposerPrimitive.Cancel>
+            </ComposerPrimitive.AddAttachment>
+          )}
+          <ComposerPrimitive.Input
+            ref={input}
+            rows={1}
+            placeholder={
+              listening
+                ? "Listening"
+                : workingFor !== null
+                  ? `Working for ${elapsedText(workingFor)}`
+                  : running
+                    ? "Working"
+                    : home
+                      ? "Describe a page"
+                      : "Ask the assistant"
+            }
+            aria-label="Message the assistant"
+            className={cn(
+              "placeholder:text-muted-foreground max-h-32 min-h-8 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-1.5 text-sm leading-5 outline-none pointer-coarse:text-base",
+              // Dictating, the words heard so far take the line above the row.
+              listening && "order-first basis-full",
+            )}
+          />
+          {listening ? (
+            <div className="flex w-full items-center gap-2">
+              <span role="status" className="sr-only">
+                Listening
+              </span>
+              <IconButton
+                label="Cancel dictation"
+                icon={icons.close}
+                side="top"
+                className={outlined}
+                onClick={(event) => {
+                  handFocusTo(input, event);
+                  restore.current = typed.current;
+                  aui.composer().stopDictation();
+                }}
+              />
+              <Waveform />
+              <ComposerPrimitive.StopDictation
+                asChild
+                onClick={(event) => handFocusTo(input, event)}
+              >
+                <IconButton
+                  label="Stop dictating"
+                  icon={icons.stop}
+                  side="top"
+                  className={cn(
+                    outlined,
+                    "[&>svg]:size-3 [&>svg]:fill-current",
+                  )}
+                />
+              </ComposerPrimitive.StopDictation>
+              {send}
+            </div>
           ) : (
-            <ComposerPrimitive.Send
-              asChild
-              onClick={(event) => handFocusTo(input, event)}
-            >
-              <IconButton
-                label="Send"
-                icon={icons.send}
-                side="top"
-                className={primaryButton}
-              />
-            </ComposerPrimitive.Send>
+            <>
+              <span className="flex h-8 items-center pointer-coarse:h-9">
+                <PermissionsMenu />
+              </span>
+              {supported && (
+                <ComposerPrimitive.Dictate
+                  asChild
+                  onClick={(event) => {
+                    typed.current = aui.composer().getState().text;
+                    handFocusTo(input, event);
+                  }}
+                >
+                  <IconButton
+                    label="Dictate"
+                    icon={icons.mic}
+                    side="top"
+                    className={cn(round, "text-foreground")}
+                  />
+                </ComposerPrimitive.Dictate>
+              )}
+              {running ? (
+                <ComposerPrimitive.Cancel
+                  asChild
+                  onClick={(event) => handFocusTo(input, event)}
+                >
+                  <IconButton
+                    label="Stop"
+                    icon={icons.stop}
+                    side="top"
+                    className={cn(
+                      round,
+                      primaryButton,
+                      "ms-1 [&>svg]:size-3 [&>svg]:fill-current",
+                    )}
+                  />
+                </ComposerPrimitive.Cancel>
+              ) : (
+                <span className="ms-1 flex">{send}</span>
+              )}
+            </>
           )}
         </div>
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
+  );
+}
+
+/** How tall each bar of the waveform stands, and how far into its swing. */
+const BARS = Array.from({ length: 32 }, (_, index) => ({
+  height: 30 + ((index * 37) % 61),
+  delay: ((index * 53) % 90) / 100,
+}));
+
+/**
+ * Bars that swing while the microphone is open. They show that it is
+ * listening; they do not follow the voice.
+ */
+function Waveform() {
+  const swing = useCallback((wave: HTMLDivElement | null) => {
+    if (!wave || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return undefined;
+    const swings = Array.from(wave.children, (bar, index) =>
+      bar.animate([{ transform: "scaleY(0.35)" }, { transform: "scaleY(1)" }], {
+        duration: 900,
+        delay: -(BARS[index]?.delay ?? 0) * 1000,
+        iterations: Infinity,
+        direction: "alternate",
+        easing: "ease-in-out",
+      }),
+    );
+    return () => {
+      for (const running of swings) running.cancel();
+    };
+  }, []);
+
+  return (
+    <div
+      ref={swing}
+      aria-hidden
+      className="flex h-8 min-w-0 flex-1 items-center justify-center gap-[3px] overflow-hidden"
+    >
+      {BARS.map((bar, index) => (
+        <span
+          key={index}
+          className="bg-muted-foreground/60 w-0.5 shrink-0 rounded-full"
+          style={{ height: `${bar.height}%` }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -1283,7 +1620,7 @@ function PermissionsMenu() {
         {current.label}
         <Icon {...icons.chevronDown} className="size-3.5" />
       </MenuTrigger>
-      <MenuContent side="top" className="w-64">
+      <MenuContent side="top" className="min-w-44">
         <MenuLabel>Edits by the assistant</MenuLabel>
         <MenuRadioGroup
           value={mode}
@@ -1295,75 +1632,15 @@ function PermissionsMenu() {
           {EDIT_MODES.map((entry) => {
             const copy = EDIT_MODE_COPY[entry];
             return (
-              <MenuRadioItem
-                key={entry}
-                value={entry}
-                closeOnClick
-                className="h-auto items-start py-1.5 pointer-coarse:h-auto [&>span:last-child]:mt-0.5"
-              >
-                <Icon {...copy.icon} className="mt-0.5" />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  {copy.label}
-                  <span className={cn("text-muted-foreground", text.bodySm)}>
-                    {copy.description}
-                  </span>
-                </span>
+              <MenuRadioItem key={entry} value={entry} closeOnClick>
+                <Icon {...copy.icon} />
+                {copy.label}
               </MenuRadioItem>
             );
           })}
         </MenuRadioGroup>
       </MenuContent>
     </Menu>
-  );
-}
-
-/**
- * The microphone, where the browser can turn speech into text. What is heard
- * is written into the composer.
- */
-function Dictation({ input }: { input: ComposerInput }) {
-  const supported = useAuiState((s) => s.thread.capabilities.dictation);
-  const listening = useAuiState((s) => s.composer.dictation != null);
-  if (!supported) return null;
-
-  if (listening) {
-    return (
-      <>
-        <span
-          role="status"
-          className={cn(
-            "text-muted-foreground flex items-center gap-1.5 px-1.5",
-            text.small,
-          )}
-        >
-          <span
-            aria-hidden
-            className="size-1.5 shrink-0 animate-pulse rounded-full bg-(--live) motion-reduce:animate-none"
-          />
-          Listening
-        </span>
-        <ComposerPrimitive.StopDictation
-          asChild
-          onClick={(event) => handFocusTo(input, event)}
-        >
-          <IconButton
-            label="Stop dictating"
-            icon={icons.mic}
-            side="top"
-            className="bg-accent text-foreground"
-          />
-        </ComposerPrimitive.StopDictation>
-      </>
-    );
-  }
-
-  return (
-    <ComposerPrimitive.Dictate
-      asChild
-      onClick={(event) => handFocusTo(input, event)}
-    >
-      <IconButton label="Dictate" icon={icons.mic} side="top" />
-    </ComposerPrimitive.Dictate>
   );
 }
 

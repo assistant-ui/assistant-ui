@@ -1289,6 +1289,10 @@ export type DocumentStoreState = {
   pendingReview: PendingReview | null;
   /** The thread whose card is open. Not saved. */
   activeThreadId: string | null;
+  /** Whether the panel listing the page's comments is open. Not saved. */
+  commentsPanelOpen: boolean;
+  /** Whether the home, with its templates, shows instead of a page. Not saved. */
+  home: boolean;
   /**
    * Counts the times something asked for the assistant, such as the "/" menu.
    * The assistant bar opens and focuses its composer when it goes up. Not saved.
@@ -1320,6 +1324,8 @@ const pageIconOf = (
 /** What a visit starts with, apart from what is saved. */
 const unsaved = {
   activeThreadId: null,
+  commentsPanelOpen: false,
+  home: true,
   assistantRequests: 0,
   assistantReference: null,
   assistantUnseen: false,
@@ -1767,8 +1773,15 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
     });
 
   const actions = {
-    /** Adds an empty page, under `parentId` when given, and opens it. */
-    addPage(parentId: string | null = null, title = ""): string {
+    /**
+     * Adds a page, under `parentId` when given, and opens it. It is empty
+     * unless `blocks` are given, as a template's are.
+     */
+    addPage(
+      parentId: string | null = null,
+      title = "",
+      blocks?: readonly Block[],
+    ): string {
       const id = newId();
       setState((previous) => ({
         ...previous,
@@ -1776,12 +1789,35 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
           id,
           parentId: findPage(previous.pages, parentId) ? parentId : null,
           title,
-          content: emptyContent(),
+          content: blocks
+            ? {
+                blocks: blocks.map((block, index) => ({
+                  ...block,
+                  id: `${id}-${index}`,
+                })),
+                state: null,
+              }
+            : emptyContent(),
         }),
         currentPageId: id,
         activeThreadId: null,
+        home: false,
       }));
       return id;
+    },
+
+    /** Shows the home, with the templates, in place of the open page. */
+    goHome() {
+      setState((previous) =>
+        previous.home
+          ? previous
+          : {
+              ...previous,
+              home: true,
+              activeThreadId: null,
+              commentsPanelOpen: false,
+            },
+      );
     },
 
     renamePage(id: string, title: string) {
@@ -1808,6 +1844,7 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
         pages: duplicatePageIn(previous.pages, id, copyId),
         currentPageId: copyId,
         activeThreadId: null,
+        home: false,
       }));
       return copyId;
     },
@@ -1841,11 +1878,17 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
     },
 
     selectPage(id: string) {
-      setState((previous) =>
-        previous.currentPageId === id || !findPage(previous.pages, id)
-          ? previous
-          : { ...previous, currentPageId: id, activeThreadId: null },
-      );
+      setState((previous) => {
+        if (!findPage(previous.pages, id)) return previous;
+        if (previous.currentPageId === id)
+          return previous.home ? { ...previous, home: false } : previous;
+        return {
+          ...previous,
+          currentPageId: id,
+          activeThreadId: null,
+          home: false,
+        };
+      });
     },
 
     setPageContent(id: string, content: PageContent) {
@@ -1979,6 +2022,14 @@ export function createDocumentStore(options: DocumentStoreOptions = {}) {
 
     toggleCommentsVisible() {
       actions.setCommentsVisible(!getState().commentsVisible);
+    },
+
+    setCommentsPanelOpen(open: boolean) {
+      setState((previous) =>
+        previous.commentsPanelOpen === open
+          ? previous
+          : { ...previous, commentsPanelOpen: open },
+      );
     },
 
     /**

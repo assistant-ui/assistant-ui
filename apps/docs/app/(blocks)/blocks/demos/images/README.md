@@ -9,7 +9,7 @@ Each chat is one picture and the changes asked of it. A new chat shows the galle
 | Concern | Where it lives |
 |---|---|
 | Runtime, thread, replies, message box | `components/images.tsx` |
-| The sidebar and its list of chats, shared by the blocks | `../chat-sidebar.tsx` |
+| The sidebar and its list of chats, with Back and Forward and search, shared by the blocks | `../chat-sidebar.tsx` |
 | Gallery tabs, template tiles and dialog, My images | `components/gallery.tsx` |
 | Model picker | `components/models.tsx` |
 | The editor panel, its tools, and how a change is sent | `components/editor.tsx` |

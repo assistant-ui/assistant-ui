@@ -2,15 +2,16 @@
 
 A pages app with a floating assistant. You write in a rich text page, keep pages and subpages, comment on a passage, and ask the assistant to change the page. The assistant edits the page itself. In Manual mode its edit is highlighted and waits for you to accept or undo it.
 
-It is built on [assistant-ui](https://www.assistant-ui.com) and [Lexical](https://lexical.dev). The preview answers from a script, so it runs without a key or a server. The second starter page, Welcome, walks through every feature.
+It is built on [assistant-ui](https://www.assistant-ui.com) and [Lexical](https://lexical.dev). The preview answers from a script, so it runs without a key or a server. It opens on the home, where you start a page from a template, or ask the assistant for one. The starter page Welcome walks through every feature.
 
 ## What it does
 
+- **Home and sidebar.** The block opens on a home with the templates, each drawn as a small page. Picking one makes a page from it. The assistant stays in its corner; asked for a page on the home, it makes one and writes it. The sidebar has Back and Forward through the pages opened, a search over page names, Home, New page and every page with its subpages; each row renames, duplicates, deletes and adds a page inside. At its foot is your account, as in the Base example: Invite a friend, Dark mode, Help and Sign in. `Cmd+B` folds it away.
 - **The page.** Headings, checklists, lists, quotes, dividers and tables, inserted from the `/` menu or the pill at the top. A format bar sits over selected text. A grip beside each block drags it, turns it into another kind of block, and copies a link that opens the page at that block.
 - **Tables.** A header row, cells you type in, and a handle on each row and column that inserts, moves and deletes. `Alt+Shift+R` and `Alt+Shift+C` open the two menus from the keyboard.
 - **Pages.** Subpages, templates, an emoji or a colored icon for each page, links to other pages from the `@` menu, an outline of the headings on the left edge of a wide window, and Markdown download.
-- **Comments.** Threads on a passage, with replies, emoji reactions and resolve. Mention `@Assistant` in a thread and it answers there. The assistant can also leave comments of its own.
-- **The assistant.** A bar you can move, resize and minimise to a round button, which shows a dot when there is something new. It keeps the chats of the visit under History, takes files and pictures, takes dictation where the browser supports it, and offers follow-ups after an edit. Ask AI on selected text, or Ask for change on an edit, quotes that passage in the next message.
+- **Comments.** Threads on a passage, with replies, emoji reactions and resolve. Mention `@Assistant` in a thread and it answers there. The assistant can also leave comments of its own. The Comments panel lists the page's open threads, with search, and opens one at its words.
+- **The assistant.** A bar you can move, resize and minimise to a round button, which shows a dot when there is something new. Clicking its title folds the chat away, leaving the composer. A reply can be copied, retried, rated, or read aloud where the browser can speak. It keeps the chats of the visit under History, takes files and pictures, takes dictation where the browser supports it, and offers follow-ups after an edit. Ask AI on selected text, or Ask for change on an edit, quotes that passage in the next message.
 
 ## Files
 
@@ -18,16 +19,19 @@ It is built on [assistant-ui](https://www.assistant-ui.com) and [Lexical](https:
 | --- | --- |
 | `page.tsx` | The runtime: a list of chats, each answered by a scripted model. Swap it for a real one below. |
 | `layout.tsx` | The Geist fonts and the block's root element. |
-| `document-editor.tsx` | The page frame, which mounts every piece. |
+| `document-editor.tsx` | The sidebar, the page frame, which mounts every piece, and the home over it. |
+| `../chat-sidebar.tsx` | The sidebar frame the Blocks share: it resizes, folds away, and holds the page list. |
 | `document-editor.css` | The theme tokens (light and dark) and the document's typography. |
-| `data.json` | The profile pictures, the starter pages, the templates and the scripted replies. |
+| `data.json` | The profile pictures, the starter pages, the templates, the home's words and the scripted replies. |
 | `lib/document.ts` | The model: blocks, pages, comment threads, edit review, Markdown export, and the store the pieces share. |
 | `components/editor.tsx` | The Lexical editor, the page link node, and the bridge that lets the assistant read and edit the page. |
 | `components/assistant-modal.tsx` | The assistant bar: thread, composer, edit permissions, moving, resizing and the round button it minimises to. |
 | `components/thread-list.tsx` | The chats of this visit, inside the bar's History popover. |
 | `components/edit-review.tsx` | The Undo, Ask for change and Accept pill under an edit, and the assistant's name flag where it writes. |
-| `components/top-bar.tsx` | The floating pills: the page menu, the insert buttons and the comments toggle. |
-| `components/pages-menu.tsx` | The page tree inside the page menu: switch pages, add a page or a subpage. |
+| `components/top-bar.tsx` | The floating pills: the page menu, the insert buttons and the button that opens the Comments panel. |
+| `components/home.tsx` | The home's template tiles, and how a page asked for there is started. |
+| `components/pages-menu.tsx` | The page tree: in the page menu's Pages submenu, and as the sidebar's list with its Back and Forward. |
+| `components/user.tsx` | The account at the foot of the sidebar and its menu, as in the Base example. |
 | `components/icon-picker.tsx` | The page icon above the title and its emoji and icon picker, with a color for an icon. |
 | `components/outline.tsx` | The outline rail on the left edge. |
 | `components/selection-toolbar.tsx` | The format bar over selected text, with Ask AI and Comment. |
@@ -55,7 +59,7 @@ One review holds the edits of one request. Editing the page by hand, or asking f
 
 ## The scripted preview
 
-`scriptedModel` in `page.tsx` matches the message against `assistant.replies` in `data.json` and makes the same tool calls a model would, so the page really changes. It knows a handful of requests, which are the suggestions it offers, and says so when asked for anything else. It does not read attached files and cannot rewrite a quoted passage. A mention in a comment is answered from `assistant.commentReplies`.
+`scriptedModel` in `page.tsx` matches the message against `assistant.replies` in `data.json` and makes the same tool calls a model would, so the page really changes. It knows a handful of requests, which are the suggestions it offers, and says so when asked for anything else. It does not read attached files and cannot rewrite a quoted passage. A mention in a comment is answered from `assistant.commentReplies`. A page asked for on the home is laid out by `planNewPage` from `assistant.newPage`.
 
 ## Run it with a real model
 
@@ -80,7 +84,7 @@ One review holds the edits of one request. Editing the page by hand, or asking f
 
    Use the address your app serves `api/chat/route.ts` at. Inside the assistant-ui docs app that is `/blocks/demos/document-editor/api/chat`.
 
-3. Delete `useScriptedRuntime`, `scriptedModel` and `planReply` from `page.tsx`, and `assistant.replies` from `data.json`. Keep `ChatList`, `attachments` and `useDictationAdapter` if your runtime reuses them.
+3. Delete `useScriptedRuntime`, `scriptedModel`, `planReply` and `planNewPage` from `page.tsx`, and `assistant.replies` and `assistant.newPage` from `data.json`. Asked on the home, the assistant still makes the page before the message is sent, so the model writes it. Keep `ChatList`, `attachments` and `useDictationAdapter` if your runtime reuses them.
 
 History, Add files and the microphone come from the scripted runtime's thread list and its attachment and dictation adapters, so pass the same adapters to your runtime to keep them. The microphone hides when there is no dictation adapter. The route already passes a quoted passage to the model with `injectQuoteContext`.
 

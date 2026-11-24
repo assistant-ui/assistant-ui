@@ -170,6 +170,7 @@ export function Images() {
       }),
   );
   const [attachments] = useState(() => new SimpleImageAttachmentAdapter());
+  const [query, setQuery] = useState("");
   const dictation = useDictationAdapter();
   const runtime = useChatRuntime({
     transport,
@@ -182,8 +183,10 @@ export function Images() {
       <OptionsProvider>
         <ChatSidebar
           title="Images"
+          history
+          search={{ query, onQueryChange: setQuery, label: "Search images" }}
           defaultOpen={false}
-          list={<ChatList label="New image" heading="Recent" />}
+          list={<ChatList label="New image" heading="Recent" query={query} />}
           footer={<User />}
         >
           <EditorFrame>
