@@ -23,6 +23,8 @@ import { getMessageRunState } from "../../../store/message-run-state";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
 import { useActionBarResume } from "../../primitive-hooks/useActionBarResume";
 import { useAuiState } from "@assistant-ui/store";
+import { useThreadReplyState } from "../../primitive-hooks/useThreadReplyState";
+import { useThreadResume } from "../../primitive-hooks/useThreadResume";
 
 type RunResult = { content: { type: "text"; text: string }[] };
 
@@ -116,8 +118,14 @@ const renderRuntime = async (
   const resume: {
     current: ReturnType<typeof useActionBarResume> | undefined;
   } = { current: undefined };
+  const hooks: {
+    replyState?: ReturnType<typeof useThreadReplyState>;
+    resume?: ReturnType<typeof useThreadResume>;
+  } = {};
   const Capture = () => {
     aui = useAui();
+    hooks.replyState = useThreadReplyState();
+    hooks.resume = useThreadResume();
     return null;
   };
   const CaptureResume = () => {
@@ -161,6 +169,7 @@ const renderRuntime = async (
   await actSettled(() => aui.threads.getLoadThreadsPromise());
   return {
     runs,
+    hooks,
     unmount: view.unmount,
     getRuntime: () => runtime,
     getAui: () => aui,
@@ -430,6 +439,54 @@ describe("cloud run leases", () => {
     expect(threadRuns.end).not.toHaveBeenCalled();
     expect(getAui().thread.getState().isRunning).toBe(true);
   });
+
+  it("shows a thread whose fresh lease from another tab answers the last message as in progress, with no Resume", async () => {
+    const { cloud } = makeCloud([userRow], threadRun(2_000));
+    const { getRuntime, getAui, hooks } = await renderRuntime(cloud);
+    await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
+    await waitFor(() => expect(hooks.replyState).toBe("in-progress"));
+    expect(getAui().thread.getState().messages).toHaveLength(1);
+    expect(hooks.resume?.disabled).toBe(true);
+  });
+
+  it.each([
+    ["a stale lease", threadRun(60_000)],
+    ["no lease", null],
+  ])(
+    "shows a thread ending with the user's message and %s as interrupted; Resume runs from that message without a branch",
+    async (_label, run) => {
+      const { cloud, messages, threadRuns } = makeCloud([userRow], run);
+      const { runs, getRuntime, getAui, hooks } = await renderRuntime(cloud);
+      await actSettled(() => getRuntime().threads.switchToThread("remote-1"));
+      await waitFor(() => expect(hooks.replyState).toBe("interrupted"));
+      await waitFor(() => expect(hooks.resume?.disabled).toBe(false));
+
+      await act(async () => {
+        hooks.resume!.resume();
+      });
+      await waitFor(() => expect(runs).toHaveLength(1));
+      await waitFor(() =>
+        expect(threadRuns.open).toHaveBeenCalledWith("remote-1", {
+          parent_id: "msg_1",
+        }),
+      );
+      expect(hooks.replyState).toBeUndefined();
+      await act(async () => {
+        runs[0]!.resolve({ content: [{ type: "text", text: "answer" }] });
+      });
+      await waitFor(() => expect(createCalls(messages)).toHaveLength(1));
+      expect(createCalls(messages)[0]).toMatchObject({
+        parent_id: "msg_1",
+        lease_id: "lease_1",
+      });
+      const branch = getAui().thread.getState().messages;
+      expect(branch.map((m) => m.role)).toEqual(["user", "assistant"]);
+      expect(getAui().thread.message({ index: 1 }).getState().branchCount).toBe(
+        1,
+      );
+      expect(hooks.replyState).toBeUndefined();
+    },
+  );
 
   it("shows a stale reply that stored content as an ordinary error; Regenerate branches beside it", async () => {
     const { cloud, messages, threadRuns } = makeCloud(

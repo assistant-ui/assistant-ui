@@ -6,13 +6,19 @@ import {
   AssistantRuntimeProvider,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
+  useThreadReplyState,
 } from "@assistant-ui/core/react";
+import { useThreadResume } from "@assistant-ui/core/react/internal";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
+import { createSettleOutsideAct } from "@assistant-ui/x-react18/testing";
 import { AssistantCloud } from "assistant-cloud";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 import { agUiWireMessageId } from "./runtime/adapter/conversions";
+
+// A thread switch settles once React renders the new main thread.
+const settleOutsideAct = createSettleOutsideAct(act, waitFor);
 
 // Smoke test of AG-UI on the real AssistantCloud client; the run lease rules are covered in core's runLeases.test.tsx.
 type Row = {
@@ -166,8 +172,14 @@ const renderApp = async (
   const agent = new ScriptedAgent();
   let aui!: AssistantClient;
   let runtime!: AssistantRuntime;
+  const hooks: {
+    replyState?: ReturnType<typeof useThreadReplyState>;
+    resume?: ReturnType<typeof useThreadResume>;
+  } = {};
   const Capture = () => {
     aui = useAui();
+    hooks.replyState = useThreadReplyState();
+    hooks.resume = useThreadResume();
     return null;
   };
   const App = () => {
@@ -194,10 +206,19 @@ const renderApp = async (
   });
   return {
     agent,
+    hooks,
     unmount: view.unmount,
     getAui: () => aui,
     getRuntime: () => runtime,
   };
+};
+
+const userRow: Row = {
+  id: "u1",
+  parent_id: null,
+  format: "aui/v0",
+  content: { role: "user", content: [{ type: "text", text: "hello" }] },
+  external_id: "u1",
 };
 
 beforeEach(() => {
@@ -241,5 +262,36 @@ describe("useAgUiRuntime with Assistant Cloud run leases", () => {
       lease_id: "lease_1",
     });
     expect(replyCreates(server.calls)).toHaveLength(1);
+  });
+
+  it("resumes an interrupted thread from the user's message without a branch", async () => {
+    const server = createServer([userRow], {
+      status: "running",
+      message_id: null,
+      parent_id: "u1",
+      last_heartbeat_ms_ago: 45_000,
+    });
+    const app = await renderApp(server);
+    await settleOutsideAct(() =>
+      app.getRuntime().threads.switchToThread("remote-1"),
+    );
+    await waitFor(() => expect(app.hooks.replyState).toBe("interrupted"));
+    await waitFor(() => expect(app.hooks.resume?.disabled).toBe(false));
+
+    await act(async () => {
+      app.hooks.resume!.resume();
+    });
+    await waitFor(() => expect(app.agent.runs).toHaveLength(1));
+    await act(async () => {
+      app.agent.runs[0]!.finish();
+    });
+    await waitFor(() => expect(replyCreates(server.calls)).toHaveLength(1));
+    expect(replyCreates(server.calls)[0]!.body).toMatchObject({
+      parent_id: "u1",
+      lease_id: "lease_1",
+    });
+    expect(
+      app.getAui().thread.message({ index: 1 }).getState().branchCount,
+    ).toBe(1);
   });
 });
