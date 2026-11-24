@@ -3,8 +3,8 @@ import { downloadTemplate } from "giget";
 function resolveDownloadTimeoutMs(): number {
   const override = process.env.ASSISTANT_UI_DOWNLOAD_TIMEOUT;
   if (override) {
-    const parsed = parseInt(override, 10);
-    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+    const parsed = Number(override);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
   return 120_000;
 }
