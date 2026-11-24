@@ -5,6 +5,7 @@
  */
 import { randomInt } from "node:crypto";
 import { detectAgentKind } from "./agents";
+import { noBrowserReason } from "./browser";
 import { OPTION_ICONS } from "./protocol";
 import { loadGuide, renderText } from "./guide";
 import type { Guide } from "./guide";
@@ -44,8 +45,10 @@ export type RunAgentSetupOptions = {
   command: string;
   /** What the product calls this, for the briefing's first line. */
   name?: string;
-  /** False for `--no-open`: the agent asks the user itself. */
+  /** False for `--no-open`: the agent asks the user itself. None opens where `noBrowserReason` finds one would not reach the user. */
   canOpen?: boolean;
+  /** Nobody answers (`--unattended`): no browser, no relayed questions, and the guide's unattended rules. */
+  unattended?: boolean;
   /** Opens the setup page; the default browser by default. */
   open?: (url: string) => void;
   /** Called once the session exists, before the briefing prints. */
@@ -87,10 +90,16 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
   const linkId = createSetupId();
   const setupId = createSetupId();
   const agentUrl = `${options.server.replace(/\/$/, "")}/${linkId}`;
+  const unattended = options.unattended === true;
+  const canOpen =
+    !unattended &&
+    options.canOpen !== false &&
+    noBrowserReason(options.env) === undefined;
   // Online-only: the briefing and the stream's wording come from the setup server.
   const guide = await loadGuide(agentUrl, {
     started: "agent-stream",
-    opened: options.canOpen !== false,
+    opened: canOpen,
+    ...(unattended && { unattended }),
   });
   const client = await connect(agentUrl);
   try {
@@ -119,13 +128,15 @@ export const runAgentSetup = async (options: RunAgentSetupOptions) => {
       guide,
       ...options.stream,
       agent: { ...(kind !== undefined && { kind }), ...options.stream?.agent },
-      browser: {
-        setupAppUrl: options.setupAppUrl,
-        linkId,
-        answerCommand: `${options.command} ${shellWord(agentUrl)} answer`,
-        ...(options.open && { open: options.open }),
-        ...(options.canOpen !== undefined && { canOpen: options.canOpen }),
-      },
+      ...(!unattended && {
+        browser: {
+          setupAppUrl: options.setupAppUrl,
+          linkId,
+          answerCommand: `${options.command} ${shellWord(agentUrl)} answer`,
+          ...(options.open && { open: options.open }),
+          canOpen,
+        },
+      }),
     });
     return { session, stream, client };
   } catch (error) {

@@ -25,6 +25,9 @@ describe("buildInstallPrompt", () => {
       "Not in a setup yet? Run `npx assistant-ui@latest setup --products assistant-ui,cloud`",
     );
     expect(prompt).toContain(
+      "With nobody to answer (CI, a background job, an evaluation run), add `--unattended`.",
+    );
+    expect(prompt).toContain(
       "If `setup` isn't a known command (a cached or pnpm release-age-gated version), run `npx -y --prefer-online assistant-ui@latest setup --products assistant-ui,cloud` instead.",
     );
   });
