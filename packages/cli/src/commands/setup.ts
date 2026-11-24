@@ -160,6 +160,7 @@ const ENV_FILES = [
   ".env.development",
   ".env.development.local",
   ".env.production",
+  ".env.production.local",
 ];
 
 /**
@@ -177,7 +178,11 @@ export const projectProviders = (cwd: string): string[] => {
   let deps: Record<string, unknown> = {};
   try {
     const pkg = JSON.parse(read("package.json"));
-    deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    deps = {
+      ...pkg.dependencies,
+      ...pkg.devDependencies,
+      ...pkg.optionalDependencies,
+    };
   } catch {}
   const env = ENV_FILES.map(read).join("\n");
   return LLM_PROVIDER.options

@@ -206,6 +206,20 @@ describe("setup", () => {
     });
 
     it("keeps every provider a project uses when it has several", () => {
+      const dir = project({
+        "package.json": JSON.stringify({
+          dependencies: { "@ai-sdk/openai": "^4.0.0" },
+          optionalDependencies: { "@openrouter/ai-sdk-provider": "^2.0.0" },
+        }),
+        ".env.production.local": "ANTHROPIC_API_KEY=sk-test\n",
+      });
+      let providers: string[];
+      try {
+        providers = projectProviders(dir);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+      expect(providers).toEqual(["openai", "anthropic", "openrouter"]);
       expect(header(["openai", "anthropic"])).toContain(
         "this project already uses openai and anthropic. Keep them: do not switch providers or uninstall a provider package unless the user picks another, and pass the one its chat route uses as --default",
       );
