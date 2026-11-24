@@ -12,6 +12,8 @@ on:
         required: true
       VERCEL_REGISTRY_PROJECT_ID:
         required: true
+      # Once the token moves to the vercel-deploy environment, the job reads the
+      # environment's copy instead of the value the caller passes.
       VERCEL_TOKEN:
         required: true
   workflow_dispatch:
@@ -31,6 +33,9 @@ env:
 jobs:
   deploy-production:
     name: Deploy Production
+    # Once the Vercel token moves into this environment and its branch policy
+    # admits main only, a workflow on another branch cannot read it.
+    environment: vercel-deploy
     runs-on: ubuntu-latest
     # A literal group, because inside a workflow_call github.workflow names the
     # caller, so a release deploy and a manual one would not exclude each other.
@@ -172,7 +177,7 @@ jobs:
           if [ -n "$DEPLOY_SHA" ]; then
             echo "::error::The registry deploy failed for ${DEPLOY_SHA}, so the registry still serves the previous release."
             if [ "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD 2>/dev/null)" = "$DEPLOY_SHA" ] && [ ! -f "$GITHUB_WORKSPACE/packages/x-deploy/package.json" ]; then
-              echo "::error::${DEPLOY_SHA} predates packages/x-deploy, so this workflow cannot deploy it. Run Deploy Shadcn Registry via workflow_dispatch on a release tag from that commit's era with releaseSha=${DEPLOY_SHA}, so that commit's own workflow deploys it."
+              echo "::error::${DEPLOY_SHA} predates packages/x-deploy, so this workflow cannot deploy it. That commit's own workflow has no vercel-deploy environment, so it cannot read VERCEL_TOKEN once the token lives only there. The next release deploys the registry."
             else
               echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
             fi
