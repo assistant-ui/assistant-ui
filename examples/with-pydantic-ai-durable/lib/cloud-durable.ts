@@ -26,7 +26,10 @@ type DurableThread = Pick<StoredThread, "messages" | "running">;
  *   the interrupted reply.
  * - `useDurableTakeover` covers a reply another tab was writing: once that
  *   tab's run lease goes stale, it reads the thread again and calls
- *   `resumeRun`, which follows the run through `connect()`.
+ *   `resumeRun`, which follows the run through `connect()`. A thread that
+ *   ends with the user's message has no stored reply to judge; the takeover
+ *   resumes it once the thread's reply state reads `interrupted`, so a run
+ *   another tab still holds the lease for is left to that tab.
  *
  * Only the stored branch's turn is matched, by position: the server and the
  * store give messages different ids, so the stored last user message is the
@@ -172,6 +175,11 @@ export const decideDurableThread = (
 // Loads that returned the thread as stored because the durable server could not be read; the takeover tries those again.
 const failedLookups = new WeakSet<object>();
 const LOOKUP_RETRY_MS = 5_000;
+// Loads a thread that ends with the user's message as one to resume; only the takeover asks for it.
+const TAKE_OVER = Symbol("takeOver");
+type TakeOverHistory = ThreadHistoryAdapter & {
+  [TAKE_OVER]?: () => ReturnType<ThreadHistoryAdapter["load"]>;
+};
 
 /** Wraps `history.load()` so a reopened thread meets its durable run. */
 export const withDurableRuns = (
@@ -179,7 +187,7 @@ export const withDurableRuns = (
   agent: DurableSource,
   options?: FromAgUiMessagesOptions,
 ): ThreadHistoryAdapter => {
-  const load: ThreadHistoryAdapter["load"] = async () => {
+  const loadWith = async (takeOver: boolean) => {
     const repository = await history.load();
     // Replacing the stored reply needs a way to delete it.
     if (repository.unstable_resume || !history.delete) return repository;
@@ -187,6 +195,8 @@ export const withDurableRuns = (
     if (!turn) return repository;
     const state = tailStateOf(turn.tail.map((i) => i.message));
     if (state === "settled" || state === "elsewhere") return repository;
+    // No stored reply: another tab may hold the thread's run lease, which only the takeover can see.
+    if (state === "missing" && !takeOver) return repository;
 
     let thread: DurableThread | null;
     try {
@@ -238,10 +248,13 @@ export const withDurableRuns = (
     }
     return reconciled;
   };
+  const load: ThreadHistoryAdapter["load"] = () => loadWith(false);
+  const takeOver = () => loadWith(true);
 
   return new Proxy(history, {
     get(target, property) {
       if (property === "load") return load;
+      if (property === TAKE_OVER) return takeOver;
       const value = Reflect.get(target, property, target);
       return typeof value === "function" ? value.bind(target) : value;
     },
@@ -250,12 +263,15 @@ export const withDurableRuns = (
 
 /**
  * Rejoins a run another tab was following once that tab stops: when the
- * shown reply turns stale (the Cloud run tracker refreshes it), it reads the
- * thread again through `history` and resumes the run if it is still going.
+ * shown reply turns stale (the Cloud run tracker refreshes it), or the thread
+ * ends with the user's message and `replyState` reads `interrupted`, it reads
+ * the thread again through `history` and resumes the run if it is still
+ * going. Pass `useThreadReplyState()` from the thread's runtime hook.
  */
 export const useDurableTakeover = (
   runtime: AssistantRuntime,
   history: ThreadHistoryAdapter | undefined,
+  replyState?: "in-progress" | "interrupted" | undefined,
 ) => {
   useEffect(() => {
     if (!history) return;
@@ -273,12 +289,17 @@ export const useDurableTakeover = (
       if (userIndex === -1) return;
       const last = messages.at(-1);
       if (!last || last.id === checkedId) return;
-      if (tailStateOf(messages.slice(userIndex + 1)) !== "stale") return;
+      const state = tailStateOf(messages.slice(userIndex + 1));
+      const unanswered = state === "missing" && replyState === "interrupted";
+      if (state !== "stale" && !unanswered) return;
       checkedId = last.id;
       busy = true;
       void (async () => {
         try {
-          const repository = await history.load();
+          const takeOver = (history as TakeOverHistory)[TAKE_OVER];
+          const repository = await (unanswered && takeOver
+            ? takeOver()
+            : history.load());
           if (disposed || thread.getState().isRunning) return;
           if (failedLookups.has(repository)) {
             checkedId = undefined;
@@ -298,10 +319,11 @@ export const useDurableTakeover = (
       })();
     };
     const unsubscribe = thread.subscribe(check);
+    check();
     return () => {
       disposed = true;
       clearTimeout(retry);
       unsubscribe();
     };
-  }, [runtime, history]);
+  }, [runtime, history, replyState]);
 };

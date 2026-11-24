@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import type { AssistantClient } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../../types";
 import { getMessageRunState } from "../../../store/message-run-state";
-import type {
-  AssistantCloudThreadHistoryAdapter,
-  CloudRunWriter,
+import {
+  type AssistantCloudThreadHistoryAdapter,
+  type CloudRunWriter,
+  isEmptyReply,
 } from "./AssistantCloudThreadHistoryAdapter";
 import {
   setThreadReplyState,
@@ -26,8 +27,10 @@ type TrackedRun = {
   /** The persistence key of the message: its id, or its format-native message's id. */
   key: string;
   parent: ThreadMessage | undefined;
+  /** Settles once the run's lease is opened and its writes so far landed. */
   stored: Promise<void>;
-  checkpointed: ThreadMessage["content"];
+  /** The content the last checkpoint stored; undefined before the first, so a run joined with content already present is stored too. */
+  checkpointed: ThreadMessage["content"] | undefined;
   settleTimer: ReturnType<typeof setTimeout> | undefined;
 };
 
@@ -75,13 +78,17 @@ const findMessage = (
   readBranch(aui).find((message) => message.id === messageId);
 
 /**
- * Stores a thread's running assistant message as soon as the run starts, so
- * the cloud holds a run lease the persistence heartbeats, also while the tab
- * is in the background. Other tabs show the reply as in progress, and as
- * interrupted once it went `staleAfter` without a beat. Runtimes keep writing
- * the settled message as they do today; that write lands on the same row and
- * ends the lease. A lease the persistence lost (ended elsewhere or refused)
- * gets no more checkpoints.
+ * Opens the thread's run lease as soon as a run starts, which the
+ * persistence heartbeats, also while the tab is in the background; nothing
+ * is stored yet. Checkpoints every 20 s store the reply once it has content
+ * and update it after, and the runtime's own settled write lands on the same
+ * row and ends the lease. A run that dies before its first write leaves no
+ * message. A lease the persistence lost (ended elsewhere, or superseded by a
+ * newer run) gets no more writes.
+ *
+ * Other tabs read the lease: a reply already stored shows as in progress, or
+ * as an ordinary interrupted reply once its run went `staleAfter` without a
+ * beat.
  *
  * A thread whose last message is the user's reads `in-progress` while a
  * fresh thread lease answers it, and `interrupted` once none does
@@ -284,14 +291,14 @@ export const useCloudRunLeases = (
         messageId: head.id,
         key,
         parent,
-        checkpointed: head.content,
+        checkpointed: undefined,
         settleTimer: undefined,
-        stored: writer.write(head, parent).catch((error: unknown) => {
-          console.warn(
-            "[assistant-ui] Could not store the running message:",
-            error,
-          );
-        }),
+        stored: writer.begin(head, parent).then(
+          () => undefined,
+          (error: unknown) => {
+            console.warn("[assistant-ui] Could not open the run lease:", error);
+          },
+        ),
       };
       tracked = run;
     };
@@ -302,6 +309,7 @@ export const useCloudRunLeases = (
       const message = findMessage(aui, run.messageId);
       if (!message || message.status?.type !== "running") return;
       if (message.content === run.checkpointed) return;
+      if (isEmptyReply(message)) return;
       run.checkpointed = message.content;
       void write(run, message);
     }, CHECKPOINT_INTERVAL_MS);
