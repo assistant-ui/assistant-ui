@@ -44,9 +44,10 @@ export function LibraryShell({ children }: { children: ReactNode }) {
       {process.env.NODE_ENV === "development" ? <ReactGrabDragFix /> : null}
       <Panels
         // The server renders the wide layout, so the side panel is hidden on a
-        // phone before hydration moves it into its sheet. The glass header
-        // takes the page's color, which the dark popover color is lighter than.
-        className="h-full [--glass:color-mix(in_oklab,var(--background)_72%,transparent)] [--popover:var(--background)] max-md:[&>#panel-left]:hidden"
+        // phone before hydration moves it into its sheet; `!` beats the
+        // panel's inline `display`. The glass header takes the page's color,
+        // which the dark popover color is lighter than.
+        className="h-full [--glass:color-mix(in_oklab,var(--background)_72%,transparent)] [--popover:var(--background)] max-md:[&>#panel-left]:hidden!"
         glassHeader
         headers={{
           left: <LibraryHistoryButtons />,
