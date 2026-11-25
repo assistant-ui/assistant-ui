@@ -155,6 +155,32 @@ describe("Suggestions", () => {
       root.unmount();
     }
   });
+  it("updates when only a suggestion's metadata changes or goes away", () => {
+    let setSuggestions!: (suggestions: SuggestionConfig[]) => void;
+    const base = { title: "T", label: "L", prompt: "P" };
+    const root = createTapRoot(function SuggestionsRoot() {
+      const [suggestions, setValue] = useState<SuggestionConfig[]>([
+        { ...base, metadata: { labId: "lab-3" } },
+      ]);
+      setSuggestions = setValue;
+      return useResource(Suggestions(suggestions));
+    });
+
+    try {
+      const metadata = () =>
+        root.getValue().suggestion({ index: 0 }).getState().metadata;
+
+      flushTapSync(() =>
+        setSuggestions([{ ...base, metadata: { labId: "lab-4" } }]),
+      );
+      expect(metadata()).toEqual({ labId: "lab-4" });
+
+      flushTapSync(() => setSuggestions([base]));
+      expect(metadata()).toBeUndefined();
+    } finally {
+      root.unmount();
+    }
+  });
 });
 
 describe("ThreadSuggestions", () => {
