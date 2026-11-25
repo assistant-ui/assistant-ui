@@ -281,7 +281,7 @@ export const gitPushRef =
       return `git push of ${ref} could not run: ${result.error.message}`;
     }
     if (result.status !== 0) {
-      return `git push of ${ref} was refused too:\n${output}`;
+      return `git push of ${ref} failed too:\n${output}`;
     }
     return `git push created ${ref} at ${sha} although the API refused it; the job still fails:\n${output}`;
   };
@@ -340,7 +340,7 @@ export const githubClient = ({
         });
       } catch (error) {
         // The API refuses a ref with a bare 403, while git push of the same ref
-        // prints the server's reason (for example, a missing workflows scope).
+        // may print the server's reason, such as a missing workflows scope.
         if (error.status === 403) error.message += `\n${pushRef(ref, sha)}`;
         throw error;
       }

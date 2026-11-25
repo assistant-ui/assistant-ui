@@ -671,7 +671,7 @@ test("gitPushRef reports the reason a remote refuses a tag, or that it took it",
     "refs/tags/assistant-ui@0.0.130",
     sha,
   );
-  assert.match(refused, /refused too/);
+  assert.match(refused, /failed too/);
   assert.match(refused, /refusing to allow a GitHub App/);
   assert.equal(git(dir, "--git-dir", refusing, "tag", "--list"), "");
 
