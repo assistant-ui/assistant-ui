@@ -6,7 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Build the scripted previews for the other five demos on `/demos` (Tool UI, Approval, Reasoning, Attachments, State and actions), the way Chat's is built; until then their Preview tabs say they are not built.
+- Build the scripted previews for the other five demos on `/demos` (Tool UI, Approval, Reasoning, Attachments, State and actions) the way Chat's is built, each with its own `components/thread.tsx` tab where the feature changes the UI; until then their Preview tabs say they are not built.
 - A second batch of demos: generative UI, suggestions, editing and branching, mentions and slash commands, reading aloud, the thread list.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
@@ -377,3 +377,17 @@ Files:
 - `app/(home)/demos/page.tsx`: passes each demo its preview.
 
 When folding back: copy these files to the same paths in `apps/docs`.
+
+## Demos show their UI: a Thread built from primitives (2026-11-25)
+
+The Chat demo now shows its UI code as well: a `components/thread.tsx` tab with a small Thread built from assistant-ui's primitives (`ThreadPrimitive`, `MessagePrimitive`, `ComposerPrimitive`, `ActionBarPrimitive`, `AuiIf`) and `MarkdownTextPrimitive` from `@assistant-ui/react-markdown`, with all its styling in that one file. The preview runs this same file instead of the kit's Thread, and the tab reads the file from disk, so what the tab shows is what the preview runs; edits show in the tab within a minute while the dev server runs. Every demo's `app/page.tsx` now imports `Thread` from `@/components/thread`. The Thread: messages centered at up to 42rem, user messages in a muted bubble, assistant replies in markdown with Copy and Retry, a bordered composer with a round Send button that turns into Stop while a reply runs, and "Ask anything." when the thread is empty. The preview stays mounted while a code tab is open, so a test chat survives a look at the code.
+
+Files:
+
+- `components/pages/demos/ui/thread.tsx` (new): the Thread the previews run and the tabs show.
+- `components/pages/demos/previews/chat.tsx`: uses that Thread.
+- `lib/scripted-demos.ts`: a file can be read from `source`; Chat lists `components/thread.tsx`; pages import `@/components/thread`.
+- `app/(home)/demos/page.tsx`: reads `source` files (cached for minutes).
+- `components/pages/demos/demo-tabs.tsx`: the preview stays mounted.
+
+When folding back: copy these files to the same paths in `apps/docs`, and list `components/pages/demos/ui/` in the route's `outputFileTracingIncludes` so the deployed page can read it.

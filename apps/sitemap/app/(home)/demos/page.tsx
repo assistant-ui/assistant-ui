@@ -1,22 +1,40 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import type { ReactNode } from "react";
 import { DemoTabs } from "@/components/pages/demos/demo-tabs";
 import { ChatPreview } from "@/components/pages/demos/previews/chat";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { highlightElementSource } from "@/lib/element-source";
-import { SCRIPTED_DEMOS } from "@/lib/scripted-demos";
+import { SCRIPTED_DEMOS, type ScriptedDemoFile } from "@/lib/scripted-demos";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Demos",
   description:
-    "One assistant-ui feature per demo, with the page and route you write for it.",
+    "One assistant-ui feature per demo, with the page, the UI, and the route you write for it.",
 };
 
 const PREVIEWS: Partial<Record<string, ReactNode>> = {
   chat: <ChatPreview />,
 };
+
+/** The file the preview runs, so the tab and the preview cannot drift apart. */
+async function readSource(file: string) {
+  "use cache";
+  cacheLife("minutes");
+  const source = await readFile(
+    path.join(/* turbopackIgnore: true */ process.cwd(), file),
+    "utf8",
+  );
+  return source.trimEnd();
+}
+
+async function codeOf(file: ScriptedDemoFile) {
+  return "code" in file ? file.code : readSource(file.source);
+}
 
 export default async function DemosPage() {
   const demos = await Promise.all(
@@ -25,7 +43,7 @@ export default async function DemosPage() {
       files: await Promise.all(
         demo.files.map(async (file) => ({
           path: file.path,
-          html: await highlightElementSource(file.code),
+          html: await highlightElementSource(await codeOf(file)),
         })),
       ),
     })),

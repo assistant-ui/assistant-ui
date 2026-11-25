@@ -1,7 +1,10 @@
-export type ScriptedDemoFile = {
-  path: string;
-  code: string;
-};
+/**
+ * A file shown in a demo's tabs: written out in `code`, or read from `source`,
+ * a path in this app, when the preview runs that same file.
+ */
+export type ScriptedDemoFile =
+  | { path: string; code: string }
+  | { path: string; source: string };
 
 export type ScriptedDemo = {
   id: string;
@@ -15,7 +18,7 @@ const CHAT_PAGE = `"use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/thread";
 
 export default function Page() {
   const runtime = useChatRuntime();
@@ -48,7 +51,7 @@ const TOOLKIT_PAGE = `"use client";
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/thread";
 import { toolkit } from "./toolkit";
 
 export default function Page() {
@@ -139,7 +142,7 @@ const APPROVAL_PAGE = `"use client";
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/thread";
 import { toolkit } from "./toolkit";
 
 export default function Page() {
@@ -250,7 +253,7 @@ import {
   SimpleImageAttachmentAdapter,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/thread";
 
 const attachments = new SimpleImageAttachmentAdapter();
 
@@ -268,7 +271,7 @@ const STATE_PAGE = `"use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/thread";
 import { Header } from "@/components/header";
 
 export default function Page() {
@@ -311,18 +314,29 @@ export function Header() {
 
 /**
  * Each demo is one feature and the files you write for it, as the docs
- * write them for AI SDK. `app/page.tsx` is always there; the route appears
- * when the server changes, and a toolkit file when there is a tool.
+ * write them for AI SDK. `app/page.tsx` is always there; `components/thread.tsx`
+ * is the UI, built from primitives; the route appears when the server
+ * changes, and a toolkit file when there is a tool.
  */
 export const SCRIPTED_DEMOS: readonly ScriptedDemo[] = [
   {
     id: "chat",
     title: "Chat",
     description:
-      "A streaming chat: the runtime hook on the page, and a route that streams the model's reply.",
-    hooks: ["useChatRuntime", "<Thread />", "streamText"],
+      "A streaming chat: the runtime hook on the page, a Thread built from primitives, and a route that streams the model's reply.",
+    hooks: [
+      "useChatRuntime",
+      "ThreadPrimitive",
+      "MessagePrimitive",
+      "ComposerPrimitive",
+      "streamText",
+    ],
     files: [
       { path: "app/page.tsx", code: CHAT_PAGE },
+      {
+        path: "components/thread.tsx",
+        source: "components/pages/demos/ui/thread.tsx",
+      },
       { path: "app/api/chat/route.ts", code: CHAT_ROUTE },
     ],
   },

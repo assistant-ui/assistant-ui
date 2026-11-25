@@ -46,6 +46,7 @@ export function DemoTabs({
       {preview ? (
         <TabsContent
           value="preview"
+          keepMounted
           className="border-foreground/10 rounded-document bg-background flex-none overflow-hidden border"
           style={HEIGHT}
         >

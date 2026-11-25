@@ -6,7 +6,7 @@ import {
   type ChatModelAdapter,
   type ThreadMessage,
 } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { Thread } from "@/components/pages/demos/ui/thread";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
