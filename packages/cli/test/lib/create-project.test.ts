@@ -336,6 +336,58 @@ describe("downloadProject", () => {
     expect(fs.existsSync(destDir)).toBe(true);
   });
 
+  it("refuses to write through a destination that is a symbolic link", async () => {
+    const victim = path.join(testDir, "victim");
+    fs.mkdirSync(victim);
+    fs.writeFileSync(path.join(victim, "package.json"), "victim");
+    const destDir = path.join(testDir, "dest");
+    fs.symlinkSync(victim, destDir);
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        if (!options?.dir) throw new Error("Missing staging directory");
+        fs.writeFileSync(path.join(options.dir, "package.json"), "{}");
+        return {} as never;
+      },
+    );
+
+    await expect(downloadProject("templates/default", destDir)).rejects.toThrow(
+      "is not a directory",
+    );
+
+    expect(fs.readFileSync(path.join(victim, "package.json"), "utf8")).toBe(
+      "victim",
+    );
+  });
+
+  it("stops writing once the destination is swapped for another directory", async () => {
+    const victim = path.join(testDir, "victim");
+    fs.mkdirSync(victim);
+    fs.writeFileSync(path.join(victim, "a.txt"), "victim");
+    fs.writeFileSync(path.join(victim, "b.txt"), "victim");
+    const destDir = path.join(testDir, "dest");
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        if (!options?.dir) throw new Error("Missing staging directory");
+        fs.writeFileSync(path.join(options.dir, "a.txt"), "template");
+        fs.writeFileSync(path.join(options.dir, "b.txt"), "template");
+        return {} as never;
+      },
+    );
+    const rename = fs.promises.rename;
+    vi.spyOn(fs.promises, "rename").mockImplementationOnce(async (from, to) => {
+      await rename(from, to);
+      fs.renameSync(destDir, path.join(testDir, "moved"));
+      fs.symlinkSync(victim, destDir);
+    });
+
+    await expect(downloadProject("templates/default", destDir)).rejects.toThrow(
+      "was replaced while the project was being written",
+    );
+
+    expect(fs.readFileSync(path.join(victim, "a.txt"), "utf8")).toBe("victim");
+    expect(fs.readFileSync(path.join(victim, "b.txt"), "utf8")).toBe("victim");
+  });
+
   it("copies staged entries when cross-device rename is unavailable", async () => {
     const destDir = path.join(testDir, "dest");
     vi.mocked(downloadTemplate).mockImplementationOnce(

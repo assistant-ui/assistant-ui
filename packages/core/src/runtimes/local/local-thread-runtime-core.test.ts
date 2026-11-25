@@ -1919,6 +1919,70 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
     });
   });
 
+  it("stores a human result on the open call when a settled call earlier in the turn reused its id", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      async run(options) {
+        runs.push(options);
+        if (runs.length === 1)
+          return {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_0",
+                toolName: "lookup_weather",
+                args: { city: "Paris" },
+                argsText: '{"city":"Paris"}',
+                result: { forecast: "sunny" },
+              },
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        if (runs.length === 2)
+          return {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_0",
+                toolName: "send_email",
+                args: { to: "team@example.com" },
+                argsText: '{"to":"team@example.com"}',
+              },
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    await thread.append(userMessage("email the team the forecast"));
+    await flush();
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call_0",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+
+    const resultsByTool = (content: readonly { type: string }[]) =>
+      (content as ThreadMessage["content"]).flatMap((part) =>
+        part.type === "tool-call" ? [[part.toolName, part.result]] : [],
+      );
+    const expected = [
+      ["lookup_weather", { forecast: "sunny" }],
+      ["send_email", { sent: true }],
+    ];
+    expect(runs).toHaveLength(3);
+    expect(resultsByTool(runs[2]!.unstable_getMessage().content)).toEqual(
+      expected,
+    );
+    expect(resultsByTool(thread.messages.at(-1)!.content)).toEqual(expected);
+  });
+
   it("does not hold the run for unlisted tool calls", async () => {
     const { thread, runs } = createApprovalThread(
       toolCallResult("lookup_weather"),

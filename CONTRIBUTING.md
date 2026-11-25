@@ -65,7 +65,9 @@ gh api repos/assistant-ui/assistant-ui/actions/jobs/<job-id>/logs > /tmp/coverag
 node scripts/coverage-runtimes.mjs /tmp/coverage-*.log > /tmp/coverage-runtimes.json
 ```
 
-Inspect the result, then replace `scripts/coverage-runtimes.json` with it. The generator excludes cache replays, adds sequential Vitest/Node runner durations within each package, and takes the median across samples. These are scheduling weights, not predicted CI completion times: Turbo runs two tasks concurrently, and dependency builds, coverage reporting and the separate compiler lane add work outside those runner durations. Keep all suites and coverage thresholds when refreshing the profile; verify the resulting assignment and hosted job durations.
+After the command succeeds, inspect the result and replace `scripts/coverage-runtimes.json` with it. A partial refresh preserves the recorded weights of current workspaces with no fresh sample. The generator matches masked task names against workspace manifests and uses the Vitest root, when available, to distinguish packages. If a fresh task cannot be identified uniquely, the command fails. Use logs from the matching revision that identify the package or its directory.
+
+The generator excludes cache replays, adds sequential Vitest/Node runner durations within each package, and takes the median across samples. These are scheduling weights, not predicted CI completion times: Turbo runs two tasks concurrently, and dependency builds, coverage reporting and the separate compiler lane add work outside those runner durations. Keep all suites and coverage thresholds when refreshing the profile; verify the resulting assignment and hosted job durations.
 
 ### Opening an issue
 

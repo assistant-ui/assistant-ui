@@ -11,4 +11,13 @@
     "bindings": [{ "name": "CHECKOUT", "class_name": "CheckoutDO" }],
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CheckoutDO"] }],
+  // Requests to links that hold no setup yet, per client IP. Opening a link
+  // and creating its setup takes a few; the rest of a setup is not counted.
+  "ratelimits": [
+    {
+      "name": "NEW_LINKS",
+      "namespace_id": "4161",
+      "simple": { "limit": 30, "period": 60 },
+    },
+  ],
 }

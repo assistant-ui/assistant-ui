@@ -68,6 +68,33 @@ export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   }
 }
 
+/**
+ * A directory's device and inode. A project directory keeps them while its
+ * path could be pointed elsewhere (a symlink or another directory swapped
+ * in), so writes and cleanup check them before touching anything inside.
+ */
+export interface DirectoryIdentity {
+  dev: number;
+  ino: number;
+}
+
+/** Whether `dir` is still the real directory (not a symlink) `identity` was taken from. */
+export function isSameDirectory(
+  dir: string,
+  identity: DirectoryIdentity,
+): boolean {
+  try {
+    const stats = fs.lstatSync(dir);
+    return (
+      stats.isDirectory() &&
+      stats.dev === identity.dev &&
+      stats.ino === identity.ino
+    );
+  } catch {
+    return false;
+  }
+}
+
 const pendingDownloadCleanups = new Set<() => void>();
 
 export function cleanupPendingProjectDownloads(): void {
@@ -156,9 +183,25 @@ export async function downloadProject(
       async (download) => {
         await download;
         if (cleanupRequested) throw new Error("Download was interrupted.");
-        destinationCreated = !fs.existsSync(destDir);
-        await fs.promises.mkdir(destDir, { recursive: true });
+        const existing = await fs.promises
+          .lstat(destDir)
+          .catch((error: NodeJS.ErrnoException) => {
+            if (error.code === "ENOENT") return undefined;
+            throw error;
+          });
+        if (existing === undefined) {
+          await fs.promises.mkdir(destDir);
+          destinationCreated = true;
+        } else if (!existing.isDirectory()) {
+          throw new Error(`${destDir} is not a directory`);
+        }
+        const { dev, ino } = await fs.promises.lstat(destDir);
         for (const entry of await fs.promises.readdir(currentStagingDir)) {
+          if (!isSameDirectory(destDir, { dev, ino })) {
+            throw new Error(
+              `${destDir} was replaced while the project was being written`,
+            );
+          }
           const target = path.join(destDir, entry);
           const sourceEntry = path.join(currentStagingDir, entry);
           await fs.promises.rm(target, { recursive: true, force: true });

@@ -153,6 +153,11 @@ describe("GET /<link>/guide", () => {
           throw new Error("the guide needs no durable object");
         },
       },
+      NEW_LINKS: {
+        limit: () => {
+          throw new Error("the guide needs no durable object");
+        },
+      },
     });
 
   it("serves the guide for the CLI's protocol without touching the setup", async () => {

@@ -119,7 +119,7 @@ describe("cloud setup device login", () => {
     fixture.ask.mockResolvedValue({ inputId: "q1" });
     fixture.answer.mockResolvedValue(undefined);
     const bridge = await connectCloudLoginSetup(
-      "https://checkout.test/session-a",
+      "https://checkout.assistant-ui.com/session-a",
     );
     await bridge.publish(authorization(), issuer);
     expect(fixture.ask).toHaveBeenLastCalledWith(
@@ -161,7 +161,7 @@ describe("cloud setup device login", () => {
     "cancels when the checkout becomes %s",
     async (status) => {
       const bridge = await connectCloudLoginSetup(
-        "https://checkout.test/session-a",
+        "https://checkout.assistant-ui.com/session-a",
       );
       fixture.state!.status = status;
       update();
@@ -171,7 +171,7 @@ describe("cloud setup device login", () => {
   );
   it("cancels when the original session is replaced", async () => {
     const bridge = await connectCloudLoginSetup(
-      "https://checkout.test/session-a",
+      "https://checkout.assistant-ui.com/session-a",
     );
     fixture.state!.id = "session-b";
     update();
@@ -185,7 +185,7 @@ describe("cloud setup device login", () => {
         typeof fixture.state
       >["inputs"];
       await expect(
-        connectCloudLoginSetup("https://checkout.test/session-a"),
+        connectCloudLoginSetup("https://checkout.assistant-ui.com/session-a"),
       ).rejects.toThrow("Start the setup");
       expect(fixture.ask).not.toHaveBeenCalled();
       expect(fixture.listeners.size).toBe(0);
@@ -196,7 +196,7 @@ describe("cloud setup device login", () => {
     async (input) => {
       fixture.ask.mockResolvedValueOnce({ inputId: "q1" });
       const bridge = await connectCloudLoginSetup(
-        "https://checkout.test/session-a",
+        "https://checkout.assistant-ui.com/session-a",
       );
       await bridge.publish(authorization(), issuer);
       fixture.state!.inputs = [input] as unknown as NonNullable<
@@ -219,7 +219,7 @@ describe("cloud setup device login", () => {
     const count = fixture.dispose.mock.calls.length;
     try {
       const connection = connectCloudLoginSetup(
-        "https://checkout.test/session-a",
+        "https://checkout.assistant-ui.com/session-a",
       );
       deadline.abort(new Error("snapshot timeout"));
       await expect(connection).rejects.toThrow("snapshot timeout");
@@ -238,7 +238,7 @@ describe("cloud setup device login", () => {
         }),
     );
     const bridge = await connectCloudLoginSetup(
-      "https://checkout.test/session-a",
+      "https://checkout.assistant-ui.com/session-a",
     );
     const publishing = bridge.publish(authorization(), issuer);
     fixture.state!.inputs = [{ id: "q3", status: "dismissed" }];
@@ -258,7 +258,7 @@ describe("cloud setup device login", () => {
     );
     fixture.answer.mockResolvedValue(undefined);
     const bridge = await connectCloudLoginSetup(
-      "https://checkout.test/session-a",
+      "https://checkout.assistant-ui.com/session-a",
     );
     const deadline = new AbortController();
     const timeout = vi
@@ -299,7 +299,7 @@ describe("cloud setup device login", () => {
     );
     fixture.answer.mockResolvedValue(undefined);
     const bridge = await connectCloudLoginSetup(
-      "https://checkout.test/session-a",
+      "https://checkout.assistant-ui.com/session-a",
     );
     const deadline = new AbortController();
     const timeout = vi
@@ -328,7 +328,7 @@ describe("cloud setup device login", () => {
         }),
     );
     const bridge = await connectCloudLoginSetup(
-      "https://checkout.test/session-a",
+      "https://checkout.assistant-ui.com/session-a",
     );
     const publishing = bridge.publish(authorization(), issuer);
     fixture.state!.id = "session-b";
@@ -346,7 +346,7 @@ describe("cloud setup device login", () => {
     fixture.status = "stopped";
     const count = fixture.dispose.mock.calls.length;
     await expect(
-      connectCloudLoginSetup("https://checkout.test/session-a"),
+      connectCloudLoginSetup("https://checkout.assistant-ui.com/session-a"),
     ).rejects.toThrow("stopped");
     expect(fixture.dispose.mock.calls.length).toBe(count + 1);
     expect(fixture.listeners.size).toBe(0);
@@ -357,5 +357,15 @@ describe("cloud setup device login", () => {
     "https://checkout.test/session?token=x",
   ])("rejects unsafe setup targets %s", async (url) => {
     await expect(connectCloudLoginSetup(url)).rejects.toThrow("HTTPS");
+  });
+  it.each([
+    "https://checkout.look-alike.test/session",
+    "https://checkout.assistant-ui.com.evil.test/session",
+  ])("rejects a setup server that is not a real one: %s", async (url) => {
+    const connections = fixture.transport.mock.calls.length;
+    await expect(connectCloudLoginSetup(url)).rejects.toThrow(
+      "is not a setup server this CLI knows",
+    );
+    expect(fixture.transport.mock.calls.length).toBe(connections);
   });
 });

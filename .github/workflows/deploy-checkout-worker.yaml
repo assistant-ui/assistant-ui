@@ -247,15 +247,13 @@ jobs:
           install: false
           # No cache (`cache` defaults to false) - this job holds the Cloudflare deploy token
 
-      # Only the root and the worker's workspace install, so another app's
-      # dependencies cannot block a deploy. `{.}...` also installs the root's
-      # workspace dependencies, without which verifyDepsBeforeRun reinstalls the
-      # whole workspace before each later pnpm command. Scripts are skipped
-      # because the root prepare script builds react-devtools, which this
-      # install leaves out.
+      # Only the worker and what it builds from: the deploy commit can be an
+      # older released commit, and a dependency elsewhere in the workspace
+      # (such as a docs-only git dependency) must not block the worker.
+      # react-devtools is included because the root prepare script builds it.
       - name: Install dependencies
         if: steps.target.outputs.deploy == 'true'
-        run: pnpm install --frozen-lockfile --filter "{.}..." --filter "checkout-worker..." --ignore-scripts
+        run: pnpm install --frozen-lockfile --filter "{.}..." --filter "@assistant-ui/react-devtools..." --filter "checkout-worker..."
 
       - name: Build workspace dependencies
         if: steps.target.outputs.deploy == 'true'
