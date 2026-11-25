@@ -288,3 +288,14 @@ Files:
 - `components/dev/token-panel.tsx`: the "buttons & badges" slider.
 
 When folding back: nothing unless AI Ellie becomes the site's look; Copy CSS carries the rule.
+
+## Demos panel in the hero (2026-11-25)
+
+On wide screens (1280px and up) the hero's right side is a Demos panel instead of the dotted logo mark. Tabs along the top (Base, ChatGPT, Claude, Grok, Gemini, Perplexity) each open a live demo, scaled down to a miniature that can still be clicked and typed in. Under it, the demo's one-line description and an "Open the demo" link to its `/demos/<slug>` page. Only the open tab's demo is mounted. The arrow keys move between tabs and Enter or Space opens one, so tabbing past does not load each demo. Below 1280px the dotted mark is back as before; phones show neither.
+
+Files:
+
+- `components/pages/home/demo-panel.tsx` (new): the panel, built from the kit's line tabs, the docs `DEMOS` list, and `DocsRuntimeProvider`.
+- `components/pages/home/hero.tsx`: a two-column grid at `xl`, the panel in the second column, and the mark hidden at `xl`.
+
+When folding back: copy `demo-panel.tsx` and the hero changes to the same paths in `apps/docs`.

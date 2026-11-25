@@ -2,6 +2,7 @@
 
 import { Fragment, type CSSProperties } from "react";
 import { analytics } from "@/lib/analytics";
+import { DemoPanel } from "@/components/pages/home/demo-panel";
 import { Button } from "@/components/ui/button";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
@@ -57,7 +58,7 @@ function HeroHeadline({ lines }: { lines: readonly string[] }) {
 
 export function Hero() {
   return (
-    <section className="relative flex flex-col pb-4 md:pb-8">
+    <section className="relative grid items-center gap-12 pb-4 md:pb-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,36rem)]">
       <HeroMark />
       <div className="relative flex flex-col gap-4">
         <div className="flex flex-col gap-3 pb-1">
@@ -76,6 +77,13 @@ export function Hero() {
           style={{ animationDelay: "700ms" }}
         />
       </div>
+      {/* On wide screens the demos take the mark's place. */}
+      <div
+        className="hero-rise hidden xl:block"
+        style={{ animationDelay: "850ms" }}
+      >
+        <DemoPanel />
+      </div>
     </section>
   );
 }
@@ -85,7 +93,7 @@ function HeroMark() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute top-1/2 right-0 hidden -translate-y-1/2 md:block"
+      className="pointer-events-none absolute top-1/2 right-0 hidden -translate-y-1/2 md:block xl:hidden"
     >
       <div className="animate-in fade-in-0 bg-foreground/[0.05] relative h-[20rem] w-[20rem] overflow-hidden [mask-image:url(/favicon/icon.svg),radial-gradient(circle,#000_40%,transparent_44%)] [mask-composite:intersect] [mask-size:contain,5px_5px] [mask-position:center,0_0] [mask-repeat:no-repeat,repeat] duration-1000">
         <span aria-hidden className="hero-glint absolute inset-0 block" />
