@@ -261,6 +261,71 @@ describe("MessagePrimitive.GroupedParts", () => {
     },
   );
 
+  it.each(["thought", "nested-thought"] as const)(
+    "keeps the %s wrappers and tool UI state when reasoning lands ahead of the tool calls",
+    (grouped) => {
+      const tool = (toolCallId: string, argsText: string) => ({
+        type: "tool-call" as const,
+        toolCallId,
+        toolName: "task",
+        args: {},
+        argsText,
+      });
+      const view = renderIdentityGroups(
+        [tool("t3", "first"), tool("t4", "second")],
+        grouped,
+      );
+      const mounts = view.groupMounts();
+      const reasoning = { type: "reasoning" as const, text: "plan" };
+      view.setContent([
+        reasoning,
+        tool("t3", "first updated"),
+        tool("t4", "second updated"),
+      ]);
+      expect(view.groupMounts()).toEqual(mounts);
+      expect(view.values()).toEqual([
+        "plan:plan",
+        "first:first updated",
+        "second:second updated",
+      ]);
+      view.setContent([reasoning, tool("t4", "second done")]);
+      expect(view.groupMounts()).toEqual(mounts);
+      expect(view.values()).toEqual(["plan:plan", "second:second done"]);
+    },
+  );
+
+  it("keeps the earlier wrapper when two thought groups merge", () => {
+    const tool = (toolCallId: string, argsText: string) => ({
+      type: "tool-call" as const,
+      toolCallId,
+      toolName: "task",
+      args: {},
+      argsText,
+    });
+    const reasoning = { type: "reasoning" as const, text: "plan" };
+    const view = renderIdentityGroups(
+      [
+        reasoning,
+        tool("t1", "first"),
+        { type: "text", text: "separator" },
+        tool("t2", "second"),
+      ],
+      "thought",
+    );
+    const [earlier] = view.groupMounts();
+    view.setContent([
+      reasoning,
+      tool("t1", "first updated"),
+      tool("t2", "second updated"),
+    ]);
+    expect(view.groupMounts()).toEqual([earlier]);
+    expect(view.values()).toEqual([
+      "plan:plan",
+      "first:first updated",
+      "second updated:second updated",
+    ]);
+  });
+
   it.each([true, "nested"] as const)(
     "keys groups without identified members by sibling path with grouped=%s",
     (grouped) => {

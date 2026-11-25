@@ -126,6 +126,7 @@ export interface GroupNodeGroup {
   readonly nodeKey: string;
   /**
    * Identity key (`"id:<type>:<partId>"`) from the group's first part; undefined when absent or already claimed by an earlier sibling.
+   * When the first part has no identity, the group follows the first of its identified parts that sat in a group at the same path in the previous build, and keeps that group's identity key.
    */
   readonly idKey: string | undefined;
   /** Indices of parts in this subtree, in order. */
@@ -169,14 +170,50 @@ const claimIdKey = (
   return `id:${id}`;
 };
 
+const memberSlot = (groupPath: readonly string[], partId: string): string =>
+  JSON.stringify([groupPath, partId]);
+
+/**
+ * Each identified group member's group identity key (`""` for a structural
+ * key), by group path and member key, for the next {@link buildGroupTree}
+ * call's `previousIdKeys`.
+ */
+export const groupIdKeysByMember = (
+  tree: readonly GroupNode[],
+  partIds: readonly (string | undefined)[],
+): ReadonlyMap<string, string> => {
+  const keys = new Map<string, string>();
+  const visit = (
+    nodes: readonly GroupNode[],
+    parentPath: readonly string[],
+  ) => {
+    for (const node of nodes) {
+      if (node.type !== "group") continue;
+      const groupPath = [...parentPath, node.key];
+      const idKey = node.idKey?.slice("id:".length) ?? "";
+      for (const index of node.indices) {
+        const id = partIds[index];
+        if (id?.includes(":")) keys.set(memberSlot(groupPath, id), idKey);
+      }
+      visit(node.children, groupPath);
+    }
+  };
+  visit(tree, []);
+  return keys;
+};
+
 /**
  * Build the group tree from an array of normalized group paths.
  * `paths[i]` is the path for part `i`. The output tree contains one
  * `part` node per part and one `group` node per coalesced run.
+ * `previousIdKeys` (from {@link groupIdKeysByMember}) lets a group whose
+ * first part has no identity, such as reasoning inserted ahead of its tool
+ * calls, keep the key it had.
  */
 export const buildGroupTree = (
   paths: readonly (readonly string[])[],
   partIds?: readonly (string | undefined)[],
+  previousIdKeys?: ReadonlyMap<string, string>,
 ): readonly GroupNode[] => {
   const root: BuildFrame = {
     key: "",
@@ -188,6 +225,25 @@ export const buildGroupTree = (
   };
   const stack: BuildFrame[] = [root];
 
+  // Called after `closing` is popped, so `stack` holds its ancestors.
+  const claimPreviousIdKey = (
+    closing: BuildFrame,
+    parent: BuildFrame,
+  ): string | undefined => {
+    if (!previousIdKeys) return undefined;
+    const groupPath = [...stack.slice(1).map((f) => f.key), closing.key];
+    for (const index of closing.indices) {
+      const id = partIds?.[index];
+      const previous =
+        id === undefined
+          ? undefined
+          : previousIdKeys.get(memberSlot(groupPath, id));
+      if (previous !== undefined)
+        return previous ? claimIdKey(parent, previous) : undefined;
+    }
+    return undefined;
+  };
+
   const closeTop = (): void => {
     const closing = stack.pop()!;
     const parent = stack[stack.length - 1]!;
@@ -196,7 +252,9 @@ export const buildGroupTree = (
       type: "group",
       key: closing.key,
       nodeKey: closing.nodeKey,
-      idKey: claimIdKey(parent, id?.includes(":") ? id : undefined),
+      idKey: id?.includes(":")
+        ? claimIdKey(parent, id)
+        : claimPreviousIdKey(closing, parent),
       indices: closing.indices,
       children: closing.children,
     });
