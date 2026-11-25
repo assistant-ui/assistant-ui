@@ -90,13 +90,15 @@ const DESIGN_DIR = join(
 /** The registry items a design component's page installs; none when the page gives its source to copy. */
 const designRegistryItems = (slug: string): string[] => {
   const file = join(DESIGN_DIR, `${slug}.mdx`);
-  if (!existsSync(file)) return [];
-  const names = /<InstallCommand shadcn=\{\[([^\]]*)\]\}/.exec(
-    readFileSync(file, "utf8"),
-  )?.[1];
-  return [...(names ?? "").matchAll(/"([^"]+)"/g)].map(
+  const content = readFileSync(file, "utf8");
+  const names = /<InstallCommand shadcn=\{\[([^\]]*)\]\}/.exec(content)?.[1];
+  const items = [...(names ?? "").matchAll(/"([^"]+)"/g)].map(
     ([, name]) => `@assistant-ui/${name}`,
   );
+  if (content.includes("<InstallCommand") && items.length === 0) {
+    throw new Error(`No registry items found in design page: ${file}`);
+  }
+  return items;
 };
 
 const ui: LibraryItem[] = DESIGN_COMPONENTS.map(
@@ -248,7 +250,6 @@ const REPOSITORY_EXAMPLES: readonly (readonly [
   name: string,
   description: string,
 ])[] = [
-  ["waterfall", "A trace waterfall built on the store and tap packages."],
   ["with-a2a", "A2A (Agent-to-Agent) protocol integration."],
   [
     "with-agent-document-editor",
@@ -262,7 +263,6 @@ const REPOSITORY_EXAMPLES: readonly (readonly [
     "with-browser-extension",
     "A Chrome extension with the chat in a browser side panel.",
   ],
-  ["with-flue", "A chat app on one durable Flue conversation."],
   [
     "with-generative-ui",
     "Interfaces the model composes from a component vocabulary.",
@@ -288,15 +288,6 @@ const REPOSITORY_EXAMPLES: readonly (readonly [
     "A Pydantic AI agent over AG-UI whose threads survive a closed browser.",
   ],
   ["with-react-ink-web", "The React Ink terminal chat running in the browser."],
-  ["with-solid", "A Solid app on the Solid bindings."],
-  ["with-solid-start", "A SolidStart app on the Solid bindings."],
-  ["with-store", "A Next.js app demonstrating the store package."],
-  ["with-svelte", "A Svelte app on the Svelte bindings."],
-  [
-    "with-sveltekit",
-    "A SvelteKit app with the Svelte builders and a streaming server route.",
-  ],
-  ["with-tap-runtime", "A runtime written natively on tap and the store."],
   [
     "with-virtualized-thread",
     "A 500-message thread rendered a row at a time with TanStack Virtual.",
@@ -465,57 +456,54 @@ const readDocsPage = (path: string) => {
   const file = [`${path}.mdx`, join(path, "index.mdx")]
     .map((candidate) => join(DOCS_DIR, candidate))
     .find((candidate) => existsSync(candidate));
-  if (!file) return undefined;
+  if (!file) throw new Error(`Docs page not found: ${path}`);
   const { title, description } = matter(readFileSync(file, "utf8")).data;
-  return typeof title === "string"
-    ? { title, description: typeof description === "string" ? description : "" }
-    : undefined;
+  if (typeof title !== "string") {
+    throw new Error(`Docs page is missing a title: ${file}`);
+  }
+  return {
+    title,
+    description: typeof description === "string" ? description : "",
+  };
 };
 
-/** A docs page as a library item; a page that no longer exists yields nothing. */
 const fromDocs = (
   category: LibraryCategoryId,
   entries: readonly DocsEntry[],
 ): LibraryItem[] =>
-  entries.flatMap((entry) => {
+  entries.map((entry) => {
     const page = readDocsPage(entry.path);
-    if (!page) return [];
     const path = `/docs/${entry.path}`;
-    return [
-      {
-        id: `${category}/${entry.path.split("/").slice(1).join("-")}`,
-        category,
-        name: entry.name ?? page.title,
-        description: page.description ? lead(page.description) : "",
-        href: docsUrl(path),
-        external: true,
-        ...(entry.packages && {
-          install: { kind: "npm" as const, names: entry.packages },
-        }),
-        ...(entry.mark && { mark: entry.mark }),
-        prompt: pageSetupPrompt(path),
-      },
-    ];
-  });
-
-const primitives: LibraryItem[] = PRIMITIVE_PAGES.flatMap((slug) => {
-  const page = readDocsPage(`primitives/${slug}`);
-  if (!page) return [];
-  const path = `/docs/primitives/${slug}`;
-  return [
-    {
-      id: `primitives/${slug}`,
-      category: "components" as const,
-      section: PRIMITIVES,
-      name: page.title,
+    return {
+      id: `${category}/${entry.path.split("/").slice(1).join("-")}`,
+      category,
+      name: entry.name ?? page.title,
       description: page.description ? lead(page.description) : "",
       href: docsUrl(path),
       external: true,
-      install: { kind: "npm" as const, names: ["@assistant-ui/react"] },
+      ...(entry.packages && {
+        install: { kind: "npm" as const, names: entry.packages },
+      }),
+      ...(entry.mark && { mark: entry.mark }),
       prompt: pageSetupPrompt(path),
-      preview: { kind: "sample" as const, slug },
-    },
-  ];
+    };
+  });
+
+const primitives: LibraryItem[] = PRIMITIVE_PAGES.map((slug) => {
+  const page = readDocsPage(`primitives/${slug}`);
+  const path = `/docs/primitives/${slug}`;
+  return {
+    id: `primitives/${slug}`,
+    category: "components" as const,
+    section: PRIMITIVES,
+    name: page.title,
+    description: page.description ? lead(page.description) : "",
+    href: docsUrl(path),
+    external: true,
+    install: { kind: "npm" as const, names: ["@assistant-ui/react"] },
+    prompt: pageSetupPrompt(path),
+    preview: { kind: "sample" as const, slug },
+  };
 });
 
 const PI_PACKAGE = "@assistant-ui/react-pi";
@@ -538,25 +526,19 @@ const DEVTOOLS_PATH = "/docs/devtools";
 
 const devtools: LibraryItem[] = [
   readDocsPage("(getting-started)/devtools"),
-].flatMap((page) =>
-  page
-    ? [
-        {
-          id: "utilities/devtools",
-          category: "utilities" as const,
-          name: page.title,
-          description: page.description ? lead(page.description) : "",
-          href: docsUrl(DEVTOOLS_PATH),
-          external: true,
-          install: {
-            kind: "npm" as const,
-            names: ["@assistant-ui/react-devtools"],
-          },
-          prompt: agentSetupPrompt(["guides/devtools"]),
-        },
-      ]
-    : [],
-);
+].map((page) => ({
+  id: "utilities/devtools",
+  category: "utilities" as const,
+  name: page.title,
+  description: page.description ? lead(page.description) : "",
+  href: docsUrl(DEVTOOLS_PATH),
+  external: true,
+  install: {
+    kind: "npm" as const,
+    names: ["@assistant-ui/react-devtools"],
+  },
+  prompt: agentSetupPrompt(["guides/devtools"]),
+}));
 
 const VARIANTS_PACKAGE = "@assistant-ui/variants";
 

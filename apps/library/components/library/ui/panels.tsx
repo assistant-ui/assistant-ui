@@ -161,7 +161,7 @@ function PanelHeader({
     <header
       data-slot="panel-header"
       className={cn(
-        "bg-background text-body font-regular text-foreground flex h-10 shrink-0 items-center gap-2 px-2 font-sans",
+        "bg-background text-foreground flex h-10 shrink-0 items-center gap-2 px-2 font-sans text-sm/5 font-normal",
         border && "border-0",
         glass &&
           "bg-popover supports-[backdrop-filter]:bg-glass [@media(prefers-reduced-transparency:reduce)]:bg-popover absolute inset-x-0 top-0 z-[var(--z-sticky,20)] supports-[backdrop-filter]:backdrop-blur-(--glass-blur) [@media(prefers-reduced-transparency:reduce)]:backdrop-blur-none",

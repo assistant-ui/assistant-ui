@@ -1,8 +1,6 @@
 /* Tokens the library's menu and panels read. Every value derives from the site
    palette, so both follow the theme and the tint. */
 @theme inline {
-  --text-body: 0.875rem;
-  --text-body--line-height: 1.25rem;
   --font-weight-regular: 400;
   --font-weight-strong: 430;
   --color-glass: var(--glass);

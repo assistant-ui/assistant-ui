@@ -20,7 +20,7 @@ export const LIBRARY_CATEGORIES = [
   {
     id: "starters",
     label: "Starters",
-    description: "Templates and example apps the CLI scaffolds.",
+    description: "Templates and example apps to start from.",
   },
   {
     id: "runtimes",
@@ -181,10 +181,15 @@ export const cartCommands = (items: readonly LibraryItem[]): string[] => {
       for (const name of install.names)
         (install.kind === "shadcn" ? shadcn : npm).add(name);
   }
+  const scaffolds = [...commands].filter((command) =>
+    /\b(?:create|cloud setup) my-app\b/.test(command),
+  );
   return [
+    ...scaffolds,
+    ...(scaffolds.length > 0 ? ["cd my-app"] : []),
     ...(shadcn.size > 0 ? [`${SHADCN_ADD} ${[...shadcn].join(" ")}`] : []),
     ...(npm.size > 0 ? [`${NPM_INSTALL} ${[...npm].join(" ")}`] : []),
-    ...commands,
+    ...[...commands].filter((command) => !scaffolds.includes(command)),
   ];
 };
 

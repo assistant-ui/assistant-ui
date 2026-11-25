@@ -5,20 +5,6 @@ import {
   type ThemeBaseColor,
 } from "./theme-colors";
 
-/*
- * A theme is a shadcn preset: the look a project is set up with. Nothing here
- * is wired into assistant-ui yet. Still to do:
- * - Add the assistant-ui themes to the registry, and give `assistant-ui init`,
- *   `create`, and `setup` a theme option that passes the preset to shadcn, so
- *   a setup run by an agent stops taking shadcn's default.
- * - Install `@shadcn/registry` for its `encodePreset`, so a theme made here
- *   gets a short preset code. Until then it is applied by its address.
- * - Install the Tabler, Phosphor, and Remix icon packages, so a preview can
- *   draw the icon library a theme names.
- * - Ship each product theme's CSS overrides as a registry theme item, so they
- *   install with a command instead of being pasted into a stylesheet.
- */
-
 export const NEW_THEME_PATH = "/themes/new";
 
 export const THEME_SECTIONS = ["Products", "assistant-ui"] as const;
@@ -192,8 +178,10 @@ export const themePresetUrl = (settings: ThemeSettings): string => {
     menuColor: settings.menuColor,
     radius: settings.radius,
   });
-  if (settings.chartColor !== "base")
-    params.set("chartColor", settings.chartColor);
+  params.set(
+    "chartColor",
+    settings.chartColor === "base" ? settings.baseColor : settings.chartColor,
+  );
   if (settings.fontHeading !== "inherit")
     params.set("fontHeading", settings.fontHeading);
   return `https://ui.shadcn.com/init?${params}`;

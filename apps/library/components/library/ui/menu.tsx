@@ -12,8 +12,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
-/* Text is the `body` style (14px on a 20px line). */
-const rowText = "text-body font-regular";
+const rowText = "text-sm/5 font-normal";
 
 /*
  * Shared row: 28px tall (36px on touch), 8px padding, a 6px radius nested in
