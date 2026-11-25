@@ -322,14 +322,15 @@ export const PRESETS: readonly { id: string; label: string; tokens: Tokens }[] =
         // Cooler: neutrals on zinc's hue.
         tint: 286,
         fonts: { display: "Geist", sans: "Geist", mono: "Geist Mono" },
-        trackingHero: -0.025,
-        trackingSection: -0.015,
+        // Tighter: hero and section tracking a step closer than the docs.
+        trackingHero: -0.035,
+        trackingSection: -0.022,
         // Lighter: every type style a step down in weight.
         type: {
-          hero: { ...DEFAULT_TOKENS.type.hero, weight: 400, tracking: -0.025 },
+          hero: { ...DEFAULT_TOKENS.type.hero, weight: 400, tracking: -0.035 },
           page: { ...DEFAULT_TOKENS.type.page, weight: 480 },
           section: { ...DEFAULT_TOKENS.type.section, weight: 480 },
-          deck: { ...DEFAULT_TOKENS.type.deck, weight: 380 },
+          deck: { ...DEFAULT_TOKENS.type.deck, weight: 380, tracking: -0.005 },
           package: { ...DEFAULT_TOKENS.type.package, weight: 400 },
         },
         codeTheme: "nord",

@@ -253,3 +253,13 @@ Files:
 - `AGENTS.md` (new).
 
 When folding back: nothing; it is for this app.
+
+## AI Ellie: tighter tracking (2026-11-25)
+
+The AI Ellie preset sets its letters a little closer: the hero headline at -0.035em (was -0.025em), section and page titles at -0.022em (was -0.015em), and the line under the headline at -0.005em (was the docs' 0).
+
+Files:
+
+- `lib/tokens.ts`: the AI Ellie preset's tracking.
+
+When folding back: nothing unless AI Ellie becomes the site's look, in which case Copy CSS carries these values.
