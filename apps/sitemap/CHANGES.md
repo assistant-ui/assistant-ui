@@ -7,7 +7,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 ## To do
 
 - Build the scripted previews for the other four demos on `/demos` (Approval, Reasoning, Attachments, State and actions) the way Chat's and Tool UI's are built; until then their Preview tabs say they are not built.
-- A second batch of demos: generative UI, suggestions, editing and branching, mentions and slash commands, reading aloud, the thread list.
+- Build the thirteen planned Elements demos on `/demos` (Messages, Tool use, Knowledge, Structured output, Agents, Observability, Composer, Voice, Thread, AUI connected, Renderers, Primitives, Generative), each one scripted chat with every element in its group, and give the Reasoning demo its six elements (Loader, Thinking indicator, Streaming text, Typing indicator, Reasoning effort, Guardrail notice). The earlier second batch (generative UI, suggestions, editing and branching, mentions and slash commands, reading aloud, the thread list) is covered by these groups. Before folding back, the planned entries are built or removed, since design.md allows no placeholder rows.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -406,3 +406,14 @@ Files:
 - `app/(home)/demos/page.tsx`: passes Tool UI its preview.
 
 When folding back: copy these files to the same paths in `apps/docs`.
+
+## Planned Elements demos (2026-11-25)
+
+`/demos` now lists the whole plan: the six feature demos, then thirteen planned demos, one for each group of the docs' Elements catalog (Messages, Tool use, Knowledge, Structured output, Agents, Observability, Composer, Voice, Thread, AUI connected, Renderers, Primitives, Generative). Each planned demo is one scripted chat that will use every element in its group: it shows the group's description from the catalog, "Not built yet" with its element count, and the elements as links to their `/elements/<slug>` pages (which open on the docs site). The Reasoning demo lists its six elements under its tabs. The element names and slugs come from `ELEMENT_SECTIONS` in the docs' `components/pages/elements/registry.tsx` and, for Generative, the gallery templates: 151 elements in all.
+
+Files:
+
+- `lib/scripted-demos.ts`: `DemoElement`, `elements` on a demo, a demo with no files counts as planned, the thirteen planned demos, and Reasoning's elements.
+- `app/(home)/demos/page.tsx`: the element links, planned demos without tabs, and the deck mentions Elements groups.
+
+When folding back: copy both files to the same paths in `apps/docs`, once the planned demos are built.
