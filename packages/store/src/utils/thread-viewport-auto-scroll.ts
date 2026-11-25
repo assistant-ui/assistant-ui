@@ -150,6 +150,13 @@ export const createThreadViewportAutoScroll = (input: {
     return true;
   };
 
+  const noteNativeBottom = (el: HTMLElement) => {
+    atNativeBottom = isViewportAtBottom(el);
+    const { autoScroll, holdFollow } = input.getOptions();
+    if (atNativeBottom && autoScroll && !holdFollow && !followPaused)
+      prependAnchor = null;
+  };
+
   const setAtBottom = (value: boolean) => {
     if (value === isAtBottom) return;
     isAtBottom = value;
@@ -221,9 +228,8 @@ export const createThreadViewportAutoScroll = (input: {
     if (prependAnchor && Math.abs(element.scrollTop - heldScrollTop) >= 1)
       prependAnchor = null;
 
+    noteNativeBottom(element);
     const { autoScroll, holdFollow } = input.getOptions();
-    atNativeBottom = isViewportAtBottom(element);
-    if (autoScroll && atNativeBottom) prependAnchor = null;
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     const clientHeight = element.clientHeight;
     const clampTarget = Math.max(0, lastScrollHeight - clientHeight);
@@ -447,6 +453,7 @@ export const createThreadViewportAutoScroll = (input: {
       firstMessage = null;
       prependAnchor = null;
       heldScrollTop = el.scrollTop;
+      atNativeBottom = isViewportAtBottom(el);
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
       el.addEventListener("scroll", onScroll);
@@ -524,6 +531,7 @@ export const createThreadViewportAutoScroll = (input: {
       }
       lastScrollTop = element.scrollTop;
       lastScrollHeight = element.scrollHeight;
+      noteNativeBottom(element);
     },
     setContentInset: (inset) => {
       if (directContentInset === inset) return;

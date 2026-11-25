@@ -2119,6 +2119,20 @@ describe("createThreadViewportAutoScroll", () => {
       view.controller.dispose();
     });
 
+    it("holds the rows at the bottom while an opened disclosure pauses follow", () => {
+      const view = pagedViewport(220, true);
+      const toggle = document.createElement("button");
+      toggle.setAttribute("aria-expanded", "false");
+      view.messages[7]!.append(toggle);
+      toggle.click();
+      view.prepend();
+      expect(view.element.scrollTop).toBe(540);
+
+      view.settle(3);
+      expect(view.element.scrollTop).toBe(580);
+      view.controller.dispose();
+    });
+
     it("keeps a following reader at the bottom when the viewport shrinks in the same update", () => {
       const view = pagedViewport(30, true, 290);
       view.resize(270);
