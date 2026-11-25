@@ -11,7 +11,8 @@ import {
 } from "@/components/shared/lazy-search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
-import { NAV_ITEMS, CLOUD_URL, megaGroups } from "@/lib/constants";
+import { CLOUD_URL } from "@/lib/constants";
+import { SITE_NAV_ITEMS, siteMegaGroups } from "@/lib/site-nav";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
@@ -95,7 +96,7 @@ export function Header() {
           <HeaderBrandLink className="justify-self-start" />
 
           <NavItems
-            items={NAV_ITEMS}
+            items={SITE_NAV_ITEMS}
             className="hidden items-center lg:flex"
             contentClassName="mx-auto max-w-7xl"
           />
@@ -160,7 +161,7 @@ export function Header() {
           )}
         >
           <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-            {NAV_ITEMS.map((item) => {
+            {SITE_NAV_ITEMS.map((item) => {
               if (item.type === "link") {
                 return item.href.startsWith("http") ? (
                   <a
@@ -190,7 +191,7 @@ export function Header() {
                   <span className="text-foreground py-3 text-lg">
                     {item.label}
                   </span>
-                  {megaGroups(item).map((group) => (
+                  {siteMegaGroups(item).map((group) => (
                     <div key={group.label} className="flex flex-col">
                       <span className="text-muted-foreground py-3 text-xs font-medium">
                         {group.label}

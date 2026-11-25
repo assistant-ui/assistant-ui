@@ -1,0 +1,266 @@
+"use client";
+
+import { useId, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuPopup,
+  NavigationMenuPortal,
+  NavigationMenuPositioner,
+  NavigationMenuTrigger,
+  NavigationMenuViewport,
+} from "@/components/ui/navigation-menu";
+import { cn } from "@/lib/utils";
+import { LibraryGlyph } from "@/components/library/library-glyph";
+import { NavGlyph } from "@/components/shared/nav-glyph";
+import type { MenuItem, SiteNavItem } from "@/lib/site-nav";
+
+/** A link's glyph, from the header's set or the library's, in the same frame. */
+function MenuGlyph({
+  link,
+  size = "sm",
+}: {
+  link: MenuItem;
+  size?: "sm" | "lg";
+}) {
+  if (link.glyph) return <NavGlyph kind={link.glyph} size={size} />;
+  if (!link.libraryGlyph) return null;
+  if (size === "lg") {
+    return (
+      <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 rounded-document [container-type:size] flex min-h-24 w-full flex-1 items-center justify-center border transition-colors">
+        <span className="flex w-[min(56cqw,90cqh)] [&>svg]:h-auto [&>svg]:w-full [&>svg]:[stroke-width:0.5]">
+          <LibraryGlyph category={link.libraryGlyph} />
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className="border-foreground/10 bg-background rounded-document grid size-11 shrink-0 place-items-center border">
+      <LibraryGlyph category={link.libraryGlyph} />
+    </span>
+  );
+}
+
+function DropdownLink({ link }: { link: MenuItem }) {
+  const className =
+    link.glyph || link.libraryGlyph
+      ? "group/navlink hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
+      : "group/navlink hover:bg-muted flex flex-col rounded-md px-2 py-1.5 transition-colors";
+
+  const text = (
+    <span className="flex min-w-0 flex-col">
+      <span className="flex items-center gap-1.5 text-sm">
+        {link.label}
+        {link.external ? <ArrowUpRight className="size-3 opacity-40" /> : null}
+      </span>
+      <span className="text-muted-foreground text-xs">{link.description}</span>
+    </span>
+  );
+
+  const body = (
+    <>
+      <MenuGlyph link={link} />
+      {text}
+    </>
+  );
+
+  return (
+    <NavigationMenuLink
+      closeOnClick
+      render={
+        link.external ? (
+          <a
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-nav-glyph-motion
+            className={className}
+          >
+            {body}
+          </a>
+        ) : (
+          <Link href={link.href} data-nav-glyph-motion className={className}>
+            {body}
+          </Link>
+        )
+      }
+    />
+  );
+}
+
+function FeaturedCard({
+  featured,
+}: {
+  featured: { label: string; item: MenuItem; extraItems?: MenuItem[] };
+}) {
+  const link = featured.item;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-muted-foreground px-2 pb-2 text-xs font-medium">
+        {featured.label}
+      </span>
+      <NavigationMenuLink
+        closeOnClick
+        render={
+          <Link
+            href={link.href}
+            data-nav-glyph-motion
+            className="group/navlink flex flex-1 flex-col gap-2"
+          >
+            <MenuGlyph link={link} size="lg" />
+            <span className="group-hover/navlink:bg-muted flex flex-col rounded-md px-2 py-2 transition-colors">
+              <span className="text-sm">{link.label}</span>
+              <span className="text-muted-foreground text-xs">
+                {link.description}
+              </span>
+            </span>
+          </Link>
+        }
+      />
+      {featured.extraItems?.map((item) => (
+        <DropdownLink key={item.href} link={item} />
+      ))}
+    </div>
+  );
+}
+
+const navItemClassName =
+  "text-muted-foreground hover:text-foreground flex items-center px-3 py-1.5 text-sm transition-colors";
+
+export function NavItemsRoot({ children }: { children: ReactNode }) {
+  const [value, setValue] = useState<string | null>(null);
+  const rootRef = useRef<HTMLElement>(null);
+  const open = value !== null;
+
+  return (
+    <NavigationMenu
+      ref={rootRef}
+      aria-label="Site navigation"
+      value={value}
+      onValueChange={(next) => setValue(next as string | null)}
+      delay={100}
+      data-menu-open={open}
+      className="group relative w-full"
+    >
+      <div
+        aria-hidden
+        className={cn(
+          "bg-background/70 pointer-events-none fixed inset-0 transition-opacity duration-200",
+          open ? "opacity-100" : "opacity-0",
+        )}
+      />
+      {children}
+      <NavigationMenuPortal>
+        <NavigationMenuPositioner
+          anchor={rootRef}
+          side="bottom"
+          align="start"
+          sideOffset={0}
+          collisionAvoidance={{ side: "none", align: "none" }}
+          className="z-[60] hidden w-[var(--anchor-width)] md:block"
+        >
+          <NavigationMenuPopup className="bg-background h-[var(--popup-height)] w-full overflow-hidden transition-[height,opacity] duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none">
+            <NavigationMenuViewport />
+          </NavigationMenuPopup>
+        </NavigationMenuPositioner>
+      </NavigationMenuPortal>
+    </NavigationMenu>
+  );
+}
+
+export function NavItems({
+  items,
+  className,
+  contentClassName,
+}: {
+  items: SiteNavItem[];
+  className?: string;
+  contentClassName?: string;
+}) {
+  // Headers render this list twice for responsive breakpoints. Both stay
+  // mounted, so item values must not collide or every copy opens at once.
+  const instanceId = useId();
+
+  return (
+    <NavigationMenuList className={cn("flex shrink-0 items-center", className)}>
+      {items.map((item) => {
+        if (item.type === "link") {
+          return (
+            <NavigationMenuItem
+              key={item.href}
+              value={`${instanceId}:${item.href}`}
+            >
+              <NavigationMenuLink
+                closeOnClick
+                render={
+                  <Link href={item.href} className={navItemClassName}>
+                    {item.label}
+                  </Link>
+                }
+              />
+            </NavigationMenuItem>
+          );
+        }
+
+        return (
+          <NavigationMenuItem
+            key={item.label}
+            value={`${instanceId}:${item.label}`}
+          >
+            <NavigationMenuTrigger
+              className={cn(
+                navItemClassName,
+                "data-[popup-open]:text-foreground group/trigger cursor-pointer gap-1",
+              )}
+            >
+              {item.label}
+              <ChevronDown className="size-3 opacity-60 transition-[rotate] duration-200 group-data-[popup-open]/trigger:rotate-180 motion-reduce:transition-none" />
+            </NavigationMenuTrigger>
+            <NavigationMenuContent className="w-full">
+              <div className={cn("w-full px-4 pt-7 pb-6", contentClassName)}>
+                <div
+                  className={cn(
+                    "grid",
+                    item.featured
+                      ? cn(
+                          item.groups.length <= 2 &&
+                            "grid-cols-[minmax(0,16rem)_1fr_1fr]",
+                          item.groups.length >= 3 &&
+                            "grid-cols-[minmax(0,16rem)_1fr_1fr_1fr]",
+                        )
+                      : cn(
+                          item.groups.length <= 2 && "grid-cols-2",
+                          item.groups.length === 3 && "grid-cols-3",
+                          item.groups.length >= 4 && "grid-cols-4",
+                        ),
+                    "gap-x-6 lg:gap-x-8",
+                  )}
+                >
+                  {item.featured ? (
+                    <FeaturedCard featured={item.featured} />
+                  ) : null}
+                  {item.groups.map((group) => (
+                    <div key={group.label} className="flex flex-col gap-1">
+                      <span className="text-muted-foreground px-2 pb-2 text-xs font-medium">
+                        {group.label}
+                      </span>
+                      {group.items.map((link) => (
+                        <DropdownLink key={link.href} link={link} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </NavigationMenuContent>
+          </NavigationMenuItem>
+        );
+      })}
+    </NavigationMenuList>
+  );
+}
