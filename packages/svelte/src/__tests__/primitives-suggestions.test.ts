@@ -27,7 +27,12 @@ const mountSuggestions = (
           AuiConfig({
             threads: RuntimeAdapter(echo.runtime),
             suggestions: Suggestions([
-              { title: "One", label: "first", prompt: "Prompt one" },
+              {
+                title: "One",
+                label: "first",
+                prompt: "Prompt one",
+                custom: { topic: "one" },
+              },
               { title: "Two", label: "second", prompt: "Prompt two" },
               { title: "Empty", label: "third", prompt: "" },
             ]),
@@ -133,6 +138,9 @@ describe("suggestionTrigger", () => {
         { type: "text", text: "Prompt one" },
       ]),
     );
+    expect(echo.onNew.mock.calls[0]![0].metadata.custom).toEqual({
+      topic: "one",
+    });
     expect(aui.composer.getState().text).toBe("");
 
     flushSync(() => void unmount(app));

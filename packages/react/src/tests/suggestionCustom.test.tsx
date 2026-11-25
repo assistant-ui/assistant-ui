@@ -95,29 +95,7 @@ describe("suggestion custom metadata", () => {
     expect(second!.metadata.custom).toEqual({});
   });
 
-  it("sends an inline suggestion's custom prop as metadata.custom", async () => {
-    const onNew = vi.fn();
-    render(
-      <Runtime onNew={onNew}>
-        <ThreadPrimitive.Suggestion
-          prompt="Grade lab 3."
-          custom={{ labId: "lab-3" }}
-          send
-        >
-          Grade
-        </ThreadPrimitive.Suggestion>
-      </Runtime>,
-    );
-
-    fireEvent.click(screen.getByText("Grade"));
-
-    await vi.waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
-    expect((onNew.mock.calls[0]![0] as AppendMessage).metadata.custom).toEqual({
-      labId: "lab-3",
-    });
-  });
-
-  it("sends custom as the message's whole metadata.custom, so a quote key is a quote and the composer's quote stays put", async () => {
+  it("sends custom as metadata.custom, so a quote key is a quote and the composer's quote stays put", async () => {
     const onNew = vi.fn();
     let aui!: ReturnType<typeof useAui>;
     const Capture: FC = () => {

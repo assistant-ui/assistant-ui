@@ -114,7 +114,7 @@ Each chip uses `ThreadPrimitive.Suggestion` with `send`, so clicking one sends t
 
 | Selector | Type | Description |
 |----------|------|-------------|
-| `s.thread.suggestions` | `readonly ThreadSuggestion[]` | `{ prompt: string; title?: string; label?: string }[]`, from the runtime's `suggestions` option. |
+| `s.thread.suggestions` | `readonly ThreadSuggestion[]` | `{ prompt: string; title?: string; label?: string; custom?: Record<string, unknown> }[]`, from the runtime's `suggestions` option. |
 | `s.thread.isEmpty` | `boolean` | The row hides while the thread has no messages yet. |
 | `s.thread.isRunning` | `boolean` | The row hides while a run is in progress. |
 
@@ -122,7 +122,7 @@ Each chip uses `ThreadPrimitive.Suggestion` with `send`, so clicking one sends t
 
 | Part | Notes |
 |------|-------|
-| `ThreadPrimitive.Suggestion` | One chip. Takes `prompt` and `send`. |
+| `ThreadPrimitive.Suggestion` | One chip. Takes `prompt`, `send` and `custom`, which becomes the sent message's `metadata.custom`. |
 
 </RuntimeMode>
 
@@ -154,6 +154,7 @@ function SuggestionRow() {
         <ThreadPrimitive.Suggestion
           key={suggestion.prompt}
           prompt={suggestion.prompt}
+          custom={suggestion.custom}
           send
           className={cn(
             paper,

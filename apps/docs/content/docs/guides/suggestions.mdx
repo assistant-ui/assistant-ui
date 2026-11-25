@@ -99,7 +99,7 @@ Suggestions([
 ]);
 ```
 
-It is the whole `metadata.custom` of the sent message, so its keys mean what they mean anywhere else there: a `quote` key makes the message a quote. A suggestion that only fills the composer leaves it out. Runtime suggestions and the inline `ThreadPrimitive.Suggestion` take the same `custom`.
+The trigger appends the message with `metadata: { custom }`, so its keys mean what they mean anywhere else in `metadata.custom`. A `quote` key holding `{ text, messageId }` makes the message a quote. A suggestion that only fills the composer leaves it out. Runtime suggestions and the inline `ThreadPrimitive.Suggestion` take the same `custom`.
 
 ## Displaying Suggestions
 
