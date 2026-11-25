@@ -217,9 +217,7 @@ export function TokenPanel() {
                   unit="px"
                   value={tokens.radius[key]}
                   display={
-                    key === "capsule" && tokens.radius[key] >= RADIUS_FULL
-                      ? "full"
-                      : undefined
+                    tokens.radius[key] >= RADIUS_FULL ? "full" : undefined
                   }
                   base={DEFAULT_TOKENS.radius[key]}
                   onChange={(value) =>
@@ -278,6 +276,35 @@ export function TokenPanel() {
                 base={DEFAULT_TOKENS.glint}
                 onChange={(value) => set((t) => ({ ...t, glint: value }))}
               />
+              {tokens.glint2 ? (
+                <>
+                  <ColorControl
+                    label="Glint, second color"
+                    ownHue
+                    alpha
+                    value={tokens.glint2}
+                    base={tokens.glint2}
+                    onChange={(value) => set((t) => ({ ...t, glint2: value }))}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="w-fit"
+                    onClick={() => set((t) => ({ ...t, glint2: null }))}
+                  >
+                    Remove the second glint color
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="w-fit"
+                  onClick={() => set((t) => ({ ...t, glint2: t.glint }))}
+                >
+                  Add a second glint color
+                </Button>
+              )}
             </Section>
 
             <Section title="Line">

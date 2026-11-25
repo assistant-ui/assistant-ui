@@ -263,3 +263,17 @@ Files:
 - `lib/tokens.ts`: the AI Ellie preset's tracking.
 
 When folding back: nothing unless AI Ellie becomes the site's look, in which case Copy CSS carries these values.
+
+## AI Ellie: rounder documents, round controls, blue glint (2026-11-25)
+
+The AI Ellie preset's document radius is 12px (was 10px) and its control radius is fully round, so buttons, inputs, and small buttons become pills (the kit's `rounded-lg` and `rounded-md` follow `--radius-control`, so rows that use them round too). Its glint is a two-color band, blue-500 into Tailwind's sky-400. The assistant-ui preset keeps the gold glint; the glint variants on the home page (gold, blue, gold to blue, soft blue, ink and blue) are removed, since the choice now lives in the preset.
+
+In the token sheet, any radius at its slider's end now means fully round (it used to be the capsule radius only), and the Ink section can add a second glint color for a two-color band, or remove it.
+
+Files:
+
+- `lib/tokens.ts`: `glint2`, a full value for every radius, and the AI Ellie values.
+- `components/dev/token-panel.tsx`: the second glint color and "full" for any radius.
+- `components/pages/home/hero.tsx`: the glint variants removed.
+
+When folding back: nothing unless AI Ellie becomes the site's look; Copy CSS carries these values, including the glint band.

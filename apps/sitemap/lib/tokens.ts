@@ -16,7 +16,7 @@ export const RADII = [
 ] as const;
 export type RadiusKey = (typeof RADII)[number]["key"];
 
-/** The capsule radius at its slider's end means fully round. */
+/** A radius at its slider's end means fully round. */
 export const RADIUS_FULL = 40;
 
 export const COLORS = [
@@ -220,6 +220,8 @@ export type Tokens = {
   colors: Record<"light" | "dark", Record<ColorKey, Oklch>>;
   blue: Oklch;
   glint: Oklch;
+  /** A second glint color, for a two-color band; none keeps one color. */
+  glint2: Oklch | null;
   fonts: Record<VoiceKey, string>;
   trackingHero: number;
   trackingSection: number;
@@ -263,6 +265,7 @@ export const DEFAULT_TOKENS: Tokens = {
   },
   blue: { l: 0.623, c: 0.214, h: 259.815, a: 100 },
   glint: { l: 0.82, c: 0.14, h: 82, a: 85 },
+  glint2: null,
   fonts: {
     display: "Public Sans",
     sans: "Public Sans",
@@ -308,12 +311,13 @@ export const PRESETS: readonly { id: string; label: string; tokens: Tokens }[] =
       label: "AI Ellie",
       tokens: {
         ...DEFAULT_TOKENS,
-        // Rounder: every control and surface a few pixels larger.
+        // Rounder: surfaces a few pixels larger, controls fully round.
         radius: {
           page: 0,
-          document: 10,
+          document: 12,
           sm: 8,
-          control: 12,
+          // Fully round buttons and inputs.
+          control: RADIUS_FULL,
           surface: 14,
           xl: 18,
           thread: 22,
@@ -333,6 +337,9 @@ export const PRESETS: readonly { id: string; label: string; tokens: Tokens }[] =
           deck: { ...DEFAULT_TOKENS.type.deck, weight: 380, tracking: -0.005 },
           package: { ...DEFAULT_TOKENS.type.package, weight: 400 },
         },
+        // A blue glint: blue-500 into Tailwind's sky-400.
+        glint: { l: 0.623, c: 0.214, h: 259.815, a: 85 },
+        glint2: { l: 0.746, c: 0.16, h: 232.661, a: 85 },
         codeTheme: "nord",
       },
     },
@@ -379,8 +386,7 @@ export function tokenCss(tokens: Tokens): string {
   for (const { key } of RADII) {
     const value = tokens.radius[key];
     if (value === d.radius[key]) continue;
-    const css =
-      key === "capsule" && value >= RADIUS_FULL ? "9999px" : `${value}px`;
+    const css = value >= RADIUS_FULL ? "9999px" : `${value}px`;
     root.push(`--radius-${key}: ${css};`);
   }
   if (tokens.tint !== d.tint) root.push(`--tint: ${round(tokens.tint, 1)};`);
@@ -418,11 +424,12 @@ export function tokenCss(tokens: Tokens): string {
       root.push(`--type-${key}-tracking: ${round(t.tracking, 4)}em;`);
   }
 
-  if (!same(tokens.glint, d.glint)) {
+  if (!same(tokens.glint, d.glint) || tokens.glint2) {
+    const band = tokens.glint2
+      ? `transparent 28%, ${oklch(tokens.glint)} 44%, ${oklch(tokens.glint2)} 56%, transparent 72%`
+      : `transparent 32%, ${oklch(tokens.glint)} 50%, transparent 68%`;
     extra.push(
-      rule(".hero-glint", [
-        `background: linear-gradient(100deg, transparent 32%, ${oklch(tokens.glint)} 50%, transparent 68%);`,
-      ]),
+      rule(".hero-glint", [`background: linear-gradient(100deg, ${band});`]),
     );
   }
   const { word, rise, glint } = tokens.motion;
@@ -463,6 +470,10 @@ export function parseTokens(raw: string | null): Tokens {
       fonts: { ...DEFAULT_TOKENS.fonts, ...saved.fonts },
       type: { ...DEFAULT_TOKENS.type, ...saved.type },
       motion: { ...DEFAULT_TOKENS.motion, ...saved.motion },
+      glint2:
+        saved.glint2 && typeof saved.glint2 === "object"
+          ? saved.glint2
+          : DEFAULT_TOKENS.glint2,
       codeTheme:
         saved.codeTheme && saved.codeTheme in CODE_THEMES
           ? saved.codeTheme
