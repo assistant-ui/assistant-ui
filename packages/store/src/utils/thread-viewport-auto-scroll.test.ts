@@ -2014,7 +2014,7 @@ describe("createThreadViewportAutoScroll", () => {
       scrollTop = 0,
       autoScroll = false,
       clientHeight = 100,
-      holdFollow = () => false,
+      overrides: () => Partial<ThreadViewportAutoScrollOptions> = () => ({}),
     ) => {
       const view = geometry(320, clientHeight);
       const heights = Array<number>(8).fill(80);
@@ -2048,10 +2048,10 @@ describe("createThreadViewportAutoScroll", () => {
         getOptions: () => ({
           ...options(),
           autoScroll,
-          holdFollow: holdFollow(),
           scrollToBottomOnInitialize: false,
           scrollToBottomOnRunStart: false,
           scrollToBottomOnThreadSwitch: false,
+          ...overrides(),
         }),
         onAtBottomChange: vi.fn(),
       });
@@ -2138,20 +2138,28 @@ describe("createThreadViewportAutoScroll", () => {
       view.controller.dispose();
     });
 
-    it("resumes a held follow after a page prepends while follow is on hold", () => {
-      let holdFollow = true;
-      const view = pagedViewport(220, true, 100, () => holdFollow);
-      view.grow(340);
-      observers.at(-1)!.trigger();
-      view.prepend(20);
+    it.each([true, false])(
+      "resumes a held follow after a page prepends while follow is on hold (autoScroll %s during the hold)",
+      (autoScrollDuringHold) => {
+        let holdFollow = true;
+        let autoScroll = autoScrollDuringHold;
+        const view = pagedViewport(220, true, 100, () => ({
+          autoScroll,
+          holdFollow,
+        }));
+        view.grow(340);
+        observers.at(-1)!.trigger();
+        view.prepend(20);
 
-      holdFollow = false;
-      view.grow(680);
-      observers.at(-1)!.trigger();
+        holdFollow = false;
+        autoScroll = true;
+        view.grow(680);
+        observers.at(-1)!.trigger();
 
-      expect(view.element.scrollTop).toBe(580);
-      view.controller.dispose();
-    });
+        expect(view.element.scrollTop).toBe(580);
+        view.controller.dispose();
+      },
+    );
 
     it("holds the rows at the bottom while an opened disclosure pauses follow", () => {
       const view = pagedViewport(220, true);
