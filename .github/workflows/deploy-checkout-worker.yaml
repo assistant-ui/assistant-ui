@@ -324,4 +324,5 @@ jobs:
           DEPLOY_SHA: ${{ steps.target.outputs.sha || env.PLANNED_SHA }}
         run: |
           echo "::error::The checkout worker deploy failed for ${DEPLOY_SHA}, so setup.assistant-ui.com still serves the previous version."
-          echo "::error::Rerun this job, or run Deploy Checkout Worker via workflow_dispatch with releaseSha=${DEPLOY_SHA}."
+          echo "::error::For a transient failure, rerun this job. A rerun replays this workflow revision, so after a fix to this workflow lands, run Deploy Checkout Worker via workflow_dispatch with releaseSha=${DEPLOY_SHA} instead."
+          echo "::error::If ${DEPLOY_SHA} itself cannot install, build or deploy, rerunning or dispatching it again fails the same way: land the fix on the default branch, and the next release that publishes setup-agent deploys it, or, if setup-agent is already released, run Deploy Checkout Worker via workflow_dispatch without releaseSha to deploy the fixed HEAD at once."
