@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start --port 3012",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
