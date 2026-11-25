@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import worker, { CheckoutDO, MAX_MESSAGE_BYTES, ROOM_IDLE_MS } from "./index";
+import worker, {
+  CheckoutDO,
+  EMPTY_ROOM_IDLE_MS,
+  MAX_MESSAGE_BYTES,
+  ROOM_IDLE_MS,
+} from "./index";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
 
@@ -14,7 +19,13 @@ afterEach(() => {
   for (const instance of instances.splice(0)) instance.statewire.dispose();
 });
 
-const createInstance = (snapshot?: Checkout.State) => {
+/** A `NEW_LINKS` binding that admits every request. */
+const unlimited = () => ({ limit: vi.fn(async () => ({ success: true })) });
+
+const createInstance = (
+  snapshot?: Checkout.State,
+  newLinks: { limit: RateLimit["limit"] } = unlimited(),
+) => {
   const stored = new Map<string, unknown>(
     snapshot === undefined ? [] : [["statewire:snapshot", snapshot]],
   );
@@ -70,6 +81,7 @@ const createInstance = (snapshot?: Checkout.State) => {
         idFromName: (name) => name,
         get: () => ({ fetch: () => new Response(null, { status: 404 }) }),
       },
+      NEW_LINKS: newLinks,
     },
   );
   instances.push(instance);
@@ -605,6 +617,7 @@ describe("worker routing", () => {
     const idFromName = vi.fn((name: string) => name);
     const response = await worker.fetch(request("stream", "OPTIONS"), {
       CHECKOUT: { idFromName, get: vi.fn() },
+      NEW_LINKS: unlimited(),
     });
     expect(response.status).toBe(204);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
@@ -626,6 +639,7 @@ describe("worker routing", () => {
     const get = vi.fn(() => ({ fetch }));
     const response = await worker.fetch(request("stream"), {
       CHECKOUT: { idFromName, get },
+      NEW_LINKS: unlimited(),
     });
     expect(idFromName).toHaveBeenCalledWith("session1");
     expect(get).toHaveBeenCalledWith("session1");
@@ -685,14 +699,15 @@ describe("limits", () => {
     expect(fixture.stored.size).toBeGreaterThan(0);
     expect(fixture.alarm.at).toBe(lastActiveAt + ROOM_IDLE_MS);
 
+    // A socket that sent nothing all day (no heartbeat) does not keep it.
     vi.setSystemTime(lastActiveAt + ROOM_IDLE_MS);
-    fixture.sockets.push({});
+    const ws = { close: vi.fn() };
+    fixture.sockets.push(ws);
     await fixture.instance.alarm();
-    expect(fixture.stored.size).toBeGreaterThan(0);
-    expect(fixture.context.abort).not.toHaveBeenCalled();
-
-    fixture.sockets.length = 0;
-    await fixture.instance.alarm();
+    expect(ws.close).toHaveBeenCalledExactlyOnceWith(
+      1000,
+      "idle setup deleted",
+    );
     expect(fixture.stored.size).toBe(0);
     expect(fixture.alarm.at).toBeNull();
     expect(fixture.context.abort).toHaveBeenCalledExactlyOnceWith(
@@ -718,17 +733,14 @@ describe("limits", () => {
     const ws = {};
     fixture.sockets.push(ws);
 
-    vi.setSystemTime(start + ROOM_IDLE_MS);
-    await fixture.instance.alarm();
-    expect(fixture.alarm.at).toBe(start + 2 * ROOM_IDLE_MS);
-
-    const closedAt = start + 2 * ROOM_IDLE_MS - 60_000;
+    const closedAt = start + 30 * 60 * 1000;
     vi.setSystemTime(closedAt);
     fixture.sockets.length = 0;
     fixture.instance.webSocketClose(ws as WebSocket);
     await fixture.ready();
+    expect(fixture.stored.get("room:lastActiveAt")).toBe(closedAt);
 
-    vi.setSystemTime(start + 2 * ROOM_IDLE_MS);
+    vi.setSystemTime(start + ROOM_IDLE_MS);
     await fixture.instance.alarm();
     expect(fixture.stored.has("statewire:snapshot")).toBe(true);
     expect(fixture.context.abort).not.toHaveBeenCalled();
@@ -808,6 +820,73 @@ describe("limits", () => {
     expect(fixture.context.abort).toHaveBeenCalledOnce();
   });
 
+  it("deletes a link that holds no setup after ten minutes, closing its sockets", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance();
+    await fixture.ready();
+    expect((await fixture.instance.fetch(request("probe"))).status).toBe(426);
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+    expect(fixture.alarm.at).toBe(start + EMPTY_ROOM_IDLE_MS);
+
+    vi.setSystemTime(start + EMPTY_ROOM_IDLE_MS - 1);
+    await fixture.instance.alarm();
+    expect(fixture.stored.size).toBeGreaterThan(0);
+    expect(fixture.alarm.at).toBe(start + EMPTY_ROOM_IDLE_MS);
+
+    vi.setSystemTime(start + EMPTY_ROOM_IDLE_MS);
+    const ws = { close: vi.fn() };
+    fixture.sockets.push(ws);
+    await fixture.instance.alarm();
+    expect(ws.close).toHaveBeenCalledOnce();
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.alarm.at).toBeNull();
+    expect(fixture.context.abort).toHaveBeenCalledOnce();
+  });
+
+  it("gives a link the full idle window once its setup is created", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const fixture = createInstance();
+    const client = await connect(fixture);
+    await client.commands["checkout/create"]({ id: "setup-a", products: [] });
+    await vi.waitFor(() => expect(client.state?.id).toBe("setup-a"));
+    await fixture.ready();
+    const start = fixture.stored.get("room:lastActiveAt") as number;
+    expect(fixture.alarm.at).toBe(start + EMPTY_ROOM_IDLE_MS);
+
+    vi.setSystemTime(start + EMPTY_ROOM_IDLE_MS);
+    await fixture.instance.alarm();
+    expect(fixture.context.abort).not.toHaveBeenCalled();
+    expect(fixture.stored.has("statewire:snapshot")).toBe(true);
+    expect(fixture.alarm.at).toBe(start + ROOM_IDLE_MS);
+  });
+
+  it("refuses requests to a link without a setup once the client's budget is spent, storing nothing", async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    const fixture = createInstance(undefined, { limit });
+    await fixture.ready();
+    const probe = request("stream");
+    probe.headers.set("cf-connecting-ip", "203.0.113.7");
+    expect((await fixture.instance.fetch(probe)).status).toBe(429);
+    await fixture.ready();
+    expect(limit).toHaveBeenCalledExactlyOnceWith({ key: "203.0.113.7" });
+    expect(fixture.stored.size).toBe(0);
+    expect(fixture.alarm.at).toBeNull();
+  });
+
+  it("does not budget requests to a link that holds a setup", async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    const fixture = createInstance(modelState(), { limit });
+    await connect(fixture);
+    expect(limit).not.toHaveBeenCalled();
+  });
+
   it("refuses oversized statewire requests and socket messages", async () => {
     const fixture = createInstance(modelState());
     await connect(fixture);
@@ -831,7 +910,7 @@ describe("limits", () => {
     const idFromName = vi.fn((name: string) => name);
     const response = await worker.fetch(
       new Request(`https://checkout.test${path}`),
-      { CHECKOUT: { idFromName, get: vi.fn() } },
+      { CHECKOUT: { idFromName, get: vi.fn() }, NEW_LINKS: unlimited() },
     );
     expect(response.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();

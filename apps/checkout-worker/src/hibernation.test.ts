@@ -206,7 +206,10 @@ const createRuntime = () => {
     };
     const instance = new CheckoutDO(
       ctx as unknown as ConstructorParameters<typeof CheckoutDO>[0],
-      { CHECKOUT: { idFromName: (name) => name, get: vi.fn() } },
+      {
+        CHECKOUT: { idFromName: (name) => name, get: vi.fn() },
+        NEW_LINKS: { limit: async () => ({ success: true }) },
+      },
     );
     counts.instances.push(instance);
     counts.wakes++;
