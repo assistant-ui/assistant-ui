@@ -6,6 +6,8 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
+- Link `/skills` from the site: the header's Library menu (Extend, beside Skills) or the Resources menu.
+- Link `/utilities` from the site the same way (the Library menu's Extend group has Utilities).
 - Build the other nine runtime demos on `/demos` from the Streaming file, once its design is settled: each one complete file in `components/demos/` (`useChatRuntime` plus the whole chat UI, starting from a copy of Streaming's, and anything only that demo needs), with a `.preview.tsx` that runs its Thread on a script. Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
@@ -472,3 +474,69 @@ Files:
 - `lib/scripted-demos.ts`: Streaming's description and hooks.
 
 When folding back: as in "Demos as one complete file". The route behind `/api/chat` defines `showSetup` for the card in a real app.
+
+## Skills page (2026-11-25)
+
+A new page at `/skills` for the assistant-ui skills for coding agents. It opens with what a skill is and the one command that installs all of them (`npx skills add assistant-ui/skills`). "What each skill covers." lists the 17 skills by their slash name with a one-line summary; opening a row shows when an agent uses the skill, its own install command, and its `SKILL.md`. "Works in 79 agents." lists every agent the installer supports with the folder it reads skills from; pressing one copies its `-a <agent>` command. The skills come from the docs' `getSkills()` (`lib/agent-skills.generated.json`) and the agents from the library's Skills category, so the page follows both. The page is not linked from the header yet.
+
+Files:
+
+- `app/(home)/skills/page.tsx` (new): the page.
+- `components/pages/skills/copy-command.tsx` (new): a command that copies itself, wrapping on a phone, and a list row that copies a command.
+
+When folding back: copy both files to the same paths in `apps/docs`, and add a link to `/skills` wherever the site should point to it (the header, the `/docs/llm` Skills section).
+
+## Agent icons under the skills install command (2026-11-25)
+
+Beside the install command on `/skills`, filling the rest of the line (under it on a phone), a marquee of the agents' icons with no label: the 77 agents the library has an icon for, in one line, scrolling slowly with faded ends. It pauses on hover and stands still for reduced motion; each icon names its agent on hover and to screen readers, and the repeat that makes the loop seamless is hidden from screen readers.
+
+Files:
+
+- `components/pages/skills/agent-marquee.tsx` (new): the marquee.
+- `app/(home)/skills/page.tsx`: the install command and the marquee in one row, outside the header so the row spans the page.
+- `components/library/agent-icons.tsx`: `hasAgentIcon`, so the marquee leaves out agents without an icon.
+- `app/globals.css`: the `skills-agent-marquee` keyframes.
+
+When folding back: copy the marquee and page with the Skills page, add `hasAgentIcon` to the docs `agent-icons.tsx`, and the keyframes to the docs stylesheet.
+
+## Skills as library rows with a SKILL.md dialog (2026-11-25)
+
+Each skill on `/skills` is now a row like the library's list: the skill's library glyph, its `/name`, the one-line summary, and the library's plus menu (Add to cart, Copy install command, Copy assistant-ui prompt). Pressing a row opens a dialog with the full description, the skill's install command, and its `SKILL.md`; on a phone the whole dialog scrolls. The rows replace the expanding rows. The page shares the library's cart: the list sits in a `LibraryProvider` with the cart sheet, so "View cart" in the toast opens it here.
+
+Files:
+
+- `components/pages/skills/skill-list.tsx` (new): the rows, the dialog, and the provider with the cart sheet.
+- `app/(home)/skills/page.tsx`: passes the skills, matched to their library items, to `SkillList`.
+
+When folding back: copy both files with the Skills page.
+
+## Skill dialog laid out like a desktop app's skill sheet (2026-11-25)
+
+From a screenshot ellie shared of a skill sheet in a desktop app. The `/skills` dialog now opens with the skill's glyph, a ⋯ menu (Copy assistant-ui prompt, Copy Markdown, Download as `<name>-SKILL.md`) and a close button, then the title as `/<name>` with a muted "Skill" and its one-line summary. Under them, `SKILL.md` is rendered as formatted Markdown (headings, lists, code, links) on a field panel that scrolls, without the file's own `#` title. The footer has Add to cart on the left, which becomes a red Remove from cart once the skill is in the cart, and Copy install command as the main button on the right. The dialog is compact: at most 36rem wide and 34rem tall (the Markdown panel scrolls inside it), with tight padding (12px on a phone, 16px from `sm`, 12px gaps, and 12-14px inside the Markdown panel).
+
+Files:
+
+- `components/pages/skills/skill-list.tsx`: the dialog, rendering Markdown with the kit's `GenerativeMarkdown`.
+- `app/(home)/skills/page.tsx`: no longer passes the full description to the dialog.
+
+When folding back: nothing extra beyond the Skills page files.
+
+## Utilities page (2026-11-25)
+
+A new page at `/utilities`, laid out after Vercel's product pages: a large headline and short deck, then one framed grid of seven tiles with hairlines between them and no boxes inside. Each tile has a preview on top and, under it, the package name (pressing it copies the install command), the title linking to that utility's own page, and one line about it.
+
+- heat-graph (two columns): the kit's `HeatGraph` element running on a sample year that ends today.
+- tw-shimmer: a skeleton reply and "Thinking" shimmering with the real plugin.
+- safe-content-frame: the three frame origins from its page's diagram, one origin per frame.
+- react-o11y (two columns): the docs' live trace waterfall, faded at the bottom.
+- generative-frame, Variants, DevTools: their README usage, highlighted and faded at the edges.
+
+The titles and lines come from each utility's own page, the install commands and package names from the library's Utilities category. At `md` the grid is two columns and DevTools spans both so the last row is full.
+
+Files:
+
+- `app/(home)/utilities/page.tsx` (new): the page and its tiles.
+- `components/pages/utilities/heat-graph-preview.tsx` (new): the sample year, built after hydration because it follows the visitor's date.
+- `components/pages/utilities/copy-install.tsx` (new): the package name that copies its install command.
+
+When folding back: copy the three files to the same paths in `apps/docs`.

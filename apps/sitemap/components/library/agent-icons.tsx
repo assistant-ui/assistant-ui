@@ -178,6 +178,8 @@ const AGENT_ICONS: Record<string, AgentIconData> = {
   },
 };
 
+export const hasAgentIcon = (id: string) => id in AGENT_ICONS;
+
 export function AgentIcon({
   id,
   fallback,
