@@ -6,7 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Build the scripted previews for the six demos on `/demos` (each a small chat on `useLocalRuntime` with a scripted `ChatModelAdapter`, like the docs Blocks' `scriptedModel`); until then each Preview tab says it is not built.
+- Build the scripted previews for the other five demos on `/demos` (Tool UI, Approval, Reasoning, Attachments, State and actions), the way Chat's is built; until then their Preview tabs say they are not built.
 - A second batch of demos: generative UI, suggestions, editing and branching, mentions and slash commands, reading aloud, the thread list.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
@@ -363,3 +363,17 @@ Files:
 - `lib/scripted-demos.ts` (new): the demos and their files.
 
 When folding back: copy the three files to the same paths in `apps/docs`. The docs have `/demos/<name>` pages (the ChatGPT-style demos) but no page at `/demos`, so nothing is replaced; a link to it in the header is not decided.
+
+## Scripted Chat preview (2026-11-25)
+
+The Chat demo on `/demos` has a working preview: the kit's `<Thread />`, the same component the code imports, on `useLocalRuntime` with a scripted `ChatModelAdapter` in place of `useChatRuntime`. A reply streams in word by word, says that it comes from a script, and walks through the three steps a model run takes (the page sends to `/api/chat`, the route calls `streamText`, the reply streams back). Copy and reload work as in any Thread. The preview and code tabs are 30rem tall.
+
+All the demos' routes stay at `app/api/chat/route.ts`: `useChatRuntime` posts every message to `/api/chat`, and a tool runs inside that request when the model calls it, so a tool needs no route of its own.
+
+Files:
+
+- `components/pages/demos/previews/chat.tsx` (new): the scripted Chat preview.
+- `components/pages/demos/demo-tabs.tsx`: takes a `preview`, and the taller panels.
+- `app/(home)/demos/page.tsx`: passes each demo its preview.
+
+When folding back: copy these files to the same paths in `apps/docs`.

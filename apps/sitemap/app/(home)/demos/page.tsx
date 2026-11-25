@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { DemoTabs } from "@/components/pages/demos/demo-tabs";
+import { ChatPreview } from "@/components/pages/demos/previews/chat";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { highlightElementSource } from "@/lib/element-source";
@@ -10,6 +12,10 @@ export const metadata: Metadata = {
   title: "Demos",
   description:
     "One assistant-ui feature per demo, with the page and route you write for it.",
+};
+
+const PREVIEWS: Partial<Record<string, ReactNode>> = {
+  chat: <ChatPreview />,
 };
 
 export default async function DemosPage() {
@@ -84,7 +90,11 @@ export default async function DemosPage() {
                 {demo.files.length} files
               </p>
             </div>
-            <DemoTabs label={demo.title} files={demo.files} />
+            <DemoTabs
+              label={demo.title}
+              files={demo.files}
+              preview={PREVIEWS[demo.id]}
+            />
           </section>
         ))}
       </div>
