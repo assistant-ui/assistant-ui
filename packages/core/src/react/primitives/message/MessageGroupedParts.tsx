@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type FC, type ReactNode, useMemo } from "react";
+import { Fragment, type FC, type ReactNode, useMemo, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { PartState } from "../../../store/scopes/part";
@@ -13,6 +13,7 @@ import { getGroupSummary } from "../../../utils/getGroupStatus";
 import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 import {
   buildGroupTree,
+  groupIdKeysByMember,
   GROUPBY_MEMO_KEY,
   type GroupByContext,
   type GroupNode,
@@ -295,23 +296,39 @@ export function MessagePrimitiveGroupedParts<TKey extends `group-${string}`>({
     indicator === "never" ? false : s.message.status?.type === "running",
   );
 
-  // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`
-  // (a stable string fingerprint of the helper config). When present,
-  // memo on `[parts, memoKey]` so the tree survives unrelated renders.
-  // For inline `groupBy`, fall back to recomputing each render — O(n)
-  // and cheap.
   const memoKey = (groupBy as { [GROUPBY_MEMO_KEY]?: string })[
     GROUPBY_MEMO_KEY
   ];
-  const memoDep = memoKey ?? groupBy;
-  const tree = useMemo(() => {
+  const [previous, setPrevious] = useState(() => {
+    const idKeys: ReadonlyMap<string, string> = new Map();
+    return { idKeys, memoKey, groupBy };
+  });
+  const currentGroupBy =
+    memoKey !== undefined && previous.memoKey === memoKey
+      ? previous.groupBy
+      : groupBy;
+  const { tree, idKeys } = useMemo(() => {
+    const partKeys = getMessagePartKeys(parts);
     const context: GroupByContext = { toolUIs };
-    return buildGroupTree(
-      parts.map((part) => groupBy(part, context) ?? []),
-      getMessagePartKeys(parts),
+    const tree = buildGroupTree(
+      parts.map((part) => currentGroupBy(part, context) ?? []),
+      partKeys,
+      previous.idKeys,
     );
-    // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
-  }, [parts, memoDep, toolUIs]);
+    return {
+      tree,
+      idKeys: groupIdKeysByMember(tree, partKeys),
+    };
+  }, [parts, currentGroupBy, toolUIs, previous.idKeys]);
+  if (
+    previous.memoKey !== memoKey ||
+    previous.idKeys.size !== idKeys.size ||
+    Array.from(idKeys).some(
+      ([member, idKey]) => previous.idKeys.get(member) !== idKey,
+    )
+  ) {
+    setPrevious({ idKeys, memoKey, groupBy: currentGroupBy });
+  }
 
   return (
     <>

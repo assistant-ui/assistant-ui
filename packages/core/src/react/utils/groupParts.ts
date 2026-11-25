@@ -126,6 +126,7 @@ export interface GroupNodeGroup {
   readonly nodeKey: string;
   /**
    * Identity key (`"id:<type>:<partId>"`) from the group's first part; undefined when absent or already claimed by an earlier sibling.
+   * When the first part has no identity, the group can retain an available identity from its first previously grouped identified member under the same ancestor keys.
    */
   readonly idKey: string | undefined;
   /** Indices of parts in this subtree, in order. */
@@ -152,7 +153,8 @@ interface BuildFrame {
   indices: number[];
   children: GroupNode[];
   nextChildIdx: number;
-  claimed: Set<string>;
+  claimedPartIds: Set<string>;
+  claimedGroupIds: Set<string>;
 }
 
 const makeChildNodeKey = (parent: BuildFrame): string => {
@@ -161,22 +163,63 @@ const makeChildNodeKey = (parent: BuildFrame): string => {
 };
 
 const claimIdKey = (
-  frame: BuildFrame,
+  claimed: Set<string>,
   id: string | undefined,
 ): string | undefined => {
-  if (id === undefined || frame.claimed.has(id)) return undefined;
-  frame.claimed.add(id);
+  if (id === undefined || claimed.has(id)) return undefined;
+  claimed.add(id);
   return `id:${id}`;
+};
+
+const memberSlot = (
+  ancestorKeys: readonly string[],
+  groupName: string,
+  partId: string,
+): string => JSON.stringify([ancestorKeys, groupName, partId]);
+
+/**
+ * Each identified group member's identity key or structural sibling path, by ancestor keys, group name, and member key, for the next {@link buildGroupTree} call's `previousIdKeys`.
+ */
+export const groupIdKeysByMember = (
+  tree: readonly GroupNode[],
+  partIds: readonly (string | undefined)[],
+): ReadonlyMap<string, string> => {
+  const keys = new Map<string, string>();
+  const visit = (
+    nodes: readonly GroupNode[],
+    ancestorKeys: readonly string[],
+  ) => {
+    for (const node of nodes) {
+      if (node.type !== "group") continue;
+      const groupKey = node.idKey?.slice("id:".length) ?? node.nodeKey;
+      for (const index of node.indices) {
+        const id = partIds[index];
+        if (id?.includes(":"))
+          keys.set(memberSlot(ancestorKeys, node.key, id), groupKey);
+      }
+      visit(node.children, [
+        ...ancestorKeys,
+        node.key,
+        node.idKey ?? node.nodeKey,
+      ]);
+    }
+  };
+  visit(tree, []);
+  return keys;
 };
 
 /**
  * Build the group tree from an array of normalized group paths.
  * `paths[i]` is the path for part `i`. The output tree contains one
  * `part` node per part and one `group` node per coalesced run.
+ * `previousIdKeys` (from {@link groupIdKeysByMember}) lets a group whose
+ * first part has no identity, such as reasoning inserted ahead of its tool
+ * calls, keep the key it had.
  */
 export const buildGroupTree = (
   paths: readonly (readonly string[])[],
   partIds?: readonly (string | undefined)[],
+  previousIdKeys?: ReadonlyMap<string, string>,
 ): readonly GroupNode[] => {
   const root: BuildFrame = {
     key: "",
@@ -184,9 +227,53 @@ export const buildGroupTree = (
     indices: [],
     children: [],
     nextChildIdx: 0,
-    claimed: new Set(),
+    claimedPartIds: new Set(),
+    claimedGroupIds: new Set(),
   };
   const stack: BuildFrame[] = [root];
+  const inheritIdKeys = (
+    nodes: readonly GroupNode[],
+    ancestorKeys: readonly string[],
+  ): readonly GroupNode[] => {
+    if (!previousIdKeys) return nodes;
+    const claimed = new Set(
+      nodes.flatMap((node) =>
+        node.type === "group" && node.idKey
+          ? [JSON.stringify([node.key, node.idKey.slice("id:".length)])]
+          : [],
+      ),
+    );
+    return nodes.map((node) => {
+      if (node.type !== "group") return node;
+      let previous: string | undefined;
+      for (const index of node.indices) {
+        const id = partIds?.[index];
+        previous =
+          id === undefined
+            ? undefined
+            : previousIdKeys.get(memberSlot(ancestorKeys, node.key, id));
+        if (previous !== undefined) break;
+      }
+      let idKey = node.idKey;
+      if (
+        !partIds?.[node.indices[0]!]?.includes(":") &&
+        previous?.includes(":")
+      ) {
+        const claim = JSON.stringify([node.key, previous]);
+        idKey = claimed.has(claim) ? undefined : `id:${previous}`;
+        claimed.add(claim);
+      }
+      return {
+        ...node,
+        idKey,
+        children: inheritIdKeys(node.children, [
+          ...ancestorKeys,
+          node.key,
+          idKey ?? node.nodeKey,
+        ]),
+      };
+    });
+  };
 
   const closeTop = (): void => {
     const closing = stack.pop()!;
@@ -196,7 +283,10 @@ export const buildGroupTree = (
       type: "group",
       key: closing.key,
       nodeKey: closing.nodeKey,
-      idKey: claimIdKey(parent, id?.includes(":") ? id : undefined),
+      idKey: claimIdKey(
+        parent.claimedGroupIds,
+        id?.includes(":") ? id : undefined,
+      ),
       indices: closing.indices,
       children: closing.children,
     });
@@ -230,7 +320,8 @@ export const buildGroupTree = (
         indices: [],
         children: [],
         nextChildIdx: 0,
-        claimed: new Set(),
+        claimedPartIds: new Set(),
+        claimedGroupIds: new Set(),
       });
     }
 
@@ -240,7 +331,7 @@ export const buildGroupTree = (
       type: "part",
       index: i,
       nodeKey: makeChildNodeKey(top),
-      idKey: claimIdKey(top, partIds?.[i]),
+      idKey: claimIdKey(top.claimedPartIds, partIds?.[i]),
     });
 
     // Record the part index in every open ancestor group.
@@ -254,5 +345,5 @@ export const buildGroupTree = (
     closeTop();
   }
 
-  return root.children;
+  return inheritIdKeys(root.children, []);
 };
