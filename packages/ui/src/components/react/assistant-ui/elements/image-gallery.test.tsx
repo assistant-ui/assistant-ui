@@ -79,6 +79,9 @@ describe("ImageGallery", () => {
         img.getAttribute("src"),
       ),
     ).toEqual(["https://example.com/1.png", "https://example.com/2.png"]);
+    for (const image of container.querySelectorAll("img")) {
+      expect(image.getAttribute("referrerpolicy")).toBe("no-referrer");
+    }
   });
 
   it("puts overflow on the final visible tile and opens that image", () => {

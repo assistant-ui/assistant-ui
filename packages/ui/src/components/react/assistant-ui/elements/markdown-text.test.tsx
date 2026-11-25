@@ -154,6 +154,33 @@ describe("MarkdownText component overrides", () => {
     }
   });
 
+  it("requires a new click when a streamed image URL changes", () => {
+    mocks.messagePartText.text = "![chart](https://a.example/1.png)";
+    try {
+      const { container, rerender } = render(
+        <MarkdownText imageOrigins={[]} />,
+      );
+
+      expect(container.querySelector("img")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: /chart.*Load from a\.example/ }),
+      );
+      expect(container.querySelector("img")?.getAttribute("src")).toBe(
+        "https://a.example/1.png",
+      );
+
+      mocks.messagePartText.text = "![chart](https://b.example/2.png)";
+      rerender(<MarkdownText imageOrigins={[]} />);
+
+      expect(container.querySelector("img")).toBeNull();
+      expect(
+        screen.getByRole("button", { name: /chart.*Load from b\.example/ }),
+      ).toBeTruthy();
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
+
   it("loads images from listed origins as the message renders", () => {
     mocks.messagePartText.text =
       "![a](https://cdn.example/a.png) ![b](https://other.example/b.png)";

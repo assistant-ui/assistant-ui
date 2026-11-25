@@ -286,9 +286,9 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   img: function Image({ className, src, alt, ...props }) {
     const origins = useContext(ImageOriginsContext);
-    const [requested, setRequested] = useState(false);
+    const [approved, setApproved] = useState<string>();
     const url = typeof src === "string" ? src : undefined;
-    if (!requested && !canPreload(url, origins)) {
+    if ((url === undefined || approved !== url) && !canPreload(url, origins)) {
       const host = hostOf(url);
       if (!host)
         return alt ? <span className="aui-md-img-alt">{alt}</span> : null;
@@ -297,7 +297,7 @@ const defaultComponents = memoizeMarkdownComponents({
           type="button"
           onClick={(event) => {
             event.preventDefault();
-            setRequested(true);
+            setApproved(url);
           }}
           className="aui-md-img-placeholder border-border/60 text-muted-foreground hover:bg-muted/50 inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 align-middle text-xs"
         >
