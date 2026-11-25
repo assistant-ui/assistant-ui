@@ -76,3 +76,13 @@ Files:
 - `components/shared/header.tsx`: the phone menu shows the `footer` link.
 
 When folding back: `NavItem` in `apps/docs/lib/constants.ts` needs the optional `footer` field, and the docs header and menu component need these two small additions.
+
+## Home hero fills the first screen (2026-11-25)
+
+Everything above the home demo (headline, subhead, setup command, Talk to an expert, stats) now fills the first screen under the header and sits centered in its height, so the demo only appears once you scroll. The page's top padding is dropped on the home page to make room.
+
+Files:
+
+- `app/(home)/page.tsx`: the hero is wrapped in a block `100svh` tall minus the 3rem header, centered vertically, and `PageFrame` gets `pt-0`.
+
+When folding back: the same two edits in `apps/docs/app/(home)/page.tsx`.

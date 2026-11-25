@@ -155,9 +155,15 @@ export default async function HomePage() {
   }));
 
   return (
-    <PageFrame pad="heroBody" className="relative z-2 flex flex-col">
+    <PageFrame
+      pad="heroBody"
+      className="relative z-2 flex flex-col pt-0 md:pt-0"
+    >
       <div className="flex flex-col gap-10 md:gap-16">
-        <Hero stars={repo?.stars ?? null} downloads={downloads} />
+        {/* The hero fills the first screen under the 3rem header, so the demo starts below the fold. */}
+        <div className="flex min-h-[calc(100svh-3rem)] flex-col justify-center">
+          <Hero stars={repo?.stars ?? null} downloads={downloads} />
+        </div>
         <HomeDemo />
       </div>
       <LibraryBody setupTabs={setupTabs} />
