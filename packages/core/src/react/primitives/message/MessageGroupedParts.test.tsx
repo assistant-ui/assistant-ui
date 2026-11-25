@@ -316,6 +316,42 @@ describe("MessagePrimitive.GroupedParts", () => {
     expect(view.values()).toEqual(["tool:tool", "plan:plan", "second:second"]);
   });
 
+  it("lets a group inherit a key owned by a differently named sibling", () => {
+    const first = {
+      ...task("t1", false),
+      toolName: "other",
+      argsText: "first",
+    };
+    const second = {
+      ...task("t2", false),
+      toolName: "other",
+      argsText: "second",
+    };
+    const view = renderIdentityGroups(
+      [first, second],
+      groupPartByType({
+        reasoning: ["group-thought"],
+        "tool-call": ["group-thought"],
+        "tool-call:task": ["group-subagents"],
+      }),
+    );
+    const [mount] = view.groupMounts();
+    view.setContent([
+      { ...first, toolName: "task" },
+      { type: "reasoning", text: "plan" },
+      { ...second, argsText: "updated" },
+    ]);
+    const mounts = view.groupMounts();
+    expect(mounts).toHaveLength(2);
+    expect(mounts[0]).not.toBe(mount);
+    expect(mounts[1]).toBe(mount);
+    expect(view.values()).toEqual([
+      "first:first",
+      "plan:plan",
+      "second:updated",
+    ]);
+  });
+
   it("drops nested inheritance when its ancestor changes identity", () => {
     const first = { ...task("t1", false), argsText: "first" };
     const second = { ...task("t2", false), argsText: "second" };

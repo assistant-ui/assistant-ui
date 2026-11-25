@@ -239,7 +239,7 @@ export const buildGroupTree = (
     const claimed = new Set(
       nodes.flatMap((node) =>
         node.type === "group" && node.idKey
-          ? [node.idKey.slice("id:".length)]
+          ? [JSON.stringify([node.key, node.idKey.slice("id:".length)])]
           : [],
       ),
     );
@@ -259,7 +259,9 @@ export const buildGroupTree = (
         !partIds?.[node.indices[0]!]?.includes(":") &&
         previous?.includes(":")
       ) {
-        idKey = claimIdKey(claimed, previous);
+        const claim = JSON.stringify([node.key, previous]);
+        idKey = claimed.has(claim) ? undefined : `id:${previous}`;
+        claimed.add(claim);
       }
       return {
         ...node,
