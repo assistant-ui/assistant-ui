@@ -86,3 +86,15 @@ Files:
 - `app/(home)/page.tsx`: the hero is wrapped in a block `100svh` tall minus the 3rem header, centered vertically, and `PageFrame` gets `pt-0`.
 
 When folding back: the same two edits in `apps/docs/app/(home)/page.tsx`.
+
+## react-grab toolbar (2026-11-25)
+
+The react-grab toolbar the docs site shows in development now loads here too, the same way: `instrumentation-client.ts` imports it only when `NODE_ENV` is development, and `react-grab` is a dev dependency. Because react-grab breaks dragging the library sidebar's resize handle, the library shell has a development-only fix that restores the events' `currentTarget` before the resize library reads them.
+
+Files:
+
+- `instrumentation-client.ts` (new): loads react-grab in development.
+- `package.json`: `react-grab` dev dependency.
+- `components/library/library-shell.tsx`: the drag fix.
+
+When folding back: the docs site already loads react-grab; the drag fix belongs in the docs library shell from #10865, where the handle has the same problem in development.
