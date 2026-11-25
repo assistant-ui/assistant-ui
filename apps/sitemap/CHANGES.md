@@ -6,7 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Build the scripted previews for the other five demos on `/demos` (Tool UI, Approval, Reasoning, Attachments, State and actions) the way Chat's is built, each with its own `components/thread.tsx` tab where the feature changes the UI; until then their Preview tabs say they are not built.
+- Build the scripted previews for the other four demos on `/demos` (Approval, Reasoning, Attachments, State and actions) the way Chat's and Tool UI's are built; until then their Preview tabs say they are not built.
 - A second batch of demos: generative UI, suggestions, editing and branching, mentions and slash commands, reading aloud, the thread list.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
@@ -391,3 +391,18 @@ Files:
 - `components/pages/demos/demo-tabs.tsx`: the preview stays mounted.
 
 When folding back: copy these files to the same paths in `apps/docs`, and list `components/pages/demos/ui/` in the route's `outputFileTracingIncludes` so the deployed page can read it.
+
+## Scripted Tool UI preview (2026-11-25)
+
+The Tool UI demo on `/demos` works. Ask about the weather in a city: the script calls `getWeather` the way the model would, the card shows "Checking the weather in …" while the call runs, then the city, the temperature, and the condition with an icon, and a short reply streams in under it saying the numbers come from the script. The city is the words after "in", "for", or "at" (Tokyo when there are none), and the same city always gets the same made-up weather. The card is a real file, `components/pages/demos/ui/weather-toolkit.tsx`, registered with `AuiConfig` and `Tools` exactly as `app/page.tsx` shows, and the `app/toolkit.tsx` tab reads that file. The Thread is the same as Chat's. The scripted previews now share their helpers (waiting, the last user message, streaming a reply a word at a time).
+
+Files:
+
+- `components/pages/demos/ui/weather-toolkit.tsx` (new): the weather card and its toolkit entry.
+- `components/pages/demos/previews/tool-ui.tsx` (new): the scripted weather run.
+- `components/pages/demos/previews/script.ts` (new): the helpers the previews share.
+- `components/pages/demos/previews/chat.tsx`: uses the shared helpers.
+- `lib/scripted-demos.ts`: Tool UI reads its toolkit from the file and says what to ask.
+- `app/(home)/demos/page.tsx`: passes Tool UI its preview.
+
+When folding back: copy these files to the same paths in `apps/docs`.

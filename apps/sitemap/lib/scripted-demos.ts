@@ -65,41 +65,6 @@ export default function Page() {
   );
 }`;
 
-const WEATHER_TOOLKIT = `import {
-  defineToolkit,
-  type ToolCallMessagePartComponent,
-} from "@assistant-ui/react";
-
-type WeatherArgs = { city: string };
-type WeatherResult = { temperature: number; condition: string };
-
-const WeatherCard: ToolCallMessagePartComponent<WeatherArgs, WeatherResult> = ({
-  args,
-  result,
-  status,
-}) => {
-  if (status.type === "running") {
-    return <p>Checking the weather in {args.city}…</p>;
-  }
-  if (!result) return <p>No weather for {args.city}.</p>;
-
-  return (
-    <div className="rounded-lg border p-4">
-      <p className="text-muted-foreground text-sm">{args.city}</p>
-      <p className="text-2xl font-medium">{result.temperature}°C</p>
-      <p className="text-sm">{result.condition}</p>
-    </div>
-  );
-};
-
-export const toolkit = defineToolkit({
-  getWeather: {
-    type: "backend",
-    display: "standalone",
-    render: WeatherCard,
-  },
-});`;
-
 const WEATHER_ROUTE = `import { openai } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
@@ -344,11 +309,14 @@ export const SCRIPTED_DEMOS: readonly ScriptedDemo[] = [
     id: "tool-ui",
     title: "Tool UI",
     description:
-      "The route defines a weather tool; a toolkit entry draws its result as a card in the thread.",
+      "Ask about the weather in a city. The route's getWeather tool runs on the server, and a toolkit entry draws its result as a card. The Thread is the same as Chat's.",
     hooks: ["defineToolkit", "Tools", "tool"],
     files: [
       { path: "app/page.tsx", code: TOOLKIT_PAGE },
-      { path: "app/toolkit.tsx", code: WEATHER_TOOLKIT },
+      {
+        path: "app/toolkit.tsx",
+        source: "components/pages/demos/ui/weather-toolkit.tsx",
+      },
       { path: "app/api/chat/route.ts", code: WEATHER_ROUTE },
     ],
   },

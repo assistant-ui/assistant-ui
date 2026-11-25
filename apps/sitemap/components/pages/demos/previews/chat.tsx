@@ -4,19 +4,9 @@ import {
   AssistantRuntimeProvider,
   useLocalRuntime,
   type ChatModelAdapter,
-  type ThreadMessage,
 } from "@assistant-ui/react";
 import { Thread } from "@/components/pages/demos/ui/thread";
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function lastUserText(messages: readonly ThreadMessage[]) {
-  const message = messages.findLast((entry) => entry.role === "user");
-  return (message?.content ?? [])
-    .map((part) => (part.type === "text" ? part.text : ""))
-    .join(" ")
-    .trim();
-}
+import { lastUserText, streamWords, wait } from "./script";
 
 function quote(text: string) {
   return text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text;
@@ -40,12 +30,8 @@ const scriptedChat: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
     const reply = replyTo(lastUserText(messages));
     await wait(350);
-    let shown = "";
-    for (const word of reply.split(/(?<=\s)/)) {
-      if (abortSignal.aborted) return;
-      shown += word;
-      yield { content: [{ type: "text", text: shown }] };
-      await wait(30);
+    for await (const text of streamWords(reply, abortSignal)) {
+      yield { content: [{ type: "text", text }] };
     }
   },
 };

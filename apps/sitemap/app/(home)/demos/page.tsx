@@ -5,6 +5,7 @@ import { cacheLife } from "next/cache";
 import type { ReactNode } from "react";
 import { DemoTabs } from "@/components/pages/demos/demo-tabs";
 import { ChatPreview } from "@/components/pages/demos/previews/chat";
+import { ToolUIPreview } from "@/components/pages/demos/previews/tool-ui";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { highlightElementSource } from "@/lib/element-source";
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 
 const PREVIEWS: Partial<Record<string, ReactNode>> = {
   chat: <ChatPreview />,
+  "tool-ui": <ToolUIPreview />,
 };
 
 /** The file the preview runs, so the tab and the preview cannot drift apart. */
