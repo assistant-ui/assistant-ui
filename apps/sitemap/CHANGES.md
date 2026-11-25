@@ -6,7 +6,6 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Pick the home demo's style: `home-demo-style` in `components/pages/home/demo/index.tsx` has two variants left, on a plate (the default) and lifted with white tabs. Then remove the variants and the `@assistant-ui/variants` dev dependency (also in the root `pnpm-lock.yaml`).
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -339,3 +338,14 @@ Files:
 - `package.json` and the root `pnpm-lock.yaml`: `@assistant-ui/variants` as a dev dependency while the variants are open.
 
 When folding back: after a style is picked and the variants removed, copy `components/pages/home/demo/index.tsx` to the same path in `apps/docs`. Skip "Demos panel in the hero", "Demos panel on a plate", and "Demos panel under the home demo": that panel no longer exists.
+
+## Home demo: lifted frame, flat tabs (2026-11-25)
+
+Chosen from the two variants: the lifted style, with the tab bar not lifted. The demo frame keeps its soft shadow; the tab bar is white (the page background) with a hairline and no shadow, and the open tab takes the muted fill. The plate style, the variants, and the `@assistant-ui/variants` dev dependency are removed, so `package.json` and the root `pnpm-lock.yaml` are back as they were.
+
+Files:
+
+- `components/pages/home/demo/index.tsx`: one layout, no variants.
+- `package.json`, root `pnpm-lock.yaml`: the dev dependency removed.
+
+When folding back: copy `components/pages/home/demo/index.tsx` to the same path in `apps/docs`. The frame's shadow is an exception to design.md, which keeps shadows for floating surfaces.
