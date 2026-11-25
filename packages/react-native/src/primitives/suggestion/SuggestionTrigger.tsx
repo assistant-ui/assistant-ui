@@ -29,10 +29,10 @@ export const SuggestionTrigger = ({
   ...pressableProps
 }: SuggestionTriggerProps) => {
   const prompt = useAuiState((s) => s.suggestion.prompt);
-  const metadata = useAuiState((s) => s.suggestion.metadata);
+  const custom = useAuiState((s) => s.suggestion.custom);
   const { trigger, disabled } = useSuggestionTrigger({
     prompt,
-    metadata,
+    custom,
     send,
     clearComposer,
   });

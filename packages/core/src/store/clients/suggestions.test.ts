@@ -122,14 +122,14 @@ describe("Suggestions", () => {
       root.unmount();
     }
   });
-  it("keeps a suggestion's metadata, stable across owner renders when equal", () => {
+  it("keeps a suggestion's custom, stable across owner renders when equal", () => {
     let rerender!: () => void;
     const root = createTapRoot(function SuggestionsRoot() {
       const [, setTick] = useState(0);
       rerender = () => setTick((tick) => tick + 1);
       return useResource(
         Suggestions([
-          { title: "T", label: "L", prompt: "P", metadata: { labId: "lab-3" } },
+          { title: "T", label: "L", prompt: "P", custom: { labId: "lab-3" } },
         ]),
       );
     });
@@ -143,7 +143,7 @@ describe("Suggestions", () => {
         title: "T",
         label: "L",
         prompt: "P",
-        metadata: { labId: "lab-3" },
+        custom: { labId: "lab-3" },
       });
 
       flushTapSync(rerender);
@@ -155,28 +155,28 @@ describe("Suggestions", () => {
       root.unmount();
     }
   });
-  it("updates when only a suggestion's metadata changes or goes away", () => {
+  it("updates when only a suggestion's custom changes or goes away", () => {
     let setSuggestions!: (suggestions: SuggestionConfig[]) => void;
     const base = { title: "T", label: "L", prompt: "P" };
     const root = createTapRoot(function SuggestionsRoot() {
       const [suggestions, setValue] = useState<SuggestionConfig[]>([
-        { ...base, metadata: { labId: "lab-3" } },
+        { ...base, custom: { labId: "lab-3" } },
       ]);
       setSuggestions = setValue;
       return useResource(Suggestions(suggestions));
     });
 
     try {
-      const metadata = () =>
-        root.getValue().suggestion({ index: 0 }).getState().metadata;
+      const custom = () =>
+        root.getValue().suggestion({ index: 0 }).getState().custom;
 
       flushTapSync(() =>
-        setSuggestions([{ ...base, metadata: { labId: "lab-4" } }]),
+        setSuggestions([{ ...base, custom: { labId: "lab-4" } }]),
       );
-      expect(metadata()).toEqual({ labId: "lab-4" });
+      expect(custom()).toEqual({ labId: "lab-4" });
 
       flushTapSync(() => setSuggestions([base]));
-      expect(metadata()).toBeUndefined();
+      expect(custom()).toBeUndefined();
     } finally {
       root.unmount();
     }

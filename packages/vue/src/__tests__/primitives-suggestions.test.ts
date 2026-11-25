@@ -124,7 +124,7 @@ const mountSuggestions = (
                   title: "Ask the time",
                   label: "small talk",
                   prompt: "What time is it?",
-                  metadata: { topic: "time" },
+                  custom: { topic: "time" },
                 },
                 {
                   title: "Empty",

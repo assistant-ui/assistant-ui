@@ -94,7 +94,7 @@ describe("useSuggestionTrigger", () => {
     const { result } = renderHook(() =>
       useSuggestionTrigger({
         prompt: "Hello",
-        metadata: { labId: "lab-3" },
+        custom: { labId: "lab-3" },
         send: true,
       }),
     );

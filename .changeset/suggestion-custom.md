@@ -6,4 +6,4 @@
 "@assistant-ui/vue": patch
 ---
 
-feat: suggestions take an optional `metadata`, set as `metadata.custom` on the message the suggestion sends
+feat: suggestions take an optional `custom`, sent as `metadata.custom` on the message the suggestion sends

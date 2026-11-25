@@ -14,24 +14,26 @@ export type SuggestionConfig =
       label: string;
       prompt: string;
       /** Set as `metadata.custom` on the message the suggestion sends. */
-      metadata?: Record<string, unknown>;
+      custom?: Record<string, unknown>;
     };
 
-const withMetadata = (
-  suggestion: Omit<SuggestionState, "metadata">,
-  metadata: Record<string, unknown> | undefined,
+const withCustom = (
+  suggestion: Omit<SuggestionState, "custom">,
+  custom: Record<string, unknown> | undefined,
 ): SuggestionState =>
-  metadata === undefined ? suggestion : { ...suggestion, metadata };
+  custom === undefined ? suggestion : { ...suggestion, custom };
 
+// `custom` is compared one level deep, so nested objects in an inline config
+// still change the suggestion's identity on every render.
 const isSameSuggestion = (a: SuggestionState, b: SuggestionState) => {
-  const { metadata: aMetadata, ...aRest } = a;
-  const { metadata: bMetadata, ...bRest } = b;
+  const { custom: aCustom, ...aRest } = a;
+  const { custom: bCustom, ...bRest } = b;
   return (
     shallowEqual(aRest, bRest) &&
-    (aMetadata === bMetadata ||
-      (aMetadata !== undefined &&
-        bMetadata !== undefined &&
-        shallowEqual(aMetadata, bMetadata)))
+    (aCustom === bCustom ||
+      (aCustom !== undefined &&
+        bCustom !== undefined &&
+        shallowEqual(aCustom, bCustom)))
   );
 };
 
@@ -98,9 +100,9 @@ const useStaticSuggestions = (
     suggestions: (suggestions ?? []).map((s) =>
       typeof s === "string"
         ? { title: s, label: "", prompt: s }
-        : withMetadata(
+        : withCustom(
             { title: s.title, label: s.label, prompt: s.prompt },
-            s.metadata,
+            s.custom,
           ),
     ),
   });
@@ -113,9 +115,9 @@ const useThreadSuggestions = (
 ): ClientOutput<"suggestions"> => {
   return useSuggestionsClient({
     suggestions: suggestions.map((s) =>
-      withMetadata(
+      withCustom(
         { title: s.title ?? s.prompt, label: s.label ?? "", prompt: s.prompt },
-        s.metadata,
+        s.custom,
       ),
     ),
   });

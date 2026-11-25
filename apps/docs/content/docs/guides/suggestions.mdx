@@ -84,9 +84,9 @@ AuiConfig({
 });
 ```
 
-### Metadata
+### Custom metadata
 
-Give a suggestion `metadata` to tell your backend which one was picked. When the suggestion sends its message, the metadata becomes that message's `metadata.custom`:
+Give a suggestion `custom` to tell your backend which one was picked. When the suggestion sends its message, `custom` becomes that message's `metadata.custom`:
 
 ```tsx
 Suggestions([
@@ -94,12 +94,12 @@ Suggestions([
     title: "Grade lab 3",
     label: "against the rubric",
     prompt: "Grade lab 3 against the rubric.",
-    metadata: { labId: "lab-3" },
+    custom: { labId: "lab-3" },
   },
 ]);
 ```
 
-A suggestion that only fills the composer leaves it out. Runtime suggestions and the inline `ThreadPrimitive.Suggestion` take the same `metadata`.
+It is the whole `metadata.custom` of the sent message, so its keys mean what they mean anywhere else there: a `quote` key makes the message a quote. A suggestion that only fills the composer leaves it out. Runtime suggestions and the inline `ThreadPrimitive.Suggestion` take the same `custom`.
 
 ## Displaying Suggestions
 
@@ -159,7 +159,7 @@ The primitives available for rendering suggestions are `ThreadPrimitive.Suggesti
 
 ## Runtime driven suggestions
 
-The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions`, and when no static `Suggestions(...)` configuration is set, the `suggestions` scope derives from them, so `ThreadPrimitive.Suggestions` renders them as well. Runtime suggestions use the `ThreadSuggestion` shape: a required `prompt` plus optional `title`, `label` and `metadata`. When `title` is omitted it falls back to the prompt, and an omitted `label` renders as empty, so a prompt-only runtime suggestion looks exactly like a plain string suggestion.
+The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions`, and when no static `Suggestions(...)` configuration is set, the `suggestions` scope derives from them, so `ThreadPrimitive.Suggestions` renders them as well. Runtime suggestions use the `ThreadSuggestion` shape: a required `prompt` plus optional `title`, `label` and `custom`. When `title` is omitted it falls back to the prompt, and an omitted `label` renders as empty, so a prompt-only runtime suggestion looks exactly like a plain string suggestion.
 
 ### Local runtime: `SuggestionAdapter`
 
@@ -300,7 +300,7 @@ function FollowUps() {
           <ThreadPrimitive.Suggestion
             key={i}
             prompt={s.prompt}
-            metadata={s.metadata}
+            custom={s.custom}
             send
           >
             {s.title ?? s.prompt}

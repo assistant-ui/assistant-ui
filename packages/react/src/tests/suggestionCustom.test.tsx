@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import type { FC, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -14,6 +20,7 @@ import {
   type SuggestionConfig,
   type ThreadMessageLike,
 } from "../index";
+import { getMessageQuote } from "@assistant-ui/core/react";
 import * as ThreadPrimitive from "../primitives/thread";
 import * as SuggestionPrimitive from "../primitives/suggestion";
 
@@ -55,8 +62,8 @@ afterEach(() => {
   cleanup();
 });
 
-describe("suggestion metadata", () => {
-  it("sends a configured suggestion's metadata as the message's custom metadata", async () => {
+describe("suggestion custom metadata", () => {
+  it("sends a configured suggestion's custom as the message's metadata.custom", async () => {
     const onNew = vi.fn();
     render(
       <Runtime onNew={onNew}>
@@ -66,7 +73,7 @@ describe("suggestion metadata", () => {
               title: "Grade lab 3",
               label: "against the rubric",
               prompt: "Grade lab 3 against the rubric.",
-              metadata: { labId: "lab-3" },
+              custom: { labId: "lab-3" },
             },
             "Explain lab 4",
           ]}
@@ -88,13 +95,13 @@ describe("suggestion metadata", () => {
     expect(second!.metadata.custom).toEqual({});
   });
 
-  it("sends an inline suggestion's metadata prop", async () => {
+  it("sends an inline suggestion's custom prop as metadata.custom", async () => {
     const onNew = vi.fn();
     render(
       <Runtime onNew={onNew}>
         <ThreadPrimitive.Suggestion
           prompt="Grade lab 3."
-          metadata={{ labId: "lab-3" }}
+          custom={{ labId: "lab-3" }}
           send
         >
           Grade
@@ -108,5 +115,48 @@ describe("suggestion metadata", () => {
     expect((onNew.mock.calls[0]![0] as AppendMessage).metadata.custom).toEqual({
       labId: "lab-3",
     });
+  });
+
+  it("sends custom as the message's whole metadata.custom, so a quote key is a quote and the composer's quote stays put", async () => {
+    const onNew = vi.fn();
+    let aui!: ReturnType<typeof useAui>;
+    const Capture: FC = () => {
+      aui = useAui();
+      return null;
+    };
+    const quote = { text: "rubric row 2", messageId: "a1" };
+    render(
+      <Runtime onNew={onNew}>
+        <Capture />
+        <ThreadPrimitive.Suggestion
+          prompt="Explain this."
+          custom={{ quote }}
+          send
+        >
+          Explain
+        </ThreadPrimitive.Suggestion>
+        <ThreadPrimitive.Suggestion
+          prompt="Grade lab 3."
+          custom={{ labId: "lab-3" }}
+          send
+        >
+          Grade
+        </ThreadPrimitive.Suggestion>
+      </Runtime>,
+    );
+
+    fireEvent.click(screen.getByText("Explain"));
+    await vi.waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+    const quoted = onNew.mock.calls[0]![0] as AppendMessage;
+    expect(getMessageQuote({ message: quoted })).toEqual(quote);
+
+    const draftQuote = { text: "draft quote", messageId: "a2" };
+    act(() => aui.composer.setQuote(draftQuote));
+    fireEvent.click(screen.getByText("Grade"));
+    await vi.waitFor(() => expect(onNew).toHaveBeenCalledTimes(2));
+    expect((onNew.mock.calls[1]![0] as AppendMessage).metadata.custom).toEqual({
+      labId: "lab-3",
+    });
+    expect(aui.composer.getState().quote).toEqual(draftQuote);
   });
 });

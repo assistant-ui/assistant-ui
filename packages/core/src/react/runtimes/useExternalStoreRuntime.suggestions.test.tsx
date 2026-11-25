@@ -87,12 +87,12 @@ describe("useExternalStoreRuntime suggestions scope", () => {
     ]);
   });
 
-  it("keeps runtime suggestion metadata on the suggestions scope", () => {
+  it("keeps a runtime suggestion's custom on the suggestions scope", () => {
     render(
-      <App suggestions={[{ prompt: "Grade", metadata: { labId: "lab-3" } }]} />,
+      <App suggestions={[{ prompt: "Grade", custom: { labId: "lab-3" } }]} />,
     );
 
-    expect(aui.suggestions.getState().suggestions[0]?.metadata).toEqual({
+    expect(aui.suggestions.getState().suggestions[0]?.custom).toEqual({
       labId: "lab-3",
     });
   });

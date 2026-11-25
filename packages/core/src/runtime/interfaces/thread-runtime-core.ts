@@ -98,7 +98,7 @@ export type ThreadSuggestion = {
   /** The message text sent when the suggestion is selected. */
   prompt: string;
   /** Set as `metadata.custom` on the message the suggestion sends. */
-  metadata?: Record<string, unknown>;
+  custom?: Record<string, unknown>;
 };
 
 export type SpeechState = {
