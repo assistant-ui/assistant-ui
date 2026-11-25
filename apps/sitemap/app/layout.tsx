@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { JetBrains_Mono, Public_Sans } from "next/font/google";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
+import { TokenPanel } from "@/components/dev/token-panel";
 import { SkipLink } from "@/components/shared/skip-link";
 import { Providers } from "./providers";
 
@@ -42,7 +43,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         className={`${publicSans.variable} ${jetbrainsMono.variable} flex min-h-screen flex-col font-sans antialiased`}
       >
         <SkipLink />
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          {process.env.NODE_ENV === "development" ? <TokenPanel /> : null}
+        </Providers>
       </body>
     </html>
   );

@@ -5,3 +5,23 @@
 
 @source "../../docs/components";
 @source "../../docs/lib";
+
+/* The docs site declares these with `@theme inline`, which writes the values
+   into the utilities. Declared again without `inline`, the utilities read the
+   variables, so the token panel can change them live. Values are the docs'. */
+@theme {
+  --font-sans: var(--font-public-sans);
+  --font-display: var(--font-public-sans);
+  --font-mono: var(--font-jetbrains-mono);
+  --tracking-hero: -0.015em;
+  --tracking-section: -0.01em;
+  --font-weight-hero: 500;
+  --radius-page: 0;
+  --radius-document: var(--radius-sm);
+  --radius-sm: 0.375rem;
+  --radius-control: 0.5rem;
+  --radius-surface: 0.625rem;
+  --radius-xl: 0.75rem;
+  --radius-thread: 1rem;
+  --radius-capsule: 9999px;
+}

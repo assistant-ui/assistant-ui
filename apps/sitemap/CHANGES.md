@@ -98,3 +98,26 @@ Files:
 - `components/library/library-shell.tsx`: the drag fix.
 
 When folding back: the docs site already loads react-grab; the drag fix belongs in the docs library shell from #10865, where the handle has the same problem in development.
+
+## Token panel (2026-11-25)
+
+A Tokens button in the bottom-right corner, in development only, opens a panel for playing with the design tokens the /design page documents. Edits apply live, stay after a reload (this browser only), and each changed row has its own reset; Copy CSS copies only the changed tokens as CSS, and Reset all returns to the docs values.
+
+- Shape: every radius, from `--radius-page` to `--radius-capsule`.
+- Ink: `--tint`, then background, foreground, muted, muted foreground, and destructive (lightness, chroma, and hue where it has its own) for the mode you are viewing, plus blue-500 and the glint.
+- Line: the border's lightness, chroma, and opacity.
+- Voice: the display, sans, and mono fonts (from a short list; Public Sans and JetBrains Mono are the site's own, the rest load from Google Fonts) and the hero and section tracking.
+- Type: size (and size at the larger breakpoint), leading, weight, and tracking for typeHero, typePage, typeSection, typeDeck, and typePackage.
+- Motion: the hero-word, hero-rise, and hero-glint durations, and Replay to run the animations again.
+
+To make radii, fonts, and tracking changeable at runtime, this app declares them again without `@theme inline`, and its copy of the type styles reads `--type-*` variables whose fallbacks are the docs values. With nothing changed, the site renders exactly as before.
+
+Files:
+
+- `components/dev/token-panel.tsx` (new): the panel.
+- `lib/tokens.ts` (new): the tokens, their docs defaults, and the CSS written for changes.
+- `app/layout.tsx`: mounts the panel in development.
+- `app/globals.css`: the tokens declared without `inline`.
+- `components/shared/type.ts` (copied from docs, then changed): the type styles read `--type-*` variables.
+
+When folding back: a value you settle on goes into `apps/docs/styles/globals.css` (or `type.ts` for type) using Copy CSS; the panel itself is a tool for this app and does not need to move.
