@@ -17,7 +17,7 @@ import {
   WindowChrome,
   motion,
 } from "@/components/library/glyph";
-import type { LibraryItem } from "@/lib/library/catalog";
+import type { LibraryItem, LibraryPageId } from "@/lib/library/catalog";
 import { NavGlyphArt } from "@/components/shared/nav-glyph";
 import { cn } from "@/lib/utils";
 import { LibraryGlyph } from "./library-glyph";
@@ -1496,6 +1496,11 @@ const GLYPHS: Record<string, () => ReactNode> = {
   "platforms/ink": () => <NavGlyphArt kind="ink" />,
   "platforms/vue": () => <NavGlyphArt kind="vue" />,
 };
+
+/** The glyph of a page the library's menus link to. */
+export function LibraryPageGlyph({ page }: { page: LibraryPageId }) {
+  return page === "setup" ? <GlyphSetup /> : <LibraryGlyph category={page} />;
+}
 
 /** An item's own glyph, or its category's where it has none. */
 export function ItemGlyph({ item }: { item: LibraryItem }) {

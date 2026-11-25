@@ -43,3 +43,24 @@ Files:
 - `lib/site-nav.ts`: Platforms in the menu's Build group.
 
 When folding back: add the `NavGlyphArt` export to `apps/docs/components/shared/nav-glyph.tsx`, and bring over the five library files above.
+
+## Library grouped by what a visitor is doing (2026-11-25)
+
+The library's pages are now in four groups, used by both the header's Library menu and the library sidebar:
+
+- Start: Setup, Platforms, Starters.
+- Browse: Components, Blocks, Themes (the categories shown as previews).
+- Connect: Runtimes, Integrations, Tools.
+- Extend: Utilities, Skills.
+
+Setup is in the header menu for the first time, with the library's setup glyph, and in the sidebar it moved from the top (beside Cart) into Start. The sidebar's group headings replace its single "Library" heading. The menu's featured card is now labeled "Everything", and the menu lays out four groups beside it in one row. The categories are listed in the same order, so the library home follows it too.
+
+Files:
+
+- `lib/library/catalog.ts`: `LIBRARY_GROUPS` and `LibraryPageId`, and Starters moved after Platforms.
+- `components/library/item-glyph.tsx`: `LibraryPageGlyph`, a glyph for Setup or any category.
+- `components/library/library-sidebar.tsx`: the grouped list.
+- `lib/site-nav.ts`: the menu built from `LIBRARY_GROUPS`, with a Setup link.
+- `components/shared/nav-items.tsx`: draws `LibraryPageGlyph`, and a five-column layout for a featured card beside four groups.
+
+When folding back: bring over these files; the `nav-items.tsx` layout change applies to the docs menu component.

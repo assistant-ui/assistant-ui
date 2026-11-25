@@ -2,11 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ComputerTerminal01Icon,
-  Search01Icon,
-  ShoppingCart01Icon,
-} from "@hugeicons/core-free-icons";
+import { Search01Icon, ShoppingCart01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Input } from "@/components/ui/input";
@@ -27,13 +23,14 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import {
-  LIBRARY_CATEGORIES,
+  LIBRARY_GROUPS,
   LIBRARY_PATH,
   SETUP_PATH,
+  getLibraryCategory,
   libraryCategoryAt,
   libraryCategoryHref,
 } from "@/lib/library/catalog";
-import { LibraryGlyph } from "./library-glyph";
+import { LibraryPageGlyph } from "./item-glyph";
 import { cartCountLabel } from "./cart-sheet";
 import {
   libraryCart,
@@ -140,30 +137,6 @@ export function LibrarySidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={pathname === SETUP_PATH}
-                    render={
-                      <Link
-                        href={SETUP_PATH}
-                        aria-current={
-                          pathname === SETUP_PATH ? "page" : undefined
-                        }
-                        onClick={closeSheet}
-                      />
-                    }
-                  >
-                    <span className="flex w-[1.667rem] shrink-0 justify-center">
-                      <HugeiconsIcon
-                        icon={ComputerTerminal01Icon}
-                        strokeWidth={1.5}
-                        aria-hidden
-                        className="text-muted-foreground group-data-active/menu-button:text-current"
-                      />
-                    </span>
-                    <span className="truncate">Setup</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
                     aria-label={`Open cart, ${cartCountLabel(cartCount)}`}
                     onClick={() => {
                       closeSheet();
@@ -188,50 +161,57 @@ export function LibrarySidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupLabel
-              render={
-                <Link
-                  href={LIBRARY_PATH}
-                  aria-current={pathname === LIBRARY_PATH ? "page" : undefined}
-                  // On a phone the sidebar is a sheet over the page, so
-                  // following a link puts it away.
-                  onClick={closeSheet}
-                />
-              }
-              className="hover:text-sidebar-foreground transition-colors"
-            >
-              Library
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <nav aria-label="Library">
-                <SidebarMenu className="gap-0.5">
-                  {LIBRARY_CATEGORIES.map(({ id, label }) => (
-                    <SidebarMenuItem key={id}>
-                      <SidebarMenuButton
-                        isActive={id === current}
-                        render={
-                          <Link
-                            href={libraryCategoryHref(id)}
-                            aria-current={id === current ? "page" : undefined}
-                            data-nav-glyph-motion
-                            onClick={closeSheet}
-                          />
-                        }
-                        className="group/navlink pe-9 [&_svg]:h-5 [&_svg]:w-[1.667rem]"
-                      >
-                        <LibraryGlyph category={id} />
-                        <span className="truncate">{label}</span>
-                      </SidebarMenuButton>
-                      <SidebarMenuBadge className="text-muted-foreground font-normal">
-                        {counts.get(id) ?? 0}
-                      </SidebarMenuBadge>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </nav>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <nav aria-label="Library">
+            {LIBRARY_GROUPS.map((group) => (
+              <SidebarGroup key={group.label}>
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu className="gap-0.5">
+                    {group.pages.map((page) => {
+                      const active =
+                        page === "setup"
+                          ? pathname === SETUP_PATH
+                          : page === current;
+                      return (
+                        <SidebarMenuItem key={page}>
+                          <SidebarMenuButton
+                            isActive={active}
+                            render={
+                              <Link
+                                href={
+                                  page === "setup"
+                                    ? SETUP_PATH
+                                    : libraryCategoryHref(page)
+                                }
+                                aria-current={active ? "page" : undefined}
+                                data-nav-glyph-motion
+                                // On a phone the sidebar is a sheet over the
+                                // page, so following a link puts it away.
+                                onClick={closeSheet}
+                              />
+                            }
+                            className="group/navlink pe-9 [&_svg]:h-5 [&_svg]:w-[1.667rem]"
+                          >
+                            <LibraryPageGlyph page={page} />
+                            <span className="truncate">
+                              {page === "setup"
+                                ? "Setup"
+                                : getLibraryCategory(page).label}
+                            </span>
+                          </SidebarMenuButton>
+                          {page === "setup" ? null : (
+                            <SidebarMenuBadge className="text-muted-foreground font-normal">
+                              {counts.get(page) ?? 0}
+                            </SidebarMenuBadge>
+                          )}
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ))}
+          </nav>
         </SidebarContent>
       </Sidebar>
     </SidebarProvider>

@@ -8,6 +8,11 @@ export const LIBRARY_CATEGORIES = [
     description: "The package for each place an assistant runs.",
   },
   {
+    id: "starters",
+    label: "Starters",
+    description: "Templates and example apps to start from.",
+  },
+  {
     id: "components",
     label: "Components",
     description: "Chat elements, UI components, and unstyled primitives.",
@@ -21,11 +26,6 @@ export const LIBRARY_CATEGORIES = [
     id: "themes",
     label: "Themes",
     description: "Presets for a project's style, colors, icons, and fonts.",
-  },
-  {
-    id: "starters",
-    label: "Starters",
-    description: "Templates and example apps to start from.",
   },
   {
     id: "runtimes",
@@ -61,6 +61,23 @@ export type LibraryCategoryId = LibraryCategory["id"];
 export const LIBRARY_CATEGORY_IDS = LIBRARY_CATEGORIES.map(
   (category) => category.id,
 ) as [LibraryCategoryId, ...LibraryCategoryId[]];
+
+/** A page the library's menus link to: the setup page or a category. */
+export type LibraryPageId = "setup" | LibraryCategoryId;
+
+/**
+ * The library's pages grouped by what a visitor is doing, for the header menu
+ * and the library sidebar. The categories above are in the same order.
+ */
+export const LIBRARY_GROUPS: readonly {
+  label: string;
+  pages: readonly LibraryPageId[];
+}[] = [
+  { label: "Start", pages: ["setup", "platforms", "starters"] },
+  { label: "Browse", pages: ["components", "blocks", "themes"] },
+  { label: "Connect", pages: ["runtimes", "integrations", "tools"] },
+  { label: "Extend", pages: ["utilities", "skills"] },
+];
 
 /** Categories whose items are shown as previews rather than rows. */
 export const GALLERY_CATEGORIES: readonly LibraryCategoryId[] = [

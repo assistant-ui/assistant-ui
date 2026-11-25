@@ -16,7 +16,7 @@ import {
   NavigationMenuViewport,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-import { LibraryGlyph } from "@/components/library/library-glyph";
+import { LibraryPageGlyph } from "@/components/library/item-glyph";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import type { MenuItem, SiteNavItem } from "@/lib/site-nav";
 
@@ -34,14 +34,14 @@ function MenuGlyph({
     return (
       <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 rounded-document [container-type:size] flex min-h-24 w-full flex-1 items-center justify-center border transition-colors">
         <span className="flex w-[min(56cqw,90cqh)] [&>svg]:h-auto [&>svg]:w-full [&>svg]:[stroke-width:0.5]">
-          <LibraryGlyph category={link.libraryGlyph} />
+          <LibraryPageGlyph page={link.libraryGlyph} />
         </span>
       </span>
     );
   }
   return (
     <span className="border-foreground/10 bg-background rounded-document grid size-11 shrink-0 place-items-center border">
-      <LibraryGlyph category={link.libraryGlyph} />
+      <LibraryPageGlyph page={link.libraryGlyph} />
     </span>
   );
 }
@@ -231,8 +231,10 @@ export function NavItems({
                       ? cn(
                           item.groups.length <= 2 &&
                             "grid-cols-[minmax(0,16rem)_1fr_1fr]",
-                          item.groups.length >= 3 &&
+                          item.groups.length === 3 &&
                             "grid-cols-[minmax(0,16rem)_1fr_1fr_1fr]",
+                          item.groups.length >= 4 &&
+                            "grid-cols-[minmax(0,14rem)_1fr_1fr_1fr_1fr]",
                         )
                       : cn(
                           item.groups.length <= 2 && "grid-cols-2",
