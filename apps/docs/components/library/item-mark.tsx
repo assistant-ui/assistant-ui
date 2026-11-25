@@ -12,7 +12,6 @@ import { MastraIcon } from "@/components/icons/mastra";
 import { McpIcon } from "@/components/icons/mcp";
 import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
-import { BASE_URL } from "@/lib/constants";
 import type { LibraryItem, LibraryMark } from "@/lib/library/catalog";
 import { ItemGlyph } from "./item-glyph";
 
@@ -22,11 +21,9 @@ const AgentIcon = dynamic(() =>
 
 const MARKS: Record<LibraryMark, ComponentType<{ className?: string }>> = {
   a2a: A2AIcon,
-  // The docs app's ADK icon is an image in that app's public folder, so it is
-  // read from the docs site here.
   adk: (props) => (
     <Image
-      src={`${BASE_URL}/icons/agent-development-kit.png`}
+      src="/icons/agent-development-kit.png"
       alt=""
       width={20}
       height={20}

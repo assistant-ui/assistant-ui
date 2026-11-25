@@ -78,14 +78,7 @@ const elements: LibraryItem[] = ELEMENTS.map((element) => {
   };
 });
 
-const DESIGN_DIR = join(
-  process.cwd(),
-  "..",
-  "docs",
-  "content",
-  "design",
-  "components",
-);
+const DESIGN_DIR = join(process.cwd(), "content", "design", "components");
 
 /** The registry items a design component's page installs; none when the page gives its source to copy. */
 const designRegistryItems = (slug: string): string[] => {
@@ -149,8 +142,8 @@ const blocks: LibraryItem[] = BLOCKS.map((block) => ({
   ),
   preview: {
     kind: "image",
-    light: docsUrl(block.image.light),
-    dark: docsUrl(block.image.dark),
+    light: block.image.light,
+    dark: block.image.dark,
   },
 }));
 
@@ -449,7 +442,7 @@ const UTILITIES: readonly DocsEntry[] = [
   { path: "utilities/react-o11y", packages: ["@assistant-ui/react-o11y"] },
 ];
 
-const DOCS_DIR = join(process.cwd(), "..", "docs", "content", "docs");
+const DOCS_DIR = join(process.cwd(), "content", "docs");
 
 /** A page's frontmatter, read from the docs app's content on disk. */
 const readDocsPage = (path: string) => {

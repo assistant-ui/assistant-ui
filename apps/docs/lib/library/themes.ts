@@ -5,7 +5,7 @@ import {
   type ThemeBaseColor,
 } from "./theme-colors";
 
-export const NEW_THEME_PATH = "/themes/new";
+export const NEW_THEME_PATH = "/library/themes/new";
 
 export const THEME_SECTIONS = ["Products", "assistant-ui"] as const;
 

@@ -1,5 +1,5 @@
-export const LIBRARY_PATH = "/";
-export const SETUP_PATH = "/setup";
+export const LIBRARY_PATH = "/library";
+export const SETUP_PATH = "/library/setup";
 
 export const LIBRARY_CATEGORIES = [
   {
@@ -69,13 +69,14 @@ export const isLibraryCategoryId = (
 ): value is LibraryCategoryId =>
   LIBRARY_CATEGORY_IDS.some((id) => id === value);
 
-export const libraryCategoryHref = (id: LibraryCategoryId) => `/${id}`;
+export const libraryCategoryHref = (id: LibraryCategoryId) =>
+  `${LIBRARY_PATH}/${id}`;
 
 /** The category a library address shows, or null on the library's home. */
 export const libraryCategoryAt = (
   pathname: string,
 ): LibraryCategoryId | null => {
-  const segment = pathname.split("/")[1] ?? "";
+  const segment = pathname.split("/")[2] ?? "";
   return isLibraryCategoryId(segment) ? segment : null;
 };
 

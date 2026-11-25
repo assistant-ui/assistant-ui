@@ -11,7 +11,7 @@ export const generateStaticParams = () =>
   LIBRARY_CATEGORY_IDS.map((category) => ({ category }));
 
 export async function generateMetadata(
-  props: PageProps<"/[category]">,
+  props: PageProps<"/library/[category]">,
 ): Promise<Metadata> {
   const { category } = await props.params;
   if (!isLibraryCategoryId(category)) return {};
@@ -20,7 +20,7 @@ export async function generateMetadata(
 }
 
 export default async function LibraryCategoryPage(
-  props: PageProps<"/[category]">,
+  props: PageProps<"/library/[category]">,
 ) {
   const { category } = await props.params;
   if (!isLibraryCategoryId(category)) notFound();
