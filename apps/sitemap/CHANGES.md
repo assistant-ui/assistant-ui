@@ -233,3 +233,13 @@ Files:
 - `app/(home)/page.tsx`: the "How it fits together." section with `Architecture`, between the demo and the rest of the page.
 
 When folding back: the same section in `apps/docs/app/(home)/page.tsx`, with `architecture.tsx` copied to the same path.
+
+## Headline on two lines (2026-11-25)
+
+The headline breaks after "for": "The frontend for" on the first line and "AI agents." on the second, on every screen size. The break is placed on purpose rather than by a width limit, the words still arrive one after another, and screen readers get the whole sentence with its spaces.
+
+Files:
+
+- `components/pages/home/hero.tsx`: `HeroHeadline` takes its lines as a list.
+
+When folding back: the same `HeroHeadline` change in `apps/docs/components/pages/home/hero.tsx`.

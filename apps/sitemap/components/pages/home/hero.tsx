@@ -14,24 +14,39 @@ import Image from "next/image";
 import Link from "next/link";
 
 /** The headline, arriving word by word. */
-function HeroHeadline({ text }: { text: string }) {
+function HeroHeadline({ lines }: { lines: readonly string[] }) {
+  let index = -1;
   return (
     <h1 className={typeHero}>
-      {text.split(" ").map((word, index) => (
-        <Fragment key={index}>
-          <span
-            className="hero-word"
-            style={{ animationDelay: `${index * 90}ms` }}
-          >
-            <span
-              className="hero-word-ink"
-              style={{ animationDelay: `${index * 90}ms` }}
-            >
-              {word}
-            </span>
-          </span>{" "}
+      {lines.map((line, lineIndex) => (
+        <Fragment key={line}>
+          {lineIndex > 0 ? (
+            <>
+              {" "}
+              <br />
+            </>
+          ) : null}
+          {line.split(" ").map((word, wordIndex, words) => {
+            index += 1;
+            return (
+              <Fragment key={word}>
+                <span
+                  className="hero-word"
+                  style={{ animationDelay: `${index * 90}ms` }}
+                >
+                  <span
+                    className="hero-word-ink"
+                    style={{ animationDelay: `${index * 90}ms` }}
+                  >
+                    {word}
+                  </span>
+                </span>
+                {wordIndex < words.length - 1 ? " " : null}
+              </Fragment>
+            );
+          })}
         </Fragment>
-      ))}
+      ))}{" "}
       <span
         aria-hidden
         className="hero-caret ml-1 inline-block h-[0.72em] w-[3px] bg-blue-500 align-baseline"
@@ -46,7 +61,7 @@ export function Hero() {
       <HeroMark />
       <div className="relative flex flex-col gap-4">
         <div className="flex flex-col gap-3 pb-1">
-          <HeroHeadline text="The frontend for AI agents." />
+          <HeroHeadline lines={["The frontend for", "AI agents."]} />
           <p
             className={cn(typeDeck, "hero-rise")}
             style={{ animationDelay: "550ms" }}
