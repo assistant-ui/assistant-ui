@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { isExecutedAsMain } from "./lib/main.mjs";
@@ -260,7 +260,42 @@ export const createReleaseTags = async ({
   return { problems };
 };
 
-const githubClient = ({ token, owner, repo }) => {
+export const gitPushRef =
+  ({ token, remote, cwd }) =>
+  (ref, sha) => {
+    const basic = Buffer.from(`x-access-token:${token}`).toString("base64");
+    const result = spawnSync("git", ["push", remote, `${sha}:${ref}`], {
+      cwd,
+      encoding: "utf8",
+      timeout: 60_000,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+        GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}`,
+      },
+    });
+    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
+    if (result.error) {
+      return `git push of ${ref} could not run: ${result.error.message}`;
+    }
+    if (result.status !== 0) {
+      return `git push of ${ref} failed too:\n${output}`;
+    }
+    return `git push created ${ref} at ${sha} although the API refused it; the job still fails:\n${output}`;
+  };
+
+export const githubClient = ({
+  token,
+  owner,
+  repo,
+  fetch = globalThis.fetch,
+  pushRef = gitPushRef({
+    token,
+    remote: `https://github.com/${owner}/${repo}.git`,
+  }),
+}) => {
   const request = async (method, apiPath, body) => {
     const response = await fetch(`https://api.github.com${apiPath}`, {
       method,
@@ -278,8 +313,12 @@ const githubClient = ({ token, owner, repo }) => {
       throw error;
     }
     if (!response.ok) {
+      // A refusal's body gives no reason; GitHub support traces one by request id.
+      const headers = ["x-github-request-id", "x-accepted-github-permissions"]
+        .map((name) => `${name}: ${response.headers.get(name) ?? "(absent)"}`)
+        .join("; ");
       const error = new Error(
-        `GitHub ${method} ${apiPath}: HTTP ${response.status} ${await response.text()}`,
+        `GitHub ${method} ${apiPath}: HTTP ${response.status} ${await response.text()} (${headers})`,
       );
       error.status = response.status;
       throw error;
@@ -293,8 +332,19 @@ const githubClient = ({ token, owner, repo }) => {
     getRef: (ref) => request("GET", `/repos/${owner}/${repo}/git/ref/${ref}`),
     getTagObject: (sha) =>
       request("GET", `/repos/${owner}/${repo}/git/tags/${sha}`),
-    createRef: (ref, sha) =>
-      request("POST", `/repos/${owner}/${repo}/git/refs`, { ref, sha }),
+    createRef: async (ref, sha) => {
+      try {
+        return await request("POST", `/repos/${owner}/${repo}/git/refs`, {
+          ref,
+          sha,
+        });
+      } catch (error) {
+        // The API refuses a ref with a bare 403, while git push of the same ref
+        // may print the server's reason, such as a missing workflows scope.
+        if (error.status === 403) error.message += `\n${pushRef(ref, sha)}`;
+        throw error;
+      }
+    },
     getReleaseByTag: (tag) =>
       request(
         "GET",

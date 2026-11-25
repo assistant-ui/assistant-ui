@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
   createReleaseTags,
   getChangelogEntry,
+  githubClient,
+  gitPushRef,
   readPublishablePackages,
 } from "./create-release-tags.mjs";
 
@@ -562,6 +565,125 @@ test("ignores private packages", async () => {
     ["priv", { name: "private-thing", version: "1.0.0", private: true }],
   ]);
   assert.deepEqual(readPublishablePackages(packagesDir), []);
+});
+
+// The bare refusal both the tag and the release call got from GitHub.
+const refusal = (status = 403) =>
+  new Response(
+    JSON.stringify({ message: "Resource not accessible by integration" }),
+    {
+      status,
+      headers: {
+        "x-github-request-id": "0400:1A2B3C:4D5E6F",
+        "x-accepted-github-permissions": "contents=write",
+      },
+    },
+  );
+
+function refusingClient(status) {
+  const pushes = [];
+  const client = githubClient({
+    token: "t",
+    owner: "assistant-ui",
+    repo: "assistant-ui",
+    fetch: async () => refusal(status),
+    pushRef: (ref, sha) => {
+      pushes.push([ref, sha]);
+      return "! [remote rejected] (refusing to allow a GitHub App to create or update workflow)";
+    },
+  });
+  return { client, pushes };
+}
+
+test("a refused release names the request id and the permissions the endpoint accepts", async () => {
+  const { client, pushes } = refusingClient(403);
+  await assert.rejects(
+    client.createRelease({ tag_name: "assistant-ui@0.0.137" }),
+    (error) => {
+      assert.equal(error.status, 403);
+      assert.match(error.message, /x-github-request-id: 0400:1A2B3C:4D5E6F/);
+      assert.match(
+        error.message,
+        /x-accepted-github-permissions: contents=write/,
+      );
+      return true;
+    },
+  );
+  assert.deepEqual(pushes, []);
+});
+
+test("a refused tag is pushed with git for the reason, and still fails", async () => {
+  const { client, pushes } = refusingClient(403);
+  await assert.rejects(
+    client.createRef("refs/tags/assistant-ui@0.0.130", RELEASE_SHA),
+    (error) => {
+      assert.equal(error.status, 403);
+      assert.match(error.message, /x-github-request-id: 0400:1A2B3C:4D5E6F/);
+      assert.match(error.message, /refusing to allow a GitHub App/);
+      return true;
+    },
+  );
+  assert.deepEqual(pushes, [["refs/tags/assistant-ui@0.0.130", RELEASE_SHA]]);
+});
+
+test("a tag the API rejects for another reason is not pushed", async () => {
+  const { client, pushes } = refusingClient(422);
+  await assert.rejects(
+    client.createRef("refs/tags/assistant-ui@0.0.130", RELEASE_SHA),
+    (error) => error.status === 422,
+  );
+  assert.deepEqual(pushes, []);
+});
+
+test("gitPushRef reports the reason a remote refuses a tag, or that it took it", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "aui-release-push-"));
+  const git = (cwd, ...args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  const work = path.join(dir, "work");
+  mkdirSync(work);
+  git(work, "init", "-q");
+  git(
+    work,
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@example.com",
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "release",
+  );
+  const sha = git(work, "rev-parse", "HEAD");
+
+  const refusing = path.join(dir, "refusing.git");
+  const accepting = path.join(dir, "accepting.git");
+  git(dir, "init", "-q", "--bare", refusing);
+  git(dir, "init", "-q", "--bare", accepting);
+  const hook = path.join(refusing, "hooks", "pre-receive");
+  writeFileSync(
+    hook,
+    "#!/bin/sh\necho 'refusing to allow a GitHub App to create or update workflow' >&2\nexit 1\n",
+  );
+  chmodSync(hook, 0o755);
+
+  const refused = gitPushRef({ token: "t", remote: refusing, cwd: work })(
+    "refs/tags/assistant-ui@0.0.130",
+    sha,
+  );
+  assert.match(refused, /failed too/);
+  assert.match(refused, /refusing to allow a GitHub App/);
+  assert.equal(git(dir, "--git-dir", refusing, "tag", "--list"), "");
+
+  const created = gitPushRef({ token: "t", remote: accepting, cwd: work })(
+    "refs/tags/assistant-ui@0.0.130",
+    sha,
+  );
+  assert.match(created, /created refs\/tags\/assistant-ui@0\.0\.130/);
+  assert.equal(
+    git(dir, "--git-dir", accepting, "rev-parse", "assistant-ui@0.0.130"),
+    sha,
+  );
 });
 
 test("getChangelogEntry extracts exactly the version section", () => {
