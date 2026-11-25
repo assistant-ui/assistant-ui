@@ -6,6 +6,8 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
+- Build the scripted previews for the six demos on `/demos` (each a small chat on `useLocalRuntime` with a scripted `ChatModelAdapter`, like the docs Blocks' `scriptedModel`); until then each Preview tab says it is not built.
+- A second batch of demos: generative UI, suggestions, editing and branching, mentions and slash commands, reading aloud, the thread list.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -207,7 +209,7 @@ When folding back: wherever the row ends up, `HomeStats` moves with it.
 
 ## Hero: headline, buttons, and an architecture stack (2026-11-25)
 
-The hero now reads, top to bottom: "The frontend for AI agents." on one line (chosen over "Frontend for AI agents.", "The AI agent frontend.", and the old "The frontend library for AI agents."), the buttons Explore the library (to `/library`, replacing Start) and Talk to the team, and an interactive stack of assistant-ui's architecture in place of the old description line ("Primitives and a runtime for production chat. Any backend, through adapters." is gone).
+The hero now reads, top to bottom: "The frontend library for AI agents." on one line (chosen over "Frontend for AI agents.", "The AI agent frontend.", and the old "The frontend library for AI agents."), the buttons Explore the library (to `/library`, replacing Start) and Talk to the team, and an interactive stack of assistant-ui's architecture in place of the old description line ("Primitives and a runtime for production chat. Any backend, through adapters." is gone).
 
 The stack follows the five layers of the docs' Architecture page (UI, Runtime, Integrations, Backend, Persistence) and is styled like the Timeline element: a numbered rail of dots joined by a hairline, each layer's name and one-line description beside its dot. A click opens a layer's examples (the pieces the docs name, such as AI SDK, LangGraph, `DataStream`, and `AssistantTransport` under Integrations) and a link to its library or docs page; the open layer's dot is blue with a soft ring, and a second click closes it, so every layer can be closed. It starts closed. Room for one open layer is kept below the stack, so opening or closing never moves the vertically centered hero; that is why the buttons sit above the stack. It uses the Base UI accordion parts, Tab and Enter or Space to work it from the keyboard, and its open and close motion stops under reduced motion.
 
@@ -225,7 +227,7 @@ When folding back: `architecture.tsx` and the hero changes go to the same paths 
 
 ## Architecture stack in its own section (2026-11-25)
 
-The hero is back to its earlier shape, centered in the first screen: "The frontend for AI agents.", the description "Primitives and a runtime for production chat. Any backend, through adapters.", and the buttons Explore the library and Talk to the team. The architecture stack moved out of the hero into its own section right after the demo, headed "How it fits together." with one line under it; it works the same (five layers, a click opens one, another click closes it). Without the stack, the hero no longer reserves room for an open layer.
+The hero is back to its earlier shape, centered in the first screen: "The frontend library for AI agents.", the description "Primitives and a runtime for production chat. Any backend, through adapters.", and the buttons Explore the library and Talk to the team. The architecture stack moved out of the hero into its own section right after the demo, headed "How it fits together." with one line under it; it works the same (five layers, a click opens one, another click closes it). Without the stack, the hero no longer reserves room for an open layer.
 
 Files:
 
@@ -236,7 +238,7 @@ When folding back: the same section in `apps/docs/app/(home)/page.tsx`, with `ar
 
 ## Headline on two lines (2026-11-25)
 
-The headline breaks after "for": "The frontend for" on the first line and "AI agents." on the second, on every screen size. The break is placed on purpose rather than by a width limit, the words still arrive one after another, and screen readers get the whole sentence with its spaces.
+The headline breaks after "for": "The frontend library for" on the first line and "AI agents." on the second, on every screen size. The break is placed on purpose rather than by a width limit, the words still arrive one after another, and screen readers get the whole sentence with its spaces.
 
 Files:
 
@@ -349,3 +351,15 @@ Files:
 - `package.json`, root `pnpm-lock.yaml`: the dev dependency removed.
 
 When folding back: copy `components/pages/home/demo/index.tsx` to the same path in `apps/docs`. The frame's shadow is an exception to design.md, which keeps shadows for floating surfaces.
+
+## Demos page (2026-11-25)
+
+A new page at `/demos` lists the first six feature demos: Chat, Tool UI, Approval, Reasoning, Attachments, and State and actions. Each has a number, a title, a one-line description, the hooks and APIs it uses, and tabs for its preview and its files. The files are the code you write with AI SDK on the server, taken from the current docs (`useChatRuntime` from `@assistant-ui/ai-sdk`, toolkits through `AuiConfig` and `Tools`, `toolApproval` with `respondToApproval`, `sendReasoning`, `SimpleImageAttachmentAdapter`, `useAui` and `useAuiState`). Every demo has `app/page.tsx`; the route appears when the server changes, a toolkit file when there is a tool, so a demo has two or three files. The code is highlighted on the server the way the home page highlights its setup snippets. The previews are not built yet.
+
+Files:
+
+- `app/(home)/demos/page.tsx` (new): the page.
+- `components/pages/demos/demo-tabs.tsx` (new): the preview and file tabs.
+- `lib/scripted-demos.ts` (new): the demos and their files.
+
+When folding back: copy the three files to the same paths in `apps/docs`. The docs have `/demos/<name>` pages (the ChatGPT-style demos) but no page at `/demos`, so nothing is replaced; a link to it in the header is not decided.
