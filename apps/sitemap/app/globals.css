@@ -30,3 +30,9 @@
   --radius-thread: 1rem;
   --radius-capsule: 9999px;
 }
+
+@keyframes logo-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}

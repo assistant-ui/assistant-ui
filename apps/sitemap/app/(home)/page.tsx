@@ -1,7 +1,7 @@
 import { cacheLife } from "next/cache";
 import { HomeDemo } from "@/components/pages/home/demo";
 import { Hero } from "@/components/pages/home/hero";
-import { TrustedBy } from "@/components/pages/home/trusted-by";
+import { LogoMarquee } from "@/components/pages/home/trusted-by";
 import { LibraryBody } from "@/components/pages/home/library-body";
 import { PageFrame } from "@/components/shared/page-frame";
 import { getRepo } from "@/lib/github";
@@ -168,7 +168,7 @@ export default async function HomePage() {
             <Hero stars={repo?.stars ?? null} downloads={downloads} />
           </div>
           <section aria-label="Used by" className="pb-8 md:pb-10">
-            <TrustedBy layout="row" />
+            <LogoMarquee />
           </section>
         </div>
         <HomeDemo />

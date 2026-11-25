@@ -181,3 +181,15 @@ Files:
 - `components/pages/home/library-body.tsx`: the logos no longer appear in their old spot.
 
 When folding back: the same three edits in apps/docs.
+
+## Logos as a marquee (2026-11-25)
+
+Chosen from three versions (an aligned rotating row, a marquee, and all logos at once). The logo row under the hero is now a marquee of all 23 logos, scrolling slowly in one line inside the page column, so its edges line up with the hero text; it fades out at both ends, pauses on hover, and stands still for reduced motion. The first copy of each logo is a link; the repeat that makes the loop seamless is hidden from screen readers and the keyboard.
+
+Files:
+
+- `components/pages/home/trusted-by.tsx`: back to the docs version, plus `LogoMarquee`.
+- `app/(home)/page.tsx`: the first screen uses `LogoMarquee`.
+- `app/globals.css`: the `logo-marquee` keyframes.
+
+When folding back: `LogoMarquee` and its keyframes go into the docs files of the same names, and the docs home page uses it under the hero.
