@@ -15,13 +15,7 @@ import Link from "next/link";
 
 const HEADLINE_WORDS = ["The", "frontend", "library", "for", "AI", "agents."];
 
-export function Hero({
-  stars,
-  downloads,
-}: {
-  stars: number | null;
-  downloads: number | null;
-}) {
+export function Hero() {
   return (
     <section className="relative flex flex-col pb-4 md:pb-8">
       <div
@@ -70,42 +64,50 @@ export function Hero({
           className="hero-rise"
           style={{ animationDelay: "700ms" }}
         />
-
-        <div
-          className="hero-rise text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-3 text-[13px]"
-          style={{ animationDelay: "850ms" }}
-        >
-          <a
-            href="https://github.com/assistant-ui/assistant-ui"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
-          >
-            <GitHubStars stars={stars} />
-          </a>
-          <span className="bg-muted-foreground/20 rounded-capsule hidden size-1 sm:block" />
-          <a
-            href="https://www.npmjs.com/package/@assistant-ui/react"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
-          >
-            <NpmDownloads downloads={downloads} />
-          </a>
-          <span className="bg-muted-foreground/20 rounded-capsule hidden size-1 sm:block" />
-          <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
-            Backed by
-            <Image
-              src="/icons/yc_logo.png"
-              alt="Y Combinator"
-              height={18}
-              width={18}
-            />
-            Combinator
-          </span>
-        </div>
       </div>
     </section>
+  );
+}
+
+/** GitHub stars, weekly downloads, and Y Combinator; parked until it has a place. */
+export function HomeStats({
+  stars,
+  downloads,
+}: {
+  stars: number | null;
+  downloads: number | null;
+}) {
+  return (
+    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-3 text-[13px]">
+      <a
+        href="https://github.com/assistant-ui/assistant-ui"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-foreground transition-colors"
+      >
+        <GitHubStars stars={stars} />
+      </a>
+      <span className="bg-muted-foreground/20 rounded-capsule hidden size-1 sm:block" />
+      <a
+        href="https://www.npmjs.com/package/@assistant-ui/react"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-foreground transition-colors"
+      >
+        <NpmDownloads downloads={downloads} />
+      </a>
+      <span className="bg-muted-foreground/20 rounded-capsule hidden size-1 sm:block" />
+      <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
+        Backed by
+        <Image
+          src="/icons/yc_logo.png"
+          alt="Y Combinator"
+          height={18}
+          width={18}
+        />
+        Combinator
+      </span>
+    </div>
   );
 }
 

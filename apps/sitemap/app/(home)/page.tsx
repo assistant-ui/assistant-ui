@@ -1,6 +1,6 @@
 import { cacheLife } from "next/cache";
 import { HomeDemo } from "@/components/pages/home/demo";
-import { Hero } from "@/components/pages/home/hero";
+import { Hero, HomeStats } from "@/components/pages/home/hero";
 import { LogoMarquee } from "@/components/pages/home/trusted-by";
 import { LibraryBody } from "@/components/pages/home/library-body";
 import { PageFrame } from "@/components/shared/page-frame";
@@ -165,7 +165,7 @@ export default async function HomePage() {
             row of logos, so the demo starts below the fold. */}
         <div className="flex min-h-[calc(100svh-3rem)] flex-col">
           <div className="flex flex-1 flex-col justify-center">
-            <Hero stars={repo?.stars ?? null} downloads={downloads} />
+            <Hero />
           </div>
           <section aria-label="Used by" className="pb-8 md:pb-10">
             <LogoMarquee />
@@ -174,6 +174,10 @@ export default async function HomePage() {
         <HomeDemo />
       </div>
       <LibraryBody setupTabs={setupTabs} />
+      {/* Parked here, out of the hero, until it has a place; see the To do list in CHANGES.md. */}
+      <section aria-label="Project stats" className="pt-10">
+        <HomeStats stars={repo?.stars ?? null} downloads={downloads} />
+      </section>
     </PageFrame>
   );
 }

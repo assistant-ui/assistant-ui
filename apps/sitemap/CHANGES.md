@@ -9,6 +9,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 - Redesign the home hero (waiting on what you want instead).
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
+- Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
 - Fold the settled changes back into `apps/docs`.
 
 ## Setup (2026-11-25)
@@ -193,3 +194,14 @@ Files:
 - `app/globals.css`: the `logo-marquee` keyframes.
 
 When folding back: `LogoMarquee` and its keyframes go into the docs files of the same names, and the docs home page uses it under the hero.
+
+## Stats row out of the hero (2026-11-25)
+
+The row with GitHub stars, weekly downloads, and Backed by Y Combinator is out of the hero, so the first screen is the headline, the line under it, the two buttons, and the logos. The row is now its own `HomeStats` piece, parked at the bottom of the home page under Start building until it has a place (it is on the To do list).
+
+Files:
+
+- `components/pages/home/hero.tsx`: `HomeStats` (the row, without its entrance animation); `Hero` no longer takes the stars and downloads.
+- `app/(home)/page.tsx`: `HomeStats` under the page's last section.
+
+When folding back: wherever the row ends up, `HomeStats` moves with it.
