@@ -335,7 +335,7 @@ export type {
 export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
 export {
   fromThreadMessageLike,
-  getThreadMessageLikePartIndices,
+  unstable_getThreadMessageLikePartIndices,
 } from "./runtime/utils/thread-message-like";
 
 // Streaming timing (client-side)

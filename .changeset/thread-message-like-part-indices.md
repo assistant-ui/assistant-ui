@@ -5,4 +5,4 @@
 "@assistant-ui/react-ink": patch
 ---
 
-feat: add `getThreadMessageLikePartIndices`, which maps each part `fromThreadMessageLike` keeps back to its index in the `ThreadMessageLike` content, since empty text and reasoning parts are left out
+feat: add `unstable_getThreadMessageLikePartIndices`, which maps each part `fromThreadMessageLike` keeps back to its index in the `ThreadMessageLike` content, since empty text and reasoning parts are left out

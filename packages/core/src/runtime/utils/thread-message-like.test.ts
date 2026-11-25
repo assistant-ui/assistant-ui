@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fromThreadMessageLike,
-  getThreadMessageLikePartIndices,
+  unstable_getThreadMessageLikePartIndices,
   type ThreadMessageLike,
 } from "./thread-message-like";
 
@@ -556,7 +556,7 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
   });
 });
 
-describe("getThreadMessageLikePartIndices", () => {
+describe("unstable_getThreadMessageLikePartIndices", () => {
   const status = { type: "complete", reason: "stop" } as const;
   const toolCall = {
     type: "tool-call",
@@ -617,11 +617,34 @@ describe("getThreadMessageLikePartIndices", () => {
       [1],
     ],
     ["empty assistant string content", { role: "assistant", content: "" }, []],
+    [
+      "whitespace assistant string content",
+      { role: "assistant", content: "  " },
+      [],
+    ],
+    ["empty user string content", { role: "user", content: "" }, [0]],
+    ["empty system string content", { role: "system", content: "" }, [0]],
     ["assistant string content", { role: "assistant", content: "Hi" }, [0]],
   ])("maps %s", (_, like, expected) => {
-    expect(getThreadMessageLikePartIndices(like)).toEqual(expected);
+    expect(unstable_getThreadMessageLikePartIndices(like)).toEqual(expected);
     expect(fromThreadMessageLike(like, "id", status).content).toHaveLength(
       expected.length,
     );
+  });
+
+  it("throws where fromThreadMessageLike throws", () => {
+    const twoPartSystem: ThreadMessageLike = {
+      role: "system",
+      content: [
+        { type: "text", text: "a" },
+        { type: "text", text: "b" },
+      ],
+    };
+    expect(() => fromThreadMessageLike(twoPartSystem, "id", status)).toThrow(
+      "System messages must have exactly one text message part.",
+    );
+    expect(() =>
+      unstable_getThreadMessageLikePartIndices(twoPartSystem),
+    ).toThrow("System messages must have exactly one text message part.");
   });
 });

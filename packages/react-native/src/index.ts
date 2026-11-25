@@ -88,7 +88,7 @@ export {
 } from "@assistant-ui/core";
 export {
   fromThreadMessageLike,
-  getThreadMessageLikePartIndices,
+  unstable_getThreadMessageLikePartIndices,
   generateId,
 } from "@assistant-ui/core";
 export { createSuggestionAdapter } from "@assistant-ui/core";
