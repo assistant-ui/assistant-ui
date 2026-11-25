@@ -308,11 +308,6 @@ export function BlockViewer({
   };
   useEffect(postTheme);
 
-  useEffect(() => {
-    const size = VIEWPORTS.find((item) => item.id === viewport)?.size;
-    if (size) panelRef.current?.resize(size);
-  }, [viewport]);
-
   return (
     <Tabs
       value={tab}
@@ -342,6 +337,9 @@ export function BlockViewer({
                   onClick={() => {
                     setTab("preview");
                     setViewport(item.id);
+                    requestAnimationFrame(() =>
+                      panelRef.current?.resize(item.size),
+                    );
                   }}
                   className={cn(
                     control,
