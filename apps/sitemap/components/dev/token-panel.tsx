@@ -26,8 +26,10 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
+  CODE_THEMES,
   COLORS,
   DEFAULT_TOKENS,
+  PRESETS,
   FONT_CHOICES,
   RADII,
   RADIUS_FULL,
@@ -37,6 +39,7 @@ import {
   oklch,
   parseTokens,
   tokenCss,
+  type CodeThemeId,
   type Oklch,
   type Tokens,
 } from "@/lib/tokens";
@@ -181,6 +184,27 @@ export function TokenPanel() {
           </div>
 
           <div className="flex flex-col overflow-y-auto px-4 pb-4">
+            <div className="border-foreground/10 flex flex-col gap-2 border-b py-3">
+              <p className="text-sm font-medium">Presets</p>
+              <div className="flex flex-wrap gap-2">
+                {PRESETS.map((preset) => {
+                  const active =
+                    JSON.stringify(preset.tokens) === JSON.stringify(tokens);
+                  return (
+                    <Button
+                      key={preset.id}
+                      variant={active ? "default" : "outline"}
+                      size="sm"
+                      aria-pressed={active}
+                      onClick={() => setTokens(preset.tokens)}
+                    >
+                      {preset.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
             <Section title="Shape">
               {RADII.map(({ key, note }) => (
                 <Range
@@ -272,6 +296,67 @@ export function TokenPanel() {
                   }))
                 }
               />
+            </Section>
+
+            <Section title="Code">
+              <div className="grid grid-cols-[7.5rem_minmax(0,1fr)_1.25rem] items-center gap-2">
+                <span
+                  id="token-code-theme"
+                  className={cn(
+                    "text-xs",
+                    tokens.codeTheme !== DEFAULT_TOKENS.codeTheme
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  Theme
+                </span>
+                <Select
+                  items={Object.fromEntries(
+                    Object.entries(CODE_THEMES).map(([id, { label }]) => [
+                      id,
+                      label,
+                    ]),
+                  )}
+                  value={tokens.codeTheme}
+                  onValueChange={(next) => {
+                    if (typeof next === "string" && next in CODE_THEMES)
+                      set((t) => ({ ...t, codeTheme: next as CodeThemeId }));
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    aria-labelledby="token-code-theme"
+                    className="w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(CODE_THEMES).map(([id, { label }]) => (
+                      <SelectItem key={id} value={id}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {tokens.codeTheme !== DEFAULT_TOKENS.codeTheme ? (
+                  <button
+                    type="button"
+                    aria-label="Reset code theme"
+                    onClick={() =>
+                      set((t) => ({
+                        ...t,
+                        codeTheme: DEFAULT_TOKENS.codeTheme,
+                      }))
+                    }
+                    className="text-muted-foreground hover:text-foreground grid size-5 place-items-center rounded-sm"
+                  >
+                    <RotateCcwIcon className="size-3" />
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </div>
             </Section>
 
             <Section title="Voice">

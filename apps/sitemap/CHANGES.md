@@ -139,3 +139,23 @@ Files:
 - `lib/changes.ts` (new): reads `CHANGES.md` into the to-do list and the changes.
 
 When folding back: nothing; the page is for this app.
+
+## Token presets and code themes (2026-11-25)
+
+The token sheet starts with Presets: assistant-ui (the docs design system as it is) and AI Ellie (rounder, with control 12px, surface 14px, dialog 18px, and thread 22px; Geist and Geist Mono; a step lighter in every type weight with tighter tracking; neutrals on zinc's cool hue, tint 286; and the Nord code theme). A preset replaces every token, and you can keep adjusting from there.
+
+A new Code section picks the code theme: GitHub (the site's own), Ink (monochrome, made from the foreground), Nord (cool), and Warm. It recolors both highlighters the site uses: Code Hike blocks through their `--ch-*` variables, and Shiki snippets by matching the GitHub colors their tokens carry.
+
+Also fixed:
+
+- The site's fonts fell back to the system font with the token panel's theme change, because `--font-display` and friends resolve on `:root` while next/font set its variables on `<body>`. The font variables now sit on `<html>`.
+- The kit's buttons use `rounded-lg` and its small buttons `rounded-md`, not `--radius-control`; both now follow `--radius-control` (all 8px by default), so changing the control radius rounds the buttons.
+
+Files:
+
+- `lib/tokens.ts`: `PRESETS`, `CODE_THEMES`, and the code theme CSS.
+- `components/dev/token-panel.tsx`: the Presets row and the Code section.
+- `app/globals.css`: `--radius-lg` and `--radius-md` follow `--radius-control`.
+- `app/layout.tsx`: the font variables on `<html>`.
+
+When folding back: a preset you settle on goes into the docs stylesheet through Copy CSS; the font-variable and radius changes belong with the token groundwork, which the docs site only needs if it adopts runtime tokens.

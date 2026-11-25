@@ -78,6 +78,142 @@ export type TypeStyle = {
   tracking: number;
 };
 
+/** The roles a code theme colors, as both highlighters on the site use them. */
+type CodeRoles = {
+  text: string;
+  comment: string;
+  keyword: string;
+  string: string;
+  func: string;
+  constant: string;
+  param: string;
+  tag: string;
+};
+
+export const CODE_THEMES = {
+  github: { label: "GitHub" },
+  ink: { label: "Ink" },
+  nord: { label: "Nord" },
+  warm: { label: "Warm" },
+} as const;
+export type CodeThemeId = keyof typeof CODE_THEMES;
+
+/** Each theme's colors per mode; GitHub is the site's own, so it has none. */
+const CODE_PALETTES: Record<
+  Exclude<CodeThemeId, "github">,
+  { light: CodeRoles; dark: CodeRoles }
+> = (() => {
+  const ink: CodeRoles = {
+    text: "var(--foreground)",
+    comment: "color-mix(in oklab, var(--foreground) 45%, transparent)",
+    keyword: "var(--foreground)",
+    string: "color-mix(in oklab, var(--foreground) 68%, transparent)",
+    func: "var(--foreground)",
+    constant: "color-mix(in oklab, var(--foreground) 68%, transparent)",
+    param: "color-mix(in oklab, var(--foreground) 80%, transparent)",
+    tag: "var(--foreground)",
+  };
+  return {
+    ink: { light: ink, dark: ink },
+    nord: {
+      light: {
+        text: "#2e3440",
+        comment: "#7b88a1",
+        keyword: "#5e81ac",
+        string: "#4f7a3a",
+        func: "#3b7d8c",
+        constant: "#8f5e86",
+        param: "#2e3440",
+        tag: "#5e81ac",
+      },
+      dark: {
+        text: "#d8dee9",
+        comment: "#616e88",
+        keyword: "#81a1c1",
+        string: "#a3be8c",
+        func: "#88c0d0",
+        constant: "#b48ead",
+        param: "#d8dee9",
+        tag: "#81a1c1",
+      },
+    },
+    warm: {
+      light: {
+        text: "#1f1c18",
+        comment: "#8a847b",
+        keyword: "#6b655d",
+        string: "#2f7a68",
+        func: "#b35c00",
+        constant: "#b35c00",
+        param: "#1f1c18",
+        tag: "#b35c00",
+      },
+      dark: {
+        text: "#e6e1da",
+        comment: "#7c7770",
+        keyword: "#a8a29a",
+        string: "#9fd8c8",
+        func: "#ffc799",
+        constant: "#ffc799",
+        param: "#e6e1da",
+        tag: "#ffc799",
+      },
+    },
+  };
+})();
+
+/** Shiki's github-light color for each role, which its tokens carry inline. */
+const SHIKI_GITHUB_LIGHT: Record<keyof CodeRoles, string[]> = {
+  text: ["#24292E"],
+  comment: ["#6A737D"],
+  keyword: ["#D73A49"],
+  string: ["#032F62"],
+  func: ["#6F42C1"],
+  constant: ["#005CC5"],
+  param: ["#E36209"],
+  tag: ["#22863A"],
+};
+
+/** Code Hike's github-from-css variable for each role. */
+const CODE_HIKE_VARS: Record<keyof CodeRoles, string[]> = {
+  text: ["--ch-4"],
+  comment: ["--ch-1"],
+  keyword: ["--ch-7"],
+  string: ["--ch-8", "--ch-9"],
+  func: ["--ch-5"],
+  constant: ["--ch-2"],
+  param: ["--ch-3"],
+  tag: ["--ch-6"],
+};
+
+function codeThemeCss(theme: CodeThemeId): string[] {
+  if (theme === "github") return [];
+  const { light, dark } = CODE_PALETTES[theme];
+  const roles = Object.keys(SHIKI_GITHUB_LIGHT) as (keyof CodeRoles)[];
+  const vars = (palette: CodeRoles) =>
+    roles.flatMap((role) =>
+      CODE_HIKE_VARS[role].map((name) => `${name}: ${palette[role]};`),
+    );
+  return [
+    rule(":root:not(.dark)", vars(light)),
+    rule(":root.dark", vars(dark)),
+    ...roles.flatMap((role) =>
+      SHIKI_GITHUB_LIGHT[role].map(
+        (hex) =>
+          rule(`.shiki span[style*="--shiki-light:${hex}" i]`, [
+            `color: ${light[role]} !important;`,
+          ]) +
+          "\n" +
+          rule(`:root.dark .shiki span[style*="--shiki-light:${hex}" i]`, [
+            `color: ${dark[role]} !important;`,
+          ]),
+      ),
+    ),
+    rule(":root:not(.dark) .shiki", [`color: ${light.text} !important;`]),
+    rule(":root.dark .shiki", [`color: ${dark.text} !important;`]),
+  ];
+}
+
 export type Tokens = {
   radius: Record<RadiusKey, number>;
   tint: number;
@@ -89,6 +225,7 @@ export type Tokens = {
   trackingSection: number;
   type: Record<TypeKey, TypeStyle>;
   motion: { word: number; rise: number; glint: number };
+  codeTheme: CodeThemeId;
 };
 
 const tint = (l: number, c: number, a = 100): Oklch => ({ l, c, h: -1, a });
@@ -159,7 +296,46 @@ export const DEFAULT_TOKENS: Tokens = {
     },
   },
   motion: { word: 0.5, rise: 0.6, glint: 7 },
+  codeTheme: "github",
 };
+
+/** Starting points for the panel: the docs system, and ellie's own. */
+export const PRESETS: readonly { id: string; label: string; tokens: Tokens }[] =
+  [
+    { id: "assistant-ui", label: "assistant-ui", tokens: DEFAULT_TOKENS },
+    {
+      id: "ai-ellie",
+      label: "AI Ellie",
+      tokens: {
+        ...DEFAULT_TOKENS,
+        // Rounder: every control and surface a few pixels larger.
+        radius: {
+          page: 0,
+          document: 10,
+          sm: 8,
+          control: 12,
+          surface: 14,
+          xl: 18,
+          thread: 22,
+          capsule: RADIUS_FULL,
+        },
+        // Cooler: neutrals on zinc's hue.
+        tint: 286,
+        fonts: { display: "Geist", sans: "Geist", mono: "Geist Mono" },
+        trackingHero: -0.025,
+        trackingSection: -0.015,
+        // Lighter: every type style a step down in weight.
+        type: {
+          hero: { ...DEFAULT_TOKENS.type.hero, weight: 400, tracking: -0.025 },
+          page: { ...DEFAULT_TOKENS.type.page, weight: 480 },
+          section: { ...DEFAULT_TOKENS.type.section, weight: 480 },
+          deck: { ...DEFAULT_TOKENS.type.deck, weight: 380 },
+          package: { ...DEFAULT_TOKENS.type.package, weight: 400 },
+        },
+        codeTheme: "nord",
+      },
+    },
+  ];
 
 /** The next/font families the docs site already loads, by family name. */
 const LOADED_FONTS: Record<string, string> = {
@@ -264,6 +440,7 @@ export function tokenCss(tokens: Tokens): string {
     rule(":root:not(.dark)", light),
     rule(":root.dark", dark),
     ...extra,
+    ...codeThemeCss(tokens.codeTheme),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -285,6 +462,10 @@ export function parseTokens(raw: string | null): Tokens {
       fonts: { ...DEFAULT_TOKENS.fonts, ...saved.fonts },
       type: { ...DEFAULT_TOKENS.type, ...saved.type },
       motion: { ...DEFAULT_TOKENS.motion, ...saved.motion },
+      codeTheme:
+        saved.codeTheme && saved.codeTheme in CODE_THEMES
+          ? saved.codeTheme
+          : DEFAULT_TOKENS.codeTheme,
     };
   } catch {
     return DEFAULT_TOKENS;

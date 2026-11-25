@@ -20,6 +20,11 @@
   --radius-document: var(--radius-sm);
   --radius-sm: 0.375rem;
   --radius-control: 0.5rem;
+  /* The kit's buttons and inputs use rounded-lg, and its small buttons
+     rounded-md; the /design page calls that radius --radius-control, so they
+     move together (all 8px by default). */
+  --radius-lg: var(--radius-control);
+  --radius-md: var(--radius-control);
   --radius-surface: 0.625rem;
   --radius-xl: 0.75rem;
   --radius-thread: 1rem;

@@ -34,14 +34,18 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      // The font variables sit on <html> because the theme's --font-* tokens
+      // resolve on :root.
+      className={`${publicSans.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <GenerativeUIStyle />
         <style>{galleryStagingCss}</style>
       </head>
-      <body
-        className={`${publicSans.variable} ${jetbrainsMono.variable} flex min-h-screen flex-col font-sans antialiased`}
-      >
+      <body className="flex min-h-screen flex-col font-sans antialiased">
         <SkipLink />
         <Providers>
           {children}
