@@ -1,8 +1,10 @@
 import { cacheLife } from "next/cache";
+import { Architecture } from "@/components/pages/home/architecture";
 import { HomeDemo } from "@/components/pages/home/demo";
 import { Hero, HomeStats } from "@/components/pages/home/hero";
 import { LibraryBody } from "@/components/pages/home/library-body";
 import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typeSection } from "@/components/shared/type";
 import { getRepo } from "@/lib/github";
 import { highlightElementSource } from "@/lib/element-source";
 import { getWeeklyDownloads } from "@/lib/npm";
@@ -166,6 +168,21 @@ export default async function HomePage() {
         </div>
         <HomeDemo />
       </div>
+      <section
+        aria-labelledby="architecture-heading"
+        className="mt-16 flex flex-col gap-8 md:mt-20"
+      >
+        <div className="flex max-w-[40rem] flex-col gap-3">
+          <h2 id="architecture-heading" className={typeSection}>
+            How it fits together.
+          </h2>
+          <p className={typeDeck}>
+            Five layers, from what people see to where the conversation is kept.
+            Open one to see what it holds.
+          </p>
+        </div>
+        <Architecture />
+      </section>
       <LibraryBody setupTabs={setupTabs} />
       {/* Parked here, out of the hero, until it has a place; see the To do list in CHANGES.md. */}
       <section aria-label="Project stats" className="pt-10">

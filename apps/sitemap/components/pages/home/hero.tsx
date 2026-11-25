@@ -2,11 +2,10 @@
 
 import { Fragment, type CSSProperties } from "react";
 import { analytics } from "@/lib/analytics";
-import { Architecture } from "@/components/pages/home/architecture";
 import { Button } from "@/components/ui/button";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
-import { typeHero } from "@/components/shared/type";
+import { typeDeck, typeHero } from "@/components/shared/type";
 import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import { LIBRARY_PATH } from "@/lib/library/catalog";
 import { cn } from "@/lib/utils";
@@ -45,21 +44,22 @@ export function Hero() {
   return (
     <section className="relative flex flex-col pb-4 md:pb-8">
       <HeroMark />
-      <div className="relative flex flex-col gap-6">
-        <HeroHeadline text="The frontend for AI agents." />
+      <div className="relative flex flex-col gap-4">
+        <div className="flex flex-col gap-3 pb-1">
+          <HeroHeadline text="The frontend for AI agents." />
+          <p
+            className={cn(typeDeck, "hero-rise")}
+            style={{ animationDelay: "550ms" }}
+          >
+            Primitives and a runtime for production chat. Any backend, through
+            adapters.
+          </p>
+        </div>
         <HeroCta
           section="hero"
           className="hero-rise"
-          style={{ animationDelay: "550ms" }}
-        />
-        {/* Room for the stack with one layer open, so opening or closing a
-            layer never moves the vertically centered hero. */}
-        <div
-          className="hero-rise sm:min-h-[17rem]"
           style={{ animationDelay: "700ms" }}
-        >
-          <Architecture />
-        </div>
+        />
       </div>
     </section>
   );

@@ -222,3 +222,14 @@ Files:
 - `app/globals.css`: the marquee keyframes removed.
 
 When folding back: `architecture.tsx` and the hero changes go to the same paths in apps/docs; the logo files need nothing.
+
+## Architecture stack in its own section (2026-11-25)
+
+The hero is back to its earlier shape, centered in the first screen: "The frontend for AI agents.", the description "Primitives and a runtime for production chat. Any backend, through adapters.", and the buttons Explore the library and Talk to the team. The architecture stack moved out of the hero into its own section right after the demo, headed "How it fits together." with one line under it; it works the same (five layers, a click opens one, another click closes it). Without the stack, the hero no longer reserves room for an open layer.
+
+Files:
+
+- `components/pages/home/hero.tsx`: the description is back and the stack is gone.
+- `app/(home)/page.tsx`: the "How it fits together." section with `Architecture`, between the demo and the rest of the page.
+
+When folding back: the same section in `apps/docs/app/(home)/page.tsx`, with `architecture.tsx` copied to the same path.
