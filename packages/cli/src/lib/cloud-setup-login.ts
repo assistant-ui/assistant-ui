@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DeviceAuthorization } from "aui-auth/device";
+import { OFFICIAL_SETUP_SERVERS, parseTrustedSetupUrl } from "setup-agent/cli";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { abortable } from "./cloud-abort";
 import { validateCloudUrl } from "./cloud-url";
@@ -73,6 +74,9 @@ export const setupLoginUrl = (
 
 export const connectCloudLoginSetup = async (url: string) => {
   const target = validateCloudUrl(url);
+  // The device sign-in link goes to this setup, so it must be a real setup
+  // server, as `assistant-ui setup` requires.
+  parseTrustedSetupUrl(target, OFFICIAL_SETUP_SERVERS);
   const controller = new AbortController();
   const client = new StatewireClient<SetupState | undefined, SetupCommands>({
     transport: StatewireHttp({ url: target }),
