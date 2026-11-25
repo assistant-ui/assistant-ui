@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { isExecutedAsMain } from "./lib/main.mjs";
+import {
+  posixPath,
+  readJson,
+  readWorkspaceManifestEntries,
+} from "./lib/workspace.mjs";
 
 export function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -10,9 +16,46 @@ export function median(values) {
     : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-export function coverageRuntimes(logs) {
+export function coverageWorkspaceDirectories(root) {
+  return new Map(
+    readWorkspaceManifestEntries(root)
+      .manifests.filter(({ pkg }) => pkg.scripts?.["test:coverage"])
+      .map(({ manifest, pkg }) => [
+        pkg.name,
+        posixPath(path.dirname(manifest)),
+      ]),
+  );
+}
+
+function resolveWorkspace(label, runnerRoots, workspaces) {
+  if (workspaces.has(label)) return label;
+
+  const pattern = new RegExp(
+    `^${label.split("***").map(RegExp.escape).join(".+")}$`,
+  );
+  let candidates = [...workspaces.keys()].filter((name) => pattern.test(name));
+  for (const root of runnerRoots) {
+    const directories = [...workspaces.values()].filter((dir) =>
+      root.endsWith(`/${dir}`),
+    );
+    if (directories.length) {
+      candidates = candidates.filter((name) =>
+        directories.includes(workspaces.get(name)),
+      );
+    }
+  }
+  if (candidates.length !== 1) {
+    throw new Error(
+      `Cannot resolve coverage task "${label}" to one workspace (${candidates.length} matches). Use logs from the matching revision with an identifiable package name or Vitest root.`,
+    );
+  }
+  return candidates[0];
+}
+
+export function coverageRuntimes(logs, workspaces, previous = {}) {
   const samples = new Map();
   for (const log of logs) {
+    const runnerRoots = new Set();
     let task;
     let fresh = false;
     let durationMs;
@@ -23,9 +66,10 @@ export function coverageRuntimes(logs) {
           `Coverage task "${task}" has no positive runtime summary. Use logs from a completed successful run.`,
         );
       }
-      const values = samples.get(task) ?? [];
+      const name = resolveWorkspace(task, runnerRoots, workspaces);
+      const values = samples.get(name) ?? [];
       values.push(durationMs);
-      samples.set(task, values);
+      samples.set(name, values);
     };
     for (const raw of log.split("\n")) {
       const line = stripVTControlCharacters(raw)
@@ -34,6 +78,7 @@ export function coverageRuntimes(logs) {
       if (line.startsWith("##[group]")) {
         finish();
         task = line.match(/^##\[group\](.+):test:coverage$/)?.[1];
+        runnerRoots.clear();
         fresh = false;
         durationMs = undefined;
       } else if (line === "##[endgroup]") {
@@ -41,6 +86,8 @@ export function coverageRuntimes(logs) {
         task = undefined;
       } else if (task) {
         if (line.startsWith("cache miss, executing")) fresh = true;
+        const root = line.match(/^RUN\s+v\S+\s+(.+)$/);
+        if (root) runnerRoots.add(posixPath(root[1]));
         const vitest = line.match(/^Duration\s+(\d+(?:\.\d+)?)(ms|s)\s*\(/);
         const node = line.match(/^(?:ℹ|#) duration_ms (\d+(?:\.\d+)?)/);
         if (vitest || node) {
@@ -59,10 +106,14 @@ export function coverageRuntimes(logs) {
       "No uncached coverage runtimes found. Supply both shard job logs from successful pull request runs.",
     );
   }
+  const runtimes = new Map(
+    Object.entries(previous).filter(([name]) => workspaces.has(name)),
+  );
+  for (const [name, values] of samples) {
+    runtimes.set(name, Math.max(1, Math.round(median(values))));
+  }
   return Object.fromEntries(
-    [...samples]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, values]) => [name, Math.max(1, Math.round(median(values)))]),
+    [...runtimes].sort(([a], [b]) => a.localeCompare(b)),
   );
 }
 
@@ -75,6 +126,8 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   }
   const runtimes = coverageRuntimes(
     files.map((file) => readFileSync(file, "utf8")),
+    coverageWorkspaceDirectories(path.resolve(import.meta.dirname, "..")),
+    readJson(new URL("./coverage-runtimes.json", import.meta.url)),
   );
   process.stdout.write(`${JSON.stringify(runtimes, null, 2)}\n`);
 }
