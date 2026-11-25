@@ -6,7 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Build the other nine runtime demos on `/demos` the way Streaming is built (a file in `components/demos/`, the shared Thread, welcome and follow-up suggestions starting with "How does … work?", and code tabs): Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI. The weather card and the approval toolkit from the first version are the starting point for Tools and Approval.
+- Build the other nine runtime demos on `/demos` the way Streaming is built (a file in `components/demos/`, the shared Thread, welcome and follow-up suggestions starting with "How does … work?", and one code tab with the demo's own file): Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI. The weather card and the approval toolkit from the first version are the starting point for Tools and Approval.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -433,3 +433,14 @@ Files:
 - `app/(home)/demos/page.tsx`: the ten demos, the new deck, no Elements groups.
 
 When folding back: copy `components/demos/`, `components/pages/demos/demo-tabs.tsx`, `lib/scripted-demos.ts`, and `app/(home)/demos/page.tsx` to the same paths in `apps/docs`, once the nine are built.
+
+## Demos show one file (2026-11-25)
+
+Each demo now shows only its own file, the one that runs: Streaming's tabs are Preview and `components/demos/streaming-text.tsx`, read from disk. The `app/page.tsx`, `components/thread.tsx`, and route tabs are gone, and with them the written-out code strings in `lib/scripted-demos.ts`; a demo's file is always read from `source`. The hooks listed for Streaming match its file (`useLocalRuntime`, `ChatModelAdapter`, `Suggestions`, `SuggestionAdapter`), and a "Set it up with a model" link under them opens the AI SDK runtime docs, where the same Thread runs on `useChatRuntime` and a route.
+
+Files:
+
+- `lib/scripted-demos.ts`: one source file per demo; the code strings removed.
+- `app/(home)/demos/page.tsx`: reads each demo's file, the setup link, the deck says "the file that runs it".
+
+When folding back: as in "Demos, second version".

@@ -1,21 +1,26 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cacheLife } from "next/cache";
+import { ArrowRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { DemoTabs } from "@/components/pages/demos/demo-tabs";
 import { StreamingTextDemo } from "@/components/demos/streaming-text";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { highlightElementSource } from "@/lib/element-source";
-import { SCRIPTED_DEMOS, type ScriptedDemoFile } from "@/lib/scripted-demos";
+import { SCRIPTED_DEMOS } from "@/lib/scripted-demos";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Demos",
   description:
-    "What the assistant-ui runtime handles, one scripted Thread per feature, with the page, the UI, and the route you write for it.",
+    "What the assistant-ui runtime handles, one scripted Thread per feature, with the file that runs it.",
 };
+
+/** Where the docs show the same Thread on `useChatRuntime` and an AI SDK route. */
+const AI_SDK_SETUP = "/docs/runtimes/ai-sdk/overview";
 
 const PREVIEWS: Partial<Record<string, ReactNode>> = {
   streaming: <StreamingTextDemo />,
@@ -32,10 +37,6 @@ async function readSource(file: string) {
   return source.trimEnd();
 }
 
-async function codeOf(file: ScriptedDemoFile) {
-  return "code" in file ? file.code : readSource(file.source);
-}
-
 export default async function DemosPage() {
   const demos = await Promise.all(
     SCRIPTED_DEMOS.map(async (demo) => ({
@@ -43,7 +44,7 @@ export default async function DemosPage() {
       files: await Promise.all(
         demo.files.map(async (file) => ({
           path: file.path,
-          html: await highlightElementSource(await codeOf(file)),
+          html: await highlightElementSource(await readSource(file.source)),
         })),
       ),
     })),
@@ -55,8 +56,8 @@ export default async function DemosPage() {
         <h1 className={typePage}>Demos by feature.</h1>
         <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
           What the runtime handles, one Thread each. Start from a suggestion to
-          see the feature, then open the files you write for it, with AI SDK on
-          the server. The replies come from a script, so no model is called.
+          see the feature, then open the file that runs it. The replies come
+          from a script, so no model is called.
         </p>
       </header>
       <nav aria-label="Demos on this page" className="mt-8">
@@ -106,11 +107,22 @@ export default async function DemosPage() {
                   ))}
                 </ul>
               ) : null}
-              <p className="text-muted-foreground text-[13px]">
-                {demo.files.length > 0
-                  ? `${demo.files.length} files`
-                  : "Not built yet"}
-              </p>
+              {demo.files.length > 0 ? (
+                <Link
+                  href={AI_SDK_SETUP}
+                  className="group/link text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 text-[13px] transition-colors"
+                >
+                  Set it up with a model
+                  <ArrowRightIcon
+                    aria-hidden
+                    className="size-3.5 transition-transform group-hover/link:translate-x-0.5 motion-reduce:transition-none"
+                  />
+                </Link>
+              ) : (
+                <p className="text-muted-foreground text-[13px]">
+                  Not built yet
+                </p>
+              )}
             </div>
             {demo.files.length > 0 ? (
               <DemoTabs

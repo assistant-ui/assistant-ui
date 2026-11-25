@@ -1,10 +1,5 @@
-/**
- * A file shown in a demo's tabs: written out in `code`, or read from `source`,
- * a path in this app, when the demo runs that same file.
- */
-export type ScriptedDemoFile =
-  | { path: string; code: string }
-  | { path: string; source: string };
+/** A demo's own file, read from `source` in this app: the code that runs. */
+export type ScriptedDemoFile = { path: string; source: string };
 
 /**
  * One thing the runtime handles, shown as a scripted Thread. A demo with no
@@ -18,65 +13,6 @@ export type ScriptedDemo = {
   files: readonly ScriptedDemoFile[];
 };
 
-const THREAD: ScriptedDemoFile = {
-  path: "components/thread.tsx",
-  source: "components/demos/thread.tsx",
-};
-
-const CHAT_ROUTE = `import { openai } from "@ai-sdk/openai";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
-
-export const maxDuration = 30;
-
-export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
-
-  const result = streamText({
-    abortSignal: req.signal,
-    model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-  });
-
-  return result.toUIMessageStreamResponse();
-}`;
-
-const STREAMING_PAGE = `"use client";
-
-import {
-  AssistantRuntimeProvider,
-  AuiConfig,
-  Suggestions,
-  type SuggestionAdapter,
-} from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/thread";
-
-const PROMPTS = ["How does streaming text work?", "Can I stop a reply halfway?"];
-
-/** After each reply, offers the questions other than the one just asked. */
-const followUps: SuggestionAdapter = {
-  async generate({ messages }) {
-    const asked = messages
-      .findLast((message) => message.role === "user")
-      ?.content.map((part) => (part.type === "text" ? part.text : ""))
-      .join("");
-    return PROMPTS.filter((prompt) => prompt !== asked).map((prompt) => ({
-      prompt,
-    }));
-  },
-};
-
-export default function Page() {
-  const runtime = useChatRuntime({ adapters: { suggestion: followUps } });
-  const config = AuiConfig({ suggestions: Suggestions(PROMPTS) });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}`;
-
 /**
  * The ten things the home page's "What the runtime handles" cycles through,
  * each a scripted Thread that opens with "How does … work?".
@@ -87,11 +23,17 @@ export const SCRIPTED_DEMOS: readonly ScriptedDemo[] = [
     title: "Streaming",
     description:
       "Replies arrive a few words at a time as the model writes them, and stop halfway when you press Stop.",
-    hooks: ["useChatRuntime", "streamText", "Suggestions", "SuggestionAdapter"],
+    hooks: [
+      "useLocalRuntime",
+      "ChatModelAdapter",
+      "Suggestions",
+      "SuggestionAdapter",
+    ],
     files: [
-      { path: "app/page.tsx", code: STREAMING_PAGE },
-      THREAD,
-      { path: "app/api/chat/route.ts", code: CHAT_ROUTE },
+      {
+        path: "components/demos/streaming-text.tsx",
+        source: "components/demos/streaming-text.tsx",
+      },
     ],
   },
   {
