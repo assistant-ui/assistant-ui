@@ -101,7 +101,7 @@ When folding back: the docs site already loads react-grab; the drag fix belongs 
 
 ## Token panel (2026-11-25)
 
-A Tokens button in the bottom-right corner, in development only, opens a panel for playing with the design tokens the /design page documents. Edits apply live, stay after a reload (this browser only), and each changed row has its own reset; Copy CSS copies only the changed tokens as CSS, and Reset all returns to the docs values.
+A round button in the bottom-right corner, in development only, opens a sheet from the right edge for playing with the design tokens the /design page documents. The sheet leaves the page visible and usable beside it, and clicking the page does not close it. Edits apply live, stay after a reload (this browser only), and each changed row has its own reset; Copy CSS copies only the changed tokens as CSS, and Reset all returns to the docs values.
 
 - Shape: every radius, from `--radius-page` to `--radius-capsule`.
 - Ink: `--tint`, then background, foreground, muted, muted foreground, and destructive (lightness, chroma, and hue where it has its own) for the mode you are viewing, plus blue-500 and the glint.

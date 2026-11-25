@@ -3,11 +3,11 @@
 import {
   useEffect,
   useId,
-  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { Dialog } from "@base-ui/react/dialog";
 import { useTheme } from "next-themes";
 import {
   CopyIcon,
@@ -87,7 +87,6 @@ export function TokenPanel() {
   );
   const [tokens, setTokens] = useState<Tokens>(readSaved);
   const [open, setOpen] = useState(false);
-  const toggle = useRef<HTMLButtonElement>(null);
   const { resolvedTheme } = useTheme();
   const mode = resolvedTheme === "dark" ? "dark" : "light";
 
@@ -108,43 +107,40 @@ export function TokenPanel() {
     ? css.split("\n").filter((line) => /^\s+\S/.test(line)).length
     : 0;
   const set = (update: (draft: Tokens) => Tokens) => setTokens(update);
-  const close = () => {
-    setOpen(false);
-    toggle.current?.focus();
-  };
-
   return (
-    <>
-      <Button
-        ref={toggle}
-        variant="outline"
-        size="sm"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="bg-popover fixed right-4 bottom-4 z-40 shadow-md"
+    <Dialog.Root
+      open={open}
+      onOpenChange={setOpen}
+      modal={false}
+      disablePointerDismissal
+    >
+      <Dialog.Trigger
+        render={
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Design tokens"
+            className="bg-popover fixed right-4 bottom-4 z-40 size-11 rounded-full shadow-md"
+          />
+        }
       >
         <SlidersHorizontalIcon />
-        Tokens
         {changes > 0 ? (
-          <span className="text-muted-foreground tabular-nums">{changes}</span>
+          <span className="bg-foreground text-background absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-medium tabular-nums">
+            {changes}
+          </span>
         ) : null}
-      </Button>
-
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Design tokens"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") close();
-          }}
-          className="bg-popover text-popover-foreground border-foreground/10 fixed right-4 bottom-16 z-40 flex max-h-[min(46rem,calc(100svh-8rem))] w-[23rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border shadow-lg"
-        >
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Popup className="bg-popover text-popover-foreground border-foreground/10 fixed inset-y-0 end-0 z-50 flex h-full w-[24rem] max-w-[calc(100vw-3rem)] flex-col border-s shadow-lg transition duration-200 ease-in-out data-ending-style:translate-x-[2.5rem] data-ending-style:opacity-0 data-starting-style:translate-x-[2.5rem] data-starting-style:opacity-0">
           <div className="border-foreground/10 flex items-center gap-2 border-b px-4 py-3">
             <div className="flex min-w-0 flex-1 flex-col">
-              <p className="text-sm font-medium">Tokens</p>
-              <p className="text-muted-foreground text-xs">
+              <Dialog.Title className="text-sm font-medium">
+                Tokens
+              </Dialog.Title>
+              <Dialog.Description className="text-muted-foreground text-xs">
                 Colors apply to {mode} mode
-              </p>
+              </Dialog.Description>
             </div>
             <Button
               variant="ghost"
@@ -171,14 +167,17 @@ export function TokenPanel() {
             >
               <RotateCcwIcon />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Close tokens"
-              onClick={close}
+            <Dialog.Close
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Close tokens"
+                />
+              }
             >
               <XIcon />
-            </Button>
+            </Dialog.Close>
           </div>
 
           <div className="flex flex-col overflow-y-auto px-4 pb-4">
@@ -439,9 +438,9 @@ export function TokenPanel() {
               />
             </Section>
           </div>
-        </div>
-      ) : null}
-    </>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
