@@ -1,3 +1,5 @@
+import { DEMO_META } from "@/lib/demos-meta";
+
 /**
  * A demo's one file, shown under its own `name` and read from `source` in this
  * app. Its preview runs the file's Thread with the runtime swapped for a script.
@@ -14,25 +16,47 @@ export type ScriptedDemo = {
   description: string;
   hooks: readonly string[];
   file?: ScriptedDemoFile;
+  /** Whether its preview offers the Parts view: each `data-slot` part outlined and named. */
+  parts?: boolean;
+  /** Where the row links; the AI SDK setup docs when absent. */
+  link?: { href: string; label: string };
 };
 
 /**
- * The ten things the home page's "What the runtime handles" cycles through,
- * each a scripted Thread that opens with "How does … work?".
+ * The Thread, then the ten things the home page's "What the runtime handles"
+ * cycles through, each a scripted Thread with suggestions to start from.
  */
 export const SCRIPTED_DEMOS: readonly ScriptedDemo[] = [
+  {
+    id: "thread",
+    title: "Thread",
+    description:
+      "The chat itself: messages, the composer, suggestions, and Copy and Retry on each reply, built from primitives in one file.",
+    hooks: [
+      "useChatRuntime",
+      "AssistantChatTransport",
+      "ThreadPrimitive",
+      "MessagePrimitive",
+      "ComposerPrimitive",
+      "Suggestions",
+    ],
+    file: {
+      name: "thread.tsx",
+      source: "components/demos/thread.tsx",
+    },
+    parts: true,
+  },
   {
     id: "streaming",
     title: "Streaming",
     description:
-      "Replies stream in through the Streaming text element, with the Loader before the first word, and a card with the install command and prompt.",
+      "Replies stream in through the Streaming text element, and a card gives the install command and the prompt.",
     hooks: [
       "useChatRuntime",
       "AssistantChatTransport",
       "Suggestions",
       "defineToolkit",
       "StreamingText",
-      "GenerationLoader",
     ],
     file: {
       name: "streaming-text.tsx",
@@ -99,3 +123,34 @@ export const SCRIPTED_DEMOS: readonly ScriptedDemo[] = [
     hooks: [],
   },
 ];
+
+const CLONE_ORDER = ["chatgpt", "claude", "grok", "gemini", "perplexity"];
+
+/**
+ * Look-alikes remade from the docs' demos, each one file in
+ * `components/demos` with its own sidebar, shown here on a script too.
+ */
+/** Clones rebuilt as a folder: the file, its data, and its theme. */
+const CLONE_FOLDERS = new Set(["gemini"]);
+
+export const CLONE_DEMOS: readonly ScriptedDemo[] = CLONE_ORDER.flatMap(
+  (slug) => {
+    const meta = DEMO_META.find((demo) => demo.slug === slug);
+    if (!meta) return [];
+    return [
+      {
+        id: slug,
+        title: meta.name,
+        description: meta.tagline,
+        hooks: [],
+        file: {
+          name: `${slug}.tsx`,
+          source: CLONE_FOLDERS.has(slug)
+            ? `components/demos/${slug}/${slug}.tsx`
+            : `components/demos/${slug}.tsx`,
+        },
+        link: { href: `/demos/${slug}`, label: "Open the full demo" },
+      },
+    ];
+  },
+);

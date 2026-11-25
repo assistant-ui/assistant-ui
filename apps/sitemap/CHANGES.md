@@ -8,7 +8,8 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 - Link `/skills` from the site: the header's Library menu (Extend, beside Skills) or the Resources menu.
 - Link `/utilities` from the site the same way (the Library menu's Extend group has Utilities).
-- Build the other nine runtime demos on `/demos` from the Streaming file, once its design is settled: each one complete file in `components/demos/` (`useChatRuntime` plus the whole chat UI, starting from a copy of Streaming's, and anything only that demo needs), with a `.preview.tsx` that runs its Thread on a script. Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI.
+- Build the other nine runtime demos on `/demos` from the Thread file once its design is settled: each one complete file in `components/demos/` (`useChatRuntime` plus the whole chat UI, starting from a copy of Thread's, and anything only that demo needs), with a `.preview.tsx` that runs its Thread on a script. Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI.
+- Restyle the ChatGPT, Claude, Grok, and Perplexity clones the way Gemini was: a folder each with the file, `data.json`, and `themes.css`, signed in as the demo person.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -474,6 +475,116 @@ Files:
 - `lib/scripted-demos.ts`: Streaming's description and hooks.
 
 When folding back: as in "Demos as one complete file". The route behind `/api/chat` defines `showSetup` for the card in a real app.
+
+## Streaming demo without the Loader (2026-11-25)
+
+The Loader is out of the Streaming demo: a reply appears when its first word lands, drawn by the Streaming text element. The set-up card installs only that element: Terminal is `npx shadcn@latest add @assistant-ui/elements-streaming-text`, and Prompt is ``install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/streaming-text` ``. The scripted reply names one element, and the script's pause before the first word is back to 350ms.
+
+Files:
+
+- `components/demos/streaming-text.tsx`: the Loader, its import, and the waiting check removed; the command and prompt name only Streaming text.
+- `components/demos/streaming-text.preview.tsx`: the set-up sentence and the shorter pause.
+- `lib/scripted-demos.ts`: Streaming's description and hooks without the Loader.
+
+When folding back: as in "Demos as one complete file".
+
+## Thread demo, first on /demos (2026-11-25)
+
+A Thread demo now comes first on `/demos`, before Streaming, which is unchanged. `components/demos/thread.tsx` is one complete file like Streaming's: `useChatRuntime` with `AssistantChatTransport` to `/api/chat`, the welcome `Suggestions` and follow-up adapter, and the whole chat built from primitives, with replies in markdown (`MarkdownTextPrimitive`) and Copy and Retry on each. Its empty state has the title "Thread" and the suggestions "How does it work?" and "How do I set it up?". The first answer explains the Thread in three short paragraphs; the second streams one sentence and then the set-up card for the Thread element: Terminal `npx shadcn@latest add @assistant-ui/thread`, and Prompt ``install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/thread` `` (the site's product name for the element), each with Copy. `components/demos/thread.preview.tsx` runs the file's Thread on a script. Thread's file is the template for the other nine demos.
+
+Files:
+
+- `components/demos/thread.tsx` (new): the Thread demo.
+- `components/demos/thread.preview.tsx` (new): its scripted preview.
+- `lib/scripted-demos.ts`: Thread first, before the ten.
+- `app/(home)/demos/page.tsx`: Thread's preview; the deck starts with the Thread.
+
+When folding back: as in "Demos as one complete file".
+
+## Parts view on the Thread demo (2026-11-25)
+
+The Thread demo shows the home page's "Yours to reshape" on the live chat. A Parts switch sits in the demo window's title bar, beside Code and Preview, for demos that offer it (Thread, for now). Turned on, it outlines each part of the running chat in blue and names its component in `thread.tsx`: Thread, Welcome, UserMessage, AssistantMessage, ActionBar, FollowUps, Composer, and SetupCard when the set-up card is on screen. The chat keeps working underneath, and the outlines follow it as it streams, scrolls, and resizes. A name is a button: it opens Code at that component's `function` line, highlighted and scrolled into view inside the code panel, without moving the page. To name the parts, each one in `thread.tsx` carries a `data-slot` (the kit's own convention), and the action bar became its own `ActionBar` component so every name points at a real function. Blue follows the anatomy animation on the home page and design.md's rule that blue marks what is selected.
+
+Files:
+
+- `components/demos/thread.tsx`: `data-slot` on each part; `ActionBar` pulled out of `AssistantMessage`.
+- `components/pages/demos/parts-overlay.tsx` (new): measures every `data-slot` in the preview and draws the outlines and names.
+- `components/pages/demos/demo-window.tsx`: the Parts switch, the overlay, and opening the code at a component.
+- `lib/scripted-demos.ts`: `parts` on a demo; on for Thread.
+- `app/(home)/demos/page.tsx`: passes `parts` to the window.
+
+When folding back: as in "Demos as one complete file".
+
+## Clones section on /demos (2026-11-25)
+
+`/demos` has a second section, "Clones.", after the Thread and the ten runtime demos: ChatGPT, Claude, Grok, Gemini, and Perplexity, in that order, each in the same window with Code and Preview. The preview is the docs' own clone component, unchanged, with its shared sidebar, on a scripted runtime instead of the docs' model: any message gets a reply that says it is scripted and that the composer, the message actions, and the sidebar come from the clone's file. The Code view reads that file from `apps/docs/components/pages/examples/<name>.tsx`. Each row has the clone's tagline from the docs' demo list and an "Open the full demo" link to `/demos/<name>` (opens on the docs site). The page now draws every row with one `DemoRow`, and the top navigation ends with a link to the section. A row can carry its own link; the runtime demos keep "Set it up with a model".
+
+Files:
+
+- `components/demos/clone.preview.tsx` (new): a clone on a scripted runtime.
+- `lib/scripted-demos.ts`: `CLONE_DEMOS` from the docs' `DEMO_META`; `link` on a demo.
+- `app/(home)/demos/page.tsx`: `DemoRow`, the Clones section, its nav link, and the description.
+
+When folding back: copy these files to the same paths in `apps/docs`, and point the clone `source` paths at `components/pages/examples/` inside the docs app.
+
+## Clones remade in the demos folder, each with its own sidebar (2026-11-25)
+
+The five clones are no longer imported from the docs. Each is its own file in `components/demos/` (`chatgpt.tsx`, `claude.tsx`, `grok.tsx`, `gemini.tsx`, `perplexity.tsx`), remade from the docs' file: the same UI, plus a default export that sets up the runtime as the docs do (`useChatRuntime` with `AssistantChatTransport` to `/api/chat`), plus the file's own `ThreadShell`, the sidebar written into the file from the docs' shared `clone-thread-shell.tsx`. Each `ThreadShell` keeps the shell's behavior (a collapsible rail with New Thread, search once there are threads, and the thread list; a menu button and a sheet on phones) without its unused options, and Claude's and Perplexity's carry their own rail colors in the class list, so each sidebar can now be restyled for its product. The attachment helper is imported from the kit hook `@/hooks/use-attachment-src` directly. The previews run each file's clone component on a scripted runtime (`ScriptedClone` in `components/demos/clone.preview.tsx`), and the Code view reads our file. Nothing on `/demos` imports from `apps/docs/components/pages/examples` anymore.
+
+Files:
+
+- `components/demos/chatgpt.tsx`, `claude.tsx`, `grok.tsx`, `gemini.tsx`, `perplexity.tsx` (new): the remade clones.
+- `components/demos/clone.preview.tsx`: `ScriptedClone`, a scripted runtime around any clone.
+- `lib/scripted-demos.ts`: clone sources point at `components/demos/`.
+- `app/(home)/demos/page.tsx`: the clone previews from our files; the section's description says each has its own sidebar.
+
+When folding back: copy the files to the same paths in `apps/docs`. The docs' own clones under `components/pages/examples/` stay as they are for the `/demos/<name>` pages, unless these replace them.
+
+## Gemini clone rebuilt as its own folder (2026-11-25)
+
+The Gemini clone is rebuilt from ellie's screenshots as one file, `components/demos/gemini/gemini.tsx`, with its words and menus in `data.json` and its colors in `themes.css`. It uses Material Symbols icons (the `material-symbols` package) and a gradient sparkle made from the docs' Gemini mark. It signs in as a made-up person, Juniper Hale, from `components/demos/person.tsx`, which the other demos can reuse so no real name appears in a demo. There is no Get app or Upgrade button.
+
+What works, on the runtime: the sidebar's chat list from the thread list (open, pin, rename, mark as unread, delete, a filter, an unread dot when a reply lands in another chat, a spinner while one runs, a title from the first message), search chats, New chat, a collapsible rail, and a drawer on narrow widths. Temporary chat keeps a chat out of the list and deletes it when you leave. The composer has a + menu (upload files as attachments, tool chips such as Search Google and Create image that ride along in the run config), @ mentions on the composer's trigger popover, a model menu (Auto; the others locked), dictation, send and stop. Chat and Task modes change the greeting, the glow, and the placeholder; Task shows three task ideas and, the first time, a "Hand off tasks to Gemini" dialog. Replies show "Show thinking" for reasoning, then thumbs up and down, redo, share, copy, and a ⋮ menu where Listen reads the reply aloud. Settings has Theme (System, Light, Dark) working. Menus, tooltips, and dialogs open inside the demo window. Anything Gemini has that this demo does not (Library, Drive, Gmail, and so on) shows a "isn't in this demo" note instead.
+
+The page preview runs it on a script (`gemini.preview.tsx`): a short thinking step, then a reply that says what works.
+
+Files:
+
+- `components/demos/gemini/gemini.tsx`, `data.json`, `themes.css`, `gemini.preview.tsx` (new): the clone, its data and theme, and its scripted preview.
+- `components/demos/person.tsx` (new): the demo person and avatar.
+- `components/demos/gemini.tsx` (removed): the earlier remake.
+- `lib/scripted-demos.ts`: the Gemini clone's file is in its folder.
+- `app/(home)/demos/page.tsx`: the Gemini preview from its folder.
+- `package.json`, root `pnpm-lock.yaml`: `material-symbols`.
+
+When folding back: copy the folder and `person.tsx` to the same paths in `apps/docs`. The icons are Hugeicons now (see "Gemini icons from Hugeicons"), so no icon package is added.
+
+## Gemini colors from the screenshots, and full screen on demo windows (2026-11-25)
+
+The Gemini clone's colors now come from ellie's screenshots, sampled pixel by pixel, instead of blue tints. Light: a white sidebar, a `#f9f9f9` canvas, warm grey `#f3f0f1` for the selected row, user bubbles, and cards, a white composer with a soft shadow, white menus, and a black tooltip. Dark: a `#1f1f1f` sidebar (`#0f0f0f` when collapsed), a `#0f0f0f` canvas, a darker `#171717` selected row, a `#1e1e20` composer, and `#1f1f1f` menus. The empty-state glow is a ring around the composer: pale blue in light, navy in dark, lavender for Task. The layout follows the screenshots too: the sparkle and "Gemini" head the sidebar with search and a collapse button, the collapsed rail starts with the sparkle, Notebooks is a small section label, the chat list is labeled by its filter ("All"), the footer shows only the name, the greeting is centered without a "Hi" line, Chat and Task are text pills under the composer, the composer is one row (+, text, model, mic), follow-ups say "Ask a follow-up", a long prompt's expand chevron sits inside its bubble, and the reply menu is ⋯.
+
+Every demo window has a full screen button next to Code and Preview. It fills the viewport with the same window and locks the page scroll; the button or Escape returns it (Escape closes an open menu first).
+
+Files:
+
+- `components/demos/gemini/themes.css`, `gemini.tsx`, `data.json`: the sampled palette and the layout changes.
+- `components/pages/demos/demo-window.tsx`: the full screen button.
+
+When folding back: copy the files to the same paths in `apps/docs`.
+
+## Gemini icons from Hugeicons (2026-11-25)
+
+Gemini draws its icons from `lumi-symbols`, Google's own icon font, which is not published, so the clone now uses Hugeicons (`@hugeicons/core-free-icons` and `@hugeicons/react`, MIT, already in this app) in place of Material Symbols. `gemini.tsx` maps each icon name it uses to its closest Hugeicons icon in one table, at a 1.6 stroke (2.2 for a pressed rating), so `data.json` keeps its names. The `material-symbols` package is removed again, and the lockfile matches what is committed.
+
+The start screen also shows while a chat is still loading: it now keys off "no messages yet" instead of the thread's empty flag, which reads false during loading and showed a blank conversation for a moment.
+
+Files:
+
+- `components/demos/gemini/gemini.tsx`: the icon table and the empty-state check.
+- `components/demos/gemini/themes.css`: Material Symbols rules removed; a pressed rating draws thicker.
+- `package.json`: `material-symbols` removed.
+
+When folding back: nothing extra; `apps/docs` already has Hugeicons.
 
 ## Skills page (2026-11-25)
 

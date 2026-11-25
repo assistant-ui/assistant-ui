@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -25,7 +25,6 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import { GenerationLoader } from "@/components/assistant-ui/elements/loading-state";
 import {
   StreamingText,
   type Segment,
@@ -34,11 +33,10 @@ import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 export const PROMPTS = ["How does it work?", "How do I set it up?"];
 
-const COMMAND =
-  "npx shadcn@latest add @assistant-ui/elements-loading-state @assistant-ui/elements-streaming-text";
+const COMMAND = "npx shadcn@latest add @assistant-ui/elements-streaming-text";
 
 const AGENT_PROMPT =
-  "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/loading-state,elements/streaming-text`";
+  "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/streaming-text`";
 
 /** After each reply, offers the questions other than the one just asked. */
 export const followUps: SuggestionAdapter = {
@@ -90,7 +88,6 @@ export function Thread() {
           <ThreadPrimitive.Messages>
             {() => <Message />}
           </ThreadPrimitive.Messages>
-          <AwaitingFirstToken />
           <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col gap-3 pb-4">
             <FollowUps />
             <Composer />
@@ -196,31 +193,6 @@ const StreamingTextPart: TextMessagePartComponent = ({ text, status }) => {
     />
   );
 };
-
-/** The Loader, while a run is active and the reply has no parts yet. */
-function AwaitingFirstToken() {
-  const waiting = useAuiState((s) => {
-    if (!s.thread.isRunning) return false;
-    const last = s.thread.messages.at(-1);
-    return last?.role === "assistant" && last.parts.length === 0;
-  });
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (!waiting) return;
-    const id = setInterval(() => setTick((t) => t + 1), 120);
-    return () => clearInterval(id);
-  }, [waiting]);
-
-  if (!waiting) return null;
-  return (
-    <GenerationLoader
-      label="Generating"
-      tick={tick}
-      className="items-start gap-2"
-    />
-  );
-}
 
 function SetupCard() {
   return (

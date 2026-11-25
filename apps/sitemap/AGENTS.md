@@ -17,4 +17,4 @@ A working copy of parts of the docs site (`apps/docs`) for redesigning pages wit
 - Verify a change in the browser at desktop and phone widths before calling it done.
 - Turn every new animation off under `prefers-reduced-motion`, because design.md requires it.
 - Keep development tools (the token sheet, react-grab) behind `NODE_ENV === "development"`.
-- Commit a finished change and push it to `feat/sitemap-app` without naming Claude as an author or co-author, and open no pull request unless asked.
+- Commit and push to `feat/sitemap-app` only when asked, without naming Claude as an author or co-author, and open no pull request unless asked; until then, leave finished changes uncommitted.

@@ -1,0 +1,153 @@
+.gm {
+  --gm-bg: #f9f9f9;
+  --gm-rail: #ffffff;
+  --gm-rail-collapsed: #ffffff;
+  --gm-surface: #ffffff;
+  --gm-soft: #f3f0f1;
+  --gm-hover: rgb(0 0 0 / 0.07);
+  --gm-active: #f3f0f1;
+  --gm-active-text: #1f1f1f;
+  --gm-pill: #ffffff;
+  --gm-text: #1f1f1f;
+  --gm-muted: #444746;
+  --gm-faint: #747775;
+  --gm-border: #e3e3e3;
+  --gm-menu: #ffffff;
+  --gm-blue: #0b57d0;
+  --gm-dot: #3286fb;
+  --gm-snack: #070707;
+  --gm-snack-text: #ffffff;
+  --gm-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 18px rgb(0 0 0 / 0.07);
+  --gm-glow-chat: radial-gradient(
+    ellipse 62% 58% at 50% 52%,
+    #ffffff 12%,
+    #dfeefa 50%,
+    #f8f8f8 88%
+  );
+  --gm-glow-task: radial-gradient(
+    ellipse 62% 58% at 50% 52%,
+    #e6e8fd 12%,
+    #cddcfb 50%,
+    #f8f8f8 88%
+  );
+  --gm-glow-temporary: none;
+
+  background: var(--gm-bg);
+  color: var(--gm-text);
+  color-scheme: light;
+  font-family:
+    "Google Sans", "Google Sans Text", "Helvetica Neue", ui-sans-serif,
+    system-ui, sans-serif;
+}
+
+.gm[data-theme="dark"],
+:where(.dark) .gm[data-theme="system"] {
+  --gm-bg: #0f0f0f;
+  --gm-rail: #1f1f1f;
+  --gm-rail-collapsed: #0f0f0f;
+  --gm-surface: #1e1e20;
+  --gm-soft: #2a2a2c;
+  --gm-hover: rgb(255 255 255 / 0.07);
+  --gm-active: #171717;
+  --gm-active-text: #e3e3e3;
+  --gm-pill: #343636;
+  --gm-text: #e3e3e3;
+  --gm-muted: #c4c7c5;
+  --gm-faint: #8e918f;
+  --gm-border: #333537;
+  --gm-menu: #1f1f1f;
+  --gm-blue: #a8c7fa;
+  --gm-dot: #3286fb;
+  --gm-snack: #e3e3e3;
+  --gm-snack-text: #1f1f1f;
+  --gm-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 20px rgb(0 0 0 / 0.35);
+  --gm-glow-chat: radial-gradient(
+    ellipse 58% 60% at 50% 52%,
+    #0f0f0f 12%,
+    #16224f 48%,
+    #0f0f0f 86%
+  );
+  --gm-glow-task: radial-gradient(
+    ellipse 58% 60% at 50% 52%,
+    #0f0f0f 12%,
+    #2a1f55 48%,
+    #0f0f0f 86%
+  );
+
+  color-scheme: dark;
+}
+
+.gm [data-submitted] svg {
+  color: var(--gm-text);
+}
+
+.gm [data-submitted] svg * {
+  stroke-width: 2.2;
+}
+
+.gm-sparkle-spin {
+  animation: gm-spin 1.6s linear infinite;
+}
+
+.gm-wave span {
+  animation: gm-wave 0.9s ease-in-out infinite;
+}
+
+.gm-wave span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.gm-wave span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.gm-wave span:nth-child(4) {
+  animation-delay: 0.45s;
+}
+
+.gm-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--gm-muted) 0%,
+    var(--gm-faint) 40%,
+    var(--gm-muted) 80%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+  animation: gm-shimmer 1.8s linear infinite;
+}
+
+@keyframes gm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gm-wave {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes gm-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gm-sparkle-spin,
+  .gm-wave span,
+  .gm-shimmer {
+    animation: none;
+  }
+
+  .gm-shimmer {
+    color: var(--gm-muted);
+  }
+}

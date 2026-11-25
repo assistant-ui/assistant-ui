@@ -61,7 +61,7 @@ export function Hero() {
       <HeroMark />
       <div className="relative flex flex-col gap-4">
         <div className="flex flex-col gap-3 pb-1">
-          <HeroHeadline lines={["The frontend for", "AI agents."]} />
+          <HeroHeadline lines={["The frontend library for", "AI agents."]} />
           <p
             className={cn(typeDeck, "hero-rise")}
             style={{ animationDelay: "550ms" }}

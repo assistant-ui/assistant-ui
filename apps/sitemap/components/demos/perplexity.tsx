@@ -1,0 +1,596 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import {
+  ActionBarPrimitive,
+  AuiIf,
+  AttachmentPrimitive,
+  BranchPickerPrimitive,
+  ComposerPrimitive,
+  ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useAuiState,
+  AssistantRuntimeProvider,
+} from "@assistant-ui/react";
+import {
+  ArrowRight,
+  AudioLines,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CopyIcon,
+  FileIcon,
+  PencilIcon,
+  Plus,
+  RefreshCwIcon,
+  Search,
+  Sparkles,
+  Square,
+  Telescope,
+  XIcon,
+  MenuIcon,
+  PanelLeftIcon,
+} from "lucide-react";
+import { type FC, useState, type MouseEvent, type ReactNode } from "react";
+import { useAttachmentSrc } from "@/hooks/use-attachment-src";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import {
+  ThreadList,
+  ThreadListItems,
+  ThreadListNew,
+  ThreadListRoot,
+  ThreadListSearch,
+} from "@/components/assistant-ui/elements/thread-list.aui";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+
+export default function PerplexityDemo() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Perplexity />
+    </AssistantRuntimeProvider>
+  );
+}
+
+const composerPrimaryActionClassName =
+  "absolute inset-0 flex items-center justify-center rounded-full transition-all duration-200 ease-out";
+
+const composerPrimaryActionColorsClassName =
+  "bg-[#25211c] text-[#f8f5f0] hover:bg-[#171411] dark:bg-[#f5f2ed] dark:text-[#1b1713] dark:hover:bg-white";
+
+const messageActionClassName =
+  "flex size-8 items-center justify-center rounded-full text-[#7a7268] transition-colors hover:bg-[#f1ece5] hover:text-[#1f1b17] dark:text-[#9d968d] dark:hover:bg-[#2a2724] dark:hover:text-[#f5f2ed]";
+
+export const Perplexity: FC = () => {
+  return (
+    <ThreadShell>
+      <ThreadPrimitive.Root
+        className="flex h-full flex-col bg-[#f6f2ec] text-[#1f1b17] dark:bg-[#171615] dark:text-[#f5f2ed]"
+        style={{
+          ["--thread-max-width" as string]: "40rem",
+        }}
+      >
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <EmptyState />
+        </AuiIf>
+
+        <AuiIf condition={(s) => !s.thread.isEmpty}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
+            <ThreadPrimitive.Messages>
+              {() => <ChatMessage />}
+            </ThreadPrimitive.Messages>
+
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-(--thread-max-width) bg-linear-to-b from-transparent via-[#f6f2ec]/85 to-[#f6f2ec] pt-6 pb-4 dark:via-[#171615]/85 dark:to-[#171615]">
+              <Composer placeholder="Ask a follow-up..." />
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </ThreadShell>
+  );
+};
+
+const EmptyState: FC = () => {
+  return (
+    <div className="flex h-full flex-col justify-center px-4">
+      <div className="mx-auto w-full max-w-(--thread-max-width)">
+        <p className="font-display mb-8 text-center text-5xl leading-none tracking-[-0.06em] text-[#25211c] sm:text-[3.1rem] dark:text-[#f5f2ed]">
+          perplexity
+        </p>
+        <Composer placeholder="Ask anything..." />
+      </div>
+    </div>
+  );
+};
+
+const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
+  return (
+    <ComposerPrimitive.Root className="group/composer mx-auto flex w-full max-w-(--thread-max-width) flex-col rounded-3xl border border-[#d7d0c5] bg-[#fcfbf8] transition-colors focus-within:border-[#b8b0a5] dark:border-[#4a433b] dark:bg-[#23211f] dark:focus-within:border-[#6a6258]">
+      <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+        <div className="flex flex-wrap gap-2 px-4 pt-4">
+          <ComposerPrimitive.Attachments>
+            {() => <AttachmentPreview removable />}
+          </ComposerPrimitive.Attachments>
+        </div>
+      </AuiIf>
+
+      <ComposerPrimitive.Input
+        rows={2}
+        placeholder={placeholder}
+        className="min-h-20 w-full resize-none bg-transparent px-5 pt-4 pb-0 text-[1.05rem] leading-7 outline-none placeholder:text-[#8a8176] dark:placeholder:text-[#918a82]"
+      />
+
+      <div className="flex items-center justify-between gap-2 px-3 pt-0.5 pb-3">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <ComposerPrimitive.AddAttachment asChild>
+            <button
+              type="button"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#6f675d] transition-colors hover:bg-[#f2ede6] hover:text-[#1f1b17] dark:text-[#a39c93] dark:hover:bg-[#2b2825] dark:hover:text-[#f5f2ed]"
+              aria-label="Add attachment"
+            >
+              <Plus className="size-4.5" />
+            </button>
+          </ComposerPrimitive.AddAttachment>
+          <SearchModePicker />
+        </div>
+
+        <div className="flex items-center gap-1">
+          <ModelPicker />
+          <ComposerPrimaryAction />
+        </div>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
+
+const ComposerPrimaryAction: FC = () => {
+  return (
+    <div className="relative size-10 shrink-0">
+      <AuiIf condition={(s) => s.thread.isRunning}>
+        <ComposerPrimitive.Cancel
+          className={cn(
+            composerPrimaryActionClassName,
+            composerPrimaryActionColorsClassName,
+          )}
+        >
+          <Square className="size-3.5 fill-current" />
+        </ComposerPrimitive.Cancel>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) => !s.thread.isRunning && s.composer.dictation != null}
+      >
+        <ComposerPrimitive.StopDictation
+          className={cn(
+            composerPrimaryActionClassName,
+            composerPrimaryActionColorsClassName,
+          )}
+        >
+          <Square className="size-3.5 animate-pulse fill-current" />
+        </ComposerPrimitive.StopDictation>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.dictation == null &&
+          !s.composer.isEmpty
+        }
+      >
+        <ComposerPrimitive.Send
+          className={cn(
+            composerPrimaryActionClassName,
+            composerPrimaryActionColorsClassName,
+          )}
+        >
+          <ArrowRight className="size-5" />
+        </ComposerPrimitive.Send>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.dictation == null &&
+          s.composer.isEmpty
+        }
+      >
+        <ComposerPrimitive.Dictate
+          className={cn(
+            composerPrimaryActionClassName,
+            composerPrimaryActionColorsClassName,
+          )}
+        >
+          <AudioLines className="size-5" />
+        </ComposerPrimitive.Dictate>
+      </AuiIf>
+    </div>
+  );
+};
+
+const SEARCH_MODES = [
+  {
+    id: "search",
+    name: "Search",
+    description: "Fast answers to everyday questions",
+    Icon: Search,
+  },
+  {
+    id: "research",
+    name: "Research",
+    description: "In-depth reports on complex topics",
+    Icon: Telescope,
+  },
+  {
+    id: "labs",
+    name: "Labs",
+    description: "Apps, slides, and dashboards",
+    Icon: Sparkles,
+  },
+];
+
+const SearchModePicker: FC = () => {
+  const [mode, setMode] = useState(SEARCH_MODES[0]!.id);
+  const current = SEARCH_MODES.find((m) => m.id === mode) ?? SEARCH_MODES[0]!;
+  const CurrentIcon = current.Icon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex h-8 items-center gap-1.5 rounded-full border border-[#e0d8cb] bg-[#f5f1eb] px-3 text-sm text-[#3a342d] transition-colors hover:bg-[#ede6dd] dark:border-[#3a342f] dark:bg-[#2a2724] dark:text-[#e6dfd5] dark:hover:bg-[#332f2c]">
+        <CurrentIcon className="size-3.5" />
+        <span>{current.name}</span>
+        <ChevronDownIcon className="size-3.5 opacity-70" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-64">
+        {SEARCH_MODES.map(({ id, name, description, Icon }) => (
+          <DropdownMenuItem
+            key={id}
+            onClick={() => setMode(id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">
+              {id === mode ? <CheckIcon /> : <Icon className="size-3.5" />}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{name}</span>
+              <span className="text-muted-foreground text-xs">
+                {description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const PERPLEXITY_MODELS = [
+  { id: "best", name: "Best", description: "Auto-pick the best model" },
+  { id: "sonar", name: "Sonar", description: "Perplexity's fast model" },
+  { id: "claude", name: "Claude Sonnet 5", description: "Anthropic" },
+  { id: "gpt-6", name: "GPT-6", description: "OpenAI" },
+  { id: "gemini", name: "Gemini 3.1 Pro", description: "Google" },
+];
+
+const ModelPicker: FC = () => {
+  const [model, setModel] = useState(PERPLEXITY_MODELS[0]!.id);
+  const current =
+    PERPLEXITY_MODELS.find((m) => m.id === model) ?? PERPLEXITY_MODELS[0]!;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="hidden h-8 items-center gap-1 rounded-full px-2.5 text-sm text-[#746c62] transition-colors hover:bg-[#f2ede6] hover:text-[#1f1b17] sm:flex dark:text-[#a19a91] dark:hover:bg-[#2b2825] dark:hover:text-[#f5f2ed]">
+        <span>{current.name}</span>
+        <ChevronDownIcon className="size-4 opacity-70" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-60">
+        {PERPLEXITY_MODELS.map((m) => (
+          <DropdownMenuItem
+            key={m.id}
+            onClick={() => setModel(m.id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">
+              {m.id === model ? <CheckIcon /> : null}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{m.name}</span>
+              <span className="text-muted-foreground text-xs">
+                {m.description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const ChatMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="group/message mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-2 py-4">
+      <AuiIf condition={(s) => s.message.role === "user"}>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex max-w-full flex-wrap justify-end gap-2">
+            <MessagePrimitive.Attachments>
+              {() => <AttachmentPreview removable={false} />}
+            </MessagePrimitive.Attachments>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <ActionBarPrimitive.Root className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+              <ActionBarPrimitive.Copy className={messageActionClassName}>
+                <CopyIcon className="size-4" />
+              </ActionBarPrimitive.Copy>
+              <ActionBarPrimitive.Edit className={messageActionClassName}>
+                <PencilIcon className="size-4" />
+              </ActionBarPrimitive.Edit>
+            </ActionBarPrimitive.Root>
+
+            <div className="max-w-[85%] rounded-3xl rounded-tr-md border border-[#ddd5c9] bg-[#fcfbf8] px-4 py-3 text-[#2c2721] dark:border-[#38332e] dark:bg-[#23211f] dark:text-[#f1ede7]">
+              <div className="prose prose-sm dark:prose-invert prose-p:my-0 wrap-break-word">
+                <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+              </div>
+            </div>
+          </div>
+
+          <BranchPicker className="mr-3" />
+        </div>
+      </AuiIf>
+
+      <AuiIf condition={(s) => s.message.role === "assistant"}>
+        <div className="flex items-start gap-3">
+          <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full border border-[#ddd5c9] bg-[#fffdfa] text-[#5b534a] dark:border-[#38332e] dark:bg-[#23211f] dark:text-[#d9d2c8]">
+            <Search className="size-4" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="prose prose-sm dark:prose-invert prose-li:my-1 prose-p:my-2 prose-ul:my-2 wrap-break-word text-[#2c2721] dark:text-[#ece7df]">
+              <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+            </div>
+            <MessagePrimitive.Error>
+              <ErrorPrimitive.Root className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                <ErrorPrimitive.Message className="line-clamp-3" />
+              </ErrorPrimitive.Root>
+            </MessagePrimitive.Error>
+
+            <div className="mt-2 flex items-center gap-2">
+              <BranchPicker />
+              <ActionBarPrimitive.Root className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+                <ActionBarPrimitive.Reload className={messageActionClassName}>
+                  <RefreshCwIcon className="size-4" />
+                </ActionBarPrimitive.Reload>
+                <ActionBarPrimitive.Copy className={messageActionClassName}>
+                  <AuiIf condition={(s) => s.message.isCopied}>
+                    <CheckIcon className="size-4" />
+                  </AuiIf>
+                  <AuiIf condition={(s) => !s.message.isCopied}>
+                    <CopyIcon className="size-4" />
+                  </AuiIf>
+                </ActionBarPrimitive.Copy>
+              </ActionBarPrimitive.Root>
+            </div>
+          </div>
+        </div>
+      </AuiIf>
+    </MessagePrimitive.Root>
+  );
+};
+
+const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
+  className,
+  ...props
+}) => {
+  return (
+    <BranchPickerPrimitive.Root
+      hideWhenSingleBranch
+      className={cn(
+        "inline-flex items-center gap-1 text-xs text-[#8a8176] dark:text-[#9f978e]",
+        className,
+      )}
+      {...props}
+    >
+      <BranchPickerPrimitive.Previous className={messageActionClassName}>
+        <ChevronLeftIcon className="size-4" />
+      </BranchPickerPrimitive.Previous>
+      <span className="min-w-9 text-center">
+        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      </span>
+      <BranchPickerPrimitive.Next className={messageActionClassName}>
+        <ChevronRightIcon className="size-4" />
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
+  );
+};
+
+const AttachmentTypeLabel: FC = () => {
+  const typeLabel = useAuiState((s) => {
+    switch (s.attachment.type) {
+      case "image":
+        return "Image";
+      case "document":
+        return "Document";
+      case "file":
+        return "File";
+      default:
+        return s.attachment.type;
+    }
+  });
+
+  return <span>{typeLabel}</span>;
+};
+
+const AttachmentPreview: FC<{ removable: boolean }> = ({ removable }) => {
+  const src = useAttachmentSrc();
+
+  return (
+    <AttachmentPrimitive.Root className="group/attachment relative">
+      <div className="flex max-w-65 items-center gap-3 rounded-2xl border border-[#e3dbcf] bg-[#f5f1eb] py-2 pr-3 pl-2 transition-colors hover:bg-[#efe8de] dark:border-[#3a342f] dark:bg-[#2a2724] dark:hover:bg-[#302c29]">
+        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#fffdfa] text-[#6f675d] dark:bg-[#201d1b] dark:text-[#a59f96]">
+          {src ? (
+            <img
+              src={src}
+              alt="Attachment"
+              className="size-full object-cover"
+            />
+          ) : (
+            <FileIcon className="size-4" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm leading-5 text-[#2d2822] dark:text-[#f3efe9]">
+            <AttachmentPrimitive.Name />
+          </p>
+          <p className="text-xs text-[#7d7469] dark:text-[#9d968d]">
+            <AttachmentTypeLabel />
+          </p>
+        </div>
+      </div>
+
+      {removable ? (
+        <AttachmentPrimitive.Remove className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-[#ede6dd] text-[#5f574d] opacity-0 transition-all group-hover/attachment:opacity-100 hover:bg-[#dfd5c8] dark:bg-[#3a342f] dark:text-[#d4ccc2] dark:hover:bg-[#4a433b]">
+          <XIcon className="size-3.5" />
+        </AttachmentPrimitive.Remove>
+      ) : null}
+    </AttachmentPrimitive.Root>
+  );
+};
+
+function ThreadShell({ children }: { children: ReactNode }) {
+  const [collapsed, setCollapsed] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
+
+  const closeAfterNavigation = (event: MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) return;
+    if (
+      event.target.closest(
+        '[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]',
+      )
+    ) {
+      setMobileOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative flex h-full w-full overflow-hidden">
+      <aside
+        className={cn(
+          "bg-muted/30 hidden h-full shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200 md:flex",
+          "border-[#E0D9CC] bg-[#EFEAE1] dark:border-[#332F2A] dark:bg-[#1D1B19]",
+          collapsed ? "w-12" : "w-65",
+        )}
+      >
+        <div className="flex h-12 shrink-0 items-center overflow-hidden px-2">
+          <TooltipIconButton
+            variant="ghost"
+            size="icon"
+            tooltip={collapsed ? "Show sidebar" : "Hide sidebar"}
+            side="right"
+            onClick={() => setCollapsed(!collapsed)}
+            className="size-8"
+          >
+            <PanelLeftIcon className="size-4" />
+          </TooltipIconButton>
+          {!collapsed && (
+            <span className="ml-2 truncate text-sm font-medium">Chats</span>
+          )}
+        </div>
+
+        <ThreadListRoot
+          className={cn(
+            "relative flex-1 transition-[padding,width] duration-200",
+            collapsed
+              ? "w-12 overflow-hidden px-2 pt-1"
+              : "w-65 overflow-y-auto p-3",
+          )}
+        >
+          <ThreadListNew
+            className={cn(
+              "overflow-hidden transition-all duration-200",
+              collapsed
+                ? "w-8 gap-0 px-2 has-[>svg]:px-2"
+                : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+            )}
+            labelClassName={cn(
+              "overflow-hidden transition-all duration-200",
+              collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+            )}
+          />
+          {hasThreads && (
+            <div
+              aria-hidden={collapsed}
+              inert={collapsed}
+              className={cn(
+                "transition-opacity duration-150",
+                collapsed && "pointer-events-none opacity-0",
+              )}
+            >
+              <ThreadListSearch value={search} onValueChange={setSearch} />
+            </div>
+          )}
+          <ThreadListItems
+            searchQuery={hasThreads ? search : ""}
+            aria-hidden={collapsed}
+            inert={collapsed}
+            className={cn(
+              "transition-[opacity,transform] duration-150",
+              collapsed
+                ? "pointer-events-none opacity-0"
+                : "translate-x-0 opacity-100",
+            )}
+          />
+        </ThreadListRoot>
+      </aside>
+
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <div className="absolute top-2 left-2 z-20 md:hidden">
+          <SheetTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="bg-background/70 size-8"
+              >
+                <MenuIcon className="size-4" />
+                <span className="sr-only">Open chat history</span>
+              </Button>
+            }
+          />
+        </div>
+        <SheetContent side="left" className="flex flex-col p-0">
+          <SheetTitle className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
+            Chats
+          </SheetTitle>
+          <div
+            className="relative flex-1 overflow-y-auto p-3"
+            onClick={closeAfterNavigation}
+          >
+            <ThreadList />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
+    </div>
+  );
+}

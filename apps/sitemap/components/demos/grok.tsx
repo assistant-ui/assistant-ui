@@ -1,0 +1,505 @@
+"use client";
+
+import {
+  ActionBarPrimitive,
+  AuiIf,
+  AttachmentPrimitive,
+  ComposerPrimitive,
+  ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useAuiState,
+  useMessageTiming,
+  AssistantRuntimeProvider,
+} from "@assistant-ui/react";
+import {
+  ArrowUpIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CopyIcon,
+  Mic,
+  Moon,
+  Paperclip,
+  PencilIcon,
+  RefreshCwIcon,
+  Square,
+  ThumbsDown,
+  ThumbsUp,
+  XIcon,
+  Zap,
+  MenuIcon,
+  PanelLeftIcon,
+} from "lucide-react";
+import { useState, type FC, type MouseEvent, type ReactNode } from "react";
+import { useAttachmentSrc } from "@/hooks/use-attachment-src";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { GrokIcon } from "@/components/icons/grok";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import {
+  ThreadList,
+  ThreadListItems,
+  ThreadListNew,
+  ThreadListRoot,
+  ThreadListSearch,
+} from "@/components/assistant-ui/elements/thread-list.aui";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
+
+export default function GrokDemo() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Grok />
+    </AssistantRuntimeProvider>
+  );
+}
+
+export const Grok: FC = () => {
+  return (
+    <ThreadShell>
+      <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#fdfdfd] px-4 dark:bg-[#141414]">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <div className="flex h-full flex-col items-center justify-center">
+            <GrokIcon className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
+            <Composer />
+          </div>
+        </AuiIf>
+
+        <AuiIf condition={(s) => s.thread.isEmpty === false}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
+            <ThreadPrimitive.Messages>
+              {() => <ChatMessage />}
+            </ThreadPrimitive.Messages>
+          </ThreadPrimitive.Viewport>
+          <Composer />
+          <p className="mx-auto w-full max-w-3xl pb-2 text-center text-xs text-[#9a9a9a]">
+            Grok can make mistakes. Verify important information.
+          </p>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </ThreadShell>
+  );
+};
+
+const Composer: FC = () => {
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  return (
+    <ComposerPrimitive.Root
+      className="group/composer mx-auto mb-3 w-full max-w-3xl"
+      data-empty={isEmpty}
+      data-running={isRunning}
+    >
+      <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] ring-1 ring-[#e5e5e5] transition-shadow ring-inset focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
+        <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+          <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
+            <ComposerPrimitive.Attachments>
+              {() => <GrokAttachment />}
+            </ComposerPrimitive.Attachments>
+          </div>
+        </AuiIf>
+
+        <div className="flex items-end gap-1 p-2">
+          <ComposerPrimitive.AddAttachment className="mb-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#0d0d0d] transition-colors hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
+            <Paperclip width={18} height={18} />
+          </ComposerPrimitive.AddAttachment>
+
+          <ComposerPrimitive.Input
+            placeholder="What do you want to know?"
+            minRows={1}
+            className="my-2 h-6 max-h-100 min-w-0 flex-1 resize-none bg-transparent text-base leading-6 text-[#0d0d0d] outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
+          />
+
+          <GrokModelPicker />
+
+          <div className="relative mb-0.5 h-9 w-9 shrink-0 rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
+            <button
+              type="button"
+              className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=false]/composer:scale-0 group-data-[empty=false]/composer:opacity-0 group-data-[running=true]/composer:scale-0 group-data-[running=true]/composer:opacity-0"
+              aria-label="Voice mode"
+            >
+              <Mic width={18} height={18} />
+            </button>
+
+            <ComposerPrimitive.Send className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=true]/composer:scale-0 group-data-[empty=true]/composer:opacity-0 group-data-[running=true]/composer:scale-0 group-data-[running=true]/composer:opacity-0">
+              <ArrowUpIcon width={18} height={18} />
+            </ComposerPrimitive.Send>
+
+            <ComposerPrimitive.Cancel className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[running=false]/composer:scale-0 group-data-[running=false]/composer:opacity-0">
+              <Square width={14} height={14} fill="currentColor" />
+            </ComposerPrimitive.Cancel>
+          </div>
+        </div>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
+
+const GROK_MODELS = [
+  {
+    id: "grok-4.7-fast",
+    name: "Fast",
+    description: "Default. Quick responses",
+    Icon: Zap,
+  },
+  {
+    id: "grok-4.7",
+    name: "Grok 4.7",
+    description: "Standard reasoning",
+    Icon: Moon,
+  },
+  {
+    id: "grok-4.7-think",
+    name: "Think",
+    description: "Multi-step reasoning",
+    Icon: Moon,
+  },
+];
+
+const GrokModelPicker: FC = () => {
+  const [model, setModel] = useState(GROK_MODELS[0]!.id);
+  const current = GROK_MODELS.find((m) => m.id === model) ?? GROK_MODELS[0]!;
+  const CurrentIcon = current.Icon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 text-[#0d0d0d] hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
+        <CurrentIcon width={18} height={18} className="shrink-0" />
+        <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:max-w-32 group-data-[empty=true]/composer:opacity-100">
+          <span className="text-sm font-semibold whitespace-nowrap">
+            {current.name}
+          </span>
+          <ChevronDownIcon width={16} height={16} className="shrink-0" />
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-60">
+        {GROK_MODELS.map(({ id, name, description, Icon }) => (
+          <DropdownMenuItem
+            key={id}
+            onClick={() => setModel(id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#0d0d0d] dark:text-white">
+              {id === model ? <CheckIcon /> : <Icon width={14} height={14} />}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{name}</span>
+              <span className="text-muted-foreground text-xs">
+                {description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-muted-foreground text-sm">
+          Subscribe to SuperGrok
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const ChatMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="group/message relative mx-auto mb-2 flex w-full max-w-3xl flex-col pb-0.5">
+      <AuiIf condition={(s) => s.message.role === "user"}>
+        <div className="flex flex-col items-end">
+          <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
+            <div className="prose prose-sm dark:prose-invert prose-p:my-0 wrap-break-word">
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <MarkdownText />;
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
+            </div>
+          </div>
+          <div className="mt-1 flex h-8 items-center justify-end gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+            <ActionBarPrimitive.Root className="flex items-center gap-0.5">
+              <ActionBarPrimitive.Edit className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
+                <PencilIcon width={16} height={16} />
+              </ActionBarPrimitive.Edit>
+              <ActionBarPrimitive.Copy className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
+                <CopyIcon width={16} height={16} />
+              </ActionBarPrimitive.Copy>
+            </ActionBarPrimitive.Root>
+          </div>
+        </div>
+      </AuiIf>
+
+      <AuiIf condition={(s) => s.message.role === "assistant"}>
+        <div className="flex flex-col items-start">
+          <div className="w-full max-w-none">
+            <div className="prose prose-sm dark:prose-invert prose-li:my-1 prose-ol:my-1 prose-p:my-2 prose-ul:my-1 wrap-break-word text-[#0d0d0d] dark:text-[#e5e5e5]">
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <MarkdownText />;
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
+            </div>
+            <MessagePrimitive.Error>
+              <ErrorPrimitive.Root className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                <ErrorPrimitive.Message className="line-clamp-3" />
+              </ErrorPrimitive.Root>
+            </MessagePrimitive.Error>
+          </div>
+          <div className="mt-1 flex h-8 w-full items-center justify-start gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+            <ActionBarPrimitive.Root className="-ml-2 flex items-center gap-0.5">
+              <ActionBarPrimitive.Reload className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
+                <RefreshCwIcon width={16} height={16} />
+              </ActionBarPrimitive.Reload>
+              <ActionBarPrimitive.Copy className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
+                <CopyIcon width={16} height={16} />
+              </ActionBarPrimitive.Copy>
+              <ActionBarPrimitive.FeedbackPositive className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
+                <ThumbsUp width={16} height={16} />
+              </ActionBarPrimitive.FeedbackPositive>
+              <ActionBarPrimitive.FeedbackNegative className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b6b6b] transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white">
+                <ThumbsDown width={16} height={16} />
+              </ActionBarPrimitive.FeedbackNegative>
+              <MessageTimingDisplay />
+            </ActionBarPrimitive.Root>
+          </div>
+        </div>
+      </AuiIf>
+    </MessagePrimitive.Root>
+  );
+};
+
+const formatTime = (ms: number | undefined) => {
+  if (ms === undefined) return null;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+};
+
+const formatMs = (ms: number | undefined) => {
+  if (ms === undefined) return "\u2014";
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const MessageTimingDisplay: FC = () => {
+  const timing = useMessageTiming();
+  if (!timing?.totalStreamTime) return null;
+
+  const totalTimeText = formatTime(timing.totalStreamTime);
+  if (!totalTimeText) return null;
+
+  return (
+    <div className="group/timing relative">
+      <button
+        type="button"
+        className="ml-1 flex h-auto items-center justify-center rounded-md px-1.5 py-0.5 font-mono text-xs text-[#6b6b6b] tabular-nums transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white"
+      >
+        {totalTimeText}
+      </button>
+      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 transition-all group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+        <div className="grid min-w-[140px] gap-1.5 text-xs">
+          {timing.firstTokenTime !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">
+                First token
+              </span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {formatMs(timing.firstTokenTime)}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Total</span>
+            <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+              {formatMs(timing.totalStreamTime)}
+            </span>
+          </div>
+          {timing.tokensPerSecond !== undefined && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Speed</span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {timing.tokensPerSecond.toFixed(1)} tok/s
+              </span>
+            </div>
+          )}
+          {timing.totalChunks > 0 && (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[#6b6b6b] dark:text-[#9a9a9a]">Chunks</span>
+              <span className="font-mono text-[#0d0d0d] tabular-nums dark:text-white">
+                {timing.totalChunks}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GrokAttachment: FC = () => {
+  const src = useAttachmentSrc();
+
+  return (
+    <AttachmentPrimitive.Root className="group/attachment relative">
+      <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
+        <AuiIf condition={(s) => s.attachment.type === "image"}>
+          {src ? (
+            <img
+              className="h-full w-12 rounded-[9px] object-cover"
+              alt="Attachment"
+              src={src}
+            />
+          ) : (
+            <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
+              <AttachmentPrimitive.unstable_Thumb className="text-xs" />
+            </div>
+          )}
+        </AuiIf>
+        <AuiIf condition={(s) => s.attachment.type !== "image"}>
+          <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-[#e5e5e5] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
+            <AttachmentPrimitive.unstable_Thumb className="text-xs" />
+          </div>
+        </AuiIf>
+      </div>
+      <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex h-6 w-6 scale-50 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] opacity-0 transition-all group-hover/attachment:scale-100 group-hover/attachment:opacity-100 hover:bg-[#f5f5f5] hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
+        <XIcon width={14} height={14} />
+      </AttachmentPrimitive.Remove>
+    </AttachmentPrimitive.Root>
+  );
+};
+
+function ThreadShell({ children }: { children: ReactNode }) {
+  const [collapsed, setCollapsed] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
+
+  const closeAfterNavigation = (event: MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) return;
+    if (
+      event.target.closest(
+        '[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]',
+      )
+    ) {
+      setMobileOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative flex h-full w-full overflow-hidden">
+      <aside
+        className={cn(
+          "bg-muted/30 hidden h-full shrink-0 flex-col overflow-hidden border-r transition-[width] duration-200 md:flex",
+          collapsed ? "w-12" : "w-65",
+        )}
+      >
+        <div className="flex h-12 shrink-0 items-center overflow-hidden px-2">
+          <TooltipIconButton
+            variant="ghost"
+            size="icon"
+            tooltip={collapsed ? "Show sidebar" : "Hide sidebar"}
+            side="right"
+            onClick={() => setCollapsed(!collapsed)}
+            className="size-8"
+          >
+            <PanelLeftIcon className="size-4" />
+          </TooltipIconButton>
+          {!collapsed && (
+            <span className="ml-2 truncate text-sm font-medium">Chats</span>
+          )}
+        </div>
+
+        <ThreadListRoot
+          className={cn(
+            "relative flex-1 transition-[padding,width] duration-200",
+            collapsed
+              ? "w-12 overflow-hidden px-2 pt-1"
+              : "w-65 overflow-y-auto p-3",
+          )}
+        >
+          <ThreadListNew
+            className={cn(
+              "overflow-hidden transition-all duration-200",
+              collapsed
+                ? "w-8 gap-0 px-2 has-[>svg]:px-2"
+                : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+            )}
+            labelClassName={cn(
+              "overflow-hidden transition-all duration-200",
+              collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+            )}
+          />
+          {hasThreads && (
+            <div
+              aria-hidden={collapsed}
+              inert={collapsed}
+              className={cn(
+                "transition-opacity duration-150",
+                collapsed && "pointer-events-none opacity-0",
+              )}
+            >
+              <ThreadListSearch value={search} onValueChange={setSearch} />
+            </div>
+          )}
+          <ThreadListItems
+            searchQuery={hasThreads ? search : ""}
+            aria-hidden={collapsed}
+            inert={collapsed}
+            className={cn(
+              "transition-[opacity,transform] duration-150",
+              collapsed
+                ? "pointer-events-none opacity-0"
+                : "translate-x-0 opacity-100",
+            )}
+          />
+        </ThreadListRoot>
+      </aside>
+
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <div className="absolute top-2 left-2 z-20 md:hidden">
+          <SheetTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="bg-background/70 size-8"
+              >
+                <MenuIcon className="size-4" />
+                <span className="sr-only">Open chat history</span>
+              </Button>
+            }
+          />
+        </div>
+        <SheetContent side="left" className="flex flex-col p-0">
+          <SheetTitle className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
+            Chats
+          </SheetTitle>
+          <div
+            className="relative flex-1 overflow-y-auto p-3"
+            onClick={closeAfterNavigation}
+          >
+            <ThreadList />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
+    </div>
+  );
+}

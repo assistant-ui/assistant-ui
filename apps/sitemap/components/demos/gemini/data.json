@@ -1,0 +1,205 @@
+{
+  "greetings": {
+    "chat": "Where should we start?",
+    "task": "What can I get done for you?",
+    "temporary": "Just stopping by?"
+  },
+  "temporaryNote": "Temporary chats stay out of your chat list and are gone when you leave the page.",
+  "placeholders": {
+    "chat": "Ask Gemini",
+    "task": "Describe a task",
+    "temporary": "Ask Gemini",
+    "followUp": "Ask a follow-up"
+  },
+  "disclaimer": "Gemini is AI and can make mistakes.",
+  "nav": [
+    { "icon": "grid_view", "label": "Library" },
+    { "icon": "imagesmode", "label": "Images" },
+    { "icon": "schedule", "label": "Scheduled" },
+    { "icon": "adjust", "label": "Customize" },
+    { "icon": "movie", "label": "Videos" }
+  ],
+  "models": [
+    {
+      "id": "auto",
+      "label": "Auto",
+      "description": "Adapts to your needs",
+      "locked": false
+    },
+    {
+      "id": "hydrogen",
+      "label": "Everyday help",
+      "description": "4 Hydrogen",
+      "locked": true
+    },
+    {
+      "id": "neon",
+      "label": "Deeper analysis",
+      "description": "4 Neon",
+      "locked": true
+    },
+    {
+      "id": "carbon",
+      "label": "Code & complex work",
+      "description": "4 Carbon",
+      "locked": true
+    }
+  ],
+  "taskModel": "Hydrogen",
+  "uploads": [
+    { "icon": "attach_file", "label": "Upload files", "action": "upload" },
+    { "icon": "add_to_drive", "label": "Add from Drive" }
+  ],
+  "moreUploads": [
+    { "icon": "photo_library", "label": "Google Photos" },
+    { "icon": "face", "label": "Avatar" },
+    { "icon": "book_2", "label": "Notebooks" }
+  ],
+  "tools": [
+    { "icon": "search", "label": "Search Google", "tool": true },
+    {
+      "icon": "imagesmode",
+      "label": "Create image",
+      "tool": true,
+      "hint": "Visualize and edit"
+    },
+    { "icon": "movie", "label": "Create video", "locked": true }
+  ],
+  "moreTools": [
+    { "icon": "edit_document", "label": "Canvas", "tool": true },
+    { "icon": "travel_explore", "label": "Deep Research", "tool": true }
+  ],
+  "mentions": [
+    {
+      "icon": "face",
+      "label": "Avatar",
+      "description": "Add a likeness to images and video"
+    },
+    {
+      "icon": "article",
+      "label": "Skills",
+      "description": "Reusable instructions for more helpful responses"
+    }
+  ],
+  "connectors": [
+    {
+      "icon": "menu_book",
+      "label": "Gemini Notebook",
+      "description": "Keep a project's chats and sources together"
+    },
+    {
+      "icon": "verified_user",
+      "label": "Verify AI",
+      "description": "Check where an image or video came from"
+    },
+    {
+      "icon": "grid_view",
+      "label": "View all connectors",
+      "description": "Get help with the apps you use"
+    }
+  ],
+  "taskSuggestions": [
+    {
+      "icon": "subdirectory_arrow_right",
+      "label": "Find beginner reads on a topic",
+      "prompt": "Find three beginner-friendly books on astronomy and tell me why each one is a good first read."
+    },
+    {
+      "icon": "work",
+      "label": "Add stretch breaks to busy days",
+      "prompt": "Add stretch breaks to my long workdays this week. Look for runs of back-to-back meetings of two hours or more and fit a short break in or right after each one."
+    },
+    {
+      "icon": "monitoring",
+      "label": "Show card perks that save me most",
+      "prompt": "Compare the perks on my credit cards and show which ones save me the most on groceries and travel."
+    }
+  ],
+  "taskIntro": {
+    "icon": "rocket_launch",
+    "title": "Hand off tasks to Gemini",
+    "items": [
+      {
+        "icon": "person",
+        "title": "Tasks tailored to you",
+        "body": "Describe what you want done, and a task works through it step by step."
+      },
+      {
+        "icon": "ads_click",
+        "title": "Works on your behalf",
+        "body": "In this demo a task is a scripted reply, so nothing outside this page is read or changed."
+      },
+      {
+        "icon": "shield_person",
+        "title": "Supervise sensitive tasks",
+        "body": "You can stop a task while it runs, and every step it takes shows in the chat."
+      }
+    ]
+  },
+  "chatFilters": [
+    { "id": "all", "label": "All", "icon": "filter_list" },
+    { "id": "ready", "label": "Ready", "icon": "circle" },
+    { "id": "attention", "label": "Needs attention", "icon": "flag" },
+    { "id": "running", "label": "In progress", "icon": "progress_activity" }
+  ],
+  "responseMenu": [
+    { "icon": "call_split", "label": "Branch in new chat" },
+    { "icon": "volume_up", "label": "Listen", "action": "listen" },
+    { "icon": "description", "label": "Export to Docs" },
+    { "icon": "mail", "label": "Draft in Gmail" },
+    { "icon": "flag", "label": "Report legal issue" },
+    { "icon": "account_tree", "label": "See response details" }
+  ],
+  "conversationMenu": [
+    { "icon": "ios_share", "label": "Share conversation", "action": "share" },
+    { "icon": "keep", "label": "Pin", "action": "pin" },
+    { "icon": "edit", "label": "Rename", "action": "rename" },
+    { "icon": "download", "label": "Download PDF" },
+    { "icon": "description", "label": "Export to Docs" },
+    { "icon": "delete", "label": "Delete", "action": "delete" }
+  ],
+  "settings": [
+    {
+      "group": "Account",
+      "items": [{ "icon": "data_usage", "label": "Usage limits" }]
+    },
+    {
+      "group": "Preferences",
+      "items": [
+        { "icon": "manage_accounts", "label": "Personal Intelligence" },
+        { "icon": "face", "label": "Avatar" },
+        { "icon": "diamond", "label": "Gems" },
+        { "icon": "light_mode", "label": "Theme", "action": "theme" },
+        { "icon": "assignment", "label": "Task settings" },
+        { "icon": "language", "label": "Browser" },
+        { "icon": "forum", "label": "Channels" },
+        { "icon": "shopping_cart", "label": "Cart and orders" },
+        { "icon": "branding_watermark", "label": "Media watermark" },
+        { "icon": "code", "label": "Developer Mode" }
+      ]
+    },
+    {
+      "group": "Data & privacy",
+      "items": [
+        { "icon": "upload", "label": "Import memory to Gemini" },
+        { "icon": "link", "label": "Your public links" },
+        { "icon": "feedback", "label": "Send feedback" },
+        { "icon": "help", "label": "Help" },
+        { "icon": "location_on", "label": "Location" },
+        { "icon": "history", "label": "Gemini History" }
+      ]
+    }
+  ],
+  "themes": [
+    { "id": "system", "label": "System" },
+    { "id": "light", "label": "Light" },
+    { "id": "dark", "label": "Dark" }
+  ],
+  "shareTargets": [
+    { "label": "LinkedIn", "short": "in", "color": "#0a66c2" },
+    { "label": "Facebook", "short": "f", "color": "#1877f2" },
+    { "label": "X", "short": "X", "color": "#000000" },
+    { "label": "Threads", "short": "@", "color": "#000000" },
+    { "label": "Reddit", "short": "r", "color": "#ff4500" }
+  ]
+}
