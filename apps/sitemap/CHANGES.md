@@ -277,3 +277,14 @@ Files:
 - `components/pages/home/hero.tsx`: the glint variants removed.
 
 When folding back: nothing unless AI Ellie becomes the site's look; Copy CSS carries these values, including the glint band.
+
+## AI Ellie: only buttons and badges fully round (2026-11-25)
+
+Fully round corners now apply to buttons and badges only. The AI Ellie preset's control radius is back to 12px, so inputs, selects, and menu rows keep soft corners, and a new Shape setting, "buttons & badges", rounds just those two; AI Ellie sets it to full. Left unchanged, buttons and badges follow `--radius-control` as before.
+
+Files:
+
+- `lib/tokens.ts`: `buttonRadius`, written as a rule on `[data-slot="button"]` and `[data-slot="badge"]`, and the AI Ellie values.
+- `components/dev/token-panel.tsx`: the "buttons & badges" slider.
+
+When folding back: nothing unless AI Ellie becomes the site's look; Copy CSS carries the rule.

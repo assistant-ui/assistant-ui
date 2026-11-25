@@ -228,6 +228,22 @@ export function TokenPanel() {
                   }
                 />
               ))}
+              <Range
+                label="buttons & badges"
+                hint="Buttons and badges alone; unchanged, they follow radius-control"
+                min={0}
+                max={RADIUS_FULL}
+                step={1}
+                unit="px"
+                value={tokens.buttonRadius}
+                display={
+                  tokens.buttonRadius >= RADIUS_FULL ? "full" : undefined
+                }
+                base={DEFAULT_TOKENS.buttonRadius}
+                onChange={(value) =>
+                  set((t) => ({ ...t, buttonRadius: value }))
+                }
+              />
             </Section>
 
             <Section title="Ink">

@@ -216,6 +216,8 @@ function codeThemeCss(theme: CodeThemeId): string[] {
 
 export type Tokens = {
   radius: Record<RadiusKey, number>;
+  /** Buttons and badges alone; unchanged, they follow the control radius. */
+  buttonRadius: number;
   tint: number;
   colors: Record<"light" | "dark", Record<ColorKey, Oklch>>;
   blue: Oklch;
@@ -244,6 +246,7 @@ export const DEFAULT_TOKENS: Tokens = {
     thread: 16,
     capsule: RADIUS_FULL,
   },
+  buttonRadius: 8,
   tint: 106,
   colors: {
     light: {
@@ -311,18 +314,18 @@ export const PRESETS: readonly { id: string; label: string; tokens: Tokens }[] =
       label: "AI Ellie",
       tokens: {
         ...DEFAULT_TOKENS,
-        // Rounder: surfaces a few pixels larger, controls fully round.
+        // Rounder: surfaces a few pixels larger, buttons and badges fully round.
         radius: {
           page: 0,
           document: 12,
           sm: 8,
-          // Fully round buttons and inputs.
-          control: RADIUS_FULL,
+          control: 12,
           surface: 14,
           xl: 18,
           thread: 22,
           capsule: RADIUS_FULL,
         },
+        buttonRadius: RADIUS_FULL,
         // Cooler: neutrals on zinc's hue.
         tint: 286,
         fonts: { display: "Geist", sans: "Geist", mono: "Geist Mono" },
@@ -388,6 +391,17 @@ export function tokenCss(tokens: Tokens): string {
     if (value === d.radius[key]) continue;
     const css = value >= RADIUS_FULL ? "9999px" : `${value}px`;
     root.push(`--radius-${key}: ${css};`);
+  }
+  if (tokens.buttonRadius !== d.buttonRadius) {
+    const css =
+      tokens.buttonRadius >= RADIUS_FULL
+        ? "9999px"
+        : `${tokens.buttonRadius}px`;
+    extra.push(
+      rule('[data-slot="button"], [data-slot="badge"]', [
+        `border-radius: ${css} !important;`,
+      ]),
+    );
   }
   if (tokens.tint !== d.tint) root.push(`--tint: ${round(tokens.tint, 1)};`);
 
