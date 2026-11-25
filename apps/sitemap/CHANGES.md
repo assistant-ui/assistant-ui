@@ -243,3 +243,13 @@ Files:
 - `components/pages/home/hero.tsx`: `HeroHeadline` takes its lines as a list.
 
 When folding back: the same `HeroHeadline` change in `apps/docs/components/pages/home/hero.tsx`.
+
+## AGENTS.md for this app (2026-11-25)
+
+`AGENTS.md` here gives an agent working in this app its commands (both dev servers, typecheck, lint) and rules: edit only this app, override docs files by copying them to the same path, record every change in this file, follow the docs design rules, show design options as live variants, verify in the browser, keep development tools out of production, and commit and push to `feat/sitemap-app`.
+
+Files:
+
+- `AGENTS.md` (new).
+
+When folding back: nothing; it is for this app.
