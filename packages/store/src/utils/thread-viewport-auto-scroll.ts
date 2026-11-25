@@ -506,12 +506,13 @@ export const createThreadViewportAutoScroll = (input: {
     },
     scrollToBottom,
     messagesPrepended: (previousFirstMessageId) => {
+      const { autoScroll, holdFollow } = input.getOptions();
       if (
         !element ||
-        (input.getOptions().autoScroll &&
+        (autoScroll &&
           followBottom &&
           !followPaused &&
-          atNativeBottom) ||
+          (atNativeBottom || holdFollow)) ||
         intent !== null
       )
         return;

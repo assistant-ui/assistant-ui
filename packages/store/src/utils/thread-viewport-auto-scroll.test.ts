@@ -2014,6 +2014,7 @@ describe("createThreadViewportAutoScroll", () => {
       scrollTop = 0,
       autoScroll = false,
       clientHeight = 100,
+      holdFollow = () => false,
     ) => {
       const view = geometry(320, clientHeight);
       const heights = Array<number>(8).fill(80);
@@ -2047,6 +2048,7 @@ describe("createThreadViewportAutoScroll", () => {
         getOptions: () => ({
           ...options(),
           autoScroll,
+          holdFollow: holdFollow(),
           scrollToBottomOnInitialize: false,
           scrollToBottomOnRunStart: false,
           scrollToBottomOnThreadSwitch: false,
@@ -2133,6 +2135,21 @@ describe("createThreadViewportAutoScroll", () => {
       observers.at(-1)!.trigger();
 
       expect(view.element.scrollTop).toBe(360);
+      view.controller.dispose();
+    });
+
+    it("resumes a held follow after a page prepends while follow is on hold", () => {
+      let holdFollow = true;
+      const view = pagedViewport(220, true, 100, () => holdFollow);
+      view.grow(340);
+      observers.at(-1)!.trigger();
+      view.prepend(20);
+
+      holdFollow = false;
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(580);
       view.controller.dispose();
     });
 
