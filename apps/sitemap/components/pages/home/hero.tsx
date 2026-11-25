@@ -2,70 +2,80 @@
 
 import { Fragment, type CSSProperties } from "react";
 import { analytics } from "@/lib/analytics";
+import { Architecture } from "@/components/pages/home/architecture";
 import { Button } from "@/components/ui/button";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
-import { typeDeck, typeHero } from "@/components/shared/type";
+import { typeHero } from "@/components/shared/type";
 import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
-import { SETUP_PATH } from "@/lib/library/catalog";
+import { LIBRARY_PATH } from "@/lib/library/catalog";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-const HEADLINE_WORDS = ["The", "frontend", "library", "for", "AI", "agents."];
+/** The headline, arriving word by word. */
+function HeroHeadline({ text }: { text: string }) {
+  return (
+    <h1 className={typeHero}>
+      {text.split(" ").map((word, index) => (
+        <Fragment key={index}>
+          <span
+            className="hero-word"
+            style={{ animationDelay: `${index * 90}ms` }}
+          >
+            <span
+              className="hero-word-ink"
+              style={{ animationDelay: `${index * 90}ms` }}
+            >
+              {word}
+            </span>
+          </span>{" "}
+        </Fragment>
+      ))}
+      <span
+        aria-hidden
+        className="hero-caret ml-1 inline-block h-[0.72em] w-[3px] bg-blue-500 align-baseline"
+      />
+    </h1>
+  );
+}
 
 export function Hero() {
   return (
     <section className="relative flex flex-col pb-4 md:pb-8">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-1/2 right-0 hidden -translate-y-1/2 md:block"
-      >
-        <div className="animate-in fade-in-0 bg-foreground/[0.05] relative h-[20rem] w-[20rem] overflow-hidden [mask-image:url(/favicon/icon.svg),radial-gradient(circle,#000_40%,transparent_44%)] [mask-composite:intersect] [mask-size:contain,5px_5px] [mask-position:center,0_0] [mask-repeat:no-repeat,repeat] duration-1000">
-          <span aria-hidden className="hero-glint absolute inset-0 block" />
-        </div>
-      </div>
-
-      <div className="relative flex flex-col gap-4">
-        <div className="flex flex-col gap-3 pb-1">
-          <h1 className={cn(typeHero, "max-w-[20ch]")}>
-            {HEADLINE_WORDS.map((word, index) => (
-              <Fragment key={index}>
-                <span
-                  className="hero-word"
-                  style={{ animationDelay: `${index * 90}ms` }}
-                >
-                  <span
-                    className="hero-word-ink"
-                    style={{ animationDelay: `${index * 90}ms` }}
-                  >
-                    {word}
-                  </span>
-                </span>{" "}
-              </Fragment>
-            ))}
-            <span
-              aria-hidden
-              className="hero-caret ml-1 inline-block h-[0.72em] w-[3px] bg-blue-500 align-baseline"
-            />
-          </h1>
-          <p
-            className={cn(typeDeck, "hero-rise")}
-            style={{ animationDelay: "550ms" }}
-          >
-            Primitives and a runtime for production chat. Any backend, through
-            adapters.
-          </p>
-        </div>
-
+      <HeroMark />
+      <div className="relative flex flex-col gap-6">
+        <HeroHeadline text="The frontend for AI agents." />
         <HeroCta
           section="hero"
           className="hero-rise"
-          style={{ animationDelay: "700ms" }}
+          style={{ animationDelay: "550ms" }}
         />
+        {/* Room for the stack with one layer open, so opening or closing a
+            layer never moves the vertically centered hero. */}
+        <div
+          className="hero-rise sm:min-h-[17rem]"
+          style={{ animationDelay: "700ms" }}
+        >
+          <Architecture />
+        </div>
       </div>
     </section>
+  );
+}
+
+/** The printed mark, with its glint, on the hero's right. */
+function HeroMark() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute top-1/2 right-0 hidden -translate-y-1/2 md:block"
+    >
+      <div className="animate-in fade-in-0 bg-foreground/[0.05] relative h-[20rem] w-[20rem] overflow-hidden [mask-image:url(/favicon/icon.svg),radial-gradient(circle,#000_40%,transparent_44%)] [mask-composite:intersect] [mask-size:contain,5px_5px] [mask-position:center,0_0] [mask-repeat:no-repeat,repeat] duration-1000">
+        <span aria-hidden className="hero-glint absolute inset-0 block" />
+      </div>
+    </div>
   );
 }
 
@@ -111,7 +121,7 @@ export function HomeStats({
   );
 }
 
-/** The hero's call to action: a start button plus a link to sales. */
+/** The hero's call to action: the library plus a link to sales. */
 export function HeroCta({
   section,
   className,
@@ -130,12 +140,12 @@ export function HeroCta({
         nativeButton={false}
         render={
           <Link
-            href={SETUP_PATH}
+            href={LIBRARY_PATH}
             onClick={() => analytics.cta.clicked("get_started", section)}
           />
         }
       >
-        Start
+        Explore the library
       </Button>
       <Button
         variant="ghost"

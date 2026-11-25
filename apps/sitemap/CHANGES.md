@@ -6,7 +6,6 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Redesign the home hero (waiting on what you want instead).
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -205,3 +204,21 @@ Files:
 - `app/(home)/page.tsx`: `HomeStats` under the page's last section.
 
 When folding back: wherever the row ends up, `HomeStats` moves with it.
+
+## Hero: headline, buttons, and an architecture stack (2026-11-25)
+
+The hero now reads, top to bottom: "The frontend for AI agents." on one line (chosen over "Frontend for AI agents.", "The AI agent frontend.", and the old "The frontend library for AI agents."), the buttons Explore the library (to `/library`, replacing Start) and Talk to the team, and an interactive stack of assistant-ui's architecture in place of the old description line ("Primitives and a runtime for production chat. Any backend, through adapters." is gone).
+
+The stack follows the five layers of the docs' Architecture page (UI, Runtime, Integrations, Backend, Persistence) and is styled like the Timeline element: a numbered rail of dots joined by a hairline, each layer's name and one-line description beside its dot. A click opens a layer's examples (the pieces the docs name, such as AI SDK, LangGraph, `DataStream`, and `AssistantTransport` under Integrations) and a link to its library or docs page; the open layer's dot is blue with a soft ring, and a second click closes it, so every layer can be closed. It starts closed. Room for one open layer is kept below the stack, so opening or closing never moves the vertically centered hero; that is why the buttons sit above the stack. It uses the Base UI accordion parts, Tab and Enter or Space to work it from the keyboard, and its open and close motion stops under reduced motion.
+
+The logos are back in their original place further down the page, in their two rotating rows (the marquee under the hero was removed), and the hero is centered in the full first screen again.
+
+Files:
+
+- `components/pages/home/architecture.tsx` (new): the stack.
+- `components/pages/home/hero.tsx`: the fixed headline, the stack, Explore the library.
+- `app/(home)/page.tsx`: the first screen is the hero alone, centered.
+- `components/pages/home/trusted-by.tsx` and `components/pages/home/library-body.tsx`: back to the docs versions.
+- `app/globals.css`: the marquee keyframes removed.
+
+When folding back: `architecture.tsx` and the hero changes go to the same paths in apps/docs; the logo files need nothing.

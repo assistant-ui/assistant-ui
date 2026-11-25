@@ -432,33 +432,3 @@ export function TrustedBy() {
     </div>
   );
 }
-
-/** Every logo in one line, scrolling; it pauses on hover and stops for reduced motion. */
-export function LogoMarquee() {
-  return (
-    <div className="group overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_6%,#000_94%,transparent)]">
-      <ul className="flex w-max animate-[logo-marquee_70s_linear_infinite] group-hover:[animation-play-state:paused] motion-reduce:animate-none">
-        {[...LOGOS, ...LOGOS].map((logo, index) => {
-          const copy = index >= LOGOS.length;
-          return (
-            <li
-              key={index}
-              aria-hidden={copy || undefined}
-              className="w-36 shrink-0 px-6"
-            >
-              <Link
-                href={logo.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                tabIndex={copy ? -1 : undefined}
-                className="block"
-              >
-                <LogoMark logo={logo} />
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
