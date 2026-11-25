@@ -3789,6 +3789,92 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
+  it("leaves the previous turn's reply intact when a run errors before any AI output", async () => {
+    const errorData = {
+      error: "RateLimitError",
+      message: "Error code: 429 - Rate limit reached",
+    };
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "error", data: errorData },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() =>
+      result.current.setMessages([
+        { id: "h-0", type: "human", content: "hi" },
+        { id: "ai-0", type: "ai", content: "Hello! How can I help?" },
+      ]),
+    );
+    await act(() =>
+      result.current.sendMessage(
+        [{ id: "h-1", type: "human", content: "summarize this" }],
+        {},
+      ),
+    );
+
+    expect(result.current.messages).toEqual([
+      { id: "h-0", type: "human", content: "hi" },
+      { id: "ai-0", type: "ai", content: "Hello! How can I help?" },
+      { id: "h-1", type: "human", content: "summarize this" },
+    ]);
+  });
+
+  it("marks the tool-calling reply a tool result continues when that run errors", async () => {
+    const errorData = { error: "ServerError", message: "Graph failed" };
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "error", data: errorData },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    const toolCall = { id: "call-1", name: "get_weather", args: {} };
+    act(() =>
+      result.current.setMessages([
+        { id: "h-0", type: "human", content: "weather?" },
+        { id: "ai-0", type: "ai", content: "", tool_calls: [toolCall] },
+      ]),
+    );
+    await act(() =>
+      result.current.sendMessage(
+        [
+          {
+            id: "tool-0",
+            type: "tool",
+            content: "sunny",
+            tool_call_id: "call-1",
+            name: "get_weather",
+            status: "success",
+          },
+        ],
+        {},
+      ),
+    );
+
+    expect(
+      result.current.messages.map((m) => [
+        m.id,
+        (m as Record<string, unknown>).status,
+      ]),
+    ).toEqual([
+      ["h-0", undefined],
+      ["ai-0", { type: "incomplete", reason: "error", error: errorData }],
+      ["tool-0", "success"],
+    ]);
+  });
+
   it("invokes onComplete on success path", async () => {
     const onComplete = vi.fn();
     const mockStreamCallback = mockStreamCallbackFactory([

@@ -584,11 +584,21 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               invokeEventCallback("onError", onError, chunk.data);
               // namespaced errors come from subgraphs, which the parent may recover from
               if (!eventNamespace) {
+                // Only the reply after the latest human message belongs to
+                // this turn; a run that fails before any output has none.
                 const messages = accumulator.getMessages();
-                const lastAiMessage = messages.findLast(
-                  (m): m is TMessage & { type: string; id: string } =>
-                    m != null && "type" in m && m.type === "ai" && m.id != null,
+                const lastHumanIndex = messages.findLastIndex(
+                  (m) => m != null && "type" in m && m.type === "human",
                 );
+                const lastAiMessage = messages
+                  .slice(lastHumanIndex + 1)
+                  .findLast(
+                    (m): m is TMessage & { type: string; id: string } =>
+                      m != null &&
+                      "type" in m &&
+                      m.type === "ai" &&
+                      m.id != null,
+                  );
                 if (lastAiMessage) {
                   const errorMessage = {
                     ...lastAiMessage,
