@@ -1781,13 +1781,21 @@ export class LocalThreadRuntimeCore
     if (message.role !== "assistant")
       throw new Error("Tried to add tool result to non-assistant message");
 
+    // A later roundtrip can reuse a settled call's id, so the result goes to
+    // the open call with that id, or to the last one when all are settled.
+    let targetIndex = -1;
     let added = false;
-    let found = false;
-    const newContent = message.content.map((c) => {
-      if (c.type !== "tool-call") return c;
-      if (c.toolCallId !== toolCallId) return c;
-      found = true;
-      if (c.result === undefined || c.isPreliminary === true) added = true;
+    for (const [index, c] of message.content.entries()) {
+      if (c.type !== "tool-call" || c.toolCallId !== toolCallId) continue;
+      targetIndex = index;
+      if (c.result === undefined || c.isPreliminary === true) {
+        added = true;
+        break;
+      }
+    }
+    const found = targetIndex !== -1;
+    const newContent = message.content.map((c, index) => {
+      if (index !== targetIndex || c.type !== "tool-call") return c;
       const { isPreliminary: _isPreliminary, ...part } = c;
       // artifact and modelContent are optional; only override when supplied so
       // a later result that omits them does not clobber a stored value.
