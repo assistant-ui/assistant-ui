@@ -830,7 +830,7 @@ This API is experimental and may change without notice.
 
 ### `unstable_getThreadMessageLikePartIndices`
 
-Conversion leaves out text that is empty or whitespace, as at the start of a stream, reasoning with no text or summary unless it is redacted, and parts it can't render. So a part's index in `s.message.parts`, or in a group's `indices`, can be lower than its index in the `ThreadMessageLike` your `convertMessage` returned, and it moves when an earlier part fills in. Map it back to your message:
+On an assistant message, conversion leaves out text that is empty or whitespace, as at the start of a stream, and reasoning with no text or summary unless it is redacted. On any message it leaves out parts it can't render. So a part's index in `s.message.parts`, or in a group's `indices`, can be lower than its index in the `ThreadMessageLike` your `convertMessage` returned, and it moves when an earlier part fills in. Map it back to your message:
 
 ```tsx
 import { unstable_getThreadMessageLikePartIndices } from "@assistant-ui/react";
