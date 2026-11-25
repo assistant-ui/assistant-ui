@@ -3,6 +3,11 @@ export const SETUP_PATH = "/library/setup";
 
 export const LIBRARY_CATEGORIES = [
   {
+    id: "platforms",
+    label: "Platforms",
+    description: "The package for each place an assistant runs.",
+  },
+  {
     id: "components",
     label: "Components",
     description: "Chat elements, UI components, and unstyled primitives.",

@@ -12,7 +12,7 @@ import {
 } from "@/components/pages/elements/registry";
 import { BLOCKS } from "@/lib/blocks";
 import { ELEMENT_INDEX } from "@/lib/catalog/element-index";
-import { BASE_URL } from "@/lib/constants";
+import { BASE_URL, PLATFORM_LINKS } from "@/lib/constants";
 import { elementProductSlug } from "@/lib/catalog/products/elements";
 import { generativeFrame } from "@/lib/catalog/products/generative-frame";
 import { safeContentFrame } from "@/lib/catalog/products/safe-content-frame";
@@ -506,6 +506,31 @@ const primitives: LibraryItem[] = PRIMITIVE_PAGES.map((slug) => {
   };
 });
 
+/** The package each of the header's platforms installs, keyed by its page. */
+const PLATFORM_PACKAGES: Record<string, string> = {
+  "/docs": "@assistant-ui/react",
+  "/native": "@assistant-ui/react-native",
+  "/ink": "@assistant-ui/react-ink",
+  "/docs/vue": "@assistant-ui/vue",
+};
+
+const platforms: LibraryItem[] = PLATFORM_LINKS.flatMap((platform) => {
+  const pkg = PLATFORM_PACKAGES[platform.href];
+  if (!pkg) return [];
+  return [
+    {
+      id: `platforms/${platform.label.toLowerCase().replaceAll(" ", "-")}`,
+      category: "platforms" as const,
+      name: platform.label,
+      description: `${platform.description}.`,
+      href: docsUrl(platform.href),
+      external: true,
+      install: { kind: "npm" as const, names: [pkg] },
+      prompt: pageSetupPrompt(platform.href),
+    },
+  ];
+});
+
 const PI_PACKAGE = "@assistant-ui/react-pi";
 
 const pi: LibraryItem = {
@@ -721,6 +746,7 @@ const themes: LibraryItem[] = LIBRARY_THEMES.map((theme) => {
 });
 
 export const getLibraryItems = (): LibraryItem[] => [
+  ...platforms,
   ...elements,
   ...ui,
   ...primitives,

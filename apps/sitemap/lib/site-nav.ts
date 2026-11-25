@@ -28,7 +28,7 @@ export type SiteNavItem =
     };
 
 const LIBRARY_GROUPS: readonly (readonly [string, LibraryCategoryId[]])[] = [
-  ["Build", ["components", "blocks", "themes", "starters"]],
+  ["Build", ["platforms", "components", "blocks", "themes", "starters"]],
   ["Connect", ["runtimes", "integrations", "tools"]],
   ["Extend", ["utilities", "skills"]],
 ];

@@ -18,6 +18,7 @@ import {
   motion,
 } from "@/components/library/glyph";
 import type { LibraryItem } from "@/lib/library/catalog";
+import { NavGlyphArt } from "@/components/shared/nav-glyph";
 import { cn } from "@/lib/utils";
 import { LibraryGlyph } from "./library-glyph";
 
@@ -1489,6 +1490,11 @@ const GLYPHS: Record<string, () => ReactNode> = {
   "skills/thread-list": GlyphThreadList,
   "skills/tools": GlyphToolCard,
   "skills/update": GlyphUpdate,
+  // The platforms use the header's own glyphs for them.
+  "platforms/react": () => <NavGlyphArt kind="react" />,
+  "platforms/react-native": () => <NavGlyphArt kind="native" />,
+  "platforms/ink": () => <NavGlyphArt kind="ink" />,
+  "platforms/vue": () => <NavGlyphArt kind="vue" />,
 };
 
 /** An item's own glyph, or its category's where it has none. */

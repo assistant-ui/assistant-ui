@@ -10,6 +10,7 @@ import {
   WindowChrome,
   motion,
 } from "@/components/library/glyph";
+import { NavGlyphArt } from "@/components/shared/nav-glyph";
 import type { LibraryCategoryId } from "@/lib/library/catalog";
 import { cn } from "@/lib/utils";
 
@@ -187,6 +188,7 @@ function GlyphSkills() {
 }
 
 const GLYPHS: Record<LibraryCategoryId, () => ReactNode> = {
+  platforms: () => <NavGlyphArt kind="react" />,
   components: GlyphElements,
   blocks: GlyphBlocks,
   themes: GlyphThemes,
