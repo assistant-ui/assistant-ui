@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   blockAssistantUi,
   blockDependencies,
+  blockElements,
   publishedDependencies,
   readBlockFiles,
 } from "./block-source";
@@ -260,6 +261,108 @@ describe("blockAssistantUi", () => {
       blockAssistantUi([
         { path: "lib/utils.ts", code: 'import { clsx } from "clsx";' },
       ]),
+    ).toEqual([]);
+  });
+});
+
+const CATALOG = [
+  { slug: "message-pair" },
+  { slug: "composer" },
+  { slug: "composer-voice" },
+  { slug: "thread" },
+  { slug: "quote", file: "quote.aui.tsx" },
+  { slug: "unused" },
+];
+
+describe("blockElements", () => {
+  it("lists primitives the source renders, in catalog order", () => {
+    expect(
+      blockElements(
+        [
+          {
+            path: "components/chat.tsx",
+            code: [
+              "<ThreadPrimitive.Root />",
+              "<ComposerPrimitive.Dictate />",
+              "<ThreadPrimitive.Suggestions />",
+            ].join("\n"),
+          },
+        ],
+        CATALOG,
+      ),
+    ).toEqual([
+      {
+        slug: "composer",
+        kind: "primitive",
+        names: ["ComposerPrimitive"],
+      },
+      {
+        slug: "composer-voice",
+        kind: "primitive",
+        names: ["ComposerPrimitive.Dictate"],
+      },
+      { slug: "thread", kind: "primitive", names: ["ThreadPrimitive"] },
+    ]);
+  });
+
+  it("counts an imported element file as the element, not the primitive", () => {
+    expect(
+      blockElements(
+        [
+          {
+            path: "components/chat.tsx",
+            code: [
+              'import { Quote } from "@/components/assistant-ui/elements/quote.aui";',
+              "<SelectionToolbarPrimitive.Quote />",
+            ].join("\n"),
+          },
+        ],
+        CATALOG,
+      ),
+    ).toEqual([{ slug: "quote", kind: "element", names: ["quote.aui"] }]);
+  });
+
+  it("assigns a shared element file to its first catalog entry", () => {
+    expect(
+      blockElements(
+        [
+          {
+            path: "components/chat.tsx",
+            code: 'import { Composer } from "@/components/assistant-ui/elements/composer";',
+          },
+        ],
+        [
+          { slug: "composer", file: "composer.tsx" },
+          { slug: "composer-voice", file: "composer.tsx" },
+        ],
+      ),
+    ).toEqual([{ slug: "composer", kind: "element", names: ["composer"] }]);
+  });
+
+  it("ignores primitive mentions in non-code files", () => {
+    expect(
+      blockElements(
+        [{ path: "README.md", code: "Use ThreadPrimitive to render threads." }],
+        [{ slug: "thread" }],
+      ),
+    ).toEqual([]);
+  });
+
+  it("ignores test files and elements outside the catalog", () => {
+    expect(
+      blockElements(
+        [
+          {
+            path: "chat.test.tsx",
+            code: "<ThreadPrimitive.Root />",
+          },
+          {
+            path: "components/chat.tsx",
+            code: "<MessagePrimitive.Root />",
+          },
+        ],
+        [{ slug: "thread" }],
+      ),
     ).toEqual([]);
   });
 });
