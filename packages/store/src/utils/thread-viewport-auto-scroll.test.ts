@@ -2033,7 +2033,7 @@ describe("createThreadViewportAutoScroll", () => {
         return message;
       });
       view.element.getBoundingClientRect = () =>
-        new DOMRect(0, 40, 100, clientHeight);
+        new DOMRect(0, 40, 100, view.element.clientHeight);
       view.element.append(...messages.slice(4));
       const updateHeight = () => {
         view.grow(
