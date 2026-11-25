@@ -52,7 +52,10 @@ export function CartSheet() {
                       {item.name}
                     </span>
                     <span className="text-muted-foreground truncate text-xs">
-                      {getLibraryCategory(item.category).label}
+                      {item.install?.kind === "command" &&
+                      !commands.includes(item.install.command)
+                        ? "Skipped in install commands"
+                        : getLibraryCategory(item.category).label}
                     </span>
                   </span>
                   <Button
