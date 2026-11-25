@@ -32,8 +32,8 @@ type MarkdownTextProps = Partial<TextMessagePartProps> & {
   /**
    * Origins whose images load as the message renders. An image from any
    * other origin waits for a click, since its URL comes from the model and
-   * loading it tells that host the chat was viewed. Same-page paths,
-   * `data:image/` and `blob:` URLs always load; `["*"]` loads every origin.
+   * loading it tells that host the chat was viewed. Same-page paths always
+   * load; `["*"]` loads every `http:` and `https:` origin.
    */
   imageOrigins?: readonly string[] | undefined;
 };
