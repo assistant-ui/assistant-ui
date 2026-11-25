@@ -42,7 +42,7 @@ Every picture costs money. Put your own sign-in and rate limit in front of the r
 
 `api/models/route.ts` reads the [Modelpedia API](https://modelpedia.dev/docs/api), which is free and needs no key. Modelpedia has no filter for what a model makes, so the route reads the whole list, keeps the models that make images, and holds the result for a day.
 
-The picker lists all of them, grouped by provider. The image route holds a key for one provider, OpenAI, and calls its Images API, so only OpenAI's image models (`gpt-image` and `dall-e`) can be picked; OpenAI's chat models that make pictures are listed but cannot be picked, and the other providers are marked as needing their own key. To run another provider's models, add a call for it in `api/chat/route.ts` and widen `canRun` in `components/models.tsx`.
+The picker lists all of them, grouped by provider. The image route holds a key for one provider, OpenAI, and calls its Images API, so only OpenAI's `gpt-image` models can be picked; OpenAI's chat models that make pictures are listed but cannot be picked, and the other providers are marked as needing their own key. To run another provider's models, add a call for it in `api/chat/route.ts` and widen `canRun` in `components/models.tsx`.
 
 ## How a picture is made
 

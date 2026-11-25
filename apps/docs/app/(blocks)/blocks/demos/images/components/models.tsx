@@ -63,7 +63,7 @@ function useImageModels() {
 const keyed = (model: ImageModel) => model.id.startsWith(`${PROVIDER}/`);
 
 /* The route calls OpenAI's Images API, which runs its image models and not the chat models that also make pictures. */
-const IMAGES_API = new RegExp(`^${PROVIDER}/(gpt-image|dall-e)`);
+const IMAGES_API = new RegExp(`^${PROVIDER}/gpt-image`);
 
 const canRun = (model: ImageModel) => keyed(model) && IMAGES_API.test(model.id);
 

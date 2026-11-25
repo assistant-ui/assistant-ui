@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
 vi.mock("next/cache", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/cache")>()),
@@ -106,12 +114,12 @@ describe("GET /blocks/demos/images/api/models", () => {
 
   it("answers 502 when Modelpedia fails", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => logged.mockRestore());
     fetchMock.mockResolvedValue(new Response("down", { status: 503 }));
 
     const response = await GET();
 
     expect(response.status).toBe(502);
     expect(logged).toHaveBeenCalledOnce();
-    logged.mockRestore();
   });
 });
