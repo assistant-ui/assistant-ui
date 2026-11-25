@@ -2119,6 +2119,23 @@ describe("createThreadViewportAutoScroll", () => {
       view.controller.dispose();
     });
 
+    it("follows growth below in the same frame as rows held at the bottom", () => {
+      const view = pagedViewport(220, true);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -220 }));
+      view.setTop(0);
+      view.resize(320);
+      view.element.prepend(...view.messages.slice(0, 4));
+      view.grow(640);
+      view.controller.messagesPrepended("message-4");
+      expect(view.element.scrollTop).toBe(320);
+
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(360);
+      view.controller.dispose();
+    });
+
     it("holds the rows at the bottom while an opened disclosure pauses follow", () => {
       const view = pagedViewport(220, true);
       const toggle = document.createElement("button");

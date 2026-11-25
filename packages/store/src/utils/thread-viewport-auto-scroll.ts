@@ -150,13 +150,6 @@ export const createThreadViewportAutoScroll = (input: {
     return true;
   };
 
-  const noteNativeBottom = (el: HTMLElement) => {
-    atNativeBottom = isViewportAtBottom(el);
-    const { autoScroll, holdFollow } = input.getOptions();
-    if (atNativeBottom && autoScroll && !holdFollow && !followPaused)
-      prependAnchor = null;
-  };
-
   const setAtBottom = (value: boolean) => {
     if (value === isAtBottom) return;
     isAtBottom = value;
@@ -228,8 +221,8 @@ export const createThreadViewportAutoScroll = (input: {
     if (prependAnchor && Math.abs(element.scrollTop - heldScrollTop) >= 1)
       prependAnchor = null;
 
-    noteNativeBottom(element);
     const { autoScroll, holdFollow } = input.getOptions();
+    atNativeBottom = isViewportAtBottom(element);
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     const clientHeight = element.clientHeight;
     const clampTarget = Math.max(0, lastScrollHeight - clientHeight);
@@ -265,7 +258,8 @@ export const createThreadViewportAutoScroll = (input: {
           if (followPaused && scrolledSincePause) followPaused = false;
           scrolledSincePause = false;
         }
-        followBottom = true;
+        // Held rows inside the inset band stay held until the true bottom.
+        if (!prependAnchor || atNativeBottom) followBottom = true;
       } else if (scrolledAway) {
         intent = null;
         cancelFrame();
@@ -288,10 +282,10 @@ export const createThreadViewportAutoScroll = (input: {
       intent = null;
     } else if (intent) {
       scrollToBottom(intent);
-    } else if (prependAnchor) {
-      if (!keepMessageAt(prependAnchor)) prependAnchor = null;
     } else if (!holdFollow && autoScroll && followBottom && !followPaused) {
       scrollToBottom("instant");
+    } else if (prependAnchor && !keepMessageAt(prependAnchor)) {
+      prependAnchor = null;
     }
   };
 
@@ -529,9 +523,10 @@ export const createThreadViewportAutoScroll = (input: {
         if (Math.abs(element.scrollTop - top) >= 1)
           element.scrollTo({ top, behavior: "instant" });
       }
+      atNativeBottom = isViewportAtBottom(element);
+      followBottom = atNativeBottom;
       lastScrollTop = element.scrollTop;
       lastScrollHeight = element.scrollHeight;
-      noteNativeBottom(element);
     },
     setContentInset: (inset) => {
       if (directContentInset === inset) return;
