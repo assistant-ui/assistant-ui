@@ -1,0 +1,80 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "assistant-ui documentation API",
+    "version": "1.0.0",
+    "description": "Find documentation pages and retrieve their Markdown representations."
+  },
+  "servers": [{ "url": "/" }],
+  "paths": {
+    "/api/search": {
+      "get": {
+        "operationId": "getSearchIndex",
+        "summary": "List searchable pages and their headings",
+        "responses": {
+          "200": {
+            "description": "The documentation search index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["url", "title", "description", "headings"],
+                    "properties": {
+                      "url": { "type": "string" },
+                      "title": { "type": "string" },
+                      "description": { "type": "string" },
+                      "headings": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": ["id", "content"],
+                          "properties": {
+                            "id": { "type": "string" },
+                            "content": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "operationId": "getMarkdownLocation",
+        "summary": "Resolve a documentation path to its Markdown URL",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "format",
+            "required": true,
+            "schema": { "type": "string", "enum": ["markdown"] }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "description": "Slash-separated path relative to /docs. Omit for the docs homepage.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Follow the Location header to read the Markdown page.",
+            "headers": {
+              "Location": { "schema": { "type": "string", "format": "uri" } }
+            }
+          },
+          "400": {
+            "description": "The format query parameter must be markdown."
+          }
+        }
+      }
+    }
+  }
+}

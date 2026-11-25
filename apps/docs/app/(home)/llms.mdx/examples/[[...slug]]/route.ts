@@ -2,7 +2,6 @@ import { cacheLife } from "next/cache";
 import type { NextRequest } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
 import { examples } from "@/lib/source";
-import { notFound } from "next/navigation";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
 async function getMarkdown(slug: string[] | undefined) {
@@ -19,7 +18,6 @@ export async function GET(
 ) {
   const { slug } = await params;
   const markdown = await getMarkdown(slug);
-  if (markdown === null) notFound();
   return createMarkdownResponse(markdown);
 }
 

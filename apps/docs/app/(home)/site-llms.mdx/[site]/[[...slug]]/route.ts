@@ -1,5 +1,4 @@
 import { cacheLife } from "next/cache";
-import { notFound } from "next/navigation";
 import { getLLMText } from "@/lib/get-llm-text";
 import { docsSiteSources } from "@/lib/source";
 import { DOCS_SITES, docsSiteBaseUrl, getDocsSite } from "@/lib/docs-sites";
@@ -40,7 +39,6 @@ export async function GET(
 ) {
   const { site, slug } = await params;
   const markdown = await getMarkdown(site, slug);
-  if (markdown === null) notFound();
   return createMarkdownResponse(markdown);
 }
 

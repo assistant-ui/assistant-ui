@@ -1,6 +1,5 @@
 import { getLLMText, type LLMRenderContext } from "@/lib/get-llm-text";
 import { design } from "@/lib/source";
-import { notFound } from "next/navigation";
 
 export async function getDesignMarkdown(
   slug: string[] | undefined,
@@ -22,7 +21,7 @@ export async function getDesignMarkdown(
   }
 
   const page = design.getPage(slug);
-  if (!page) notFound();
+  if (!page) return null;
 
   return getLLMText(page, { flavor });
 }

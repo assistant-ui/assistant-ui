@@ -41,3 +41,10 @@ describe("markdown response headers", () => {
     );
   });
 });
+
+it("returns a navigable Markdown 404 when a page has no source", async () => {
+  const response = createMarkdownResponse(null);
+  expect(response.status).toBe(404);
+  expect(response.headers.get("Content-Type")).toContain("text/markdown");
+  expect(await response.text()).toContain("[documentation index](/llms.txt)");
+});

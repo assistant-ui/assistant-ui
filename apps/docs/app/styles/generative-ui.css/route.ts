@@ -1,3 +1,4 @@
+import { galleryStagingCss } from "@/components/gallery/gallery-staging";
 import {
   generativeUiCssText,
   generativeUiElementsThemeCssText,
@@ -12,7 +13,7 @@ function themeVarsBlock(selector: string, vars: Record<string, string>) {
   return `${selector} {\n${body}\n}`;
 }
 
-export function GenerativeUIStyle() {
+export function GET() {
   const css = [
     themeVarsBlock(":root", generativeUiThemeVars.light),
     themeVarsBlock(".dark", generativeUiThemeVars.dark),
@@ -26,7 +27,10 @@ export function GenerativeUIStyle() {
     ),
     generativeUiCssText(),
     generativeUiElementsThemeCssText(),
+    galleryStagingCss,
   ].join("\n\n");
 
-  return <style>{css}</style>;
+  return new Response(css, {
+    headers: { "Content-Type": "text/css; charset=utf-8" },
+  });
 }
