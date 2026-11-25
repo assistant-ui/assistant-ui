@@ -4762,6 +4762,7 @@ type Suggestion = {
   title: string;
   label: string;
   prompt: string;
+  metadata?: Record<string, unknown>;
 };
 
 type SuggestionAdapter = {
