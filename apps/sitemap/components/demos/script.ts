@@ -1,6 +1,6 @@
 import type { ThreadMessage } from "@assistant-ui/react";
 
-/** Helpers the scripted previews share in place of a model. */
+/** Helpers the scripted demos share in place of a model. */
 
 export const wait = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,12 +14,16 @@ export function lastUserText(messages: readonly ThreadMessage[]) {
 }
 
 /** Yields `text` a word at a time, each step the full text so far. */
-export async function* streamWords(text: string, signal: AbortSignal) {
+export async function* streamWords(
+  text: string,
+  signal: AbortSignal,
+  delay = 30,
+) {
   let shown = "";
   for (const word of text.split(/(?<=\s)/)) {
     if (signal.aborted) return;
     shown += word;
     yield shown;
-    await wait(30);
+    await wait(delay);
   }
 }

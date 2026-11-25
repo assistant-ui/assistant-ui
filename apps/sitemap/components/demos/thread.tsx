@@ -5,6 +5,7 @@ import {
   AuiIf,
   ComposerPrimitive,
   MessagePrimitive,
+  SuggestionPrimitive,
   ThreadPrimitive,
   useAuiState,
 } from "@assistant-ui/react";
@@ -17,19 +18,64 @@ export function Thread() {
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
         <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 pt-6">
           <AuiIf condition={(s) => s.thread.isEmpty}>
-            <p className="text-muted-foreground m-auto text-sm">
-              Ask anything.
-            </p>
+            <Welcome />
           </AuiIf>
           <ThreadPrimitive.Messages>
             {() => <Message />}
           </ThreadPrimitive.Messages>
-          <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto pb-4">
+          <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col gap-3 pb-4">
+            <FollowUps />
             <Composer />
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
+  );
+}
+
+function Welcome() {
+  return (
+    <div className="m-auto flex w-full max-w-sm flex-col items-center gap-4">
+      <p className="text-muted-foreground text-sm">
+        Ask anything, or start with one of these.
+      </p>
+      <div className="flex w-full flex-col gap-1.5">
+        <ThreadPrimitive.Suggestions>
+          {() => (
+            <SuggestionPrimitive.Trigger send className={suggestionRow}>
+              <SuggestionPrimitive.Title />
+            </SuggestionPrimitive.Trigger>
+          )}
+        </ThreadPrimitive.Suggestions>
+      </div>
+    </div>
+  );
+}
+
+function FollowUps() {
+  const suggestions = useAuiState((s) => s.thread.suggestions);
+
+  return (
+    <AuiIf
+      condition={(s) =>
+        !s.thread.isEmpty &&
+        !s.thread.isRunning &&
+        s.thread.suggestions.length > 0
+      }
+    >
+      <div className="flex flex-wrap gap-2">
+        {suggestions.map((suggestion) => (
+          <ThreadPrimitive.Suggestion
+            key={suggestion.prompt}
+            prompt={suggestion.prompt}
+            send
+            className={suggestionChip}
+          >
+            {suggestion.title ?? suggestion.prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+    </AuiIf>
   );
 }
 
@@ -98,6 +144,12 @@ function Composer() {
     </ComposerPrimitive.Root>
   );
 }
+
+const suggestionRow =
+  "border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-xl border px-4 py-2.5 text-start text-sm transition-colors disabled:opacity-50";
+
+const suggestionChip =
+  "border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-full border px-3 py-1 text-sm transition-colors disabled:opacity-50";
 
 const iconButton =
   "hover:text-foreground hover:bg-foreground/5 flex size-7 items-center justify-center rounded-md transition-colors";

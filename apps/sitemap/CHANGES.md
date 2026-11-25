@@ -6,8 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Build the scripted previews for the other four demos on `/demos` (Approval, Reasoning, Attachments, State and actions) the way Chat's and Tool UI's are built; until then their Preview tabs say they are not built.
-- Build the thirteen planned Elements demos on `/demos` (Messages, Tool use, Knowledge, Structured output, Agents, Observability, Composer, Voice, Thread, AUI connected, Renderers, Primitives, Generative), each one scripted chat with every element in its group, and give the Reasoning demo its six elements (Loader, Thinking indicator, Streaming text, Typing indicator, Reasoning effort, Guardrail notice). The earlier second batch (generative UI, suggestions, editing and branching, mentions and slash commands, reading aloud, the thread list) is covered by these groups. Before folding back, the planned entries are built or removed, since design.md allows no placeholder rows.
+- Build the other nine runtime demos on `/demos` the way Streaming is built (a file in `components/demos/`, the shared Thread, welcome and follow-up suggestions starting with "How does … work?", and code tabs): Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI. The weather card and the approval toolkit from the first version are the starting point for Tools and Approval.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -417,3 +416,20 @@ Files:
 - `app/(home)/demos/page.tsx`: the element links, planned demos without tabs, and the deck mentions Elements groups.
 
 When folding back: copy both files to the same paths in `apps/docs`, once the planned demos are built.
+
+## Demos, second version: the ten runtime demos as scripted Threads (2026-11-25)
+
+`/demos` now follows the home page's "What the runtime handles": Streaming, Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, and Generative UI, in that order. Every demo is the same Thread on a script, so they read as one set; each opens with suggestions, the first "How does … work?", and offers follow-up suggestions after every reply, so there is always something to click. Streaming is built: "How does streaming text work?" streams an answer about `streamText` and `useChatRuntime`, and "Can I stop a reply halfway?" streams slowly enough to press Stop, which ends the reply where it is. The other nine say "Not built yet". Its tabs show `app/page.tsx` (the same suggestions with `useChatRuntime`: `Suggestions` for the welcome prompts, a `SuggestionAdapter` for the follow-ups), `components/thread.tsx` (read from the file the demo runs), and the route.
+
+The Thread moved to `components/demos/thread.tsx` and gained the welcome suggestions (`ThreadPrimitive.Suggestions` with `SuggestionPrimitive.Trigger`) and a row of follow-up chips above the composer (`thread.suggestions` with `ThreadPrimitive.Suggestion`). The six feature demos and the thirteen Elements groups are off the page; the first version's Chat and Tool UI previews, its Thread, and the weather card are removed from `components/pages/demos/`. A copy of the first version runs locally at `/demos-v1` (`components/demos-v1/` and `app/(home)/demos-v1/`, kept out of git by `.git/info/exclude`).
+
+Files:
+
+- `components/demos/thread.tsx` (new, moved from `components/pages/demos/ui/thread.tsx`): the shared Thread, now with suggestions.
+- `components/demos/script.ts` (new, moved from `components/pages/demos/previews/script.ts`): the shared script helpers, with a per-reply speed.
+- `components/demos/streaming-text.tsx` (new): the Streaming demo.
+- `components/pages/demos/previews/*`, `components/pages/demos/ui/*`: deleted.
+- `lib/scripted-demos.ts`: the ten runtime demos.
+- `app/(home)/demos/page.tsx`: the ten demos, the new deck, no Elements groups.
+
+When folding back: copy `components/demos/`, `components/pages/demos/demo-tabs.tsx`, `lib/scripted-demos.ts`, and `app/(home)/demos/page.tsx` to the same paths in `apps/docs`, once the nine are built.
