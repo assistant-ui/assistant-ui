@@ -1,7 +1,6 @@
 import { cacheLife } from "next/cache";
 import { Architecture } from "@/components/pages/home/architecture";
 import { HomeDemo } from "@/components/pages/home/demo";
-import { DemoPanel } from "@/components/pages/home/demo-panel";
 import { Hero, HomeStats } from "@/components/pages/home/hero";
 import { LibraryBody } from "@/components/pages/home/library-body";
 import { PageFrame } from "@/components/shared/page-frame";
@@ -168,7 +167,6 @@ export default async function HomePage() {
           <Hero />
         </div>
         <HomeDemo />
-        <DemoPanel />
       </div>
       <section
         aria-labelledby="architecture-heading"

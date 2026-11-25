@@ -6,6 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
+- Pick the home demo's style: `home-demo-style` in `components/pages/home/demo/index.tsx` has two variants left, on a plate (the default) and lifted with white tabs. Then remove the variants and the `@assistant-ui/variants` dev dependency (also in the root `pnpm-lock.yaml`).
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -321,3 +322,20 @@ Files:
 - `components/pages/home/demo-panel.tsx`: the tab row scrolls when it does not fit.
 
 When folding back: copy `demo-panel.tsx` to the same path in `apps/docs` and add `<DemoPanel />` after `<HomeDemo />` in the docs `app/(home)/page.tsx`; the docs hero needs nothing from these changes.
+
+## Tabs on the home demo; Demos panel removed (2026-11-25)
+
+The home demo has a row of tabs over it and a description under it. The first tab, assistant-ui, is the home demo as before (full screen still works); ChatGPT, Claude, Grok, Gemini, and Perplexity follow at full size in the same frame. Base is left out, since the first tab already shows the full unthemed app. The home demo stays mounted when another tab is open, so its conversation survives a switch. Under the frame: the open tab's description on the left and a link on the right ("Explore other examples" for the home demo, "Open the demo" for the others). On a phone the tab row scrolls sideways inside its width.
+
+Two styles are still open as variants (the line tabs and title bar variants were dropped): on a plate (a tinted panel with pill tabs, as the removed panel had) and lifted (white tab bar and frame, each with a soft shadow; the active tab takes the muted fill). The shadows are inline styles, because the docs theme zeroes the `--shadow-*` tokens; design.md allows shadows only on floating surfaces, so the lifted style is an exception if chosen.
+
+The separate Demos panel under the home demo is removed, since the home demo now has the same tabs.
+
+Files:
+
+- `components/pages/home/demo/index.tsx` (copied from docs, then changed): the tabs, the description row, and the two style variants.
+- `app/(home)/page.tsx`: `<DemoPanel />` removed.
+- `components/pages/home/demo-panel.tsx`: deleted.
+- `package.json` and the root `pnpm-lock.yaml`: `@assistant-ui/variants` as a dev dependency while the variants are open.
+
+When folding back: after a style is picked and the variants removed, copy `components/pages/home/demo/index.tsx` to the same path in `apps/docs`. Skip "Demos panel in the hero", "Demos panel on a plate", and "Demos panel under the home demo": that panel no longer exists.
