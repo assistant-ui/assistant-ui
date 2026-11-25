@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -231,10 +231,8 @@ export function NavItems({
                       ? cn(
                           item.groups.length <= 2 &&
                             "grid-cols-[minmax(0,16rem)_1fr_1fr]",
-                          item.groups.length === 3 &&
+                          item.groups.length >= 3 &&
                             "grid-cols-[minmax(0,16rem)_1fr_1fr_1fr]",
-                          item.groups.length >= 4 &&
-                            "grid-cols-[minmax(0,14rem)_1fr_1fr_1fr_1fr]",
                         )
                       : cn(
                           item.groups.length <= 2 && "grid-cols-2",
@@ -258,6 +256,20 @@ export function NavItems({
                     </div>
                   ))}
                 </div>
+                {item.footer ? (
+                  <NavigationMenuLink
+                    closeOnClick
+                    render={
+                      <Link
+                        href={item.footer.href}
+                        className="text-muted-foreground hover:text-foreground mt-5 inline-flex items-center gap-1.5 px-2 text-sm transition-colors"
+                      >
+                        {item.footer.label}
+                        <ArrowRight className="size-3.5" />
+                      </Link>
+                    }
+                  />
+                ) : null}
               </div>
             </NavigationMenuContent>
           </NavigationMenuItem>

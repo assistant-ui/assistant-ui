@@ -64,3 +64,15 @@ Files:
 - `components/shared/nav-items.tsx`: draws `LibraryPageGlyph`, and a five-column layout for a featured card beside four groups.
 
 When folding back: bring over these files; the `nav-items.tsx` layout change applies to the docs menu component.
+
+## A lighter Library menu (2026-11-25)
+
+Chosen from three variants (links with a bottom link, Overview under Start, compact text). The big featured "Everything" card is gone: the Library menu is four columns (Start, Browse, Connect, Extend) with a "See the whole library →" link to `/library` under them, and the phone menu ends its Library list with the same link. This replaces the featured card and the five-column layout from the entry above.
+
+Files:
+
+- `lib/site-nav.ts`: no featured card; a `footer` link on the menu.
+- `components/shared/nav-items.tsx`: draws a menu's `footer` link under its columns; the five-column layout is removed.
+- `components/shared/header.tsx`: the phone menu shows the `footer` link.
+
+When folding back: `NavItem` in `apps/docs/lib/constants.ts` needs the optional `footer` field, and the docs header and menu component need these two small additions.

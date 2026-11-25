@@ -222,6 +222,15 @@ export function Header() {
                       )}
                     </div>
                   ))}
+                  {item.footer ? (
+                    <Link
+                      href={item.footer.href}
+                      onClick={closeMenuToToggle}
+                      className="text-muted-foreground py-2 pl-4 text-lg transition-colors"
+                    >
+                      {item.footer.label}
+                    </Link>
+                  ) : null}
                 </div>
               );
             })}

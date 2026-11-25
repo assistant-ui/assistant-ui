@@ -27,6 +27,8 @@ export type SiteNavItem =
       label: string;
       featured?: { label: string; item: MenuItem; extraItems?: MenuItem[] };
       groups: MenuGroup[];
+      /** A plain link under the columns. */
+      footer?: { label: string; href: string };
     };
 
 const pageLink = (id: LibraryPageId): MenuItem => {
@@ -52,20 +54,11 @@ const pageLink = (id: LibraryPageId): MenuItem => {
 export const LIBRARY_NAV_ITEM: SiteNavItem = {
   type: "mega",
   label: "Library",
-  featured: {
-    label: "Everything",
-    item: {
-      label: "Library",
-      href: LIBRARY_PATH,
-      description: "Everything that installs, with its command",
-      external: false,
-      libraryGlyph: "components",
-    },
-  },
   groups: LIBRARY_GROUPS.map(({ label, pages }) => ({
     label,
     items: pages.map(pageLink),
   })),
+  footer: { label: "See the whole library", href: LIBRARY_PATH },
 };
 
 /** The docs site's header links, with the Library menu where Components was. */
