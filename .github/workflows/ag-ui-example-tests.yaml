@@ -35,7 +35,6 @@ jobs:
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # ratchet:astral-sh/setup-uv@v10.2.0
         with:
           python-version: "3.12"
-          enable-cache: true
 
       # test_origin_guard.py imports only the standard library and origin_guard,
       # so there is nothing to install yet. A test that starts importing agent.py
