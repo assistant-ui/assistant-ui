@@ -4,6 +4,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ExternalLinkIcon,
+  ImageIcon,
   ImageOffIcon,
 } from "lucide-react";
 import {
@@ -15,7 +16,7 @@ import {
 } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { safeHref } from "../utils/href";
+import { canPreload, safeHref } from "../utils/href";
 import { clamp } from "../utils/range";
 import { field, ghostButton, mono } from "./surfaces";
 
@@ -34,6 +35,12 @@ export interface ImageGalleryProps extends Omit<
   images: readonly GalleryImage[];
   maxVisible?: number | undefined;
   onOpen?: ((id: string) => void) | undefined;
+  /**
+   * Origins whose thumbnails load as the gallery renders. A thumbnail from
+   * any other origin shows a placeholder, and its image loads once the user
+   * opens it. Same-page paths, `data:image/` and `blob:` URLs always load.
+   */
+  imageOrigins?: readonly string[] | undefined;
 }
 
 const keyForImage = (image: GalleryImage) => `${image.id}\u0000${image.src}`;
@@ -42,6 +49,7 @@ export function ImageGallery({
   images,
   maxVisible = 6,
   onOpen,
+  imageOrigins,
   className,
   ...props
 }: ImageGalleryProps) {
@@ -148,6 +156,13 @@ export function ImageGallery({
                 <span className="text-muted-foreground flex size-full items-center justify-center">
                   <ImageOffIcon aria-hidden className="size-6" />
                 </span>
+              ) : !canPreload(image.src, imageOrigins) ? (
+                <span
+                  data-slot="image-gallery-placeholder"
+                  className="text-muted-foreground flex size-full items-center justify-center"
+                >
+                  <ImageIcon aria-hidden className="size-6" />
+                </span>
               ) : (
                 // A picture wrapper marks a deliberate native img for the Next.js lint, because
                 // next/image needs per-host config for runtime URLs and only exists in Next.js.
@@ -156,6 +171,7 @@ export function ImageGallery({
                     src={image.src}
                     alt={image.alt}
                     loading="lazy"
+                    referrerPolicy="no-referrer"
                     className="size-full object-cover"
                     onError={() => markFailed(image)}
                   />
@@ -194,6 +210,7 @@ export function ImageGallery({
                   <img
                     src={activeImage.src}
                     alt={activeImage.alt}
+                    referrerPolicy="no-referrer"
                     className="max-h-[75vh] max-w-full object-contain"
                     onError={() => markFailed(activeImage)}
                   />

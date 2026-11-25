@@ -57,6 +57,34 @@ describe("LinkPreview", () => {
     ).toBe("A");
   });
 
+  it("shows a remote image and favicon only from listed origins", () => {
+    const remote = {
+      href: "https://example.com/guide",
+      siteName: "Example",
+      image: "https://images.example/card.png",
+      favicon: "https://images.example/favicon.png",
+    };
+    const { container, rerender } = render(<LinkPreview {...remote} />);
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(
+      container.querySelector('[data-slot="link-preview-site-initial"]'),
+    ).toBeTruthy();
+
+    rerender(
+      <LinkPreview {...remote} imageOrigins={["https://images.example"]} />,
+    );
+
+    const sources = [...container.querySelectorAll("img")].map((img) => [
+      img.getAttribute("src"),
+      img.getAttribute("referrerpolicy"),
+    ]);
+    expect(sources).toEqual([
+      ["https://images.example/card.png", "no-referrer"],
+      ["https://images.example/favicon.png", "no-referrer"],
+    ]);
+  });
+
   it("marks its compact layout", () => {
     const { container } = render(
       <LinkPreview href="https://example.com" layout="compact" />,

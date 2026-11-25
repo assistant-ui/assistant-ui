@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { MarkdownTextPrimitiveProps } from "@assistant-ui/react-markdown";
 import type { ComponentType } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -120,6 +120,83 @@ describe("MarkdownText component overrides", () => {
       );
       expect(screen.getAllByTestId("mermaid")).toHaveLength(1);
       expect(screen.getByText("const answer = 42;")).toBeTruthy();
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
+
+  it("waits for a click before loading an image from an unlisted origin", () => {
+    mocks.messagePartText.text =
+      "![chart](https://images.example/q?d=secret) ![logo](/logo.png)";
+    try {
+      const { container } = render(<MarkdownText />);
+
+      const images = () =>
+        [...container.querySelectorAll("img")].map((img) =>
+          img.getAttribute("src"),
+        );
+      expect(images()).toEqual(["/logo.png"]);
+      const load = screen.getByRole("button", {
+        name: /chart.*Load from images\.example/,
+      });
+
+      fireEvent.click(load);
+
+      expect(images()).toEqual([
+        "https://images.example/q?d=secret",
+        "/logo.png",
+      ]);
+      expect(
+        container.querySelector("img")?.getAttribute("referrerpolicy"),
+      ).toBe("no-referrer");
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
+
+  it("requires a new click when a streamed image URL changes", () => {
+    mocks.messagePartText.text = "![chart](https://a.example/1.png)";
+    try {
+      const { container, rerender } = render(
+        <MarkdownText imageOrigins={[]} />,
+      );
+
+      expect(container.querySelector("img")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: /chart.*Load from a\.example/ }),
+      );
+      expect(container.querySelector("img")?.getAttribute("src")).toBe(
+        "https://a.example/1.png",
+      );
+
+      mocks.messagePartText.text = "![chart](https://b.example/2.png)";
+      rerender(<MarkdownText imageOrigins={[]} />);
+
+      expect(container.querySelector("img")).toBeNull();
+      expect(
+        screen.getByRole("button", { name: /chart.*Load from b\.example/ }),
+      ).toBeTruthy();
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
+
+  it("loads images from listed origins as the message renders", () => {
+    mocks.messagePartText.text =
+      "![a](https://cdn.example/a.png) ![b](https://other.example/b.png)";
+    try {
+      const { container } = render(
+        <MarkdownText imageOrigins={["https://cdn.example"]} />,
+      );
+
+      expect(
+        [...container.querySelectorAll("img")].map((img) =>
+          img.getAttribute("src"),
+        ),
+      ).toEqual(["https://cdn.example/a.png"]);
+      expect(
+        screen.getByRole("button", { name: /Load from other\.example/ }),
+      ).toBeTruthy();
     } finally {
       mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
     }

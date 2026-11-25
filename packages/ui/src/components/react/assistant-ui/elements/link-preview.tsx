@@ -2,7 +2,7 @@
 
 import { useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
-import { hostOf, safeHref } from "../utils/href";
+import { canPreload, hostOf, safeHref } from "../utils/href";
 import { field, mono, paper } from "./surfaces";
 
 export interface LinkPreviewProps extends Omit<
@@ -17,6 +17,8 @@ export interface LinkPreviewProps extends Omit<
   siteName?: string | undefined;
   favicon?: string | undefined;
   layout?: "card" | "compact" | undefined;
+  /** Origins `image` and `favicon` may load from; others are not shown. Same-page paths, `data:image/` and `blob:` URLs always load. */
+  imageOrigins?: readonly string[] | undefined;
 }
 
 export function LinkPreview({
@@ -28,6 +30,7 @@ export function LinkPreview({
   siteName,
   favicon,
   layout = "card",
+  imageOrigins,
   className,
   ...props
 }: LinkPreviewProps) {
@@ -37,9 +40,9 @@ export function LinkPreview({
   const host = hostOf(href);
   const site = siteName ?? host;
   const label = title || host || safeUrl || "Untitled link";
-  const hasImage = image !== undefined && image !== "" && failedImage !== image;
+  const hasImage = canPreload(image, imageOrigins) && failedImage !== image;
   const hasFavicon =
-    favicon !== undefined && favicon !== "" && failedFavicon !== favicon;
+    canPreload(favicon, imageOrigins) && failedFavicon !== favicon;
 
   const imageFrame = hasImage ? (
     <div
@@ -56,6 +59,7 @@ export function LinkPreview({
         <img
           src={image}
           alt={imageAlt ?? ""}
+          referrerPolicy="no-referrer"
           className="size-full object-cover"
           onError={() => setFailedImage(image)}
         />
@@ -84,6 +88,7 @@ export function LinkPreview({
                 data-slot="link-preview-favicon"
                 src={favicon}
                 alt=""
+                referrerPolicy="no-referrer"
                 className="size-4 shrink-0 rounded-sm object-cover"
                 onError={() => setFailedFavicon(favicon)}
               />

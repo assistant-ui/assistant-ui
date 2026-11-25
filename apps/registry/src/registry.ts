@@ -1434,6 +1434,7 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/use-copy-to-clipboard.json",
+      "https://r.assistant-ui.com/elements-href.json",
     ],
     dependencies: [
       "@assistant-ui/react",

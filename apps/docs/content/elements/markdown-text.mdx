@@ -45,7 +45,7 @@ MarkdownText renders fenced code with a language label and a copy button, but th
 
 <StandaloneMode>
 
-Standalone, MarkdownText has no controlled form: its only props are `components` and `componentsByLanguage`, and the text it renders always comes from the surrounding message part, never from a value you pass in. To render markdown outside a message part, render `react-markdown` directly instead, the way [Generative UI](/elements/generative-ui)'s `Markdown` override does.
+Standalone, MarkdownText has no controlled form: its only props are `components`, `componentsByLanguage` and `imageOrigins`, and the text it renders always comes from the surrounding message part, never from a value you pass in. To render markdown outside a message part, render `react-markdown` directly instead, the way [Generative UI](/elements/generative-ui)'s `Markdown` override does.
 
 </StandaloneMode>
 
@@ -117,7 +117,13 @@ Tables, task-list checkboxes, strikethrough, and bare autolinks all render becau
 
 ### Images from assistant output
 
-Assistant markdown loads images from any origin by default. A model can put data in an image URL and cause a request to that URL. `MarkdownTextPrimitive` forwards react-markdown's `urlTransform`, so set one on it in `markdown-text.tsx` to restrict image URLs:
+A model can put data in an image URL, and loading the image sends that data to its host. `MarkdownText` loads a same-page path right away. An image from an unlisted origin renders as a button with its alt text and host, and loads only when the user clicks it. Protocol-relative image URLs (`//host/x.png`) show alt text only and require an HTTPS URL with a listed origin. List the origins you trust in `imageOrigins` to load their images as the message renders, or pass `["*"]` for every `http:` and `https:` origin:
+
+```tsx
+<MarkdownText imageOrigins={["https://cdn.example.com"]} />
+```
+
+Loaded images send no referrer. `MarkdownTextPrimitive` loads every image the markdown names; it forwards react-markdown's `urlTransform`, so set one on it to restrict image URLs when you build on the primitive directly:
 
 ```tsx
 import { defaultUrlTransform } from "react-markdown";
@@ -145,8 +151,9 @@ import { defaultUrlTransform } from "react-markdown";
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `components` | `Parameters<typeof memoizeMarkdownComponents>[0]` | | Merged onto the default element renderers (`h1`-`h6`, `p`, `a`, `blockquote`, `ul`, `ol`, `hr`, `table`, `th`, `td`, `tr`, `li`, `strong`, `sup`, `pre`, `code`, `CodeHeader`). Missing keys fall back to the defaults. `SyntaxHighlighter` defaults to plain, unhighlighted code until you set one. |
+| `components` | `Parameters<typeof memoizeMarkdownComponents>[0]` | | Merged onto the default element renderers (`h1`-`h6`, `p`, `a`, `blockquote`, `ul`, `ol`, `hr`, `table`, `th`, `td`, `tr`, `li`, `strong`, `sup`, `img`, `pre`, `code`, `CodeHeader`). Missing keys fall back to the defaults. `SyntaxHighlighter` defaults to plain, unhighlighted code until you set one. |
 | `componentsByLanguage` | `MarkdownTextPrimitiveProps["componentsByLanguage"]` | | Per-language `SyntaxHighlighter` and `CodeHeader` overrides for fenced code, keyed by the fence's language, such as `{ mermaid: { SyntaxHighlighter: MermaidDiagram } }`. |
+| `imageOrigins` | `readonly string[]` | none | Origins whose images load as the message renders; images from other origins wait for a click. Entries must be full origins such as `https://cdn.example.com`. See [Images from assistant output](#images-from-assistant-output). |
 
 There is no `className` prop. `smooth` and `defer` are fixed on: the primitive always animates streamed text and defers re-parsing to a lower priority.
 
@@ -154,6 +161,6 @@ There is no `className` prop. `smooth` and `defer` are fixed on: the primitive a
 
 <StandaloneMode>
 
-MarkdownText has no standalone props beyond `components` and `componentsByLanguage`, and nothing to feed it outside a message part. See the `MarkdownTextPrimitive` row above for the one thing it reads, and the runtime API reference for both.
+MarkdownText has no standalone props beyond `components`, `componentsByLanguage` and `imageOrigins`, and nothing to feed it outside a message part. See the `MarkdownTextPrimitive` row above for the one thing it reads, and the runtime API reference for both.
 
 </StandaloneMode>
