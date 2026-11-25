@@ -1,0 +1,7 @@
+/* This app is a working copy of the site, so it takes the docs site's tokens
+   and styles whole and scans the files it borrows from that app. */
+@import "../../docs/styles/globals.css";
+@import "./library.css";
+
+@source "../../docs/components";
+@source "../../docs/lib";

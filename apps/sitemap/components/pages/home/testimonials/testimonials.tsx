@@ -1,0 +1,65 @@
+import type { Testimonial } from "@/components/pages/home/testimonials/data";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+import type { FC } from "react";
+
+export const TestimonialContainer: FC<{
+  testimonials: Testimonial[];
+  className?: string;
+}> = ({ testimonials, className }) => {
+  return (
+    <div
+      className="mx-auto w-full max-w-7xl overflow-hidden"
+      style={{
+        maskImage: "linear-gradient(to bottom, black 65%, transparent 95%)",
+        maxHeight: 400,
+      }}
+    >
+      <div
+        className={cn("h-[440px] columns-1 gap-4", className)}
+        style={{ columnFill: "auto" }}
+      >
+        {testimonials.map((testimonial, idx) => (
+          <TestimonialCard key={idx} {...testimonial} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TestimonialCard: FC<Testimonial> = ({
+  username,
+  avatar,
+  message,
+  url,
+}) => (
+  <a
+    href={url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="bg-card hover:bg-muted/50 mb-4 block break-inside-avoid-column space-y-3 rounded-lg border p-4 transition-colors"
+  >
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Image
+          alt={`@${username}`}
+          loading="lazy"
+          width={24}
+          height={24}
+          className="size-6 rounded-full"
+          src={avatar}
+        />
+        <span className="text-muted-foreground text-xs">{username}</span>
+      </div>
+      <svg
+        className="text-muted-foreground/50 size-3"
+        fill="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+    </div>
+    <p className="text-sm leading-relaxed whitespace-pre-line">{message}</p>
+  </a>
+);
