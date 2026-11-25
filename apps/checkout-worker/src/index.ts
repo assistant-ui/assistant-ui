@@ -8,7 +8,11 @@ import {
   routeStatewireRequest,
 } from "@statewire/cloudflare";
 
-type Env = { CHECKOUT: StatewireDurableObject.Namespace };
+type Env = {
+  CHECKOUT: StatewireDurableObject.Namespace;
+  /** Per-client-IP budget for requests to links that hold no setup yet (wrangler.jsonc). */
+  NEW_LINKS: RateLimit;
+};
 
 type SecretDeposit = {
   setupId: string;
@@ -53,6 +57,12 @@ const ACTIVITY_WRITE_MS = 60 * 60 * 1000;
  * least 24 hours with no request and no open socket.
  */
 export const ROOM_IDLE_MS = 24 * 60 * 60 * 1000 + ACTIVITY_WRITE_MS;
+/**
+ * A link that still holds no setup this long after its recorded activity is
+ * deleted. The agent's CLI creates the setup the moment it opens a new link,
+ * so only a link nobody set up stays empty.
+ */
+export const EMPTY_ROOM_IDLE_MS = 10 * 60 * 1000;
 const ACTIVITY_KEY = "room:lastActiveAt";
 /** The largest statewire command a client may send, over HTTP or a socket. */
 export const MAX_MESSAGE_BYTES = 256 * 1024;
@@ -93,6 +103,15 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
   #cleanupScope = "";
   #lastActiveAt: number | undefined;
 
+  /** Whether the link holds a setup; until it does, it gets `EMPTY_ROOM_IDLE_MS`. */
+  #hasSetup() {
+    return this.#state !== undefined && this.#state.createdAt !== null;
+  }
+
+  #idleMs() {
+    return this.#hasSetup() ? ROOM_IDLE_MS : EMPTY_ROOM_IDLE_MS;
+  }
+
   /** Records activity and keeps an alarm set for the idle deadline. */
   #touch(force = false) {
     const now = Date.now();
@@ -103,10 +122,11 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
     )
       return;
     this.#lastActiveAt = now;
+    const idleMs = this.#idleMs();
     this.ctx.waitUntil(
       this.ctx.blockConcurrencyWhile(async () => {
         await this.ctx.storage.put(ACTIVITY_KEY, now);
-        await this.#armAlarm(now + ROOM_IDLE_MS);
+        await this.#armAlarm(now + idleMs);
       }),
     );
   }
@@ -117,6 +137,14 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
   }
 
   override async fetch(request: Request): Promise<Response> {
+    // Anyone can open a link, so links without a setup are budgeted per
+    // client before they store anything.
+    if (!this.#hasSetup()) {
+      const { success } = await this.env.NEW_LINKS.limit({
+        key: request.headers.get("cf-connecting-ip") ?? "",
+      });
+      if (!success) return new Response("too many new links", { status: 429 });
+    }
     this.#touch();
     if (
       request.method !== "GET" &&
@@ -245,20 +273,24 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
         lastActiveAt = now;
         await this.ctx.storage.put(ACTIVITY_KEY, now);
       }
-      let next: number | undefined;
-      if (now - lastActiveAt >= ROOM_IDLE_MS) {
-        if (this.ctx.getWebSockets().length === 0) {
-          await this.ctx.storage.deleteAlarm();
-          await this.ctx.storage.deleteAll();
-          // Drop the in-memory setup too, so the link starts empty if reused.
-          this.ctx.abort("idle setup deleted", { retryAlarm: false });
-          return;
+      const idleMs = this.#idleMs();
+      if (now - lastActiveAt >= idleMs) {
+        // Every live agent and setup page sends heartbeats, which count as
+        // activity, so a socket silent this long holds nothing open.
+        for (const ws of this.ctx.getWebSockets()) {
+          try {
+            ws.close(1000, "idle setup deleted");
+          } catch {
+            // Already closed.
+          }
         }
-        // A socket is still open: keep the setup and look again later.
-        next = now + ROOM_IDLE_MS;
-      } else {
-        next = lastActiveAt + ROOM_IDLE_MS;
+        await this.ctx.storage.deleteAlarm();
+        await this.ctx.storage.deleteAll();
+        // Drop the in-memory setup too, so the link starts empty if reused.
+        this.ctx.abort("idle setup deleted", { retryAlarm: false });
+        return;
       }
+      let next = lastActiveAt + idleMs;
       const secrets = await this.ctx.storage.list({ prefix: "secret:" });
       for (const [key, value] of secrets) {
         const expiresAt = (value as Partial<SecretDeposit> | undefined)
@@ -377,7 +409,10 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
  * that predate it ignore it, and newer CLIs fall back when it is missing.
  * Model key deposits need the input's redeem key hash, which every CLI
  * since setup-agent 0.0.7 sends. Links match the setup page's
- * alphabet, and a setup idle for `ROOM_IDLE_MS` is deleted. A setup whose
+ * alphabet, and a setup idle for `ROOM_IDLE_MS` is deleted, closing any
+ * silent socket. A link with no setup is deleted after
+ * `EMPTY_ROOM_IDLE_MS`, and requests to such links are rate limited per
+ * client IP (`NEW_LINKS`). A setup whose
  * agent stream has been silent for the host's `AGENT_ABANDON_MS`, while
  * its setup page stayed awake, ends as cancelled.
  */
