@@ -1,71 +1,42 @@
 "use client";
 
 import {
+  ActionBarPrimitive,
   AssistantRuntimeProvider,
   AuiConfig,
+  AuiIf,
+  ComposerPrimitive,
+  MessagePrimitive,
+  SuggestionPrimitive,
   Suggestions,
-  useLocalRuntime,
-  type ChatModelAdapter,
+  ThreadPrimitive,
+  useAuiState,
   type SuggestionAdapter,
 } from "@assistant-ui/react";
-import { lastUserText, streamWords, wait } from "./script";
-import { Thread } from "./thread";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+import { ArrowUpIcon, CopyIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
 
-const HOW = "How does streaming text work?";
-const STOP = "Can I stop a reply halfway?";
-const PROMPTS = [HOW, STOP];
-
-const REPLIES: Record<string, { text: string; delay: number }> = {
-  [HOW]: {
-    delay: 30,
-    text: `The model writes its answer a few words at a time, and each piece is sent the moment it exists.
-
-On the server, \`streamText\` turns the model's output into a stream. On the page, \`useChatRuntime\` reads that stream and adds each piece to the last message, and the Thread draws the message again, so the words arrive as they are written, like these.
-
-This reply comes from a script on this page, streamed the same way.`,
-  },
-  [STOP]: {
-    delay: 90,
-    text: `Yes. While a reply streams, the send button turns into a stop button. Press it now, and this message ends where it is.
-
-Stopping calls \`cancelRun\`, which aborts the request to your route, so the model stops writing. Every word that arrived before you pressed it stays in the message, because each one was added as it came in. Retry asks again from the start, and the new reply streams in the same way, a few words at a time, until it finishes or you stop it again.`,
-  },
-};
-
-const FALLBACK = {
-  delay: 30,
-  text: "This demo answers from a script, so it only knows its two questions. Try one of the suggestions below.",
-};
-
-/** Stands in for the model: streams the scripted reply to the last question. */
-const scriptedStream: ChatModelAdapter = {
-  async *run({ messages, abortSignal }) {
-    const reply = REPLIES[lastUserText(messages)] ?? FALLBACK;
-    await wait(350);
-    for await (const text of streamWords(
-      reply.text,
-      abortSignal,
-      reply.delay,
-    )) {
-      yield { content: [{ type: "text", text }] };
-    }
-  },
-};
+export const PROMPTS = [
+  "How does streaming text work?",
+  "Can I stop a reply halfway?",
+];
 
 /** After each reply, offers the questions other than the one just asked. */
-const followUps: SuggestionAdapter = {
+export const followUps: SuggestionAdapter = {
   async generate({ messages }) {
-    const asked = lastUserText(messages);
+    const asked = messages
+      .findLast((message) => message.role === "user")
+      ?.content.map((part) => (part.type === "text" ? part.text : ""))
+      .join("");
     return PROMPTS.filter((prompt) => prompt !== asked).map((prompt) => ({
       prompt,
     }));
   },
 };
 
-export function StreamingTextDemo() {
-  const runtime = useLocalRuntime(scriptedStream, {
-    adapters: { suggestion: followUps },
-  });
+export default function StreamingText() {
+  const runtime = useChatRuntime({ adapters: { suggestion: followUps } });
   const config = AuiConfig({ suggestions: Suggestions(PROMPTS) });
 
   return (
@@ -74,3 +45,148 @@ export function StreamingTextDemo() {
     </AssistantRuntimeProvider>
   );
 }
+
+export function Thread() {
+  return (
+    <ThreadPrimitive.Root className="bg-background flex h-full flex-col">
+      <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+        <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 pt-6">
+          <AuiIf condition={(s) => s.thread.isEmpty}>
+            <Welcome />
+          </AuiIf>
+          <ThreadPrimitive.Messages>
+            {() => <Message />}
+          </ThreadPrimitive.Messages>
+          <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col gap-3 pb-4">
+            <FollowUps />
+            <Composer />
+          </ThreadPrimitive.ViewportFooter>
+        </div>
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
+  );
+}
+
+function Welcome() {
+  return (
+    <div className="m-auto flex w-full max-w-sm flex-col items-center gap-4">
+      <p className="text-muted-foreground text-sm">
+        Ask anything, or start with one of these.
+      </p>
+      <div className="flex w-full flex-col gap-1.5">
+        <ThreadPrimitive.Suggestions>
+          {() => (
+            <SuggestionPrimitive.Trigger send className={suggestionRow}>
+              <SuggestionPrimitive.Title />
+            </SuggestionPrimitive.Trigger>
+          )}
+        </ThreadPrimitive.Suggestions>
+      </div>
+    </div>
+  );
+}
+
+function FollowUps() {
+  const suggestions = useAuiState((s) => s.thread.suggestions);
+
+  return (
+    <AuiIf
+      condition={(s) =>
+        !s.thread.isEmpty &&
+        !s.thread.isRunning &&
+        s.thread.suggestions.length > 0
+      }
+    >
+      <div className="flex flex-wrap gap-2">
+        {suggestions.map((suggestion) => (
+          <ThreadPrimitive.Suggestion
+            key={suggestion.prompt}
+            prompt={suggestion.prompt}
+            send
+            className={suggestionChip}
+          >
+            {suggestion.title ?? suggestion.prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+    </AuiIf>
+  );
+}
+
+function Message() {
+  const role = useAuiState((s) => s.message.role);
+  return role === "user" ? <UserMessage /> : <AssistantMessage />;
+}
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-end">
+      <div className="bg-muted max-w-[80%] rounded-2xl px-4 py-2 text-sm leading-6 wrap-break-word">
+        <MessagePrimitive.Parts />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root className="flex flex-col gap-1.5">
+      <div className="text-sm leading-6 wrap-break-word">
+        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+      </div>
+      <ActionBarPrimitive.Root
+        hideWhenRunning
+        autohide="not-last"
+        className="text-muted-foreground -ms-1.5 flex gap-0.5"
+      >
+        <ActionBarPrimitive.Copy aria-label="Copy" className={iconButton}>
+          <CopyIcon className="size-3.5" />
+        </ActionBarPrimitive.Copy>
+        <ActionBarPrimitive.Reload aria-label="Retry" className={iconButton}>
+          <RefreshCwIcon className="size-3.5" />
+        </ActionBarPrimitive.Reload>
+      </ActionBarPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+}
+
+function MarkdownText() {
+  return (
+    <MarkdownTextPrimitive className="[&_code]:bg-foreground/[0.06] [&_code]:rounded-sm [&_code]:px-1 [&_code]:font-mono [&_code]:text-[13px] [&_li]:mt-1 [&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:ps-5 [&_p+p]:mt-3" />
+  );
+}
+
+function Composer() {
+  return (
+    <ComposerPrimitive.Root className="border-foreground/10 focus-within:border-foreground/25 bg-background flex items-end gap-2 rounded-2xl border p-2 transition-colors">
+      <ComposerPrimitive.Input
+        rows={1}
+        placeholder="Message"
+        aria-label="Message"
+        className="placeholder:text-muted-foreground max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-6 outline-none"
+      />
+      <AuiIf condition={(s) => !s.thread.isRunning}>
+        <ComposerPrimitive.Send aria-label="Send" className={roundButton}>
+          <ArrowUpIcon className="size-4" />
+        </ComposerPrimitive.Send>
+      </AuiIf>
+      <AuiIf condition={(s) => s.thread.isRunning}>
+        <ComposerPrimitive.Cancel aria-label="Stop" className={roundButton}>
+          <SquareIcon className="size-3 fill-current" />
+        </ComposerPrimitive.Cancel>
+      </AuiIf>
+    </ComposerPrimitive.Root>
+  );
+}
+
+const suggestionRow =
+  "border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-xl border px-4 py-2.5 text-start text-sm transition-colors disabled:opacity-50";
+
+const suggestionChip =
+  "border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-full border px-3 py-1 text-sm transition-colors disabled:opacity-50";
+
+const iconButton =
+  "hover:text-foreground hover:bg-foreground/5 flex size-7 items-center justify-center rounded-md transition-colors";
+
+const roundButton =
+  "bg-foreground text-background flex size-8 shrink-0 items-center justify-center rounded-full transition-opacity disabled:opacity-30";

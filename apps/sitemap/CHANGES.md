@@ -6,7 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Build the other nine runtime demos on `/demos` the way Streaming is built (a file in `components/demos/`, the shared Thread, welcome and follow-up suggestions starting with "How does … work?", and one code tab with the demo's own file): Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI. The weather card and the approval toolkit from the first version are the starting point for Tools and Approval.
+- Build the other nine runtime demos on `/demos` from the Streaming file, once its design is settled: each one complete file in `components/demos/` (`useChatRuntime` plus the whole chat UI, starting from a copy of Streaming's, and anything only that demo needs), with a `.preview.tsx` that runs its Thread on a script. Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
 - The header's Ask AI button: the site assistant panel is not wired up in this app.
 - Find a place for the stats row (GitHub stars, weekly downloads, Backed by Y Combinator): `HomeStats`, parked at the bottom of the home page under Start building.
@@ -444,3 +444,19 @@ Files:
 - `app/(home)/demos/page.tsx`: reads each demo's file, the setup link, the deck says "the file that runs it".
 
 When folding back: as in "Demos, second version".
+
+## Demos as one complete file, the ai-sdk.dev way (2026-11-25)
+
+Modeled on the ai-sdk.dev homepage, where each demo tab is one short, complete file (`chat.tsx`, `chat-tools.tsx`, `generative-ui.tsx`) shown in a window with its file name as the title and a Code / Preview switch. `components/demos/streaming-text.tsx` is now that file for Streaming: `useChatRuntime` with the suggestion adapter and welcome `Suggestions`, and the whole chat UI built inline from primitives (welcome suggestions, follow-up chips, messages with markdown, Copy and Retry, the composer with Send and Stop). It is the template for the other nine and the place to design the chat. The script moved to `components/demos/streaming-text.preview.tsx`, which renders the file's own `Thread`, `PROMPTS`, and `followUps` on `useLocalRuntime` with scripted replies, so the preview runs the code the Code view shows with only the runtime swapped. The shared `components/demos/thread.tsx` is gone. On `/demos`, a demo is a window: the file name in a title bar, Code and Preview on the right, Preview first and kept mounted while the code is open. The window has no colored dots in its title bar, since design.md allows no decoration.
+
+Files:
+
+- `components/demos/streaming-text.tsx`: the complete Streaming file.
+- `components/demos/streaming-text.preview.tsx` (new): the scripted preview of that file.
+- `components/demos/thread.tsx`: deleted.
+- `components/pages/demos/demo-window.tsx` (new): the window with the Code / Preview switch.
+- `components/pages/demos/demo-tabs.tsx`: deleted.
+- `lib/scripted-demos.ts`: one named `file` per demo; Streaming's hooks match its file.
+- `app/(home)/demos/page.tsx`: the window, the new deck.
+
+When folding back: copy `components/demos/`, `components/pages/demos/demo-window.tsx`, `lib/scripted-demos.ts`, and `app/(home)/demos/page.tsx` to the same paths in `apps/docs`, once the nine are built.
