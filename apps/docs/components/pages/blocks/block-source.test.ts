@@ -322,6 +322,32 @@ describe("blockElements", () => {
     ).toEqual([{ slug: "quote", kind: "element", names: ["quote.aui"] }]);
   });
 
+  it("assigns a shared element file to its first catalog entry", () => {
+    expect(
+      blockElements(
+        [
+          {
+            path: "components/chat.tsx",
+            code: 'import { Composer } from "@/components/assistant-ui/elements/composer";',
+          },
+        ],
+        [
+          { slug: "composer", file: "composer.tsx" },
+          { slug: "composer-voice", file: "composer.tsx" },
+        ],
+      ),
+    ).toEqual([{ slug: "composer", kind: "element", names: ["composer"] }]);
+  });
+
+  it("ignores primitive mentions in non-code files", () => {
+    expect(
+      blockElements(
+        [{ path: "README.md", code: "Use ThreadPrimitive to render threads." }],
+        [{ slug: "thread" }],
+      ),
+    ).toEqual([]);
+  });
+
   it("ignores test files and elements outside the catalog", () => {
     expect(
       blockElements(

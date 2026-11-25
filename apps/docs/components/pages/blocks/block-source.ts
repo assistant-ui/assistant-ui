@@ -304,16 +304,16 @@ export function blockElements(
 ): BlockElementUse[] {
   const imported = new Map<string, string[]>();
   const primitives = new Map<string, string[]>();
-  const byFile = new Map(
-    catalog.flatMap((entry) =>
-      entry.file
-        ? [[entry.file.replace(/\.tsx$/, ""), entry.slug] as const]
-        : [],
-    ),
-  );
+  const byFile = new Map<string, string>();
+  for (const entry of catalog) {
+    if (!entry.file) continue;
+    const stem = entry.file.replace(/\.tsx$/, "");
+    if (!byFile.has(stem)) byFile.set(stem, entry.slug);
+  }
 
   for (const file of files) {
     if (TEST_FILE.test(file.path)) continue;
+    if (!/\.[cm]?[jt]sx?$/.test(file.path)) continue;
     for (const marker of ELEMENT_MARKERS) {
       if (marker.pattern.test(file.code))
         remember(primitives, marker.slug, marker.name);

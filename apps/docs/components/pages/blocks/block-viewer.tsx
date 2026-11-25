@@ -77,7 +77,7 @@ const dots =
 const IMAGE_SIZES = "(min-width: 1280px) 1248px, 100vw";
 
 const treeRow =
-  "hover:bg-foreground/[0.06] focus-visible:bg-foreground/[0.06] flex h-8 w-full items-center gap-2 pe-3 text-left text-sm whitespace-nowrap outline-none transition-colors motion-reduce:transition-none [&_svg]:size-4 [&_svg]:shrink-0";
+  "hover:bg-foreground/[0.06] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring flex h-8 w-full items-center gap-2 pe-3 text-left text-sm whitespace-nowrap transition-colors motion-reduce:transition-none [&_svg]:size-4 [&_svg]:shrink-0";
 
 function languageOf(filePath: string) {
   return (
@@ -308,6 +308,12 @@ export function BlockViewer({
   };
   useEffect(postTheme);
 
+  useEffect(() => {
+    if (tab !== "preview") return;
+    const size = VIEWPORTS.find((item) => item.id === viewport)?.size;
+    if (size) panelRef.current?.resize(size);
+  }, [tab, viewport]);
+
   return (
     <Tabs
       value={tab}
@@ -337,7 +343,6 @@ export function BlockViewer({
                   onClick={() => {
                     setTab("preview");
                     setViewport(item.id);
-                    panelRef.current?.resize(item.size);
                   }}
                   className={cn(
                     control,
