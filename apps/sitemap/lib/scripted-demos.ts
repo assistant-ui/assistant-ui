@@ -25,14 +25,14 @@ export const SCRIPTED_DEMOS: readonly ScriptedDemo[] = [
     id: "streaming",
     title: "Streaming",
     description:
-      "Replies arrive a few words at a time as the model writes them, and stop halfway when you press Stop.",
+      "Replies stream in through the Streaming text element, with the Loader before the first word, and a card with the install command and prompt.",
     hooks: [
       "useChatRuntime",
+      "AssistantChatTransport",
       "Suggestions",
-      "SuggestionAdapter",
-      "ThreadPrimitive",
-      "MessagePrimitive",
-      "ComposerPrimitive",
+      "defineToolkit",
+      "StreamingText",
+      "GenerationLoader",
     ],
     file: {
       name: "streaming-text.tsx",

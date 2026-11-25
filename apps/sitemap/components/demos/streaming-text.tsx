@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -10,17 +11,34 @@ import {
   SuggestionPrimitive,
   Suggestions,
   ThreadPrimitive,
+  Tools,
+  defineToolkit,
   useAuiState,
   type SuggestionAdapter,
+  type TextMessagePartComponent,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { ArrowUpIcon, CopyIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import {
+  ArrowUpIcon,
+  CheckIcon,
+  CopyIcon,
+  RefreshCwIcon,
+  SquareIcon,
+} from "lucide-react";
+import { GenerationLoader } from "@/components/assistant-ui/elements/loading-state";
+import {
+  StreamingText,
+  type Segment,
+} from "@/components/assistant-ui/elements/streaming-text";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
-export const PROMPTS = [
-  "How does streaming text work?",
-  "Can I stop a reply halfway?",
-];
+export const PROMPTS = ["How does it work?", "How do I set it up?"];
+
+const COMMAND =
+  "npx shadcn@latest add @assistant-ui/elements-loading-state @assistant-ui/elements-streaming-text";
+
+const AGENT_PROMPT =
+  "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/loading-state,elements/streaming-text`";
 
 /** After each reply, offers the questions other than the one just asked. */
 export const followUps: SuggestionAdapter = {
@@ -35,9 +53,24 @@ export const followUps: SuggestionAdapter = {
   },
 };
 
-export default function StreamingText() {
-  const runtime = useChatRuntime({ adapters: { suggestion: followUps } });
-  const config = AuiConfig({ suggestions: Suggestions(PROMPTS) });
+/** The route defines `showSetup`; when the model calls it, the thread draws this card. */
+export const toolkit = defineToolkit({
+  showSetup: {
+    type: "backend",
+    display: "standalone",
+    render: SetupCard,
+  },
+});
+
+export default function StreamingTextDemo() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+    adapters: { suggestion: followUps },
+  });
+  const config = AuiConfig({
+    suggestions: Suggestions(PROMPTS),
+    tools: Tools({ toolkit }),
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
@@ -57,6 +90,7 @@ export function Thread() {
           <ThreadPrimitive.Messages>
             {() => <Message />}
           </ThreadPrimitive.Messages>
+          <AwaitingFirstToken />
           <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col gap-3 pb-4">
             <FollowUps />
             <Composer />
@@ -69,10 +103,8 @@ export function Thread() {
 
 function Welcome() {
   return (
-    <div className="m-auto flex w-full max-w-sm flex-col items-center gap-4">
-      <p className="text-muted-foreground text-sm">
-        Ask anything, or start with one of these.
-      </p>
+    <div className="m-auto flex w-full max-w-sm flex-col items-center gap-5">
+      <h2 className="text-lg font-medium">Streaming text</h2>
       <div className="flex w-full flex-col gap-1.5">
         <ThreadPrimitive.Suggestions>
           {() => (
@@ -131,8 +163,8 @@ function UserMessage() {
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex flex-col gap-1.5">
-      <div className="text-sm leading-6 wrap-break-word">
-        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+      <div className="flex flex-col gap-3 text-sm leading-6 wrap-break-word">
+        <MessagePrimitive.Parts components={{ Text: StreamingTextPart }} />
       </div>
       <ActionBarPrimitive.Root
         hideWhenRunning
@@ -150,9 +182,93 @@ function AssistantMessage() {
   );
 }
 
-function MarkdownText() {
+/** A text part drawn by the Streaming text element: the newest words tinted, with a caret, while it runs. */
+const StreamingTextPart: TextMessagePartComponent = ({ text, status }) => {
+  const segments = useMemo<Segment[]>(() => [{ text }], [text]);
+  const count = useMemo(() => text.split(" ").length, [text]);
+
   return (
-    <MarkdownTextPrimitive className="[&_code]:bg-foreground/[0.06] [&_code]:rounded-sm [&_code]:px-1 [&_code]:font-mono [&_code]:text-[13px] [&_li]:mt-1 [&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:ps-5 [&_p+p]:mt-3" />
+    <StreamingText
+      segments={segments}
+      count={count}
+      streaming={status.type === "running"}
+      className="min-h-0 max-w-none"
+    />
+  );
+};
+
+/** The Loader, while a run is active and the reply has no parts yet. */
+function AwaitingFirstToken() {
+  const waiting = useAuiState((s) => {
+    if (!s.thread.isRunning) return false;
+    const last = s.thread.messages.at(-1);
+    return last?.role === "assistant" && last.parts.length === 0;
+  });
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!waiting) return;
+    const id = setInterval(() => setTick((t) => t + 1), 120);
+    return () => clearInterval(id);
+  }, [waiting]);
+
+  if (!waiting) return null;
+  return (
+    <GenerationLoader
+      label="Generating"
+      tick={tick}
+      className="items-start gap-2"
+    />
+  );
+}
+
+function SetupCard() {
+  return (
+    <div className="border-foreground/10 my-1 flex w-full flex-col overflow-hidden rounded-xl border">
+      <CopyRow label="Terminal" value={COMMAND} />
+      <CopyRow label="Prompt" value={AGENT_PROMPT} divided />
+    </div>
+  );
+}
+
+function CopyRow({
+  label,
+  value,
+  divided = false,
+}: {
+  label: string;
+  value: string;
+  divided?: boolean;
+}) {
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1500,
+  });
+
+  return (
+    <div
+      className={`border-foreground/10 flex flex-col gap-1.5 p-3 ${divided ? "border-t" : ""}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-xs">{label}</span>
+        <button
+          type="button"
+          onClick={() => copyToClipboard(value)}
+          aria-label={
+            copied ? `${label} copied` : `Copy ${label.toLowerCase()}`
+          }
+          className={iconButton}
+        >
+          {copied ? (
+            <CheckIcon className="size-3.5" />
+          ) : (
+            <CopyIcon className="size-3.5" />
+          )}
+        </button>
+      </div>
+      <code className="font-mono text-[13px] leading-5 wrap-break-word">
+        {value}
+      </code>
+    </div>
   );
 }
 

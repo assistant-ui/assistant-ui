@@ -460,3 +460,15 @@ Files:
 - `app/(home)/demos/page.tsx`: the window, the new deck.
 
 When folding back: copy `components/demos/`, `components/pages/demos/demo-window.tsx`, `lib/scripted-demos.ts`, and `app/(home)/demos/page.tsx` to the same paths in `apps/docs`, once the nine are built.
+
+## Streaming demo, designed: Streaming text, Loader, and a set-up card (2026-11-25)
+
+The Streaming demo now uses the two Elements its set-up answer installs, the way their docs' runtime instructions say. Replies draw through the Streaming text element as the `Text` part renderer (the newest words tinted with a caret while a part runs), and the Loader shows while a run is active and the reply has no parts yet. The empty state has the title "Streaming text" and two suggestions, "How does it work?" and "How do I set it up?"; each offers the other as a follow-up. The set-up answer streams one sentence, then a card drawn by a `showSetup` toolkit entry: Terminal (`npx shadcn@latest add @assistant-ui/elements-loading-state @assistant-ui/elements-streaming-text`) and Prompt (the site's agent prompt for both elements, ``install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/loading-state,elements/streaming-text` ``), each with a Copy button on the kit's `useCopyToClipboard`. The runtime is written out as in the docs, `useChatRuntime({ transport: new AssistantChatTransport({ api: "/api/chat" }) })`. Replies are one paragraph, because the Streaming text element draws words, not line breaks or markdown. The preview's script waits long enough for the Loader to show, then calls `showSetup` for the set-up question the way the model would.
+
+Files:
+
+- `components/demos/streaming-text.tsx`: the elements, the title and suggestions, the set-up card, the explicit transport.
+- `components/demos/streaming-text.preview.tsx`: the scripted replies and the `showSetup` call.
+- `lib/scripted-demos.ts`: Streaming's description and hooks.
+
+When folding back: as in "Demos as one complete file". The route behind `/api/chat` defines `showSetup` for the card in a real app.
