@@ -182,11 +182,12 @@ export const fromThreadMessageLike = (
             const type = part.type;
             switch (type) {
               case "text":
-                if (!isString(part.text) || !part.text.trim()) return null;
+                if (!isString(part.text)) return null;
                 return part;
 
               case "reasoning": {
-                const text = isString(part.text) ? part.text : "";
+                const hasText = isString(part.text);
+                const text = hasText ? part.text : "";
                 const summary = isString(part.unstable_summary)
                   ? part.unstable_summary
                   : undefined;
@@ -194,7 +195,7 @@ export const fromThreadMessageLike = (
                   typeof part.unstable_redacted === "boolean"
                     ? part.unstable_redacted
                     : undefined;
-                if (redacted !== true && !text.trim() && !summary?.trim())
+                if (redacted !== true && !hasText && !summary?.trim())
                   return null;
                 if (
                   text === part.text &&

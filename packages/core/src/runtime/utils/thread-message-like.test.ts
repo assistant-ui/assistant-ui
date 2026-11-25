@@ -259,6 +259,31 @@ describe("fromThreadMessageLike", () => {
     ]);
   });
 
+  it("preserves empty assistant text and reasoning parts in order", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "" },
+          { type: "reasoning", text: "" },
+          { type: "tool-call", toolCallId: "t1", toolName: "search", args: {} },
+          { type: "text", text: "Found 3 rows." },
+        ],
+      },
+      "assistant-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    expect(message.content.map((part) => part.type)).toEqual([
+      "text",
+      "reasoning",
+      "tool-call",
+      "text",
+    ]);
+    expect(message.content[0]).toEqual({ type: "text", text: "" });
+    expect(message.content[1]).toEqual({ type: "reasoning", text: "" });
+  });
+
   it("drops a user text part without text", () => {
     const message = fromThreadMessageLike(
       {
@@ -547,6 +572,7 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
       ]),
     ).toStrictEqual([
       { type: "reasoning", text: "", unstable_redacted: true },
+      { type: "reasoning", text: "" },
       { type: "reasoning", text: "visible" },
     ]);
   });
