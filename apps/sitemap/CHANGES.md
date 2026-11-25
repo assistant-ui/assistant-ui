@@ -4,6 +4,13 @@ This app is a working copy of parts of `apps/docs`, for redesigning the site wit
 
 Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server runs on port 3000: API calls, the docs site's public images, and any page not copied here go to it.
 
+## To do
+
+- Redesign the home hero (waiting on what you want instead).
+- A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
+- The header's Ask AI button: the site assistant panel is not wired up in this app.
+- Fold the settled changes back into `apps/docs`.
+
 ## Setup (2026-11-25)
 
 Copied unchanged from `apps/docs`:
@@ -121,3 +128,14 @@ Files:
 - `components/shared/type.ts` (copied from docs, then changed): the type styles read `--type-*` variables.
 
 When folding back: a value you settle on goes into `apps/docs/styles/globals.css` (or `type.ts` for type) using Copy CSS; the panel itself is a tool for this app and does not need to move.
+
+## Changes page (2026-11-25)
+
+`/changes` shows this file as a page: the To do list first, then every change newest first with its date, summary, files (collapsed), and what to do when folding it back. `CHANGES.md` stays the one place to write things down; the page reads it, so a new section here shows up there. Sections are `## Title (YYYY-MM-DD)` with an optional `Files:` list and `When folding back:` paragraph, and `## To do` holds the plan.
+
+Files:
+
+- `app/(home)/changes/page.tsx` (new): the page, with the site's header and footer.
+- `lib/changes.ts` (new): reads `CHANGES.md` into the to-do list and the changes.
+
+When folding back: nothing; the page is for this app.
