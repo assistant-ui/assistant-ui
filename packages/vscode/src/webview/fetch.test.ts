@@ -1,3 +1,5 @@
+import { setFlagsFromString } from "node:v8";
+import { runInNewContext } from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ServeWebviewRoutesOptions, WebviewRoutes } from "../host/router";
 import { serveWebviewRoutes } from "../host/serve";
@@ -50,6 +52,15 @@ const waitFor = async (predicate: () => boolean) => {
     },
     { interval: 10 },
   );
+};
+
+setFlagsFromString("--expose-gc");
+const gc = runInNewContext("gc") as () => void;
+
+/** Runs a full GC in a later task, because a WeakRef target survives the task that created it. */
+const collectGarbage = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  gc();
 };
 
 describe("vscodeFetch over serveWebviewRoutes", () => {
@@ -420,6 +431,33 @@ describe("vscodeFetch over serveWebviewRoutes", () => {
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     await waitFor(() => handlerSignal!.aborted);
+  });
+
+  it("aborts a route waiting on its signal when a garbage collection runs mid-request", async () => {
+    let started = false;
+    let routeAborted = false;
+    const { fetch } = setup({
+      "/api/poll": {
+        GET: (req) => {
+          started = true;
+          return new Promise<Response>((resolve) => {
+            req.signal.addEventListener("abort", () => {
+              routeAborted = true;
+              resolve(new Response(null));
+            });
+          });
+        },
+      },
+    });
+    const controller = new AbortController();
+
+    const pending = fetch("/api/poll", { signal: controller.signal });
+    await waitFor(() => started);
+    await collectGarbage();
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await waitFor(() => routeAborted);
   });
 
   it("rejects immediately for an already aborted signal", async () => {
