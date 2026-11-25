@@ -225,23 +225,29 @@ export const buildGroupTree = (
   };
   const stack: BuildFrame[] = [root];
 
-  // Called after `closing` is popped, so `stack` holds its ancestors.
-  const claimPreviousIdKey = (
-    closing: BuildFrame,
+  const inheritIdKeys = (
     parent: BuildFrame,
-  ): string | undefined => {
-    if (!previousIdKeys) return undefined;
-    const groupPath = [...stack.slice(1).map((f) => f.key), closing.key];
-    for (const index of closing.indices) {
-      const id = partIds?.[index];
-      const previous =
-        id === undefined
-          ? undefined
-          : previousIdKeys.get(memberSlot(groupPath, id));
-      if (previous !== undefined)
-        return previous ? claimIdKey(parent, previous) : undefined;
-    }
-    return undefined;
+    parentPath: readonly string[],
+  ): GroupNode[] => {
+    if (!previousIdKeys) return parent.children;
+    return parent.children.map((node) => {
+      if (node.type !== "group" || partIds?.[node.indices[0]!]?.includes(":"))
+        return node;
+      const groupPath = [...parentPath, node.key];
+      for (const index of node.indices) {
+        const id = partIds?.[index];
+        const previous =
+          id === undefined
+            ? undefined
+            : previousIdKeys.get(memberSlot(groupPath, id));
+        if (previous !== undefined)
+          return {
+            ...node,
+            idKey: previous ? claimIdKey(parent, previous) : undefined,
+          };
+      }
+      return node;
+    });
   };
 
   const closeTop = (): void => {
@@ -252,11 +258,12 @@ export const buildGroupTree = (
       type: "group",
       key: closing.key,
       nodeKey: closing.nodeKey,
-      idKey: id?.includes(":")
-        ? claimIdKey(parent, id)
-        : claimPreviousIdKey(closing, parent),
+      idKey: claimIdKey(parent, id?.includes(":") ? id : undefined),
       indices: closing.indices,
-      children: closing.children,
+      children: inheritIdKeys(closing, [
+        ...stack.slice(1).map((frame) => frame.key),
+        closing.key,
+      ]),
     });
   };
 
@@ -312,5 +319,5 @@ export const buildGroupTree = (
     closeTop();
   }
 
-  return root.children;
+  return inheritIdKeys(root, []);
 };

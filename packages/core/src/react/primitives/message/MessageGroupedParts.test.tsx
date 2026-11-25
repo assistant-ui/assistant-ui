@@ -294,6 +294,37 @@ describe("MessagePrimitive.GroupedParts", () => {
     },
   );
 
+  it.each(["thought", "nested-thought"] as const)(
+    "keeps the later %s group's first-member identity when an earlier sibling could inherit it",
+    (grouped) => {
+      const tool = (toolCallId: string, argsText: string) => ({
+        type: "tool-call" as const,
+        toolCallId,
+        toolName: "task",
+        args: {},
+        argsText,
+      });
+      const view = renderIdentityGroups(
+        [tool("t1", "first"), tool("t2", "second")],
+        grouped,
+      );
+      const mounts = view.groupMounts();
+      view.setContent([
+        { type: "reasoning", text: "plan" },
+        tool("t2", "second updated"),
+        { type: "text", text: "separator" },
+        tool("t1", "first updated"),
+      ]);
+      expect(view.groupMounts().slice(-mounts.length)).toEqual(mounts);
+      expect(view.values()).toEqual([
+        "plan:plan",
+        "second updated:second updated",
+        "separator:separator",
+        "first:first updated",
+      ]);
+    },
+  );
+
   it("keeps the earlier wrapper when two thought groups merge", () => {
     const tool = (toolCallId: string, argsText: string) => ({
       type: "tool-call" as const,

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Fragment,
-  type FC,
-  type ReactNode,
-  useInsertionEffect,
-  useMemo,
-  useRef,
-} from "react";
+import { Fragment, type FC, type ReactNode, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { PartState } from "../../../store/scopes/part";
@@ -303,29 +296,38 @@ export function MessagePrimitiveGroupedParts<TKey extends `group-${string}`>({
     indicator === "never" ? false : s.message.status?.type === "running",
   );
 
-  // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`
-  // (a stable string fingerprint of the helper config). When present,
-  // memo on `[parts, memoKey]` so the tree survives unrelated renders.
-  // For inline `groupBy`, fall back to recomputing each render — O(n)
-  // and cheap.
   const memoKey = (groupBy as { [GROUPBY_MEMO_KEY]?: string })[
     GROUPBY_MEMO_KEY
   ];
   const memoDep = memoKey ?? groupBy;
-  const partKeys = getMessagePartKeys(parts);
-  const previousIdKeys = useRef<ReadonlyMap<string, string>>(undefined);
-  const tree = useMemo(() => {
-    const context: GroupByContext = { toolUIs };
-    return buildGroupTree(
+  const context: GroupByContext = { toolUIs };
+  const [previous, setPrevious] = useState(() => {
+    const partKeys = getMessagePartKeys(parts);
+    return {
+      parts,
+      memoDep,
+      toolUIs,
+      partKeys,
+      tree: buildGroupTree(
+        parts.map((part) => groupBy(part, context) ?? []),
+        partKeys,
+      ),
+    };
+  });
+  let tree = previous.tree;
+  if (
+    previous.parts !== parts ||
+    previous.memoDep !== memoDep ||
+    previous.toolUIs !== toolUIs
+  ) {
+    const partKeys = getMessagePartKeys(parts);
+    tree = buildGroupTree(
       parts.map((part) => groupBy(part, context) ?? []),
       partKeys,
-      previousIdKeys.current,
+      groupIdKeysByMember(previous.tree, previous.partKeys),
     );
-    // oxlint-disable-next-line react/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
-  }, [parts, memoDep, toolUIs]);
-  useInsertionEffect(() => {
-    previousIdKeys.current = groupIdKeysByMember(tree, partKeys);
-  }, [tree, partKeys]);
+    setPrevious({ parts, memoDep, toolUIs, partKeys, tree });
+  }
 
   return (
     <>
