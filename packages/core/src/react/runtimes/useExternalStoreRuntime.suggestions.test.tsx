@@ -87,6 +87,16 @@ describe("useExternalStoreRuntime suggestions scope", () => {
     ]);
   });
 
+  it("keeps runtime suggestion metadata on the suggestions scope", () => {
+    render(
+      <App suggestions={[{ prompt: "Grade", metadata: { labId: "lab-3" } }]} />,
+    );
+
+    expect(aui.suggestions.getState().suggestions[0]?.metadata).toEqual({
+      labId: "lab-3",
+    });
+  });
+
   it("exposes runtime suggestions under StrictMode", () => {
     render(<App strict suggestions={[{ prompt: "Tell me a joke" }]} />);
 
