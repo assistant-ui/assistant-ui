@@ -2103,6 +2103,30 @@ describe("createThreadViewportAutoScroll", () => {
       view.controller.dispose();
     });
 
+    it("follows growth below once the held rows reach the bottom", () => {
+      const view = pagedViewport(220, true);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -220 }));
+      view.setTop(0);
+      view.prepend();
+      expect(view.element.scrollTop).toBe(320);
+
+      view.resize(320);
+      observers.at(-1)!.trigger();
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(360);
+      view.controller.dispose();
+    });
+
+    it("keeps a following reader at the bottom when the viewport shrinks in the same update", () => {
+      const view = pagedViewport(30, true, 290);
+      view.resize(270);
+      view.prepend();
+      expect(view.element.scrollTop).toBe(370);
+      view.controller.dispose();
+    });
+
     it("does not count growth below the reader in the same update as part of the page", () => {
       const view = pagedViewport(100);
       view.prepend(40);

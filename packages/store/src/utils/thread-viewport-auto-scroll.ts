@@ -135,6 +135,7 @@ export const createThreadViewportAutoScroll = (input: {
   let firstMessage: MessageOffset | null = null;
   let prependAnchor: MessageOffset | null = null;
   let heldScrollTop = 0;
+  let atNativeBottom = true;
 
   const keepMessageAt = (anchor: MessageOffset) => {
     if (!element) return false;
@@ -221,6 +222,8 @@ export const createThreadViewportAutoScroll = (input: {
       prependAnchor = null;
 
     const { autoScroll, holdFollow } = input.getOptions();
+    atNativeBottom = isViewportAtBottom(element);
+    if (autoScroll && atNativeBottom) prependAnchor = null;
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     const clientHeight = element.clientHeight;
     const clampTarget = Math.max(0, lastScrollHeight - clientHeight);
@@ -507,11 +510,7 @@ export const createThreadViewportAutoScroll = (input: {
         (input.getOptions().autoScroll &&
           followBottom &&
           !followPaused &&
-          isViewportAtBottom({
-            scrollTop: lastScrollTop,
-            scrollHeight: lastScrollHeight,
-            clientHeight: element.clientHeight,
-          })) ||
+          atNativeBottom) ||
         intent !== null
       )
         return;
