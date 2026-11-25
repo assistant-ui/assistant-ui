@@ -9,6 +9,7 @@ import {
   cleanupPendingProjectDownloads,
   downloadProject,
   formatProject,
+  isSameDirectory,
   resolveFormatCommand,
   resolveLatestReleaseRef,
   scaffoldProject,
@@ -640,32 +641,42 @@ export const create = new Command()
     );
     const { display: displayProjectDir, cdCommand } =
       resolveProjectDirectoryGuidance({ absoluteProjectDir });
-    let projectDirExisted = true;
+    let existingProjectDir: fs.Stats | undefined;
     try {
-      const files = fs.readdirSync(absoluteProjectDir);
-      if (files.length > 0) {
-        logger.error(
-          `Directory ${displayProjectDir} already exists and is not empty`,
-        );
-        process.exit(1);
-      }
+      existingProjectDir = fs.lstatSync(absoluteProjectDir);
     } catch (err: unknown) {
       const code =
         err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
-      if (code === "ENOENT") {
-        // Directory doesn't exist — good, proceed
-        projectDirExisted = false;
-      } else if (code === "ENOTDIR") {
+      if (code === "ENOTDIR") {
         logger.error(
           `${displayProjectDir} already exists and is not a directory`,
         );
         process.exit(1);
-      } else {
+      } else if (code !== "ENOENT") {
         const message = err instanceof Error ? err.message : String(err);
         logger.error(`Cannot access ${displayProjectDir}: ${message}`);
         process.exit(1);
       }
     }
+    if (existingProjectDir?.isSymbolicLink()) {
+      logger.error(
+        `${displayProjectDir} is a symbolic link; pass the directory it points to`,
+      );
+      process.exit(1);
+    }
+    if (existingProjectDir && !existingProjectDir.isDirectory()) {
+      logger.error(
+        `${displayProjectDir} already exists and is not a directory`,
+      );
+      process.exit(1);
+    }
+    if (existingProjectDir && fs.readdirSync(absoluteProjectDir).length > 0) {
+      logger.error(
+        `Directory ${displayProjectDir} already exists and is not empty`,
+      );
+      process.exit(1);
+    }
+    const checkedProjectDir = existingProjectDir;
 
     // 2. Resolve scaffold target
     const project = await resolveProject(scaffoldSelector);
@@ -703,11 +714,13 @@ export const create = new Command()
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
     const resetProjectDir = () => {
-      if (!projectDirExisted) {
+      if (checkedProjectDir === undefined) {
         fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
         return;
       }
-      if (!fs.existsSync(absoluteProjectDir)) return;
+      // Only the directory checked above is emptied, never one swapped in
+      // at its path since.
+      if (!isSameDirectory(absoluteProjectDir, checkedProjectDir)) return;
       for (const entry of fs.readdirSync(absoluteProjectDir)) {
         fs.rmSync(path.join(absoluteProjectDir, entry), {
           recursive: true,

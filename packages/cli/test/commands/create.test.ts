@@ -166,6 +166,39 @@ describe("create failure cleanup", () => {
     expect(fs.readdirSync(target)).toEqual([]);
   });
 
+  it("refuses a destination that is a symbolic link", async () => {
+    const elsewhere = path.join(path.dirname(target), "elsewhere");
+    fs.mkdirSync(elsewhere);
+    fs.symlinkSync(elsewhere, target);
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    await expectCreateToFail();
+
+    const { display } = resolveProjectDirectoryGuidance({
+      absoluteProjectDir: target,
+    });
+    expect(errorSpy).toHaveBeenCalledWith(
+      `${display} is a symbolic link; pass the directory it points to`,
+    );
+    expect(mocks.scaffoldProject).not.toHaveBeenCalled();
+  });
+
+  it("leaves a directory swapped in at the destination alone on cleanup", async () => {
+    fs.mkdirSync(target);
+    const victim = path.join(path.dirname(target), "victim");
+    fs.mkdirSync(victim);
+    fs.writeFileSync(path.join(victim, "keep.txt"), "keep");
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.rmdirSync(destDir);
+      fs.symlinkSync(victim, destDir);
+      throw new Error("scaffold failed");
+    });
+
+    await expectCreateToFail();
+
+    expect(fs.readdirSync(victim)).toEqual(["keep.txt"]);
+  });
+
   it("empties an existing directory before retrying a template missing at the release tag", async () => {
     fs.mkdirSync(target);
     let entriesAtRetry: string[] | undefined;
