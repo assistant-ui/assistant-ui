@@ -1,11 +1,14 @@
-export type AgentIcon = {
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+
+type AgentIconData = {
   svg?: string;
   src?: string;
   emoji?: string;
   invert?: boolean;
 };
 
-export const AGENT_ICONS: Record<string, AgentIcon> = {
+const AGENT_ICONS: Record<string, AgentIconData> = {
   "skills/adal": { src: "/agent-icons/adal.png" },
   "skills/aider-desk": { src: "/agent-icons/aider-desk.png" },
   "skills/amp": {
@@ -174,3 +177,35 @@ export const AGENT_ICONS: Record<string, AgentIcon> = {
     svg: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.898 16.313c-.302-1.02-.813-2.23-1.856-2.676-1.058-.412-2.263.079-3.13.703-.648.476-1.215 1.112-1.515 1.873-.101.26-.172.531-.206.805a4.81 4.81 0 00-.073.83c.031 1.809 1.007 3.544 2.348 4.721.73.624 1.675 1.197 2.68 1.126 1.602-.163 1.91-2.142 2.082-3.426.073-.53.076-1.067.05-1.6a10.58 10.58 0 00-.383-2.357h.003zM19.203 16.73a8.675 8.675 0 00-1.507-.545c-.77-.206-1.56-.335-2.362-.364-1.06-.028-2.37.082-3.117.94-.72.878-.624 2.18-.296 3.195.254.765.682 1.499 1.315 2.02.214.176.45.328.702.447.248.124.5.246.768.327 1.729.53 3.681.139 5.213-.773.816-.5 1.656-1.225 1.896-2.204.339-1.575-1.444-2.479-2.615-3.04l.003-.003zM23.818 8.037c-.225-.931-.651-1.956-1.506-2.486-1.391-.81-2.802.61-3.7 1.547a8.35 8.35 0 00-.981 1.263c-.434.67-.801 1.38-1.075 2.132-.352 1.001-.654 2.283-.07 3.254.612.954 1.876 1.267 2.942 1.27.807-.003 1.637-.186 2.328-.626a3.3 3.3 0 00.64-.53c.195-.199.387-.402.548-.628 1.038-1.481 1.27-3.46.874-5.201v.005zM14.937 8.762c1.097-.287 1.783-1.394 2.115-2.407.246-.768.328-1.614.124-2.408a3.457 3.457 0 00-.304-.772 4.815 4.815 0 00-.429-.715C15.354 1.015 13.546.185 11.768.021c-.956-.073-2.06.018-2.83.666-1.201 1.076-.287 2.857.328 3.997.254.471.564.909.9 1.324a10.506 10.506 0 001.695 1.682c.841.646 1.967 1.326 3.076 1.072zM5.626 12.378a10.523 10.523 0 002.125-1.092c.874-.602 1.867-1.463 1.969-2.595.065-1.132-.773-2.127-1.636-2.757-.655-.47-1.434-.81-2.252-.863a3.38 3.38 0 00-.826.05 5.016 5.016 0 00-.813.187C2.483 5.895 1.132 7.36.43 9.002c-.366.887-.62 1.968-.242 2.899.652 1.473 2.627 1.154 3.9.923a8.777 8.777 0 001.537-.446h.002z" fill="#E65C2C"></path></svg>`,
   },
 };
+
+export function AgentIcon({
+  id,
+  fallback,
+}: {
+  id: string;
+  fallback: ReactNode;
+}) {
+  const agent = AGENT_ICONS[id];
+  if (!agent) return fallback;
+  if (agent.svg) {
+    return (
+      <span
+        className="text-foreground size-6 [&_svg]:size-full"
+        dangerouslySetInnerHTML={{ __html: agent.svg }}
+      />
+    );
+  }
+  if (agent.emoji) {
+    return <span className="text-xl leading-none">{agent.emoji}</span>;
+  }
+  if (agent.src) {
+    return (
+      <img
+        src={agent.src}
+        alt=""
+        className={cn("size-6 object-contain", agent.invert && "dark:invert")}
+      />
+    );
+  }
+  return fallback;
+}

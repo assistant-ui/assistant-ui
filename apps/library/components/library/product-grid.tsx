@@ -7,6 +7,7 @@ import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { demoFrameClass } from "@/components/demo/utils/canvas";
 import { ElementDemo } from "@/components/pages/elements/element-demos";
+import { FallbackBoundary } from "@/lib/fallback-boundary";
 import {
   COMPONENT_SECTIONS,
   GALLERY_CATEGORIES,
@@ -94,7 +95,17 @@ function LazyDemo({ children }: { children: ReactNode }) {
       ref={rootRef}
       className="flex size-full min-h-0 items-center justify-center p-5"
     >
-      {mounted ? <Suspense fallback={null}>{children}</Suspense> : null}
+      {mounted ? (
+        <FallbackBoundary
+          fallback={
+            <p className="text-muted-foreground text-sm">
+              Preview unavailable.
+            </p>
+          }
+        >
+          <Suspense fallback={null}>{children}</Suspense>
+        </FallbackBoundary>
+      ) : null}
     </div>
   );
 }

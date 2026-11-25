@@ -28,7 +28,7 @@ export function CopyLine({
       <Button
         variant="secondary"
         size="sm"
-        className="shrink-0 self-start @lg:self-center"
+        className="shrink-0 self-start @lg:self-center pointer-coarse:h-10"
         aria-label={copyLabel}
         onClick={() => copyWithToast(value, copied)}
       >

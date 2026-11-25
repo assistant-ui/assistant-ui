@@ -21,7 +21,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 const description =
-  "Components, blocks, themes, starters, runtimes, integrations, tools, utilities, and skills for assistant-ui, each with its install command and agent prompt.";
+  "Components, blocks, themes, starters, runtimes, integrations, tools, utilities, and skills for assistant-ui, each with an install command or agent prompt.";
 
 export const metadata: Metadata = {
   title: { template: "%s · assistant-ui", default: "Library · assistant-ui" },

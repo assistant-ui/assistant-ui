@@ -14,7 +14,9 @@ export function createCartStore(storageKey: string) {
   let open = false;
   const listeners = new Set<() => void>();
 
-  const readStored = (): readonly string[] => {
+  const readStored = (
+    fallback: readonly string[] = EMPTY,
+  ): readonly string[] => {
     try {
       const parsed: unknown = JSON.parse(
         localStorage.getItem(storageKey) ?? "[]",
@@ -29,7 +31,7 @@ export function createCartStore(storageKey: string) {
           ]
         : EMPTY;
     } catch {
-      return EMPTY;
+      return fallback;
     }
   };
 
@@ -42,7 +44,9 @@ export function createCartStore(storageKey: string) {
     loaded = true;
     try {
       localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {}
+    } catch {
+      // Keep the cart usable when browser storage rejects writes.
+    }
     emit();
   };
 
@@ -89,7 +93,7 @@ export function createCartStore(storageKey: string) {
     },
     /** Returns whether the slug is in the cart afterwards. */
     toggleCartSlug: (slug: string): boolean => {
-      const current = getSnapshot();
+      const current = readStored(slugs);
       const inCart = current.includes(slug);
       commit(
         inCart ? current.filter((entry) => entry !== slug) : [...current, slug],
@@ -97,7 +101,7 @@ export function createCartStore(storageKey: string) {
       return !inCart;
     },
     removeCartSlug: (slug: string) => {
-      commit(getSnapshot().filter((entry) => entry !== slug));
+      commit(readStored(slugs).filter((entry) => entry !== slug));
     },
     clearCart: () => {
       commit(EMPTY);

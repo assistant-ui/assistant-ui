@@ -43,6 +43,10 @@ function useTrackHistory() {
     pending = null;
     if (target !== null && paths[target] === pathname) {
       set({ paths, index: target });
+    } else if (target === null && paths[index - 1] === pathname) {
+      set({ paths, index: index - 1 });
+    } else if (target === null && paths[index + 1] === pathname) {
+      set({ paths, index: index + 1 });
     } else if (paths[index] !== pathname) {
       set({
         paths: [...paths.slice(0, index + 1), pathname],

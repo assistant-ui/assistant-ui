@@ -95,7 +95,8 @@ export function LibraryHome() {
   return (
     <LibraryPage
       title="Library"
-      description={`${items.length} parts for building an assistant, each with an install command and a prompt for your coding agent.`}
+      empty={narrowed && results.length === 0}
+      description={`${items.length} parts for building an assistant, each with an install command or agent prompt.`}
     >
       {narrowed ? <Results items={results} /> : <Categories />}
     </LibraryPage>

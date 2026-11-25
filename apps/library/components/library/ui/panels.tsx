@@ -146,14 +146,11 @@ function PanelHeader({
   title,
   start,
   end,
-  border = true,
   glass = false,
 }: {
   title: React.ReactNode;
   start?: React.ReactNode;
   end?: React.ReactNode;
-  /** Off, the header runs straight into the panel, as a sidebar's does. */
-  border?: boolean | undefined;
   /** Lays the header over the panel's top edge, so the body scrolls under it. */
   glass?: boolean;
 }) {
@@ -162,7 +159,6 @@ function PanelHeader({
       data-slot="panel-header"
       className={cn(
         "bg-background text-foreground flex h-10 shrink-0 items-center gap-2 px-2 font-sans text-sm/5 font-normal",
-        border && "border-0",
         glass &&
           "bg-popover supports-[backdrop-filter]:bg-glass [@media(prefers-reduced-transparency:reduce)]:bg-popover absolute inset-x-0 top-0 z-[var(--z-sticky,20)] supports-[backdrop-filter]:backdrop-blur-(--glass-blur) [@media(prefers-reduced-transparency:reduce)]:backdrop-blur-none",
       )}
@@ -292,7 +288,6 @@ function PanelBody({
 function PanelSheet({
   side,
   header,
-  border,
   toggleAt = "end",
   open,
   onOpenChange,
@@ -300,7 +295,6 @@ function PanelSheet({
 }: {
   side: "left" | "right";
   header?: React.ReactNode;
-  border?: boolean | undefined;
   toggleAt?: "start" | "end" | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -322,7 +316,6 @@ function PanelSheet({
         </SheetHeader>
         <PanelHeader
           title={header === undefined ? title : header}
-          border={border}
           {...{ [toggleAt]: <PanelToggle side={side} close /> }}
         />
         <PanelBody>{children}</PanelBody>
@@ -374,7 +367,6 @@ function Panels({
   right,
   bottom,
   headers = {},
-  headerBorder = {},
   glassHeader = false,
   toggleAt = {},
   toggles = {},
@@ -387,8 +379,6 @@ function Panels({
   bottom?: React.ReactNode;
   /** What each header shows in place of the panel's name. */
   headers?: Partial<Record<Side | "main", React.ReactNode>>;
-  /** Which headers leave off the rule under them. */
-  headerBorder?: Partial<Record<Side | "main", boolean>>;
   /** Main content scrolls under its header, so it must pad its own top 40px. */
   glassHeader?: boolean;
   /** "end" by default, or "start", ahead of whatever `headers` gives it. */
@@ -503,7 +493,6 @@ function Panels({
           <CollapsiblePanel side="left" open={leftOpen}>
             <PanelHeader
               title={"left" in headers ? headers.left : PANELS.left.title}
-              border={headerBorder.left}
               {...{ [toggleAt.left ?? "end"]: <PanelToggle side="left" /> }}
             />
             {/* On a phone `left` is in its sheet, so it isn't mounted twice. */}
@@ -525,7 +514,6 @@ function Panels({
             >
               <PanelHeader
                 title={headers.main}
-                border={headerBorder.main}
                 glass={glassHeader}
                 start={
                   shows("left") && !leftOpen ? (
@@ -547,7 +535,6 @@ function Panels({
               <CollapsiblePanel side="bottom" open={open.bottom}>
                 <PanelHeader
                   title={headers.bottom ?? PANELS.bottom.title}
-                  border={headerBorder.bottom}
                   {...{
                     [toggleAt.bottom ?? "end"]: (
                       <PanelToggle side="bottom" close />
@@ -563,7 +550,6 @@ function Panels({
           <CollapsiblePanel side="right" open={rightOpen}>
             <PanelHeader
               title={headers.right ?? PANELS.right.title}
-              border={headerBorder.right}
               start={
                 toggleAt.right === "start" ? <PanelToggle side="right" /> : null
               }
@@ -587,7 +573,6 @@ function Panels({
             <PanelSheet
               side="left"
               header={headers.left}
-              border={headerBorder.left}
               toggleAt={toggleAt.left}
               open={sheet === "left"}
               onOpenChange={(next) => setSheet(next ? "left" : null)}
@@ -599,7 +584,6 @@ function Panels({
             <PanelSheet
               side="right"
               header={headers.right}
-              border={headerBorder.right}
               toggleAt={toggleAt.right}
               open={sheet === "right"}
               onOpenChange={(next) => setSheet(next ? "right" : null)}

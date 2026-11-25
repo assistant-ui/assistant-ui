@@ -21,6 +21,7 @@ export function LibraryCategory({ category }: { category: LibraryCategoryId }) {
     <LibraryPage
       title={label}
       count={items.length}
+      empty={items.length === 0}
       description={description}
       sections={sections}
       action={

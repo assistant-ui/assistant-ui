@@ -1,5 +1,4 @@
-/* Tokens the library's menu and panels read. Every value derives from the site
-   palette, so both follow the theme and the tint. */
+/* Tokens the library's menu and panels read. Only the color tokens derive from the site palette. */
 @theme inline {
   --font-weight-regular: 400;
   --font-weight-strong: 430;

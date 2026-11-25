@@ -126,7 +126,7 @@ export const LIBRARY_MARKS = [
 export type LibraryMark = (typeof LIBRARY_MARKS)[number];
 
 export type LibraryItem = {
-  /** Unique across the library: the category id, a slash, and the item's slug. */
+  /** A prefix and the item's slug, unique across the library. */
   id: string;
   category: LibraryCategoryId;
   name: string;

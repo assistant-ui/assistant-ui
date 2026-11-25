@@ -26,6 +26,7 @@ export function CartSheet() {
   const cart = useCartItems();
   const cartOpen = libraryCart.useCartOpen();
   const commands = cartCommands(cart);
+  const withoutCommand = cart.filter((item) => !item.install).length;
 
   return (
     <Sheet open={cartOpen} onOpenChange={libraryCart.setCartOpen}>
@@ -70,6 +71,13 @@ export function CartSheet() {
               ))}
             </ul>
             <SheetFooter>
+              {withoutCommand > 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  {withoutCommand}{" "}
+                  {withoutCommand === 1 ? "item has" : "items have"} no install
+                  command; use the prompt.
+                </p>
+              ) : null}
               {commands.length > 0 ? (
                 <pre className="rounded-document bg-code-surface text-muted-foreground max-h-40 overflow-auto p-3 font-mono text-xs">
                   <code>{commands.join("\n")}</code>

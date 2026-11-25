@@ -15,12 +15,8 @@ async function Builder({
   searchParams,
 }: Pick<PageProps<"/themes/new">, "searchParams">) {
   const { from } = await searchParams;
-  return (
-    <ThemeBuilder
-      description={description}
-      from={typeof from === "string" ? from : undefined}
-    />
-  );
+  const theme = typeof from === "string" ? from : undefined;
+  return <ThemeBuilder key={theme} description={description} from={theme} />;
 }
 
 export default function Page(props: PageProps<"/themes/new">) {

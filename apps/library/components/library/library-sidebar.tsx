@@ -62,6 +62,7 @@ export function LibrarySidebar() {
   const cartCount = useCartItems().length;
   const [searching, setSearching] = useState(false);
   const field = useRef<HTMLInputElement>(null);
+  const searchButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (searching) field.current?.focus();
@@ -91,8 +92,8 @@ export function LibrarySidebar() {
               <span className="truncate">assistant ui</span>
             </Link>
             <TooltipIconButton
+              ref={searchButton}
               tooltip="Search the library"
-              aria-pressed={searching}
               aria-expanded={searching}
               onClick={() => (searching ? closeSearch() : setSearching(true))}
               className={cn(
@@ -126,6 +127,7 @@ export function LibrarySidebar() {
                   if (event.key !== "Escape") return;
                   event.preventDefault();
                   closeSearch();
+                  searchButton.current?.focus();
                 }}
                 className="h-8 bg-transparent ps-8 [&::-webkit-search-cancel-button]:hidden"
               />

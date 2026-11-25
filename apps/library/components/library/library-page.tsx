@@ -157,6 +157,7 @@ export function LibraryPage({
   title,
   count,
   description,
+  empty = false,
   search = true,
   sections = NO_SECTIONS,
   action,
@@ -166,6 +167,7 @@ export function LibraryPage({
   /** Shown after the title. */
   count?: number;
   description: ReactNode;
+  empty?: boolean;
   /** Off on a page that is not the catalog. */
   search?: boolean;
   /** The sections the filter can turn on and off, on a page that has several. */
@@ -223,6 +225,9 @@ export function LibraryPage({
             </div>
           ) : null}
         </div>
+        <p role="status" className="sr-only">
+          {empty ? "Nothing matches." : ""}
+        </p>
         {children}
       </div>
     </div>
