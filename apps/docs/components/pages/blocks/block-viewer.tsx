@@ -309,10 +309,9 @@ export function BlockViewer({
   useEffect(postTheme);
 
   useEffect(() => {
-    if (tab !== "preview") return;
     const size = VIEWPORTS.find((item) => item.id === viewport)?.size;
     if (size) panelRef.current?.resize(size);
-  }, [tab, viewport]);
+  }, [viewport]);
 
   return (
     <Tabs
