@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type FC, type ReactNode, useState } from "react";
+import { Fragment, type FC, type ReactNode, useMemo, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { PartState } from "../../../store/scopes/part";
@@ -299,34 +299,35 @@ export function MessagePrimitiveGroupedParts<TKey extends `group-${string}`>({
   const memoKey = (groupBy as { [GROUPBY_MEMO_KEY]?: string })[
     GROUPBY_MEMO_KEY
   ];
-  const memoDep = memoKey ?? groupBy;
-  const context: GroupByContext = { toolUIs };
   const [previous, setPrevious] = useState(() => {
-    const partKeys = getMessagePartKeys(parts);
-    return {
-      parts,
-      memoDep,
-      toolUIs,
-      partKeys,
-      tree: buildGroupTree(
-        parts.map((part) => groupBy(part, context) ?? []),
-        partKeys,
-      ),
-    };
+    const idKeys: ReadonlyMap<string, string> = new Map();
+    return { idKeys, memoKey, groupBy };
   });
-  let tree = previous.tree;
-  if (
-    previous.parts !== parts ||
-    previous.memoDep !== memoDep ||
-    previous.toolUIs !== toolUIs
-  ) {
+  const currentGroupBy =
+    memoKey !== undefined && previous.memoKey === memoKey
+      ? previous.groupBy
+      : groupBy;
+  const { tree, idKeys } = useMemo(() => {
     const partKeys = getMessagePartKeys(parts);
-    tree = buildGroupTree(
-      parts.map((part) => groupBy(part, context) ?? []),
+    const context: GroupByContext = { toolUIs };
+    const tree = buildGroupTree(
+      parts.map((part) => currentGroupBy(part, context) ?? []),
       partKeys,
-      groupIdKeysByMember(previous.tree, previous.partKeys),
+      previous.idKeys,
     );
-    setPrevious({ parts, memoDep, toolUIs, partKeys, tree });
+    return {
+      tree,
+      idKeys: groupIdKeysByMember(tree, partKeys),
+    };
+  }, [parts, currentGroupBy, toolUIs, previous.idKeys]);
+  if (
+    previous.memoKey !== memoKey ||
+    previous.idKeys.size !== idKeys.size ||
+    Array.from(idKeys).some(
+      ([member, idKey]) => previous.idKeys.get(member) !== idKey,
+    )
+  ) {
+    setPrevious({ idKeys, memoKey, groupBy: currentGroupBy });
   }
 
   return (

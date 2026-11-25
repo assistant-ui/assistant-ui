@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { useEffect, useState, type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "../../../runtime/utils/thread-message-like";
@@ -7,7 +7,7 @@ import { useAui } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import { ThreadPrimitiveMessages } from "../thread/ThreadMessages";
 import { useExternalStoreRuntime } from "../../runtimes/useExternalStoreRuntime";
-import { groupPartByType } from "../../utils/groupParts";
+import { GROUPBY_MEMO_KEY, groupPartByType } from "../../utils/groupParts";
 import { useAssistantDataUI } from "../../model-context/useAssistantDataUI";
 import { useAssistantToolUI } from "../../model-context/useAssistantToolUI";
 import { MessagePrimitiveGroupedParts } from "./MessageGroupedParts";
@@ -48,7 +48,7 @@ type Msg = {
 const task = (
   toolCallId: string,
   hasResult: boolean,
-): Msg["content"][number] => ({
+): Extract<Msg["content"][number], { type: "tool-call" }> => ({
   type: "tool-call" as const,
   toolCallId,
   toolName: "task",
@@ -69,7 +69,13 @@ const StateProbe = ({ text }: { text: string }) => {
 
 const renderIdentityGroups = (
   content: ThreadMessageLike["content"],
-  grouped: boolean | "nested" | "thought" | "nested-thought" | "named-tools",
+  grouped:
+    | boolean
+    | "nested"
+    | "thought"
+    | "nested-thought"
+    | "named-tools"
+    | MessagePrimitiveGroupedParts.Props["groupBy"],
 ) => {
   let mounts = 0;
   const Group = ({ children }: PropsWithChildren) => {
@@ -83,21 +89,23 @@ const renderIdentityGroups = (
   const Message = () => (
     <MessagePrimitiveGroupedParts
       groupBy={
-        grouped === "named-tools"
-          ? (part) =>
-              part.type === "tool-call"
-                ? [part.toolName as `group-${string}`]
-                : []
-          : groupPartByType(
-              grouped === "thought" || grouped === "nested-thought"
-                ? { reasoning: path, "tool-call": path }
-                : grouped
-                  ? {
-                      text: path,
-                      image: path,
-                    }
-                  : {},
-            )
+        typeof grouped === "function"
+          ? grouped
+          : grouped === "named-tools"
+            ? (part) =>
+                part.type === "tool-call"
+                  ? [part.toolName as `group-${string}`]
+                  : []
+            : groupPartByType(
+                grouped === "thought" || grouped === "nested-thought"
+                  ? { reasoning: path, "tool-call": path }
+                  : grouped
+                    ? {
+                        text: path,
+                        image: path,
+                      }
+                    : {},
+              )
       }
     >
       {({ part, children }) => {
@@ -153,6 +161,291 @@ const renderIdentityGroups = (
 afterEach(cleanup);
 
 describe("MessagePrimitive.GroupedParts", () => {
+  it("keeps nested wrappers with their branch after a separator changes depth", () => {
+    const first = { ...task("t1", false), argsText: "first" };
+    const second = { ...task("t2", false), argsText: "second" };
+    const reasoning = { type: "reasoning" as const, text: "plan" };
+    const view = renderIdentityGroups(
+      [first, second],
+      groupPartByType({
+        reasoning: ["group-parts", "group-leaves"],
+        "tool-call": ["group-parts", "group-leaves"],
+        image: ["group-parts"],
+      }),
+    );
+    const initialMounts = view.groupMounts();
+    view.setContent([
+      reasoning,
+      second,
+      { type: "text", text: "separator" },
+      first,
+    ]);
+    const [earlierOuter, earlierInner] = view.groupMounts();
+    expect(view.groupMounts().slice(2)).toEqual(initialMounts);
+    view.setContent([
+      reasoning,
+      second,
+      { type: "image", image: "https://example.com/separator.png" },
+      first,
+    ]);
+    const [outer, inner, laterInner] = view.groupMounts();
+    expect(outer).toBe(earlierOuter);
+    expect(inner).toBe(earlierInner);
+    expect(laterInner).not.toBe(earlierInner);
+    expect(view.values()).toEqual([
+      "plan:plan",
+      "second:second",
+      "separator:separator",
+      "first:first",
+    ]);
+  });
+
+  it("lets a group inherit a key also used by a standalone leaf", () => {
+    const tool = { ...task("t1", false), argsText: "tool" };
+    const second = { ...task("t2", false), argsText: "second" };
+    const reasoning = { type: "reasoning" as const, text: "plan" };
+    const view = renderIdentityGroups(
+      [tool, second],
+      groupPartByType({
+        reasoning: ["group-parts"],
+        "tool-call": ["group-parts"],
+        "tool-call:standalone": [],
+      }),
+    );
+    const mounts = view.groupMounts();
+    view.setContent([reasoning, tool, second]);
+    expect(view.groupMounts()).toEqual(mounts);
+    view.setContent([{ ...tool, toolName: "standalone" }, reasoning, second]);
+    expect(view.groupMounts()).toEqual(mounts);
+    expect(view.values()).toEqual(["tool:tool", "plan:plan", "second:second"]);
+  });
+
+  it("drops nested inheritance when its ancestor changes identity", () => {
+    const first = { ...task("t1", false), argsText: "first" };
+    const second = { ...task("t2", false), argsText: "second" };
+    const separator = {
+      type: "image" as const,
+      image: "https://example.com/separator.png",
+    };
+    const view = renderIdentityGroups(
+      [first, second],
+      groupPartByType({
+        reasoning: ["group-parts", "group-leaves"],
+        "tool-call": ["group-parts", "group-leaves"],
+        image: ["group-parts"],
+      }),
+    );
+    const [initialOuter] = view.groupMounts();
+    view.setContent([
+      second,
+      separator,
+      { type: "reasoning", text: "plan" },
+      first,
+    ]);
+    const [outer, inner, laterInner] = view.groupMounts();
+    expect(outer).not.toBe(initialOuter);
+    view.setContent([second, separator, { ...first, argsText: "updated" }]);
+    expect(view.groupMounts().slice(0, 2)).toEqual([outer, inner]);
+    expect(view.groupMounts()[2]).not.toBe(laterInner);
+    expect(view.values()).toEqual([
+      "second:second",
+      "separator:separator",
+      "updated:updated",
+    ]);
+  });
+
+  it("renders once on an unrelated parent update with inline groupBy", () => {
+    let groupRenders = 0;
+    const Message = () => {
+      const [count, setCount] = useState(0);
+      return (
+        <>
+          <button onClick={() => setCount(count + 1)}>update {count}</button>
+          <MessagePrimitiveGroupedParts
+            groupBy={(part) =>
+              part.type === "tool-call" ? ["group-parts"] : []
+            }
+          >
+            {({ part, children }) => {
+              if (part.type === "group-parts") {
+                groupRenders++;
+                return <section data-count={count}>{children}</section>;
+              }
+              return null;
+            }}
+          </MessagePrimitiveGroupedParts>
+        </>
+      );
+    };
+    const App = () => {
+      const runtime = useExternalStoreRuntime<Msg>({
+        messages: [{ id: "message", content: [task("t1", false)] }],
+        convertMessage,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ThreadPrimitiveMessages components={{ Message }} />
+        </AssistantRuntimeProvider>
+      );
+    };
+    const view = render(<App />);
+    const before = groupRenders;
+    fireEvent.click(view.getByRole("button", { name: "update 0" }));
+    expect(groupRenders - before).toBe(1);
+    expect(view.container.querySelector("section")?.dataset.count).toBe("1");
+    fireEvent.click(view.getByRole("button", { name: "update 1" }));
+    expect(groupRenders - before).toBe(2);
+    expect(view.container.querySelector("section")?.dataset.count).toBe("2");
+  });
+
+  it("drops nested inheritance when a structural ancestor moves", () => {
+    const first = { ...task("t1", false), argsText: "first" };
+    const second = { ...task("t2", false), argsText: "second" };
+    const separator = {
+      type: "image" as const,
+      image: "https://example.com/separator.png",
+    };
+    const prefix = { type: "text" as const, text: "prefix" };
+    const view = renderIdentityGroups(
+      [separator, first, second],
+      groupPartByType({
+        reasoning: ["group-parts", "group-leaves"],
+        "tool-call": ["group-parts", "group-leaves"],
+        image: ["group-parts"],
+      }),
+    );
+    const [initialOuter] = view.groupMounts();
+    view.setContent([
+      prefix,
+      separator,
+      { type: "reasoning", text: "plan" },
+      first,
+      second,
+    ]);
+    const [outer, inner] = view.groupMounts();
+    expect(outer).not.toBe(initialOuter);
+    view.setContent([
+      prefix,
+      separator,
+      { ...first, argsText: "updated" },
+      second,
+    ]);
+    expect(view.groupMounts()[0]).toBe(outer);
+    expect(view.groupMounts()[1]).not.toBe(inner);
+    expect(view.values()).toEqual([
+      "prefix:prefix",
+      "separator:separator",
+      "updated:updated",
+      "second:second",
+    ]);
+  });
+
+  it("reuses the grouping tree when a recreated groupBy has the same fingerprint", () => {
+    let groupingCalls = 0;
+    const Message = () => {
+      const [count, setCount] = useState(0);
+      const groupBy = Object.assign(
+        () => {
+          groupingCalls++;
+          return ["group-parts"] as const;
+        },
+        { [GROUPBY_MEMO_KEY]: "group-parts" },
+      );
+      return (
+        <>
+          <button onClick={() => setCount(count + 1)}>update {count}</button>
+          <MessagePrimitiveGroupedParts groupBy={groupBy}>
+            {({ part, children }) =>
+              part.type === "group-parts" ? (
+                <section data-count={count}>{children}</section>
+              ) : null
+            }
+          </MessagePrimitiveGroupedParts>
+        </>
+      );
+    };
+    const App = () => {
+      const runtime = useExternalStoreRuntime<Msg>({
+        messages: [{ id: "message", content: [task("t1", false)] }],
+        convertMessage,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ThreadPrimitiveMessages components={{ Message }} />
+        </AssistantRuntimeProvider>
+      );
+    };
+    const view = render(<App />);
+    const before = groupingCalls;
+    fireEvent.click(view.getByRole("button", { name: "update 0" }));
+    expect(groupingCalls).toBe(before);
+    expect(view.container.querySelector("section")?.dataset.count).toBe("1");
+  });
+
+  it("drops an inherited key when the first member gains an identity", () => {
+    const tool = { ...task("t1", false), argsText: "tool" };
+    const reasoning = { type: "reasoning" as const, text: "plan" };
+    const view = renderIdentityGroups([tool], "thought");
+    const mounts = view.groupMounts();
+    view.setContent([reasoning, tool]);
+    expect(view.groupMounts()).toEqual(mounts);
+    view.setContent([{ ...reasoning, id: "r1", text: "identified" }, tool]);
+    expect(view.groupMounts()[0]).not.toBe(mounts[0]);
+    expect(view.values()).toEqual(["identified:identified", "tool:tool"]);
+  });
+
+  it("gives a shared inherited key to the earlier eligible sibling", () => {
+    const first = { ...task("t1", false), argsText: "first" };
+    const second = { ...task("t2", false), argsText: "second" };
+    const reasoning = { type: "reasoning" as const, text: "earlier" };
+    const view = renderIdentityGroups([first, second], "thought");
+    const [mount] = view.groupMounts();
+    const content = [
+      reasoning,
+      first,
+      { type: "text" as const, text: "separator" },
+      { ...reasoning, text: "later" },
+      second,
+    ];
+    view.setContent(content);
+    const mounts = view.groupMounts();
+    expect(mounts[0]).toBe(mount);
+    expect(mounts[1]).not.toBe(mount);
+    expect(view.values()).toEqual([
+      "earlier:earlier",
+      "first:first",
+      "separator:separator",
+      "later:later",
+      "second:second",
+    ]);
+    view.setContent([...content]);
+    expect(view.groupMounts()).toEqual(mounts);
+  });
+
+  it("keeps an earlier first-member owner ahead of a later inheriting sibling", () => {
+    const first = { ...task("t1", false), argsText: "first" };
+    const second = { ...task("t2", false), argsText: "second" };
+    const view = renderIdentityGroups([first, second], "thought");
+    const [mount] = view.groupMounts();
+    view.setContent([
+      first,
+      { type: "text", text: "separator" },
+      { type: "reasoning", text: "plan" },
+      second,
+    ]);
+    const mounts = view.groupMounts();
+    expect(mounts[0]).toBe(mount);
+    expect(mounts[1]).not.toBe(mount);
+    expect(view.values()).toEqual([
+      "first:first",
+      "separator:separator",
+      "plan:plan",
+      "second:second",
+    ]);
+  });
+
   it("keeps group names and part ids with key delimiters separate", () => {
     const first = {
       type: "tool-call" as const,
