@@ -37,12 +37,15 @@ export function DemoPanel({ className }: { className?: string }) {
         }}
         className="items-center gap-3"
       >
-        <TabsList aria-label="Demos">
+        <TabsList
+          aria-label="Demos"
+          className="max-w-full justify-start overflow-x-auto"
+        >
           {DEMOS.map((demo) => (
             <TabsTrigger
               key={demo.slug}
               value={demo.slug}
-              className="px-2.5 text-[13px]"
+              className="flex-none px-2.5 text-[13px]"
             >
               {demo.name}
             </TabsTrigger>

@@ -298,7 +298,7 @@ Files:
 - `components/pages/home/demo-panel.tsx` (new): the panel, built from the kit's line tabs, the docs `DEMOS` list, and `DocsRuntimeProvider`.
 - `components/pages/home/hero.tsx`: a two-column grid at `xl`, the panel in the second column, and the mark hidden at `xl`.
 
-When folding back: copy `demo-panel.tsx` and the hero changes to the same paths in `apps/docs`.
+When folding back: the hero changes here were undone; see "Demos panel under the home demo".
 
 ## Demos panel on a plate (2026-11-25)
 
@@ -308,4 +308,16 @@ Files:
 
 - `components/pages/home/demo-panel.tsx`: the plate, the segmented tabs, and the borderless frame.
 
-When folding back: copy `demo-panel.tsx` to the same path in `apps/docs`, with the hero changes from "Demos panel in the hero".
+When folding back: copy `demo-panel.tsx` to the same path in `apps/docs`.
+
+## Demos panel under the home demo (2026-11-25)
+
+The Demos panel moved out of the hero to right under the home demo, which stays where it was. The hero is back as it was before the panel: text on the left and the dotted logo mark with its glint on the right (tablet width and up). The panel now shows at every width; on a phone the tab row scrolls sideways inside the panel instead of widening the page.
+
+Files:
+
+- `components/pages/home/hero.tsx`: back to its state before "Demos panel in the hero".
+- `app/(home)/page.tsx`: `<DemoPanel />` after `<HomeDemo />`.
+- `components/pages/home/demo-panel.tsx`: the tab row scrolls when it does not fit.
+
+When folding back: copy `demo-panel.tsx` to the same path in `apps/docs` and add `<DemoPanel />` after `<HomeDemo />` in the docs `app/(home)/page.tsx`; the docs hero needs nothing from these changes.
