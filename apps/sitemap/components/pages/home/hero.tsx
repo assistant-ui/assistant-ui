@@ -3,11 +3,11 @@
 import { Fragment, type CSSProperties } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
-import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
 import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
+import { SETUP_PATH } from "@/lib/library/catalog";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "lucide-react";
 import Image from "next/image";
@@ -109,7 +109,7 @@ export function Hero({
   );
 }
 
-/** The hero's call to action: the setup prompt plus a link to sales. */
+/** The hero's call to action: a start button plus a link to sales. */
 export function HeroCta({
   section,
   className,
@@ -124,7 +124,17 @@ export function HeroCta({
       className={cn("flex flex-wrap items-center gap-3", className)}
       style={style}
     >
-      <SetupCommandPrompt page="home" section={section} />
+      <Button
+        nativeButton={false}
+        render={
+          <Link
+            href={SETUP_PATH}
+            onClick={() => analytics.cta.clicked("get_started", section)}
+          />
+        }
+      >
+        Start
+      </Button>
       <Button
         variant="ghost"
         nativeButton={false}
@@ -136,7 +146,7 @@ export function HeroCta({
           />
         }
       >
-        Talk to an expert
+        Talk to the team
         <ArrowRightIcon
           aria-hidden
           className="transition-transform duration-200 group-hover/expert:translate-x-1"

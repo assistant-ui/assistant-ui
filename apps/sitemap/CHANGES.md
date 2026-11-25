@@ -159,3 +159,25 @@ Files:
 - `app/layout.tsx`: the font variables on `<html>`.
 
 When folding back: a preset you settle on goes into the docs stylesheet through Copy CSS; the font-variable and radius changes belong with the token groundwork, which the docs site only needs if it adopts runtime tokens.
+
+## Hero buttons: Start and Talk to the team (2026-11-25)
+
+The setup command box under the hero (and in the "Start building" section at the bottom of the page) is replaced by a Start button that goes to the library's Setup page, tracked as `get_started`. The second button now reads "Talk to the team", chosen from four wordings (Talk to an expert, Talk to the team, Contact sales, Talk to us) because it matches the contact page's heading.
+
+Files:
+
+- `components/pages/home/hero.tsx`: `HeroCta` has the Start button and the new label.
+
+When folding back: the same `HeroCta` change in `apps/docs/components/pages/home/hero.tsx`; the docs site's Start target would be its own setup page.
+
+## Logos under the hero (2026-11-25)
+
+The row of company logos (Google Cloud, AWS, Neon, builder.io, and the rest) moved from further down the home page to the bottom of the first screen, in one line: nine on wider screens, five on a phone, still rotating. The hero sits centered between the header and that row, and the demo still starts below the fold.
+
+Files:
+
+- `components/pages/home/trusted-by.tsx`: a `layout="row"` option that puts every slot in one line.
+- `app/(home)/page.tsx`: the first screen is the hero and the logo row.
+- `components/pages/home/library-body.tsx`: the logos no longer appear in their old spot.
+
+When folding back: the same three edits in apps/docs.

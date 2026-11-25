@@ -337,7 +337,12 @@ function LogoSlot({
   );
 }
 
-export function TrustedBy() {
+export function TrustedBy({
+  layout = "rows",
+}: {
+  /** Two staggered rows, or every slot in one line. */
+  layout?: "rows" | "row";
+}) {
   const root = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState<readonly Logo[]>(() =>
     LOGOS.slice(0, SLOTS),
@@ -409,26 +414,41 @@ export function TrustedBy() {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="grid w-full grid-cols-3 sm:grid-cols-5">
-        {shown.slice(0, 5).map((logo, index) => (
-          <LogoSlot
-            key={index}
-            logo={logo}
-            hideOnMobile={!MOBILE_SLOTS.includes(index)}
-            wide={wide}
-          />
-        ))}
-      </div>
-      <div className="mx-auto grid w-full grid-cols-2 sm:w-4/5 sm:grid-cols-4">
-        {shown.slice(5, SLOTS).map((logo, offset) => (
-          <LogoSlot
-            key={offset + 5}
-            logo={logo}
-            hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
-            wide={wide}
-          />
-        ))}
-      </div>
+      {layout === "row" ? (
+        <div className="grid w-full grid-cols-5 gap-x-4 sm:grid-cols-9">
+          {shown.map((logo, index) => (
+            <LogoSlot
+              key={index}
+              logo={logo}
+              hideOnMobile={!MOBILE_SLOTS.includes(index)}
+              wide={wide}
+            />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="grid w-full grid-cols-3 sm:grid-cols-5">
+            {shown.slice(0, 5).map((logo, index) => (
+              <LogoSlot
+                key={index}
+                logo={logo}
+                hideOnMobile={!MOBILE_SLOTS.includes(index)}
+                wide={wide}
+              />
+            ))}
+          </div>
+          <div className="mx-auto grid w-full grid-cols-2 sm:w-4/5 sm:grid-cols-4">
+            {shown.slice(5, SLOTS).map((logo, offset) => (
+              <LogoSlot
+                key={offset + 5}
+                logo={logo}
+                hideOnMobile={!MOBILE_SLOTS.includes(offset + 5)}
+                wide={wide}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

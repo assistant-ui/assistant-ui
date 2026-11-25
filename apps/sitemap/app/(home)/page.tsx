@@ -1,6 +1,7 @@
 import { cacheLife } from "next/cache";
 import { HomeDemo } from "@/components/pages/home/demo";
 import { Hero } from "@/components/pages/home/hero";
+import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { LibraryBody } from "@/components/pages/home/library-body";
 import { PageFrame } from "@/components/shared/page-frame";
 import { getRepo } from "@/lib/github";
@@ -160,9 +161,15 @@ export default async function HomePage() {
       className="relative z-2 flex flex-col pt-0 md:pt-0"
     >
       <div className="flex flex-col gap-10 md:gap-16">
-        {/* The hero fills the first screen under the 3rem header, so the demo starts below the fold. */}
-        <div className="flex min-h-[calc(100svh-3rem)] flex-col justify-center">
-          <Hero stars={repo?.stars ?? null} downloads={downloads} />
+        {/* The first screen under the 3rem header: the hero centered above the
+            row of logos, so the demo starts below the fold. */}
+        <div className="flex min-h-[calc(100svh-3rem)] flex-col">
+          <div className="flex flex-1 flex-col justify-center">
+            <Hero stars={repo?.stars ?? null} downloads={downloads} />
+          </div>
+          <section aria-label="Used by" className="pb-8 md:pb-10">
+            <TrustedBy layout="row" />
+          </section>
         </div>
         <HomeDemo />
       </div>

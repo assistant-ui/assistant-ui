@@ -6,7 +6,6 @@ import {
   type SetupTab,
 } from "@/components/pages/home/library-showcase";
 import { TESTIMONIALS } from "@/components/pages/home/testimonials/data";
-import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { typeDeck, typePackage, typeSection } from "@/components/shared/type";
 import Image from "next/image";
 
@@ -39,10 +38,6 @@ export function LibraryBody({ setupTabs }: { setupTabs: SetupTab[] }) {
         </div>
 
         <LibraryShowcase setupTabs={setupTabs} />
-      </section>
-
-      <section aria-label="Used by">
-        <TrustedBy />
       </section>
 
       <section aria-label="Quotes">
