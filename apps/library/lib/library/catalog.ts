@@ -169,7 +169,9 @@ export const installCommand = (install: LibraryInstall): string => {
 export const installLabel = (install: LibraryInstall): string =>
   install.kind === "command" ? install.command : install.names.join(" ");
 
-/** One command per installer, so a cart of registry items installs in one run. */
+const SCAFFOLD = /\b(?:create|cloud setup) my-app\b/;
+
+/** One command per installer, so a cart of registry items installs in one run. Only the first starter is scaffolded, because every starter creates `my-app`. */
 export const cartCommands = (items: readonly LibraryItem[]): string[] => {
   const shadcn = new Set<string>();
   const npm = new Set<string>();
@@ -181,15 +183,12 @@ export const cartCommands = (items: readonly LibraryItem[]): string[] => {
       for (const name of install.names)
         (install.kind === "shadcn" ? shadcn : npm).add(name);
   }
-  const scaffolds = [...commands].filter((command) =>
-    /\b(?:create|cloud setup) my-app\b/.test(command),
-  );
+  const scaffold = [...commands].find((command) => SCAFFOLD.test(command));
   return [
-    ...scaffolds,
-    ...(scaffolds.length > 0 ? ["cd my-app"] : []),
+    ...(scaffold ? [scaffold, "cd my-app"] : []),
     ...(shadcn.size > 0 ? [`${SHADCN_ADD} ${[...shadcn].join(" ")}`] : []),
     ...(npm.size > 0 ? [`${NPM_INSTALL} ${[...npm].join(" ")}`] : []),
-    ...[...commands].filter((command) => !scaffolds.includes(command)),
+    ...[...commands].filter((command) => !SCAFFOLD.test(command)),
   ];
 };
 

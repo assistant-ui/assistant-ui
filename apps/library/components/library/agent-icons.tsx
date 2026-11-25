@@ -196,7 +196,14 @@ export function AgentIcon({
     );
   }
   if (agent.emoji) {
-    return <span className="text-xl leading-none">{agent.emoji}</span>;
+    return (
+      <span
+        aria-hidden="true"
+        className="flex size-6 items-center justify-center text-xl leading-none"
+      >
+        {agent.emoji}
+      </span>
+    );
   }
   if (agent.src) {
     return (
