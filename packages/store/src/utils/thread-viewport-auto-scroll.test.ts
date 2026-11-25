@@ -2010,8 +2010,12 @@ describe("createThreadViewportAutoScroll", () => {
   });
 
   describe("earlier messages", () => {
-    const pagedViewport = (scrollTop = 0, autoScroll = false) => {
-      const view = geometry(320, 100);
+    const pagedViewport = (
+      scrollTop = 0,
+      autoScroll = false,
+      clientHeight = 100,
+    ) => {
+      const view = geometry(320, clientHeight);
       const heights = Array<number>(8).fill(80);
       let growthBelow = 0;
       const messages = heights.map((_, index) => {
@@ -2027,7 +2031,8 @@ describe("createThreadViewportAutoScroll", () => {
         };
         return message;
       });
-      view.element.getBoundingClientRect = () => new DOMRect(0, 40, 100, 100);
+      view.element.getBoundingClientRect = () =>
+        new DOMRect(0, 40, 100, clientHeight);
       view.element.append(...messages.slice(4));
       const updateHeight = () => {
         view.grow(
@@ -2084,6 +2089,18 @@ describe("createThreadViewportAutoScroll", () => {
         expect(view.element.scrollTop).toBe(540);
         view.controller.dispose();
       }
+    });
+
+    it("keeps the rows in place when the overflow is shorter than the footer", () => {
+      const view = pagedViewport(30, true, 290);
+      view.controller.registerContentInset().setHeight(40);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -30 }));
+      view.setTop(0);
+
+      view.prepend();
+
+      expect(view.element.scrollTop).toBe(320);
+      view.controller.dispose();
     });
 
     it("does not count growth below the reader in the same update as part of the page", () => {

@@ -279,10 +279,10 @@ export const createThreadViewportAutoScroll = (input: {
       intent = null;
     } else if (intent) {
       scrollToBottom(intent);
+    } else if (prependAnchor) {
+      if (!keepMessageAt(prependAnchor)) prependAnchor = null;
     } else if (!holdFollow && autoScroll && followBottom && !followPaused) {
       scrollToBottom("instant");
-    } else if (prependAnchor && !keepMessageAt(prependAnchor)) {
-      prependAnchor = null;
     }
   };
 
@@ -504,7 +504,14 @@ export const createThreadViewportAutoScroll = (input: {
     messagesPrepended: (previousFirstMessageId) => {
       if (
         !element ||
-        (input.getOptions().autoScroll && followBottom && !followPaused) ||
+        (input.getOptions().autoScroll &&
+          followBottom &&
+          !followPaused &&
+          isViewportAtBottom({
+            scrollTop: lastScrollTop,
+            scrollHeight: lastScrollHeight,
+            clientHeight: element.clientHeight,
+          })) ||
         intent !== null
       )
         return;
