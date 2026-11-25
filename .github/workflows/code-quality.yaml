@@ -175,7 +175,11 @@ jobs:
           node-version-file: package.json
 
       - name: Test the shared script helpers
-        run: node --test scripts/lib/*.test.mjs
+        run: node --test "scripts/lib/!(review-*).test.mjs"
+
+      - name: Test review policy helpers on main
+        if: github.event_name == 'push'
+        run: node --test "scripts/lib/review-*.test.mjs"
 
       - name: Test VS Code workflow input coverage
         run: node --test scripts/vscode-test-bed.test.mjs
