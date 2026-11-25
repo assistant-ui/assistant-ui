@@ -44,7 +44,10 @@ describe("install commands", () => {
   it("writes the command for each installer and labels it by what it installs", () => {
     const shadcn = { kind: "shadcn", names: ["@assistant-ui/thread"] } as const;
     const npm = { kind: "npm", names: ["@assistant-ui/react", "zod"] } as const;
-    const command = { kind: "command", command: "npx assistant-ui init" };
+    const command = {
+      kind: "command",
+      command: "npx assistant-ui init",
+    } as const;
 
     expect(installCommand(shadcn)).toBe(
       "npx shadcn@latest add @assistant-ui/thread",
