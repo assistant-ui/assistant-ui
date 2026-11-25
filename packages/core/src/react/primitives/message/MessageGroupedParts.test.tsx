@@ -161,6 +161,102 @@ const renderIdentityGroups = (
 afterEach(cleanup);
 
 describe("MessagePrimitive.GroupedParts", () => {
+  it("keeps an inner wrapper from being stolen by a member from another outer group", () => {
+    const first = { ...task("t0", false), argsText: "first" };
+    const second = { ...task("t1", false), argsText: "second" };
+    const third = { ...task("t2", false), argsText: "third" };
+    const text = { type: "text" as const, text: "separator" };
+    const image = {
+      type: "image" as const,
+      image: "https://example.com/s1.png",
+    };
+    const reasoning = { type: "reasoning" as const, text: "r1" };
+    const view = renderIdentityGroups(
+      [first, text, second, third],
+      groupPartByType({
+        reasoning: ["group-parts", "group-leaves"],
+        "tool-call": ["group-parts", "group-leaves"],
+        image: ["group-parts"],
+      }),
+    );
+    view.setContent([
+      first,
+      image,
+      reasoning,
+      third,
+      text,
+      { ...reasoning, text: "r2" },
+      second,
+    ]);
+    const [outer, firstInner, middleInner] = view.groupMounts();
+    view.setContent([
+      first,
+      image,
+      reasoning,
+      { ...third, argsText: "updated" },
+      { ...image, image: "https://example.com/s2.png" },
+      second,
+    ]);
+    expect(view.groupMounts().slice(0, 3)).toEqual([
+      outer,
+      firstInner,
+      middleInner,
+    ]);
+    expect(view.groupMounts()[3]).not.toBe(middleInner);
+    expect(view.values()).toEqual([
+      "first:first",
+      "s1:s1",
+      "r1:r1",
+      "third:updated",
+      "s2:s2",
+      "second:second",
+    ]);
+  });
+
+  it("inherits an inner wrapper through the member that stayed under a structural ancestor", () => {
+    const first = { ...task("t1", false), argsText: "first" };
+    const second = { ...task("t0", false), argsText: "second" };
+    const firstImage = {
+      type: "image" as const,
+      image: "https://example.com/i1.png",
+    };
+    const secondImage = {
+      ...firstImage,
+      image: "https://example.com/i2.png",
+    };
+    const view = renderIdentityGroups(
+      [
+        firstImage,
+        first,
+        { type: "text", text: "separator" },
+        secondImage,
+        second,
+      ],
+      groupPartByType({
+        reasoning: ["group-parts", "group-leaves"],
+        "tool-call": ["group-parts", "group-leaves"],
+        image: ["group-parts"],
+      }),
+    );
+    const [outer, inner] = view.groupMounts();
+    view.setContent([
+      firstImage,
+      second,
+      secondImage,
+      { type: "reasoning", text: "plan" },
+      { ...first, argsText: "updated" },
+    ]);
+    expect(view.groupMounts()[0]).toBe(outer);
+    expect(view.groupMounts()[2]).toBe(inner);
+    expect(view.values()).toEqual([
+      "i1:i1",
+      "second:second",
+      "i2:i2",
+      "plan:plan",
+      "first:updated",
+    ]);
+  });
+
   it("keeps nested wrappers with their branch after a separator changes depth", () => {
     const first = { ...task("t1", false), argsText: "first" };
     const second = { ...task("t2", false), argsText: "second" };

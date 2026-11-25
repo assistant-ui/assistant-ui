@@ -126,7 +126,7 @@ export interface GroupNodeGroup {
   readonly nodeKey: string;
   /**
    * Identity key (`"id:<type>:<partId>"`) from the group's first part; undefined when absent or already claimed by an earlier sibling.
-   * When the first part has no identity and its ancestors keep their keys, the group can retain an available identity from its first previously grouped identified member at the same path.
+   * When the first part has no identity, the group can retain an available identity from its first previously grouped identified member under the same ancestor keys.
    */
   readonly idKey: string | undefined;
   /** Indices of parts in this subtree, in order. */
@@ -171,11 +171,14 @@ const claimIdKey = (
   return `id:${id}`;
 };
 
-const memberSlot = (groupPath: readonly string[], partId: string): string =>
-  JSON.stringify([groupPath, partId]);
+const memberSlot = (
+  ancestorKeys: readonly string[],
+  groupName: string,
+  partId: string,
+): string => JSON.stringify([ancestorKeys, groupName, partId]);
 
 /**
- * Each identified group member's identity key or structural sibling path, by group path and member key, for the next {@link buildGroupTree} call's `previousIdKeys`.
+ * Each identified group member's identity key or structural sibling path, by ancestor keys, group name, and member key, for the next {@link buildGroupTree} call's `previousIdKeys`.
  */
 export const groupIdKeysByMember = (
   tree: readonly GroupNode[],
@@ -184,17 +187,21 @@ export const groupIdKeysByMember = (
   const keys = new Map<string, string>();
   const visit = (
     nodes: readonly GroupNode[],
-    parentPath: readonly string[],
+    ancestorKeys: readonly string[],
   ) => {
     for (const node of nodes) {
       if (node.type !== "group") continue;
-      const groupPath = [...parentPath, node.key];
       const groupKey = node.idKey?.slice("id:".length) ?? node.nodeKey;
       for (const index of node.indices) {
         const id = partIds[index];
-        if (id?.includes(":")) keys.set(memberSlot(groupPath, id), groupKey);
+        if (id?.includes(":"))
+          keys.set(memberSlot(ancestorKeys, node.key, id), groupKey);
       }
-      visit(node.children, groupPath);
+      visit(node.children, [
+        ...ancestorKeys,
+        node.key,
+        node.idKey ?? node.nodeKey,
+      ]);
     }
   };
   visit(tree, []);
@@ -224,12 +231,9 @@ export const buildGroupTree = (
     claimedGroupIds: new Set(),
   };
   const stack: BuildFrame[] = [root];
-  const currentFirstKeys = new Set<string>();
-
   const inheritIdKeys = (
     nodes: readonly GroupNode[],
-    parentPath: readonly string[],
-    ancestorsKeptKey: boolean,
+    ancestorKeys: readonly string[],
   ): readonly GroupNode[] => {
     if (!previousIdKeys) return nodes;
     const claimed = new Set(
@@ -241,35 +245,30 @@ export const buildGroupTree = (
     );
     return nodes.map((node) => {
       if (node.type !== "group") return node;
-      const groupPath = [...parentPath, node.key];
       let previous: string | undefined;
       for (const index of node.indices) {
         const id = partIds?.[index];
         previous =
           id === undefined
             ? undefined
-            : previousIdKeys.get(memberSlot(groupPath, id));
+            : previousIdKeys.get(memberSlot(ancestorKeys, node.key, id));
         if (previous !== undefined) break;
       }
       let idKey = node.idKey;
       if (
-        ancestorsKeptKey &&
         !partIds?.[node.indices[0]!]?.includes(":") &&
-        previous?.includes(":") &&
-        !currentFirstKeys.has(memberSlot(groupPath, previous))
+        previous?.includes(":")
       ) {
         idKey = claimIdKey(claimed, previous);
       }
       return {
         ...node,
         idKey,
-        children: inheritIdKeys(
-          node.children,
-          groupPath,
-          ancestorsKeptKey &&
-            previous !== undefined &&
-            (idKey?.slice("id:".length) ?? node.nodeKey) === previous,
-        ),
+        children: inheritIdKeys(node.children, [
+          ...ancestorKeys,
+          node.key,
+          idKey ?? node.nodeKey,
+        ]),
       };
     });
   };
@@ -278,14 +277,6 @@ export const buildGroupTree = (
     const closing = stack.pop()!;
     const parent = stack[stack.length - 1]!;
     const id = partIds?.[closing.indices[0]!];
-    if (id?.includes(":")) {
-      currentFirstKeys.add(
-        memberSlot(
-          [...stack.slice(1).map((frame) => frame.key), closing.key],
-          id,
-        ),
-      );
-    }
     parent.children.push({
       type: "group",
       key: closing.key,
@@ -352,5 +343,5 @@ export const buildGroupTree = (
     closeTop();
   }
 
-  return inheritIdKeys(root.children, [], true);
+  return inheritIdKeys(root.children, []);
 };
