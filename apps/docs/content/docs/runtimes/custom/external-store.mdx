@@ -828,6 +828,24 @@ const original = getExternalStoreMessages(threadMessage);
 This API is experimental and may change without notice.
 </Callout>
 
+### `getThreadMessageLikePartIndices`
+
+Conversion leaves out text and reasoning parts that are still empty, as at the start of a stream, and parts it can't render. So a part's index in `s.message.parts`, or in a group's `indices`, can be lower than its index in the `ThreadMessageLike` your `convertMessage` returned, and it moves when an earlier part fills in. Map it back to your message:
+
+```tsx
+import { getThreadMessageLikePartIndices } from "@assistant-ui/react";
+
+const like = convertMessage(original); // with array content
+const indices = getThreadMessageLikePartIndices(like);
+const stored = like.content[indices[i]!]; // the part components see at index i
+```
+
+String content counts as one text part at index 0, left out when empty. This covers an inline `convertMessage`, not `useExternalMessageConverter`, which can join messages and merge their reasoning parts.
+
+<Callout type="warn">
+This API is experimental and may change without notice.
+</Callout>
+
 ## Best practices
 
 1. **Immutable updates.** Always create new arrays:

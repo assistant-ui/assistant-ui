@@ -397,3 +397,38 @@ export const fromThreadMessageLike = (
     }
   }
 };
+
+const SOURCE_INDEX_STATUS: MessageStatus = {
+  type: "complete",
+  reason: "unknown",
+};
+
+/**
+ * Maps the parts of `fromThreadMessageLike(like)` back to `like.content`.
+ * For array content, part `i` of the converted message came from
+ * `like.content[result[i]]`. String content becomes one text part, reported
+ * as index 0 unless it is empty. The two differ when the conversion leaves parts out, such as
+ * text or reasoning that is still empty at the start of a stream.
+ *
+ * @deprecated Experimental since 2026-11-25. Not scheduled for removal; the API may change in any release.
+ */
+export const getThreadMessageLikePartIndices = (
+  like: ThreadMessageLike,
+): number[] => {
+  const singles =
+    typeof like.content === "string"
+      ? [like.content]
+      : like.content.map((part) => [part]);
+  const indices: number[] = [];
+  singles.forEach((content, index) => {
+    if (
+      fromThreadMessageLike(
+        { role: like.role, content },
+        "",
+        SOURCE_INDEX_STATUS,
+      ).content.length
+    )
+      indices.push(index);
+  });
+  return indices;
+};
