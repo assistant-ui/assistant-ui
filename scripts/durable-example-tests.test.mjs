@@ -35,6 +35,8 @@ for (const event of ["pull_request", "push"]) {
           ? !negative
           : included;
       }, false);
+    const readme = "examples/with-pydantic-ai-durable/README.md";
+    assert.equal(runsFor(readme), false, readme);
     for (const file of [
       "examples/with-pydantic-ai-durable/lib/durable-agent.ts",
       "examples/with-pydantic-ai-durable/lib/durable-agent.e2e.test.tsx",
@@ -54,7 +56,7 @@ for (const event of ["pull_request", "push"]) {
         (directory) => `${directory}/src/index.ts`,
       ),
     ]) {
-      assert.equal(runsFor(file), true, file);
+      assert.equal([readme, file].some(runsFor), true, file);
     }
     for (const file of [
       "README.md",
