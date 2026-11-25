@@ -1,0 +1,7 @@
+/* The library shows the docs site's own element demos, so it takes that
+   site's tokens and styles whole and scans the files the demos come from. */
+@import "../../docs/styles/globals.css";
+@import "./library.css";
+
+@source "../../docs/components";
+@source "../../docs/lib";
