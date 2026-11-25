@@ -10,18 +10,37 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useMemo, useState } from "react";
+import {
+  createContext,
+  type FC,
+  memo,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import type { TextMessagePartProps } from "@assistant-ui/react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, ImageIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
+import { canPreload, hostOf } from "../utils/href";
 
 type MarkdownTextProps = Partial<TextMessagePartProps> & {
   components?: Parameters<typeof memoizeMarkdownComponents>[0];
   componentsByLanguage?: MarkdownTextPrimitiveProps["componentsByLanguage"];
+  /**
+   * Origins whose images load as the message renders. An image from any
+   * other origin waits for a click, since its URL comes from the model and
+   * loading it tells that host the chat was viewed. Same-page paths,
+   * `data:image/` and `blob:` URLs always load; `["*"]` loads every origin.
+   */
+  imageOrigins?: readonly string[] | undefined;
 };
+
+const ImageOriginsContext = createContext<readonly string[] | undefined>(
+  undefined,
+);
 
 const isShallowEqual = (
   a: Record<string, unknown> | undefined,
@@ -46,6 +65,7 @@ const useShallowStable = <T extends Record<string, unknown> | undefined>(
 const MarkdownTextImpl: FC<MarkdownTextProps> = ({
   components,
   componentsByLanguage,
+  imageOrigins,
 }) => {
   const stableComponents = useShallowStable(components);
   const stableComponentsByLanguage = useShallowStable(componentsByLanguage);
@@ -58,13 +78,15 @@ const MarkdownTextImpl: FC<MarkdownTextProps> = ({
   }, [stableComponents]);
 
   return (
-    <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
-      className="aui-md"
-      components={markdownComponents}
-      componentsByLanguage={stableComponentsByLanguage}
-      defer
-    />
+    <ImageOriginsContext.Provider value={imageOrigins}>
+      <MarkdownTextPrimitive
+        remarkPlugins={[remarkGfm]}
+        className="aui-md"
+        components={markdownComponents}
+        componentsByLanguage={stableComponentsByLanguage}
+        defer
+      />
+    </ImageOriginsContext.Provider>
   );
 };
 
@@ -262,6 +284,43 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
+  img: function Image({ className, src, alt, ...props }) {
+    const origins = useContext(ImageOriginsContext);
+    const [requested, setRequested] = useState(false);
+    const url = typeof src === "string" ? src : undefined;
+    if (!requested && !canPreload(url, origins)) {
+      const host = hostOf(url);
+      if (!host)
+        return alt ? <span className="aui-md-img-alt">{alt}</span> : null;
+      return (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            setRequested(true);
+          }}
+          className="aui-md-img-placeholder border-border/60 text-muted-foreground hover:bg-muted/50 inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 align-middle text-xs"
+        >
+          <ImageIcon aria-hidden className="size-3.5 shrink-0" />
+          <span className="truncate">{alt || "Image"}</span>
+          <span className="shrink-0 opacity-70">· Load from {host}</span>
+        </button>
+      );
+    }
+    return (
+      // A picture wrapper marks a deliberate native img for the Next.js lint, because
+      // next/image needs per-host config for runtime URLs and only exists in Next.js.
+      <picture className="contents">
+        <img
+          src={url}
+          alt={alt ?? ""}
+          referrerPolicy="no-referrer"
+          className={cn("aui-md-img max-w-full rounded-lg", className)}
+          {...props}
+        />
+      </picture>
+    );
+  },
   code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();
     return (

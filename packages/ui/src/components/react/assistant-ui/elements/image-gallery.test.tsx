@@ -50,6 +50,37 @@ describe("ImageGallery", () => {
     ).toBeNull();
   });
 
+  it("loads unlisted thumbnails only once the user opens one", () => {
+    const { container } = render(<ImageGallery images={images.slice(0, 2)} />);
+
+    expect(container.querySelector("img")).toBeNull();
+    expect(
+      container.querySelectorAll('[data-slot="image-gallery-placeholder"]'),
+    ).toHaveLength(2);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open image: Image 2" }),
+    );
+    const opened = screen.getByRole("dialog").querySelector("img");
+    expect(opened?.getAttribute("src")).toBe("https://example.com/2.png");
+    expect(opened?.getAttribute("referrerpolicy")).toBe("no-referrer");
+  });
+
+  it("loads thumbnails from listed origins as it renders", () => {
+    const { container } = render(
+      <ImageGallery
+        images={images.slice(0, 2)}
+        imageOrigins={["https://example.com"]}
+      />,
+    );
+
+    expect(
+      [...container.querySelectorAll("img")].map((img) =>
+        img.getAttribute("src"),
+      ),
+    ).toEqual(["https://example.com/1.png", "https://example.com/2.png"]);
+  });
+
   it("puts overflow on the final visible tile and opens that image", () => {
     const onOpen = vi.fn();
     render(<ImageGallery images={images} maxVisible={3} onOpen={onOpen} />);

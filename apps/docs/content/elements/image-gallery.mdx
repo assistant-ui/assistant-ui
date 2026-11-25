@@ -144,6 +144,7 @@ An image can carry a caption and source. The source becomes an external link onl
 | `images` | `readonly GalleryImage[]` | required | Images in grid and lightbox order. An empty list renders nothing. |
 | `maxVisible` | `number` | `6` | Number of tiles before the final tile displays the remaining count. |
 | `onOpen` | `(id: string) => void` | | Receives the opened image id. |
+| `imageOrigins` | `readonly string[]` | none | Origins whose thumbnails load as the gallery renders. A thumbnail from any other origin shows a placeholder, and its image loads when the user opens it; same-page paths, `data:image/` and `blob:` URLs always load. `["*"]` allows every `http:` and `https:` origin. |
 | `className` | `string` | | Merged onto the gallery root. |
 
 All other `div` props are forwarded to the root.

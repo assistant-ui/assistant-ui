@@ -161,6 +161,7 @@ Register the renderer on a backend tool's `render` field. See [Tool UI](/docs/to
 | `siteName` | `string` | host | Site label beside the favicon or initial. |
 | `favicon` | `string` | | 16px site icon. A failed favicon falls back to the initial. |
 | `layout` | `"card" \| "compact"` | `"card"` | Image above the body or a leading 64px thumbnail. |
+| `imageOrigins` | `readonly string[]` | none | Origins `image` and `favicon` may load from. A remote image or favicon from any other origin is not shown, since loading it tells that host the message was viewed; same-page paths, `data:image/` and `blob:` URLs always load. `["*"]` allows every `http:` and `https:` origin. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `article` props are forwarded to the root.
