@@ -299,3 +299,13 @@ Files:
 - `components/pages/home/hero.tsx`: a two-column grid at `xl`, the panel in the second column, and the mark hidden at `xl`.
 
 When folding back: copy `demo-panel.tsx` and the hero changes to the same paths in `apps/docs`.
+
+## Demos panel on a plate (2026-11-25)
+
+Chosen from variants: content (all six demos; Base, ChatGPT, Claude; those three plus Artifacts; Base only) and style (line tabs above, tabs in a title bar, tabs under the demo, segmented on a plate, side list). The panel keeps all six demos and is now drawn on a plate: a lightly tinted panel (`bg-foreground/[0.025]`, dark `/[0.04]`) with no border, segmented tabs centered at the top, the demo in a borderless frame inside it, and the description with "Open the demo" underneath. The variants and the `@assistant-ui/variants` dev dependency are removed.
+
+Files:
+
+- `components/pages/home/demo-panel.tsx`: the plate, the segmented tabs, and the borderless frame.
+
+When folding back: copy `demo-panel.tsx` to the same path in `apps/docs`, with the hero changes from "Demos panel in the hero".

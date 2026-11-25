@@ -14,26 +14,36 @@ const SCALE = 0.62;
 const FRAME_HEIGHT = "28rem";
 
 /**
- * The demos (Base, ChatGPT, Claude, and the rest) as tabs, each a live
- * miniature: rendered at full size, then scaled into the frame, so it can
- * still be clicked and typed in. Only the open tab is mounted.
+ * The demos (Base, ChatGPT, Claude, and the rest) as segmented tabs on a
+ * tinted plate, each a live miniature: rendered at full size, then scaled
+ * into the frame, so it can still be clicked and typed in. Only the open
+ * tab is mounted.
  */
 export function DemoPanel({ className }: { className?: string }) {
   const [slug, setSlug] = useState(DEMOS[0]!.slug);
   const active = DEMOS.find((demo) => demo.slug === slug) ?? DEMOS[0]!;
 
   return (
-    <figure className={cn("flex min-w-0 flex-col gap-3", className)}>
+    <figure
+      className={cn(
+        "bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-w-0 flex-col gap-3 p-3",
+        className,
+      )}
+    >
       <Tabs
         value={slug}
         onValueChange={(value) => {
           if (typeof value === "string") setSlug(value);
         }}
-        className="gap-3"
+        className="items-center gap-3"
       >
-        <TabsList variant="line" aria-label="Demos" className="w-full">
+        <TabsList aria-label="Demos">
           {DEMOS.map((demo) => (
-            <TabsTrigger key={demo.slug} value={demo.slug}>
+            <TabsTrigger
+              key={demo.slug}
+              value={demo.slug}
+              className="px-2.5 text-[13px]"
+            >
               {demo.name}
             </TabsTrigger>
           ))}
@@ -44,7 +54,7 @@ export function DemoPanel({ className }: { className?: string }) {
             <TabsContent
               key={demo.slug}
               value={demo.slug}
-              className="border-foreground/10 rounded-document bg-background relative flex-none overflow-hidden border"
+              className="rounded-document bg-background relative flex-none self-stretch overflow-hidden"
               style={{ height: FRAME_HEIGHT }}
             >
               <div
@@ -63,7 +73,7 @@ export function DemoPanel({ className }: { className?: string }) {
           );
         })}
       </Tabs>
-      <figcaption className="flex items-baseline justify-between gap-4 text-[13px]">
+      <figcaption className="flex items-baseline justify-between gap-4 px-1 text-[13px]">
         <span className="text-muted-foreground min-w-0 truncate">
           {active.tagline}
         </span>
