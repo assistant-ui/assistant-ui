@@ -36,6 +36,9 @@ export function createTransformer(transformFn: TransformerFunction) {
     };
 
     transformFn(context, fileInfo, api, options);
-    return isChanged ? root.toSource() : null;
+    if (!isChanged) return null;
+    // recast prints with the operating system's line terminator unless told otherwise.
+    const lineTerminator = fileInfo.source.includes("\r\n") ? "\r\n" : "\n";
+    return root.toSource({ lineTerminator });
   };
 }
