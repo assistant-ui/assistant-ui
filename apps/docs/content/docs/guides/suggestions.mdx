@@ -84,6 +84,23 @@ AuiConfig({
 });
 ```
 
+### Metadata
+
+Give a suggestion `metadata` to tell your backend which one was picked. When the suggestion sends its message, the metadata becomes that message's `metadata.custom`:
+
+```tsx
+Suggestions([
+  {
+    title: "Grade lab 3",
+    label: "against the rubric",
+    prompt: "Grade lab 3 against the rubric.",
+    metadata: { labId: "lab-3" },
+  },
+]);
+```
+
+A suggestion that only fills the composer leaves it out. Runtime suggestions and the inline `ThreadPrimitive.Suggestion` take the same `metadata`.
+
 ## Displaying Suggestions
 
 The default Thread component from the shadcn registry already includes suggestion rendering. The suggestions are displayed in the welcome screen when the thread is empty.
@@ -142,7 +159,7 @@ The primitives available for rendering suggestions are `ThreadPrimitive.Suggesti
 
 ## Runtime driven suggestions
 
-The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions`, and when no static `Suggestions(...)` configuration is set, the `suggestions` scope derives from them, so `ThreadPrimitive.Suggestions` renders them as well. Runtime suggestions use the `ThreadSuggestion` shape: a required `prompt` plus optional `title` and `label`. When `title` is omitted it falls back to the prompt, and an omitted `label` renders as empty, so a prompt-only runtime suggestion looks exactly like a plain string suggestion.
+The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions`, and when no static `Suggestions(...)` configuration is set, the `suggestions` scope derives from them, so `ThreadPrimitive.Suggestions` renders them as well. Runtime suggestions use the `ThreadSuggestion` shape: a required `prompt` plus optional `title`, `label` and `metadata`. When `title` is omitted it falls back to the prompt, and an omitted `label` renders as empty, so a prompt-only runtime suggestion looks exactly like a plain string suggestion.
 
 ### Local runtime: `SuggestionAdapter`
 
@@ -280,7 +297,12 @@ function FollowUps() {
     <AuiIf condition={(s) => !s.thread.isEmpty && !s.thread.isRunning}>
       <div className="flex gap-2">
         {suggestions.map((s, i) => (
-          <ThreadPrimitive.Suggestion key={i} prompt={s.prompt} send>
+          <ThreadPrimitive.Suggestion
+            key={i}
+            prompt={s.prompt}
+            metadata={s.metadata}
+            send
+          >
             {s.title ?? s.prompt}
             {s.label && (
               <span className="text-muted-foreground ms-1">{s.label}</span>

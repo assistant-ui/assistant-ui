@@ -122,6 +122,39 @@ describe("Suggestions", () => {
       root.unmount();
     }
   });
+  it("keeps a suggestion's metadata, stable across owner renders when equal", () => {
+    let rerender!: () => void;
+    const root = createTapRoot(function SuggestionsRoot() {
+      const [, setTick] = useState(0);
+      rerender = () => setTick((tick) => tick + 1);
+      return useResource(
+        Suggestions([
+          { title: "T", label: "L", prompt: "P", metadata: { labId: "lab-3" } },
+        ]),
+      );
+    });
+
+    try {
+      const firstSuggestion = root
+        .getValue()
+        .suggestion({ index: 0 })
+        .getState();
+      expect(firstSuggestion).toEqual({
+        title: "T",
+        label: "L",
+        prompt: "P",
+        metadata: { labId: "lab-3" },
+      });
+
+      flushTapSync(rerender);
+
+      expect(root.getValue().suggestion({ index: 0 }).getState()).toBe(
+        firstSuggestion,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
 });
 
 describe("ThreadSuggestions", () => {

@@ -9,7 +9,31 @@ import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-c
 
 export type SuggestionConfig =
   | string
-  | { title: string; label: string; prompt: string };
+  | {
+      title: string;
+      label: string;
+      prompt: string;
+      /** Set as `metadata.custom` on the message the suggestion sends. */
+      metadata?: Record<string, unknown>;
+    };
+
+const withMetadata = (
+  suggestion: Omit<SuggestionState, "metadata">,
+  metadata: Record<string, unknown> | undefined,
+): SuggestionState =>
+  metadata === undefined ? suggestion : { ...suggestion, metadata };
+
+const isSameSuggestion = (a: SuggestionState, b: SuggestionState) => {
+  const { metadata: aMetadata, ...aRest } = a;
+  const { metadata: bMetadata, ...bRest } = b;
+  return (
+    shallowEqual(aRest, bRest) &&
+    (aMetadata === bMetadata ||
+      (aMetadata !== undefined &&
+        bMetadata !== undefined &&
+        shallowEqual(aMetadata, bMetadata)))
+  );
+};
 
 const useStableSuggestionsState = (
   next: SuggestionsState,
@@ -25,7 +49,7 @@ const useStableSuggestionsState = (
     // so an equivalent hole-containing update keeps reusing prior identities.
     const previousSuggestion = previous?.suggestions[suggestions.length];
     suggestions.push(
-      previousSuggestion && shallowEqual(previousSuggestion, suggestion)
+      previousSuggestion && isSameSuggestion(previousSuggestion, suggestion)
         ? previousSuggestion
         : suggestion,
     );
@@ -74,7 +98,10 @@ const useStaticSuggestions = (
     suggestions: (suggestions ?? []).map((s) =>
       typeof s === "string"
         ? { title: s, label: "", prompt: s }
-        : { title: s.title, label: s.label, prompt: s.prompt },
+        : withMetadata(
+            { title: s.title, label: s.label, prompt: s.prompt },
+            s.metadata,
+          ),
     ),
   });
 };
@@ -85,11 +112,12 @@ const useThreadSuggestions = (
   suggestions: readonly ThreadSuggestion[],
 ): ClientOutput<"suggestions"> => {
   return useSuggestionsClient({
-    suggestions: suggestions.map((s) => ({
-      title: s.title ?? s.prompt,
-      label: s.label ?? "",
-      prompt: s.prompt,
-    })),
+    suggestions: suggestions.map((s) =>
+      withMetadata(
+        { title: s.title ?? s.prompt, label: s.label ?? "", prompt: s.prompt },
+        s.metadata,
+      ),
+    ),
   });
 };
 

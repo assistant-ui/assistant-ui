@@ -3883,6 +3883,7 @@ type SuggestionConfig = string | {
   title: string;
   label: string;
   prompt: string;
+  metadata?: Record<string, unknown>;
 };
 
 declare const SuggestionDescription: (_param55: SuggestionDescriptionProps) => import("react").JSX.Element;
@@ -3895,6 +3896,7 @@ type SuggestionState = {
   title: string;
   label: string;
   prompt: string;
+  metadata?: Record<string, unknown>;
 };
 
 declare const SuggestionTitle: (_param56: SuggestionTitleProps) => import("react").JSX.Element;
@@ -4834,11 +4836,13 @@ type ThreadSuggestion$1 = {
   title?: string;
   label?: string;
   prompt: string;
+  metadata?: Record<string, unknown>;
 };
 
 type ThreadSuggestionProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
   prompt: string;
+  metadata?: Record<string, unknown> | undefined;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };

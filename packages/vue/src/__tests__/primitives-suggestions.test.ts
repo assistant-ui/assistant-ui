@@ -124,6 +124,7 @@ const mountSuggestions = (
                   title: "Ask the time",
                   label: "small talk",
                   prompt: "What time is it?",
+                  metadata: { topic: "time" },
                 },
                 {
                   title: "Empty",
@@ -181,6 +182,7 @@ describe("suggestions primitives", () => {
     });
     expect(onNew.mock.calls[0]![0]).toMatchObject({
       content: [{ type: "text", text: "What time is it?" }],
+      metadata: { custom: { topic: "time" } },
     });
 
     unmount();

@@ -7,7 +7,7 @@ Suggestions are prompts a user can choose before sending a message or after a re
 
 ## Static suggestions
 
-Pass `Suggestions([...])` under the `suggestions` key of `AuiConfig`. Each item can be a string or an object with `title`, `label`, and `prompt`. A string uses its text for both title and prompt, with an empty label. The object form separates the text shown to the user from the message sent.
+Pass `Suggestions([...])` under the `suggestions` key of `AuiConfig`. Each item can be a string or an object with `title`, `label`, and `prompt`. A string uses its text for both title and prompt, with an empty label. The object form separates the text shown to the user from the message sent. An object can also carry `metadata`, which becomes `metadata.custom` on the message `SuggestionPrimitiveTrigger` sends with `send`.
 
 This is an abridged version of the Nuxt example's `Assistant.client.vue`. Its suggestion config and prompts are unchanged:
 
