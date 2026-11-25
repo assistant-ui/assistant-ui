@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import {
@@ -286,11 +286,15 @@ export function BlockViewer({
   entry: string;
 }) {
   const [tab, setTab] = useState<Tab>("preview");
-  const [viewport, setViewport] = useState<Viewport>("desktop");
+  const [viewport, setViewport] = useState<Viewport | null>("desktop");
   const [reloads, setReloads] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
   const panelRef = usePanelRef();
+  const requestedPercentage = useRef<number | undefined>(undefined);
+  const stopPresetResize = useRef<(() => void) | null>(null);
   const { resolvedTheme } = useTheme();
   const [loaded, setLoaded] = useState(false);
   const [chosenMode, setChosenMode] = useState<BlockTheme["mode"] | null>(null);
@@ -307,6 +311,44 @@ export function BlockViewer({
     );
   };
   useEffect(postTheme);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    const handle = handleRef.current;
+    const preset = VIEWPORTS.find((item) => item.id === viewport);
+    if (!frame || !handle || !preset || preset.id === "desktop") return;
+
+    let previousWidth = 0;
+    let resizePending = false;
+    // The group reports a pointer resize after the separator is released.
+    const resize = () => {
+      if (!resizePending || handle.dataset.separator === "active") return;
+      resizePending = false;
+      panelRef.current?.resize(preset.size);
+    };
+    const frameObserver = new ResizeObserver(([entry]) => {
+      const width = entry?.contentRect.width ?? 0;
+      if (width === previousWidth) return;
+      previousWidth = width;
+      resizePending = width > 0;
+      resize();
+    });
+    const handleObserver = new MutationObserver(resize);
+    frameObserver.observe(frame);
+    handleObserver.observe(handle, {
+      attributeFilter: ["data-separator"],
+    });
+
+    const stop = () => {
+      frameObserver.disconnect();
+      handleObserver.disconnect();
+    };
+    stopPresetResize.current = stop;
+    return () => {
+      stop();
+      stopPresetResize.current = null;
+    };
+  }, [panelRef, viewport]);
 
   return (
     <Tabs
@@ -422,14 +464,38 @@ export function BlockViewer({
               <ResizablePanelGroup
                 orientation="horizontal"
                 className="relative z-10"
+                onDoubleClick={(event) => {
+                  // The panel group prevents the default action when it resets the layout.
+                  if (!event.defaultPrevented) return;
+                  stopPresetResize.current?.();
+                  setViewport("desktop");
+                }}
+                onLayoutChanged={(
+                  layout,
+                  { isUserInteraction, requestedLayout },
+                ) => {
+                  const panel = panelRef.current;
+                  if (!panel) return;
+                  const previousPercentage = requestedPercentage.current;
+                  requestedPercentage.current = (requestedLayout ?? layout)[
+                    panelId
+                  ];
+                  if (
+                    !isUserInteraction ||
+                    requestedPercentage.current === previousPercentage
+                  )
+                    return;
+                  stopPresetResize.current?.();
+                  setViewport(
+                    panel.getSize().asPercentage > 99 ? "desktop" : null,
+                  );
+                }}
               >
                 <ResizablePanel
+                  id={panelId}
                   panelRef={panelRef}
                   defaultSize="100%"
                   minSize="320px"
-                  onResize={(size) => {
-                    if (size.asPercentage > 99) setViewport("desktop");
-                  }}
                   className="border-foreground/10 bg-background relative overflow-hidden rounded-xl border [:fullscreen_&]:rounded-none [:fullscreen_&]:border-0"
                 >
                   {!loaded && (
@@ -459,6 +525,7 @@ export function BlockViewer({
                   />
                 </ResizablePanel>
                 <ResizableHandle
+                  elementRef={handleRef}
                   aria-label="Resize preview"
                   className="after:bg-foreground/15 hover:after:bg-foreground/25 relative hidden w-3 bg-transparent p-0 after:start-auto after:end-0 after:top-1/2 after:bottom-auto after:h-8 after:w-1.5 after:translate-x-[-1px] after:-translate-y-1/2 after:rounded-full after:transition-all hover:after:h-10 motion-reduce:after:transition-none md:flex [:fullscreen_&]:hidden"
                 />
