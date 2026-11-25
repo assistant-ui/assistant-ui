@@ -3495,7 +3495,7 @@ type SuggestionConfig = string | {
   title: string;
   label: string;
   prompt: string;
-  metadata?: Record<string, unknown>;
+  custom?: Record<string, unknown>;
 };
 
 declare const SuggestionDescription: (_param33: SuggestionDescriptionProps) => import("react").JSX.Element;
@@ -3508,7 +3508,7 @@ type SuggestionState = {
   title: string;
   label: string;
   prompt: string;
-  metadata?: Record<string, unknown>;
+  custom?: Record<string, unknown>;
 };
 
 declare const SuggestionTitle: (_param34: SuggestionTitleProps) => import("react").JSX.Element;
@@ -4458,13 +4458,13 @@ type ThreadSuggestion$1 = {
   title?: string;
   label?: string;
   prompt: string;
-  metadata?: Record<string, unknown>;
+  custom?: Record<string, unknown>;
 };
 
 type ThreadSuggestionProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
   prompt: string;
-  metadata?: Record<string, unknown> | undefined;
+  custom?: Record<string, unknown> | undefined;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };

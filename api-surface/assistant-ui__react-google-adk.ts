@@ -2460,7 +2460,7 @@ type ThreadSuggestion = {
   title?: string;
   label?: string;
   prompt: string;
-  metadata?: Record<string, unknown>;
+  custom?: Record<string, unknown>;
 };
 
 type ThreadSystemMessage = MessageCommonProps & {
