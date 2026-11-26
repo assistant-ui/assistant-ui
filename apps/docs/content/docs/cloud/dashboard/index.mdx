@@ -101,7 +101,10 @@ A run's page has **Trace**, **Conversation**, **Scores** and **Raw** tabs, a usa
 
 A run under **No model reported** came from a browser report that did not carry a model id; the browser stream has no model or usage unless the route sends them. Return them from the AI SDK route's `messageMetadata`, and every later run names its model:
 
-```ts title="app/api/chat/route.ts"
+```ts title="app/api/chat/route.ts (abridged)"
+const model = openai("gpt-6-luna");
+const result = streamText({ model, messages: await convertToModelMessages(messages) });
+
 return result.toUIMessageStreamResponse({
   messageMetadata: ({ part }) => {
     if (part.type === "finish") {

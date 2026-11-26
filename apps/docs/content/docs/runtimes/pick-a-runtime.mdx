@@ -154,6 +154,7 @@ Agents, Claude Managed Agents)?
         do you control the backend wire format?
         └── yes, and i want simple fetch calls → LocalRuntime
         └── yes, and i want to stream a structured agent state → AssistantTransport
+        └── yes, and i want a thin message-stream contract → DataStream
         └── no, the backend already speaks data stream protocol → DataStream
         └── no, it speaks another protocol → LocalRuntime, with a ChatModelAdapter that calls it
 ```
