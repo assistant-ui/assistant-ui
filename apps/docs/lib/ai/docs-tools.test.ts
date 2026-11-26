@@ -18,6 +18,12 @@ const mocks = vi.hoisted(() => {
       description: "A map of the conversation.",
     },
     { slug: "orb", title: "Orb", description: "A glowing orb." },
+    {
+      slug: "generative-card",
+      title: "Card",
+      description: "A generated card.",
+      generative: true,
+    },
   ];
   return {
     elementPage,
@@ -119,6 +125,12 @@ vi.mock(
                 defaultValue: '"left"',
                 description: "Which gutter the rail sits in.",
               },
+              {
+                name: "entries",
+                type: "ConversationMapEntry[]",
+                required: true,
+                description: "The turns to show.",
+              },
             ],
           },
         ],
@@ -126,6 +138,14 @@ vi.mock(
     },
   }),
 );
+
+vi.mock("@/lib/generative-elements", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getGenerativeElement: (slug: string) =>
+    slug === "generative-card"
+      ? { slug, templateSlug: "card", template: { tree: { type: "Card" } } }
+      : undefined,
+}));
 
 import { listDocs, readDoc } from "./docs-tools";
 
@@ -205,6 +225,12 @@ describe("listDocs", () => {
         url: "/elements/orb",
         description: "A glowing orb.",
       },
+      {
+        type: "page",
+        title: "Card",
+        url: "/elements/generative-card",
+        description: "A generated card.",
+      },
     ]);
   });
 });
@@ -228,7 +254,7 @@ describe("readDoc", () => {
     }
   });
 
-  it("gives a catalog element without a guide its usage and props", async () => {
+  it("gives a catalog element without a guide its install command, usage and props", async () => {
     const result = await read("elements/conversation-map");
     expect(result).toMatchObject({
       title: "Conversation map",
@@ -236,15 +262,32 @@ describe("readDoc", () => {
     });
     const content = "content" in result ? result.content : "";
     expect(content).toContain("A map of the conversation.");
+    expect(content).toContain(
+      'npx shadcn@latest add "@assistant-ui/elements-conversation-map"',
+    );
     expect(content).toContain("<ConversationMapAui />");
     expect(content).toContain(
       '| `side` | `"left" \\| "right"` | `"left"` | Which gutter the rail sits in. |',
     );
+    expect(content).toContain(
+      "| `entries` (required) | `ConversationMapEntry[]` |  | The turns to show. |",
+    );
   });
 
-  it("says when a catalog element has nothing written", async () => {
+  it("gives a generative element its render snippet and spec", async () => {
+    const result = await read("elements/generative-card");
+    const content = "content" in result ? result.content : "";
+    expect(content).toContain("renderGenerativeUI(spec, library");
+    expect(content).toContain('"type": "Card"');
+  });
+
+  it("still gives the install command when nothing else is written", async () => {
     const result = await read("elements/orb");
-    expect("content" in result && result.content).toContain("no written guide");
+    const content = "content" in result ? result.content : "";
+    expect(content).toContain(
+      'npx shadcn@latest add "@assistant-ui/elements-orb"',
+    );
+    expect(content).not.toContain("## Usage");
   });
 
   it("reads Design and docs pages, with or without the docs prefix", async () => {

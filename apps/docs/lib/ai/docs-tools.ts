@@ -7,8 +7,17 @@ import {
 } from "@/lib/source";
 import { resolveDocsUrl } from "@/lib/docs-pages";
 import { getLLMText } from "@/lib/get-llm-text";
-import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
+import {
+  ELEMENTS,
+  elementRegistryName,
+  getElement,
+  type FlatElement,
+} from "@/components/pages/elements/registry";
 import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
+import {
+  GENERATIVE_USAGE,
+  getGenerativeElement,
+} from "@/lib/generative-elements";
 
 type ListingEntry =
   | {
@@ -150,7 +159,6 @@ function allPages(nodes: PageTree.Node[]): PageTree.Item[] {
   });
 }
 
-/** Lists docs folders and pages for the docs assistant's listDocs tool. */
 export function listDocs(path: string | undefined): Listing {
   const cleaned = (path ?? "")
     .trim()
@@ -198,7 +206,6 @@ export function listDocs(path: string | undefined): Listing {
 
 export const DOCS_PATH_ERROR = "Only local docs paths are supported";
 
-/** Turns a readDoc slug or same-origin URL into a path without `/docs/`. */
 export function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
   const raw = slugOrUrl.trim();
   if (!raw) {
@@ -231,7 +238,6 @@ export function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
   return cleaned;
 }
 
-/** Finds the page a normalized readDoc path names: docs, examples, Elements or Design. */
 export function resolveDocPage(slugs: string[]) {
   const [head, ...rest] = slugs;
   if (head === "examples") return examplesSource.getPage(rest);
@@ -241,34 +247,55 @@ export function resolveDocPage(slugs: string[]) {
   return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
 }
 
-// The same usage snippet and props tables the element's catalog page renders.
-function catalogElementText(
-  title: string,
-  url: string,
-  description: string,
-  slug: string,
-): string {
-  const lines = [`# ${title}`, `URL: ${url}`, "", description, ""];
-  const doc = AUI_ELEMENT_DOCS[slug];
-  if (!doc) {
-    lines.push("This element has no written guide; its page shows it live.");
-    return lines.join("\n");
+// What the element's catalog page shows: install command, usage, props, or the generative spec.
+function catalogElementText(element: FlatElement): string {
+  const url = `/elements/${element.slug}`;
+  const lines = [
+    `# ${element.title}`,
+    `URL: ${url}`,
+    "",
+    element.description,
+    "",
+    "## Installation",
+    "",
+    "```bash",
+    `npx shadcn@latest add "@assistant-ui/${elementRegistryName(element)}"`,
+    "```",
+  ];
+  const generative = element.generative
+    ? getGenerativeElement(element.slug)
+    : undefined;
+  if (generative) {
+    lines.push("", "## Usage", "", "```tsx", GENERATIVE_USAGE, "```");
+    lines.push(
+      "",
+      "## Spec",
+      "",
+      "```json",
+      JSON.stringify(generative.template.tree, null, 2),
+      "```",
+    );
   }
-  lines.push("## Usage", "", "```tsx", doc.usage, "```");
-  for (const table of doc.props) {
-    lines.push("", `## ${table.component} props`, "");
-    lines.push("| Prop | Type | Default | Description |", "|---|---|---|---|");
-    for (const row of table.rows) {
-      const name = row.required ? `${row.name} (required)` : row.name;
+  const doc = AUI_ELEMENT_DOCS[element.slug];
+  if (doc) {
+    lines.push("", "## Usage", "", "```tsx", doc.usage, "```");
+    for (const table of doc.props) {
+      lines.push("", `## ${table.component} props`, "");
       lines.push(
-        `| \`${name}\` | \`${row.type.replaceAll("|", "\\|")}\` | ${row.defaultValue ? `\`${row.defaultValue}\`` : ""} | ${row.description} |`,
+        "| Prop | Type | Default | Description |",
+        "|---|---|---|---|",
       );
+      for (const row of table.rows) {
+        const name = `\`${row.name}\`${row.required ? " (required)" : ""}`;
+        const type = `\`${row.type.replaceAll("|", "\\|")}\``;
+        const fallback = row.defaultValue ? `\`${row.defaultValue}\`` : "";
+        lines.push(`| ${name} | ${type} | ${fallback} | ${row.description} |`);
+      }
     }
   }
   return lines.join("\n");
 }
 
-/** The readDoc tool's result for a slug or same-origin URL. */
 export async function readDoc(slugOrUrl: string, routeUrl: string) {
   let normalized: string;
   try {
@@ -295,16 +322,10 @@ export async function readDoc(slugOrUrl: string, routeUrl: string) {
       ? getElement(slugs[1] ?? "")
       : undefined;
   if (element) {
-    const url = `/elements/${element.slug}`;
     return {
       title: element.title,
-      url,
-      content: catalogElementText(
-        element.title,
-        url,
-        element.description,
-        element.slug,
-      ),
+      url: `/elements/${element.slug}`,
+      content: catalogElementText(element),
     };
   }
 
