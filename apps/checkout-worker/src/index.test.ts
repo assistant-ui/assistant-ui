@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import worker, {
-  CheckoutDO,
-  EMPTY_ROOM_IDLE_MS,
-  MAX_MESSAGE_BYTES,
-  ROOM_IDLE_MS,
-} from "./index";
+import worker, { CheckoutDO } from "./index";
+import { EMPTY_ROOM_IDLE_MS, MAX_MESSAGE_BYTES, ROOM_IDLE_MS } from "./limits";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
 

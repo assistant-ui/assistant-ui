@@ -46,6 +46,7 @@ import {
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   mocks.session = { status: "loading" };
   mocks.projects = { status: "unavailable" };
   mocks.enabled = [];
@@ -75,6 +76,7 @@ const setup = (card = input, answer = vi.fn().mockResolvedValue(undefined)) => {
         input={card}
         checkout={
           {
+            session: { id: "test" },
             commands: { "checkout/answer": answer },
           } as unknown as CheckoutContextValue
         }
