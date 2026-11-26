@@ -6,11 +6,14 @@ const mocks = vi.hoisted(() => ({
   checkTemplateRateLimit: vi.fn(),
   checkDocsRateLimit: vi.fn(),
   captureImmediate: vi.fn(async () => {}),
+  afterTasks: [] as unknown[],
 }));
 
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
-  after: (task: () => unknown) => void task(),
+  after: (task: () => unknown) => {
+    mocks.afterTasks.push(task());
+  },
 }));
 
 vi.mock("@/lib/posthog-server", async (importOriginal) => ({
@@ -762,7 +765,7 @@ describe("agent reads over MCP", () => {
       }) as Parameters<typeof POST>[0],
     );
     await response.clone().text();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Promise.all(mocks.afterTasks.splice(0));
     return response;
   }
 
@@ -922,7 +925,7 @@ describe("agent reads over MCP", () => {
         ),
       }) as Parameters<typeof POST>[0],
     );
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await Promise.all(mocks.afterTasks.splice(0));
 
     expect(mocks.captureImmediate).not.toHaveBeenCalled();
   });

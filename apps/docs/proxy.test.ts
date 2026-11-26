@@ -176,7 +176,24 @@ describe("agent reads", () => {
         negotiated: false,
         method: "GET",
         client: "claude-code",
+        navigation: false,
       },
+    );
+  });
+
+  it("marks a .md link opened in a browser tab, so it can be told from an agent", async () => {
+    await proxy(
+      new NextRequest("https://www.assistant-ui.com/docs/installation.md", {
+        headers: {
+          "user-agent": "Mozilla/5.0 (Macintosh) Chrome/158.0",
+          "sec-fetch-mode": "navigate",
+        },
+      }),
+    );
+    expect(captureAgentEvent).toHaveBeenCalledWith(
+      expect.any(Headers),
+      "agent_docs_fetched",
+      expect.objectContaining({ client: "browser", navigation: true }),
     );
   });
 

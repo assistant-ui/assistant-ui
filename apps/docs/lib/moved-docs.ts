@@ -66,7 +66,7 @@ export const MOVED_DOCS_PATHS: ReadonlyArray<readonly [string, string]> = [
   ["/docs/runtimes/custom/local", "/docs/runtimes/custom/local-runtime"],
   [
     "/docs/runtimes/custom/custom-thread-list",
-    "/docs/runtimes/custom/local-runtime",
+    "/docs/integrations/persistence/thread-list-adapters",
   ],
   ["/docs/runtimes/data-stream", "/docs/runtimes/custom/data-stream"],
   [

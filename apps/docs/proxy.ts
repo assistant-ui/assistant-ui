@@ -134,6 +134,9 @@ function countAgentRead(request: NextRequest) {
     negotiated: read.negotiated,
     method: request.method,
     client,
+    // A browser tab opening a page's .md link; agent fetch tools that send a
+    // browser user-agent don't send this header, so it tells the two apart.
+    navigation: request.headers.get("sec-fetch-mode") === "navigate",
   });
 }
 

@@ -371,7 +371,8 @@ function stringifyToolResult(result: unknown) {
   return typeof result === "string" ? result : JSON.stringify(result, null, 2);
 }
 
-// A tool call refused for its rate-limit budget, counted apart from failures.
+// A tool call refused because its rate-limit budget ran out, counted apart
+// from failures.
 class ToolThrottledError extends Error {}
 
 // What a tool call is about, for the agent-read event: the search query (its
@@ -596,9 +597,7 @@ async function requireTemplateToolBudget(request: NextRequest) {
 
   const suffix = " The assistant-ui docs tools remain available.";
   if (denial.status !== 429) {
-    throw new ToolThrottledError(
-      `Template tools are temporarily unavailable.${suffix}`,
-    );
+    throw new Error(`Template tools are temporarily unavailable.${suffix}`);
   }
   throw new ToolThrottledError(await throttleMessage(denial, suffix));
 }

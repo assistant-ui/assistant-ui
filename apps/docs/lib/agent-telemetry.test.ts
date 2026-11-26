@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { captureImmediate } = vi.hoisted(() => ({
+const { captureImmediate, afterTasks } = vi.hoisted(() => ({
   captureImmediate: vi.fn(async () => {}),
+  afterTasks: [] as unknown[],
 }));
 
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
-  after: (task: () => unknown) => void task(),
+  after: (task: () => unknown) => {
+    afterTasks.push(task());
+  },
 }));
 
 vi.mock("./posthog-server", async (importOriginal) => ({
@@ -25,7 +28,8 @@ beforeEach(() => {
   captureImmediate.mockClear();
 });
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+// Waits for the work scheduled with `after`, which runs once the response is sent.
+const flush = () => Promise.all(afterTasks.splice(0));
 
 describe("agentClientFamily", () => {
   it.each([
@@ -44,6 +48,18 @@ describe("agentClientFamily", () => {
     ["python-httpx/0.28.1", "python"],
     ["curl/8.7.1", "curl"],
     ["Mozilla/5.0 (compatible; bingbot/2.0)", "crawler"],
+    [
+      "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+      "crawler",
+    ],
+    [
+      "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+      "crawler",
+    ],
+    [
+      "Mozilla/5.0 (compatible; ChatGPT-User/1.0; +https://openai.com/bot)",
+      "chatgpt",
+    ],
     ["Mozilla/5.0 (Macintosh) Chrome/150.0", "browser"],
     ["WorkBuddy/5.11.3", "other"],
     ["assistant-ui-skill-refresh/1.0", "internal"],
@@ -63,6 +79,10 @@ describe("agentText", () => {
     expect(agentText("useExternalStoreRuntime")).toBe(
       "useExternalStoreRuntime",
     );
+    expect(agentText("from 2001:db8::8a2e:370:7334 and fe80::1")).toBe(
+      "from [ip] and [ip]",
+    );
+    expect(agentText("std::vector at 10:30")).toBe("std::vector at 10:30");
     expect(agentText("x".repeat(500))).toHaveLength(200);
   });
 

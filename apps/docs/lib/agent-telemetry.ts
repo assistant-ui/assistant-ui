@@ -1,6 +1,5 @@
 import { after } from "next/server";
 import { consentRequiredFor } from "./consent-region";
-import { posthogServer } from "./posthog-server";
 
 // Agent reads never run the browser analytics, so the server counts them.
 // Every event shares one distinct id, builds no person profile and skips the
@@ -11,6 +10,8 @@ const AGENT_DISTINCT_ID = "docs-agent";
 // specific client comes before the runtime it is built on.
 const CLIENT_FAMILIES: ReadonlyArray<readonly [string, RegExp]> = [
   ["internal", /^assistant-ui/i],
+  // Before the products, whose crawlers (ClaudeBot, GPTBot) share their names.
+  ["crawler", /[a-z]bot\b|crawl|spider|slurp/i],
   ["claude-code", /claude-code|claude-cli/i],
   ["claude", /claude|anthropic/i],
   ["codex", /codex/i],
@@ -20,12 +21,11 @@ const CLIENT_FAMILIES: ReadonlyArray<readonly [string, RegExp]> = [
   ["windsurf", /windsurf|codeium/i],
   ["cline", /cline|roo-?code|kilo-?code/i],
   ["gemini", /gemini/i],
-  ["chatgpt", /chatgpt|gptbot|oai-searchbot|openai/i],
+  ["chatgpt", /chatgpt|openai/i],
   ["perplexity", /perplexity/i],
   ["grok", /grok/i],
   ["zed", /\bzed\b/i],
   ["devin", /devin/i],
-  ["crawler", /bot\b|crawl|spider|slurp/i],
   ["node", /^node$|node-fetch|undici|^bun\/|^deno\//i],
   ["python", /python|httpx|aiohttp/i],
   ["curl", /^curl\/|^wget\//i],
@@ -44,6 +44,8 @@ export function agentClientFamily(userAgent: string | null): string {
 
 const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 const IPV4 = /\b\d{1,3}(?:\.\d{1,3}){3}\b/g;
+const IPV6 =
+  /\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4}\b/gi;
 // API keys, tokens and other long opaque strings that mix letters and digits.
 const TOKEN = /\b(?=[\w-]*\d)(?=[\w-]*[a-z])[\w-]{24,}\b/gi;
 
@@ -59,6 +61,7 @@ export function agentText(value: string, max = 200): string {
     .slice(0, max * 2)
     .replace(EMAIL, "[email]")
     .replace(IPV4, "[ip]")
+    .replace(IPV6, "[ip]")
     .replace(TOKEN, "[token]")
     .slice(0, max);
 }
@@ -121,16 +124,18 @@ export function captureAgentEvent(
   event: string,
   properties: AgentEventProperties | (() => Promise<AgentEventProperties>),
 ) {
-  const client = posthogServer;
-  if (!client) return;
   if (headers.get("sec-gpc") === "1") return;
   if (consentRequiredFor(headers.get("x-vercel-ip-country"))) return;
 
+  // The PostHog client loads after the response, so the proxy, which runs in
+  // front of every agent read, does not load it on a cold start.
   const send = async () => {
     try {
+      const { posthogServer } = await import("./posthog-server");
+      if (!posthogServer) return;
       const resolved =
         typeof properties === "function" ? await properties() : properties;
-      await client.captureImmediate({
+      await posthogServer.captureImmediate({
         distinctId: AGENT_DISTINCT_ID,
         event,
         properties: {
