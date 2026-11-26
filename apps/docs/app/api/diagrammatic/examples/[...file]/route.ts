@@ -18,9 +18,5 @@ export async function GET(
   if (!isExampleName(name) || !listExampleNames().includes(name)) {
     return Response.json({ error: "Unknown example" }, { status: 404 });
   }
-  return Response.json(await readHighlightedExample(name), {
-    headers: {
-      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
-    },
-  });
+  return Response.json(await readHighlightedExample(name));
 }
