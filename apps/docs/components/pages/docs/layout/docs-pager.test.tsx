@@ -92,7 +92,7 @@ describe("DocsPager", () => {
   it.each<[Platform, string]>([
     ["react", "/docs/runtimes"],
     ["rn", "/docs/react-native/elements"],
-    ["ink", "/docs/runtimes"],
+    ["ink", "/docs/ink/migration"],
   ])(
     "on a shared page, follows the %s reader's own book",
     (platform, nextUrl) => {
@@ -106,6 +106,10 @@ describe("DocsPager", () => {
               rn: {
                 previous: { name: "Runtime", url: "/docs/concepts/runtime" },
                 next: { name: "Elements", url: "/docs/react-native/elements" },
+              },
+              ink: {
+                previous: { name: "Runtime", url: "/docs/concepts/runtime" },
+                next: { name: "Migration", url: "/docs/ink/migration" },
               },
             }}
           />

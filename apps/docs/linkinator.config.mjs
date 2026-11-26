@@ -1,4 +1,4 @@
-const port = Number(process.env.LINKINATOR_PORT ?? 3331);
+const port = Number(process.env.LINKINATOR_PORT || 3331);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error(
     `LINKINATOR_PORT is not a port: ${process.env.LINKINATOR_PORT}`,

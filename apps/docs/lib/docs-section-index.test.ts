@@ -1,8 +1,18 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   GENERATED_SECTION_INDEXES,
+  SECTION_INDEX_END,
+  SECTION_INDEX_START,
   sectionIndexFile,
   sectionIndexGroups,
   syncSectionIndex,
@@ -85,4 +95,33 @@ describe("generated section indexes", () => {
       );
     },
   );
+});
+
+describe("section index generator", () => {
+  const docsWith = (meta: object, description: string) => {
+    const dir = mkdtempSync(path.join(tmpdir(), "section-index-"));
+    mkdirSync(path.join(dir, "demo"));
+    writeFileSync(path.join(dir, "demo", "meta.json"), JSON.stringify(meta));
+    writeFileSync(
+      path.join(dir, "demo", "page.mdx"),
+      `---\ntitle: Page\ndescription: "${description}"\n---\n`,
+    );
+    return dir;
+  };
+
+  it("escapes MDX syntax in a description, but not inside code spans", () => {
+    const dir = docsWith({ pages: ["page"] }, "Wraps `<Cards>` in {braces}");
+    const synced = syncSectionIndex(
+      `${SECTION_INDEX_START}\n${SECTION_INDEX_END}`,
+      sectionIndexGroups("demo", dir),
+    );
+    expect(synced).toContain(
+      '<Card title="Page" href="/docs/demo/page">Wraps `<Cards>` in \\{braces\\}</Card>',
+    );
+  });
+
+  it('refuses a "..." entry, whose pages it could not order', () => {
+    const dir = docsWith({ pages: ["page", "..."] }, "A page");
+    expect(() => sectionIndexGroups("demo", dir)).toThrow(/uses "\.\.\."/);
+  });
 });

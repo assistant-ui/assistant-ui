@@ -94,7 +94,7 @@ export function MyRuntimeProvider({
 }
 ```
 
-On a phone or an Android emulator, `localhost` is the device itself. Set `EXPO_PUBLIC_A2A_URL` in `.env` to an address the device can reach: your computer's LAN address, such as `http://192.168.1.20:9999`, or `http://10.0.2.2:9999` from the Android emulator. The iOS simulator can use `localhost`.
+On a phone or an Android emulator, `localhost` is the device itself. Set `EXPO_PUBLIC_A2A_URL` in `.env` to an address the device can reach: your computer's LAN address, such as `http://192.168.1.20:9999`, or `http://10.0.2.2:9999` from the Android emulator. The iOS simulator can use `localhost`. For a LAN address, the agent server has to listen on that interface (for example on `0.0.0.0`), not only on `localhost`.
 
 </Tab>
 <Tab value="React Ink">

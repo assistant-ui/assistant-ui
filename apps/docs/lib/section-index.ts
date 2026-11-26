@@ -17,9 +17,9 @@ export const GENERATED_SECTION_INDEXES = [
   "cloud",
 ] as const;
 
-const SECTION_INDEX_START =
+export const SECTION_INDEX_START =
   "{/* section-index:start. Generated from meta.json and each page's title and description by `pnpm generate:section-indexes`; edit those, not this list. */}";
-const SECTION_INDEX_END = "{/* section-index:end */}";
+export const SECTION_INDEX_END = "{/* section-index:end */}";
 
 type Meta = { title?: string; pages?: string[] };
 
@@ -43,6 +43,13 @@ const readMeta = (dir: string): Meta => {
 
 const isDirectory = (file: string) =>
   existsSync(file) && statSync(file).isDirectory();
+
+// "..." stands for every page the list leaves out, which the index cannot
+// order the way the sidebar does.
+const restEntryError = (dir: string) =>
+  new Error(
+    `${path.join(dir, "meta.json")} uses "...": name its pages so the section index lists them.`,
+  );
 
 // The url segment a folder adds: group folders such as "(auth)" add none.
 const segment = (name: string) => (/^\(.*\)$/.test(name) ? [] : [name]);
@@ -92,9 +99,8 @@ const childPages = (
   segments: readonly string[],
 ): SectionIndexPage[] =>
   entriesOf(dir).flatMap((entry) => {
-    if (entry.startsWith("---") || entry.startsWith("[") || entry === "...") {
-      return [];
-    }
+    if (entry === "...") throw restEntryError(dir);
+    if (entry.startsWith("---") || entry.startsWith("[")) return [];
     const name = entry.startsWith("...") ? entry.slice(3) : entry;
     const child = path.join(dir, name);
     if (isDirectory(child)) {
@@ -118,7 +124,8 @@ export function sectionIndexGroups(
   const current = () => groups[groups.length - 1]!;
 
   for (const entry of entriesOf(dir)) {
-    if (entry === "..." || entry.startsWith("[")) continue;
+    if (entry === "...") throw restEntryError(dir);
+    if (entry.startsWith("[")) continue;
     const separator = /^---(?:\[[^\]]*\])?(.*)---$/.exec(entry);
     if (separator) {
       groups.push({ title: separator[1]!.trim() || null, pages: [] });
@@ -149,12 +156,19 @@ export function sectionIndexGroups(
 const attribute = (value: string) =>
   /["&{}<>]/.test(value) ? `{${JSON.stringify(value)}}` : `"${value}"`;
 
-// Descriptions render as inline markdown, so backticks still mark code.
-const inline = (text: string) => text.replace(/[{}<>]/g, (c) => `\\${c}`);
+// Descriptions render as inline markdown, so backticks still mark code. MDX
+// reads braces and angle brackets as code only outside code spans.
+const escapeMdx = (text: string) =>
+  text
+    .split(/(`[^`]*`)/)
+    .map((part, index) =>
+      index % 2 ? part : part.replace(/[{}<>]/g, (c) => `\\${c}`),
+    )
+    .join("");
 
 const card = ({ title, description, href: url }: SectionIndexPage) =>
   description
-    ? `  <Card title=${attribute(title)} href="${url}">${inline(description)}</Card>`
+    ? `  <Card title=${attribute(title)} href="${url}">${escapeMdx(description)}</Card>`
     : `  <Card title=${attribute(title)} href="${url}" />`;
 
 /** The generated list, markers included, for one section's index page. */
