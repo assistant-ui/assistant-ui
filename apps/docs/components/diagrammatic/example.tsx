@@ -1,26 +1,9 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { cacheLife } from "next/cache";
 import type { ReactNode } from "react";
-import { highlightElementSource } from "@/lib/element-source";
-import { ExampleFrame } from "./example-frame";
+import { readExample } from "./example-source";
+import { ExampleFrame } from "./example-frame.lazy";
 
-async function readExample(file: string): Promise<string> {
-  "use cache";
-  cacheLife("max");
-  const source = await fs.readFile(
-    path.join(
-      process.cwd(),
-      "components",
-      "diagrammatic",
-      "examples",
-      `${file}.tsx`,
-    ),
-    "utf8",
-  );
-  return source.trimEnd();
-}
-
+// The preview renders with the page; the source behind the Code tab loads
+// when the reader opens it (see app/api/diagrammatic/examples).
 export async function Example({
   file,
   children,
@@ -28,16 +11,9 @@ export async function Example({
   file: string;
   children: ReactNode;
 }) {
-  const code = await readExample(file);
-  const codeHtml = await highlightElementSource(code);
-  return (
-    <ExampleFrame
-      preview={children}
-      code={code}
-      codeHtml={codeHtml}
-      file={file}
-    />
-  );
+  // Reading the source here fails the build on a misspelled file.
+  await readExample(file);
+  return <ExampleFrame preview={children} file={file} />;
 }
 
 // MDX imports Example directly, so the LLM renderer takes this static instead of the client preview frame.

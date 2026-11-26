@@ -3,6 +3,8 @@ title: Runtime
 description: "The runtime holds the conversation, runs each turn against your backend, and is the only part of the chat that talks to it."
 ---
 
+import { RuntimePlayground } from "@/components/pages/docs/samples/runtime-playground.lazy";
+
 A runtime is the conversation's state and the engine that moves it forward. It keeps the messages, the text in the composer, the reply in progress and every earlier version of an edited message. When the user sends, the runtime calls your backend and turns the answer into a message as it streams in.
 
 Components never call your backend. They read state from the runtime and send it actions such as send, edit, regenerate and cancel. That split is why you can restyle the whole chat without touching how it talks to the model, or swap the backend without touching a component.
@@ -74,6 +76,10 @@ Most apps use a runtime made for their backend instead, such as `useChatRuntime`
 2. The runtime starts a run. It adds an empty assistant message with the status `running` and sends your backend the messages so far, along with the system instructions and tools your app has registered.
 3. Your backend streams its answer. The runtime turns each piece into a part of the assistant message: text, reasoning, a tool call. Components re-render as the parts grow.
 4. The run ends. The status becomes `complete`, `incomplete` with a reason such as `cancelled` or `error`, or `requires-action` when a tool call is waiting for a result or for the user.
+
+Try it below. The chat is a real `Thread` on `useLocalRuntime`, and you are its model adapter: when you send, the runtime calls `run()` and waits for you. Stream parts into the reply, then return or throw. The log shows each call with its arguments, everything you yield and the status the runtime gives the message. Press Stop in the composer to see the abort signal fire, or regenerate a reply to see the runtime call `run()` again with the messages before it.
+
+<RuntimePlayground />
 
 With `ExternalStoreRuntime`, and the framework runtimes built on it, your store or the framework does the adding and streaming, and the runtime renders the messages the store holds. The turn looks the same on screen.
 

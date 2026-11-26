@@ -108,6 +108,15 @@ describe("render-time code highlighting", () => {
     expect(second).toBe(first.replaceAll("setup", "from-cache"));
   });
 
+  it("paints tokens with the palette classes, not inline colors", async () => {
+    const html = await renderMdx(
+      [rehypeDocsCode],
+      withDocsCodeBlock(baseComponents()),
+    );
+    expect(html).toMatch(/<span class="sl-[0-9a-f]{6} sd-[0-9a-f]{6}"/);
+    expect(html).not.toMatch(/<span[^>]*style="--shiki-(light|dark):#/);
+  });
+
   it("renders the same HTML as highlighting at compile time", async () => {
     const compileTime = await renderMdx(
       [[rehypeCode, docsCodeOptions]],

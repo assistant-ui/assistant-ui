@@ -75,18 +75,20 @@ const EXCERPT_PARAGRAPHS = 3;
  * The weights follow the browser ranking (title, then headings, then
  * description) so that a query behaves the same on both surfaces; body text
  * scores below all three, since a page about a term outranks a page that
- * mentions it once.
+ * mentions it once. With `anyToken: false`, a page must match every token, as
+ * in the browser search, instead of falling back to pages that match some.
  */
 export function searchContent(
   records: readonly ContentRecord[],
   query: string,
   limit: number,
+  { anyToken = true }: { anyToken?: boolean } = {},
 ): ContentMatch[] {
   const all = tokenize(query).filter((token) => !STOP_WORDS.has(token));
   if (all.length === 0 || limit <= 0) return [];
 
   const ranked = rank(records, all, limit);
-  if (ranked.length > 0 || all.length === 1) return ranked;
+  if (ranked.length > 0 || all.length === 1 || !anyToken) return ranked;
 
   // Every token has to appear on one page, so a specific question can rank
   // nothing at all. Falling back to the pages each token finds on its own,
