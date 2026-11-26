@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
+import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { ExternalThreadMessage } from "./external-thread";
 import { ExternalThread } from "./external-thread";
 
@@ -251,4 +252,112 @@ describe("ExternalThread earlier messages", () => {
       root.unmount();
     }
   });
+});
+
+describe("ExternalThread prepending history", () => {
+  const userMessage = (id: string, text: string) =>
+    ({
+      id,
+      role: "user",
+      content: [{ type: "text", text }],
+      attachments: [],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+    }) as ExternalThreadMessage;
+
+  const assistantMessage = (id: string, text: string) =>
+    ({
+      id,
+      role: "assistant",
+      content: [{ type: "text", text }],
+      createdAt: new Date(0),
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    }) as ExternalThreadMessage;
+
+  it("keeps a dispatched send in transit when earlier history is prepended", async () => {
+    const upload = Promise.withResolvers<void>();
+    const onNew = vi.fn();
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }: { file: File }) => ({
+        id: file.name,
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => {
+        await upload.promise;
+        return {
+          ...attachment,
+          status: { type: "complete" as const },
+          content: [],
+        };
+      },
+    };
+
+    const initial = [
+      userMessage("u2", "hi"),
+      assistantMessage("a2", "resp"),
+    ] as const;
+
+    const root = createTapRoot(function ExternalThreadRoot() {
+      const [messages, setMessages] =
+        useState<readonly ExternalThreadMessage[]>(initial);
+      const onLoadEarlier = async () => {
+        setMessages((prev) => [
+          userMessage("u1", "older"),
+          assistantMessage("a1", "old-resp"),
+          ...prev,
+        ]);
+      };
+      return useResource(
+        ExternalThread({
+          messages,
+          hasEarlier: true,
+          onLoadEarlier,
+          attachmentAdapter,
+          onNew,
+        }),
+      );
+    });
+
+    try {
+      const composer = () => root.getValue().composer();
+      const rows = () =>
+        root
+          .getValue()
+          .getState()
+          .messages.map((m) => m.submission?.text ?? m.id);
+
+      await composer().addAttachment(
+        new File(["content"], "a.txt", { type: "text/plain" }),
+      );
+      composer().setText("hello");
+      composer().send();
+      await vi.waitFor(() => expect(rows()).toEqual(["u2", "a2", "hello"]));
+
+      upload.resolve();
+      await vi.waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(rows()).toEqual(["u2", "a2", "hello"]));
+
+      const earlier = root.getValue().loadEarlier();
+      await earlier;
+      flushTapSync(() => {});
+      await vi.waitFor(() => expect(rows()).toContain("u1"));
+
+      expect(rows()).toEqual(["u1", "a1", "u2", "a2", "hello"]);
+    } finally {
+      root.unmount();
+    }
+  }, 20_000);
 });
