@@ -3,7 +3,7 @@ title: Messages and parts
 description: "A message is a role and a list of parts. Each part is one thing the user or the model produced: text, reasoning, a tool call, a file."
 ---
 
-import { PartsPlayground } from "@/components/pages/docs/samples/parts-playground";
+import { PartsPlayground } from "@/components/pages/docs/samples/parts-playground.lazy";
 
 A thread is a list of messages, and every message has a role: `user`, `assistant` or `system`. Its content is a list of parts, in the order they arrived. A reply that thinks, calls a tool and then answers is one assistant message with three parts.
 
