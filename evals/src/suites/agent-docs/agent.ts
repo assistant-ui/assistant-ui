@@ -15,17 +15,6 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const LIBRARY_PRIVATE = [
-  "Keychains",
-  "Application Support",
-  "Containers",
-  "Group Containers",
-  "Cookies",
-  "Mail",
-  "Messages",
-  "Safari",
-  "Accounts",
-];
 
 /** Where the agent finds the docs, by arm: the same task prompt otherwise. */
 export type DocsMode = "local" | "web" | "bundled";
@@ -139,6 +128,12 @@ export async function runAgent(opts: {
   writeFileSync(join(runDir, "npmrc"), "fund=false\naudit=false\n");
 
   const home = homedir();
+  // create-next-app, shadcn and the assistant-ui CLI keep a preferences file here.
+  const cliPrefs = ["create-next-app", "shadcn", "assistant-ui"].map((cli) =>
+    process.platform === "darwin"
+      ? `~/Library/Preferences/${cli}-nodejs`
+      : `~/.config/${cli}-nodejs`,
+  );
   // Short, so the sandbox keeps it as the shell's $TMPDIR.
   const tmp = mkdtempSync("/tmp/aui-ad-");
   // More folders the agent must neither read nor write, such as other work on this machine (comma-separated).
@@ -164,31 +159,12 @@ export async function runAgent(opts: {
       autoAllowBashIfSandboxed: true,
       allowUnsandboxedCommands: false,
       filesystem: {
-        // The agent must learn from the docs, not from a checkout of assistant-ui, and must not see secrets.
-        denyRead: [
-          repoRoot,
-          "~/code",
-          "~/.nomos",
-          "~/.ssh",
-          "~/.aws",
-          "~/.config",
-          "~/.claude",
-          "~/.npmrc",
-          "~/.netrc",
-          "~/Documents",
-          "~/Desktop",
-          "~/Downloads",
-          ...LIBRARY_PRIVATE.map((dir) => `~/Library/${dir}`),
-          ...privateDirs,
-        ],
+        // The agent must learn from the docs, not from a checkout of assistant-ui, and must not see secrets:
+        // nothing in the home directory is readable except the CLI preference files it needs.
+        denyRead: ["~/", repoRoot, ...privateDirs],
+        allowRead: [runDir, ...(docsDir ? [docsDir] : []), ...cliPrefs],
         denyWrite: privateDirs,
-        allowWrite: [
-          runDir,
-          // create-next-app, shadcn and the assistant-ui CLI keep a preferences file here.
-          ...["create-next-app", "shadcn", "assistant-ui"].map(
-            (cli) => `~/Library/Preferences/${cli}-nodejs`,
-          ),
-        ],
+        allowWrite: [runDir, ...cliPrefs],
       },
       network: {
         allowedDomains: [
@@ -220,7 +196,7 @@ export async function runAgent(opts: {
     HOME: home,
     USER: process.env.USER ?? "",
     LOGNAME: process.env.USER ?? "",
-    SHELL: "/bin/zsh",
+    SHELL: process.platform === "darwin" ? "/bin/zsh" : "/bin/bash",
     TERM: "dumb",
     LANG: "en_US.UTF-8",
     PATH: `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`,

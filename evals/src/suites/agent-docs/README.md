@@ -25,7 +25,7 @@ They follow what people ask the docs assistant and search the docs for most, wri
 
 ## Running
 
-It needs the `claude` CLI signed in, Chrome (or `CHROME_PATH`), and macOS or Linux, where Claude Code's sandbox runs (Linux needs `bubblewrap` and `socat`). A trial takes 4 to 10 minutes with Sonnet; each one installs packages and builds a Next.js app, so run at most two at a time on a laptop.
+It needs the `claude` CLI signed in, Chrome (or `CHROME_PATH`), and macOS, where it has been run; Linux, where Claude Code's sandbox needs `bubblewrap` and `socat`, has the matching paths set but hasn't been run yet. A trial takes 4 to 10 minutes with Sonnet; each one installs packages and builds a Next.js app, so run at most two at a time on a laptop.
 
 ```bash
 cd evals
@@ -58,7 +58,7 @@ To run a check again on an app an agent already built (after fixing a check, say
 
 ## What the agent can and can't do
 
-The agent runs as `claude -p` with Bash, Read, Write, Edit, Glob and Grep, in the trial's empty folder, with the docs folder added. Its shell runs in Claude Code's sandbox: it can't read this repository, `~/code` or the home directory's private folders, it writes only inside the trial folder, and its network reaches only package installs (npm, the assistant-ui and shadcn registries, GitHub downloads) and localhost. It gets a bare environment and a `PATH` with only `node`, `npm`, `npx` and `pnpm`. Every process it starts is killed when it finishes. The app it built is then built and served with the same `PATH` and no secrets.
+The agent runs as `claude -p` with Bash, Read, Write, Edit, Glob and Grep, in the trial's empty folder, with the docs folder added. Its shell runs in Claude Code's sandbox, which is the boundary, so permissions are bypassed and nothing waits on a prompt: it can read nothing in the home directory except the preference files `create-next-app` and `shadcn` keep, nor this repository; it writes only inside the trial folder; and its network reaches only package installs (npm, the assistant-ui and shadcn registries, GitHub downloads) and localhost. It gets a bare environment and a `PATH` with only `node`, `npm`, `npx` and `pnpm`. Every process it starts is killed 30 seconds after it answers. The app it built is then built and served with the same `PATH` and no secrets.
 
 ## Output
 
