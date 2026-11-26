@@ -36,6 +36,41 @@ describe("GET", () => {
   });
 });
 
+describe("GET for a path with no page", () => {
+  const request = new Request("https://example.com/docs/runtimes/ag-ui.md");
+
+  it("redirects a folder's markdown to its overview, as the page does", async () => {
+    const { source } = await import("@/lib/source");
+    const getPage = vi
+      .spyOn(source, "getPage")
+      .mockImplementation(((slug?: string[]) =>
+        slug?.join("/") === "runtimes/ag-ui/overview"
+          ? { url: "/docs/runtimes/ag-ui/overview" }
+          : undefined) as never);
+
+    await expect(
+      GET(request, { params: Promise.resolve({ slug: ["runtimes", "ag-ui"] }) }),
+    ).rejects.toMatchObject({
+      digest: expect.stringMatching(
+        /^NEXT_REDIRECT;replace;\/docs\/runtimes\/ag-ui\/overview\.md;307;/,
+      ),
+    });
+    getPage.mockRestore();
+  });
+
+  it("redirects a moved page's markdown for a reader that asked by Accept header", async () => {
+    await expect(
+      GET(request, {
+        params: Promise.resolve({ slug: ["guides", "tool-ui"] }),
+      }),
+    ).rejects.toMatchObject({
+      digest: expect.stringMatching(
+        /^NEXT_REDIRECT;replace;\/docs\/tools\/tool-ui\.md;308;/,
+      ),
+    });
+  });
+});
+
 describe("generateStaticParams", () => {
   it("prerenders one page so the rest are cached after their first request", () => {
     expect(generateStaticParams()).toEqual([{ slug: [] }]);

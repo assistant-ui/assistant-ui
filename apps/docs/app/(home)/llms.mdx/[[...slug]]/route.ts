@@ -1,6 +1,9 @@
 import { cacheLife } from "next/cache";
+import { permanentRedirect, redirect } from "next/navigation";
+import { docsMarkdownRedirect } from "@/lib/docs-fallback";
 import { getDocsMarkdown } from "@/lib/docs-markdown";
 import { createMarkdownResponse } from "@/lib/markdown-response";
+import { source } from "@/lib/source";
 
 async function getMarkdown(slug: string[] | undefined) {
   "use cache";
@@ -13,6 +16,11 @@ export async function GET(
   { params }: { params: Promise<{ slug?: string[] }> },
 ) {
   const { slug } = await params;
+  if (slug && !source.getPage(slug)) {
+    const moved = docsMarkdownRedirect(source, slug);
+    if (moved?.permanent) permanentRedirect(moved.url);
+    if (moved) redirect(moved.url);
+  }
   return createMarkdownResponse(await getMarkdown(slug));
 }
 

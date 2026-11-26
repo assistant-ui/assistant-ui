@@ -35,6 +35,13 @@ import {
   getTemplateDetails,
   listTemplates,
 } from "@/lib/xulux/template-service";
+import {
+  agentClientFamily,
+  agentText,
+  captureAgentEvent,
+  type AgentEventProperties,
+} from "@/lib/agent-telemetry";
+import { docsOverviewPage } from "@/lib/docs-fallback";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 // One sandbox call bounds the template tools at 30s and the rest is in-process
@@ -329,6 +336,8 @@ async function searchDocs(query: string) {
   }));
 }
 
+class PageNotFoundError extends Error {}
+
 async function readPage(path: string | undefined, requestUrl: string) {
   if (!path) throw new Error("path is required");
 
@@ -342,9 +351,10 @@ async function readPage(path: string | undefined, requestUrl: string) {
           ? design.getPage(normalized.slugs)
           : normalized.kind === "elements"
             ? elementsDocs.getPage(normalized.slugs)
-            : source.getPage(normalized.slugs);
+            : (source.getPage(normalized.slugs) ??
+              docsOverviewPage(source, normalized.slugs));
 
-  if (!page) throw new Error(`Page not found: ${path}`);
+  if (!page) throw new PageNotFoundError(`Page not found: ${path}`);
 
   return {
     title: page.data.title,
@@ -361,10 +371,64 @@ function stringifyToolResult(result: unknown) {
   return typeof result === "string" ? result : JSON.stringify(result, null, 2);
 }
 
-async function toolResult(fn: () => unknown | Promise<unknown>) {
+// A tool call refused for its rate-limit budget, counted apart from failures.
+class ToolThrottledError extends Error {}
+
+// What a tool call is about, for the agent-read event: the search query (its
+// empty results are the docs' search gaps), the page path asked for, or the
+// prefix listed. Agent-typed text goes through agentText.
+type ToolCallSubject = {
+  query?: string | undefined;
+  path?: string | undefined;
+};
+
+function toolResultCount(tool: string, result: unknown): number | undefined {
+  if (Array.isArray(result)) return result.length;
+  if (tool === listTemplatesTool.name) {
+    return (result as { templates?: unknown[] }).templates?.length;
+  }
+  if (tool === readPageTool.name) return 1;
+  return undefined;
+}
+
+function toolCallStatus(error: unknown) {
+  if (error instanceof ToolThrottledError) return "throttled";
+  if (error instanceof PageNotFoundError) return "not_found";
+  return "error";
+}
+
+async function toolResult(
+  request: NextRequest,
+  tool: string,
+  subject: ToolCallSubject,
+  fn: () => unknown | Promise<unknown>,
+) {
+  const started = performance.now();
+  const capture = (properties: AgentEventProperties) =>
+    captureAgentEvent(request.headers, "mcp_tool_called", {
+      tool,
+      client: agentClientFamily(request.headers.get("user-agent")),
+      latency_ms: Math.round(performance.now() - started),
+      ...(subject.query !== undefined
+        ? { query: agentText(subject.query) }
+        : {}),
+      ...(subject.path !== undefined ? { path: agentText(subject.path) } : {}),
+      ...properties,
+    });
+
   try {
-    return toolTextResult(stringifyToolResult(await fn()));
+    const result = await fn();
+    const count = toolResultCount(tool, result);
+    capture({
+      status: count === 0 ? "empty" : "ok",
+      result_count: count,
+      ...(tool === readPageTool.name
+        ? { page: (result as { url: string }).url }
+        : {}),
+    });
+    return toolTextResult(stringifyToolResult(result));
   } catch (error) {
+    capture({ status: toolCallStatus(error), result_count: 0 });
     return {
       content: [
         {
@@ -532,9 +596,11 @@ async function requireTemplateToolBudget(request: NextRequest) {
 
   const suffix = " The assistant-ui docs tools remain available.";
   if (denial.status !== 429) {
-    throw new Error(`Template tools are temporarily unavailable.${suffix}`);
+    throw new ToolThrottledError(
+      `Template tools are temporarily unavailable.${suffix}`,
+    );
   }
-  throw new Error(await throttleMessage(denial, suffix));
+  throw new ToolThrottledError(await throttleMessage(denial, suffix));
 }
 
 async function requireDocsToolBudget(request: NextRequest) {
@@ -543,7 +609,7 @@ async function requireDocsToolBudget(request: NextRequest) {
   // rate-limit store outage serves them unmetered rather than taking the
   // surface down with it. Only an exhausted budget refuses.
   if (denial?.status !== 429) return;
-  throw new Error(await throttleMessage(denial, ""));
+  throw new ToolThrottledError(await throttleMessage(denial, ""));
 }
 
 function buildMcpServer(request: NextRequest) {
@@ -561,7 +627,7 @@ function buildMcpServer(request: NextRequest) {
       inputSchema: listPagesInputSchema,
     },
     ({ path }) =>
-      toolResult(async () => {
+      toolResult(request, listPagesTool.name, { path }, async () => {
         await requireDocsToolBudget(request);
         return listPages(path);
       }),
@@ -574,7 +640,7 @@ function buildMcpServer(request: NextRequest) {
       inputSchema: getNavigationInputSchema,
     },
     () =>
-      toolResult(async () => {
+      toolResult(request, getNavigationTool.name, {}, async () => {
         await requireDocsToolBudget(request);
         return getNavigation();
       }),
@@ -587,7 +653,7 @@ function buildMcpServer(request: NextRequest) {
       inputSchema: searchDocsInputSchema,
     },
     ({ query }) =>
-      toolResult(async () => {
+      toolResult(request, searchDocsTool.name, { query }, async () => {
         await requireDocsToolBudget(request);
         return searchDocs(query);
       }),
@@ -600,7 +666,7 @@ function buildMcpServer(request: NextRequest) {
       inputSchema: readPageInputSchema,
     },
     ({ path }) =>
-      toolResult(async () => {
+      toolResult(request, readPageTool.name, { path }, async () => {
         await requireDocsToolBudget(request);
         return readPage(path, requestUrl);
       }),
@@ -613,7 +679,7 @@ function buildMcpServer(request: NextRequest) {
       inputSchema: listTemplatesInputSchema,
     },
     () =>
-      toolResult(async () => {
+      toolResult(request, listTemplatesTool.name, {}, async () => {
         await requireDocsToolBudget(request);
         return listTemplates(buildXuluxMcpCatalog(requestOrigin));
       }),
@@ -626,7 +692,7 @@ function buildMcpServer(request: NextRequest) {
       inputSchema: readTemplateInputSchema,
     },
     (input) =>
-      toolResult(async () => {
+      toolResult(request, readTemplateTool.name, {}, async () => {
         await requireTemplateToolBudget(request);
         return getTemplateDetails(buildXuluxMcpCatalog(requestOrigin), input);
       }),
@@ -639,7 +705,7 @@ function buildMcpServer(request: NextRequest) {
       inputSchema: previewTemplateInputSchema,
     },
     (input) =>
-      toolResult(async () => {
+      toolResult(request, previewTemplateTool.name, {}, async () => {
         await requireTemplateToolBudget(request);
         return createTemplatePreview(
           buildXuluxMcpCatalog(requestOrigin),
@@ -715,6 +781,61 @@ export async function GET(request: NextRequest) {
   return jsonResponse(await getManifest());
 }
 
+// The SDK's error messages for a refused request, as fixed reasons: the
+// message itself can quote what the client sent.
+const MCP_REJECTION_REASONS: ReadonlyArray<readonly [string, RegExp]> = [
+  ["unsupported-protocol-version", /unsupported protocol version/i],
+  ["parse-error", /parse error/i],
+  ["already-initialized", /already initialized|only one initialization/i],
+  ["batch-too-large", /batch must not exceed/i],
+  ["not-acceptable", /not acceptable/i],
+  ["unsupported-media-type", /unsupported media type/i],
+  ["session", /session/i],
+];
+
+function mcpRejectionReason(body: unknown) {
+  const message = (body as { error?: { message?: unknown } } | null)?.error
+    ?.message;
+  if (typeof message !== "string") return "unknown";
+  for (const [reason, pattern] of MCP_REJECTION_REASONS) {
+    if (pattern.test(message)) return reason;
+  }
+  return "other";
+}
+
+// One event when a client opens a session, with the name and version it
+// reports: many clients send a bare `node` user-agent, so this is the only
+// place their name shows. One event when the transport refuses a request,
+// with the reason, because the CDN logs show only the status.
+function countMcpRequest(
+  request: NextRequest,
+  server: McpServer,
+  response: Response,
+) {
+  const client = agentClientFamily(request.headers.get("user-agent"));
+  const protocolVersion = request.headers.get("mcp-protocol-version");
+
+  if (response.status >= 400) {
+    const body = response.clone();
+    captureAgentEvent(request.headers, "mcp_request_rejected", async () => ({
+      status: response.status,
+      reason: mcpRejectionReason(await body.json().catch(() => null)),
+      protocol_version:
+        protocolVersion === null ? undefined : agentText(protocolVersion, 32),
+      client,
+    }));
+    return;
+  }
+
+  const clientInfo = server.server.getClientVersion();
+  if (!clientInfo) return;
+  captureAgentEvent(request.headers, "mcp_client_initialized", {
+    client_name: agentText(String(clientInfo.name), 64),
+    client_version: agentText(String(clientInfo.version), 32),
+    client,
+  });
+}
+
 export async function POST(request: NextRequest) {
   const server = buildMcpServer(request);
   const transport = new WebStandardStreamableHTTPServerTransport({
@@ -724,7 +845,9 @@ export async function POST(request: NextRequest) {
   await server.connect(transport);
   try {
     const normalizedRequest = await normalizeMcpRequestHeaders(request);
-    return await transport.handleRequest(normalizedRequest);
+    const response = await transport.handleRequest(normalizedRequest);
+    countMcpRequest(request, server, response);
+    return response;
   } finally {
     await transport.close().catch(() => {});
     await server.close().catch(() => {});

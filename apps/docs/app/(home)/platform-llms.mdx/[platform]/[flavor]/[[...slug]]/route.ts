@@ -1,9 +1,11 @@
 import { cacheLife } from "next/cache";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { docsMarkdownRedirect } from "@/lib/docs-fallback";
 import { isPlatform } from "@/lib/docs-platform";
 import { getDocsMarkdown } from "@/lib/docs-markdown";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { createMarkdownResponse } from "@/lib/markdown-response";
+import { source } from "@/lib/source";
 
 async function getMarkdown(
   slug: string[] | undefined,
@@ -33,6 +35,16 @@ export async function GET(
     (flavor !== "base" && flavor !== "radix")
   ) {
     notFound();
+  }
+
+  if (slug && !source.getPage(slug)) {
+    // The query that picked this platform and flavor (lib/markdown-rewrites.ts).
+    const query = new URLSearchParams();
+    if (platform !== "react") query.set("platform", platform);
+    if (flavor === "radix") query.set("view", "radix-ui");
+    const moved = docsMarkdownRedirect(source, slug, query.toString());
+    if (moved?.permanent) permanentRedirect(moved.url);
+    if (moved) redirect(moved.url);
   }
 
   return createMarkdownResponse(await getMarkdown(slug, platform, flavor));

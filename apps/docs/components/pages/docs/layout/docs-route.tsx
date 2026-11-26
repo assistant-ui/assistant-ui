@@ -7,6 +7,7 @@ import {
   DocsBody,
   DocsPageShell,
 } from "@/components/pages/docs/layout/docs-page";
+import { docsOverviewPage } from "@/lib/docs-fallback";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import type { DocsSiteLoader, source } from "@/lib/source";
@@ -47,7 +48,7 @@ function firstPageUrl(nodes: readonly PageTree.Node[]): string | undefined {
 }
 
 export function overviewFallback(loader: DocsRouteLoader) {
-  return (slug: string[]) => loader.getPage([...slug, "overview"])?.url;
+  return (slug: string[]) => docsOverviewPage(loader, slug)?.url;
 }
 
 export function firstPageFallback(tree: PageTree.Root) {

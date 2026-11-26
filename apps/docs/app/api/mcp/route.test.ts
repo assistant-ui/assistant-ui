@@ -5,6 +5,17 @@ const mocks = vi.hoisted(() => ({
   fetchTemplateContract: vi.fn(),
   checkTemplateRateLimit: vi.fn(),
   checkDocsRateLimit: vi.fn(),
+  captureImmediate: vi.fn(async () => {}),
+}));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (task: () => unknown) => void task(),
+}));
+
+vi.mock("@/lib/posthog-server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/posthog-server")>()),
+  posthogServer: { captureImmediate: mocks.captureImmediate },
 }));
 
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
@@ -731,5 +742,188 @@ describe("POST /api/mcp", () => {
     expect(text).toContain("banana");
     expect(mocks.fetchPreviewSession).not.toHaveBeenCalled();
     expect(mocks.fetchTemplateContract).not.toHaveBeenCalled();
+  });
+});
+
+describe("agent reads over MCP", () => {
+  const AGENT_HEADERS = {
+    Accept: "application/json",
+    "user-agent": "claude-code/2.1.332 (cli)",
+    "x-vercel-ip-country": "US",
+  };
+
+  async function postMcp(body: string, headers: Record<string, string> = {}) {
+    mocks.captureImmediate.mockClear();
+    const response = await POST(
+      new Request(`${ORIGIN}/api/mcp`, {
+        method: "POST",
+        headers: { ...AGENT_HEADERS, ...headers },
+        body: encoder.encode(body),
+      }) as Parameters<typeof POST>[0],
+    );
+    await response.clone().text();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return response;
+  }
+
+  const callTool = (name: string, args: Record<string, unknown>) =>
+    postMcp(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: nextId++,
+        method: "tools/call",
+        params: { name, arguments: args },
+      }),
+    );
+
+  const captured = () =>
+    mocks.captureImmediate.mock.calls.map(
+      (call) => (call as unknown as [{ event: string; properties: object }])[0],
+    );
+
+  it("counts a search with its query, result count, client and latency", async () => {
+    await callTool("search_docs", { query: "escape key composer popover" });
+
+    expect(captured()).toEqual([
+      {
+        distinctId: "docs-agent",
+        event: "mcp_tool_called",
+        properties: {
+          tool: "search_docs",
+          client: "claude-code",
+          latency_ms: expect.any(Number),
+          query: "escape key composer popover",
+          status: "ok",
+          result_count: 1,
+          $process_person_profile: false,
+          $geoip_disable: true,
+        },
+      },
+    ]);
+  });
+
+  it("marks a search that found nothing, the docs' search gaps", async () => {
+    await callTool("search_docs", { query: "zzqx nonexistent topic" });
+
+    expect(captured()[0]?.properties).toMatchObject({
+      status: "empty",
+      result_count: 0,
+      query: "zzqx nonexistent topic",
+    });
+  });
+
+  it("counts a page that does not exist with the path the agent asked for", async () => {
+    await callTool("read_page", { path: "/docs/not-a-page" });
+
+    expect(captured()[0]?.properties).toMatchObject({
+      tool: "read_page",
+      status: "not_found",
+      path: "/docs/not-a-page",
+    });
+  });
+
+  it("reads a folder as its overview page, as the html route does", async () => {
+    const { source } = await import("@/lib/source");
+    const { getLLMText } = await import("@/lib/get-llm-text");
+    vi.mocked(getLLMText).mockResolvedValueOnce("# AG-UI");
+    vi.mocked(source.getPage).mockImplementation(((slug: string[]) =>
+      slug.join("/") === "runtimes/ag-ui/overview"
+        ? {
+            url: "/docs/runtimes/ag-ui/overview",
+            data: { title: "AG-UI" },
+          }
+        : undefined) as never);
+
+    const response = await callTool("read_page", {
+      path: "/docs/runtimes/ag-ui",
+    });
+    vi.mocked(source.getPage).mockReset();
+
+    const text = ((await response.json()) as { result: ToolCallResult }).result
+      .content[0]?.text;
+    expect(JSON.parse(text ?? "{}")).toMatchObject({
+      url: "/docs/runtimes/ag-ui/overview",
+      content: "# AG-UI",
+    });
+    expect(captured()[0]?.properties).toMatchObject({
+      status: "ok",
+      page: "/docs/runtimes/ag-ui/overview",
+    });
+  });
+
+  it("counts a throttled call apart from a failure", async () => {
+    mocks.checkDocsRateLimit.mockResolvedValueOnce(
+      new Response("Docs tool rate limit exceeded", { status: 429 }),
+    );
+    await callTool("get_navigation", {});
+
+    expect(captured()[0]?.properties).toMatchObject({
+      tool: "get_navigation",
+      status: "throttled",
+    });
+  });
+
+  it("records the client name a session reports, since many send a bare node user-agent", async () => {
+    await postMcp(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: nextId++,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "Roo Code", version: "3.20.1" },
+        },
+      }),
+      { "user-agent": "node" },
+    );
+
+    expect(captured()).toEqual([
+      expect.objectContaining({
+        event: "mcp_client_initialized",
+        properties: expect.objectContaining({
+          client_name: "Roo Code",
+          client_version: "3.20.1",
+          client: "node",
+        }),
+      }),
+    ]);
+  });
+
+  it("records why the transport refused a request, without what was sent", async () => {
+    const response = await postMcp("{not json");
+
+    expect(response.status).toBe(400);
+    expect(captured()).toEqual([
+      expect.objectContaining({
+        event: "mcp_request_rejected",
+        properties: expect.objectContaining({
+          status: 400,
+          reason: "parse-error",
+          client: "claude-code",
+        }),
+      }),
+    ]);
+  });
+
+  it("sends nothing from an opt-in region", async () => {
+    mocks.captureImmediate.mockClear();
+    await POST(
+      new Request(`${ORIGIN}/api/mcp`, {
+        method: "POST",
+        headers: { ...AGENT_HEADERS, "x-vercel-ip-country": "FR" },
+        body: encoder.encode(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: nextId++,
+            method: "tools/call",
+            params: { name: "search_docs", arguments: { query: "thread" } },
+          }),
+        ),
+      }) as Parameters<typeof POST>[0],
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.captureImmediate).not.toHaveBeenCalled();
   });
 });

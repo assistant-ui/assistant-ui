@@ -83,6 +83,25 @@ describe("docs Next config composition", () => {
     });
   });
 
+  // A /docs redirect written here by hand moves the page for browsers only:
+  // its .md url 404s for agents and the MCP server can't follow it, so moves
+  // go in lib/moved-docs.ts. The list holds the hand-written ones left.
+  it("moves /docs pages through lib/moved-docs.ts so agents follow them too", async () => {
+    const redirects = await config.redirects!();
+    const sources = new Set(redirects.map((redirect) => redirect.source));
+    const pageOnly = redirects
+      .map((redirect) => redirect.source)
+      .filter((source) => source.startsWith("/docs/"))
+      .filter((source) => !/\.mdx?$/.test(source))
+      .filter((source) => !sources.has(`${source}.md`));
+
+    expect(pageOnly).toEqual([
+      "/docs/tools/interactables-legacy",
+      "/docs/standalone",
+      "/docs/standalone/:slug",
+    ]);
+  });
+
   it("caps the prerender workers and the Turbopack loader pool with DOCS_BUILD_CPUS", () => {
     expect(config.experimental?.cpus).toBe(3);
     expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("3");
