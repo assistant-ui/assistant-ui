@@ -71,7 +71,7 @@ npm init -y
 For React Native and Ink, host this route in a separate backend project and
 point the client runtime at its absolute URL.
 
-For a local model or another OpenAI-compatible server, create the provider with its address, `createOpenAI({ baseURL })` from `@ai-sdk/openai`, and use `provider.chat("<model id>")` when the server only speaks Chat Completions.
+For a local model or another OpenAI-compatible server, create the provider with its address, `createOpenAI({ baseURL, apiKey })` from `@ai-sdk/openai`, and use `provider.chat("<model id>")` when the server only speaks Chat Completions. Pass any non-empty `apiKey` to a server that needs none, since the provider otherwise reads `OPENAI_API_KEY` and fails when it's unset.
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
 
 ### Set up the frontend
 
-The React example renders the `Thread` component from the assistant-ui registry. Add `"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"` under `registries` in your `components.json`, then run `npx shadcn@latest add @assistant-ui/thread`; [Manual Installation](/docs/manual-installation#manual-setup) walks through both.
+The React example renders the `Thread` component from the assistant-ui registry. In a project without a `components.json`, run `npx shadcn@latest init` first. Then add `"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"` under `registries` in `components.json` and run `npx shadcn@latest add @assistant-ui/thread`; [Manual Installation](/docs/manual-installation#manual-setup) walks through it.
 
 <PlatformTabs>
 <Tab value="React">
