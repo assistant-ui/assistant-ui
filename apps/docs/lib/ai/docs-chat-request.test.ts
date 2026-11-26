@@ -38,6 +38,7 @@ const rejection = (body: unknown) => {
     readDocChatRequest(body);
   } catch (error) {
     expect(error).toBeInstanceOf(DocChatRequestError);
+    expect((error as DocChatRequestError).code).toMatch(/^[a-z_]+$/);
     return (error as Error).message;
   }
   throw new Error("expected the request to be refused");

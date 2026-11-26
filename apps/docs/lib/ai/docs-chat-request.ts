@@ -51,7 +51,32 @@ export type DocChatRequest = {
   modelName: unknown;
 };
 
-export class DocChatRequestError extends Error {}
+// Each refusal's message, keyed by the fixed code that telemetry counts.
+const REFUSALS = {
+  invalid_request: "Invalid request",
+  invalid_messages: "Invalid messages format",
+  invalid_message: "Invalid message",
+  unsupported_role: "Unsupported message role",
+  too_many_parts: "Too many message parts",
+  invalid_part: "Invalid message part",
+  unsupported_part: "Unsupported message part",
+  non_image_file: "Only image attachments are supported",
+  too_many_images: "Too many images",
+  too_many_turns: "Conversation too long",
+  stacked_user_messages: "Invalid message sequence",
+  ends_on_assistant: "The last message must be the reader's",
+} as const;
+
+export type DocChatRefusal = keyof typeof REFUSALS;
+
+export class DocChatRequestError extends Error {
+  readonly code: DocChatRefusal;
+
+  constructor(code: DocChatRefusal) {
+    super(REFUSALS[code]);
+    this.code = code;
+  }
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -67,31 +92,31 @@ export function pagePathFromSystem(system: unknown): string | undefined {
 
 function checkUserPart(part: unknown, counts: { images: number }) {
   if (!isRecord(part) || typeof part.type !== "string") {
-    throw new DocChatRequestError("Invalid message part");
+    throw new DocChatRequestError("invalid_part");
   }
   if (!USER_PART_TYPES.has(part.type)) {
-    throw new DocChatRequestError("Unsupported message part");
+    throw new DocChatRequestError("unsupported_part");
   }
   if (part.type === "text" && typeof part.text !== "string") {
-    throw new DocChatRequestError("Invalid message part");
+    throw new DocChatRequestError("invalid_part");
   }
   if (part.type === "file") {
     if (
       typeof part.mediaType !== "string" ||
       !IMAGE_MEDIA_TYPE.test(part.mediaType)
     ) {
-      throw new DocChatRequestError("Only image attachments are supported");
+      throw new DocChatRequestError("non_image_file");
     }
     counts.images += 1;
     if (counts.images > MAX_IMAGES) {
-      throw new DocChatRequestError("Too many images");
+      throw new DocChatRequestError("too_many_images");
     }
   }
 }
 
 function checkMessages(value: unknown): UIMessage[] {
   if (!Array.isArray(value) || value.length === 0) {
-    throw new DocChatRequestError("Invalid messages format");
+    throw new DocChatRequestError("invalid_messages");
   }
 
   const counts = { images: 0 };
@@ -106,14 +131,14 @@ function checkMessages(value: unknown): UIMessage[] {
       message.id.length > MAX_ID_CHARS ||
       !Array.isArray(message.parts)
     ) {
-      throw new DocChatRequestError("Invalid message");
+      throw new DocChatRequestError("invalid_message");
     }
     const { role, parts } = message;
     if (role !== "user" && role !== "assistant") {
-      throw new DocChatRequestError("Unsupported message role");
+      throw new DocChatRequestError("unsupported_role");
     }
     if (parts.length > MAX_PARTS_PER_MESSAGE) {
-      throw new DocChatRequestError("Too many message parts");
+      throw new DocChatRequestError("too_many_parts");
     }
 
     if (role === "user") {
@@ -121,10 +146,10 @@ function checkMessages(value: unknown): UIMessage[] {
       userTurns += 1;
       userRun += 1;
       if (userTurns > MAX_USER_TURNS) {
-        throw new DocChatRequestError("Conversation too long");
+        throw new DocChatRequestError("too_many_turns");
       }
       if (userRun > MAX_CONSECUTIVE_USER_MESSAGES) {
-        throw new DocChatRequestError("Invalid message sequence");
+        throw new DocChatRequestError("stacked_user_messages");
       }
       messages.push(message as unknown as UIMessage);
     } else {
@@ -144,7 +169,7 @@ function checkMessages(value: unknown): UIMessage[] {
   // The docs UI always ends on the reader's question: the server finishes
   // every answer itself, so the client never sends a turn back to continue.
   if (messages.at(-1)?.role !== "user") {
-    throw new DocChatRequestError("The last message must be the reader's");
+    throw new DocChatRequestError("ends_on_assistant");
   }
 
   return messages;
@@ -152,7 +177,7 @@ function checkMessages(value: unknown): UIMessage[] {
 
 /** Reads a docs assistant request body, or throws a `DocChatRequestError`. */
 export function readDocChatRequest(body: unknown): DocChatRequest {
-  if (!isRecord(body)) throw new DocChatRequestError("Invalid request");
+  if (!isRecord(body)) throw new DocChatRequestError("invalid_request");
   const config = isRecord(body.config) ? body.config : undefined;
   return {
     messages: checkMessages(body.messages),

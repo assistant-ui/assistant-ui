@@ -273,31 +273,53 @@ export type DocsTurnEvent = ReturnType<typeof summarizeDocsTurn> & {
 // creates no person profile.
 const DOCS_TURN_DISTINCT_ID = "docs-assistant";
 
-/** Sends one `docs_assistant_turn` event. Never throws. */
-export async function captureDocsAssistantTurn(
-  event: DocsTurnEvent,
-  client: Pick<
-    NonNullable<typeof posthogServer>,
-    "captureImmediate"
-  > | null = posthogServer,
+type CaptureClient = Pick<
+  NonNullable<typeof posthogServer>,
+  "captureImmediate"
+> | null;
+
+async function captureDocsAssistantEvent(
+  event: string,
+  properties: Record<string, string | number | undefined>,
+  client: CaptureClient,
 ): Promise<void> {
   if (!client) return;
   try {
     await client.captureImmediate({
       distinctId: DOCS_TURN_DISTINCT_ID,
-      event: "docs_assistant_turn",
+      event,
       disableGeoip: true,
       properties: {
         $process_person_profile: false,
         ...Object.fromEntries(
-          Object.entries(event).filter(([, value]) => value !== undefined),
+          Object.entries(properties).filter(([, value]) => value !== undefined),
         ),
       },
     });
   } catch (error) {
-    console.error(
-      "[docs_assistant_turn]",
-      error instanceof Error ? error.name : "Error",
-    );
+    console.error(`[${event}]`, error instanceof Error ? error.name : "Error");
   }
+}
+
+/** Sends one `docs_assistant_turn` event. Never throws. */
+export function captureDocsAssistantTurn(
+  event: DocsTurnEvent,
+  client: CaptureClient = posthogServer,
+): Promise<void> {
+  return captureDocsAssistantEvent("docs_assistant_turn", event, client);
+}
+
+/**
+ * Sends one `docs_assistant_refused` event for a request the endpoint turned
+ * away, with the fixed reason code only. Never throws.
+ */
+export function captureDocsAssistantRefusal(
+  reason: string,
+  client: CaptureClient = posthogServer,
+): Promise<void> {
+  return captureDocsAssistantEvent(
+    "docs_assistant_refused",
+    { reason },
+    client,
+  );
 }

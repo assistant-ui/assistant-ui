@@ -12,6 +12,7 @@ import {
   readDocChatRequest,
 } from "@/lib/ai/docs-chat-request";
 import {
+  captureDocsAssistantRefusal,
   captureDocsAssistantTurn,
   classifyDocsTopic,
   summarizeDocsTurn,
@@ -224,18 +225,15 @@ export async function POST(req: Request): Promise<Response> {
     try {
       request = readDocChatRequest(await req.json());
     } catch (error) {
-      if (
-        error instanceof DocChatRequestError ||
-        error instanceof SyntaxError
-      ) {
-        return new Response(
-          error instanceof DocChatRequestError
-            ? error.message
-            : "Invalid request",
-          { status: 400 },
-        );
-      }
-      throw error;
+      const refusal =
+        error instanceof DocChatRequestError
+          ? error
+          : error instanceof SyntaxError
+            ? new DocChatRequestError("invalid_request")
+            : null;
+      if (!refusal) throw error;
+      await captureDocsAssistantRefusal(refusal.code);
+      return new Response(refusal.message, { status: 400 });
     }
     const { messages, pagePath } = request;
 
@@ -273,7 +271,10 @@ export async function POST(req: Request): Promise<Response> {
     const prunedMessages = await prepareDocChatMessages(messages, tools);
 
     const inputError = validateDocChatInput(prunedMessages);
-    if (inputError) return inputError;
+    if (inputError) {
+      await captureDocsAssistantRefusal("too_large");
+      return inputError;
+    }
 
     const signedIn = (await getSession().catch(() => null)) !== null;
     const modelConfig = resolveChatModel(
@@ -286,7 +287,10 @@ export async function POST(req: Request): Promise<Response> {
     const logTurn = (
       ended: "finished" | "error" | "aborted",
       steps: Parameters<typeof summarizeDocsTurn>[0]["steps"],
-      usage?: { inputTokens?: number; outputTokens?: number },
+      usage?: {
+        inputTokens?: number | undefined;
+        outputTokens?: number | undefined;
+      },
     ) => {
       if (turnLogged) return;
       turnLogged = true;
