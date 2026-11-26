@@ -75,7 +75,9 @@ const readReported = (): Reported | null => {
  * without storage here, so every tab and reload is a new visitor; remembering
  * what one setup already reported keeps a milestone at one event per setup,
  * however many tabs the agent opened or how often the page reconnected. Only
- * the latest setup is remembered.
+ * the latest setup is remembered. Storage has no cross-tab lock, so two tabs
+ * on one setup that claim the same milestone in the same instant can both
+ * report it; setup opens one tab at a time, so that stays rare.
  */
 export const firstForSetup = (setup: string, key: string) => {
   if (typeof window === "undefined") return false;

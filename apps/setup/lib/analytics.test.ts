@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  analytics,
-  firstForSetup,
-  flushPendingEvents,
-  trackedAgentKind,
-} from "./analytics";
+
+/** The module keeps per-tab state (the in-memory record, whether storage writes work, the pending events), so each test loads its own copy, like a fresh tab. */
+const freshTab = async () => {
+  vi.resetModules();
+  return import("./analytics");
+};
 
 afterEach(() => {
   localStorage.clear();
@@ -15,14 +15,16 @@ afterEach(() => {
 });
 
 describe("firstForSetup", () => {
-  it("is true once per setup and key, across reloads that share the browser's storage", () => {
+  it("is true once per setup and key, across reloads that share the browser's storage", async () => {
+    const { firstForSetup } = await freshTab();
     expect(firstForSetup("setupA", "agent_connected")).toBe(true);
     expect(firstForSetup("setupA", "agent_connected")).toBe(false);
     expect(firstForSetup("setupA", "install_finished")).toBe(true);
     expect(firstForSetup("setupA", "install_finished")).toBe(false);
   });
 
-  it("starts over for another setup and keeps only the latest one", () => {
+  it("starts over for another setup and keeps only the latest one", async () => {
+    const { firstForSetup } = await freshTab();
     firstForSetup("setupA", "agent_connected");
     expect(firstForSetup("setupB", "agent_connected")).toBe(true);
     expect(JSON.parse(localStorage.getItem("aui-setup-reported")!)).toEqual({
@@ -31,7 +33,8 @@ describe("firstForSetup", () => {
     });
   });
 
-  it("still reports each milestone once in this tab when storage is blocked", () => {
+  it("still reports each milestone once in this tab when storage is blocked", async () => {
+    const { firstForSetup } = await freshTab();
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("blocked");
     });
@@ -42,7 +45,8 @@ describe("firstForSetup", () => {
     expect(firstForSetup("setupC", "closed")).toBe(false);
   });
 
-  it("still reports each milestone once in this tab when only writes fail", () => {
+  it("still reports each milestone once in this tab when only writes fail", async () => {
+    const { firstForSetup } = await freshTab();
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("full");
     });
@@ -50,7 +54,8 @@ describe("firstForSetup", () => {
     expect(firstForSetup("setupF", "closed")).toBe(false);
   });
 
-  it("replaces a stored record it cannot read", () => {
+  it("replaces a stored record it cannot read", async () => {
+    const { firstForSetup } = await freshTab();
     localStorage.setItem("aui-setup-reported", "{not json");
     expect(firstForSetup("setupD", "closed")).toBe(true);
     expect(JSON.parse(localStorage.getItem("aui-setup-reported")!)).toEqual({
@@ -62,7 +67,8 @@ describe("firstForSetup", () => {
 });
 
 describe("trackedAgentKind", () => {
-  it("keeps the kinds the page names and reports any other as other", () => {
+  it("keeps the kinds the page names and reports any other as other", async () => {
+    const { trackedAgentKind } = await freshTab();
     expect(trackedAgentKind("codex")).toBe("codex");
     expect(trackedAgentKind("an-agent-from-tomorrow")).toBe("other");
     expect(trackedAgentKind(null)).toBeUndefined();
@@ -70,7 +76,8 @@ describe("trackedAgentKind", () => {
 });
 
 describe("analytics.setup.error", () => {
-  it("reports an error without a setup every time, and one with a setup once per reason and step", () => {
+  it("reports an error without a setup every time, and one with a setup once per reason and step", async () => {
+    const { analytics } = await freshTab();
     const capture = vi.fn();
     window.posthog = { capture };
     analytics.setup.error({ reason: "session_unreadable" });
@@ -105,7 +112,8 @@ describe("analytics.setup.error", () => {
 });
 
 describe("events before PostHog loads", () => {
-  it("holds them until PostHog runs, then sends them in order", () => {
+  it("holds them until PostHog runs, then sends them in order", async () => {
+    const { analytics, flushPendingEvents } = await freshTab();
     analytics.setup.linkShown("setupG");
     analytics.setup.linkConfirmed();
     const capture = vi.fn();
