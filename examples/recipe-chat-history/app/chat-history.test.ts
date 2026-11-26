@@ -88,10 +88,34 @@ describe("chat history recipe", () => {
     expect(res.status).toBe(404);
   });
 
-  it("rejects a message that is missing its stored fields", async () => {
+  it("answers a malformed message or patch with 400", async () => {
     const { remoteId } = await threadListAdapter.initialize("local-4");
 
-    await expect(postMessage(remoteId, { id: "m4" })).rejects.toThrow();
+    expect((await postMessage(remoteId, { id: "m4" })).status).toBe(400);
+    const patch = await fetch(`/api/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "deleted" }),
+    });
+    expect(patch.status).toBe(400);
+  });
+
+  it("answers a patch for a missing thread with 404", async () => {
+    await expect(threadListAdapter.rename("missing", "x")).rejects.toThrow(
+      "404",
+    );
+  });
+
+  it("keeps message ids apart per thread", async () => {
+    const a = await threadListAdapter.initialize("local-6");
+    const b = await threadListAdapter.initialize("local-7");
+
+    await postMessage(a.remoteId, storedMessage("same", null, "in a"));
+    await postMessage(b.remoteId, storedMessage("same", null, "in b"));
+
+    const rows = await (
+      await fetch(`/api/threads/${a.remoteId}/messages`)
+    ).json();
+    expect(rows).toEqual([storedMessage("same", null, "in a")]);
   });
 
   it("titles a thread with the start of its first message", async () => {

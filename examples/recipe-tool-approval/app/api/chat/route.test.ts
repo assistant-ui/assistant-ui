@@ -1,4 +1,5 @@
 import {
+  InvalidToolApprovalSignatureError,
   parseJsonEventStream,
   readUIMessageStream,
   uiMessageChunkSchema,
@@ -131,9 +132,24 @@ async function answerApproval(
   return chat([userMessage, assistant], assistant);
 }
 
+// The stream carries only a generic error; streamText logs the real one.
+async function expectSignatureFailure(run: () => Promise<unknown>) {
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await expect(run()).rejects.toThrow();
+    expect(
+      logged.mock.calls
+        .flat()
+        .some((arg) => InvalidToolApprovalSignatureError.isInstance(arg)),
+    ).toBe(true);
+  } finally {
+    logged.mockRestore();
+  }
+}
+
 beforeEach(() => {
   models.length = 0;
-  process.env.TOOL_APPROVAL_SECRET = "test-secret";
+  process.env.TOOL_APPROVAL_SECRET = "test-secret-at-least-32-characters";
 });
 
 describe("tool approval recipe", () => {
@@ -160,9 +176,9 @@ describe("tool approval recipe", () => {
   });
 
   it("refuses an approval whose call was changed after signing", async () => {
-    await expect(
+    await expectSignatureFailure(() =>
       answerApproval(true, { orderId: "A-1002", reason: "arrived broken" }),
-    ).rejects.toThrow();
+    );
   });
 
   it("refuses an approved call the server never requested", async () => {
@@ -180,14 +196,23 @@ describe("tool approval recipe", () => {
       ],
     };
 
-    await expect(chat([userMessage, invented], invented)).rejects.toThrow();
+    await expectSignatureFailure(() => chat([userMessage, invented], invented));
   });
 
-  it("refuses cross-origin requests", async () => {
+  it("refuses to run without a long enough signing secret", async () => {
+    process.env.TOOL_APPROVAL_SECRET = "short";
+
+    await expect(chat([userMessage])).rejects.toThrow("TOOL_APPROVAL_SECRET");
+  });
+
+  it.each([
+    { "sec-fetch-site": "cross-site" },
+    { origin: "https://evil.example" },
+  ])("refuses cross-origin requests (%o)", async (headers) => {
     const response = await POST(
       new Request("http://localhost/api/chat", {
         method: "POST",
-        headers: { "sec-fetch-site": "cross-site" },
+        headers,
         body: JSON.stringify({ messages: [userMessage] }),
       }),
     );

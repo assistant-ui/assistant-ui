@@ -10,7 +10,7 @@ From the repository root:
 pnpm install
 pnpm turbo build --filter='recipe-tool-approval^...'
 cp examples/recipe-tool-approval/.env.example examples/recipe-tool-approval/.env.local
-# fill in OPENAI_API_KEY and TOOL_APPROVAL_SECRET
+# fill in OPENAI_API_KEY and TOOL_APPROVAL_SECRET (at least 32 characters)
 pnpm --filter recipe-tool-approval dev
 ```
 
@@ -18,4 +18,4 @@ Ask it to refund order `A-1001`. The refund card waits for Allow or Deny.
 
 ## Test it
 
-`pnpm --filter recipe-tool-approval test` runs the route against a scripted model, so it needs no API key.
+After the install and build steps above, `pnpm --filter recipe-tool-approval test` runs the route against a scripted model, so it needs no API key.

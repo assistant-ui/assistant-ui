@@ -29,6 +29,7 @@ const replyWith = (...deltas: string[]) =>
   new MockLanguageModelV4({
     doStream: {
       stream: simulateReadableStream({
+        chunkDelayInMs: 5,
         chunks: [
           { type: "text-start" as const, id: "t" },
           ...deltas.map((delta) => ({
@@ -80,7 +81,10 @@ describe("own backend recipe", () => {
 
     const results = await run([message("user", "Hi")]);
 
-    expect(results.at(-1)?.content).toEqual([{ type: "text", text: "Hello!" }]);
+    expect(results.map((result) => result.content)).toEqual([
+      [{ type: "text", text: "Hel" }],
+      [{ type: "text", text: "Hello!" }],
+    ]);
     expect(model.doStreamCalls[0]?.prompt).toEqual([
       { role: "user", content: [{ type: "text", text: "Hi" }] },
     ]);
@@ -103,6 +107,29 @@ describe("own backend recipe", () => {
         { role: "user", text: "Bye" },
       ],
     });
+  });
+
+  it("refuses cross-origin requests before calling the model", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/backend/chat", {
+        method: "POST",
+        headers: { "sec-fetch-site": "cross-site" },
+        body: JSON.stringify({ messages: [{ role: "user", text: "Hi" }] }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("answers a malformed request with 400", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/backend/chat", {
+        method: "POST",
+        body: JSON.stringify({ messages: [{ role: "robot" }] }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
   });
 
   it("surfaces a failed backend call as an error", async () => {

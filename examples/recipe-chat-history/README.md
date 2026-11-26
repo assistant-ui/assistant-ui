@@ -16,4 +16,4 @@ Send a message, reload the page, and the thread is still in the sidebar. The dat
 
 ## Test it
 
-`pnpm --filter recipe-chat-history test` runs the adapter against the routes and an in-memory database, so it needs no API key.
+After the install and build steps above, `pnpm --filter recipe-chat-history test` runs the adapter against the routes and an in-memory database, so it needs no API key.

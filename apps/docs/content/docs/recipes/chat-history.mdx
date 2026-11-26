@@ -55,11 +55,12 @@ function getDb() {
       updated_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS messages (
-      id TEXT PRIMARY KEY,
       thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
       parent_id TEXT,
       format TEXT NOT NULL,
-      content TEXT NOT NULL
+      content TEXT NOT NULL,
+      PRIMARY KEY (thread_id, id)
     );
   `);
   return db;
@@ -117,7 +118,7 @@ export const messages = {
     getDb()
       .prepare(
         `INSERT INTO messages (id, thread_id, parent_id, format, content) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (id) DO UPDATE SET format = excluded.format, content = excluded.content`,
+         ON CONFLICT (thread_id, id) DO UPDATE SET format = excluded.format, content = excluded.content`,
       )
       .run(
         message.id,
@@ -167,7 +168,11 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
-  threads.update((await params).id, ThreadPatch.parse(await req.json()));
+  const { id } = await params;
+  if (!threads.get(id)) return new Response(null, { status: 404 });
+  const patch = ThreadPatch.safeParse(await req.json().catch(() => null));
+  if (!patch.success) return new Response(null, { status: 400 });
+  threads.update(id, patch.data);
   return new Response(null, { status: 204 });
 }
 
@@ -199,9 +204,31 @@ export async function GET(_req: Request, { params }: Params) {
 export async function POST(req: Request, { params }: Params) {
   const { id } = await params;
   if (!threads.get(id)) return new Response(null, { status: 404 });
-  messages.save(id, StoredMessage.parse(await req.json()));
+  const message = StoredMessage.safeParse(await req.json().catch(() => null));
+  if (!message.success) return new Response(null, { status: 400 });
+  messages.save(id, message.data);
   return new Response(null, { status: 204 });
 }
+```
+
+`proxy.ts` refuses cross-origin calls to the thread routes, as the chat route does for itself:
+
+```ts title="proxy.ts"
+import { NextResponse, type NextRequest } from "next/server";
+import { isAllowedRequestContext } from "./app/api/request-context";
+
+// Refuses cross-origin calls to the thread routes, as the chat route does for itself.
+export function proxy(req: NextRequest) {
+  if (!isAllowedRequestContext(req)) {
+    return NextResponse.json(
+      { error: "Cross-origin requests are not allowed." },
+      { status: 403 },
+    );
+  }
+  return NextResponse.next();
+}
+
+export const config = { matcher: "/api/threads/:path*" };
 ```
 
 The adapter, which calls those routes from the browser:
@@ -301,10 +328,8 @@ export const threadListAdapter: RemoteThreadListAdapter = {
   // Titles the thread with the start of its first message; call a model here for smarter titles.
   async generateTitle(remoteId, messages) {
     const first = messages[0]?.content.find((part) => part.type === "text");
-    const title = (first?.type === "text" ? first.text : "New chat").slice(
-      0,
-      60,
-    );
+    const text = first?.type === "text" ? first.text : "New chat";
+    const title = Array.from(text).slice(0, 60).join("");
     await patchThread(remoteId, { title });
     return createAssistantStream((controller) => {
       controller.appendText(title);
@@ -349,7 +374,7 @@ export default function Home() {
 
 - The runtime calls `list()` to fill the sidebar. A new thread exists only in the browser until its first message; then the history adapter calls `aui.threadListItem.initialize()`, which calls your `initialize()` and returns the new `remoteId`. Always await it before you write a message, or the first message races the thread row.
 - `withFormat` receives a format adapter. Store `format.format`, `format.getId(item.message)`, `item.parentId` and `format.encode(item)` as they are, and pass the row back through `format.decode` on load. With `useChatRuntime` the format string is `"ai-sdk/v6"`, also on AI SDK v7; never rename it, or stored history stops loading.
-- `parent_id` records the message tree, so edits and regenerations come back as branches. Return rows in the order you saved them.
+- `parent_id` records the message tree, so edits and regenerations come back as branches. Return rows in the order you saved them. Message ids are unique only within a thread, so the key is `(thread_id, id)`.
 - `update` rewrites a message that changed after it was saved. The runtime uses it to finish an assistant message saved early, for example one paused on a [tool approval](/docs/recipes/tool-approval), so make the save an upsert.
 - `generateTitle` runs once the first message settles. This example titles the thread with the start of the first message; call a model there for a summary title.
 - `unstable_useAdapters` runs once per open thread. Read `aui.threadListItem` inside each call, not when the hook mounts, and memoize what it returns.

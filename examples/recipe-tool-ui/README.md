@@ -16,4 +16,4 @@ Ask for the weather in a city.
 
 ## Test it
 
-`pnpm --filter recipe-tool-ui test` runs the route with a scripted model and renders the card, so it needs no API key.
+After the install and build steps above, `pnpm --filter recipe-tool-ui test` runs the route with a scripted model and renders the card, so it needs no API key.

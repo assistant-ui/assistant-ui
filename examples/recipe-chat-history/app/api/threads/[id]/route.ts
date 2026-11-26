@@ -15,7 +15,11 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PATCH(req: Request, { params }: Params) {
-  threads.update((await params).id, ThreadPatch.parse(await req.json()));
+  const { id } = await params;
+  if (!threads.get(id)) return new Response(null, { status: 404 });
+  const patch = ThreadPatch.safeParse(await req.json().catch(() => null));
+  if (!patch.success) return new Response(null, { status: 400 });
+  threads.update(id, patch.data);
   return new Response(null, { status: 204 });
 }
 

@@ -27,11 +27,12 @@ function getDb() {
       updated_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS messages (
-      id TEXT PRIMARY KEY,
       thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
       parent_id TEXT,
       format TEXT NOT NULL,
-      content TEXT NOT NULL
+      content TEXT NOT NULL,
+      PRIMARY KEY (thread_id, id)
     );
   `);
   return db;
@@ -89,7 +90,7 @@ export const messages = {
     getDb()
       .prepare(
         `INSERT INTO messages (id, thread_id, parent_id, format, content) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (id) DO UPDATE SET format = excluded.format, content = excluded.content`,
+         ON CONFLICT (thread_id, id) DO UPDATE SET format = excluded.format, content = excluded.content`,
       )
       .run(
         message.id,

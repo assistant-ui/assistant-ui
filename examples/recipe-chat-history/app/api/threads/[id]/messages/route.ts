@@ -19,6 +19,8 @@ export async function GET(_req: Request, { params }: Params) {
 export async function POST(req: Request, { params }: Params) {
   const { id } = await params;
   if (!threads.get(id)) return new Response(null, { status: 404 });
-  messages.save(id, StoredMessage.parse(await req.json()));
+  const message = StoredMessage.safeParse(await req.json().catch(() => null));
+  if (!message.success) return new Response(null, { status: 400 });
+  messages.save(id, message.data);
   return new Response(null, { status: 204 });
 }

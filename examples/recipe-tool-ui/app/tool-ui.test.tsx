@@ -138,4 +138,25 @@ describe("tool UI recipe", () => {
     expect(html).toContain("21°C");
     expect(html).toContain("Sunny");
   });
+
+  it("says so when the tool call fails", () => {
+    const html = renderCard({
+      status: { type: "incomplete", reason: "error" },
+    });
+
+    expect(html).toContain("get the weather.");
+  });
+
+  it("refuses cross-origin requests before calling the model", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "sec-fetch-site": "cross-site" },
+        body: JSON.stringify({ messages: [] }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(models).toHaveLength(0);
+  });
 });

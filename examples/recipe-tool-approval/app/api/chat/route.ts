@@ -11,24 +11,24 @@ import { isAllowedRequestContext } from "../request-context";
 
 export const maxDuration = 30;
 
-const orders: Record<string, { item: string; total: number }> = {
-  "A-1001": { item: "Noise-cancelling headphones", total: 199 },
-  "A-1002": { item: "USB-C dock", total: 89 },
-};
+const orders = new Map([
+  ["A-1001", { item: "Noise-cancelling headphones", total: 199 }],
+  ["A-1002", { item: "USB-C dock", total: 89 }],
+]);
 
 const tools = {
   lookupOrder: tool({
     description: "Look up an order by its id.",
     inputSchema: z.object({ orderId: z.string() }),
     execute: async ({ orderId }) =>
-      orders[orderId] ?? { error: `No order ${orderId}` },
+      orders.get(orderId) ?? { error: `No order ${orderId}` },
   }),
   refundOrder: tool({
     description: "Refund an order in full.",
     inputSchema: z.object({ orderId: z.string(), reason: z.string() }),
     needsApproval: true,
     execute: async ({ orderId }) => {
-      const order = orders[orderId];
+      const order = orders.get(orderId);
       if (!order) return { error: `No order ${orderId}` };
       return { refunded: order.total, orderId };
     },
@@ -45,7 +45,9 @@ export async function POST(req: Request) {
 
   // Signs each approval request, so a client cannot forge an approved call.
   const approvalSecret = process.env.TOOL_APPROVAL_SECRET;
-  if (!approvalSecret) throw new Error("Set TOOL_APPROVAL_SECRET.");
+  if (!approvalSecret || approvalSecret.length < 32) {
+    throw new Error("Set TOOL_APPROVAL_SECRET to at least 32 characters.");
+  }
 
   const { messages }: { messages: UIMessage[] } = await req.json();
 

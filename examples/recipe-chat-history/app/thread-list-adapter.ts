@@ -92,10 +92,8 @@ export const threadListAdapter: RemoteThreadListAdapter = {
   // Titles the thread with the start of its first message; call a model here for smarter titles.
   async generateTitle(remoteId, messages) {
     const first = messages[0]?.content.find((part) => part.type === "text");
-    const title = (first?.type === "text" ? first.text : "New chat").slice(
-      0,
-      60,
-    );
+    const text = first?.type === "text" ? first.text : "New chat";
+    const title = Array.from(text).slice(0, 60).join("");
     await patchThread(remoteId, { title });
     return createAssistantStream((controller) => {
       controller.appendText(title);

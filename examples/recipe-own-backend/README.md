@@ -16,4 +16,4 @@ Say hello. The reply streams from `app/api/backend/chat`, which stands in for yo
 
 ## Test it
 
-`pnpm --filter recipe-own-backend test` runs the adapter against the backend route with a scripted model, so it needs no API key.
+After the install and build steps above, `pnpm --filter recipe-own-backend test` runs the adapter against the backend route with a scripted model, so it needs no API key.
