@@ -36,9 +36,11 @@ export const tasks: AgentTask[] = [
       await page.send("Hello there");
       await page.waitForText("Echo: Hello there");
       expect(
-        llmRequests(mock).length > 0,
-        "calls the model",
-        "the reply appeared without a model request",
+        llmRequests(mock).some(
+          (r) => r.stream && lastUser(r)?.text.includes("Hello there"),
+        ),
+        "streams the reply",
+        "no streaming model request carried the message",
       );
     },
   },
@@ -68,11 +70,19 @@ export const tasks: AgentTask[] = [
         "lists the first thread by its title after a reload",
       );
       await page.waitForText("Echo: First thread note", 15_000);
+      await page.waitForNoText(
+        "Echo: Second thread note",
+        "shows only the opened thread",
+      );
       await page.clickText(
         "^Second thread note$",
         "lists the second thread by its title after a reload",
       );
       await page.waitForText("Echo: Second thread note", 15_000);
+      await page.waitForNoText(
+        "Echo: First thread note",
+        "shows only the opened thread",
+      );
     },
   },
   {
@@ -89,7 +99,7 @@ export const tasks: AgentTask[] = [
     async check(page, mock) {
       await page.send("Please delete notes.txt");
       await page.waitForText("Approve");
-      await page.waitForText("notes.txt");
+      await page.waitForText("Reject");
       const ranEarly = llmRequests(mock).some((r) =>
         r.messages.some((m) => m.role === "tool"),
       );
@@ -120,9 +130,18 @@ export const tasks: AgentTask[] = [
         '- In the chat, a `get_weather` call renders as a card with the text "<city>: <temperatureC>°C, <condition>", for example "Paris: 18°C, Sunny". Show a loading state while the tool runs.',
         '- To test: the mock model calls `get_weather` with `{ "city": "Paris" }` when the user\'s message contains "weather".',
       ].join("\n"),
-    async check(page) {
+    async check(page, mock) {
       await page.send("What's the weather in Paris?");
       await page.waitForText("Paris: 18°C, Sunny", 25_000);
+      expect(
+        llmRequests(mock).some((r) =>
+          r.messages.some(
+            (m) => m.role === "tool" && m.toolName === "get_weather",
+          ),
+        ),
+        "runs the tool",
+        "no get_weather result reached the model; the card may be hard-coded",
+      );
     },
   },
   {
@@ -179,6 +198,11 @@ export const tasks: AgentTask[] = [
       await page.attachImage("has a file input for attachments");
       await page.send("Describe this image");
       await page.waitForText("I received 1 image(s)", 20_000);
+      expect(
+        (await page.imageCount()) > 0,
+        "shows the image in the message",
+        "no image is visible in the thread",
+      );
       const withImage = llmRequests(mock).some(
         (r) => (lastUser(r)?.images ?? 0) > 0,
       );
@@ -258,11 +282,22 @@ export const tasks: AgentTask[] = [
         'When the model request fails, show an error in the chat thread containing the text "Something went wrong" and a "Retry" button that asks for the reply again.',
         '- To test: the mock model returns HTTP 500 the first time it sees a given message containing "flaky", and replies normally ("Echo: <text>") after that.',
       ].join("\n"),
-    async check(page) {
+    async check(page, mock) {
       await page.send("This is flaky");
       await page.waitForText("Something went wrong", 20_000);
+      const before = llmRequests(mock).filter((r) =>
+        lastUser(r)?.text.includes("This is flaky"),
+      ).length;
       await page.clickText("^retry$", 'has a "Retry" button');
       await page.waitForText("Echo: This is flaky", 20_000);
+      const after = llmRequests(mock).filter((r) =>
+        lastUser(r)?.text.includes("This is flaky"),
+      ).length;
+      expect(
+        before >= 1 && after > before,
+        "retries against the model",
+        "Retry didn't send the message to the model again",
+      );
     },
   },
 ];

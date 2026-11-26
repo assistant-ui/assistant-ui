@@ -13,7 +13,9 @@ interface Trial {
   label: string;
   pass: boolean;
   failedStep?: string;
+  mode?: string;
   agentSeconds: number;
+  answerSeconds?: number | null;
   turns: number;
   docsRead: string[];
   nodeModulesLookups: number;
@@ -25,13 +27,17 @@ const trials: Trial[] = existsSync(dir)
       .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as Trial)
       .filter((t) => only.length === 0 || only.includes(t.label))
   : [];
-const labels = [...new Set(trials.map((t) => t.label))];
+// One column per label and docs mode, so two modes run under the same label stay apart.
+const arm = (t: Trial) => `${t.label} (${t.mode ?? "local"})`;
+const labels = [...new Set(trials.map(arm))];
 
 const cell = (list: Trial[]) => {
   if (list.length === 0) return "–";
   const passed = list.filter((t) => t.pass).length;
   const minutes = Math.round(
-    list.reduce((sum, t) => sum + t.agentSeconds, 0) / list.length / 60,
+    list.reduce((sum, t) => sum + (t.answerSeconds ?? t.agentSeconds), 0) /
+      list.length /
+      60,
   );
   const failed = list.find((t) => !t.pass)?.failedStep;
   return `${passed}/${list.length} (${minutes} min)${failed ? ` ✗ ${failed}` : ""}`;
@@ -43,12 +49,12 @@ const lines = [
 ];
 for (const task of tasks) {
   const row = labels.map((label) =>
-    cell(trials.filter((t) => t.task === task.id && t.label === label)),
+    cell(trials.filter((t) => t.task === task.id && arm(t) === label)),
   );
   lines.push(`| ${task.id} | ${row.join(" | ")} |`);
 }
 const totals = labels.map((label) => {
-  const list = trials.filter((t) => t.label === label);
+  const list = trials.filter((t) => arm(t) === label);
   const passed = list.filter((t) => t.pass).length;
   return `**${passed}/${list.length}**`;
 });

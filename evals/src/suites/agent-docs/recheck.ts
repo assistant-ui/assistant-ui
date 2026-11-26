@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildAndStart, useBin } from "./app.ts";
+import { buildAndStart } from "./app.ts";
 import { CheckFailure, openDriver } from "./browser.ts";
 import { startMockLLM } from "./mock-llm.ts";
 import { tasks } from "./tasks.ts";
@@ -16,25 +16,25 @@ if (!runDir || !task) {
 const prompt = readFileSync(join(runDir, "prompt.md"), "utf8");
 const port = Number(/127\.0\.0\.1:(\d+)\/v1/.exec(prompt)?.[1] ?? 0);
 const mock = await startMockLLM(port, join(runDir, "mock-recheck.jsonl"));
-useBin(join(runDir, "bin"));
-const app = await buildAndStart(
-  join(runDir, "app"),
-  join(runDir, "recheck.log"),
-).catch((error: unknown) => {
-  console.log(`FAIL ${error instanceof Error ? error.message : error}`);
-  process.exit(1);
-});
-const page = await openDriver(app.url);
+let app: Awaited<ReturnType<typeof buildAndStart>> | undefined;
+let page: Awaited<ReturnType<typeof openDriver>> | undefined;
 try {
+  app = await buildAndStart(
+    runDir,
+    join(runDir, "app"),
+    join(runDir, "recheck.log"),
+  );
+  page = await openDriver(app.url);
   await task.check(page, mock);
   console.log("PASS");
 } catch (error) {
+  process.exitCode = 1;
   console.log(
     `FAIL ${error instanceof CheckFailure ? error.message : String(error)}`,
   );
-  console.log((await page.bodyText().catch(() => "")).slice(0, 1500));
+  console.log(((await page?.bodyText().catch(() => "")) ?? "").slice(0, 1500));
 } finally {
-  await page.close();
-  app.stop();
+  await page?.close().catch(() => {});
+  app?.stop();
   await mock.close();
 }

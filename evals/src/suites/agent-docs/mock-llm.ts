@@ -1,4 +1,9 @@
-import { createServer, type IncomingMessage, type Server } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import { appendFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 
@@ -204,7 +209,19 @@ export async function startMockLLM(
   const seen = new Set<string>();
   let n = 0;
 
-  const server: Server = createServer(async (req, res) => {
+  const server: Server = createServer((req, res) => {
+    // A malformed request gets a 500 instead of taking the runner down.
+    handle(req, res).catch((error: unknown) => {
+      if (!res.headersSent) res.statusCode = 500;
+      res.end(
+        JSON.stringify({
+          error: { message: `Mock failure: ${String(error)}` },
+        }),
+      );
+    });
+  });
+
+  const handle = async (req: IncomingMessage, res: ServerResponse) => {
     res.setHeader("access-control-allow-origin", "*");
     res.setHeader("access-control-allow-headers", "*");
     res.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
@@ -228,10 +245,17 @@ export async function startMockLLM(
 
     let body: Record<string, any>;
     try {
-      body = JSON.parse((await readBody(req)) || "{}");
+      const parsed: unknown = JSON.parse((await readBody(req)) || "{}");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new TypeError("not an object");
+      }
+      body = parsed as Record<string, any>;
     } catch {
       res.statusCode = 400;
-      return void res.end(JSON.stringify({ error: { message: "Bad JSON" } }));
+      res.setHeader("content-type", "application/json");
+      return void res.end(
+        JSON.stringify({ error: { message: "Expected a JSON object" } }),
+      );
     }
 
     const record = (r: MockRequest) => {
@@ -475,7 +499,7 @@ export async function startMockLLM(
     });
     emit({ type: "response.completed", response });
     res.end();
-  });
+  };
 
   await new Promise<void>((resolve) =>
     server.listen(port, "127.0.0.1", () => resolve()),

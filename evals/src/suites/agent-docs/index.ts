@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -9,7 +10,7 @@ import {
   type DocsMode,
 } from "./agent.ts";
 import { bundleDocs } from "./bundle.ts";
-import { buildAndStart, freePort, useBin } from "./app.ts";
+import { buildAndStart, freePort } from "./app.ts";
 import { CheckFailure, openDriver } from "./browser.ts";
 import { docsFor } from "./docs.ts";
 import { startMockLLM } from "./mock-llm.ts";
@@ -44,13 +45,30 @@ const resultsDir = join(here, "..", "..", "..", "results", "agent-docs");
 const runsRoot =
   process.env.AGENT_DOCS_RUNS_DIR ?? join(tmpdir(), "aui-agent-docs");
 const model = process.env.AGENT_MODEL ?? "sonnet";
-const timeoutMs = Number(process.env.AGENT_TIMEOUT_MIN ?? 30) * 60_000;
+const timeoutMin = Number(process.env.AGENT_TIMEOUT_MIN ?? 30);
+if (!Number.isFinite(timeoutMin) || timeoutMin <= 0) {
+  throw new Error(
+    `AGENT_TIMEOUT_MIN must be a positive number of minutes, not ${process.env.AGENT_TIMEOUT_MIN}`,
+  );
+}
+const timeoutMs = timeoutMin * 60_000;
+// Each suite invocation takes its own docs snapshot, so a changed docs site is never scored from an old copy.
+const snapshotsDir = join(
+  runsRoot,
+  "docs",
+  new Date().toISOString().replace(/[:.]/g, "-"),
+);
 
 const candidate: DocsCandidate = {
   label: process.env.DOCS_LABEL ?? "live",
   docsUrl: process.env.DOCS_URL ?? "https://www.assistant-ui.com",
   mode: (process.env.DOCS_MODE ?? "local") as DocsMode,
 };
+if (!/^[a-z0-9][a-z0-9._-]*$/i.test(candidate.label)) {
+  throw new Error(
+    `DOCS_LABEL names files and folders, so use letters, digits, dots, dashes and underscores, not ${candidate.label}`,
+  );
+}
 if (!["local", "web", "bundled"].includes(candidate.mode)) {
   throw new Error(
     `DOCS_MODE must be local, web or bundled, not ${candidate.mode}`,
@@ -61,8 +79,8 @@ async function runTrial(
   task: AgentTask,
   docs: DocsCandidate,
 ): Promise<Outcome> {
-  const snapshot = await docsFor(docs.docsUrl, join(runsRoot, "docs"));
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const snapshot = await docsFor(docs.docsUrl, snapshotsDir);
+  const stamp = `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomBytes(3).toString("hex")}`;
   const runDir = join(runsRoot, "runs", `${task.id}-${docs.label}-${stamp}`);
   const projectDir = join(runDir, "app");
   mkdirSync(projectDir, { recursive: true });
@@ -72,27 +90,33 @@ async function runTrial(
 
   // The agent tests against one mock; the check gets a fresh one on the same port, so nothing the agent sent counts.
   const agentMock = await startMockLLM(0, join(runDir, "mock-agent.jsonl"));
-  const prompt = agentPrompt(
-    task.prompt(agentMock.url),
-    docsDir,
-    agentMock.url,
-    docs.mode,
-    await freePort(),
-  );
-  writeFileSync(join(runDir, "prompt.md"), prompt);
   let agent;
   try {
+    const prompt = agentPrompt(
+      task.prompt(agentMock.url),
+      docs.mode === "web" ? docs.docsUrl.replace(/\/$/, "") : docsDir,
+      agentMock.url,
+      docs.mode,
+      await freePort(),
+    );
+    writeFileSync(join(runDir, "prompt.md"), prompt);
     agent = await runAgent({
       prompt,
       runDir,
       projectDir,
       docsDir: docs.mode === "local" ? docsDir : undefined,
-      webDocs: docs.mode === "web",
+      webDocs: docs.mode === "web" ? docs.docsUrl : undefined,
       model,
       timeoutMs,
     });
   } finally {
     await agentMock.close();
+  }
+  // An agent that ran out of time didn't finish the task; score it as an error, not as a build.
+  if (agent.timedOut) {
+    throw new Error(
+      `the agent didn't answer within ${timeoutMin} min (${runDir})`,
+    );
   }
   const summary = summarizeTranscript(agent.transcript, docsDir);
 
@@ -101,12 +125,11 @@ async function runTrial(
     join(runDir, "mock-check.jsonl"),
   );
   const log = join(runDir, "check.log");
-  useBin(join(runDir, "bin"));
   let app: Awaited<ReturnType<typeof buildAndStart>> | undefined;
   let page: Awaited<ReturnType<typeof openDriver>> | undefined;
   let failure: CheckFailure | undefined;
   try {
-    app = await buildAndStart(projectDir, log);
+    app = await buildAndStart(runDir, projectDir, log);
     page = await openDriver(app.url);
     await task.check(page, mock);
   } catch (error) {
@@ -139,8 +162,14 @@ async function runTrial(
 
 const passRate = (trials: TrialResult<Outcome>[]) => {
   const done = trials.flatMap((t) => (t.error ? [] : [t.outcome]));
-  return { passed: done.filter((o) => o.pass).length, total: done.length };
+  return {
+    passed: done.filter((o) => o.pass).length,
+    total: done.length,
+    errors: trials.length - done.length,
+  };
 };
+const score = ({ passed, total, errors }: ReturnType<typeof passRate>) =>
+  `${passed}/${total}${errors ? ` (${errors} errored, unscored)` : ""}`;
 
 export const agentDocs: Suite<AgentTask, DocsCandidate, Outcome> = {
   id: "agent-docs",
@@ -151,22 +180,21 @@ export const agentDocs: Suite<AgentTask, DocsCandidate, Outcome> = {
   view: (o) => ({
     mark: o.pass ? "✓" : "✗",
     verdict: o.pass
-      ? `pass in ${Math.round(o.agentSeconds / 60)} min`
+      ? `pass in ${Math.round((o.answerSeconds ?? o.agentSeconds) / 60)} min`
       : `fail at "${o.failedStep}": ${o.detail ?? ""}`,
     artifact: `${o.runDir}\n${o.finalMessage}`,
   }),
   summarize(trials) {
-    const { passed, total } = passRate(trials);
-    return `${passed}/${total} built and passed`;
+    return `${score(passRate(trials))} built and passed`;
   },
   report(results: CaseResult<AgentTask, DocsCandidate, Outcome>[]) {
     const rows = results.flatMap((r) =>
       r.variants.map((v) => {
-        const { passed, total } = passRate(v.trials);
+        const rate = passRate(v.trials);
         const first = v.trials.find((t) => !t.error && !t.outcome.pass);
         const why =
           first && !first.error ? (first.outcome.failedStep ?? "") : "";
-        return `| ${r.case.id} | ${v.candidate.label} | ${passed}/${total} | ${why} |`;
+        return `| ${r.case.id} | ${v.candidate.label} (${v.candidate.mode}) | ${score(rate)} | ${why} |`;
       }),
     );
     return [

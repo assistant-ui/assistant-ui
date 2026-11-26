@@ -23,12 +23,12 @@ export const BUNDLED_DOCS_DIR = ".assistant-ui-docs";
 
 const docsParagraph = (mode: DocsMode, docsDir: string) =>
   mode === "web"
-    ? "Documentation: the assistant-ui docs are on the web at https://www.assistant-ui.com. Start from https://www.assistant-ui.com/llms.txt, the index the site serves to agents; append `.md` to any docs page URL for its markdown. Use these docs to learn assistant-ui. The network is open only for those docs, for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost."
+    ? `Documentation: the assistant-ui docs are on the web at ${docsDir}. Start from ${docsDir}/llms.txt, the index the site serves to agents; append \`.md\` to any docs page URL for its markdown. Use these docs to learn assistant-ui. The network is open only for those docs, for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost.`
     : mode === "bundled"
       ? `Documentation: the assistant-ui docs are saved in this folder under ${BUNDLED_DOCS_DIR}/, and AGENTS.md indexes them. Use these docs to learn assistant-ui. The network is open only for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost, so read the docs from this folder rather than the web.`
       : `Documentation: the assistant-ui docs are saved in ${docsDir}. Start from ${docsDir}/llms.txt, the index the site serves to agents; every page it links is saved there as markdown. Use these docs to learn assistant-ui. The network is open only for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost, so read the docs from this folder rather than the web.`;
 
-/** The fixed instructions every trial gets; only the task, the docs' location and the addresses change. */
+/** The fixed instructions every trial gets; only the task, the docs' location and the addresses change. `docsDir` is the docs site's URL in web mode. */
 export function agentPrompt(
   task: string,
   docsDir: string,
@@ -107,8 +107,8 @@ export async function runAgent(opts: {
   docsDir?: string | undefined;
   model: string;
   timeoutMs: number;
-  /** Lets the agent read the live docs site with WebFetch and its shell. */
-  webDocs?: boolean | undefined;
+  /** A docs site the agent reads with WebFetch and its shell, such as the live one. */
+  webDocs?: string | undefined;
   /** More hosts its shell may reach. */
   extraDomains?: string[] | undefined;
   /** More environment variables for the agent and its shell. */
@@ -128,6 +128,7 @@ export async function runAgent(opts: {
   writeFileSync(join(runDir, "npmrc"), "fund=false\naudit=false\n");
 
   const home = homedir();
+  const webHost = opts.webDocs ? new URL(opts.webDocs).hostname : undefined;
   // create-next-app, shadcn and the assistant-ui CLI keep a preferences file here.
   const cliPrefs = ["create-next-app", "shadcn", "assistant-ui"].map((cli) =>
     process.platform === "darwin"
@@ -148,7 +149,7 @@ export async function runAgent(opts: {
         "Glob",
         "Grep",
         "Bash",
-        ...(opts.webDocs ? ["WebFetch(domain:www.assistant-ui.com)"] : []),
+        ...(webHost ? [`WebFetch(domain:${webHost})`] : []),
       ],
       deny: opts.webDocs ? ["WebSearch"] : ["WebFetch", "WebSearch"],
       blockReadsOutsideWorkingDirectories: true,
@@ -180,7 +181,7 @@ export async function runAgent(opts: {
           "fonts.gstatic.com",
           "localhost",
           "127.0.0.1",
-          ...(opts.webDocs ? ["www.assistant-ui.com"] : []),
+          ...(webHost ? [webHost] : []),
           ...(opts.extraDomains ?? []),
         ],
         allowLocalBinding: true,
@@ -242,7 +243,8 @@ export async function runAgent(opts: {
       "stream-json",
       "--verbose",
     ],
-    { cwd: projectDir, env, stdio: ["ignore", out, err] },
+    // Its own process group, so everything it starts can be stopped together at the end.
+    { cwd: projectDir, env, stdio: ["ignore", out, err], detached: true },
   );
   writeFileSync(join(runDir, "agent.pid"), `${child.pid}\n`);
 
@@ -280,7 +282,9 @@ export async function runAgent(opts: {
     await Promise.race([exit, sleep(3_000)]);
   }
   const exitCode = await exit;
-  // Only processes still parented by the agent's tree or orphaned, so a reused PID is never hit.
+  // The agent's process group first, then anything that left it: tracked descendants still parented
+  // by the agent's tree or orphaned, so a reused PID is never hit.
+  kill(-child.pid!);
   const table = execFileSync("/bin/ps", ["-axo", "pid=,ppid="], {
     encoding: "utf8",
   });

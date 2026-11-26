@@ -1,5 +1,11 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, openSync, closeSync, appendFileSync } from "node:fs";
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -15,22 +21,30 @@ export const freePort = () =>
     });
   });
 
-// The app is code the agent wrote, so it gets a bare environment, never the caller's secrets.
-let pathDirs = process.env.PATH ?? "";
-/** Gives the app's build and server the same small PATH the agent had. */
-export const useBin = (bin: string) => {
-  pathDirs = `${bin}:/usr/bin:/bin:/usr/sbin:/sbin`;
+/**
+ * The app is code the agent wrote, and its build and server run outside the
+ * agent's sandbox, so they get a bare environment inside the trial folder: the
+ * agent's small PATH, a throwaway HOME, and the trial's own npm config and
+ * cache. They can still read files by absolute path, so run untrusted
+ * suites on a machine or container that holds no secrets.
+ */
+const env = (runDir: string): Record<string, string> => {
+  const home = join(runDir, "home");
+  mkdirSync(home, { recursive: true });
+  return {
+    HOME: home,
+    PATH: `${join(runDir, "bin")}:/usr/bin:/bin:/usr/sbin:/sbin`,
+    TMPDIR: join(runDir, "tmp"),
+    npm_config_cache: join(runDir, "npm-cache"),
+    npm_config_userconfig: join(runDir, "npmrc"),
+    LANG: "en_US.UTF-8",
+    NEXT_TELEMETRY_DISABLED: "1",
+  };
 };
-const env = (): Record<string, string> => ({
-  HOME: process.env.HOME ?? "",
-  PATH: pathDirs,
-  TMPDIR: process.env.TMPDIR ?? "/tmp",
-  LANG: "en_US.UTF-8",
-  NEXT_TELEMETRY_DISABLED: "1",
-});
 
 /** Runs `npm run <script>` in the project and throws `CheckFailure(step)` when it fails. */
 export function npmRun(
+  runDir: string,
   projectDir: string,
   script: string,
   log: string,
@@ -40,7 +54,7 @@ export function npmRun(
   appendFileSync(log, `\n$ npm run ${script}\n`);
   const res = spawnSync("npm", ["run", script], {
     cwd: projectDir,
-    env: env(),
+    env: env(runDir),
     encoding: "utf8",
     timeout: timeoutMs,
     maxBuffer: 64 * 1024 * 1024,
@@ -57,7 +71,11 @@ export function npmRun(
 }
 
 /** Builds the app the agent left, typechecks it, and serves it with `npm run start`. */
-export async function buildAndStart(projectDir: string, log: string) {
+export async function buildAndStart(
+  runDir: string,
+  projectDir: string,
+  log: string,
+) {
   if (!existsSync(join(projectDir, "package.json"))) {
     throw new CheckFailure("has a project", "no package.json in the folder");
   }
@@ -67,11 +85,11 @@ export async function buildAndStart(projectDir: string, log: string) {
       "dependencies were never installed",
     );
   }
-  npmRun(projectDir, "build", log, "builds");
+  npmRun(runDir, projectDir, "build", log, "builds");
   appendFileSync(log, "\n$ npx tsc --noEmit\n");
   const tsc = spawnSync("npx", ["--no-install", "tsc", "--noEmit"], {
     cwd: projectDir,
-    env: env(),
+    env: env(runDir),
     encoding: "utf8",
     timeout: 300_000,
   });
@@ -79,7 +97,11 @@ export async function buildAndStart(projectDir: string, log: string) {
   if (tsc.status !== 0) {
     throw new CheckFailure(
       "typechecks",
-      `${tsc.stdout ?? ""}`.trim().split("\n").slice(0, 8).join("\n"),
+      `${tsc.stdout ?? ""}${tsc.stderr ?? ""}`
+        .trim()
+        .split("\n")
+        .slice(0, 8)
+        .join("\n"),
     );
   }
 
@@ -87,7 +109,7 @@ export async function buildAndStart(projectDir: string, log: string) {
   const fd = openSync(log, "a");
   const server = spawn("npm", ["run", "start", "--", "-p", String(port)], {
     cwd: projectDir,
-    env: { ...env(), PORT: String(port) },
+    env: { ...env(runDir), PORT: String(port) },
     stdio: ["ignore", fd, fd],
     detached: true,
   });

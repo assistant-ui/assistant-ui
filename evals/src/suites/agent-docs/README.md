@@ -53,12 +53,22 @@ To run a check again on an app an agent already built (after fixing a check, say
 | `AGENT_MODEL` | `sonnet` | The agent's model |
 | `AGENT_TIMEOUT_MIN` | `30` | When to stop an agent |
 | `AGENT_CONCURRENCY` | `1` | Trials of one task run at once |
-| `AGENT_DOCS_RUNS_DIR` | `$TMPDIR/aui-agent-docs` | Where the docs snapshot and each trial's folder go |
+| `AGENT_DOCS_RUNS_DIR` | `$TMPDIR/aui-agent-docs` | Where each run's docs snapshot (taken fresh per run) and each trial's folder go |
 | `AGENT_DOCS_PRIVATE_DIRS` | | More folders the agent may neither read nor write, comma-separated |
 
 ## What the agent can and can't do
 
-The agent runs as `claude -p` with Bash, Read, Write, Edit, Glob and Grep, in the trial's empty folder, with the docs folder added. Its shell runs in Claude Code's sandbox, which is the boundary, so permissions are bypassed and nothing waits on a prompt: it can read nothing in the home directory except the preference files `create-next-app` and `shadcn` keep, nor this repository; it writes only inside the trial folder; and its network reaches only package installs (npm, the assistant-ui and shadcn registries, GitHub downloads) and localhost. It gets a bare environment and a `PATH` with only `node`, `npm`, `npx` and `pnpm`. Every process it starts is killed 30 seconds after it answers. The app it built is then built and served with the same `PATH` and no secrets.
+The agent runs as `claude -p` with Bash, Read, Write, Edit, Glob and Grep in the trial's folder. Where its docs are depends on `DOCS_MODE`:
+
+| Mode | Docs | Extra access |
+| --- | --- | --- |
+| `local` | A snapshot folder beside the project, added with `--add-dir` | |
+| `bundled` | The same snapshot inside the project under `.assistant-ui-docs/`, with an `AGENTS.md` index and a `CLAUDE.md` that loads it | |
+| `web` | The live site | WebFetch, and `www.assistant-ui.com` on the shell's network |
+
+Its shell runs in Claude Code's sandbox, which is the boundary, so permissions are bypassed and nothing waits on a prompt. It can read nothing in the home directory except the preference files `create-next-app` and `shadcn` keep, nor this repository; it writes only inside the trial folder; and its network reaches only the npm registry, `r.assistant-ui.com`, `ui.shadcn.com`, GitHub downloads, Google Fonts and localhost. It gets a bare environment and a `PATH` with only `node`, `npm`, `npx`, `pnpm` and `corepack`. Its process group and every process it started are killed 30 seconds after it answers.
+
+The app is then built, typechecked and served outside the sandbox, with the same `PATH`, a throwaway `HOME` and the trial's own npm config and cache, and no secrets in its environment. It can still read files by absolute path, so run the suite on a machine or container that keeps nothing private.
 
 ## Output
 

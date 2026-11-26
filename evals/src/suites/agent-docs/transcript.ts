@@ -22,6 +22,8 @@ export interface TranscriptSummary {
 export function summarizeTranscript(
   file: string,
   docsDir: string,
+  /** The docs site's host, whose pages count as read when fetched from the web. */
+  docsHost = "www.assistant-ui.com",
 ): TranscriptSummary {
   const summary: TranscriptSummary = {
     turns: 0,
@@ -35,7 +37,19 @@ export function summarizeTranscript(
   };
   if (!existsSync(file)) return summary;
   const rel = (path: string) =>
-    path.startsWith(docsDir) ? path.slice(docsDir.length) || "/" : undefined;
+    path === docsDir
+      ? "/"
+      : path.startsWith(`${docsDir}/`)
+        ? path.slice(docsDir.length)
+        : undefined;
+  const docsPage = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname === docsHost ? parsed.pathname : undefined;
+    } catch {
+      return undefined;
+    }
+  };
   let lastText = "";
   for (const line of readFileSync(file, "utf8").split("\n")) {
     if (!line.trim()) continue;
@@ -78,8 +92,7 @@ export function summarizeTranscript(
         const doc = rel(String(input.file_path ?? ""));
         if (doc && !summary.docsRead.includes(doc)) summary.docsRead.push(doc);
       } else if (block.name === "WebFetch") {
-        const url = String(input.url ?? "");
-        const page = url.replace(/^https?:\/\/[^/]+/, "");
+        const page = docsPage(String(input.url ?? ""));
         if (page && !summary.docsRead.includes(page))
           summary.docsRead.push(page);
       } else if (block.name === "Grep" || block.name === "Glob") {
@@ -110,6 +123,11 @@ export function summarizeTranscript(
           !/127\.0\.0\.1|localhost/.test(command)
         ) {
           summary.webFetches.push(command.slice(0, 200));
+          for (const [url] of command.matchAll(/https?:\/\/[^\s"')]+/g)) {
+            const page = docsPage(url!);
+            if (page && !summary.docsRead.includes(page))
+              summary.docsRead.push(page);
+          }
         }
       }
     }

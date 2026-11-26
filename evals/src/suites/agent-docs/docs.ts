@@ -100,17 +100,34 @@ export async function snapshotDocs(base: string, dir: string) {
   return { saved, failed };
 }
 
-/** Takes the snapshot once per base URL and reuses it for every trial. */
-export async function docsFor(base: string, cacheDir: string) {
+const snapshots = new Map<string, Promise<string>>();
+
+/**
+ * Takes the snapshot once per base URL and run, and shares it between the
+ * run's trials, including ones running at the same time. A snapshot with
+ * missing pages is refused: an agent can't fetch them, so its trial would be
+ * scored against docs the site doesn't have.
+ */
+export function docsFor(base: string, cacheDir: string) {
   const key = base.replace(/^https?:\/\//, "").replace(/[^a-z0-9.-]+/gi, "_");
   const dir = join(cacheDir, key);
-  const marker = join(dir, "SNAPSHOT.json");
-  if (!existsSync(marker)) await snapshotDocs(base, dir);
-  const info = JSON.parse(readFileSync(marker, "utf8")) as { saved: number };
-  if (info.saved < 50) {
-    throw new Error(
-      `The docs snapshot in ${dir} has only ${info.saved} pages.`,
-    );
+  let pending = snapshots.get(dir);
+  if (!pending) {
+    pending = (async () => {
+      const marker = join(dir, "SNAPSHOT.json");
+      if (!existsSync(marker)) await snapshotDocs(base, dir);
+      const info = JSON.parse(readFileSync(marker, "utf8")) as {
+        saved: number;
+        failed: string[];
+      };
+      if (info.failed.length > 0 || info.saved < 50) {
+        throw new Error(
+          `The docs snapshot in ${dir} is incomplete: ${info.saved} pages saved, ${info.failed.length} failed (${info.failed.slice(0, 3).join(", ")}).`,
+        );
+      }
+      return dir;
+    })();
+    snapshots.set(dir, pending);
   }
-  return dir;
+  return pending;
 }
