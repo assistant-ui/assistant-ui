@@ -12,6 +12,19 @@ export type AgentMarkdownPage = { url: string; markdown: string };
 
 const PAGE_START = /^# .*\nURL: (\S+)/gm;
 
+/**
+ * Whether a file under `.next/server` is the prerendered llms-full.txt body:
+ * `app/llms-full.txt.body` by default, or, when a deployment adapter is set
+ * (as on Vercel), `route-cache/APP_ROUTE/<source route hash>/$/llms-full.txt.body`.
+ */
+export function isLLMsFullBody(relativePath: string): boolean {
+  const file = relativePath.replace(/\\/g, "/");
+  return (
+    file === "app/llms-full.txt.body" ||
+    /^route-cache\/APP_ROUTE\/[^/]+\/\$\/llms-full\.txt\.body$/.test(file)
+  );
+}
+
 /** Splits llms-full.txt back into its pages. */
 export function splitLLMsFull(text: string): AgentMarkdownPage[] {
   const starts = [...text.matchAll(PAGE_START)];
@@ -50,11 +63,9 @@ export function findAgentMarkdownProblems(
   const problems: AgentMarkdownProblem[] = [];
   const { url, markdown } = page;
 
-  for (const match of markdown.matchAll(PLACEHOLDER))
-    problems.push({ url, kind: "placeholder", detail: match[0] });
-
-  const lines = proseLines(markdown);
-  for (const line of lines) {
+  for (const line of proseLines(markdown)) {
+    for (const match of line.matchAll(PLACEHOLDER))
+      problems.push({ url, kind: "placeholder", detail: match[0] });
     for (const match of line.matchAll(RAW_JSX))
       problems.push({ url, kind: "raw-jsx", detail: `<${match[1]}>` });
   }

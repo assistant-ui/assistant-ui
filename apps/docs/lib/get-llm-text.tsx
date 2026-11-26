@@ -142,14 +142,21 @@ const CLIENT_LLM_VARIANTS: Record<
     const label = (
       <code>{typeof props === "string" ? `<${name} ${props}>` : name}</code>
     );
-    const provides = Array.isArray(providedContexts)
-      ? providedContexts
-          .map((context) => (context as { name?: unknown }).name)
-          .filter(
-            (contextName): contextName is string =>
-              typeof contextName === "string",
-          )
-      : [];
+    const provides = (
+      Array.isArray(providedContexts) ? providedContexts : []
+    ).flatMap((context: { name?: unknown; link?: unknown }) =>
+      typeof context.name !== "string"
+        ? []
+        : [
+            typeof context.link === "string" ? (
+              <a key={context.name} href={context.link}>
+                {context.name}
+              </a>
+            ) : (
+              context.name
+            ),
+          ],
+    );
     return (
       <ul>
         <li>
@@ -159,7 +166,17 @@ const CLIENT_LLM_VARIANTS: Record<
             label
           )}
           {typeof tooltip === "string" ? ` — ${tooltip}` : null}
-          {provides.length > 0 ? `. Provides: ${provides.join(", ")}` : null}
+          {provides.length > 0 ? (
+            <>
+              {". Provides: "}
+              {provides.map((context, i) => (
+                <Fragment key={i}>
+                  {i > 0 ? ", " : null}
+                  {context}
+                </Fragment>
+              ))}
+            </>
+          ) : null}
           {children}
         </li>
       </ul>

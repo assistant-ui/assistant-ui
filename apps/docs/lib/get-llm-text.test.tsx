@@ -1,7 +1,10 @@
 import type { ComponentType, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { getLLMText } from "./get-llm-text";
-import { findAgentMarkdownProblems } from "./agent-markdown-check";
+import {
+  findAgentMarkdownProblems,
+  isLLMsFullBody,
+} from "./agent-markdown-check";
 
 type MDXBody = ComponentType<{
   components?: Record<string, ComponentType<Record<string, unknown>>>;
@@ -115,7 +118,14 @@ describe("agent markdown keeps what the page shows", () => {
         props="runtime={runtime}"
         docsLink="/docs/api-reference/context-providers/assistant-runtime-provider"
         tooltip="Provides the highest level context"
-        providedContexts={[{ name: "Thread Context", color: "#45a049" }]}
+        providedContexts={[
+          { name: "Thread Context", color: "#45a049" },
+          {
+            name: "Composer Context",
+            color: "#ff9933",
+            link: "#composer-context",
+          },
+        ]}
       >
         <Component
           name="ThreadPrimitive"
@@ -125,7 +135,7 @@ describe("agent markdown keeps what the page shows", () => {
     ));
 
     expect(markdown).toContain(
-      "- [`<AssistantRuntimeProvider runtime={runtime}>`](/docs/api-reference/context-providers/assistant-runtime-provider) — Provides the highest level context. Provides: Thread Context\n  - [`ThreadPrimitive`](/docs/api-reference/primitives/thread)",
+      "- [`<AssistantRuntimeProvider runtime={runtime}>`](/docs/api-reference/context-providers/assistant-runtime-provider) — Provides the highest level context. Provides: Thread Context, [Composer Context](#composer-context)\n  - [`ThreadPrimitive`](/docs/api-reference/primitives/thread)",
     );
     expect(markdown).not.toContain("#45a049");
   });
@@ -147,6 +157,19 @@ describe("agent markdown keeps what the page shows", () => {
   });
 });
 
+describe("isLLMsFullBody", () => {
+  it("finds the prerendered body in the default and the adapter layout", () => {
+    expect(isLLMsFullBody("app/llms-full.txt.body")).toBe(true);
+    expect(
+      isLLMsFullBody("route-cache/APP_ROUTE/3f2a9c/$/llms-full.txt.body"),
+    ).toBe(true);
+    expect(isLLMsFullBody("app/llms.txt.body")).toBe(false);
+    expect(
+      isLLMsFullBody("route-cache/APP_PAGE/3f2a9c/$/llms-full.txt.body"),
+    ).toBe(false);
+  });
+});
+
 describe("findAgentMarkdownProblems", () => {
   it("flags placeholders, raw component tags and emptied sections, not code", () => {
     const markdown = [
@@ -156,6 +179,10 @@ describe("findAgentMarkdownProblems", () => {
       "[interactive preview omitted]",
       "",
       "Use \\<Thread /> here, but `<Thread />` in code is fine.",
+      "",
+      "```md",
+      "[interactive preview omitted]",
+      "```",
       "",
       "```tsx",
       "<Composer />",
