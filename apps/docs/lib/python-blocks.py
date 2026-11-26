@@ -2,7 +2,7 @@
 Python packages. Used by docs-python-blocks.test.ts; needs only the standard
 library.
 
-Usage: python3 -I python-blocks.py <repo root> <doc file>...
+Usage: python3 -I python-blocks.py <doc file>...   (paths from the repo root)
 
 Prints one JSON object per line, one per block:
   file, line        where the block starts (1-based, the line after the fence)
@@ -16,6 +16,8 @@ Prints one JSON object per line, one per block:
 
 Blocks may use top-level `await`, as in a notebook. Each block sees the
 module-level names of the blocks above it on the same page, as a reader would.
+
+`blocks` and `check` are importable, so a test can run the same blocks.
 """
 
 import ast
@@ -27,7 +29,7 @@ import sys
 import textwrap
 from pathlib import Path
 
-ROOT = Path(sys.argv[1])
+ROOT = Path(__file__).resolve().parents[3]
 
 # Python packages this repo ships, by import name.
 LOCAL_PACKAGES = {
@@ -299,6 +301,7 @@ def check(file):
         yield result
 
 
-for file in sys.argv[2:]:
-    for result in check(file):
-        print(json.dumps(result))
+if __name__ == "__main__":
+    for file in sys.argv[1:]:
+        for result in check(file):
+            print(json.dumps(result))

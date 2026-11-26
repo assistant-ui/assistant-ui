@@ -87,8 +87,8 @@ describe.skipIf(!hasPython && !process.env.CI)(
     const blocks = hasPython
       ? execFileSync(
           "python3",
-          ["-I", path.join(__dirname, "python-blocks.py"), ROOT, ...PAGES],
-          { encoding: "utf8" },
+          ["-I", path.join(__dirname, "python-blocks.py"), ...PAGES],
+          { cwd: ROOT, encoding: "utf8" },
         )
           .trim()
           .split("\n")
