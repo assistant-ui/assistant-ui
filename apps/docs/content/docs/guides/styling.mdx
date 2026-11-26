@@ -25,6 +25,8 @@ flowchart LR
 - **Elements** such as `Thread` are styled components built from primitives. `npx assistant-ui init` sets up shadcn/ui and copies `Thread` and the files it uses into `components/assistant-ui/elements/`, and `npx assistant-ui add <name>` copies any other element. Both go through the shadcn CLI, the same way shadcn/ui copies a `Button`, so the files are yours: updating the packages doesn't overwrite them.
 - **Theme variables** live in your global stylesheet. The elements' Tailwind classes, such as `bg-background` and `text-muted-foreground`, read the same shadcn/ui variables as the rest of your app.
 
+[Components you own](/docs/concepts/components) explains the split in more depth, including what `update`, `add --overwrite` and `upgrade` do to your copies.
+
 ## Change colors, radius and fonts with CSS variables
 
 Set CSS variables once and every element follows:

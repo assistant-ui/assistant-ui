@@ -21,7 +21,7 @@ Because elements are copies, `update` never touches them. `add <name> --overwrit
 
 **Elements** are Tailwind classes on top of shadcn/ui theme variables (`bg-background`, `text-muted-foreground` and so on). Changing your theme's CSS variables, such as `--primary` or `--radius`, restyles them along with the rest of a shadcn app. Anything beyond that is an edit to the copied file. The `style` in `components.json` decides whether they are built on Radix UI or Base UI.
 
-**Primitives** take any styling. On the web each one accepts `className` and renders a plain element, `asChild` puts its behavior on your own component instead of a wrapper, and its state shows up as data attributes you can style, such as `data-copied` on `ActionBarPrimitive.Copy`.
+**Primitives** take any styling. On the web each one accepts `className` and renders a plain element, `asChild` puts its behavior on your own component instead of a wrapper, and its state shows up as data attributes you can style, such as `data-copied` on `ActionBarPrimitive.Copy`. [Styling, Themes and Dark Mode](/docs/guides/styling) shows each way to change the look with an example.
 
 ## Do you need Tailwind and shadcn/ui?
 
