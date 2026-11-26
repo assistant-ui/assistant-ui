@@ -18,9 +18,24 @@ export type SetupErrorReason =
   | "session_unreadable"
   | "answer_failed";
 
+/** Events captured before PostHog finished loading; a page without PostHog (no key, Global Privacy Control) keeps at most this many and sends none. */
+const pendingEvents: [event: string, properties: Properties | undefined][] = [];
+const MAX_PENDING_EVENTS = 50;
+
 const trackEvent = (event: string, properties?: Properties) => {
   if (typeof window === "undefined") return;
-  window.posthog?.capture?.(event, properties);
+  const capture = window.posthog?.capture;
+  if (capture) capture(event, properties);
+  else if (pendingEvents.length < MAX_PENDING_EVENTS)
+    pendingEvents.push([event, properties]);
+};
+
+/** Sends what the page captured before PostHog loaded, such as the first page's view and the link shown; `Analytics` calls it once PostHog runs. */
+export const flushPendingEvents = () => {
+  const capture = window.posthog?.capture;
+  if (!capture) return;
+  for (const [event, properties] of pendingEvents.splice(0))
+    capture(event, properties);
 };
 
 /** The agent kind as analytics records it: one this page names, else `other`; nothing before the CLI reports one. */
@@ -35,8 +50,11 @@ const agentKindProperty = (kind: string | null | undefined) => {
 const reportedKey = "aui-setup-reported";
 type Reported = { setup: string; keys: string[] };
 let reportedInMemory: Reported | null = null;
+/** False once a write to storage failed; the tab then trusts its own record. */
+let persisted = true;
 
 const readReported = (): Reported | null => {
+  if (!persisted) return reportedInMemory;
   try {
     const raw = window.localStorage.getItem(reportedKey);
     if (raw === null) return null;
@@ -67,8 +85,10 @@ export const firstForSetup = (setup: string, key: string) => {
   reportedInMemory = { setup, keys: [...keys, key] };
   try {
     window.localStorage.setItem(reportedKey, JSON.stringify(reportedInMemory));
+    persisted = true;
   } catch {
-    // Storage can be blocked; this tab still reports each milestone once.
+    // Storage can be blocked or full; this tab still reports each milestone once.
+    persisted = false;
   }
   return true;
 };
@@ -182,7 +202,7 @@ export const analytics = {
       });
     },
 
-    /** The user closed a finished setup with Finish; sent before the page lets go of the session. */
+    /** The setup closed as finished: the user pressed Finish (sent before the page lets go of the session), or the page saw it closed from elsewhere. */
     closed: (setup: string) => {
       if (firstForSetup(setup, "closed")) trackEvent("setup_closed");
     },

@@ -1020,6 +1020,8 @@ describe("SetupWizard", () => {
     expect(
       screen.getByText(/Claude Code is no longer connected/).textContent,
     ).toContain("Finish does not need it");
+    finishCheckout.mockClear();
+    vi.mocked(commands["checkout/finish"]).mockClear();
     fireEvent.click(footer().getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(commands["checkout/finish"]).toHaveBeenCalled());
     await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
@@ -2008,8 +2010,10 @@ describe("SetupWizard analytics", () => {
 
   it("tracks Finish as the setup closing, before the page lets go of the session", async () => {
     const events = captureEvents();
+    finishCheckout.mockClear();
+    let closedBeforeExit: unknown[] | undefined;
     finishCheckout.mockImplementation(() => {
-      expect(events("setup_closed")).toEqual([undefined]);
+      closedBeforeExit = events("setup_closed");
     });
     render(
       <SetupWizard
@@ -2019,9 +2023,27 @@ describe("SetupWizard analytics", () => {
       />,
     );
     fireEvent.click(footer().getByRole("button", { name: "Finish" }));
-    await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
+    await waitFor(() => expect(finishCheckout).toHaveBeenCalledOnce());
+    expect(closedBeforeExit).toEqual([undefined]);
     expect(events("setup_closed")).toEqual([undefined]);
     finishCheckout.mockReset();
+  });
+
+  it("tracks a setup closed from elsewhere once, when the page sees it done", () => {
+    const events = captureEvents();
+    const proposed = connected({
+      status: "installing",
+      completion: { proposedAt: 5 },
+    });
+    const { rerender } = render(<SetupWizard checkout={context(proposed)} />);
+    expect(events("setup_closed")).toEqual([]);
+    rerender(
+      <SetupWizard checkout={context({ ...proposed, status: "done" })} />,
+    );
+    rerender(
+      <SetupWizard checkout={context({ ...proposed, status: "done" })} />,
+    );
+    expect(events("setup_closed")).toEqual([undefined]);
   });
 
   it("tracks a cancellation only once End setup is confirmed", async () => {

@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { analytics, firstForSetup, trackedAgentKind } from "./analytics";
+import {
+  analytics,
+  firstForSetup,
+  flushPendingEvents,
+  trackedAgentKind,
+} from "./analytics";
 
 afterEach(() => {
   localStorage.clear();
@@ -37,9 +42,22 @@ describe("firstForSetup", () => {
     expect(firstForSetup("setupC", "closed")).toBe(false);
   });
 
-  it("ignores a stored record it cannot read", () => {
+  it("still reports each milestone once in this tab when only writes fail", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("full");
+    });
+    expect(firstForSetup("setupF", "closed")).toBe(true);
+    expect(firstForSetup("setupF", "closed")).toBe(false);
+  });
+
+  it("replaces a stored record it cannot read", () => {
     localStorage.setItem("aui-setup-reported", "{not json");
     expect(firstForSetup("setupD", "closed")).toBe(true);
+    expect(JSON.parse(localStorage.getItem("aui-setup-reported")!)).toEqual({
+      setup: "setupD",
+      keys: ["closed"],
+    });
+    expect(firstForSetup("setupD", "closed")).toBe(false);
   });
 });
 
@@ -82,6 +100,23 @@ describe("analytics.setup.error", () => {
         { reason: "agent_disconnected", step: "install", agent_kind: "cursor" },
       ],
       ["setup_error", { reason: "agent_disconnected", step: "question" }],
+    ]);
+  });
+});
+
+describe("events before PostHog loads", () => {
+  it("holds them until PostHog runs, then sends them in order", () => {
+    analytics.setup.linkShown("setupG");
+    analytics.setup.linkConfirmed();
+    const capture = vi.fn();
+    window.posthog = { capture };
+    expect(capture).not.toHaveBeenCalled();
+    flushPendingEvents();
+    analytics.setup.cancelled();
+    expect(capture.mock.calls).toEqual([
+      ["setup_link_shown", undefined],
+      ["setup_link_confirmed", undefined],
+      ["setup_cancelled", undefined],
     ]);
   });
 });

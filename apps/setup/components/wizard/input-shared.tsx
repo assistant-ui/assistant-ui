@@ -214,7 +214,11 @@ export const useInputActions = (
       return true;
     } catch {
       toast.error(failure);
-      analytics.setup.error({ reason: "answer_failed", step: "question" });
+      analytics.setup.error({
+        reason: "answer_failed",
+        step: "question",
+        setup: checkout.session.id,
+      });
       return false;
     } finally {
       setBusy(false);

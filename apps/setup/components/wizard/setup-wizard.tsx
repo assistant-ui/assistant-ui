@@ -791,6 +791,10 @@ export function SetupWizard({
     if (finished) finishCheckout();
     else abandonCheckout();
   };
+  // The setup can close from elsewhere too: the agent answering finish, or another tab.
+  useEffect(() => {
+    if (done) analytics.setup.closed(setupId);
+  }, [done, setupId]);
   const leave = () => exit(done);
   const close = () => {
     analytics.setup.closed(setupId);
