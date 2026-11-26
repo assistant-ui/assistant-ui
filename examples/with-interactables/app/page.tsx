@@ -35,6 +35,7 @@ function TaskBoard() {
   const [state, { setState, isPending }] = unstable_useInteractable(
     "taskBoard",
     {
+      id: "taskBoard",
       description:
         "A task board showing the user's tasks. Use update_taskBoard with tasks.add/update/remove/clear to manage tasks. New tasks need a title and done=false.",
       stateSchema: taskBoardSchema,
@@ -170,6 +171,7 @@ function NoteCard({
 
 function NotesPanel() {
   const [state, { setState }] = unstable_useInteractable("notes", {
+    id: "notes",
     description:
       "The sticky-note collection and selected note id. Use update_notes with notes.add/update/remove/clear to manage notes, and set selectedId to change focus. New notes need a title, content, and color.",
     stateSchema: notesSchema,

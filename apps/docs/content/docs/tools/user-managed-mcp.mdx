@@ -1,16 +1,16 @@
 ---
 title: User-managed MCP servers
-description: Let end users add and authenticate MCP servers from the browser with @assistant-ui/react-mcp.
+description: "Let end users add and authenticate MCP servers from the browser with @assistant-ui/react-mcp."
 ---
 
-[`@assistant-ui/react-mcp`](https://npmjs.com/package/@assistant-ui/react-mcp) is the user-facing layer for MCP. Where the [server-side MCP guide](/docs/tools/mcp) wires a single fixed set of MCP servers into your API route, this package lets *end users* see a list of connectors, sign in via OAuth, paste a custom server URL, and have the resulting tool catalog flow into the chat automatically.
+[`@assistant-ui/react-mcp`](https://npmjs.com/package/@assistant-ui/react-mcp) lets *end users* see a list of connectors, sign in via OAuth, paste a custom server URL, and have the resulting tools flow into the chat. It runs the MCP client in the browser. To wire a fixed set of servers into your API route instead, see [server-side MCP](/docs/tools/mcp).
 
-Two ways a server reaches the user:
+A server reaches the user in one of two ways:
 
-- **Connector**: a preset declared by the app developer with `defineConnector(...)`. The user clicks Connect and completes auth.
-- **Custom server**: the user supplies the URL, name, and auth in `<McpAddFormPrimitive>`. Hide the add UI to disable.
+- **Connector**: a preset you declare with `defineConnector(...)`. The user clicks Connect and completes auth.
+- **Custom server**: the user supplies the URL, name, and auth in `<McpAddFormPrimitive>`. Do not render the add UI to disable it.
 
-Both use the same connection lifecycle, persisted state, and tool registration path.
+Both share one connection lifecycle, one persisted state, and one tool registration path.
 
 <AgentSetup product="guides/user-managed-mcp" />
 
@@ -19,16 +19,14 @@ Both use the same connection lifecycle, persisted state, and tool registration p
 ```
 AuiConfig({ mcp: McpManagerResource({ connectors }) })
         │
-        ├─ Resource — connection lifecycle, server lookup, OAuth/bearer auth
-        ├─ Auto-mounts the modelContext scope when no chat runtime provides one
-        └─ Registers connected tools as frontend tools — your chat sees them automatically
+        ├─ connection lifecycle, server lookup, OAuth and bearer auth
+        ├─ mounts a modelContext scope when no chat runtime provides one
+        └─ registers connected tools as frontend tools, so your chat sees them
 ```
 
-The manager is a single resource. Mount it with `AuiProvider` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are supported. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
+The manager is one resource, mounted like any other scope. It supports OAuth (PKCE with dynamic client registration), bearer tokens, and no auth, over Streamable HTTP. Token refresh runs inside the MCP SDK on a 401; this package handles persistence and the redirect step.
 
-<Callout type="info">
-The [2026-07-28 spec revision](https://modelcontextprotocol.io/specification/2026-07-28/changelog) deprecates RFC 7591 dynamic client registration in favor of [Client ID Metadata Documents](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#client-id-metadata-documents), which clients should prefer over DCR when the authorization server advertises `client_id_metadata_document_supported`. Dynamic client registration remains available for backwards compatibility with authorization servers that do not support CIMD, and the spec's deprecation policy sets a minimum twelve-month window before removal, so the flow described here keeps working. Against a CIMD-only authorization server that exposes no `registration_endpoint`, supply a pre-registered [`clientId`](#auth) instead.
-</Callout>
+Because the client runs in the browser, a tool call goes straight from the page to the MCP server. The server must allow your origin through CORS. Your API route sees a result only when it comes back with the conversation.
 
 ## Setup
 
@@ -44,7 +42,7 @@ The [2026-07-28 spec revision](https://modelcontextprotocol.io/specification/202
 
 ### Mount the manager
 
-Declare your connectors and provide the `mcp` scope via `AuiProvider`:
+Declare your connectors and provide the `mcp` scope:
 
 ```tsx title="app/providers.tsx"
 "use client";
@@ -85,23 +83,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
 }
 ```
 
-Defaults and useful options:
+`McpManagerResource` takes these options:
 
-- `storage`: `McpLocalStorage()` (override for production; see [Storage](#storage))
-- `oauthRedirectUri`: `${window.location.origin}/mcp/callback`
-- `autoConnect`: `true` (connect on mount when usable auth is persisted)
-- `connectionTimeout`: optional timeout in milliseconds. Set it on the manager as a default or on a connector/custom server to bound the MCP readiness flow (`connect()` plus `listTools()`) with a clear error.
-- `requireApproval`: `true` by default for each connector and custom server. Set `requireApproval: false` on a connector or in `addCustomServer(...)` to let that server's tools run without asking.
-- Connector `id` values must be unique. The id is used for server lookup, OAuth routing, and model-visible tool names such as `linear__search`.
+- `connectors`: the presets above. Each `id` must be unique and must not contain `__`. The id is used for server lookup, OAuth routing, and tool names such as `linear__search`.
+- `storage`: where custom servers and credentials persist. Defaults to `McpLocalStorage()`; see [Storage](#storage).
+- `oauthRedirectUri`: defaults to `${window.location.origin}/mcp/callback`.
+- `autoConnect`: defaults to `true`. Servers that need no sign-in, or already have saved credentials, connect on mount.
+- `connectionTimeout`: milliseconds. Bounds the readiness flow (`connect()` plus `listTools()`) with a clear error. A connector or custom server can override it.
+
+A connector or custom server also accepts `icon`, `requireApproval` (see [Tool approvals](#tool-approvals)), `elicitation` (see [Form elicitation](#form-elicitation)), and `cache: { defaultTtlMs }`, which sets the MCP client's default cache lifetime.
 
 </Step>
 <Step>
 
 ### Pick your UI
 
-You have two options:
-
-**Drop-in shadcn dialog** (recommended for most apps). Install the `mcp-config` component via the assistant-ui registry, then render `<McpConfigDialog />` anywhere inside the provider. It includes a styled trigger, server cards, status badges, error banners, and the add form:
+**Drop-in shadcn dialog** (recommended for most apps). Install the [`mcp-config`](/elements/mcp-config) component, then render `<McpConfigDialog />` anywhere inside the provider. It includes a trigger, server cards, status badges, error banners, and the add form:
 
 <InstallCommand shadcn={["mcp-config"]} />
 
@@ -118,15 +115,9 @@ export default function Page() {
 }
 ```
 
-Pass children to override the trigger:
+Pass children to replace the trigger: `<McpConfigDialog><Button variant="ghost">Servers</Button></McpConfigDialog>`.
 
-```tsx
-<McpConfigDialog>
-  <Button variant="ghost">Servers</Button>
-</McpConfigDialog>
-```
-
-**Compose your own from primitives.** Four namespaces are available, all unstyled and `data-*`-driven. The iteration primitives take a **render function** so the body re-runs per server with the right scope:
+**Compose your own from primitives.** Four unstyled, `data-*`-driven namespaces are available: `McpManagerPrimitive`, `McpServerPrimitive`, `McpAddFormPrimitive`, and `McpElicitationPrimitive`. The iteration primitives take a render function and wrap each item in a server scope, so the nested `McpServerPrimitive.*` reads the right server:
 
 ```tsx title="app/mcp/page.tsx"
 "use client";
@@ -143,7 +134,7 @@ const ServerCard = () => (
     <McpServerPrimitive.Status />
     <McpServerPrimitive.ConnectButton>Connect</McpServerPrimitive.ConnectButton>
     <McpServerPrimitive.DisconnectButton>Disconnect</McpServerPrimitive.DisconnectButton>
-    <McpServerPrimitive.OAuthLink>Authorize ↗</McpServerPrimitive.OAuthLink>
+    <McpServerPrimitive.OAuthLink>Authorize</McpServerPrimitive.OAuthLink>
     <McpServerPrimitive.RemoveButton>Remove</McpServerPrimitive.RemoveButton>
     <McpServerPrimitive.Error />
   </McpServerPrimitive.Root>
@@ -170,9 +161,7 @@ export default function McpPage() {
 }
 ```
 
-To disable custom servers entirely, don't render `AddCustomTrigger` and `CustomServers`.
-
-The iteration primitives wrap each item in a server scope provider (`McpConnectorByIndexProvider` or `McpCustomServerByIndexProvider`), so the nested `<McpServerPrimitive.*>` reads the right scope. `<ConnectButton>`, `<DisconnectButton>`, `<OAuthLink>` and `<RemoveButton>` only render when the relevant state matches, so you do not gate them yourself. `<RemoveButton>` is also hidden on connector items (which the user can't remove).
+`ConnectButton`, `DisconnectButton`, `OAuthLink`, and `RemoveButton` render only when the server's state matches, so you do not gate them. `RemoveButton` never renders on a connector, because the user cannot remove one. To disable custom servers, omit `AddCustomTrigger` and `CustomServers`. `McpServerPrimitive.Tools` and `McpServerPrimitive.ToolName` list the tools a server published.
 
 </Step>
 <Step>
@@ -191,16 +180,16 @@ The iteration primitives wrap each item in a server scope provider (`McpConnecto
 </McpAddFormPrimitive.Root>
 ```
 
-The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it, and render your inputs through `McpAddFormPrimitive.BearerTokenField` and `McpAddFormPrimitive.ScopesField` so they stay bound to the form.
+The form owns its draft state and submits through `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to customize it, and render your inputs with `McpAddFormPrimitive.BearerTokenField` and `McpAddFormPrimitive.ScopesField` so they stay bound to the form.
 
-Servers with `bearer` or `oauth` auth must use HTTPS, or plain HTTP on a loopback host: `localhost` or `*.localhost` with or without a trailing dot, an address in `127.0.0.0/8` or its IPv4-mapped IPv6 form, or `[::1]`. The add form rejects an authenticated `http://` URL on any other host, such as a LAN address, and a server configured that way in code fails to connect with a `lastError` that says why, so serve it over HTTPS or reach it through a local tunnel.
+A server with `bearer` or `oauth` auth must use HTTPS, or plain HTTP on a loopback host: `localhost`, `*.localhost`, an address in `127.0.0.0/8`, or `[::1]`. The form rejects any other authenticated `http://` URL with `Authenticated servers must use HTTPS or loopback HTTP`. Serve the server over HTTPS or reach it through a local tunnel.
 
 </Step>
 <Step>
 
 ### Handle the OAuth callback
 
-Add a route at `/mcp/callback` (or whatever you set `oauthRedirectUri` to):
+Add a route at `/mcp/callback`, or wherever `oauthRedirectUri` points:
 
 ```tsx title="app/mcp/callback/page.tsx"
 "use client";
@@ -219,14 +208,16 @@ export default function Callback() {
 }
 ```
 
-The callback reads `?state=...` plus either `code` or an OAuth `error` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), verifies the complete state value against the pending authorization request, and calls `completeAuth` on the right server.
+The callback reads `state` plus either `code` or an OAuth `error` from the URL, finds the server id encoded in `state`, checks the full `state` value against the pending authorization request, and completes auth on that server. `useMcpOAuthCallback` is the hook form, which returns `{ status, serverId, error }`.
+
+The user reaches the provider's sign-in page through `McpServerPrimitive.OAuthLink`, which renders once the server has an `authorizationUrl`.
 
 </Step>
 <Step>
 
 ### Use the tools in chat
 
-`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model without a separate hook or adapter call.
+`McpManagerResource` registers connected tools as **frontend tools** in the `modelContext` scope. Any chat runtime in the same store, such as `useChatRuntime`, uploads them with each request. Send the completed tool results back so the model can continue:
 
 ```tsx
 "use client";
@@ -241,11 +232,34 @@ export function Chat() {
 }
 ```
 
-`sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call. `useChatRuntime()` targets `/api/chat` by default; to point at a different endpoint, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
+Your API route must forward the uploaded tools to the model, with `aiToolkit.tools({ frontend: tools })` or `frontendTools(tools)`; see [Backend](/docs/tools/backend). `useChatRuntime()` targets `/api/chat` by default; for another endpoint, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
-Tool names use `serverId__toolName` when that name contains only letters, numbers, underscores, and dashes and fits within 64 characters. Longer names or names containing other characters receive a stable alias derived from the server ID and tool name. Aliases retain a readable tool-name suffix and route calls to the original MCP server and tool. Persisted server IDs stay unchanged. When different tools map to the same registered name (for example, connector `a_` with tool `b` and connector `a` with tool `_b`), none of them is registered and a console warning names the collision. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
+The tools register again whenever a server connects, disconnects, or its tool list changes. The manager listens for the server's tool-list change notifications and refreshes after a short debounce.
 
-For a custom tool renderer, use `getMcpToolName(serverId, toolName)` to obtain the registered name. Pass the server's ID and the original MCP tool name; the helper works before the server connects. Server state and direct `callTool()` calls continue to use the original tool name.
+Without a chat runtime, the manager brings its own minimal `modelContext`, and tools are still callable directly:
+
+```ts
+// In an event handler, never in render.
+const aui = useAui();
+const out = await aui.mcp.server({ id: "linear" }).callTool("search", { q });
+```
+
+</Step>
+</Steps>
+
+## Tool names
+
+A tool is registered as `serverId__toolName` when that name has only letters, numbers, underscores, and dashes and fits in 64 characters. Otherwise it gets a stable alias that starts with `__mcp_`, contains a hash of the server id and tool name, and keeps a readable suffix of the tool name. Persisted server ids never change, and calls route back to the original server and tool.
+
+Because the server id is part of the name, two servers that publish `search` do not conflict. Two *different* server and tool pairs that map to the same registered name do. For example, connector `a_` with tool `b`, and connector `a` with tool `_b`, both map to `a___b`; a hash collision would too. **Neither tool is registered**, and the console warns once per name:
+
+```text
+[assistant-ui] Different MCP tools map to the tool name "a___b"; none of them is registered.
+```
+
+There is no `prefix` option here. Rename one of your connector ids. Custom server ids are generated, so a collision involving one clears when the user removes that server.
+
+Use `getMcpToolName(serverId, toolName)` to get the registered name for a renderer, because the alias form is not something to build by hand. It works before the server connects. Server state and direct `callTool()` calls keep the original MCP tool name.
 
 ```tsx
 import { MessagePrimitive } from "@assistant-ui/react";
@@ -255,7 +269,7 @@ import { getMcpToolName } from "@assistant-ui/react-mcp";
   components={{
     tools: {
       by_name: {
-        [getMcpToolName(serverId, "get_pull_request_review_comments")]:
+        [getMcpToolName("github", "get_pull_request_review_comments")]:
           ReviewCommentsToolUI,
       },
     },
@@ -263,9 +277,19 @@ import { getMcpToolName } from "@assistant-ui/react-mcp";
 />
 ```
 
-Replace `serverId` with the connected server's ID and `ReviewCommentsToolUI` with your tool renderer. A renderer keyed by the old `serverId__toolName` string must use the helper when that name requires an alias.
+## Tool approvals
 
-A custom renderer replaces the default tool UI, so it must render approval controls when the interrupt payload has type `"mcp-tool-approval"`. Set `requireApproval: false` on servers your app trusts if their tools should run without asking.
+Every call to a connected tool asks first. The default thread opens the pending tool group and shows **Allow** and **Deny** in `ToolFallback`. A deny returns an error result, `The user declined this tool call.`, to the model.
+
+Set `requireApproval: false` on a connector, or in `addCustomServer(...)`, to let that server's tools run without asking. Do this only for servers you trust. A runtime without human-in-the-loop support fails the call instead of running it.
+
+Under the hood, the tool calls `human()` with this payload, and the UI resumes it with `{ approved: boolean }`:
+
+```ts
+{ type: "mcp-tool-approval", serverId, serverName, toolName, arguments }
+```
+
+A custom renderer replaces the default UI, so it must render the controls itself when the interrupt has that type:
 
 ```tsx
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
@@ -292,24 +316,13 @@ const ReviewCommentsToolUI: ToolCallMessagePartComponent = ({
 };
 ```
 
-If no chat runtime is mounted, `McpManagerResource` brings its own minimal `modelContext` along. Tools are still callable directly:
-
-```ts
-// In an event handler, never in render.
-const aui = useAui();
-const out = await aui.mcp.server({ id: "linear" }).callTool("search", { q });
-```
-
-</Step>
-</Steps>
+This `human()` interrupt is separate from the server-side `toolApproval` gate that [server-side MCP](/docs/tools/mcp#require-approval-for-a-tool) uses. For how a renderer receives an interrupt or an approval, see [Tool UI](/docs/tools/tool-ui).
 
 ## Form elicitation
 
-Connected servers can request structured user input through form-mode elicitation.
+A connected server can ask the user for structured input through form-mode elicitation. The server waits for the response, so you must render a form for it. For a ready-made one, use the [elicitation form](/elements/elicitation-form) component. Set `elicitation: false` on a connector or custom server to stop it advertising the capability.
 
-Answering a request requires composing `McpElicitationPrimitive`, because the server waits for the form response otherwise. Set `elicitation: false` on a connector or custom server to opt it out of advertising the capability. Numeric fields can stay text inputs (parseable strings are coerced); boolean fields must compose a checkbox, because string drafts for booleans are flagged invalid rather than coerced. Clearing a field returns it to the unanswered state, so an empty text input is omitted from the response rather than submitted as `""` or flagged invalid, unless the schema admits `""` for that property through an `enum` member or a `""` default. Render `enum` properties as a select; when `""` is not a member, its blank option is the unanswered state.
-
-Render `McpElicitationPrimitive.Items` inside a server-scoped subtree, then compose fields and response actions from the unstyled primitives:
+Compose the form from `McpElicitationPrimitive` inside a server-scoped subtree:
 
 ```tsx
 import { McpElicitationPrimitive } from "@assistant-ui/react-mcp";
@@ -347,21 +360,22 @@ import { McpElicitationPrimitive } from "@assistant-ui/react-mcp";
 </McpElicitationPrimitive.Items>
 ```
 
-Client-side validation errors keep the elicitation pending so the user can correct the form, and `McpElicitationPrimitive.Error` renders the resulting message.
+The field rules:
+
+- Numeric fields can stay text inputs. Parseable strings are coerced.
+- Boolean fields must use a checkbox. A string draft for a boolean is flagged invalid, not coerced.
+- Clearing a field returns it to unanswered, so an empty text input is omitted from the response instead of sent as `""`, unless the schema admits `""` through an `enum` member or a `""` default.
+- Render `enum` properties as a select. When `""` is not a member, the blank option is the unanswered state.
+
+A client-side validation error keeps the elicitation pending, and `McpElicitationPrimitive.Error` shows the message.
 
 ## Storage
 
-All persisted state (custom server records, OAuth tokens, callback state, PKCE verifiers, DCR client info) goes through a single `MCPStorage` resource. Three are built in:
+All persisted state (custom server records, OAuth tokens, callback state, PKCE verifiers, client registrations) goes through one `MCPStorage` resource:
 
-- `McpLocalStorage()`: the default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
-- `McpMemoryStorage()`: an in-process Map. Use for SSR/tests where localStorage is absent.
-- `McpCustomStorage({...})`: bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
-
-A storage can declare a `scopeId`, a stable identity for its backing data (two storages sharing a `scopeId` must read and write the same persisted state). When the scope changes, the manager removes the previous scope's custom servers, sets `isHydrated` to `false`, and then loads the replacement. Servers with `bearer` or `oauth` auth also reconnect and rebind the OAuth provider instead of leaving a live connection writing auth state to the replaced store. Without a `scopeId`, a storage swap does not reload custom servers or trigger a reconnect: records from the previous storage remain loaded and the next add or remove can persist them into the replacement. Give every swappable storage a `scopeId`, or remount the manager instead of swapping its `storage`. `McpLocalStorage()` derives a scope automatically for the shared `window.localStorage` (pass `scopeId` yourself when overriding the backing `storage`); `McpMemoryStorage()` scopes each instance uniquely; `McpCustomStorage` takes whatever identity its backend already has.
-
-If `loadCustomServers` fails, the manager keeps later edits in memory but does not save them because the persisted list is unknown. It logs the failed load and the first blocked edit. Remount the manager to retry loading before making changes that must persist.
-
-Authentication records include the MCP server URL and are used only for that exact endpoint. Custom storage implementations must round-trip the `serverUrl` field passed to `saveAuthState`. Bearer records are written by the host application, so any implementation that persists `token` must write the server's configured `url` as `serverUrl` in the same record; both sides are normalized before they are compared, so any spelling of the same URL matches. A stored credential that does not match is never sent: the server does not connect and `lastError` reports that its saved authentication belongs to a different URL. OAuth records written before this binding existed carry no `serverUrl`, so they surface that message once and the user connects again.
+- `McpLocalStorage()`: the default. Keys use the `aui-mcp:` prefix in `window.localStorage`.
+- `McpMemoryStorage()`: an in-process map, for SSR and tests.
+- `McpCustomStorage({ ... })`: your own load and save, for an app-controlled backend.
 
 ```tsx
 import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
@@ -386,47 +400,49 @@ AuiConfig({
 ```
 
 <Callout type="warn">
-`McpLocalStorage` stores tokens in plain text and is XSS-exposed. For anything beyond local prototyping, use `McpCustomStorage` against an HTTP-only-cookie-backed endpoint, or wrap localStorage with your own encrypted serializer.
+`McpLocalStorage` keeps tokens in plain text, readable by any script on the page. For anything beyond a prototype, use `McpCustomStorage` against an HTTP-only-cookie-backed endpoint, or wrap `localStorage` in your own encrypted serializer.
 </Callout>
+
+**Scope.** A storage can declare a `scopeId`, a stable identity for its backing data. Two storages with the same `scopeId` must read and write the same state. When the scope changes, the manager drops the previous scope's custom servers, sets `isHydrated` to `false`, loads the replacement, and reconnects `bearer` and `oauth` servers against it. Without a `scopeId`, swapping storage keeps the previous records loaded, and the next add or remove can write them into the replacement. Give every swappable storage a `scopeId`, or remount the manager instead. `McpLocalStorage()` derives one for the shared `window.localStorage` (pass `scopeId` yourself when you override its `storage`), and `McpMemoryStorage()` scopes each instance uniquely.
+
+**Failed loads.** If `loadCustomServers` fails, the manager keeps later edits in memory and does not save them, because the persisted list is unknown. It logs the failed load and the first blocked edit. Remount the manager to retry before making changes that must persist.
+
+**URL binding.** Credentials are stored with the MCP server URL and are used only for that exact endpoint. A custom storage must round-trip the `serverUrl` field passed to `saveAuthState`. If you write a bearer record yourself, set `serverUrl` to the server's configured `url` in the same record; both sides are normalized before comparing, so any spelling of the same URL matches. A mismatched credential is never sent. The server does not connect, and its `lastError` says the saved authentication belongs to a different URL. OAuth records written before this binding existed carry no `serverUrl`, so they surface that message once and the user connects again.
 
 ## Auth
 
-Three modes, declared per-connector or per-custom-record:
+Auth is declared per connector or custom server:
 
 ```ts
 { type: "none" }                                    // no auth header
 { type: "bearer", token?: "…" }                     // Authorization: Bearer …
-{ type: "oauth",                                    // PKCE + DCR + refresh
+{ type: "oauth",                                    // PKCE, dynamic registration, refresh
   scopes?: ["read"],
   authorizationEndpoint?: "…",                      // overrides RFC 8414 discovery
   tokenEndpoint?: "…",
   registrationEndpoint?: "…",
-  clientId?: "…",                                   // skip DCR with a static client
+  clientId?: "…",                                   // skip registration with a static client
   clientSecret?: "…",
 }
 ```
 
-The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591, [deprecated in favor of CIMD](#how-it-works) but still supported), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
+The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), dynamic client registration (RFC 7591), PKCE, token exchange, and refresh. This package persists the state through `MCPStorage` and handles the redirect. The server id is embedded in the OAuth `state`, so one `/mcp/callback` route serves every server. The authorization URL must use HTTPS or loopback HTTP.
 
-## Tool approvals
+<Callout type="info">
+The [2026-07-28 spec revision](https://modelcontextprotocol.io/specification/2026-07-28/changelog) deprecates dynamic client registration in favor of [Client ID Metadata Documents](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#client-id-metadata-documents), but keeps it for backwards compatibility with a minimum twelve-month window before removal. This package uses dynamic registration. Against an authorization server that offers only Client ID Metadata Documents and exposes no `registration_endpoint`, supply a pre-registered `clientId` instead.
+</Callout>
 
-Connected MCP tools ask for approval before each call by default. The default thread opens a pending tool group and shows **Allow** and **Deny** in `ToolFallback`. A custom tool renderer can handle the same human-input request by calling `resume({ approved: true })` or `resume({ approved: false })`. Runtimes without human-in-the-loop support fail with an error instead of running the tool; set `requireApproval: false` on that server to allow execution in such a runtime.
+## State and methods
 
-## State & methods
-
-Read render-time state with `useAuiState`:
+Read render-time state with `useAuiState`. Call imperative methods through `useAui` inside a callback, never during render:
 
 ```ts
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/react";
 
 const isHydrated = useAuiState((s) => s.mcp.isHydrated);
 const connectionState = useAuiState((s) => s.mcpServer.connectionState);
-//                                          ^ requires McpServerByIdProvider
-```
+//                                          ^ requires a server scope, such as McpServerPrimitive.Root
 
-Call imperative methods through `useAui` inside a callback, never during render:
-
-```ts
 const aui = useAui();
 
 // inside an event handler:
@@ -434,60 +450,54 @@ await aui.mcp.addCustomServer({ name, url, auth: { type: "bearer", token } });
 await aui.mcp.server({ id }).connect();
 await aui.mcp.server({ id }).callTool("echo", { text: "hi" });
 
-// Build a paginated resource browser/preview UI.
-type ResourcePage = {
-  resources: Array<{ uri: string; name?: string }>;
-  nextCursor?: string;
-};
-
-const server = aui.mcp.server({ id });
-const resources: ResourcePage["resources"] = [];
-let nextCursor: string | undefined;
-
-do {
-  const page = (await (nextCursor === undefined
-    ? server.listResources()
-    : server.listResources({ cursor: nextCursor }))) as ResourcePage;
-  resources.push(...page.resources);
-  nextCursor = page.nextCursor;
-} while (nextCursor !== undefined);
-
-const firstResource = resources[0];
-if (firstResource) {
-  const preview = await server.readResource(firstResource.uri);
-}
+// Resources: pass the previous page's nextCursor to continue.
+const page = await aui.mcp.server({ id }).listResources({ cursor });
+const preview = await aui.mcp.server({ id }).readResource(uri);
 ```
 
-## v1 scope
+`connectionState` is one of `disconnected`, `authRequired`, `authPending`, `connecting`, `connected`, or `error`. A server also exposes `lastError`, `authorizationUrl`, `tools`, and `pendingElicitations`. `aui.mcp.removeServer(id)` removes a custom server; it throws for a connector.
 
-What ships:
+## Security
 
-- Tool listing and invocation, auto-registered as frontend tools
-- Per-server approval before tool execution
-- Resource listing and reads for app-built browsers or preview panes
-- Form-mode elicitation with app-composed fields and response actions
-- OAuth (PKCE + DCR), bearer, none
-- StreamableHTTP transport
-- Manual connect/disconnect
+- **Tool descriptions and results are untrusted input.** A server a user connects controls the text the model reads, so it can try to steer the model. That is why approval is on by default. Think before setting `requireApproval: false` on a server you do not run.
+- **Calls run in the browser.** The MCP server sees the user's own connection, and your route never proxies the call. Your route sees the result only when it comes back with the conversation.
+- **Stored tokens are readable by page scripts.** See the storage warning above, and keep XSS defenses in place.
+- **HTTPS is enforced for authenticated servers**, with a loopback exception for development.
+- **Published to WebMCP.** The default [WebMCP](/docs/tools/webmcp#choosing-which-tools-to-publish) filter publishes every enabled frontend tool with an `execute`, which includes these tools. Filter them out unless you want a browser agent calling them. A call from WebMCP cannot answer the approval prompt, so a gated tool fails there, while a tool on a server with `requireApproval: false` runs unasked.
 
-What's deferred:
+## Troubleshooting
 
-- Prompts, sampling
-- Auto-reconnect with backoff
-- Per-tool approval and enable/disable settings
-- Out-of-the-box token encryption (use `McpCustomStorage` against a server endpoint)
+A failed connection sets `connectionState` to `error` and `lastError.message`; nothing retries automatically, so show a reconnect control.
 
-## Related
+| `lastError` or console message | Cause and fix |
+| --- | --- |
+| `Authenticated MCP server "id" must use HTTPS or loopback HTTP.` | A `bearer` or `oauth` server on plain `http://` to a non-loopback host. Use HTTPS. |
+| `MCP server "id" has saved authentication for a different URL. Authenticate again to connect to ...` | The stored credential was saved for another URL. Connect again, or fix `serverUrl` in custom storage. |
+| `MCP server "id" timed out while connecting after 15000ms.` | No answer within `connectionTimeout`. The phase reads `listing tools` when listing is the slow step. |
+| `MCP server "id" failed to load saved authentication: ...` | `loadAuthState` threw. Check your custom storage. |
+| `MCP server "id" is not connected` | `callTool`, `listResources`, or `readResource` ran before the server reached `connected`. |
+| `MCP OAuth callback failed: ...` | The callback page failed. The detail reads `missing "state" parameter`, `state was not created by assistant-ui MCP`, `no pending OAuth authorization request for this server`, `OAuth state does not match the authorization request`, or `missing authorization code in callback URL`. The pending request is gone (storage cleared, a second tab, or a stale URL), so start Authorize again. |
+| `MCP server "id" authorization was interrupted before completion.` | The server was disconnected or reconnected during the callback. Authorize again. |
+| `MCP server id "..." must not contain "__"`, or `received duplicate MCP server id` | A connector id is invalid or repeated. Ids must be unique and cannot contain `__`. |
+| `Cannot remove connector "id"` | `removeServer` was called on a connector. Only custom servers are removable. |
+| A request fails with no `lastError` detail, or the browser console shows a CORS error | The MCP server does not allow your origin through CORS. |
+| The server is `connected` but the model never calls its tools | The route does not forward the uploaded `tools`, or `sendAutomaticallyWhen` is missing. See [Use the tools in chat](#use-the-tools-in-chat). |
+| `[assistant-ui] Different MCP tools map to the tool name "..."` | See [Tool names](#tool-names). |
 
-<Cards>
-  <Card
-    title="Server-side MCP"
-    description="App-developer-controlled MCP servers wired into the API route."
-    href="/docs/tools/mcp"
-  />
-  <Card
-    title="Tools and tool UI"
-    description="Build custom renderers for tool calls and approvals."
-    href="/docs/tools/defining-tools"
-  />
-</Cards>
+## Scope and limits
+
+Supported:
+
+- Tool listing and calls, registered as frontend tools, with automatic refresh when the server's tool list changes
+- Per-server approval before a tool runs
+- Resource listing and reads, for browsers and previews you build
+- Form-mode elicitation with fields and actions you compose
+- OAuth, bearer, and no auth, over Streamable HTTP, with manual connect and disconnect
+
+Not supported:
+
+- SSE and stdio transports (use [server-side MCP](/docs/tools/mcp) for those)
+- Prompts and sampling
+- Automatic reconnect with backoff
+- Per-tool approval and per-tool enable or disable settings
+- Built-in token encryption (use `McpCustomStorage` against a server endpoint)

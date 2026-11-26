@@ -816,6 +816,9 @@ function typeIncludesUndefined(type: Type): boolean {
 }
 
 function isPrimitiveType(type: Type): boolean {
+  const constraint = type.isTypeParameter() ? type.getConstraint() : undefined;
+  if (constraint)
+    return nonNullableUnionTypes(constraint).every(isPrimitiveType);
   return (
     type.isString() ||
     type.isNumber() ||
@@ -862,18 +865,38 @@ function documentableProperties(type: Type): TsMorphSymbol[] {
   return [...properties.values()];
 }
 
-function shouldExpandChildType(type: Type, typeText: string): boolean {
-  if (type.isArray() || type.isTuple()) return false;
+function isListOrPrimitive(type: Type): boolean {
+  return (
+    type.isArray() ||
+    type.isReadonlyArray() ||
+    type.isTuple() ||
+    isPrimitiveType(type)
+  );
+}
+
+// A type that may be a list or a primitive only shares built-in prototype
+// members (`length`, `toString`, ...) as properties.
+function isObjectShape(type: Type): boolean {
   const candidateTypes = nonNullableUnionTypes(type);
-  if (candidateTypes.length === 0) return false;
-  if (candidateTypes.every(isPrimitiveType)) return false;
-  if (
-    type.isUnion() &&
-    candidateTypes.some((unionType) => isPrimitiveType(unionType))
-  ) {
-    return false;
-  }
+  return candidateTypes.length > 0 && !candidateTypes.some(isListOrPrimitive);
+}
+
+// Matched by declaration, not alias name, because aliases such as
+// `ClientElement` re-alias the instantiated `ResourceElement` type.
+function isResourceElement(type: Type): boolean {
+  const literal = type.getSymbol()?.getDeclarations()[0];
+  const alias = literal?.getParent();
+  return (
+    Node.isTypeAliasDeclaration(alias) && alias.getName() === "ResourceElement"
+  );
+}
+
+function shouldExpandChildType(type: Type, typeText: string): boolean {
+  if (!isObjectShape(type)) return false;
   if (type.getCallSignatures().length > 0) return false;
+  // A tap resource element is an opaque handle; its hook, args, key and deps
+  // are plumbing, not options.
+  if (nonNullableUnionTypes(type).every(isResourceElement)) return false;
   if (typeText.includes("ReactNode") || typeText.startsWith("React.")) {
     return false;
   }
@@ -1076,6 +1099,7 @@ export function processTypeOrInterface(
   typeName: string,
   options?: JsDocRenderOptions,
 ): PropModel[] | undefined {
+  if (!isObjectShape(declaration.getType())) return undefined;
   return processTypeProperties(
     declaration.getType(),
     typeName,
@@ -1105,10 +1129,14 @@ function getComponentPropsType(declaration: TsNode): Type | undefined {
   const type = declaration.getType();
   const parameter = type.getCallSignatures()[0]?.getParameters()[0];
   const parameterDeclaration = parameter?.getDeclarations()[0];
-  if (parameterDeclaration) {
-    return parameter.getTypeAtLocation(parameterDeclaration);
-  }
-  return undefined;
+  if (!parameterDeclaration) return undefined;
+  const parameterType = parameter.getTypeAtLocation(parameterDeclaration);
+  // A tap `resource()` export is typed `(...args: A) => ResourceElement<V>`,
+  // so its first parameter is the tuple of hook arguments; the props are the
+  // tuple's first element, and a hook without arguments has none.
+  if (!parameterType.isTuple()) return parameterType;
+  const propsType = parameterType.getTupleElements()[0]?.getNonNullableType();
+  return propsType && !propsType.isArray() ? propsType : undefined;
 }
 
 export function processComponentDeclaration(
@@ -1251,7 +1279,7 @@ export function extractSupportingTypeShapes(
   return result;
 }
 
-export function isPrimitiveOnlyType(filePath: string, name: string): boolean {
+export function isNonObjectType(filePath: string, name: string): boolean {
   const project = getProject();
   const sourceFile =
     project.getSourceFile(filePath) ?? project.addSourceFileAtPath(filePath);
@@ -1261,6 +1289,6 @@ export function isPrimitiveOnlyType(filePath: string, name: string): boolean {
   return (
     !!declaration &&
     Node.isTypeAliasDeclaration(declaration) &&
-    nonNullableUnionTypes(declaration.getType()).every(isPrimitiveType)
+    !isObjectShape(declaration.getType())
   );
 }

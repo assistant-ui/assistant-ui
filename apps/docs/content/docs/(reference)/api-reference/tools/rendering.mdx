@@ -3,7 +3,7 @@ title: Tool Rendering
 description: Register React renderers for assistant-ui tool calls, tool results, and model data parts.
 ---
 
-import { DataRenderers, McpAppRenderer, McpAppsRemoteHost, getMcpAppFromToolPart, useAssistantDataUI, useAssistantToolUI } from "@/generated/typeDocs";
+import { McpAppRenderer, McpAppsRemoteHost, getMcpAppFromToolPart, useAssistantDataUI, useAssistantToolUI } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -16,7 +16,9 @@ import { DataRenderers, McpAppRenderer, McpAppsRemoteHost, getMcpAppFromToolPart
 
 ### DataRenderers
 
-<ParametersTable {...DataRenderers} />
+```ts
+const DataRenderers: Resource<ClientOutput<"dataRenderers">, []>;
+```
 
 ### getMcpAppFromToolPart
 

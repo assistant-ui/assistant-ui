@@ -237,37 +237,44 @@ A tool the server gates with the AI SDK's `needsApproval` shows its approval req
 
 ### Frontend tools
 
-Serialize client-side tools with `toToolsJSONSchema`:
+Register tools with `Tools({ toolkit })`, as [Defining tools](/docs/tools/defining-tools#registering-a-toolkit-with-tools) describes. On every request the runtime sends `tools`, a record keyed by tool name whose values hold `description` and a JSON Schema `parameters` object, and it runs a frontend tool's `execute` in the client when the stream calls it:
 
-```tsx
-import { tool } from "@assistant-ui/react";
-import { toToolsJSONSchema } from "assistant-stream";
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
 
-const myTools = {
-  get_weather: tool({
+export const toolkit = defineToolkit({
+  get_weather: {
+    type: "frontend",
     description: "Get current weather",
     parameters: z.object({ location: z.string() }),
     execute: async ({ location }) => {
       const weather = await fetchWeather(location);
       return `Weather in ${location}: ${weather}`;
     },
-  }),
-};
-
-const runtime = useDataStreamRuntime({
-  api: "/api/chat",
-  body: { tools: toToolsJSONSchema(myTools) },
+    renderText: { running: "Checking the weather…", complete: "Weather ready" },
+  },
 });
 ```
+
+```tsx title="app/page.tsx"
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>
+  <Thread />
+</AssistantRuntimeProvider>
+```
+
+Import `defineToolkit`, `AuiConfig`, and `Tools` from your platform's package (`@assistant-ui/react`, `@assistant-ui/react-native`, or `@assistant-ui/react-ink`). Do not pass `tools` through the `body` option: `body` is merged last, so a `tools` key there replaces the schemas the runtime collected. If you compile the toolkit with `"use generative"`, the client build leaves out the schemas of frontend tools and assumes your server imports the same file. A backend that only reads this request body needs the `backendless` build option, described in [Running without your own backend](/docs/tools/defining-tools#running-without-your-own-backend).
 
 ### Backend tool processing
 
 ```ts title="Backend tool handling"
 const { tools } = await request.json();
-const response = await ai.generateText({ messages, tools });
+const response = await ai.generateText({ messages, tools: toProviderTools(tools) });
 ```
 
-Tool results stream back automatically.
+`toProviderTools` stands for your own conversion from the `tools` record to the format your provider expects. Tool results stream back automatically.
 
 ## Message conversion
 

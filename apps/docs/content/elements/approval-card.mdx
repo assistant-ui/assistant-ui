@@ -64,7 +64,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-`approval.approved` is `undefined` until answered, so that is the only window in which `respondToApproval` is legal. Sending an `optionId` records which of the host's declared options was chosen rather than a plain yes or no. See [Approval options](/docs/tools/tool-ui#approval-options) for declaring `"once"`, `"always"`, and `"deny"` as `allow-once`, `allow-always`, and `reject-once`.
+`approval.approved` is `undefined` until answered, so that is the only window in which `respondToApproval` is legal. Sending an `optionId` records which of the host's declared options was chosen rather than a plain yes or no. See [Approval options](/docs/tools/tool-approvals#approval-options) for declaring `"once"`, `"always"`, and `"deny"` as `allow-once`, `allow-always`, and `reject-once`.
 
   </Step>
   <Step>

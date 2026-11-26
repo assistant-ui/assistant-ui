@@ -80,6 +80,10 @@ export type Unstable_InteractablePersistenceAdapter = {
 
 /** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_InteractablesConfig = {
+  /**
+   * Saves and restores app-scoped interactable state. Keep the adapter object
+   * stable: a different identity is a different persistence scope.
+   */
   persistence?: Unstable_InteractablePersistenceAdapter | undefined;
 };
 

@@ -4,116 +4,10 @@ description: Render AI tool calls as custom React components that show loading, 
 platforms: ["react"]
 ---
 
-import { ToolUISample } from "@/components/pages/docs/samples/tool-ui";
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { ToolUIRendererSample } from "@/components/pages/docs/samples/tool-ui/custom-renderer";
 
 Render a tool call as your own React component, with loading, result, error, and interactive states.
-
-<ToolUISample />
-
-## Overview
-
-A tool UI is a component that renders in the thread when the model calls a tool. It can:
-
-- show loading and progress states while the tool runs
-- display the result
-- collect input from the user through forms and controls
-- report errors
-
-The examples on this page use the Vercel AI SDK.
-
-To let the model compose UI from a vocabulary instead of binding one component per tool, see [Generative UI](/docs/tools/generative-ui).
-
-## Creating Tool UIs
-
-Tool UI is registered on toolkit entries. The same entry can define a browser-executed frontend tool, a human tool that completes through `addResult`, or a render-only backend tool whose schema and execution live on the server.
-
-### 1. Client-Defined Tools
-
-If you're creating tools on the client side, register them in a toolkit with `Tools({ toolkit })`.
-
-```tsx title="app/toolkit.tsx"
-"use generative";
-
-import { defineToolkit } from "@assistant-ui/react";
-import { z } from "zod";
-
-export default defineToolkit({
-  getWeather: {
-    description: "Get current weather for a location",
-    parameters: z.object({
-      location: z.string(),
-      unit: z.enum(["celsius", "fahrenheit"]),
-    }),
-    execute: async ({ location, unit }) => {
-      "use client";
-      return fetchWeatherAPI(location, unit);
-    },
-    render: ({ args, result, status }) => {
-      if (status.type === "running") {
-        return <div>Checking weather in {args.location}...</div>;
-      }
-
-      return (
-        <div className="weather-card">
-          <h3>{args.location}</h3>
-          <p>
-            {result.temperature}°{args.unit === "celsius" ? "C" : "F"}
-          </p>
-          <p>{result.description}</p>
-        </div>
-      );
-    },
-  },
-});
-```
-
-```tsx title="app/MyRuntimeProvider.tsx"
-import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import toolkit from "./toolkit";
-
-function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime();
-  const config = AuiConfig({ tools: Tools({ toolkit }) });
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
-
-<Callout type="tip">
-  The model also needs the tool's schema. Wrap the same toolkit in
-  `AISDKToolkit` in your route handler; see [Backend Tools](/docs/tools/backend).
-</Callout>
-
-Learn more about creating tools in the [Tools Guide](/docs/tools/defining-tools).
-
-### 2. UI-Only for Existing Tools
-
-If your tool is defined elsewhere (e.g., in your backend API, MCP server, or LangGraph), register a backend toolkit entry with only a `render`:
-
-```tsx
-const toolkit = defineToolkit({
-  getWeather: {
-    type: "backend",
-    render: ({ args, result, status }) => {
-      // UI rendering logic only
-    },
-  },
-});
-```
-
-This `type: "backend"` shape is for a plain toolkit. In a `"use generative"` file, write `execute: externalTool()` instead; see [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools).
-
-## Quick Start Example
-
-This example uses a backend toolkit entry for a tool that the server defines. The preview uses a shorter renderer than the steps below.
 
 <PreviewCode
   file="components/pages/docs/samples/tool-ui/custom-renderer"
@@ -122,205 +16,245 @@ This example uses a backend toolkit entry for a tool that the server defines. Th
   <ToolUIRendererSample />
 </PreviewCode>
 
-<Steps>
-  <Step>
+## What a tool UI does
 
-### Create a Tool UI Renderer
+A tool UI is a component that renders in the thread when the model calls a tool. It receives the call's live state as props, so it can:
 
-```tsx
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+- show progress while the arguments stream in and the tool runs
+- display the result, or the error
+- ask the user for input or a decision, and send the answer back to the run
+
+This page covers rendering and interaction. Declaring tools, choosing where they run, and registering a toolkit are covered elsewhere:
+
+| You want to | Go to |
+| --- | --- |
+| Declare a tool and attach its `render` (tool kinds, `"use generative"`, `Tools()` registration) | [Defining Tools](/docs/tools/defining-tools) |
+| Attach UI to a tool another system executes | [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools) |
+| Give the model the tool's schema on your server | [Backend tools](/docs/tools/backend) |
+| Hold a tool call until the user allows it, picks an option, or answers a question | [Tool approvals](/docs/tools/tool-approvals) |
+| Let the model compose UI from a vocabulary instead of one component per tool | [Generative UI](/docs/tools/generative-ui) |
+
+A `render` function only draws the tool call; it does not run the tool. Backend `execute` code stays on your server; see [Tool kinds](/docs/tools/defining-tools#tool-kinds).
+
+Samples on this page call helpers that are yours to implement, such as `fetchWeatherAPI`, `ResultList`, `Chart`, `SizePicker`, and `taskStore`.
+
+## Rendering a tool call
+
+### `render`
+
+`render` is a React component. It re-renders as the arguments stream, the result arrives, and the status changes, and it can use hooks. Type it with `ToolCallMessagePartComponent`, then put it on the toolkit entry for the tool. This is the `get_weather` tool from the [quick start](/docs/tools/defining-tools#quick-start-use-generative), with its inline `render` replaced by a named `WeatherToolUI`:
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
+import { WeatherToolUI } from "@/components/weather-tool-ui";
 
-type WeatherArgs = {
-  location: string;
-  unit: "celsius" | "fahrenheit";
-};
-
-type WeatherResult = {
-  temperature: number;
-  description: string;
-  humidity: number;
-  windSpeed: number;
-};
-
-const WeatherToolUI: ToolCallMessagePartComponent<
-  WeatherArgs,
-  WeatherResult
-> = ({ args, status, result }) => {
-  if (status.type === "running") {
-    return (
-      <div className="flex items-center gap-2">
-        <Spinner />
-        <span>Checking weather in {args.location}...</span>
-      </div>
-    );
-  }
-
-  if (status.type === "incomplete" && status.reason === "error") {
-    return (
-      <div className="text-red-500">
-        Failed to get weather for {args.location}
-      </div>
-    );
-  }
-
-  return (
-    <div className="weather-card rounded-lg bg-blue-50 p-4">
-      <h3 className="text-lg font-bold">{args.location}</h3>
-      <div className="mt-2 grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-2xl">
-            {result.temperature}°{args.unit === "celsius" ? "C" : "F"}
-          </p>
-          <p className="text-gray-600">{result.description}</p>
-        </div>
-        <div className="text-sm">
-          <p>Humidity: {result.humidity}%</p>
-          <p>Wind: {result.windSpeed} km/h</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-```
-
-  </Step>
-  <Step>
-
-### Register the Tool UI
-
-Put the renderer on the related backend toolkit entry.
-
-Set `display` to `"standalone"` to keep the tool UI outside the collapsed tool group. A backend tool uses the inline display by default.
-
-```tsx
-const toolkit = defineToolkit({
-  getWeather: {
-    type: "backend",
+export default defineToolkit({
+  get_weather: {
+    description: "Get current weather for a location.",
+    parameters: z.object({
+      location: z.string().describe("City name or zip code"),
+      unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+    }),
+    execute: async ({ location, unit }) => {
+      "use client";
+      return fetchWeatherAPI(location, unit);
+    },
     display: "standalone",
     render: WeatherToolUI,
   },
 });
-
-function App({ runtime }: { runtime: AssistantRuntime }) {
-  const config = AuiConfig({ tools: Tools({ toolkit }) });
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
 ```
 
-  </Step>
-  <Step>
+`fetchWeatherAPI` and `WeatherToolUI` are yours to implement; the live sample at the top of this page is a `WeatherToolUI` you can start from. Mount the toolkit with `AuiConfig({ tools: Tools({ toolkit }) })` as described in [Registering a toolkit with `Tools()`](/docs/tools/defining-tools#registering-a-toolkit-with-tools), and see the [quick start](/docs/tools/defining-tools#quick-start-use-generative) for the full setup. Every tool you author on the client or the server takes the same `render` field.
 
-### Define the Backend Tool (Vercel AI SDK)
-
-When using the Vercel AI SDK, define the corresponding tool in your API route:
-
-```tsx title="/app/api/chat/route.ts"
-import { openai } from "@ai-sdk/openai";
-import { convertToModelMessages, streamText, tool, zodSchema } from "ai";
-import { z } from "zod";
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  const aiSDKTools = {
-    getWeather: tool({
-      description: "Get current weather for a location",
-      inputSchema: zodSchema(
-        z.object({
-          location: z.string(),
-          unit: z.enum(["celsius", "fahrenheit"]),
-        }),
-      ),
-      execute: async ({ location, unit }) => {
-        const weather = await fetchWeatherAPI(location);
-        return {
-          temperature: weather.temp,
-          description: weather.condition,
-          humidity: weather.humidity,
-          windSpeed: weather.wind,
-        };
-      },
-    }),
-  };
-
-  const result = streamText({
-    abortSignal: req.signal,
-    model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
-    tools: aiSDKTools,
-  });
-
-  return result.toUIMessageStreamResponse();
-}
-```
-
-  </Step>
-</Steps>
-
-## Tool UI Patterns
-
-### Component Pattern
-
-Create standalone tool UI components:
+To render a tool that another system defines and executes, such as a separate backend or a LangGraph node, give the entry `execute: externalTool()` and a `render` and nothing else:
 
 ```tsx
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+web_search: { execute: externalTool(), render: SearchToolUI },
+```
 
-export const WebSearchToolUI: ToolCallMessagePartComponent<
+An `externalTool()` entry carries no schema and no executor, so use it only for a tool defined elsewhere. See [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools).
+
+The component receives these props:
+
+| Prop | Meaning |
+| --- | --- |
+| `args`, `argsText` | The arguments as an object and as raw JSON text. Both are partial while the model is still writing them. |
+| `status` | Where the call is in its lifecycle; see [Tool status](#tool-status). |
+| `result`, `isError`, `isPreliminary` | The tool's result. While `isPreliminary` is set, `result` is an interim value and the call is not settled. `isError` marks an error result. |
+| `artifact` | UI-only data attached to the result. |
+| `toolName`, `toolCallId` | Which tool, and which call. |
+| `addResult` | Completes the call with a result you supply; see [User input collection](#user-input-collection). |
+| `interrupt`, `resume` | A payload the tool is waiting on, and the function that answers it; see [Pausing a frontend tool](#pausing-a-frontend-tool). |
+| `approval`, `respondToApproval` | A pending approval request, and the function that answers it; see [Tool approvals](/docs/tools/tool-approvals). |
+| `unstable_interactions`, `unstable_recordInteraction` | What the user did in this UI, stored with the call; see [Recording interactions](#recording-interactions). |
+| `messages` | Nested thread messages produced by the call, such as a sub-agent conversation; see [Multi-Agent](/docs/tools/multi-agent). |
+
+The full type is `ToolCallMessagePartProps`; `useToolArgsStatus` is documented in the [Tool Status reference](/docs/api-reference/tools/status).
+
+### `renderText`
+
+For a one-line status instead of a component, give the entry `renderText`. Each of `running` and `complete` is a string, a React node, or a function of `{ args }` and `{ args, result }`:
+
+```tsx
+renderText: {
+  running: ({ args }) => `Searching for ${args.query}…`,
+  complete: ({ result }) => `Found ${result?.length ?? 0} results`,
+},
+```
+
+`running` applies while the call is `running` or `requires-action`. `complete` applies in every other state, including a cancelled or failed call, so use `render` when you need to tell those apart. If an entry has both, `render` wins.
+
+### Which renderer runs
+
+For each tool-call part, the thread picks the first match:
+
+1. The renderer registered for that tool name through `Tools({ toolkit })`. If two registered toolkits render the same name, the one registered first wins.
+2. A renderer passed to the deprecated `components.tools.by_name` prop.
+3. The generic MCP app renderer, for a call whose `mcp.app.resourceUri` is a `ui://` app.
+4. The fallback; see [Tool fallback](#tool-fallback).
+
+[Tool Resolution](/docs/primitives/message#tool-resolution) covers the same order from the primitive's side, including `part.toolUI` in the children API.
+
+### Inline or standalone
+
+`display` decides whether the call folds into the collapsed tool group or stands on its own in the thread. A tool UI is `"inline"` by default, so consecutive calls collapse behind a [tool group](/elements/tool-group). Set `display: "standalone"` for UI that asks the user for something or that the user should not have to open. Human tools are always standalone, and MCP app calls are standalone too.
+
+## Status and streaming
+
+### Tool status
+
+`status` is derived from the message and the result, so a renderer branches on it directly:
+
+| `status.type` | Meaning |
+| --- | --- |
+| `running` | The arguments are streaming or the tool is executing. Also while an interim `isPreliminary` result is showing. |
+| `requires-action` | The call is waiting for the user: a human tool's result, a paused `human()`, or an open approval. `status.reason` is `"tool-calls"` or `"interrupt"`. |
+| `complete` | A final result arrived, including an error result. A call with no `result` takes the status of its message, so it is also `complete` when the message completed without ever returning one. |
+| `incomplete` | The run ended before a result arrived. `status.reason` is `"cancelled"`, `"tool-calls"`, `"error"`, `"length"`, `"content-filter"`, or `"other"`, and `status.error` can carry detail. `LocalRuntime` sets `"tool-calls"` when its `maxSteps` limit stops a run that still has tool calls to follow. |
+
+A call fails in one of two ways. A tool whose `execute` throws completes with `isError` set and the error as its `result`. A run that fails before the tool returns leaves the call `incomplete`. Handle both in the same renderer; see [Tool failure](/elements/tool-error) for a ready-made card.
+
+```tsx
+const SearchToolUI: ToolCallMessagePartComponent<
   { query: string },
   { results: SearchResult[] }
-> = ({ args, status, result }) => {
+> = ({ args, status, result, isError }) => {
+  if (status.type === "incomplete") {
+    return <p>{status.reason === "cancelled" ? "Cancelled" : "Failed"}</p>;
+  }
+  if (status.type !== "complete" || !result) {
+    return <p>Searching for {args.query}…</p>;
+  }
+  if (isError) return <p>Search failed</p>;
+  return <ResultList results={result.results} />;
+};
+```
+
+### Field-level streaming state
+
+`args` fills in as the model writes it. Use `useToolArgsStatus` to tell a field that is still being written from one that is final. The hook returns a `propStatus` map where each top-level key resolves from `"streaming"` to `"complete"` as the partial JSON arrives, and `argsStatus` tracks the whole object. Call it inside a tool-call renderer:
+
+```tsx
+import {
+  useToolArgsStatus,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/react";
+
+type FormArgs = { email: string; phone: string };
+
+export const SubmitFormToolUI: ToolCallMessagePartComponent<FormArgs> = ({
+  args,
+}) => {
+  const { argsStatus, propStatus } = useToolArgsStatus<FormArgs>();
+
   return (
-    <div className="search-container">
-      <div className="mb-3 flex items-center gap-2">
-        <SearchIcon />
-        <span>Search results for: "{args.query}"</span>
-      </div>
-
-      {status.type === "running" && <LoadingSpinner />}
-
-      {result && (
-        <div className="space-y-2">
-          {result.results.map((item, index) => (
-            <div key={index} className="rounded border p-3">
-              <a href={item.url} className="font-medium text-blue-600">
-                {item.title}
-              </a>
-              <p className="text-sm text-gray-600">{item.snippet}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <form aria-busy={argsStatus === "streaming"}>
+      <input
+        type="email"
+        value={args.email ?? ""}
+        data-streaming={propStatus.email === "streaming"}
+        disabled
+      />
+      <input
+        type="tel"
+        value={args.phone ?? ""}
+        data-streaming={propStatus.phone === "streaming"}
+        disabled
+      />
+    </form>
   );
 };
 ```
 
-Register it on the toolkit:
+`argsStatus` stays `"streaming"` while the object is partial, even when every field received so far is complete, and becomes `"complete"` once the object is. That can happen while `status` is still `"running"` because the tool is executing. A field missing from `propStatus` is not in the current args: while `argsStatus` is `"streaming"` it may still arrive, and once `argsStatus` is `"complete"` it was never sent.
+
+The hook uses parser metadata when the runtime provides it. The AI SDK marks settled tool arguments complete even while execution continues, so received fields become `"complete"` at that point too. Without parser metadata, a running part stays conservatively `"streaming"`, because some runtimes build `argsText` from an incomplete snapshot, and any non-running lifecycle settles argument streaming. `"complete"` does not guarantee valid arguments or a successful result.
+
+### Interim results
+
+A tool can send interim results before its final one, such as an AI SDK `execute` that yields. While `isPreliminary` is set, `status` stays `"running"` and `result` holds the latest interim value:
 
 ```tsx
-const toolkit = defineToolkit({
-  webSearch: {
-    type: "backend",
-    render: WebSearchToolUI,
-  },
-});
+const AnalysisToolUI: ToolCallMessagePartComponent<
+  { dataset: string },
+  { progress: number; insights: string[] }
+> = ({ result, status }) => (
+  <div>
+    {status.type === "running" && <progress value={result?.progress ?? 0} max={100} />}
+    <ul>
+      {(result?.insights ?? []).map((insight) => (
+        <li key={insight}>{insight}</li>
+      ))}
+    </ul>
+  </div>
+);
 ```
 
-### Inline Pattern
+### Deferred rendering
 
-When a renderer needs component props or state, build the toolkit in a hook and wrap the renderer in `useInlineRender`:
+Partial args can render a misleading or jarring intermediate state: a chart flashing through half-populated data, an expensive widget mounting repeatedly, or an iframe reloading. To render only once the call is settled, return `null` until then. The streaming args still arrive in `args`; the renderer ignores them.
 
-<Callout type="tip">
-  `useInlineRender` returns a component that keeps its identity while the
-  function you pass to it changes, so the tool UI reads the latest props and
-  state without remounting.
-</Callout>
+```tsx
+export const ChartToolUI: ToolCallMessagePartComponent<ChartArgs> = ({
+  args,
+  status,
+}) => {
+  if (status.type !== "complete") return null;
+  return <Chart title={args.title} data={args.series} />;
+};
+```
+
+The chart mounts once, with its final args. `status` becomes `"complete"` when the result arrives, not when the arguments finish, so a tool with a slow `execute` shows its UI after the tool returns. To mount as soon as the arguments are final, gate on `argsStatus` instead:
+
+```tsx
+const { argsStatus } = useToolArgsStatus<ChartArgs>();
+if (argsStatus !== "complete") return null;
+```
+
+This applies when the model drives the component through a tool call. When your backend pushes the component instead, [Data-part generative UI](#data-part-generative-ui) renders once with final data and needs no deferral.
+
+To place the component outside the message parts, such as a card under the avatar block, gate it at the message level with `AuiIf` as in [Render After Stream Completes](/docs/primitives/message#render-after-stream-completes), and read the tool-call part from `s.message.parts`:
+
+```tsx
+function PostMessageCard() {
+  const parts = useAuiState((s) => s.message.parts);
+  const chartCall = parts.find(
+    (p) => p.type === "tool-call" && p.toolName === "renderChart",
+  );
+  if (chartCall?.type !== "tool-call") return null;
+  return <Chart {...chartCall.args} />;
+}
+```
+
+To show partial data as it streams instead, use [Field-level streaming state](#field-level-streaming-state) and [Interim results](#interim-results).
+
+## Renderers that need props or state
+
+A toolkit renderer is a component with a stable identity, so it cannot read props or state from the component that mounts the toolkit, and passing a new function on every render would remount the UI. When the renderer has to read them, build the toolkit in a hook and wrap the renderer in `useInlineRender`. It returns a component whose identity never changes and that always calls the latest function you passed. A toolkit built at render time cannot be a `"use generative"` file, so it uses the plain `type: "backend"` entry shape:
 
 ```tsx title="inventory-toolkit.tsx"
 "use client";
@@ -329,772 +263,247 @@ import { defineToolkit, useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
 export function useInventoryToolkit(productId: string, productName: string) {
-  const renderInventory = useInlineRender(({ result }) => {
-    return (
-      <div className="inventory-status">
-        <h4>{productName} Inventory</h4>
+  const renderInventory = useInlineRender<unknown, { quantity: number }>(
+    ({ result }) => (
+      <div>
+        <h4>{productName} inventory</h4>
         <p>
-          Stock for {productId}: {result.quantity} units
+          Stock for {productId}: {result?.quantity ?? "…"} units
         </p>
-        <p>Location: {result.warehouse}</p>
       </div>
-    );
-  });
+    ),
+  );
 
   return useMemo(
     () =>
       defineToolkit({
-        checkInventory: {
-          type: "backend",
-          render: renderInventory,
-        },
+        checkInventory: { type: "backend", render: renderInventory },
       }),
     [renderInventory],
   );
 }
 ```
 
+Mount it below the component that owns the state. `ProductDetails` is your own component:
+
 ```tsx title="ProductPage.tsx"
 import { AuiConfig, AuiProvider, Tools, useAui } from "@assistant-ui/react";
 import { useInventoryToolkit } from "./inventory-toolkit";
 
-function ProductPage({ productId, productName }) {
+function ProductPage({
+  productId,
+  productName,
+}: {
+  productId: string;
+  productName: string;
+}) {
   const toolkit = useInventoryToolkit(productId, productName);
   const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
     <AuiProvider extends={aui} config={config}>
-      <div>Product details...</div>
+      <ProductDetails />
     </AuiProvider>
   );
 }
 ```
 
-## Interactive Tool UIs
+## Human-in-the-loop
 
-`s.thread.capabilities.answerToolCall` reports whether the thread can take an answer at all. It is `false` in a readonly thread, such as a sub-agent transcript or a conversation rendered through `ReadonlyThreadProvider`, where `addResult`, `resume`, and `respondToApproval` do nothing, and on an external store that has nothing to answer with: no `onAddToolResult`, `onResumeToolCall`, or `onRespondToToolApproval`, and no tool execution of its own. Render the request without its controls when it is `false`, as the kit's tool fallback does:
+Three mechanisms let a tool UI send something back to the run. They differ in where the pause lives:
+
+| Mechanism | The pause | The renderer answers with | Declared by |
+| --- | --- | --- | --- |
+| Human tool | The tool has no executor; the UI supplies the whole result | `addResult(result)` | `execute: humanTool()`; see [Human tools](/docs/tools/defining-tools#human-tools) |
+| Interrupt | A frontend `execute` awaits `human(payload)` | `resume(value)`, which `human()` returns to `execute` | A frontend tool calling `human()` |
+| Approval gate | The runtime holds a tool call until the user decides | `respondToApproval(...)` | The runtime or server, such as AI SDK `toolApproval`; not the toolkit. See [Tool approvals](/docs/tools/tool-approvals) |
+
+Use `addResult` when the user supplies the answer, `resume` when code is waiting to continue, and `respondToApproval` when the user allows or blocks an action the server performs.
+
+On the AI SDK runtime, the assistant continues after `addResult` or `resume` only when the client posts the result back, and `sendAutomaticallyWhen` decides that. Its default is never, so set `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls` on `useChatRuntime`; see [Multi-step tool calls](/docs/tools/backend#multi-step-tool-calls). Approvals use a different predicate, described under [Server-side approval gates](/docs/tools/tool-approvals#server-side-approval-gates).
+
+A thread that cannot take an answer should show the request without its controls. `s.thread.capabilities.answerToolCall` is `false` in a readonly thread, such as a sub-agent transcript or a conversation rendered through `ReadonlyThreadProvider`, where `addResult`, `resume`, and `respondToApproval` do nothing. It is also `false` on an external store that has no `onAddToolResult`, `onResumeToolCall`, or `onRespondToToolApproval`, and no tool execution of its own. [`ToolFallback`](/elements/tool-fallback) already checks it:
 
 ```tsx
 const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
 ```
 
-### User Input Collection
+### User input collection
 
-A human tool has no executor. Its `render` collects the input and passes it to `addResult`:
+A human tool has no executor. Its renderer collects the input and passes it to `addResult`, which completes the call, and the assistant continues with the data you passed once the runtime sends the result back (see the `sendAutomaticallyWhen` note above). Call it once. This renderer comes from the `with-generative-ui` example. Register it with `execute: humanTool()`; see [Human tools](/docs/tools/defining-tools#human-tools) for the entry:
 
-<Callout type="tip">
-  Call `addResult(...)` exactly once. It completes the tool call, and the
-  assistant continues with the data you passed.
-</Callout>
+```tsx title="components/date-picker-tool-ui.tsx"
+"use client";
 
-```tsx
-const toolkit = defineToolkit({
-  selectDate: {
-    type: "human",
-    description: "Ask the user to select a date.",
-    parameters: z.object({ prompt: z.string() }),
-    render: ({ args, result, addResult }) => {
-      if (result) {
-        return (
-          <div className="rounded bg-green-50 p-3">
-            ✅ Selected date: {new Date(result.date).toLocaleDateString()}
-          </div>
-        );
-      }
-
-      return (
-        <div className="rounded border p-4">
-          <p className="mb-3">{args.prompt}</p>
-          <DatePicker
-            onChange={(date) => {
-              addResult({ date: date.toISOString() });
-            }}
-          />
-        </div>
-      );
-    },
-  },
-});
-```
-
-### Multi-Step Interactions
-
-A frontend tool can pause during `execute` and wait for the user. Call `human()` with a payload; `render` receives it as `interrupt`, and the value passed to `resume()` is returned to `execute`:
-
-```tsx title="app/approval-toolkit.tsx"
-"use generative";
-
-import { defineToolkit } from "@assistant-ui/react";
 import { useState } from "react";
-import { z } from "zod";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 
-export default defineToolkit({
-  requestApproval: {
-    description: "Request user approval for an action",
-    parameters: z.object({
-      action: z.string(),
-      details: z.any(),
-    }),
-    execute: async ({ action, details }, { human }) => {
-      "use client";
-      // Request approval from user
-      const response = await human({ action, details });
+export const DatePickerToolUI: ToolCallMessagePartComponent<
+  { prompt: string; minDate?: string; maxDate?: string },
+  { date: string }
+> = function DatePickerToolUI({ args, result, addResult }) {
+  const [value, setValue] = useState("");
 
-      return {
-        approved: response.approved,
-        reason: response.reason,
-      };
-    },
-    render: ({ args, result, interrupt, resume }) => {
-      const [reason, setReason] = useState("");
-
-      // Show result after approval/rejection
-      if (result) {
-        return (
-          <div className={result.approved ? "text-green-600" : "text-red-600"}>
-            {result.approved ? "✅ Approved" : `❌ Rejected: ${result.reason}`}
-          </div>
-        );
-      }
-
-      // Show approval UI when waiting for user input
-      if (interrupt) {
-        return (
-          <div className="rounded border-2 border-yellow-400 p-4">
-            <h4 className="font-bold">Approval Required</h4>
-            <p className="my-2">{interrupt.payload.action}</p>
-            <pre className="rounded bg-gray-100 p-2 text-sm">
-              {JSON.stringify(interrupt.payload.details, null, 2)}
-            </pre>
-
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => resume({ approved: true })}
-                className="rounded bg-green-500 px-4 py-2 text-white"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => resume({ approved: false, reason })}
-                className="rounded bg-red-500 px-4 py-2 text-white"
-              >
-                Reject
-              </button>
-              <input
-                type="text"
-                placeholder="Rejection reason..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="flex-1 rounded border px-2"
-              />
-            </div>
-          </div>
-        );
-      }
-
-      return <div>Processing...</div>;
-    },
-  },
-});
-```
-
-<Callout type="tip">
-  Use `human()` and `resume()` when a tool's `execute` has to pause and wait
-  for the user. Use `addResult()` for a human tool, where the user supplies
-  the whole result.
-</Callout>
-
-### Server-side approval gates
-
-Some runtimes (notably AI SDK v7's `toolApproval`-gated tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
-
-```tsx
-import { useState } from "react";
-import type { ToolApprovalResponse } from "@assistant-ui/react";
-
-const toolkit = defineToolkit({
-  deploy: {
-    type: "backend",
-    render: ({ args, approval, respondToApproval, result }) => {
-      const [error, setError] = useState<string | null>(null);
-
-      if (approval?.approved === undefined) {
-        // `try`/`await` rather than `.catch`: a rejected response and a
-        // rejected precondition (an unknown option, an answer the request does
-        // not take) reach the caller by different routes.
-        const answer = async (response: ToolApprovalResponse) => {
-          setError(null);
-          try {
-            await respondToApproval(response);
-          } catch (failure) {
-            setError(failure instanceof Error ? failure.message : String(failure));
-          }
-        };
-
-        return (
-          <div>
-            <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => void answer({ approved: true })}>Approve</button>
-            <button onClick={() => void answer({ approved: false, reason: "user denied" })}>
-              Deny
-            </button>
-            {error && <p role="alert">{error}</p>}
-          </div>
-        );
-      }
-
-      if (approval?.approved === false) {
-        return <p>Denied{approval.reason ? `: ${approval.reason}` : ""}</p>;
-      }
-
-      if (result === undefined) return <p>Approved, running…</p>;
-      return <p>Deployed</p>;
-    },
-  },
-});
-```
-
-`approval.approved` is a three-state signal:
-
-- `undefined`: gate is open, the renderer should ask the user. This is the only state in which `respondToApproval` is legal.
-- `true`: decision recorded as allow. The server is producing the result (or has produced one, available on `result`).
-- `false`: decision recorded as deny. The runtime records an error result (`isError`) and exposes `approval.reason`.
-
-`approval.isAutomatic` is `true` when the runtime granted the decision from a server-side policy rather than the user; render a "auto-approved" badge instead of buttons in that case.
-
-`respondToApproval` returns a promise that resolves once the runtime has accepted the response and rejects when it could not be recorded, for example an expired gate or a provider that refuses the answer as given. Await it before disabling the controls, so a refused response leaves the request retryable rather than spending it.
-
-Approval gates require a runtime that implements them: the AI SDK v7 runtime emits them for `toolApproval`-gated tools, and `LocalRuntime` supports gates emitted by your `ChatModelAdapter`; see [LocalRuntime approval gates](/docs/runtimes/custom/local-runtime#approval-gates). For tools where the user supplies the result itself, use `unstable_humanToolNames` with `addResult` instead; see [human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
-
-For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v7 server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
-
-### Approval options
-
-Beyond the plain allow / deny pair, the host can attach a list of decision options to an approval, for example "allow once", "allow for this session", and "always allow". Each option carries a machine-readable `kind` (`"allow-once"`, `"allow-always"`, `"reject-once"`, `"reject-always"`); scope semantics like session versus global belong to the option's `id` and `label`, which only the host interprets:
-
-```ts
-const approval = {
-  id: "a1",
-  options: [
-    { id: "once", kind: "allow-once" },
-    { id: "session", kind: "allow-always", label: "Allow for this session" },
-    {
-      id: "always",
-      kind: "allow-always",
-      label: "Always allow",
-      grants: ["git *"],
-      confirm: true,
-    },
-    { id: "deny", kind: "reject-once" },
-  ],
-};
-```
-
-Renderers respond with the chosen option instead of a boolean; the option's kind resolves the decision:
-
-```tsx
-respondToApproval({ optionId: "session" });
-```
-
-The runtime receives `{ approvalId, approved, optionId, text?, reason? }`, so a host that persists "always allow" decisions can key its store off `optionId`. Persistence is entirely host-owned: assistant-ui never stores a decision and never auto-answers future approvals. `grants` lists the patterns an option would persist (shown to the user before they commit), and `confirm` opts the option into a confirmation step. Options with custom `_`-prefixed kinds must be answered with an explicit `approved` value, optionally alongside the `optionId` so the chosen option is still recorded. The default `ToolFallback` bar renders them next to the known kinds and sends `{ optionId, approved: true }` when one is chosen, since picking a declared option is an answer rather than a refusal; it also keeps a Deny control available whenever a decision request declares no reject-kind option.
-
-### Approval questions
-
-An approval request can ask for something other than permission. `approval.prompt` carries the question, and `approval.display` says how to present it: `"decision"` (the default) for a yes / no gate, `"select"` when the answer is one of `approval.options`, and `"text"` when the user types it. `approval.allowFreeform` accepts a typed answer alongside the options, and `approval.dismissible` says the host records a dismissal: `{ approved: false }` with no answer.
-
-```ts
-const approval = {
-  id: "a1",
-  prompt: "Which environment should I deploy to?",
-  display: "select",
-  allowFreeform: true,
-  options: [
-    { id: "staging", kind: "_staging", label: "Staging" },
-    { id: "production", kind: "_production", label: "Production" },
-  ],
-};
-```
-
-A renderer answers a free-form request with the answer itself:
-
-```tsx
-respondToApproval({ text: "staging" });
-```
-
-The runtime records that as `{ approvalId, approved: true, text }`, because answering a question is not refusing it. A `text` response to a request that declares neither `display: "text"` nor `allowFreeform` throws, so a host never receives an answer it has nowhere to record.
-
-An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no refusal of its own, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision; a `dismissible` question gets a Dismiss control instead, which sends `{ approved: false }` and drops whatever was typed. The text field submits the answer as typed, an empty one included, because the request declared no constraint on it; a host that cannot record an empty answer rejects the response, and the controls come back with its error.
-
-#### Several questions or several answers
-
-`display: "questions"` asks several questions at once, or lets one question take several answers. `approval.questions` lists them, each with an `id`, a `prompt`, an optional `header`, and either `options` (each an `id`, a `label` and an optional `description`) or none, in which case the question takes a typed answer. `multiple` lets a question take more than one option, and `allowFreeform` accepts a typed answer alongside its options. The request's own `options`, `allowFreeform` and `text` are unused here.
-
-```ts
-const approval = {
-  id: "a2",
-  prompt: "Before I refactor:",
-  display: "questions",
-  dismissible: true,
-  questions: [
-    {
-      id: "scope",
-      header: "Scope",
-      prompt: "Which folders should change?",
-      options: [
-        { id: "src", label: "src" },
-        { id: "tests", label: "tests" },
-      ],
-      multiple: true,
-    },
-    { id: "note", prompt: "Anything I should avoid?" },
-  ],
-};
-```
-
-A renderer answers every question together, keyed by question id:
-
-```tsx
-respondToApproval({
-  answers: {
-    scope: { optionIds: ["src", "tests"] },
-    note: { text: "keep the public API" },
-  },
-});
-```
-
-The runtime records that as `{ approvalId, approved: true, answers }`, and the answers stay on `approval.answers` once it settles. Every question needs an answer: at least one of its options, or typed text where it accepts some. A response that misses a question, picks an option the question does not declare, picks several on a question without `multiple`, or types an answer a question does not accept throws, as does any `approved`, `optionId` or `text` sent alongside `answers`; `{ approved: false }` dismisses the whole request. The default `ToolFallback` renders each question with its options as toggle buttons and a text field where it accepts one, keeps Send disabled until every question is answered, adds Dismiss only when the request is `dismissible`, and lists each question's answer once it settles.
-
-Not every runtime emits these fields. The Eve runtime projects its input requests onto `prompt`, `display`, `allowFreeform` and `options` and never marks one dismissible, because it rejects a refusal to a question. The Pi runtime projects `select`, `input` and `editor` requests as dismissible questions because Pi resolves a cancelled one with `undefined`. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
-
-Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny. `LocalRuntime` records `cancelled` itself when the user sends another message instead of answering.
-
-The default `ToolFallback` component renders supplied options automatically, including the confirmation step.
-
-## Advanced Features
-
-### Tool Status Handling
-
-The `status` prop provides detailed execution state:
-
-```tsx
-render: ({ status, args }) => {
-  switch (status.type) {
-    case "running":
-      return <LoadingState />;
-
-    case "requires-action":
-      return <UserInputRequired reason={status.reason} />;
-
-    case "incomplete":
-      if (status.reason === "cancelled") {
-        return <div>Operation cancelled</div>;
-      }
-      if (status.reason === "error") {
-        return <ErrorDisplay error={status.error} />;
-      }
-      return <div>Failed: {status.reason}</div>;
-
-    case "complete":
-      return <SuccessDisplay />;
+  if (result) {
+    return <p>Selected {new Date(result.date).toLocaleDateString()}</p>;
   }
-};
-```
 
-### Deferred Rendering
-
-<Callout type="info">
-This section applies when the model **drives** the component through a tool call (args arrive incrementally and you want to wait for the final shape). If your backend or orchestrator pushes the component instead, prefer [Data-Part Generative UI](#data-part-generative-ui) with `makeAssistantDataUI`. Data parts arrive as terminal events, so the renderer runs once with the final data and needs no deferral.
-</Callout>
-
-You can let a tool call's arguments stream in and render the UI only once the call completes. This is useful when partial args would render misleading or jarring intermediate states (a chart that flashes through half-populated data), when the component is expensive to mount (heavy visualizations, embedded iframes, third-party widgets), or when the model controls *whether* the component appears at all.
-
-#### Inline at the end of streaming
-
-Return `null` from the tool UI's `render` until `status.type === "complete"`. The streaming args still arrive in `args` as the model emits them; the renderer ignores them until the call is done:
-
-```tsx
-const toolkit = defineToolkit({
-  renderChart: {
-    type: "backend",
-    render: ({ args, status }) => {
-      if (status.type !== "complete") return null;
-      return <Chart title={args.title} data={args.series} />;
-    },
-  },
-});
-```
-
-The chart mounts once, with the final args, after streaming finishes.
-
-The same `render` shape works inside the [`Tools()`](/docs/tools/defining-tools) toolkit's `render` field and with `MessagePrimitive.Parts`'s inline `tools.by_name` overrides.
-
-#### Below the message body
-
-If the component should sit *outside* the message parts (for example, a card attached under the avatar block rather than inline with text), gate at the message level with [`AuiIf`](/docs/api-reference/primitives/assistant-if) and read `s.message.status`:
-
-```tsx
-import { MessagePrimitive, AuiIf, useAuiState } from "@assistant-ui/react";
-
-function PostMessageCard() {
-  const parts = useAuiState((s) => s.message.parts);
-  const chartCall = parts.find(
-    (p) => p.type === "tool-call" && p.toolName === "renderChart",
-  );
-  if (!chartCall) return null;
-  return <Chart {...chartCall.args} />;
-}
-
-<MessagePrimitive.Root>
-  <MessagePrimitive.Parts />
-
-  <AuiIf
-    condition={(s) =>
-      s.message.role === "assistant" &&
-      s.message.status?.type === "complete"
-    }
-  >
-    <PostMessageCard />
-  </AuiIf>
-</MessagePrimitive.Root>;
-```
-
-The `AuiIf` predicate fires whenever the assistant state changes; children mount only when both checks pass. `PostMessageCard` then reads the captured tool-call part from `s.message.parts` and renders from its args.
-
-For the opposite pattern (showing partial data as it streams in), see [Field-Level Streaming State](#field-level-streaming-state) and [Partial Results & Streaming](#partial-results--streaming) below.
-
-### Field-Level Streaming State
-
-Use `useToolArgsStatus` to distinguish argument streaming from tool execution. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives, and `argsStatus` tracks completion of the full arguments object. Call it inside a tool-call message part context:
-
-```tsx
-import { useToolArgsStatus } from "@assistant-ui/react";
-
-const toolkit = defineToolkit({
-  submitForm: {
-    type: "backend",
-    render: ({ args }) => {
-      const { argsStatus, propStatus } = useToolArgsStatus<{
-        email: string;
-        phone: string;
-      }>();
-
-      return (
-        <form className="space-y-4" aria-busy={argsStatus === "streaming"}>
-          <div>
-            <input
-              type="email"
-              value={args.email ?? ""}
-              className={propStatus.email === "streaming" ? "loading" : ""}
-              disabled
-            />
-          </div>
-
-          <div>
-            <input
-              type="tel"
-              value={args.phone ?? ""}
-              className={propStatus.phone === "streaming" ? "loading" : ""}
-              disabled
-            />
-          </div>
-        </form>
-      );
-    },
-  },
-});
-```
-
-`argsStatus` remains `"streaming"` while the object is partial, even if every field received so far is complete. Once the object is complete it becomes `"complete"`, including while the hook's `status` remains `"running"` during tool execution. A field absent from `propStatus` is not in the current args: while `argsStatus` is `"streaming"` it may still arrive, and once `argsStatus` is `"complete"` it was never sent.
-
-The hook uses parser metadata when available. The AI SDK marks settled tool arguments complete even while tool execution continues, so received fields in `propStatus` become `"complete"` at that point too.
-Without parser metadata, a running part remains conservatively `"streaming"`:
-some runtimes build `argsText` from an incomplete argument snapshot. Any
-non-running lifecycle settles argument streaming. `"complete"` does not
-guarantee valid arguments or a successful tool result.
-
-### Partial Results & Streaming
-
-Display results as they stream in:
-
-```tsx
-const toolkit = defineToolkit({
-  analyzeData: {
-    type: "backend",
-    render: ({ result, status }) => {
-      const progress = result?.progress || 0;
-      const insights = result?.insights || [];
-
-      return (
-        <div className="analysis-container">
-          {status.type === "running" && (
-            <div className="mb-4">
-              <div className="mb-1 flex justify-between">
-                <span>Analyzing...</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="w-full rounded bg-gray-200">
-                <div
-                  className="h-2 rounded bg-blue-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {insights.map((insight, i) => (
-              <div key={i} className="rounded bg-gray-50 p-2">
-                {insight}
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    },
-  },
-});
-```
-
-### Custom Tool Fallback
-
-For tools that have no dedicated UI, add the `ToolFallback` shadcn component to your project. See the [ToolFallback install guide](/elements/tool-fallback) for setup instructions and the [ToolGroup guide](/elements/tool-group) for grouping consecutive tool calls into a collapsible container.
-
-## Execution Context
-
-A tool UI receives the tool call's state and callbacks as props:
-
-```tsx
-type ToolCallMessagePartProps<TArgs, TResult> = {
-  // Tool arguments
-  args: TArgs;
-  argsText: string; // JSON stringified args
-
-  // Execution status
-  status: ToolCallMessagePartStatus;
-  isError?: boolean;
-
-  // Tool result (interim while isPreliminary is set)
-  result?: TResult;
-  isPreliminary?: boolean;
-
-  // Tool metadata
-  toolName: string;
-  toolCallId: string;
-
-  // Interactive callbacks
-  addResult: (result: TResult | ToolResponse<TResult>) => void;
-  resume: (payload: unknown) => void;
-  respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
-
-  // Server-side approval gate
-  approval?: ToolCallMessagePart["approval"];
-
-  // Interrupt state
-  interrupt?: { type: "human"; payload: unknown }; // Payload from context.human()
-
-  // Optional artifact data
-  artifact?: unknown;
-
-  // What the user did in this UI, kept with the tool call
-  unstable_interactions?: {
-    entries: {
-      type: "action" | "human-response";
-      occurredAt: number; // epoch milliseconds
-      payload: unknown;
-    }[];
-    omitted?: number; // earlier entries dropped to stay within the limits
-  };
-  unstable_recordInteraction?: (input: {
-    type: "action" | "human-response";
-    payload: unknown;
-  }) => Promise<void>;
-};
-```
-
-### Human Input Handling
-
-When a tool calls `human()` during execution, the payload becomes available in the render function as `interrupt.payload`:
-
-```tsx
-const toolkit = defineToolkit({
-  confirmAction: {
-    type: "backend",
-    render: ({ args, result, interrupt, resume }) => {
-      // Tool is waiting for user input
-      if (interrupt) {
-        return (
-          <div className="confirmation-dialog">
-            <p>Confirm: {interrupt.payload.message}</p>
-            <button onClick={() => resume(true)}>Yes</button>
-            <button onClick={() => resume(false)}>No</button>
-          </div>
-        );
-      }
-
-      // Tool completed
-      if (result) {
-        return <div>Action {result.confirmed ? "confirmed" : "cancelled"}</div>;
-      }
-
-      return <div>Processing...</div>;
-    },
-  },
-});
-```
-
-Learn more about tool human input in the [Tools Guide](/docs/tools/defining-tools#human-tools).
-
-### Recording Interactions
-
-A tool UI can record what the user did in it, so a stored conversation keeps the answer next to the question. Call `unstable_recordInteraction` with the action the user took; the runtime stamps the time and appends it to the tool call's `unstable_interactions`, which cloud history stores with the message.
-
-```tsx
-const toolkit = defineToolkit({
-  chooseSize: {
-    type: "human",
-    description: "Ask the user to pick a size.",
-    parameters: z.object({ sizes: z.array(z.string()) }),
-    render: ({ args, addResult, unstable_recordInteraction }) => (
-      <SizePicker
-        sizes={args.sizes}
-        onPick={(size) => {
-          void unstable_recordInteraction?.({
-            type: "human-response",
-            payload: { size },
-          }).catch(() => {});
-          addResult({ size });
-        }}
+  return (
+    <div>
+      <p>{args.prompt}</p>
+      <input
+        type="date"
+        value={value}
+        min={args.minDate}
+        max={args.maxDate}
+        onChange={(e) => setValue(e.target.value)}
       />
-    ),
-  },
-});
-```
-
-Some interactions are recorded for you: the answer passed to `resume()` is recorded as a `human-response` once the runtime accepts it, every action that `present` or `prompt_user` output of `@assistant-ui/generative-ui` dispatches to its action registry is recorded as an `action`, and the state a user changes in a `render_spec` call from `generative-frame/spec/assistant-ui` is recorded as a `setState` action so it comes back after a reload.
-
-Recording is best effort. A payload must be plain JSON of at most 16,384 characters, and an `action` payload must be a JSON object. A tool call keeps its latest 32 entries within 65,536 characters (earlier ones are counted in `omitted`). The promise rejects when a runtime cannot record or a payload is invalid, so catch it as the example does; a failed recording never affects the user's action. The local runtime and the AI SDK, AG-UI and A2A runtimes record interactions. Runtimes built on `useExternalStoreRuntime` under a cloud thread list, such as LangGraph, LangChain and ADK, keep them on the cloud copy of the conversation, which is on unless the `AssistantCloud` client sets `telemetry: { messages: false }` or `telemetry: false`; their own messages do not carry them. A readonly thread ignores them. Interactions are never sent to the model or the agent on their own; a toolkit can still add what a UI shares on purpose to the model context, as [generative-frame's does](/generative-frame/docs/assistant-ui).
-
-## Best Practices
-
-### 1. Handle All Status States
-
-Always handle loading, error, and success states:
-
-```tsx
-render: ({ status, result, args }) => {
-  if (status.type === "running") return <Skeleton />;
-  if (status.type === "incomplete") return <ErrorState />;
-  if (!result) return null;
-  return <ResultDisplay result={result} />;
+      <button
+        type="button"
+        disabled={!value}
+        onClick={() => addResult({ date: new Date(value).toISOString() })}
+      >
+        Confirm
+      </button>
+    </div>
+  );
 };
 ```
 
-### 2. Provide Visual Feedback
+Branching on `result` turns the control into a record once the user answers, so scrolling back never shows a live control for a decision already made. To report a declined request as an error result, pass `addResult` a `ToolResponse` from `assistant-stream` with `isError: true`.
 
-Reflect the status in the styling so state changes are visible:
+[Option list](/elements/option-list), [Question flow](/elements/question-flow), and [Reviewable diff](/elements/reviewable-diff) are ready-made human-tool renderers. For `LocalRuntime`, a human tool also has to be listed in `unstable_humanToolNames`; see [Human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
 
-```tsx
-<div
-  className={cn(
-    "transition-all duration-300",
-    status.type === "running" && "opacity-50",
-    status.type === "complete" && "opacity-100",
-  )}
->
-  {/* Tool UI content */}
-</div>
-```
+### Pausing a frontend tool
 
-### 3. Make UIs Accessible
-
-Keep controls reachable by keyboard and labelled for screen readers:
+A frontend tool can pause during `execute` and wait for the user. `execute` calls `human()` with a payload; the renderer receives it as `interrupt.payload`, and the value passed to `resume()` becomes the return value of `human()`. While the call waits, `status` is `requires-action`.
 
 ```tsx
-<button
-  onClick={() => addResult(value)}
-  aria-label="Confirm selection"
-  className="focus:outline-none focus:ring-2"
->
-  Confirm
-</button>
+execute: async (_args, { human }) => {
+  "use client";
+  const confirmed =
+    (await human({ message: "Clear all completed tasks?" })) === true;
+  return { cleared: confirmed ? taskStore.clearCompleted() : 0 };
+},
 ```
 
-### 4. Optimize Performance
+```tsx
+export const ClearCompletedToolUI: ToolCallMessagePartComponent<
+  Record<string, never>,
+  { cleared: number }
+> = ({ result, interrupt, resume }) => {
+  if (result) return <p>Cleared {result.cleared} completed tasks.</p>;
 
-Define renderers at module scope so their identity is stable. When a renderer has to close over props or state, wrap it in `useInlineRender` so the component keeps its identity between renders; see [Inline Pattern](#inline-pattern).
+  if (interrupt) {
+    const { message } = interrupt.payload as { message: string };
+    return (
+      <div>
+        <p>{message}</p>
+        <button onClick={() => resume(true)}>Clear</button>
+        <button onClick={() => resume(false)}>Keep</button>
+      </div>
+    );
+  }
 
-<Callout>
-  A `render` function only draws the tool call; it does not run the tool. Keep
-  sensitive logic in a backend tool's `execute`, which runs on your server and
-  is not shipped to the browser.
-</Callout>
+  return <p>Working…</p>;
+};
+```
 
-## Designing for the Conversation
+The `with-webmcp` example registers this entry with `display: "standalone"`, so the prompt is not hidden inside a collapsed group. The `execute` context also carries `abortSignal` and `toolCallId`; see [Cancellation](/docs/tools/defining-tools#cancellation-and-execution-context). Unlike a human tool, `execute` still returns the result.
+
+### Approvals
+
+In an approval gate, the runtime or server holds a tool call until the user allows or denies it. The request arrives on the tool part as `approval`, and the renderer answers it with `respondToApproval`. A request can also offer decision options, such as "allow for this session", or ask a question the user answers by picking or typing. [Tool approvals](/docs/tools/tool-approvals) covers the states of a request, decision options, questions, and which runtimes emit each field.
+
+## Recording interactions
+
+A tool UI can record what the user did in it, so a stored conversation keeps the answer next to the question. Call `unstable_recordInteraction` with the action the user took. The runtime stamps the time and appends it to the call's `unstable_interactions`, which cloud history stores with the message.
+
+```tsx
+export const SizePickerToolUI: ToolCallMessagePartComponent<
+  { sizes: string[] },
+  { size: string }
+> = ({ args, addResult, unstable_recordInteraction }) => (
+  <SizePicker
+    sizes={args.sizes}
+    onPick={(size) => {
+      void unstable_recordInteraction?.({
+        type: "human-response",
+        payload: { size },
+      }).catch(() => {});
+      addResult({ size });
+    }}
+  />
+);
+```
+
+Some interactions are recorded for you. The answer passed to `resume()` is recorded as a `human-response` once the runtime accepts it. Every action that `present` or `prompt_user` output of `@assistant-ui/generative-ui` dispatches to its action registry is recorded as an `action`, and the state a user changes in a `render_spec` call from `generative-frame/spec/assistant-ui` is recorded as a `setState` action so it comes back after a reload.
+
+`unstable_recordInteraction` and `unstable_interactions` are experimental and may change in any release. Recording is best effort. A payload must be plain JSON of at most 16,384 characters, and an `action` payload must be a JSON object. A tool call keeps its latest 32 entries within 65,536 characters; earlier ones are counted in `omitted`. The promise rejects when a runtime cannot record or a payload is invalid, so catch it as the example does. A failed recording never affects the user's action. The local runtime and the AI SDK, AG-UI, and A2A runtimes record interactions. Runtimes built on `useExternalStoreRuntime` under a cloud thread list, such as LangGraph, LangChain, and ADK, keep them on the cloud copy of the conversation, which is on unless the `AssistantCloud` client sets `telemetry: { messages: false }` or `telemetry: false`; their own messages do not carry them. A readonly thread ignores them. Interactions are never sent to the model or the agent on their own; a toolkit can still add what a UI shares on purpose to the model context, as [generative-frame's does](/generative-frame/docs/assistant-ui).
+
+## Tool fallback
+
+A tool call with no registered renderer renders through the fallback. In the kit's `Thread` that is [`ToolFallback`](/elements/tool-fallback): a collapsed one-line summary that opens into the arguments, the result, and, when the call is waiting on a decision, the controls to answer it. It handles every approval shape in [Tool approvals](/docs/tools/tool-approvals), including options, questions, and the receipt of a settled request. A registered renderer always takes precedence over it.
+
+To replace it for every unregistered tool, pass `components.ToolFallback` to `Thread`. With the `MessagePrimitive.Parts` children API, `part.toolUI` is the registered renderer, or `null` when none matches:
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "tool-call")
+      return part.toolUI ?? <ToolFallback {...part} />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+See [Tool fallback](/elements/tool-fallback) for install and restyling, [Tool group](/elements/tool-group) for collapsing consecutive calls, and [Tool call](/elements/tool-call) for a one-line renderer to start from.
+
+## Data-part generative UI
+
+Besides tool calls, a backend can attach UI to a message as a named `data` part: `{ type: "data", name, data }`. You register a renderer for a `name` with `makeAssistantDataUI` and mount the returned component once inside `AssistantRuntimeProvider`.
+
+Choose by who decides what renders:
+
+- **Tool UI** (this page): the model decides by calling a tool, and its args become the component's data. Args stream, so you use `status`, `useToolArgsStatus`, and [Deferred rendering](#deferred-rendering).
+- **Data UI**: your backend or orchestrator decides and pushes a data part. A data part arrives as one terminal event with no partials, so the renderer runs once with the final data.
+
+The LangGraph adapter produces data parts from `push_ui_message` and `typedUi().push()`. [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) covers emitting, registering renderers with `makeAssistantDataUI`, and the data-part shape. In the children API, `part.dataRendererUI` is the registered data renderer; see [Tool Resolution](/docs/primitives/message#tool-resolution).
+
+## Designing for the conversation
 
 A tool UI shares the transcript with the assistant's prose and the user's replies, so it is designed against the conversation rather than as a standalone screen.
 
-### Give Each Tool UI One Job
+### Give each tool UI one job
 
 A tool UI either informs (a table, a chart, a link card), asks for a decision (an approval, an [option list](/elements/option-list)), adjusts something reversible (a filter, a parameter), or reports work in flight (a plan, a progress bar). When one surface does two of these, let one lead: a table with row actions is information first, and its actions stay secondary.
 
-### Fit the Chat Column
+### Fit the chat column
 
 Messages are narrow and interleaved with text. State the purpose in the first 300px of height, design for 400 to 600px of width in a single column, give every control at least a 44px touch target, and show five to seven options at most, leaving the rest to a follow-up. The [elements](/elements) are sized to this column already (`max-w-sm` or `max-w-md`); keep a custom tool UI to the same widths.
 
-### Keep What the User Acts On Addressable
+### Keep what the user acts on addressable
 
 The model can only refer back to what it can name. Give the options, rows, and items a tool UI renders stable ids from your data, not array positions or ids minted at render time, and send those ids back through `addResult`. Then "the second option" and "row 4" in the next turn resolve to the same records the user saw.
 
-### Leave a Receipt
+### Leave a receipt
 
 Once a user decides, the interactive surface should become a record of the decision, so scrolling back never shows a live control for a choice already made. Render the receipt from the tool call itself: `result` for a human tool, `approval` for an approval gate, and `unstable_interactions` for recorded actions. The kit follows this everywhere: [`ToolFallback`](/elements/tool-fallback) replaces settled approval controls with a receipt, [`OptionList`](/elements/option-list) takes the committed answer as `choice`, and an answered generative `prompt_user` locks its controls.
 
 Write the decision in the past tense and the request in the imperative, so the receipt reads as what happened to what was asked: "Denied · Delete all project files", "Answered · Staging". Skip receipts for reversible controls such as sorting or filtering; nothing was decided there.
 
-### Split the Work with the Message
+### Split the work with the message
 
 The assistant's text introduces the tool UI and the tool UI carries the structure, so neither repeats the other: when the message asks "Which environment?", the option list shows only the environments. Avoid text inputs inside a tool UI when the answer could be typed into the composer, avoid tabs or navigation inside one surface (split it into separate tool calls instead), and never let an action change state silently; show its outcome.
 
-## Data-Part Generative UI
+## Related guides
 
-Alongside tool-call rendering, assistant-ui supports a second generative UI mechanism based on `DataMessagePart`. Instead of attaching UI to a tool invocation, the backend (or the LangGraph graph) emits named data events that are appended as `{ type: "data", name, data }` parts on the parent assistant message.
-
-**When to choose which:**
-
-- **Tool UI**: the **model** decides what to render by calling a tool whose args become the component's data. Register the renderer via the [`Tools()`](/docs/tools/defining-tools) toolkit's `render` field. Args stream incrementally, so you observe partial state via `status` / `useToolArgsStatus` and may need [Deferred Rendering](#deferred-rendering) for components that should only mount with final data.
-- **Data UI** (`makeAssistantDataUI`): the **backend or orchestrator** decides what to render and pushes a named data event onto the assistant message. Data parts arrive as terminal events with no streaming partials, so the renderer runs once with the final data.
-
-If you want a component to appear only after the message is complete and you control the backend, Data UI is usually the more direct fit. Use Tool UI's deferred pattern when the model must drive the choice.
-
-Use `makeAssistantDataUI` to register a renderer for a named data part:
-
-```tsx
-import { makeAssistantDataUI } from "@assistant-ui/react";
-
-type ChartProps = { series: number[]; title: string };
-
-export const ChartUI = makeAssistantDataUI<ChartProps>({
-  name: "chart",
-  render: ({ data }) => (
-    <div>
-      <h3>{data.title}</h3>
-      <Chart series={data.series} />
-    </div>
-  ),
-});
-```
-
-Mount `<ChartUI />` once inside the `AssistantRuntimeProvider` tree; it renders nothing itself and only registers the renderer.
-
-For LangGraph-specific patterns (emitting UI from a Python/TypeScript graph node via `push_ui_message` / `typedUi`, dynamic loading with `LoadExternalComponent`, and the `useLangGraphUIMessages` escape hatch), see [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui).
-
-A fallback renderer for unmatched data parts is available internally but `setFallbackDataUI` is not yet a public API.
-
-## Related Guides
-
-- [Tools Guide](/docs/tools/defining-tools) - Learn how to create and use tools with AI models
-- [Multi-Agent](/docs/tools/multi-agent) - Render sub-agent conversations inside tool call UIs
-- [Tool Fallback](/elements/tool-fallback) - Default UI for tools without custom components
-- [API Reference](/docs/api-reference/primitives/message-part) - Detailed type definitions and component APIs
-- [Message Primitive](/docs/api-reference/primitives/message) - Complete Message component documentation
+- [Defining Tools](/docs/tools/defining-tools): declare tools, choose where they run, and register a toolkit
+- [Backend tools](/docs/tools/backend): expose the toolkit's schemas to the model on your server
+- [Tool approvals](/docs/tools/tool-approvals): approval gates, decision options, and questions
+- [Generative UI](/docs/tools/generative-ui): let the model compose UI from a vocabulary
+- [Multi-Agent](/docs/tools/multi-agent): render sub-agent conversations inside tool call UIs
+- [Tool fallback](/elements/tool-fallback): the default UI for tools without a registered renderer
+- [Message primitive](/docs/primitives/message): how tool-call parts resolve to renderers
+- [Tool Status reference](/docs/api-reference/tools/status) and [Rendering reference](/docs/api-reference/tools/rendering): type definitions

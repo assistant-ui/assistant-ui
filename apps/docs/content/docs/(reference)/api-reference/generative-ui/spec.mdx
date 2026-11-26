@@ -3,7 +3,7 @@ title: Generative UI Spec
 description: The serializable node tree an assistant emits to describe generative UI. Covers the GenerativeUISpec format, its nodes, and the message part that carries the spec.
 ---
 
-import { GenerativeUIMessagePart, GenerativeUINode, GenerativeUISpec } from "@/generated/typeDocs";
+import { GenerativeUIMessagePart, GenerativeUISpec } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -35,7 +35,21 @@ names. Any component referenced that is not present in the allowlist is
 rejected with a typed error — the allowlist is the security boundary in the
 default same-realm rendering path.
 
-<ParametersTable {...GenerativeUINode} />
+```ts
+type GenerativeUINode = string
+  | number
+  | readonly GenerativeUINode[]
+  | {
+      /** Allowlisted component name (resolved against the consumer registry). */
+      readonly component: string;
+      /** Props passed to the resolved component (must be JSON-serializable). */
+      readonly props?: Record<string, unknown>;
+      /** Optional child nodes — strings and numbers render as text; nested arrays and objects recurse. */
+      readonly children?: readonly GenerativeUINode[];
+      /** Optional stable key for React reconciliation. */
+      readonly key?: string;
+    };
+```
 
 ### GenerativeUISpec
 

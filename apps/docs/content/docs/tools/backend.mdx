@@ -1,19 +1,33 @@
 ---
 title: Backend Tools
-description: Wire assistant-ui toolkits into your server with the AI SDK using AISDKToolkit and frontendTools, mix client and server tools, and return multi-modal results.
+description: Wire assistant-ui toolkits into an AI SDK route with AISDKToolkit and frontendTools, mix browser and server tools, return multi-modal results, and keep the request body untrusted.
 platforms: ["react"]
 ---
 
-A tool is only callable if the **model** knows about it, and the model is configured on your server. This page covers wiring a toolkit into an AI SDK route handler: exposing your generative toolkit, receiving client-defined tools, mixing the two, and round-tripping multi-modal results.
+A tool is only callable if the **model** knows about it, and the model is configured on your server. This page covers the server half of a toolkit in an AI SDK route handler: what the client sends, how `AISDKToolkit` and `frontendTools` turn it into AI SDK tools, how results round-trip, and what to trust.
 
-For authoring tools, see [Defining Tools](/docs/tools/defining-tools). For MCP servers, see [MCP](/docs/tools/mcp).
+To author tools, see [Defining Tools](/docs/tools/defining-tools). For the AI SDK runtime setup (history, attachments, server-side approvals), see the [AI SDK v7 guide](/docs/runtimes/ai-sdk/v7). For MCP servers, see [MCP](/docs/tools/mcp).
+
+## How each tool reaches the model
+
+| Tool | Schema reaches the model through | Runs |
+| --- | --- | --- |
+| Backend (plain `execute`) | `AISDKToolkit`, from the server build of the toolkit | On your server, inside `streamText` |
+| Frontend, human, `stubTool()` in a [`"use generative"`](/docs/tools/defining-tools#tool-kinds) toolkit | `AISDKToolkit`, schema only. The client does not upload it | In the browser (frontend), or when the user answers (human) |
+| Frontend in a plain `defineToolkit`, [Interactables](/docs/tools/interactables) | The request body `tools`, converted by `frontendTools` | In the browser |
+| `providerTool()` | `AISDKToolkit` | At the model provider |
+| `defineMcpToolkit()` | `AISDKToolkit` opens the MCP connections | On the MCP server, called from your route |
+| `externalTool()` | Not registered here. Whatever system owns the tool defines it | Wherever that system runs it |
+
+A tool the server registers without an `execute` is a client tool to the AI SDK: the model's call ends the server step and streams to the browser. The runtime runs the tool's `execute` once its arguments are complete and adds the result to the chat. That result reaches your route only when the client sends another request, so set `sendAutomaticallyWhen` (see [Multi-step tool calls](#multi-step-tool-calls)).
 
 ## The request body
 
-`@assistant-ui/ai-sdk` posts `{ messages, system, tools }` to your route. `tools` is the map of **frontend** tools the client serialized for this request (the model needs their schemas to call them, even though they run in the browser):
+`AssistantChatTransport` (the `useChatRuntime` default) posts the thread plus the model context to your route:
 
 ```ts
 import type { FrontendTools } from "@assistant-ui/ai-sdk";
+import type { UIMessage } from "ai";
 
 const {
   messages,
@@ -26,26 +40,49 @@ const {
 } = await req.json();
 ```
 
+The body also carries `id`, `trigger`, `messageId`, `metadata`, `callSettings`, and `config`, plus anything you pass through the transport's `body` option.
+
+`tools` holds only the tools whose schemas your server does not already have. The client leaves out disabled tools, `type: "backend"` entries, frontend tools without an `execute`, and compiled frontend and human tools, whose schema is in the server build. Entries are sorted alphabetically, so two renders that register the same set produce byte-identical bodies and keep provider prompt caches stable.
+
+### Treat the body as untrusted
+
 <Callout type="warn">
-  The `system` prompt and the `tools` schemas in the request body come from the browser, so any caller can change them. Treat both as untrusted input. A system prompt only guides the model, so enforce authorization, argument validation and usage limits in server code, define tools the server executes on the server rather than from the request, and authenticate the route before deploying.
+  Everything in the request body comes from the browser, so any caller can
+  change it: `system`, `tools`, `config`, `callSettings`, and the earlier
+  messages, including tool calls and tool results in the history. A system
+  prompt only guides the model. Enforce authorization, argument validation, and
+  usage limits in server code, define the tools your server executes on the
+  server, and authenticate the route before deploying.
 </Callout>
+
+- **Uploaded tools cannot run server code.** `frontendTools` builds schema-only tools with no `execute`, so an attacker's tool can only be fulfilled by the attacker's own browser.
+- **Spread uploaded tools first.** A later entry with the same name replaces an earlier one, so put your server tools after `frontendTools(tools)`. In the other order, a client can redefine your server tool and supply its result. `AISDKToolkit.tools()` merges in the safe order for you: uploaded tools, then MCP, provider, and toolkit tools.
+- **`providerOptions` pass through.** `frontendTools` forwards an uploaded tool's `providerOptions` to the provider. Drop the field from the uploaded entries if clients should not set provider options.
+- **Tool descriptions reach the model.** Uploaded descriptions are prompt text, so they carry prompt-injection risk from whoever controls the client.
+- **History is client-supplied.** A prior tool result in `messages` does not prove your server ran the tool.
+- **Cross-site requests.** The [with-ai-sdk-v7 example](https://github.com/assistant-ui/assistant-ui/blob/main/examples/with-ai-sdk-v7/app/api/chat/route.ts) rejects cross-origin browser requests before doing any work. That keeps another origin from spending your model key, but it is not authentication.
 
 ## Generative toolkits: `AISDKToolkit`
 
-When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler: schema plus any backend `execute`, with renderers stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:
+Inside a route handler, the import of a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative) resolves to the **server build**: schemas plus backend `execute` functions, with renderers and browser executors stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:
 
 ```ts title="app/api/chat/route.ts"
-import { AISDKToolkit } from "@assistant-ui/ai-sdk";
-import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import { AISDKToolkit, type FrontendTools } from "@assistant-ui/ai-sdk";
+import { streamText, convertToModelMessages, stepCountIs, type UIMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import toolkit from "../../toolkit";
 
 const aiToolkit = new AISDKToolkit({ toolkit });
 
 export async function POST(req: Request) {
-  const { messages, system, tools } = await req.json();
+  const {
+    messages,
+    system,
+    tools,
+  }: { messages: UIMessage[]; system?: string; tools?: FrontendTools } =
+    await req.json();
 
-  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools ?? {} });
 
   const result = streamText({
     abortSignal: req.signal,
@@ -53,41 +90,52 @@ export async function POST(req: Request) {
     system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
+    stopWhen: stepCountIs(10),
   });
 
   return result.toUIMessageStreamResponse();
 }
 ```
 
-`AISDKToolkit.tools()` registers every toolkit tool with the model using its schema, wires the backend `execute` where the server build carries one, and merges in the uploaded frontend tools. A server `execute` wins over an uploaded entry of the same name. Frontend and human tools (no server `execute`) are exposed schema-only and left for the client and the user to fulfill.
+`.tools()` returns one AI SDK `ToolSet`:
 
-Parameter schema conversion is cached by schema object identity. Treat schema
-definitions as immutable; replace the `parameters` object when changing a
-tool's schema.
+- Each backend tool keeps its schema and `execute`. The AI SDK calls `execute` with the call's `abortSignal` and `toolCallId`.
+- Frontend and human tools get their schema and no `execute`, which leaves them to the browser and the user.
+- `providerTool()` entries become provider-defined tools, and `disabled` entries are left out.
+- The `frontend` argument is converted with `frontendTools`.
+- Later sources win on a name clash: uploaded, then MCP, then provider, then toolkit. A toolkit `execute` therefore beats an uploaded entry of the same name. An MCP tool whose name matches any other source throws instead; give the MCP entry a `prefix`.
 
-<Callout type="info">
-  If your toolkit spreads in MCP server tools (`defineMcpToolkit`), `.tools()`
-  also opens those connections. A module-scope `aiToolkit` pools them across
-  requests; see [MCP](/docs/tools/mcp) for the connection lifecycle and when to
-  call `aiToolkit.close()`. The older
-  `generativeTools({ toolkit, frontendTools })` is deprecated, MCP-less, and
-  superseded by `AISDKToolkit`.
+Create the `AISDKToolkit` at module scope so MCP connections pool across requests. If your toolkit spreads in `defineMcpToolkit(...)`, `.tools()` opens those connections. On a serverless route, build the toolkit per request and call `aiToolkit.close()` when the response ends; [MCP: connection lifecycle](/docs/tools/mcp#connection-lifecycle) covers both options.
+
+Schema conversion is cached by the identity of each `parameters` object. Treat schemas as immutable and replace the object to change one.
+
+<Callout type="warn">
+  `AISDKToolkit` wires every `execute` it finds, with no check on where it was
+  meant to run. Import the toolkit from a module the `"use generative"` plugin
+  compiles, so browser executors are stripped. Do not pass it a plain toolkit
+  object that carries browser `execute` functions.
 </Callout>
+
+`generativeTools({ toolkit, frontendTools })` is deprecated and rejects toolkits with MCP entries. Use `new AISDKToolkit({ toolkit }).tools({ frontend })`.
 
 ## Client-defined tools: `frontendTools`
 
-If a toolkit cannot go through the generative compiler, the AI SDK adapter still
-serializes browser-executed tools into the request `tools`. Convert them to the
-AI SDK shape with `frontendTools` and spread your own server tools alongside:
+For tools that are not in a compiled toolkit, the client uploads their JSON Schema in `tools`. Convert them with `frontendTools` and put your own server tools after them:
 
 ```ts title="app/api/chat/route.ts"
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { streamText, convertToModelMessages, tool, zodSchema } from "ai";
+import {
+  streamText,
+  convertToModelMessages,
+  stepCountIs,
+  tool,
+  zodSchema,
+} from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 
 export async function POST(req: Request) {
-  const { messages, tools } = await req.json();
+  const { messages, system, tools } = await req.json();
 
   const aiSDKTools = {
     ...frontendTools(tools ?? {}),
@@ -101,42 +149,43 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
+    system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
+    stopWhen: stepCountIs(10),
   });
 
   return result.toUIMessageStreamResponse();
 }
 ```
 
-`AISDKToolkit.tools()` calls `frontendTools` for you; use
-`frontendTools` directly when you're not on the generative build. A backend
-that only converts tool schemas can import it from `assistant-stream/ai-sdk`
-instead, which needs just `assistant-stream` and `ai` installed.
+`frontendTools` throws on a missing or malformed `tools` value, so pass `tools ?? {}` when a caller other than the assistant-ui transport can reach the route. It rejects any entry without a JSON Schema `parameters` object.
 
-<Callout type="tip">
-  `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two
-  renders that register the same set produce byte-identical request bodies,
-  which keeps provider prompt caches stable across renders.
-</Callout>
+If a backend only converts tool schemas, import `frontendTools` from `assistant-stream/ai-sdk`. That entry needs `assistant-stream` and `ai@6` or `ai@7`, and works without `@assistant-ui/ai-sdk`.
+
+`AISDKToolkit` and `generativeTools` are not exported from the `react-native` build of `@assistant-ui/ai-sdk`. An Expo API route uses `frontendTools`, as the [with-expo example](https://github.com/assistant-ui/assistant-ui/blob/main/examples/with-expo/app/api/chat%2Bapi.ts) does.
 
 ## Multi-modal results
 
-When a tool declares [`toModelOutput`](/docs/tools/defining-tools#multi-modal-tool-results), frontend tool results round-trip through the AI SDK chat protocol back to your route on the next turn. For `toModelOutput` to fire on those round-tripped results, pass the tool registry to `convertToModelMessages` as well. This is the [same pattern the AI SDK documents](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses) for any multi-modal tool response:
+A tool that declares `toModelOutput` returns a typed result to your UI and a file or image to the model. [Defining Tools](/docs/tools/defining-tools#multi-modal-tool-results) covers writing `toModelOutput`. The server owns the round trip.
+
+In the browser, the runtime stores the model content next to the result. When the next request arrives, `convertToModelMessages` has to know each tool to project that stored output. Pass the same `tools` you give `streamText`, as the [AI SDK documents](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses) for any multi-modal tool response:
 
 ```ts
-const aiSDKTools = { ...frontendTools(tools ?? {}) };
+const aiSDKTools = await aiToolkit.tools({ frontend: tools ?? {} });
 
 const result = streamText({
   abortSignal: req.signal,
   model,
-  // Pass tools to BOTH calls so prior results are projected via toModelOutput.
+  // Pass tools to BOTH calls so earlier results go through toModelOutput.
   messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
   tools: aiSDKTools,
 });
 ```
 
-If you omit the `{ tools }` argument, prior results are sent as a plain JSON blob and `toModelOutput` is silently ignored. Tools without `toModelOutput` are unaffected either way.
+This applies to browser tools uploaded through `frontendTools`, to browser tools in a compiled toolkit, and to backend tools in the toolkit: `AISDKToolkit` wires a backend tool's `toModelOutput` onto the AI SDK tool, and the AI SDK applies it in later turns only when `convertToModelMessages` receives the tool.
+
+Without `{ tools }`, earlier results are sent as a JSON blob and `toModelOutput` is silently ignored. Tools without `toModelOutput` are unaffected.
 
 <Callout type="warn">
   **Read/write compatibility for persisted threads.** When `toModelOutput` is
@@ -149,7 +198,10 @@ If you omit the `{ tools }` argument, prior results are sent as a plain JSON blo
 
 ## Multi-step tool calls
 
-To let the model see a frontend tool's result and continue, configure the runtime to send back automatically when the last assistant message is complete with tool calls:
+Two loops decide whether the model sees a tool result and continues:
+
+- **Server tools** (backend and MCP tools, and any tool with an `execute` in your route) run inside `streamText`. Set `stopWhen`, for example `stepCountIs(10)`, so the model can read a result and answer or call again in the same request. Without it the AI SDK runs a single step and the assistant says nothing after the tool runs. See [AI SDK v7 multi-step tool calls](/docs/runtimes/ai-sdk/v7#multi-step-tool-calls).
+- **Browser and human tools** finish after the response ends. The client sends the result back only when `sendAutomaticallyWhen` returns true, and the runtime defaults to never.
 
 ```tsx
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -161,4 +213,35 @@ const runtime = useChatRuntime({
 
 `useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
-For the full AI SDK v7 backend setup (history persistence, reasoning, server-side approvals), see the [AI SDK v7 guide](/docs/runtimes/ai-sdk/v7).
+`sendAutomaticallyWhen` is a single slot. If a feature supplies its own predicate, such as [OpenUI](/docs/tools/openui), write one predicate that decides by tool name instead of combining two with `||`.
+
+## Other runtimes
+
+`AISDKToolkit` and `frontendTools` are specific to the AI SDK. No other backend adapter ships in this repository, and `Tools({ toolkit })` registers the same way on every runtime. What differs is whether the runtime uploads the model context's tools:
+
+| Runtime | Tool schemas | Where to read more |
+| --- | --- | --- |
+| Data stream (`useDataStreamRuntime`) | Uploaded as `tools` in the request body | [Data stream](/docs/runtimes/custom/data-stream#frontend-tools) |
+| Assistant transport | Uploaded as `tools` in the request body | [Assistant transport](/docs/runtimes/custom/assistant-transport) |
+| AG-UI | Sent as the run input's `tools` | [AG-UI](/docs/runtimes/ag-ui/overview) |
+| `LocalRuntime` | Passed to your adapter as `context.tools` | [LocalRuntime](/docs/runtimes/custom/local-runtime) |
+| LangGraph, Google ADK, LangChain, A2A | Not read from the model context. Define tools on the agent | [LangGraph](/docs/runtimes/langgraph/overview), [Google ADK](/docs/runtimes/google-adk/hooks) |
+
+On a runtime that does not upload schemas, a toolkit supplies renderers and, for calls the agent hands to the client, browser execution. Attach a renderer to a tool the agent already defines with `type: "backend"` in a plain toolkit or `execute: externalTool()` in a generative one; see [Defining Tools](/docs/tools/defining-tools#tool-kinds).
+
+## Troubleshooting
+
+Compiler errors and `has no runtime implementation` at import come from the toolkit file; see [Defining Tools: troubleshooting](/docs/tools/defining-tools#troubleshooting). That includes `` `human()` is not available during server-side tool execution. ``, which a backend `execute` throws when it calls `human()`.
+
+| Symptom | Cause and fix |
+| --- | --- |
+| The model never calls a frontend or human tool from a `"use generative"` file | A compiled client does not upload its schema, so the route must import the same file: `new AISDKToolkit({ toolkit })`. A route that only calls `frontendTools(tools)` never sees it. (Interactables are the exception: their `update_*` tools are uploaded, so `frontendTools(tools ?? {})` is enough for them; see [Interactables](/docs/tools/interactables).) Without your own backend, compile with [`backendless`](/docs/tools/defining-tools#running-without-your-own-backend) |
+| The model never calls a frontend tool from a plain `defineToolkit` | An entry with no `execute`, or with `disabled`, is not uploaded. Add an `execute` or remove `disabled`. A compiled stub is different: the route advertises it, and the call waits for a mounted `useAuiToolOverrides` |
+| The tool runs in the browser and the chat stops | Set `sendAutomaticallyWhen` on `useChatRuntime` |
+| A server tool runs and the assistant says nothing afterwards | Add `stopWhen: stepCountIs(10)` to `streamText` |
+| An image or PDF reaches the model as a JSON blob | Pass `{ tools }` to `convertToModelMessages` |
+| `frontendTools() expected tools to be an object keyed by tool name.` | `tools` is missing from the body. Pass `tools ?? {}` |
+| `frontendTools() expected tool "x" to include a JSON Schema parameters object.` | An uploaded entry has no `parameters`. Check any custom `body` or `prepareSendMessagesRequest` that overwrites `tools` |
+| `MCP tool "x" from "y" conflicts with frontend tool "x"` | An MCP tool and another tool share a model-visible name. Add a `prefix` to the MCP entry or rename the other tool |
+| `MCP toolkit entry "x" requires AISDKToolkit.` | The toolkit has MCP entries and the route uses `generativeTools`. Switch to `AISDKToolkit` |
+| A server tool returns whatever the client sent | `frontendTools(tools)` was spread after the server tools. Spread it first |

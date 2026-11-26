@@ -9,7 +9,7 @@ Two options set side by side, each with its own traits and one of them marked as
 
 <RuntimeMode>
 
-This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A comparison has no natural row by row reveal, and option cards filling in out of order as JSON streams in would read as broken, so wait for the call to finish before mounting the card.
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A comparison has no natural row by row reveal, and option cards filling in out of order as JSON streams in would read as broken, so wait for the arguments to finish before mounting the card.
 
 <Steps>
   <Step>
@@ -19,21 +19,40 @@ This element has no assistant-ui primitive of its own, so the runtime wiring is 
 ```tsx title="app/toolkit.tsx"
 "use client";
 
-import { defineToolkit } from "@assistant-ui/react";
-import { ComparisonCard } from "@/components/assistant-ui/elements/comparison-card";
+import {
+  defineToolkit,
+  useToolArgsStatus,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/react";
+import {
+  ComparisonCard,
+  type ComparisonOption,
+} from "@/components/assistant-ui/elements/comparison-card";
+
+type CompareOptionsArgs = {
+  traitLabels: string[];
+  options: ComparisonOption[];
+  recommendedId: string;
+  reason: string;
+};
+
+const CompareOptionsToolUI: ToolCallMessagePartComponent<CompareOptionsArgs> = ({
+  args,
+}) => {
+  const { argsStatus } = useToolArgsStatus<CompareOptionsArgs>();
+  if (argsStatus !== "complete") return null;
+  return <ComparisonCard {...args} />;
+};
 
 export const toolkit = defineToolkit({
   compare_options: {
     type: "backend",
-    render: ({ args, status }) => {
-      if (status.type !== "complete") return null;
-      return <ComparisonCard {...args} />;
-    },
+    render: CompareOptionsToolUI,
   },
 });
 ```
 
-Returning `null` until `status.type` is `"complete"` mounts the card once, with its final arguments, rather than re-rendering it through every partial parse. See [deferred rendering](/docs/tools/tool-ui#deferred-rendering) for the general pattern.
+Returning `null` until `argsStatus` is `"complete"` mounts the card once, with its final arguments, rather than re-rendering it through every partial parse. `status.type` would also work as a gate, but it becomes `"complete"` only when the tool's result arrives, so the card would wait for the server round trip. See [deferred rendering](/docs/tools/tool-ui#deferred-rendering) for the general pattern, and [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools) for the `type: "backend"` entry that renders a tool your server defines.
 
   </Step>
   <Step>
@@ -243,8 +262,9 @@ Both lanes take `className` on the root. The "pick" label uses the shared `mono`
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `args` | `{ traitLabels: string[]; options: ComparisonOption[]; recommendedId: string; reason: string }` | The tool's arguments, a partial parse while `status.type` is `"running"`. |
-| `status` | `ToolCallMessagePartStatus` | `"running"` while the model is still emitting `args`, `"complete"` once the call settles. Gate rendering on `"complete"` to avoid a half built card. |
+| `args` | `{ traitLabels: string[]; options: ComparisonOption[]; recommendedId: string; reason: string }` | The tool's arguments, a partial parse while the model is still emitting them. |
+| `argsStatus` | `"streaming" \| "complete"` | From `useToolArgsStatus`. `"complete"` once the arguments are final, which can be before the tool returns. Gate rendering on it to avoid a half built card. |
+| `status` | `ToolCallMessagePartStatus` | `"running"` until the tool's result arrives, then `"complete"`. |
 
 ### compare_options arguments
 

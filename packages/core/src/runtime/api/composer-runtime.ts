@@ -209,13 +209,13 @@ export type ComposerRuntime = {
   /**
    * Set the run config of the composer. This is used to send custom configuration data to the model.
    * Within your backend, you can use the `runConfig` object.
-   * Example:
+   * @param runConfig The run config to set in the composer.
+   * @example
    * ```ts
    * composerRuntime.setRunConfig({
    *   custom: { customField: "customValue" }
    * });
    * ```
-   * @param runConfig The run config to set in the composer.
    */
   setRunConfig(runConfig: RunConfig): void;
 

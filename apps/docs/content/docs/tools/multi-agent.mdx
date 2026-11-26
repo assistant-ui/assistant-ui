@@ -14,7 +14,7 @@ Key behaviors:
 
 - **Scope inheritance**: Parent toolkit renderers are available in sub-agent messages. A `Tools({ toolkit })` registration at the top level works inside sub-agent conversations too.
 - **Recursive**: Sub-agent messages can contain tool calls that themselves have nested messages. Use `MessagePartPrimitive.Messages` again to render them.
-- **Read-only**: Sub-agent messages are rendered in a readonly context, without editing, branching, composing, or answering tool calls; `s.thread.capabilities.answerToolCall` is `false` there.
+- **Read-only**: Sub-agent messages are rendered in a readonly context, without editing, branching, composing, or answering tool calls. A tool UI inside it reads `s.thread.capabilities.answerToolCall` as `false` and should [show the request without its controls](/docs/tools/tool-ui#human-in-the-loop).
 
 <Callout type="info">
   This renders a sub-agent's **messages**. To visualize a sub-agent's **execution trace** instead (timing, span hierarchy, waterfalls), see [react-o11y](/docs/utilities/react-o11y), which renders observability spans as collapsible trees and timelines.
@@ -27,64 +27,84 @@ Key behaviors:
 
 ### Register a Tool UI for the Sub-Agent
 
-```tsx
-import {
-  AuiConfig,
-  defineToolkit,
-  Tools,
-  MessagePartPrimitive,
-} from "@assistant-ui/react";
+`MyUserMessage` and `MyAssistantMessage` are your own message components. Inside the nested thread, `MessagePrimitive.Parts` and the other message and part primitives work as they do in the main thread.
 
-const toolkit = defineToolkit({
+```tsx title="app/sub-agent-toolkit.tsx"
+"use client";
+
+import { defineToolkit, MessagePartPrimitive } from "@assistant-ui/react";
+
+export default defineToolkit({
   invoke_researcher: {
     type: "backend",
-    render: ({ args, status }) => (
-    <div className="my-2 rounded-lg border p-4">
-      <div className="mb-2 text-sm font-medium text-gray-500">
-        Researcher Agent {status.type === "running" && "(working...)"}
+    render: ({ status }) => (
+      <div className="my-2 rounded-lg border p-4">
+        <div className="mb-2 text-sm font-medium text-muted-foreground">
+          Researcher agent {status.type === "running" && "(working)"}
+        </div>
+        <MessagePartPrimitive.Messages>
+          {({ message }) =>
+            message.role === "user" ? <MyUserMessage /> : <MyAssistantMessage />
+          }
+        </MessagePartPrimitive.Messages>
       </div>
-      <MessagePartPrimitive.Messages>
-        {({ message }) => {
-          if (message.role === "user") return <MyUserMessage />;
-          return <MyAssistantMessage />;
-        }}
-      </MessagePartPrimitive.Messages>
-    </div>
-  ),
+    ),
   },
 });
 ```
+
+The sub-agent tool is defined on your backend, so this entry only attaches a renderer to it. In a plain `"use client"` toolkit that is `type: "backend"` with a `render`. In a `"use generative"` file write `execute: externalTool()` instead; see [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools).
 
   </Step>
   <Step>
 
 ### Provide the Messages from the Backend
 
-The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. An AI SDK backend populates it from the tool result. The AG-UI runtime assembles it from the protocol's subagent lifecycle events, the LangChain runtime from the subagent discovered for each `task` tool call, and the OpenCode runtime from the child session behind each `task` tool call. The LangGraph runtime and Google ADK leave it unset: LangGraph streams subgraph messages into the parent thread and attributes them through the namespaced events, and an ADK long-running call is owned by the client and settles on `requires-action` until the function response is sent; see [long-running tools](/docs/runtimes/google-adk/hooks#long-running-tools).
+The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. Whether it does depends on the runtime:
 
-<Tabs items={["AI SDK", "LangGraph", "LangChain", "AG-UI"]}>
-<Tab value="AI SDK">
+| Runtime | `messages` comes from |
+| --- | --- |
+| AG-UI | The protocol's subagent lifecycle events (see the AG-UI tab) |
+| LangChain | The subagent discovered for each `task` tool call |
+| OpenCode | The child session behind each `task` tool call |
+| `useExternalStoreRuntime` | Your `convertMessage`: a tool-call part or a `role: "tool"` message carries `messages` (see the External store tab) |
+| Backends on `assistant-stream` (data stream, assistant transport) | The `messages` field of the tool result, for example `new ToolResponse({ result, messages })`. The runtime copies it onto the part unchanged, so it has to be `ThreadMessage` shaped |
+| LangGraph | Not set. Subgraph messages stream into the parent thread (see the LangGraph tab) |
+| Google ADK | Not set. A long-running call is owned by the client and settles on `requires-action` until the function response is sent; see [long-running tools](/docs/runtimes/google-adk/hooks#long-running-tools) |
+| AI SDK (`useChatRuntime`) | Not set. A tool output that contains a `messages` array stays on the call's `result`, so render it from there or move the sub-agent to a runtime above |
 
-```ts title="api/chat/route.ts"
-tools: {
-  invoke_researcher: tool({
-    description: "Invoke the researcher sub-agent",
-    inputSchema: z.object({ query: z.string() }),
-    execute: async ({ query }) => {
-      const subAgentMessages = await runResearcherAgent(query);
-      return {
-        answer: subAgentMessages.at(-1)?.content,
-        messages: subAgentMessages,
-      };
-    },
-  }),
-},
+<Tabs items={["External store", "LangGraph", "LangChain", "AG-UI"]}>
+<Tab value="External store">
+
+With `useExternalStoreRuntime`, the tool-call part your `convertMessage` returns can carry the nested transcript. `messages` takes full `ThreadMessage` objects:
+
+```ts title="convertMessage.ts"
+import type { ThreadMessageLike } from "@assistant-ui/react";
+
+const convertMessage = (message: MyMessage): ThreadMessageLike => ({
+  id: message.id,
+  role: message.role,
+  content: message.parts.map((part) =>
+    part.kind === "researcher"
+      ? {
+          type: "tool-call",
+          toolCallId: part.id,
+          toolName: "invoke_researcher",
+          args: part.args,
+          result: part.answer,
+          messages: part.transcript,
+        }
+      : { type: "text", text: part.text },
+  ),
+});
 ```
+
+A converter that returns separate `role: "tool"` messages can set `messages` there instead. A tool result that omits it keeps the `messages` the call already had. See [Status](#status) for who settles a nested transcript that is still running.
 
 </Tab>
 <Tab value="LangGraph">
 
-`@assistant-ui/react-langgraph` does not nest subgraph output. Messages a subgraph emits stream into the parent thread, and the namespaced events attribute them: `onSubgraphValues` and `onSubgraphUpdates` receive the subgraph's namespace and state, and `onMessageChunk` carries `metadata.namespace` for chunks that originate in a subgraph. Those events exist only when the run streams subgraphs, so `unstable_createLangGraphStream` forwards `streamSubgraphs` to `client.runs.stream` and this example enables it together with `"updates"` in `streamMode`. Set `unstable_allowCancellation: true` to wire up the stop button. A nested conversation per sub-agent on LangGraph needs `@assistant-ui/react-langchain`, which attaches each `task` subagent's transcript to its tool call.
+`@assistant-ui/react-langgraph` does not nest subgraph output. Messages a subgraph emits stream into the parent thread, and the namespaced events attribute them: `onSubgraphValues` and `onSubgraphUpdates` receive the subgraph's namespace and state, `onSubgraphError` receives errors scoped to the subgraph, and `onMessageChunk` carries `metadata.namespace` for chunks that originate in a subgraph. Those events exist only when the run streams subgraphs, so `unstable_createLangGraphStream` forwards `streamSubgraphs` to `client.runs.stream` and this example enables it together with `"updates"` in `streamMode`. Set `unstable_allowCancellation: true` to wire up the stop button. A nested conversation per sub-agent on LangGraph needs `@assistant-ui/react-langchain`, which attaches each `task` subagent's transcript to its tool call.
 
 ```ts title="runtime.ts"
 import { useMemo } from "react";
@@ -150,19 +170,20 @@ See [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) for the fu
 </Tab>
 </Tabs>
 
-<Callout type="info">
-  The key requirement is that the tool result's corresponding
-  `ToolCallMessagePart` includes a `messages` array of `ThreadMessage` objects.
-</Callout>
-
   </Step>
   <Step>
 
-### Register the Tool UI Component
+### Register the Toolkit
+
+Register the toolkit like any other with `Tools({ toolkit })`; [Registering a toolkit](/docs/tools/defining-tools#registering-a-toolkit-with-tools) covers where to mount it. Because renderers are inherited, the entry also renders when the tool call sits inside another sub-agent's transcript.
 
 ```tsx
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import toolkit from "./sub-agent-toolkit";
+
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
 function App() {
-  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
@@ -174,49 +195,63 @@ function App() {
   </Step>
 </Steps>
 
-## Subgraph Namespace Events
-
-When using LangGraph, subgraph events (`onSubgraphValues` / `onSubgraphUpdates` / `onSubgraphError`, plus the `namespace` on `onMessageChunk`) carry a `namespace` that identifies which sub-agent emitted them, letting you attribute messages and state to specific sub-agents. See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full reference.
-
 ## Recursive Sub-Agents
 
-If a sub-agent's tool calls also have nested messages, the same pattern applies recursively:
+If a sub-agent's tool calls also have nested messages, the same pattern applies recursively. Here the planner's transcript contains `invoke_researcher` calls, rendered inline with their own nested transcript:
 
-```tsx
-const toolkit = defineToolkit({
+```tsx title="app/planner-toolkit.tsx"
+"use client";
+
+import {
+  defineToolkit,
+  MessagePartPrimitive,
+  MessagePrimitive,
+} from "@assistant-ui/react";
+
+export default defineToolkit({
   invoke_planner: {
     type: "backend",
     render: () => (
-    <div className="rounded border p-3">
-      <h4>Planner Agent</h4>
-      <MessagePartPrimitive.Messages>
-        {({ message }) => {
-          if (message.role === "user") return <MyUserMessage />;
-          return (
-            <MessagePrimitive.Parts>
-              {({ part }) => {
-                if (part.type === "text") return <MyText />;
-                if (part.type === "tool-call" && part.toolName === "invoke_researcher") return (
-                  <div className="ml-4 rounded border p-3">
-                    <h5>Researcher Agent</h5>
-                    {/* Nested sub-agent renders recursively */}
-                    <MessagePartPrimitive.Messages>
-                      {({ message }) => {
-                        if (message.role === "user") return <MyUserMessage />;
-                        return <MyAssistantMessage />;
-                      }}
-                    </MessagePartPrimitive.Messages>
-                  </div>
-                );
-                if (part.type === "tool-call") return <MyToolFallback {...part} />;
-                return null;
-              }}
-            </MessagePrimitive.Parts>
-          );
-        }}
-      </MessagePartPrimitive.Messages>
-    </div>
-  ),
+      <div className="rounded border p-3">
+        <h4>Planner agent</h4>
+        <MessagePartPrimitive.Messages>
+          {({ message }) => {
+            if (message.role === "user") return <MyUserMessage />;
+            return (
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <MyText />;
+                  if (
+                    part.type === "tool-call" &&
+                    part.toolName === "invoke_researcher"
+                  ) {
+                    return (
+                      <div className="ml-4 rounded border p-3">
+                        <h5>Researcher agent</h5>
+                        {/* The nested transcript renders with the same primitive */}
+                        <MessagePartPrimitive.Messages>
+                          {({ message }) =>
+                            message.role === "user" ? (
+                              <MyUserMessage />
+                            ) : (
+                              <MyAssistantMessage />
+                            )
+                          }
+                        </MessagePartPrimitive.Messages>
+                      </div>
+                    );
+                  }
+                  if (part.type === "tool-call") {
+                    return <MyToolFallback {...part} />;
+                  }
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
+            );
+          }}
+        </MessagePartPrimitive.Messages>
+      </div>
+    ),
   },
 });
 ```
@@ -288,7 +323,7 @@ function SubConversation({
 }
 ```
 
-`ReadonlyThreadProvider` inherits the parent's tool UI registrations and model context through scope inheritance. A tool UI rendered inside it reads `s.thread.capabilities.answerToolCall` as `false`, because `addResult`, `resume`, and `respondToApproval` do nothing in a readonly thread; show the request without its controls there.
+`ReadonlyThreadProvider` inherits the parent's tool UI registrations and model context through scope inheritance. As in a nested transcript, `s.thread.capabilities.answerToolCall` is `false` inside it, so [tool UIs show a request without its controls](/docs/tools/tool-ui#human-in-the-loop).
 
 ## Related
 

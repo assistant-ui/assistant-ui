@@ -140,7 +140,6 @@ function toolsRule(input: ClassificationInput): Classification | undefined {
     name === "Tool" ||
     name === "Toolkit" ||
     name === "ToolDefinition" ||
-    name === "ToolsConfig" ||
     name === "McpAppResourceOutput" ||
     name === "useToolArgsStatus" ||
     name === "Tools" ||

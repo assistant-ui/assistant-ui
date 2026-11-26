@@ -1,12 +1,12 @@
 import { cacheLife } from "next/cache";
-import { Fragment, type FC, type ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import { highlight } from "fumadocs-core/highlight";
 
 import {
   TypeTableClient,
   type TypeTableRow,
 } from "./primitives-type-table-client";
-import { DefListLLM } from "./parameters-table";
+import { DefListLLM, renderDescription } from "./parameters-table";
 import {
   COMMON_PARAMS,
   getParameterAnnotations,
@@ -60,20 +60,11 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
 
       const descParts: ReactNode[] = [
         ...getParameterAnnotations(prop, "description"),
-        prop.description &&
-          (typeof prop.description === "string" &&
-          prop.description.includes("\n") ? (
-            <span key="description">
-              {prop.description.split("\n").map((line, i) => (
-                <Fragment key={i}>
-                  {i > 0 && <br />}
-                  {line}
-                </Fragment>
-              ))}
-            </span>
-          ) : (
-            <span key="description">{prop.description}</span>
-          )),
+        prop.description && (
+          <span key="description" className="whitespace-pre-line">
+            {renderDescription(prop.description)}
+          </span>
+        ),
       ].filter(Boolean);
 
       // Highlight the type (clean version for collapsed row, full for expanded)

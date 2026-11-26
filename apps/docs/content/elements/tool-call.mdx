@@ -97,7 +97,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [Tool UI](/docs/tools/tool-ui) for backend-defined tools, human tools, and approval gates.
+See [Tool UI](/docs/tools/tool-ui) for human tools and approval gates, and [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools) for a renderer on a tool your server defines.
 
   </Step>
 </Steps>
@@ -261,7 +261,7 @@ const [open, setOpen] = useState(true);
 | `toolCallId` | `string` | Stable id for this invocation. |
 | `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
 
-Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`; [Registering a toolkit with `Tools()`](/docs/tools/defining-tools#registering-a-toolkit-with-tools) has the registration rules. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
 
 </RuntimeMode>
 

@@ -3,7 +3,7 @@ title: Assistant Transport
 description: Command, protocol, and transport types for connecting assistant-ui runtimes across execution boundaries.
 ---
 
-import { AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, SendCommandsRequestBody, useAssistantTransportRuntime } from "@/generated/typeDocs";
+import { AssistantTransportCommand, AssistantTransportConnectionMetadata, SendCommandsRequestBody, useAssistantTransportRuntime } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -24,7 +24,9 @@ import { AssistantTransportCommand, AssistantTransportConnectionMetadata, Assist
 
 ### AssistantTransportProtocol
 
-<ParametersTable {...AssistantTransportProtocol} />
+```ts
+type AssistantTransportProtocol = "data-stream" | "assistant-transport";
+```
 
 ### SendCommandsRequestBody
 

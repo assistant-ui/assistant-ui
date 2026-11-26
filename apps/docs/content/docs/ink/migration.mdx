@@ -9,7 +9,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 - **Runtime setup** — `useLocalRuntime`, `ChatModelAdapter`, and all runtime options work identically.
 - **AI SDK integration** — `@assistant-ui/ai-sdk` works with React Ink. Your runtime setup transfers directly.
-- **Tool definitions** — `Tools({ toolkit })` and toolkit renderers use the same API.
+- **Tool definitions** — `defineToolkit` and `Tools({ toolkit })` use the same API as on the web ([Defining Tools](/docs/tools/defining-tools)). Ink has no `"use generative"` build step: `defineToolkit` resolves each tool's kind when it runs, and `render` functions return Ink components ([Tools](/docs/ink/hooks#tools)).
 - **State hooks** — `useAuiState`, `useAui`, and selector patterns are the same.
 - **Backend code** — Your API routes, streaming endpoints, and server-side logic need zero changes.
 
@@ -128,11 +128,11 @@ In a monorepo, you can share everything except the UI layer:
 packages/
   shared/
     hooks/          ← useAppRuntime with ChatModelAdapter (shared)
-    tools/          ← tool definitions (shared)
+    tools/          ← tool schemas and execute functions (shared)
   web/
     components/     ← DOM-based UI
   terminal/
     components/     ← Ink-based terminal UI
 ```
 
-The runtime hook, tool definitions, and backend code are platform-agnostic. Only the UI components need separate implementations for web and terminal.
+The runtime hook, tool schemas, and backend code are platform-agnostic. The UI components need separate implementations for web and terminal, and so do tool renderers: a toolkit entry that colocates `render` with its schema belongs to one platform, so share the schema and `execute` and add each platform's `render` in its own toolkit.

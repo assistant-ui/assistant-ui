@@ -205,6 +205,10 @@ function ToolProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
+Import `toolkit` from a module, as above. [Registering a toolkit with `Tools()`](/docs/tools/defining-tools#registering-a-toolkit-with-tools) covers identity, duplicate names, and where to mount `Tools`.
+
+`@assistant-ui/react-ink` does not export `externalTool()`. To render a tool that your backend or an MCP server defines, write a render-only entry with an explicit `type: "backend"`, as the [`useInlineRender`](#useinlinerender) example below does, and key an MCP tool by its model-visible name ([MCP](/docs/tools/mcp#render-the-calls)).
+
 ### useAssistantInstructions
 
 Register system instructions in the model context.

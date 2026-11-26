@@ -20,87 +20,7 @@ For answers that need a widget or plain Markdown instead, see [Choosing an answe
 
 ## Setup
 
-Build the catalog from the same library and add spec mode to a widget toolkit. Its tools run in the browser and upload their schemas, so the route from the [quick start](/docs/tools/generative-ui#quick-start) serves them through `frontend` without changes.
-
-```tsx title="app/widgets.tsx"
-"use client";
-
-import {
-  createWidgetToolkit,
-  useWidgetInstructions,
-} from "generative-frame/assistant-ui";
-import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
-import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
-import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
-import { approveOrder } from "@/lib/orders";
-
-const { catalog, components } = toSpecCatalog(defaultGenerativeUILibrary, {
-  actions: {
-    approve_order: {
-      description: "Approves the order in `orderId`.",
-      params: {
-        type: "object",
-        properties: { orderId: { type: "string" } },
-        required: ["orderId"],
-      },
-    },
-  },
-});
-
-export const widgets = createWidgetToolkit({
-  spec: createSpecToolkit(catalog, {
-    components,
-    handlers: {
-      approve_order: (params) => approveOrder(String(params["orderId"])),
-    },
-  }),
-});
-
-export function WidgetInstructions() {
-  useWidgetInstructions(widgets.tools);
-  return null;
-}
-```
-
-Register it in the provider from the quick start. Spread the two toolkits in that client module rather than in the `"use generative"` file, since the compiler cannot analyze a spread entry, and render `<WidgetInstructions />` inside the provider, which puts the guidance of the `spec` module of `read_me` in the system prompt, so the model writes a spec without calling `read_me` first:
-
-```tsx title="app/MyRuntimeProvider.tsx"
-"use client";
-
-import {
-  AssistantRuntimeProvider,
-  AuiConfig,
-  Tools,
-} from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import toolkit from "./toolkit";
-import { WidgetInstructions, widgets } from "./widgets";
-
-export function MyRuntimeProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const runtime = useChatRuntime({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-  });
-  const config = AuiConfig({
-    tools: Tools({ toolkit: { ...toolkit, ...widgets.toolkit } }),
-  });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <WidgetInstructions />
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-`useWidgetInstructions(widgets.tools, { preload: { modules: [] } })` leaves that guidance on demand instead, which shortens the prompt at the cost of a `read_me` call before the first spec.
-
-`createWidgetToolkit` also registers the frame tools (`read_me`, `show_widget`, `edit_widget`, and `preview_widget`), so the model can answer with a sandboxed widget when the vocabulary cannot express something.
+Build the catalog from the same library and add spec mode to a widget toolkit; [Set up spec mode](/docs/tools/generative-ui#set-up-spec-mode) has the code, the instructions component, and how to register it next to a `present` toolkit. The spec tools run in the browser and upload their schemas, so a route that already forwards client tools, such as the one from the [quick start](/docs/tools/generative-ui#quick-start), serves them without changes.
 
 ## The same card in both formats
 
@@ -146,7 +66,7 @@ As the `patches` of a `render_spec` call titled `order_1042`, one operation per 
 | `present()` renders inline unless `display: "standalone"` | `createWidgetToolkit` renders `render_spec`, `show_widget`, and `edit_widget` standalone unless `display: "inline"` |
 | Props reach components unchecked | `render_spec` checks the spec against the catalog and returns the issues, and the renderer shows a placeholder for an element whose props fail |
 
-[Spec mode](/docs/tools/generative-ui#spec-mode) lists the events each vocabulary component emits and what `$event` holds for each, and shows how your own components declare theirs.
+[Events and bindings](/docs/tools/generative-ui#events-and-bindings) lists the events each vocabulary component emits and what `$event` holds for each, and [Your own components](/docs/tools/generative-ui#your-own-components) shows how a component declares its own.
 
 ## Slack and Teams
 

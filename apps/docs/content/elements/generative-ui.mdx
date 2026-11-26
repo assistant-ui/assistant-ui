@@ -9,57 +9,44 @@ description: "A styled component library for rendering structured generative UI 
 
 <RuntimeMode>
 
-The library only supplies components; something still has to expose them to the model and mount the result when it calls them. `JSONGenerativeUI` builds that bridge: a tool whose parameters come from the library's Zod schemas, and whose render draws the model's response through the library.
+The library only supplies components; something still has to expose them to the model and mount the result when it calls them. `JSONGenerativeUI` builds that bridge: a tool whose parameters come from the library's Zod schemas, and whose render draws the model's response through the library. The setup is the [generative UI quick start](/docs/tools/generative-ui#quick-start): install, enable the compiler, build the toolkit, register it with `Tools({ toolkit })` and `sendAutomaticallyWhen`, and import the toolkit from your route. Only the toolkit file differs:
 
-<Steps>
-  <Step>
-
-### Build a toolkit around the library
+- Start it with `"use generative"`. Your route's import of that file is what teaches the model the `present` tool; a toolkit file without the directive never uploads it, unless you compile with [`backendless`](/docs/tools/defining-tools#running-without-your-own-backend). See [How `present` and `promptUser()` register](/docs/tools/generative-ui#how-present-and-promptuser-register).
+- `styledGenerativeUILibrary` is a `"use client"` module, so a `"use generative"` file cannot pass it as `library`. Spread `defaultGenerativeUILibrary` and take each override's `render` from the styled library inside `defineGenerativeComponents`.
 
 ```tsx title="app/toolkit.tsx"
+"use generative";
+
 import { defineToolkit } from "@assistant-ui/react";
-import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
+import {
+  JSONGenerativeUI,
+  defaultGenerativeUILibrary,
+  defineGenerativeComponents,
+} from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
-const generative = new JSONGenerativeUI({ library: styledGenerativeUILibrary });
+const markdown = defaultGenerativeUILibrary.Markdown!;
+
+const generative = new JSONGenerativeUI({
+  library: {
+    ...defaultGenerativeUILibrary,
+    ...defineGenerativeComponents({
+      Markdown: {
+        properties: markdown.properties,
+        streamProperties: markdown.streamProperties,
+        description: "A markdown string, rendered with GitHub-flavored markdown.",
+        render: styledGenerativeUILibrary.Markdown!.render,
+      },
+    }),
+  },
+});
 
 export default defineToolkit({
   present: generative.present(),
 });
 ```
 
-  </Step>
-  <Step>
-
-### Register it on your runtime
-
-```tsx title="app/page.tsx"
-"use client";
-
-import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-import toolkit from "./toolkit";
-
-const config = AuiConfig({ tools: Tools({ toolkit }) });
-
-export default function Page() {
-  const runtime = useChatRuntime({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-  });
-  return (
-    <AssistantRuntimeProvider config={config} runtime={runtime}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-The model can now call `present` with a `{ _type, ...props }` tree; it renders through `styledGenerativeUILibrary`, so a `Markdown` node comes out fully formatted instead of as raw text.
-
-  </Step>
-</Steps>
+The model can now call `present` with a `{ _type, ...props }` tree, and a `Markdown` node comes out fully formatted instead of as raw text. Override `Diagram` and `Map` the same way; [Styling](/docs/tools/generative-ui#styling) shows all three.
 
 </RuntimeMode>
 
@@ -107,10 +94,10 @@ renderGenerativeUI({ $type: "Markdown", value: "**bold**" }, styledGenerativeUIL
 
 ### Extend the library with your own component
 
-Add to it with a plain object spread. No special wrapper is required for a library that is not split across a client and a server build.
+Add to the library with a plain object spread, then render with it:
 
-```tsx title="app/toolkit.tsx"
-import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
+```tsx
+import { renderGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import { z } from "zod";
 
@@ -123,8 +110,10 @@ const library = {
   },
 };
 
-const generative = new JSONGenerativeUI({ library });
+renderGenerativeUI({ $type: "Callout", text: "Heads up" }, library);
 ```
+
+A `"use generative"` toolkit cannot spread `styledGenerativeUILibrary`. There, spread `defaultGenerativeUILibrary` and add the component through `defineGenerativeComponents`, as in [Extending the vocabulary](/docs/tools/generative-ui#extending-the-vocabulary).
 
 ### Use the Markdown renderer on its own
 

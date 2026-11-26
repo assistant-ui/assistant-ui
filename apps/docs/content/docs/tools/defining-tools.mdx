@@ -1,43 +1,45 @@
 ---
 title: Defining Tools
-description: Define tools for your AI chat with assistant-ui toolkits and the "use generative" directive, covering frontend, backend, human, and provider tools with type safety and streaming.
+description: Define tools for your AI chat with assistant-ui toolkits and the "use generative" directive, covering frontend, backend, human, provider, and external tools, registration with Tools(), and type safety.
 platforms: ["react"]
 ---
 
-Tools let the model take actions: fetch data, call an API, query a database, drive your UI, or run a workflow. In assistant-ui you declare tools in a **toolkit**, a named map where each key is the tool name the model sees and each value describes the tool's schema, where it runs, and how its call renders.
+A tool is a function the model can call to fetch data, call an API, drive your UI, or ask the user for input. In assistant-ui you declare tools in a **toolkit**: a named map where each key is the tool name the model sees and each value describes the tool's schema, where it runs, and how its call renders in the chat.
 
-This page covers how to **author** tools. To render a tool call as a custom component, see [Tool UI](/docs/tools/tool-ui). To wire tools into your server, see [Backend tools](/docs/tools/backend).
+This is the canonical page for authoring tools. For the rendering side, see [Tool UI](/docs/tools/tool-ui). For wiring a toolkit into your server, see [Backend tools](/docs/tools/backend). For MCP servers, see [MCP](/docs/tools/mcp).
+
+The page runs from the first working tool to the reference material: a quick start, the kinds of tool, rendering, organizing and options, then how a toolkit compiles and registers, and troubleshooting. Samples call placeholder helpers such as `fetchWeatherAPI`, `geocodeLocation`, `SearchResults`, and `DatePicker`; implement them for your app.
 
 ## Define tools with `"use generative"`
 
-Use `"use generative"` + `defineToolkit` for toolkits. The compiler co-locates
-the schema, executor, and renderer in one file and splits them across the
-client/server boundary for you.
+A `"use generative"` file is a single module that holds a tool's schema, its executor, and its renderer together. A build plugin splits it into a **server build** (schema and backend executors) and a **client build** (schema, renderers, and browser executors), so a backend `execute` never reaches the browser and a `render` never reaches your server.
 
-<Callout type="info">
-  You can still use the generative toolkit pattern when a tool executes
-  elsewhere:
+A generative file follows four rules:
 
-  - for MCP servers, spread `defineMcpToolkit({ ... })`;
-  - for non-MCP tools defined by another backend or runtime, write
-    `execute: externalTool()` and provide a renderer.
-</Callout>
+- `"use generative"` is the first statement of the file. Only comments may precede it.
+- The default export is `defineToolkit({ ... })` or `defineMcpToolkit({ ... })`.
+- Every tool is an inline object literal that declares an `execute`.
+- You never write `type`. The compiler infers the [tool kind](#tool-kinds) from `execute` and writes it back.
 
-In a `"use generative"` file every tool declares an `execute`, and you never
-write `type` yourself; the compiler infers it. For render-only external tools,
-`externalTool()` is the escape hatch that satisfies the compiler without
-emitting schema or executable code on the server.
+For tools that execute somewhere else, use `defineMcpToolkit({ ... })` for MCP servers or `execute: externalTool()` to attach a renderer to a tool another system defines.
 
 ## Quick start (`"use generative"`)
 
-A `"use generative"` file is a single module that holds a tool's schema, its executor, and its renderer together. A build plugin splits it into a server build (schema + backend executors) and a client build (schema + renderers + browser executors), so a backend `execute` never reaches the browser and a `render` never reaches your server.
+This quick start adds one browser tool to an app that already has an AI SDK chat: an `AssistantRuntimeProvider` with `useChatRuntime` and a `/api/chat` route. If you do not have one yet, start with the [AI SDK guide](/docs/runtimes/ai-sdk/v7).
 
 <Steps>
 <Step>
 
 ### Add the build plugin
 
-The directive does nothing without a compiler. Wrap your Next.js config with `withAui`:
+The directive does nothing without a compiler. Install the plugin for your bundler and add it to its config:
+
+<Tabs items={["Next.js", "Vite or TanStack Start", "Expo"]}>
+<Tab>
+
+<InstallCommand npm={["@assistant-ui/next"]} />
+
+Wrap your Next.js config with `withAui`:
 
 ```ts title="next.config.ts"
 import { withAui } from "@assistant-ui/next";
@@ -47,9 +49,17 @@ export default withAui({
 });
 ```
 
-For Vite / TanStack Start, add the `aui()` plugin instead:
+Restart the dev server after changing the config. Turbopack caches loader output, so if a change to the plugin does not take effect, clear `.next`.
+
+</Tab>
+<Tab>
+
+<InstallCommand npm={["@assistant-ui/vite"]} />
+
+Add the `aui()` plugin:
 
 ```ts title="vite.config.ts"
+import { defineConfig } from "vite";
 import { aui } from "@assistant-ui/vite";
 
 export default defineConfig({
@@ -57,7 +67,14 @@ export default defineConfig({
 });
 ```
 
-For Expo, wrap your Metro config with `withAui`:
+`aui()` runs before the React plugin on its own, so its position in `plugins` does not matter.
+
+</Tab>
+<Tab>
+
+<InstallCommand npm={["@assistant-ui/metro"]} />
+
+Wrap your Metro config with `withAui`:
 
 ```js title="metro.config.js"
 const { getDefaultConfig } = require("expo/metro-config");
@@ -66,14 +83,17 @@ const { withAui } = require("@assistant-ui/metro");
 module.exports = withAui(getDefaultConfig(__dirname));
 ```
 
-For a bare React Native app, import `getDefaultConfig` from `@react-native/metro-config` instead of `expo/metro-config`.
+For a bare React Native app, import `getDefaultConfig` from `@react-native/metro-config` instead of `expo/metro-config`. In a React Native app, import `defineToolkit` from `@assistant-ui/react-native`.
+
+</Tab>
+</Tabs>
 
 </Step>
 <Step>
 
 ### Write the toolkit
 
-The file's first line is `"use generative"`, and its default export is `defineToolkit({ ... })`. Each tool is an inline object literal with a `parameters` schema, an `execute`, and a `render` (or `renderText`):
+Each tool is an inline object literal with a `parameters` schema, an `execute`, and a `render` (or `renderText`):
 
 ```tsx title="app/toolkit.tsx"
 "use generative";
@@ -108,7 +128,7 @@ export default defineToolkit({
 });
 ```
 
-The inner `"use client"` inside `execute` marks this as a **frontend** tool: its executor runs in the browser. (Omit it to run on the server; see [Tool kinds](#tool-kinds).)
+The inner `"use client"` inside `execute` marks this as a **frontend** tool: its executor runs in the browser. Omit it to run on the server; see [Tool kinds](#tool-kinds).
 
 <Callout type="info">
   Zod Mini schemas carry no JSON Schema converter of their own, so convert them
@@ -128,41 +148,41 @@ The inner `"use client"` inside `execute` marks this as a **frontend** tool: its
 
 ### Register the toolkit
 
-Import the toolkit in your runtime provider and pass it to `config` via `Tools`:
+Add `config` to the runtime provider you already have: import the toolkit and pass it through `Tools`. Set `sendAutomaticallyWhen` on the runtime too, because a browser tool finishes after the response ends and the AI SDK runtime sends the result back only when this predicate returns true. Without it the chat stops after the tool runs.
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import toolkit from "./toolkit";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={config}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );
 }
 ```
 
-`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
+`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport). For what `Tools` registers and where to mount it, see [Registering a toolkit](#registering-a-toolkit-with-tools). For the two loops that continue a conversation after a tool call, see [Multi-step tool calls](/docs/tools/backend#multi-step-tool-calls).
 
 </Step>
 <Step>
 
 ### Expose the toolkit to the model on your server
 
-The same import resolves to the **server build** inside a route handler. Wrap it in an `AISDKToolkit` so the model is configured with every tool's schema:
+The same import resolves to the server build inside a route handler. Wrap it in an `AISDKToolkit` so the model is configured with every tool's schema:
 
 ```ts title="app/api/chat/route.ts"
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
 import toolkit from "../../toolkit";
 
@@ -171,69 +191,44 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
-  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools ?? {} });
 
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
+    stopWhen: stepCountIs(10),
   });
 
   return result.toUIMessageStreamResponse();
 }
 ```
 
-See [Backend tools](/docs/tools/backend) for the full server setup.
+`stopWhen` lets the model read the result of a server tool, such as a [backend tool](#backend-tools) or an MCP tool, and keep going in the same request; the AI SDK runs a single step without it. The weather tool above runs in the browser, so this route needs `stopWhen` as soon as you add a server tool. See [Multi-step tool calls](/docs/tools/backend#multi-step-tool-calls), and [Backend tools](/docs/tools/backend) for the full server setup.
 
 </Step>
 </Steps>
 
-## How the compiler splits a generative file
-
-You author one file; the plugin forks it per build target. The schema (`description` + `parameters`) is kept on **both** builds, so the model contract is identical and authoritative on the backend. The client marks its frontend/human schemas as backend-known and skips re-uploading them.
-
-The tool's **kind is inferred from its `execute`** and written back as a `type` field; you never author `type` in a `"use generative"` file:
-
-| `execute` you write | Inferred kind | Server build keeps | Client build keeps |
-| --- | --- | --- | --- |
-| plain `async () => …` | **backend** | schema + `execute` (guarded `server-only`) | schema + `render` |
-| `async () => { "use client"; … }` | **frontend** | schema only | schema + `execute` + `render`/`renderText` |
-| `humanTool()` | **human** | schema only | schema + `render` |
-| `stubTool()` | **frontend** (executor supplied at runtime) | schema only | schema + `render`/`renderText` |
-| `providerTool({ … })` | **provider** | schema + provider config | schema + provider config |
-| `externalTool()` | **backend** (defined elsewhere) | omitted | `type: "backend"` + `render`/`renderText` |
-
-The compiler also enforces, at build time:
-
-- every tool declares an `execute`;
-- a **frontend** tool declares a `render` or `renderText`;
-- a **human** tool declares a `render`.
-
-### Running without your own backend
-
-The client build skips uploading frontend/human schemas because it assumes your backend imported the same file's server build and already knows them. When no server of yours does (for example, cloud-hosted runs), that assumption breaks and the model never learns about those tools. Compile with the `backendless` option so the client keeps every schema uploadable, including the `present`/`prompt_user` schema of a `JSONGenerativeUI` component library:
-
-```ts title="next.config.ts"
-export default withAui({ ...yourConfig, aui: { backendless: true } });
-```
-
-```ts title="vite.config.ts"
-plugins: [aui({ backendless: true })];
-```
-
-```js title="metro.config.js"
-module.exports = withAui({
-  ...getDefaultConfig(__dirname),
-  aui: { backendless: true },
-});
-```
-
 ## Tool kinds
+
+Pick the kind by where the work happens and who supplies the result. In a `"use generative"` file you never write the kind: the compiler infers it from `execute`. [Backend tools](/docs/tools/backend#how-each-tool-reaches-the-model) shows how each kind reaches the model.
+
+| You want to… | Use | Runs in |
+| --- | --- | --- |
+| Query a database or call an API with a secret | [Backend tool](#backend-tools): plain `execute` | Your server |
+| Use browser APIs or read client state | [Frontend tool](#frontend-tools): `execute` with `"use client"` | The browser |
+| Change React component state | [Tool stub](#tool-stubs-supply-the-executor-elsewhere): `stubTool()` plus `useAuiToolOverrides` | The browser, inside your component |
+| Have the user confirm, choose, or fill in something | [Human tool](#human-tools): `humanTool()` | The user, through `render` |
+| Use a capability the model provider hosts, such as web search | [Provider tool](#provider-tools): `providerTool({ … })` | The model provider |
+| Render calls to a tool another backend or LangGraph node defines | [External tool](#externally-defined-tools): `externalTool()` | Elsewhere |
+| Expose the tools of an MCP server | [`defineMcpToolkit`](#add-mcp-server-tools) | The MCP server |
+
+A frontend tool that sometimes needs a decision from the user can pause with `human()` instead of becoming a human tool; see [Cancellation and execution context](#cancellation-and-execution-context).
 
 ### Backend tools
 
-Run on your server. Author a plain `execute` (no `"use client"`); the compiler moves it to the server build behind `import "server-only"` and keeps only the schema and `render` on the client. A backend tool can still carry a `render` to show its call as a trace:
+Run on your server. Author a plain `execute` (no `"use client"`); the compiler moves it to the server build and keeps only the schema and `render` on the client. A backend tool can still carry a `render` to show its call as a trace:
 
 ```tsx
 geocode_location: {
@@ -243,13 +238,6 @@ geocode_location: {
   render: GeocodeToolUI,
 },
 ```
-
-<Callout type="tip">
-  A backend tool authored this way **has** an `execute`. To attach a renderer to
-  a tool whose execution lives entirely elsewhere (an MCP server, a different
-  backend route), where there is no real executor to write, use
-  `externalTool()` or `defineMcpToolkit()`.
-</Callout>
 
 ### Frontend tools
 
@@ -270,6 +258,8 @@ copy_to_clipboard: {
   },
 },
 ```
+
+The result reaches the model only if the client sends another request. Set `sendAutomaticallyWhen` on the runtime, as in the [quick start](#register-the-toolkit).
 
 ### Human tools
 
@@ -292,11 +282,11 @@ select_date: {
 },
 ```
 
-`humanTool` is imported from `@assistant-ui/react`. See [Tool UI → Human-in-the-loop](/docs/tools/tool-ui#user-input-collection) for the full pattern.
+`humanTool` is imported from `@assistant-ui/react`. Human tools always render standalone. The user's answer reaches the model only if the client sends another request, so set `sendAutomaticallyWhen` on the runtime, as in the [quick start](#register-the-toolkit). See [Tool UI](/docs/tools/tool-ui#user-input-collection) for the full pattern.
 
 ### Provider tools
 
-Executed by the model provider (e.g. OpenAI web search). Author `execute: providerTool({ … })`; the compiler lifts the config onto the tool entry:
+Executed by the model provider (for example OpenAI web search). Author `execute: providerTool({ … })`; the compiler lifts the config onto the tool entry. The config must be an inline object literal of static, non-function properties:
 
 ```tsx
 web_search: {
@@ -309,14 +299,10 @@ web_search: {
 
 ### Externally defined tools
 
-Use `externalTool()` when a non-MCP tool is already defined and executed by
-another system (for example a separate backend route or LangGraph node), but you
-want assistant-ui to render its tool calls. Import `externalTool` from
-`@assistant-ui/react`:
+Use `externalTool()` when a non-MCP tool is already defined and executed by another system (for example a separate backend route or LangGraph node) and you want assistant-ui to render its calls. The entry must declare `render` or `renderText`, and its key must match the tool name the other system publishes:
 
 ```tsx
 web_search: {
-  parameters: z.object({ query: z.string() }),
   execute: externalTool(),
   render: ({ args, result }) => (
     <SearchResults query={args.query} results={result?.results ?? []} />
@@ -324,14 +310,30 @@ web_search: {
 },
 ```
 
-The compiler omits this entry from the server build, so the model still gets
-the tool definition from the external system. The client build keeps only
-`type: "backend"` and the renderer (or `renderText`) for matching tool-call
-message parts.
+The compiler omits this entry from the server build, so the model gets the tool definition from the external system. The client build keeps `type: "backend"`, the renderer, and `display`, and drops `description`, `parameters`, and the other model-facing fields, so the entry registers no model-facing tool.
+
+**Without the compiler.** If a file cannot go through the generative compiler, write a plain `"use client"` toolkit with an explicit `type: "backend"` and only a `render`. Register it like any other toolkit:
+
+```tsx title="app/tool-ui.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+
+export const toolkit = defineToolkit({
+  web_search: {
+    type: "backend",
+    render: ({ args, result }) => (
+      <SearchResults query={args.query} results={result?.results ?? []} />
+    ),
+  },
+});
+```
+
+This `{ type: "backend", render }` shape is for plain toolkits only. Inside a `"use generative"` file, use `execute: externalTool()`: generative tools must declare an `execute`, and the compiler overwrites any `type` you write.
 
 ### Tool stubs (supply the executor elsewhere)
 
-Sometimes a tool's executor can't live in the build-split `"use generative"` file, usually because it has to close over React state (a `useState` setter, a ref). Declare the model-facing contract with `execute: stubTool()`, then supply the real executor at runtime with `useAuiToolOverrides` from the component that owns the state:
+When a tool's executor has to close over React state (a `useState` setter, a ref), it cannot live in the build-split generative file. Declare the model-facing contract with `execute: stubTool()` and supply the real executor at runtime from the component that owns the state, with `useAuiToolOverrides`:
 
 ```tsx title="app/toolkit.tsx"
 "use generative";
@@ -364,7 +366,7 @@ function TaskBoardToolOverrides({ setTasks }) {
 }
 ```
 
-`stubTool()` has no runtime implementation: it marks the executor as supplied later, while the compiler still ships the schema to the backend so the model can call the tool. The override registers above the toolkit default, so its `execute` wins for that name. To turn a tool off at runtime instead, see [Disabling a tool](#disabling-a-tool). See [Dynamic tools](/docs/tools/dynamic-tools) for the full walkthrough.
+`stubTool()` marks the executor as supplied later, while the compiler still ships the schema to the backend so the model can call the tool. Mount the override before the tool can be called: the server build your route imports advertises a compiled stub from its schema, but until an override supplies an `execute`, a call to it has no executor and stays without a result. See [Dynamic tools](/docs/tools/dynamic-tools) for the full walkthrough.
 
 <Callout type="warn">
   `useAuiToolOverrides` is experimental and its API may change.
@@ -372,7 +374,7 @@ function TaskBoardToolOverrides({ setTasks }) {
 
 ## Rendering a tool call
 
-`render` receives the live `args`, `result`, and `status` of the call and returns a React node. For a one-line status instead of a component, use `renderText` with a `running` and/or `complete` value (each a string or an `({ args, result }) => …` function):
+`render` receives the live `args`, `result`, and `status` of the call and returns a React node. For a one-line status instead of a component, use `renderText` with a `running` and/or `complete` value, each a string or an `({ args, result }) => …` function:
 
 ```tsx
 renderText: {
@@ -381,43 +383,15 @@ renderText: {
 },
 ```
 
-If you don't provide a renderer, add the [`ToolFallback`](/elements/tool-fallback) component to render a default tool card. The full rendering API (status states, streaming args, deferred rendering, approvals) is covered in [Tool UI](/docs/tools/tool-ui).
+Human tools always render outside the collapsed tool group; set `display: "standalone"` on any other entry to render it there too. While a call runs, its arguments arrive as partial JSON: use [`useToolArgsStatus`](/docs/tools/tool-ui#field-level-streaming-state) inside a renderer to react to each field as it streams in.
 
-## Render-only tools (for externally-executed tools)
-
-Prefer `"use generative"` with `externalTool()` for non-MCP tools, or
-`defineMcpToolkit()` for MCP servers. If a file cannot go through the generative
-compiler, declare a `"use client"` toolkit object with an explicit
-`type: "backend"` and only a `render`:
-
-```tsx title="app/tool-ui.tsx"
-"use client";
-
-import { defineToolkit } from "@assistant-ui/react";
-
-export const toolkit = defineToolkit({
-  web_search: {
-    type: "backend",
-    render: ({ args, result }) => (
-      <SearchResults query={args.query} results={result?.results ?? []} />
-    ),
-  },
-});
-```
-
-Register it exactly like a generative toolkit: hoist `const config = AuiConfig({ tools: Tools({ toolkit }) })` in the component body and pass `config={config}`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code; they only attach UI to matching tool-call message parts.
-
-<Callout type="warn">
-  This `{ type: "backend", render }` shape is **plain-toolkit only**. Inside a
-  `"use generative"` file, use `execute: externalTool()` instead; generative
-  tools must declare an `execute`, and you never author `type` there.
-</Callout>
+If you provide no renderer, add the [`ToolFallback`](/elements/tool-fallback) component to render a default tool card. The full rendering API (status states, streaming arguments, deferred rendering, approvals) is covered in [Tool UI](/docs/tools/tool-ui).
 
 ## Organizing toolkits
 
 ### Keep schemas in a separate module
 
-Importing your Zod schemas (and the `z.infer` arg types) from a plain `.ts` file keeps them out of the compiled boundary and lets your route handler and components share the same types:
+Importing your Zod schemas (and the `z.infer` argument types) from a plain `.ts` file keeps them out of the compiled boundary and lets your route handler and components share the same types:
 
 ```ts title="app/tools/schemas.ts"
 import { z } from "zod";
@@ -459,33 +433,14 @@ export default defineToolkit({
 
 The compiler splits each file across the client/server boundary on its own, then checks that the spread import resolves to a `"use generative"` module before allowing it, so a backend `execute` can't leak to the client. Two rules follow:
 
-- **Spread a default import** (`import weatherTools from "./tools/weather"`). Relative paths and `tsconfig` path aliases like `@/tools/weather` both resolve. Only the default export crosses the generative-module boundary, so a named import (or any opaque, non-generative import) is rejected.
+- **Spread a default import** (`import weatherTools from "./tools/weather"`). Relative paths and `tsconfig` path aliases like `@/tools/weather` both resolve. Only the default export crosses the generative-module boundary, so a named import, a namespace import, or any opaque non-generative import is rejected.
 - You can also spread a local `defineToolkit(...)` or `defineMcpToolkit(...)` binding declared in the same file.
 
-The compiler checks static tool names across inline entries and compiler-visible
-spreads. If two fragments define the same tool name, the build warns that
-JavaScript object spread will keep the later tool definition.
-
-If the compiler reports that `tool "weather" cannot be makeTool()`, that entry
-came from an opaque factory call. Rewrite it as an inline tool object, or spread
-a compiler-visible `defineToolkit(...)` / `defineMcpToolkit(...)` fragment
-instead.
+The compiler checks static tool names across inline entries and compiler-visible spreads. If two fragments define the same tool name, the build warns that JavaScript object spread keeps the later definition.
 
 ### Add MCP server tools
 
-`defineMcpToolkit` exposes tools from an MCP server. For an MCP-only toolkit, export it directly:
-
-```tsx title="app/mcp-toolkit.tsx"
-"use generative";
-
-import { defineMcpToolkit } from "@assistant-ui/react";
-
-export default defineMcpToolkit({
-  docs: { type: "http", url: "https://mcp.example.com/mcp" },
-});
-```
-
-To expose MCP tools alongside your own, spread it into a `defineToolkit`:
+`defineMcpToolkit` exposes the tools of an MCP server. Each key names a server, not a tool. Spread it into a toolkit to expose MCP tools alongside your own, or export it directly for an MCP-only toolkit:
 
 ```tsx
 "use generative";
@@ -500,13 +455,9 @@ export default defineToolkit({
 });
 ```
 
-When two MCP servers expose the same tool name, use `{ server, prefix }` on an
-entry so the model sees distinct names such as `docs_search` and
-`github_search`.
+`Tools` skips these entries, and `AISDKToolkit` opens the connections on your server. The client build of a generative file keeps `defineMcpToolkit(...)` as written, so never put a token in `headers` or `env` there. [MCP](/docs/tools/mcp) covers prefixes, hiding tools, credentials, approvals, and the connection lifecycle, and [User-managed MCP](/docs/tools/user-managed-mcp) covers servers your users add in the browser.
 
-See [MCP](/docs/tools/mcp) for the full server-side and user-managed MCP flows.
-
-## Advanced
+## Tool options
 
 ### Multi-modal tool results
 
@@ -527,11 +478,11 @@ read_pdf: {
 },
 ```
 
-`ToolModelContentPart` is a union of `{ type: "text"; text }` and `{ type: "file"; data; mediaType; filename? }`. With the AI SDK runtime, also pass the tool registry to `convertToModelMessages` so `toModelOutput` fires on round-tripped results; see [Backend tools](/docs/tools/backend#multi-modal-results).
+`toModelOutput` receives `{ toolCallId, input, output }` and returns an array of `ToolModelContentPart`, a union of `{ type: "text"; text }` and `{ type: "file"; data; mediaType; filename? }`. With the AI SDK runtime, also pass the tool registry to `convertToModelMessages` so `toModelOutput` fires on round-tripped results; see [Backend tools](/docs/tools/backend#multi-modal-results).
 
 ### Per-tool provider options
 
-Every tool accepts a `providerOptions` field. assistant-ui serializes it verbatim under the tool entry; the AI SDK route forwards it; the provider SDK reads the keys it cares about. This is how you opt into provider-specific behaviors (such as Anthropic's progressive tool disclosure) without provider-aware code:
+Every tool accepts a `providerOptions` field, except external and MCP entries. assistant-ui serializes it verbatim under the tool entry, the AI SDK route forwards it, and the provider SDK reads the keys it cares about. This is how you opt into provider-specific behavior, such as Anthropic's progressive tool disclosure, without provider-aware code:
 
 ```tsx
 search_docs: {
@@ -548,9 +499,15 @@ search_docs: {
 
 The outer key is the provider name; the inner object is whatever that provider's AI SDK package expects under `tool.providerOptions[provider]`.
 
-### Cancellation
+### Cancellation and execution context
 
-`execute` receives a context object whose `abortSignal` fires when the user stops the run. Pass it to any async I/O so the work stops immediately:
+`execute` receives the tool arguments and a context object:
+
+| Field | Meaning |
+| --- | --- |
+| `abortSignal` | Aborts when the user stops the run. Pass it to any async I/O so the work stops immediately. |
+| `toolCallId` | Identifies the tool call being executed. |
+| `human(payload)` | Pauses a **frontend** tool and asks the UI for input. The call resolves with the value the UI passes to `resume()`. |
 
 ```tsx
 execute: async ({ query }, { abortSignal }) => {
@@ -560,17 +517,13 @@ execute: async ({ query }, { abortSignal }) => {
 },
 ```
 
-The context also carries `toolCallId` and a `human()` function for requesting input mid-execution.
-
-### Streaming arguments
-
-While a tool runs, its arguments arrive as partial JSON. Use [`useToolArgsStatus`](/docs/tools/tool-ui#field-level-streaming-state) inside a renderer to react to each field as it streams in.
+`human()` only works in a frontend `execute`. A backend `execute` that calls it throws `` `human()` is not available during server-side tool execution. ``. See [Pausing a frontend tool](/docs/tools/tool-ui#pausing-a-frontend-tool) for the render side.
 
 ### Disabling a tool
 
-Set `disabled: true` to keep a tool known to the client but hidden from the model in the current scope.
+Set `disabled: true` on a tool entry to keep it known to the client but hidden from the model. A static `disabled: true` stays on both builds, so your server leaves the tool out of its tool set too.
 
-To toggle a tool off at runtime without editing the toolkit, register the same flag through `useAuiToolOverrides`:
+To toggle a tool at runtime without editing the toolkit, register the same flag through `useAuiToolOverrides`:
 
 ```tsx
 import { useAuiToolOverrides } from "@assistant-ui/react";
@@ -583,7 +536,105 @@ function GuestModeTools() {
 }
 ```
 
-The override registers above the toolkit default, so the tool drops out of the set sent to the model. If a response still names a disabled frontend tool, the call gets an error result and `execute` does not run. Mount the override only while the tool should be hidden (for example, for signed-out users); unmounting it restores the toolkit default.
+The override registers above the toolkit default. Mount it only while the tool should be hidden (for example for signed-out users); unmounting it restores the toolkit default.
+
+A runtime override changes what the client uploads to the model. It cannot change what your server already advertises from a compiled toolkit, because the client never forwards `disabled` to the server. For such a tool the model can still name it, and a call to a disabled frontend tool gets the error result `Tool "delete_account" is disabled.` and `execute` does not run. To withhold a tool from the model entirely, leave it out of the toolkit your server builds for that request, or set `disabled` statically.
+
+## How toolkits compile and register
+
+Two client scopes matter on this page. The **`modelContext` scope** collects everything the model is told about the next request (tools, system prompt, and call settings) from every registration in the tree. The **`tools` scope** holds the renderers for tool calls, keyed by tool name. The compiler decides what each build contains; `Tools()` then sends each toolkit entry to the right scope.
+
+### What each build keeps
+
+You author one file; the plugin forks it per build target. The schema (`description` and `parameters`) is kept on **both** builds, so the model contract is identical and authoritative on the backend. The client marks its frontend and human schemas as backend-known and skips re-uploading them. The compiler infers each kind from `execute` (see [Tool kinds](#tool-kinds)) and writes it back as a `type` field.
+
+| Kind | Server build keeps | Client build keeps |
+| --- | --- | --- |
+| Backend | schema + `execute` | schema + `render` |
+| Frontend | schema only | schema + `execute` + `render`/`renderText` |
+| Human | schema only | schema + `render` |
+| Stub (frontend, executor supplied at runtime) | schema only | schema + `render`/`renderText` |
+| Provider | schema + provider config | schema + provider config |
+| External (backend, defined elsewhere) | omitted | `type: "backend"` + `render`/`renderText` + `display` |
+
+On Next.js, a server build that keeps a backend `execute` also imports `server-only`, so importing it from client code fails the build. Vite and Metro have no such layer and rely on their server and client environments to keep the two builds apart.
+
+At build time the compiler also enforces that every tool declares an `execute`, that a **frontend** tool declares `render` or `renderText`, that a **human** tool declares `render`, and that an **external** tool declares `render` or `renderText`. See [Troubleshooting](#troubleshooting) for the exact messages.
+
+### Running without your own backend
+
+The client build skips uploading frontend and human schemas because it assumes your backend imported the same file's server build and already knows them. When no server of yours does (for example, cloud-hosted runs), that assumption breaks and the model never learns about those tools. Compile with the `backendless` option so the client keeps every schema uploadable, including the `present`/`prompt_user` schema of a `JSONGenerativeUI` component library:
+
+```ts title="next.config.ts"
+export default withAui({ ...yourConfig, aui: { backendless: true } });
+```
+
+```ts title="vite.config.ts"
+plugins: [aui({ backendless: true })];
+```
+
+```js title="metro.config.js"
+module.exports = withAui({
+  ...getDefaultConfig(__dirname),
+  aui: { backendless: true },
+});
+```
+
+### Registering a toolkit with `Tools()`
+
+`Tools({ toolkit })` is the resource that puts a toolkit to work. Pass it as the `tools` scope of an `AuiConfig`, and give the config to `AssistantRuntimeProvider` (or to an `AuiProvider` that extends a parent client). It takes two options: `toolkit`, and `mcpApp` for a [generic MCP app renderer](/docs/tools/mcp-apps). The full signature is in the [API reference](/docs/api-reference/tools/toolkits#tools).
+
+`Tools` splits each toolkit entry in two:
+
+| Part | Registered with | Notes |
+| --- | --- | --- |
+| `render`, or a component built from `renderText` | The `tools` scope, keyed by tool name | `display: "standalone"` and human tools render outside the collapsed tool group. An entry with neither field, such as a tool you declare only for the model, registers no renderer; its calls render only if you provide a fallback such as `ToolFallback`. |
+| Everything else on the entry (`type`, `description`, `parameters`, `execute`, `disabled`, `toModelOutput`, `providerOptions`, ...) | `modelContext` | `render`, `renderText`, and `display` are removed first, so they never reach the model. |
+
+Entries with `type: "mcp"` (from `defineMcpToolkit`) are skipped: your server opens those connections, so they are never registered with `modelContext`. If neither the config nor its parent client provides a `modelContext` scope, `Tools` adds one.
+
+**Where to mount it.** Mount `Tools` once, next to the runtime, so every thread and message below it sees the renderers. To limit a toolkit to part of the tree, put it in an `AuiProvider` with `extends` and mount that around the subtree. A nested `tools` scope shadows the outer one: renderers registered by the outer `Tools` do not apply inside it, while the model-facing tools of both mounts still merge.
+
+**Identity.** `Tools` registers when it mounts and registers again whenever `toolkit` changes identity. Import the toolkit from a module, or wrap one you build in `useMemo`. Building the `AuiConfig` and the `Tools(...)` element in the component body on every render is fine; the provider never relies on their identity. An object literal passed as `toolkit` is a new identity on every render and re-registers every tool each time.
+
+**Duplicate names.** Tool names must be unique among the registrations of one `modelContext` that share a priority. The check runs when the model context is merged, which happens whenever the context is read (for example when `modelContext.toolNames` updates after a registration, and when the runtime builds a request), not when `Tools` mounts. A second registration that defines a name already registered at the same priority then throws `You tried to define a tool with the name X, but it already exists.` The merge skips the check when both registrations hold the identical tool object, or when the later tool sets `overwrite: true`, which the tool type documents as a discouraged escape hatch. Merge toolkits by spreading them ([above](#split-tools-across-files-and-merge-them)) instead of mounting twice. If several registrations share a renderer name, the one registered first renders.
+
+**Overrides.** `useAuiToolOverrides` registers at a higher priority and merges field by field over the entry with the same name, so an override can supply an `execute` or set `disabled` without redeclaring the schema. See [Tool stubs](#tool-stubs-supply-the-executor-elsewhere) and [Disabling a tool](#disabling-a-tool).
+
+## Troubleshooting
+
+### Compiler errors
+
+Each message starts with `[assistant-ui/use-generative]` and the file name.
+
+| Message | Fix |
+| --- | --- |
+| `"use generative" must be the first statement of the file (only comments may precede it); otherwise the file is not compiled and its server code reaches the client` | Move the directive above every import and above `"use client"`. |
+| `the default export must be defineToolkit({ ... }) or defineMcpToolkit({ ... }) (imported from "@assistant-ui/react")…` | Wrap the default export. A bare object would ship a backend `execute` to the client. |
+| ``tool "x" must declare an `execute`; use `humanTool()` for a human-in-the-loop tool`` | Add an `execute`: a plain function, `"use client"`, `humanTool()`, `stubTool()`, `providerTool(...)`, or `externalTool()`. |
+| ``frontend tool "x" must declare a `render` or `renderText`…`` | Add a renderer, or remove `"use client"` to make it a backend tool. |
+| ``human tool "x" must declare a `render` so it can collect input`` | Add a `render` that calls `addResult`. |
+| ``external tool "x" must declare a `render` or `renderText`…`` | Add a renderer; `externalTool()` exists only to attach one. |
+| ``tool "x" cannot be `makeTool()`; use an inline object literal…`` | Rewrite the entry as an inline object, or spread a `defineToolkit(...)` or `defineMcpToolkit(...)` fragment. |
+| ``a namespace import (`import * as kit from "..."`) can't be spread into defineToolkit({ ... })…`` | Import the default export (`import kit from "..."`) and spread `...kit`. |
+| `` `providerTool(...)` must receive an inline object literal ``, `` `providerTool(...)` config cannot contain function-valued properties ``, or `` `providerTool(...)` config for "x" duplicates "name" `` | Pass a static object literal, and leave fields such as `parameters` out of the entry itself, since the config is lifted onto it. |
+| `Duplicate tool name "x": … JavaScript object spread keeps the last definition.` (a warning) | Rename one of the tools, or remove the one you do not want. |
+| `@assistant-ui/core@… requires @assistant-ui/x-generative-compiler …, but the current compiler is …` | Update `@assistant-ui/next`, `@assistant-ui/vite`, or `@assistant-ui/metro` to match your core version. |
+
+### Runtime problems
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `humanTool() has no runtime implementation`, or the same for `externalTool()`, `stubTool()`, `providerTool()` | The module was never compiled: the build plugin is missing, or the file has no (or a misplaced) `"use generative"` directive. | Add the plugin from [Quick start](#quick-start-use-generative) and check the directive. |
+| `` `human()` is not available during server-side tool execution. `` | A backend `execute` called `human()`. | Make it a frontend tool, or a human tool. |
+| `You tried to define a tool with the name X, but it already exists.` | Two registrations define `X` at the same priority, for example two `Tools` mounts. | Mount `Tools` once and merge toolkits by spreading. |
+| Every render re-registers the tools | `toolkit` is a new object on each render. | Import it from a module or wrap it in `useMemo`. |
+| The tool call renders no custom UI | The toolkit key does not match the tool name, `Tools` is not mounted above the thread, or a nested `tools` scope shadows the outer renderers. | Match the key to the name the model calls, and check where `Tools` is mounted. |
+| The model never calls a frontend tool from a plain `defineToolkit` (no `"use generative"`) | The entry has no `execute`, so the client does not upload it, or it sets `disabled`. | Add an `execute`, or remove `disabled`. |
+| The model calls a stub tool and the call never gets a result | The server build your route imports advertises a compiled stub, but no `useAuiToolOverrides` with an `execute` is mounted. | Mount the override while the thread can call the tool. |
+| The model never calls a frontend or human tool from a `"use generative"` file | Your route does not know the tool: the client does not upload a compiled schema. | See [Backend tools: troubleshooting](/docs/tools/backend#troubleshooting). |
+
+To see which tools are registered with the model, read `useAuiState((s) => s.modelContext.toolNames)`.
 
 ## Migrating from the component APIs
 

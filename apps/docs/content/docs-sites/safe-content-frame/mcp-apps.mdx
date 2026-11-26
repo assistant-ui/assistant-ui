@@ -1,37 +1,40 @@
 ---
 title: Usage with MCP Apps
-description: How the assistant-ui MCP Apps renderer mounts each widget in a Safe Content Frame.
+description: Which Safe Content Frame options the assistant-ui MCP Apps renderer exposes, and what each does to a widget's frame.
 ---
 
-[MCP Apps](https://apps.extensions.modelcontextprotocol.io/) lets a Model Context Protocol server ship an HTML widget alongside a tool, which the chat host renders inline when the tool is called. assistant-ui's `McpAppRenderer` mounts that widget in an iframe built with `SafeContentFrame` and talks to it over a JSON-RPC `postMessage` bridge. This page covers the parts of that renderer that come from Safe Content Frame; the [MCP Apps guide](/docs/tools/mcp-apps) covers setup, the backend route, and the full bridge protocol.
+[MCP Apps](https://apps.extensions.modelcontextprotocol.io/) lets a Model Context Protocol server ship an HTML widget alongside a tool, which the chat host renders inline when the tool is called. assistant-ui's `McpAppRenderer` mounts that widget in an iframe built with `SafeContentFrame`, so each widget gets its own hashed cross-origin domain and cannot reach the host page. [How it works](/safe-content-frame/docs/how-it-works) explains how the domain is chosen.
 
-## Each widget on its own domain
+The [MCP Apps guide](/docs/tools/mcp-apps) owns setup, the backend route, the [bridge protocol](/docs/tools/mcp-apps#bridge-protocol), which drops any message not sent by the widget's own window and origin, and [Sandbox and security](/docs/tools/mcp-apps#sandbox-and-security). This page lists the frame options.
 
-The renderer serves each widget from its own hashed cross-origin domain, so the widget cannot reach the host page through same-origin references. The hash uses a random salt per render, or a salt derived from the content when `enableBrowserCaching` is set. See [How it works](/safe-content-frame/docs/how-it-works) for how the domain is chosen.
+## Frame options
 
-## Message checks on the bridge
-
-The bridge accepts a message only when both checks pass:
-
-- `event.source === frame.iframe.contentWindow`, so the message came from this widget's window.
-- `event.origin === frame.origin`, the domain `SafeContentFrame` issued for this render.
-
-Messages from any other window or origin are dropped silently.
-
-## Sandbox options
-
-The iframe always carries the `allow-same-origin allow-scripts` sandbox flags, and the `sandbox` array adds to them. Set the frame options through the `sandbox` field on `McpAppRendererOptions`:
+Set them through the `sandbox` field on `McpAppRendererOptions`. They are `SafeContentFrame` options plus two container styles:
 
 ```tsx
 McpAppRenderer({
   // ...
   sandbox: {
-    sandbox: ["allow-forms", "allow-popups"],
+    sandbox: ["allow-popups"],
     enableBrowserCaching: true,
     className: "my-mcp-app",
   },
 });
 ```
+
+| Field | Default | Effect |
+| --- | --- | --- |
+| `sandbox` | none | Extra iframe sandbox flags. The iframe always carries `allow-same-origin allow-scripts`. |
+| `enableBrowserCaching` | `false` | Derives the salt from the content, so repeated renders reuse one origin and its HTTP cache. Without it, each render uses a random salt. |
+| `salt` | random per render | Sets the salt yourself, for tests or a stable origin. |
+| `product` | `"assistant-ui-sandbox"` | Scopes the hashed origin. |
+| `useShadowDom` | `false` | Mounts the iframe inside a closed shadow root. |
+| `unsafeDocumentWrite` | unset | Forwarded to the frame together with the HTML. |
+| `className`, `style` | none | Applied to the container the frame mounts in. |
+
+The renderer does not expose `unsafeShimDomain`. Each option is described in the [API reference](/safe-content-frame/docs/api-reference).
+
+Skip `allow-forms`. The widget document carries a content security policy with `form-action 'none'`, so a submitted form is blocked whatever the sandbox allows. Add `allow-popups` only when the widget itself opens windows; a link opened through the bridge's [`openLink`](/docs/tools/mcp-apps#bridge-protocol) goes through your handler instead.
 
 The frame settings in `sandbox` (`className` and `style` aside) are read once when the frame mounts. Changing them takes effect when the app's resource URI changes and the frame is rebuilt.
 

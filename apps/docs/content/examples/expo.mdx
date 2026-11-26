@@ -15,6 +15,7 @@ A React Native chat application built with Expo and `@assistant-ui/react-native`
 - **Streaming**: Real-time streaming via a server-side chat API endpoint
 - **Dark Mode**: Automatic light/dark theme support
 - **Keyboard Handling**: The thread sits inside a `KeyboardAvoidingView`
+- **Tools**: Two device-side tools whose results render as weather cards in the thread
 
 ## Quick Start
 
@@ -173,6 +174,59 @@ export default function ChatPage() {
   return <Thread />;
 }
 ```
+
+### Tools
+
+`components/tools.tsx` is a [`"use generative"`](/docs/tools/defining-tools#define-tools-with-use-generative) file whose default export is a `defineToolkit` with two frontend tools, `geocode_location` and `weather_search`. Each `execute` runs on the device and each `render` draws a card in the thread. `withAui` from `@assistant-ui/metro` compiles the file in `metro.config.js`.
+
+The chat route never imports the toolkit. It builds the model's tools from the schemas the app uploads in the request body, so the model learns a tool only if the device build uploads it. By default a compiled device build skips that upload, because it assumes your server imported the same file. An Expo API route can't import it through `AISDKToolkit`, which the `react-native` build of `@assistant-ui/ai-sdk` does not export, so the example compiles with `backendless`:
+
+```js title="metro.config.js"
+module.exports = withUniwindConfig(
+  withAui({ ...config, aui: { backendless: true } }),
+  {
+    cssEntryFile: "./global.css",
+    dtsFile: "./uniwind-types.d.ts",
+  },
+);
+```
+
+The route turns the uploaded schemas into AI SDK tools with `frontendTools`. Both tools run on the device, so the server stream ends at each tool call and the result comes back in a new request: `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls` in the runtime above sends it once every call in the last message has a result. `stopWhen` matters only once you add a tool the server executes; see [Multi-step tool calls](/docs/tools/backend#multi-step-tool-calls).
+
+```ts title="app/api/chat+api.ts"
+import { frontendTools } from "@assistant-ui/ai-sdk";
+import { openai } from "@ai-sdk/openai";
+import {
+  convertToModelMessages,
+  pruneMessages,
+  stepCountIs,
+  streamText,
+} from "ai";
+
+export async function POST(req: Request) {
+  // The full file first refuses cross-origin requests.
+  const { messages, tools } = await req.json();
+
+  const aiSDKTools = frontendTools(tools ?? {});
+  const prunedMessages = pruneMessages({
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    reasoning: "none",
+  });
+
+  const result = streamText({
+    abortSignal: req.signal,
+    model: openai("gpt-6-luna"),
+    messages: prunedMessages,
+    maxOutputTokens: 15000,
+    stopWhen: stepCountIs(10),
+    tools: aiSDKTools,
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+If you point the app at your own backend with `EXPO_PUBLIC_CHAT_ENDPOINT_URL`, that backend must accept the uploaded schemas the same way. See [Running without your own backend](/docs/tools/defining-tools#running-without-your-own-backend), [Treat the body as untrusted](/docs/tools/backend#treat-the-body-as-untrusted), and [React Native hooks](/docs/react-native/hooks#tools).
 
 ### Key Architecture
 

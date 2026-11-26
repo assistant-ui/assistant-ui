@@ -17,8 +17,30 @@ type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
  * whose actual executor must close over React state in the mounted component.
  * Keep the override keys stable after mount; dynamic key addition/removal is not
  * currently observed.
- * Overrides are registered at priority 1000, above toolkit defaults. Only one
+ * Overrides are registered at priority 1000, above toolkit defaults, and merge
+ * field by field over the toolkit entry with the same name: an override that
+ * sets only `execute` or only `disabled` keeps the entry's other fields. Only one
  * mounted override provider may define a given tool name at a time.
+ *
+ * Setting `disabled: true` hides a tool the client uploads to the model. It
+ * cannot hide a tool whose schema your server already holds from a compiled
+ * toolkit, because the server advertises it regardless. A call to a disabled
+ * frontend tool gets the error result `Tool "name" is disabled.` and does not
+ * run.
+ *
+ * @example
+ * ```tsx
+ * function TaskBoardTools({ setTasks }: { setTasks: SetTasks }) {
+ *   useAuiToolOverrides({
+ *     manage_tasks: {
+ *       execute: async ({ action, title }) => {
+ *         // close over setTasks, then return a payload for the model
+ *       },
+ *     },
+ *   });
+ *   return null;
+ * }
+ * ```
  *
  * @deprecated Experimental since 2026-06-03. Not scheduled for removal; the API may change in any release.
  */

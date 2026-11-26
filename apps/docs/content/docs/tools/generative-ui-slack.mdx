@@ -130,6 +130,10 @@ An unknown component and a bare string child are both handled: the unknown one i
 
 Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `CheckboxGroup`'s `progress`; and `Button`'s `block`. Slack has no client-side form model to submit into, so `Button`'s `submit` is dropped: a submit button and a click button both convert to the same `button` element carrying the node's `$action`. A `Card` marked `asForm` also cannot collect its child values into a browser-style form payload, but it keeps child `Input` actions passive so those inputs do not dispatch separately.
 
+### Required fields and length limits
+
+Controls in an `actions` block have no required flag in Slack, so `required: true` on a control reports a `dropped` warning. A text `Input` becomes an `input` block, which Slack treats as required unless the block is optional, so `required: false` on an `Input` marks its block `optional`. `minLength` and `maxLength` on a text `Input` map to `min_length` and `max_length` when they are integers Slack accepts (up to 3,000), and are dropped with a warning otherwise. Numeric `min` and `max` on an `Input`, and `min` and `max` on a `DatePicker`, are dropped with a warning.
+
 ### Date and time pickers
 
 `DatePicker.inputType` defaults to `"date"`, which emits a `datepicker` with a `YYYY-MM-DD` value. `"time"` emits a `timepicker` with `HH:mm`; nonzero seconds in an `HH:mm:ss` value are dropped with a `dropped` warning. Neither time-only pickers nor the time half of a local datetime set Slack's `timezone` field.

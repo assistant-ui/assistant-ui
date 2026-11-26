@@ -26,21 +26,24 @@ import { runCleanups } from "../../subscribable/subscribable";
 
 export type { McpAppResourceOutput };
 
-/**
- * Registers tools with model context and installs tool-call renderers.
- *
- * Mount this resource near an assistant subtree when you want to expose a
- * group of tools declaratively. Tool definitions are registered with model
- * context, while each tool renderer is registered with the tools scope for
- * message rendering.
- */
 const useTools = ({
   toolkit,
   mcpApp,
 }: {
-  /** Tools to expose to the model and optional renderers to install. */
+  /**
+   * Tools to register: keys are the tool names the model sees. Each entry's
+   * `render` or `renderText` installs a tool-call renderer, and the rest of the
+   * entry is registered with model context. Keep the object referentially
+   * stable (module scope or `useMemo`); a new identity unregisters and
+   * re-registers every tool.
+   */
   toolkit?: Toolkit;
-  /** Optional MCP app resource whose tools should be merged into context. */
+  /**
+   * Fallback renderer for MCP app tool calls: a resource that returns
+   * `{ render }`. It renders a tool call whose `mcp.app.resourceUri` is a
+   * `ui://` URI and that has no renderer registered under its tool name. It
+   * does not register any tools.
+   */
   mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
 }): ClientOutput<"tools"> => {
   const mcpAppOutputs = useResources(mcpApp ? [withKey("mcpApp", mcpApp)] : []);
@@ -171,6 +174,60 @@ const useTools = ({
   };
 };
 
+/**
+ * Registers a toolkit with the assistant client. Pass it as the `tools` scope
+ * of an `AuiConfig`.
+ *
+ * `Tools` splits each toolkit entry in two:
+ *
+ * - **Renderers** go to the `tools` scope, keyed by tool name. An entry's
+ *   `render`, or a component built from its `renderText`, renders the tool
+ *   call in the thread. `display: "standalone"` and `human` tools render
+ *   outside the collapsed tool group.
+ * - **Tool definitions** go to the `modelContext` scope as one provider. The
+ *   entry is registered without `render`, `renderText`, and `display`, which
+ *   never reach the model. Entries with `type: "mcp"` (from
+ *   `defineMcpToolkit`) are skipped: your server opens those connections.
+ *
+ * If neither the config nor its parent client provides a `modelContext` scope,
+ * `Tools` adds one.
+ *
+ * Both registrations are undone when the resource unmounts and redone when
+ * `toolkit` changes identity, so pass a stable toolkit (a module import or a
+ * `useMemo` result). The `AuiConfig` and the `Tools(...)` element can be
+ * created in the component body on every render.
+ *
+ * Mount `Tools` once, near the root. Tool names must be unique among the
+ * providers of a `modelContext` that share a priority. The check runs when the
+ * model context is merged, which happens whenever it is read (for example when
+ * `modelContext.toolNames` updates after a registration, and when the runtime
+ * builds a request), not when `Tools` mounts. A second registration that
+ * defines the same name at the same priority then throws "You tried to define
+ * a tool with the name X, but it already exists." The merge skips the check
+ * when both registrations hold the identical tool object or the later tool sets
+ * `overwrite: true`. Overrides registered with `useAuiToolOverrides` use a
+ * higher priority and merge field by field over the toolkit entry instead.
+ *
+ * A nested `AuiProvider` that configures its own `tools` scope shadows the
+ * outer renderers for its subtree, while the model-facing tools of both still
+ * merge. When several registrations share a tool name, the first registered
+ * renderer is used.
+ *
+ * @example
+ * ```tsx
+ * import toolkit from "./toolkit";
+ *
+ * function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+ *   const runtime = useChatRuntime();
+ *   const config = AuiConfig({ tools: Tools({ toolkit }) });
+ *   return (
+ *     <AssistantRuntimeProvider runtime={runtime} config={config}>
+ *       {children}
+ *     </AssistantRuntimeProvider>
+ *   );
+ * }
+ * ```
+ */
 export const Tools = resource(useTools);
 
 attachTransformScopes(useTools, (scopes, parent) => {

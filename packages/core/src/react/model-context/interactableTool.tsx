@@ -71,6 +71,13 @@ const UPDATE_TOOL_PREFIX = "update_";
  * message's `version`; whether older messages render frozen history or stay
  * live-editable is the render function's choice.
  *
+ * The entry is a frontend tool whose arguments are the interactable's initial
+ * state, and its instance id is the creating call's `toolCallId`. The
+ * interactables scope (`unstable_Interactables`) must be mounted, because it
+ * owns the `update_{name}` tool. In a `"use generative"` file, pass an inline
+ * object literal and import this function from an assistant-ui package, or the
+ * compiler rejects the entry.
+ *
  * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_interactableTool = <

@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
   const aiSDKTools = {
-    ...frontendTools(tools),
+    ...frontendTools(tools ?? {}),
     // add backend tools here
   };
   const result = streamText({

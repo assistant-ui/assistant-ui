@@ -26,7 +26,7 @@ namespace AuiConfig {
 | `threads` | `AISDKChat()` | `@assistant-ui/ai-sdk` | One AI SDK chat. |
 | `threads` | `AISDKThreads()` | `@assistant-ui/ai-sdk` | An AI SDK chat for each thread. |
 | `threads` | `RuntimeAdapter(runtime)` | `@assistant-ui/core/store` | Adapt an `AssistantRuntime` to client scopes. |
-| `tools` | `Tools({ toolkit })` | `@assistant-ui/core/react` | Register toolkit definitions and tool UI entries. |
+| `tools` | `Tools({ toolkit, mcpApp })` | `@assistant-ui/core/react` | Register a toolkit: renderers go to the `tools` scope and the rest of each entry to model context. See [Registering a toolkit](/docs/tools/defining-tools#registering-a-toolkit-with-tools). |
 | `dataRenderers` | `DataRenderers()` | `@assistant-ui/core/react` | Register renderers for named data parts. |
 | `suggestions` | `Suggestions(items)` | `@assistant-ui/core/store` | Supply static prompt suggestions. |
 | `modelContext` | `ModelContext()` | `@assistant-ui/core/store` | Collect model context from providers. |

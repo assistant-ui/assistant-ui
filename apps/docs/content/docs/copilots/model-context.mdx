@@ -36,47 +36,20 @@ const ReadableComponent = makeAssistantVisible(MyComponent);
 
 ### Tools
 
-Tools are functions that the assistant can use to interact with your application. They can be provided through various mechanisms:
+Tools are functions the assistant can call. Declare them in a toolkit ([Defining Tools](/docs/tools/defining-tools)) and register the toolkit with `Tools({ toolkit })`; that page owns the tool kinds, the `"use generative"` file, and the server wiring. What belongs here is how a toolkit relates to model context:
 
-```tsx title="app/form-toolkit.tsx"
-"use generative";
+- `Tools` registers the toolkit with `modelContext` as one provider, so its tools merge with tools from other providers ([Provider Composition](#provider-composition)). A second registration of the same tool name at the same priority throws.
+- It removes `render`, `renderText`, and `display` from each entry first, because they are presentation concerns that never reach the model. Those fields install the tool-call renderer in the `tools` scope instead. Entries with `type: "mcp"` are skipped, since your server opens those connections.
+- If the config has no `modelContext` scope, `Tools` adds one.
 
-import { defineToolkit } from "@assistant-ui/react";
-import { z } from "zod";
+Registering with `Tools` does not by itself tell the model about a compiled frontend or human tool. In a `"use generative"` file the client skips uploading those schemas, so your route has to import the same toolkit module (for example through `AISDKToolkit`), or the build has to use [`backendless`](/docs/tools/defining-tools#running-without-your-own-backend). Without one of the two, the model never calls the tool. Tools that carry no compiled schema, such as those from a toolkit without the directive or from `aui.modelContext.register` (including the click and edit tools of `makeAssistantVisible`), are uploaded with each request, and the route passes them on with `frontendTools(tools ?? {})` ([Backend tools](/docs/tools/backend#client-defined-tools-frontendtools)).
 
-export default defineToolkit({
-  submitForm: {
-    description: "Submit the form with the user's details.",
-    parameters: z.object({
-      email: z.string().email(),
-      name: z.string(),
-    }),
-    execute: async ({ email, name }) => {
-      "use client";
-      // Implementation
-      return { success: true };
-    },
-    renderText: { running: "Submitting…", complete: "Submitted" },
-  },
-});
-```
+To limit a toolkit to part of the tree, mount `Tools` in a nested `AuiProvider`:
 
 ```tsx title="app/Form.tsx"
-import {
-  AuiConfig,
-  AuiProvider,
-  makeAssistantVisible,
-  Tools,
-  useAui,
-} from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, Tools, useAui } from "@assistant-ui/react";
 import toolkit from "./form-toolkit";
 
-// Via makeAssistantVisible's clickable option
-const ClickableButton = makeAssistantVisible(Button, {
-  clickable: true, // Provides a click tool
-});
-
-// Use in your component
 function Form() {
   const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
@@ -87,6 +60,8 @@ function Form() {
   );
 }
 ```
+
+`makeAssistantVisible(Button, { clickable: true })` gives the assistant a click tool for that element without a toolkit.
 
 ## Context Provider System
 
@@ -124,6 +99,8 @@ function MyComponent() {
   return <div>{/* component content */}</div>;
 }
 ```
+
+A tool registered this way has no compiled schema, so the client uploads it with each request. Your route forwards it, for example with `frontendTools(tools ?? {})`.
 
 ### Provider Composition
 

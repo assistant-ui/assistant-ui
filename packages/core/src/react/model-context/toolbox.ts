@@ -224,9 +224,3 @@ export type ToolkitDefinition<
     TResultByName[K]
   >;
 };
-
-/** Configuration for the {@link Tools} resource. */
-export type ToolsConfig = {
-  /** Tools to register with model context and, when provided, message renderers. */
-  toolkit: Toolkit;
-};
