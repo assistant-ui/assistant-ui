@@ -175,3 +175,6 @@ class DataStreamResponse(AssistantStreamResponse):
         heartbeat: HeartbeatOption = False,
     ):
         super().__init__(stream, DataStreamEncoder(), heartbeat=heartbeat)
+        # Same header as the TypeScript DataStreamEncoder: useDataStreamRuntime
+        # detects the data stream protocol from it when `protocol` is omitted.
+        self.headers["x-vercel-ai-data-stream"] = "v1"

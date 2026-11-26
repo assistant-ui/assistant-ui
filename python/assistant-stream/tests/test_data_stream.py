@@ -21,7 +21,10 @@ from assistant_stream.assistant_stream_chunk import (
     UpdateStateChunk,
 )
 from assistant_stream.modules.tool_call import create_tool_call
-from assistant_stream.serialization.data_stream import DataStreamEncoder
+from assistant_stream.serialization.data_stream import (
+    DataStreamEncoder,
+    DataStreamResponse,
+)
 from assistant_stream.state import AssistantState
 
 
@@ -558,3 +561,17 @@ async def test_run_controller_add_tool_result_default_line_is_unchanged():
     lines = [line async for line in encoder.encode_stream(create_run(run_callback))]
 
     assert lines == ['a:{"toolCallId": "t1", "result": "ok"}\n']
+
+
+@pytest.mark.anyio
+async def test_data_stream_response_declares_the_protocol_header() -> None:
+    # useDataStreamRuntime detects the protocol from this header when the
+    # client omits `protocol`; the TypeScript DataStreamEncoder sends it too.
+    async def stream():
+        yield TextDeltaChunk(text_delta="hello")
+
+    response = DataStreamResponse(stream())
+
+    assert response.headers["x-vercel-ai-data-stream"] == "v1"
+    assert response.headers["content-type"].startswith("text/plain")
+    assert [line async for line in response.body_iterator] == ['0:"hello"\n']
