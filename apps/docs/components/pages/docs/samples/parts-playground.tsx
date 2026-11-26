@@ -191,7 +191,7 @@ function GroupPath({ path }: { path: readonly string[] }) {
   );
 }
 
-function Readout() {
+function Readout({ groups }: { groups: boolean }) {
   const reply = useAuiState((s) => s.thread.messages.at(-1));
   const status = reply?.role === "assistant" ? reply.status : undefined;
   const parts = reply?.role === "assistant" ? reply.parts : [];
@@ -228,7 +228,7 @@ function Readout() {
                     {part.status.type}
                   </span>
                 </pre>
-                <GroupPath path={groupBy(part)} />
+                {groups && <GroupPath path={groupBy(part)} />}
               </li>
             ))}
           </ol>
@@ -238,7 +238,7 @@ function Readout() {
   );
 }
 
-function Playground() {
+function Playground({ groups }: { groups: boolean }) {
   const backend = useBackend();
   const runtime = useExternalStoreRuntime<Message>({
     messages: backend.messages,
@@ -309,7 +309,7 @@ function Playground() {
             </Button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <Readout />
+            <Readout groups={groups} />
           </div>
           <Button
             size="sm"
@@ -326,11 +326,16 @@ function Playground() {
 }
 
 /** A real Thread on an external store runtime; the buttons play the backend that streams parts into the last assistant message. */
-export function PartsPlayground() {
+export function PartsPlayground({
+  groups = true,
+}: {
+  /** Show each part's `groupPartByType` path under it. */
+  groups?: boolean;
+}) {
   return (
     <div className="not-prose border-foreground/10 rounded-document my-6 overflow-hidden border">
       <SampleScope>
-        <Playground />
+        <Playground groups={groups} />
       </SampleScope>
     </div>
   );
