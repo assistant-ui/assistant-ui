@@ -63,3 +63,12 @@ describe("guides/index.mdx", () => {
     expect(unlinked).toEqual([]);
   });
 });
+
+describe("runtimes/ai-sdk/v7.mdx", () => {
+  it("states the ai floor @assistant-ui/react-ai-sdk peers on", () => {
+    const range = manifest("react-ai-sdk").peerDependencies?.ai;
+    caretLine(range);
+    const page = read("apps/docs/content/docs/runtimes/ai-sdk/v7.mdx");
+    expect(page).toContain(`requires \`ai@${range}\``);
+  });
+});
