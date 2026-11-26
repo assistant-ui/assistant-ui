@@ -2,6 +2,7 @@
   "pages": [
     "(before-you-start)",
     "(getting-started)",
+    "recipes",
     "react-native",
     "ink",
     "vue",
