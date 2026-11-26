@@ -7,7 +7,7 @@ import {
   openSync,
 } from "node:fs";
 import { createServer } from "node:net";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { CheckFailure } from "./browser.ts";
 
@@ -28,7 +28,9 @@ export const freePort = () =>
  * cache. They can still read files by absolute path, so run untrusted
  * suites on a machine or container that holds no secrets.
  */
-const env = (runDir: string): Record<string, string> => {
+const env = (trialDir: string): Record<string, string> => {
+  // Absolute, because the commands run from the project folder.
+  const runDir = resolve(trialDir);
   const home = join(runDir, "home");
   mkdirSync(home, { recursive: true });
   return {

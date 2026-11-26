@@ -6,6 +6,7 @@ import {
   rmSync,
   openSync,
   readFileSync,
+  realpathSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -23,7 +24,7 @@ export const BUNDLED_DOCS_DIR = ".assistant-ui-docs";
 
 const docsParagraph = (mode: DocsMode, docsDir: string) =>
   mode === "web"
-    ? `Documentation: the assistant-ui docs are on the web at ${docsDir}. Start from ${docsDir}/llms.txt, the index the site serves to agents; append \`.md\` to any docs page URL for its markdown. Use these docs to learn assistant-ui. The network is open only for those docs, for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost.`
+    ? `Documentation: the assistant-ui docs are on the web at ${docsDir}. Start from ${docsDir}/llms.txt, the index the site serves to agents; append \`.md\` to any docs page URL for its markdown, and fetch pages with curl. Use these docs to learn assistant-ui. The network is open only for those docs, for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost.`
     : mode === "bundled"
       ? `Documentation: the assistant-ui docs are saved in this folder under ${BUNDLED_DOCS_DIR}/, and AGENTS.md indexes them. Use these docs to learn assistant-ui. The network is open only for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost, so read the docs from this folder rather than the web.`
       : `Documentation: the assistant-ui docs are saved in ${docsDir}. Start from ${docsDir}/llms.txt, the index the site serves to agents; every page it links is saved there as markdown. Use these docs to learn assistant-ui. The network is open only for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost, so read the docs from this folder rather than the web.`;
@@ -107,7 +108,11 @@ export async function runAgent(opts: {
   docsDir?: string | undefined;
   model: string;
   timeoutMs: number;
-  /** A docs site the agent reads with WebFetch and its shell, such as the live one. */
+  /**
+   * A docs site the agent reads with its shell, such as the live one. Only the shell's network is
+   * fenced to it: WebFetch isn't sandboxed and a bypassed permission prompt can't limit its hosts,
+   * so the agent gets no WebFetch.
+   */
   webDocs?: string | undefined;
   /** More hosts its shell may reach. */
   extraDomains?: string[] | undefined;
@@ -129,6 +134,18 @@ export async function runAgent(opts: {
 
   const home = homedir();
   const webHost = opts.webDocs ? new URL(opts.webDocs).hostname : undefined;
+  // Where node and npm really live (an nvm or fnm install sits in the home directory): the install root.
+  const toolchain = [
+    ...new Set(
+      ["node", "npm"].flatMap((tool) => {
+        try {
+          return [dirname(dirname(realpathSync(which(tool))))];
+        } catch {
+          return [];
+        }
+      }),
+    ),
+  ];
   // create-next-app, shadcn and the assistant-ui CLI keep a preferences file here.
   const cliPrefs = ["create-next-app", "shadcn", "assistant-ui"].map((cli) =>
     process.platform === "darwin"
@@ -142,16 +159,8 @@ export async function runAgent(opts: {
     process.env.AGENT_DOCS_PRIVATE_DIRS?.split(",").filter(Boolean) ?? [];
   const settings = {
     permissions: {
-      allow: [
-        "Read",
-        "Edit",
-        "Write",
-        "Glob",
-        "Grep",
-        "Bash",
-        ...(webHost ? [`WebFetch(domain:${webHost})`] : []),
-      ],
-      deny: opts.webDocs ? ["WebSearch"] : ["WebFetch", "WebSearch"],
+      allow: ["Read", "Edit", "Write", "Glob", "Grep", "Bash"],
+      deny: ["WebFetch", "WebSearch"],
       blockReadsOutsideWorkingDirectories: true,
     },
     sandbox: {
@@ -163,7 +172,12 @@ export async function runAgent(opts: {
         // The agent must learn from the docs, not from a checkout of assistant-ui, and must not see secrets:
         // nothing in the home directory is readable except the CLI preference files it needs.
         denyRead: ["~/", repoRoot, ...privateDirs],
-        allowRead: [runDir, ...(docsDir ? [docsDir] : []), ...cliPrefs],
+        allowRead: [
+          runDir,
+          ...(docsDir ? [docsDir] : []),
+          ...cliPrefs,
+          ...toolchain,
+        ],
         denyWrite: privateDirs,
         allowWrite: [runDir, ...cliPrefs],
       },
@@ -234,7 +248,7 @@ export async function runAgent(opts: {
       "--strict-mcp-config",
       "--disable-slash-commands",
       "--tools",
-      `Bash,Read,Write,Edit,Glob,Grep${opts.webDocs ? ",WebFetch" : ""}`,
+      "Bash,Read,Write,Edit,Glob,Grep",
       ...(docsDir ? ["--add-dir", docsDir] : []),
       "--permission-mode",
       // The sandbox, not the permission prompt, is the boundary: every command runs inside it.

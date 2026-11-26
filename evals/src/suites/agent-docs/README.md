@@ -49,7 +49,7 @@ To run a check again on an app an agent already built (after fixing a check, say
 | --- | --- | --- |
 | `DOCS_URL` | `https://www.assistant-ui.com` | Where to read `llms.txt` and the pages from |
 | `DOCS_LABEL` | `live` | The name trials are scored under |
-| `DOCS_MODE` | `local` | Where the agent finds the docs: `local` (a folder beside the project), `web` (the live site, with WebFetch) or `bundled` (inside the project, with an AGENTS.md index of about 7 KB) |
+| `DOCS_MODE` | `local` | Where the agent finds the docs: `local` (a folder beside the project), `web` (the site at `DOCS_URL`, fetched with the shell) or `bundled` (inside the project, with an AGENTS.md index of about 7 KB) |
 | `AGENT_MODEL` | `sonnet` | The agent's model |
 | `AGENT_TIMEOUT_MIN` | `30` | When to stop an agent |
 | `AGENT_CONCURRENCY` | `1` | Trials of one task run at once |
@@ -64,7 +64,7 @@ The agent runs as `claude -p` with Bash, Read, Write, Edit, Glob and Grep in the
 | --- | --- | --- |
 | `local` | A snapshot folder beside the project, added with `--add-dir` | |
 | `bundled` | The same snapshot inside the project under `.assistant-ui-docs/`, with an `AGENTS.md` index and a `CLAUDE.md` that loads it | |
-| `web` | The live site | WebFetch, and `www.assistant-ui.com` on the shell's network |
+| `web` | The site at `DOCS_URL`, fetched with the shell | That host on the shell's network (no WebFetch: it runs outside the sandbox, and with permissions bypassed nothing could limit its hosts) |
 
 Its shell runs in Claude Code's sandbox, which is the boundary, so permissions are bypassed and nothing waits on a prompt. It can read nothing in the home directory except the preference files `create-next-app` and `shadcn` keep, nor this repository; it writes only inside the trial folder; and its network reaches only the npm registry, `r.assistant-ui.com`, `ui.shadcn.com`, GitHub downloads, Google Fonts and localhost. It gets a bare environment and a `PATH` with only `node`, `npm`, `npx`, `pnpm` and `corepack`. Its process group and every process it started are killed 30 seconds after it answers.
 

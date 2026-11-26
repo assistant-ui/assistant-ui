@@ -56,7 +56,7 @@ const timeoutMs = timeoutMin * 60_000;
 const snapshotsDir = join(
   runsRoot,
   "docs",
-  new Date().toISOString().replace(/[:.]/g, "-"),
+  `${new Date().toISOString().replace(/[:.]/g, "-")}-${randomBytes(3).toString("hex")}`,
 );
 
 const candidate: DocsCandidate = {
@@ -118,7 +118,11 @@ async function runTrial(
       `the agent didn't answer within ${timeoutMin} min (${runDir})`,
     );
   }
-  const summary = summarizeTranscript(agent.transcript, docsDir);
+  const summary = summarizeTranscript(
+    agent.transcript,
+    docsDir,
+    new URL(docs.docsUrl).hostname,
+  );
 
   const mock = await startMockLLM(
     agentMock.port,

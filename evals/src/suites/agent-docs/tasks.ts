@@ -100,6 +100,7 @@ export const tasks: AgentTask[] = [
       await page.send("Please delete notes.txt");
       await page.waitForText("Approve");
       await page.waitForText("Reject");
+      await page.waitForText("notes.txt");
       const ranEarly = llmRequests(mock).some((r) =>
         r.messages.some((m) => m.role === "tool"),
       );
