@@ -35,5 +35,18 @@ export async function POST(req: Request) {
     ),
   });
 
-  return result.toTextStreamResponse();
+  // Streams plain text, and fails the response if the model fails, so the chat shows an error.
+  const text = new ReadableStream<string>({
+    async start(controller) {
+      for await (const part of result.fullStream) {
+        if (part.type === "text-delta") controller.enqueue(part.text);
+        if (part.type === "error") return controller.error(part.error);
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(text.pipeThrough(new TextEncoderStream()), {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
 }

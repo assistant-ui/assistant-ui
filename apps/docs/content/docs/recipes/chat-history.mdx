@@ -6,8 +6,6 @@ platforms: ["react"]
 
 Your users expect their conversations to be there tomorrow, and you may need the data in your own database for compliance, search or analytics. This recipe stores every thread and message in SQLite through three small API routes, and adds a thread list sidebar where users can switch, rename, archive and delete threads. The storage code is one small module, so moving to Postgres or another store is a contained change.
 
-![A thread list sidebar next to a saved conversation](./images/chat-history.webp)
-
 ```text title="Prompt for your coding agent"
 Follow https://www.assistant-ui.com/docs/recipes/chat-history.md to save my assistant-ui threads and messages in my own database.
 ```
@@ -21,7 +19,7 @@ Follow https://www.assistant-ui.com/docs/recipes/chat-history.md to save my assi
 
 ## The code
 
-The complete app is [`examples/recipe-chat-history`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/recipe-chat-history). Starting from an app made with `npx assistant-ui@latest create`, add the database module and the thread routes, then the adapter and the page. The chat route itself does not change.
+The complete app is [`examples/recipe-chat-history`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/recipe-chat-history). Starting from an app made with `npx assistant-ui@latest create`, add the database module and the thread routes, then the adapter and the page. Persistence needs no change to the chat route; the example's is a trimmed copy of the starter's.
 
 The database: two tables, threads and messages. `node:sqlite` ships with Node.js, so there is nothing to install.
 
@@ -361,8 +359,10 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <main className="grid h-dvh grid-cols-[260px_1fr] gap-4 p-4">
-        <ThreadList />
+      <main className="grid h-dvh gap-4 p-4 md:grid-cols-[260px_1fr]">
+        <div className="hidden md:block">
+          <ThreadList />
+        </div>
         <Thread />
       </main>
     </AssistantRuntimeProvider>
@@ -390,4 +390,4 @@ pnpm turbo build --filter='recipe-chat-history^...'
 OPENAI_API_KEY=sk-... pnpm --filter recipe-chat-history dev
 ```
 
-The database file is `chat.db` in the example folder; set `DATABASE_PATH` to put it elsewhere. `pnpm --filter recipe-chat-history test` runs the adapter against the routes and an in-memory database.
+The database file is `chat.db` in the example folder; set `DATABASE_PATH` to put it elsewhere. `pnpm --filter recipe-chat-history test` sends a message through the runtime with a scripted model, mounts the app again, and checks that the thread and its messages load back from an in-memory database. It needs no API key.

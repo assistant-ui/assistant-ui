@@ -17,8 +17,10 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <main className="grid h-dvh grid-cols-[260px_1fr] gap-4 p-4">
-        <ThreadList />
+      <main className="grid h-dvh gap-4 p-4 md:grid-cols-[260px_1fr]">
+        <div className="hidden md:block">
+          <ThreadList />
+        </div>
         <Thread />
       </main>
     </AssistantRuntimeProvider>

@@ -132,6 +132,24 @@ describe("own backend recipe", () => {
     expect(response.status).toBe(400);
   });
 
+  it("fails the message when the model fails mid-reply", async () => {
+    models.push(
+      new MockLanguageModelV4({
+        doStream: {
+          stream: simulateReadableStream({
+            chunks: [
+              { type: "text-start" as const, id: "t" },
+              { type: "text-delta" as const, id: "t", delta: "Hel" },
+              { type: "error" as const, error: new Error("rate limited") },
+            ],
+          }),
+        },
+      }),
+    );
+
+    await expect(run([message("user", "Hi")])).rejects.toThrow();
+  });
+
   it("surfaces a failed backend call as an error", async () => {
     vi.stubGlobal(
       "fetch",

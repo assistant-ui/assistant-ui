@@ -6,8 +6,6 @@ platforms: ["react"]
 
 When the model looks something up, a card, chart or table is often a better answer than a paragraph. This recipe gives the model a `getWeather` tool that runs on the server, and renders each call in the thread as a weather card with a loading state while it runs. The same pattern fits any tool: an order status, a flight, search results.
 
-![A weather card rendered in place of the getWeather tool call](./images/tool-ui.webp)
-
 ```text title="Prompt for your coding agent"
 Follow https://www.assistant-ui.com/docs/recipes/tool-ui.md to render my tool calls as React components in my assistant-ui chat.
 ```
@@ -153,6 +151,7 @@ export default function Home() {
 
 ## How it works
 
+- `getWeather` returns the same sample weather for every city. Call your weather provider in its `execute`.
 - The toolkit key (`getWeather`) must match the key in the route's `tools`. A tool call with no matching entry falls back to the default tool card.
 - `status.type` is `"running"` while the tool runs and `"complete"` once the result is in. `"incomplete"` means it failed or was cancelled. `result` stays `undefined` until the server returns.
 - `args` fill in while the model writes the call, so treat every field as possibly missing until the result arrives.

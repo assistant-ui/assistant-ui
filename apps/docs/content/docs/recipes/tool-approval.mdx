@@ -6,8 +6,6 @@ platforms: ["react"]
 
 Some tools change things that are hard to undo: refunds, emails, deploys. This recipe builds a support agent that looks up orders on its own but pauses before it refunds one. The chat shows the refund it wants to make with Allow and Deny buttons, and the tool runs only after the user allows it. The server signs each approval request, so a client cannot forge an approval.
 
-![The refund waiting for Allow or Deny](./images/tool-approval.webp)
-
 ```text title="Prompt for your coding agent"
 Follow https://www.assistant-ui.com/docs/recipes/tool-approval.md to make my assistant-ui agent ask before it runs risky tools.
 ```

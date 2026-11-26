@@ -6,8 +6,6 @@ platforms: ["react"]
 
 You already have a backend that calls the model, maybe in Python or Go, with its own request and response format. This recipe puts the assistant-ui chat on top of it without changing the backend: you write one adapter that turns the conversation into your backend's request and streams its reply into the thread. Streaming, stop, retry, editing and branching come from assistant-ui.
 
-![A chat streaming a reply from its own backend](./images/own-backend.webp)
-
 ```text title="Prompt for your coding agent"
 Follow https://www.assistant-ui.com/docs/recipes/own-backend.md to connect my assistant-ui chat to my existing backend.
 ```
@@ -119,7 +117,20 @@ export async function POST(req: Request) {
     ),
   });
 
-  return result.toTextStreamResponse();
+  // Streams plain text, and fails the response if the model fails, so the chat shows an error.
+  const text = new ReadableStream<string>({
+    async start(controller) {
+      for await (const part of result.fullStream) {
+        if (part.type === "text-delta") controller.enqueue(part.text);
+        if (part.type === "error") return controller.error(part.error);
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(text.pipeThrough(new TextEncoderStream()), {
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
 }
 ```
 
@@ -128,7 +139,7 @@ export async function POST(req: Request) {
 - `run` is an async generator. Each `yield` replaces the assistant message so far, so yield the whole text each time, never only the new chunk.
 - `messages` is the whole conversation as `ThreadMessage` objects, each with a `role` and a list of `content` [parts](/docs/concepts/messages). `toBackendMessages` maps them to the shape your backend reads; change it to match yours.
 - Pass `abortSignal` to `fetch`. The stop button aborts it, and the runtime marks the message as cancelled (`status.type` `"incomplete"`, reason `"cancelled"`).
-- Throw on a failed request. Any error other than an abort marks the message `"incomplete"` with reason `"error"`, and the user can retry.
+- Throw on a failed request. Any error other than an abort marks the message `"incomplete"` with reason `"error"`, and the user can retry. Make your backend fail the response when the model fails mid-reply, as the stand-in does; then the adapter's read throws instead of ending on a cut-off message.
 - The reply can come in any format `fetch` can read. For newline-delimited JSON, split the decoded text on newlines and parse each line before you yield.
 - To stream reasoning or tool calls, yield those part types too; see [Streaming with tool calls](/docs/runtimes/custom/local-runtime#streaming-with-tool-calls).
 

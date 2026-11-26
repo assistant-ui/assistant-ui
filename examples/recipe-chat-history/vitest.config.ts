@@ -7,9 +7,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["app/**/*.test.ts"],
+    include: ["app/**/*.test.{ts,tsx}"],
     coverage: {
-      include: ["app/**/*.ts", "lib/**/*.ts"],
+      include: ["app/**/*.{ts,tsx}", "lib/**/*.ts"],
     },
   },
 });
