@@ -1724,13 +1724,15 @@ export class ExternalStoreThreadRuntimeCore
     }, 0);
   }
 
-  // The moved message was sent directly after its parent, so the sibling the
-  // head falls back to was on screen only if it is an earlier version of the
-  // message; any other sibling, such as an answer a reload replaced, was not.
+  // The moved message was sent directly after its parent, so a non-user
+  // sibling the head would fall back to, such as an answer a reload replaced,
+  // was not on screen when it was sent. A user sibling is kept as the fallback
+  // because an edit's earlier version is one.
   private _deleteMovedLeaf(messageId: string): void {
+    const wasHead = this.repository.getMessages().at(-1)?.id === messageId;
     const { parentId } = this.repository.getMessage(messageId);
     this.repository.deleteMessage(messageId);
-    if (parentId === null) return;
+    if (!wasHead || parentId === null) return;
     const { index } = this.repository.getMessage(parentId);
     const fallback = this.repository.getMessages()[index + 1];
     if (fallback && fallback.role !== "user")

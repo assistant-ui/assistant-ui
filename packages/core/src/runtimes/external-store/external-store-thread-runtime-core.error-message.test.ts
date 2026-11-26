@@ -233,6 +233,7 @@ describe("external-store synthesized error messages", () => {
 
     runtime.cancelRun();
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1"]);
+    runtime.__internal_setAdapter(store([u1, u2], { isRunning: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1"]);
