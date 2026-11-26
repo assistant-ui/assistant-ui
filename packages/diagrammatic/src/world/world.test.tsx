@@ -59,6 +59,10 @@ describe("DotWorldMap", () => {
     // About 4,200 glyphs printed as one element each came to ~740 KB.
     expect(html.length).toBeLessThan(150_000);
     expect(new Set(marks.map((mark) => mark[1])).size).toBe(marks.length);
+    // One path per glyph kind: dots, squares and rings.
+    for (const mark of marks) {
+      expect(mark[2]!.match(/<path\b/g)?.length).toBeLessThanOrEqual(3);
+    }
     // Every dot of the grid is still drawn: each glyph starts with one move.
     const glyphs = marks
       .flatMap((mark) => [...mark[2]!.matchAll(/ d="([^"]+)"/g)])
