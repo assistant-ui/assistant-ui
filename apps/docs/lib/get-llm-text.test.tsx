@@ -106,6 +106,29 @@ describe("agent markdown keeps what the page shows", () => {
       "```bash\nnpm install @assistant-ui/react-streamdown streamdown\n```",
     );
   });
+
+  it("turns the API overview's context tree into a nested list", async () => {
+    const Component = clientReference("api-reference/context.tsx#Component");
+    const markdown = await render(() => (
+      <Component
+        name="AssistantRuntimeProvider"
+        props="runtime={runtime}"
+        docsLink="/docs/api-reference/context-providers/assistant-runtime-provider"
+        tooltip="Provides the highest level context"
+        providedContexts={[{ name: "Thread Context", color: "#45a049" }]}
+      >
+        <Component
+          name="ThreadPrimitive"
+          docsLink="/docs/api-reference/primitives/thread"
+        />
+      </Component>
+    ));
+
+    expect(markdown).toContain(
+      "- [`<AssistantRuntimeProvider runtime={runtime}>`](/docs/api-reference/context-providers/assistant-runtime-provider) — Provides the highest level context. Provides: Thread Context\n  - [`ThreadPrimitive`](/docs/api-reference/primitives/thread)",
+    );
+    expect(markdown).not.toContain("#45a049");
+  });
 });
 
 describe("findAgentMarkdownProblems", () => {

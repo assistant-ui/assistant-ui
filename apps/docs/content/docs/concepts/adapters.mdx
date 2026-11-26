@@ -50,7 +50,7 @@ An adapter turns a capability on. The runtime reports it in `s.thread.capabiliti
 
 Try it below. The chat runs on `useLocalRuntime` with three adapters that only record their calls: attach a file to see `add`, then `send` when the message goes out; rate a reply to see `submit`; and watch `generate` run after each reply to make the follow-ups. Switch an adapter off and the runtime starts again without it: the capability it reports turns `false`, its calls stop, and the thumbs or the follow-ups go away.
 
-<AdaptersPlayground />
+<AdaptersPlayground description="A chat on useLocalRuntime with attachment, feedback and suggestion adapters that log their calls: add and send for a file, submit for a rating, generate after each reply" />
 
 ## Attachment adapter
 

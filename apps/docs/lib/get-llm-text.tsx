@@ -121,15 +121,52 @@ const installCommand = (command: string, packages: unknown) =>
     </pre>
   ) : null;
 
-// Client components that server components render directly (so the MDX
-// component map never sees them), keyed by export name.
+// Client components that server components render directly, or that MDX
+// imports itself, never pass through the MDX component map. These are keyed by
+// export name; a variant returns undefined when the props are not the shape it
+// knows, and the generic fallback takes over.
 const CLIENT_LLM_VARIANTS: Record<
   string,
-  (props: Record<string, unknown>) => ReactNode
+  (props: Record<string, unknown>, children: ReactNode) => ReactNode
 > = {
   PackageManagerTabs: ({ packages }) => installCommand("npm install", packages),
   ExpoInstallTabs: ({ packages }) =>
     installCommand("npx expo install", packages),
+  // The API reference overview's context tree: one nested list item per
+  // component, with its link, props, tooltip and the contexts it provides.
+  Component: (
+    { name, docsLink, tooltip, props, providedContexts },
+    children,
+  ) => {
+    if (typeof name !== "string") return undefined;
+    const label = (
+      <code>{typeof props === "string" ? `<${name} ${props}>` : name}</code>
+    );
+    const provides = Array.isArray(providedContexts)
+      ? providedContexts
+          .map((context) => (context as { name?: unknown }).name)
+          .filter(
+            (contextName): contextName is string =>
+              typeof contextName === "string",
+          )
+      : [];
+    return (
+      <ul>
+        <li>
+          {typeof docsLink === "string" ? (
+            <a href={docsLink}>{label}</a>
+          ) : (
+            label
+          )}
+          {typeof tooltip === "string" ? ` — ${tooltip}` : null}
+          {provides.length > 0 ? `. Provides: ${provides.join(", ")}` : null}
+          {children}
+        </li>
+      </ul>
+    );
+  },
+  ContextLevel: ({ color }, children) =>
+    typeof color === "string" ? <>{children}</> : undefined,
 };
 
 // Props a demo carries only to describe itself in agent markdown.
@@ -330,8 +367,13 @@ async function resolveStaticReactNode(
       return <a href={href}>{resolvedChildren}</a>;
     }
     const clientName = componentDisplayName(element.type);
-    if (Object.hasOwn(CLIENT_LLM_VARIANTS, clientName))
-      return CLIENT_LLM_VARIANTS[clientName]!(props);
+    if (Object.hasOwn(CLIENT_LLM_VARIANTS, clientName)) {
+      const rendered = CLIENT_LLM_VARIANTS[clientName]!(
+        props,
+        resolvedChildren,
+      );
+      if (rendered !== undefined) return rendered;
+    }
     // Client highlighters take their source as a `code` prop; keep it a fenced
     // block instead of a flattened `code` entry.
     const code = props.code;
