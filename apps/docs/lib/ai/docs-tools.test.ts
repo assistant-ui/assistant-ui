@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
       title: "Conversation map",
       description: "A map of the conversation.",
     },
+    { slug: "orb", title: "Orb", description: "A glowing orb." },
   ];
   return {
     elementPage,
@@ -94,11 +95,37 @@ vi.mock("@/lib/get-llm-text", () => ({
   getLLMText: async (page: { url: string }) => `text of ${page.url}`,
 }));
 
-vi.mock("@/components/pages/elements/registry", () => ({
+vi.mock("@/components/pages/elements/registry", async (importOriginal) => ({
+  ...(await importOriginal()),
   ELEMENTS: mocks.elements,
   getElement: (slug: string) =>
     mocks.elements.find((element) => element.slug === slug),
 }));
+
+vi.mock(
+  "@/components/pages/elements/aui-element-docs",
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    AUI_ELEMENT_DOCS: {
+      "conversation-map": {
+        usage: "<ConversationMapAui />",
+        props: [
+          {
+            component: "ConversationMapAui",
+            rows: [
+              {
+                name: "side",
+                type: '"left" | "right"',
+                defaultValue: '"left"',
+                description: "Which gutter the rail sits in.",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  }),
+);
 
 import { listDocs, readDoc } from "./docs-tools";
 
@@ -172,6 +199,12 @@ describe("listDocs", () => {
         url: "/elements/conversation-map",
         description: "A map of the conversation.",
       },
+      {
+        type: "page",
+        title: "Orb",
+        url: "/elements/orb",
+        description: "A glowing orb.",
+      },
     ]);
   });
 });
@@ -195,15 +228,23 @@ describe("readDoc", () => {
     }
   });
 
-  it("describes a catalog element that has no guide", async () => {
+  it("gives a catalog element without a guide its usage and props", async () => {
     const result = await read("elements/conversation-map");
     expect(result).toMatchObject({
       title: "Conversation map",
       url: "/elements/conversation-map",
     });
-    expect("content" in result && result.content).toContain(
-      "A map of the conversation.",
+    const content = "content" in result ? result.content : "";
+    expect(content).toContain("A map of the conversation.");
+    expect(content).toContain("<ConversationMapAui />");
+    expect(content).toContain(
+      '| `side` | `"left" \\| "right"` | `"left"` | Which gutter the rail sits in. |',
     );
+  });
+
+  it("says when a catalog element has nothing written", async () => {
+    const result = await read("elements/orb");
+    expect("content" in result && result.content).toContain("no written guide");
   });
 
   it("reads Design and docs pages, with or without the docs prefix", async () => {

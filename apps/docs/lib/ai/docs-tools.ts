@@ -8,6 +8,7 @@ import {
 import { resolveDocsUrl } from "@/lib/docs-pages";
 import { getLLMText } from "@/lib/get-llm-text";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
+import { AUI_ELEMENT_DOCS } from "@/components/pages/elements/aui-element-docs";
 
 type ListingEntry =
   | {
@@ -240,6 +241,33 @@ export function resolveDocPage(slugs: string[]) {
   return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
 }
 
+// The same usage snippet and props tables the element's catalog page renders.
+function catalogElementText(
+  title: string,
+  url: string,
+  description: string,
+  slug: string,
+): string {
+  const lines = [`# ${title}`, `URL: ${url}`, "", description, ""];
+  const doc = AUI_ELEMENT_DOCS[slug];
+  if (!doc) {
+    lines.push("This element has no written guide; its page shows it live.");
+    return lines.join("\n");
+  }
+  lines.push("## Usage", "", "```tsx", doc.usage, "```");
+  for (const table of doc.props) {
+    lines.push("", `## ${table.component} props`, "");
+    lines.push("| Prop | Type | Default | Description |", "|---|---|---|---|");
+    for (const row of table.rows) {
+      const name = row.required ? `${row.name} (required)` : row.name;
+      lines.push(
+        `| \`${name}\` | \`${row.type.replaceAll("|", "\\|")}\` | ${row.defaultValue ? `\`${row.defaultValue}\`` : ""} | ${row.description} |`,
+      );
+    }
+  }
+  return lines.join("\n");
+}
+
 /** The readDoc tool's result for a slug or same-origin URL. */
 export async function readDoc(slugOrUrl: string, routeUrl: string) {
   let normalized: string;
@@ -271,7 +299,12 @@ export async function readDoc(slugOrUrl: string, routeUrl: string) {
     return {
       title: element.title,
       url,
-      content: `# ${element.title}\nURL: ${url}\n\n${element.description}\n\nThis element has no written guide yet. Its page shows a live preview, the install command and the source.`,
+      content: catalogElementText(
+        element.title,
+        url,
+        element.description,
+        element.slug,
+      ),
     };
   }
 
