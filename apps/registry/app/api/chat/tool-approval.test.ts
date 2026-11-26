@@ -28,8 +28,8 @@ vi.mock("@ai-sdk/openai", async (importOriginal) => ({
   openai: Object.assign(nextModel, { responses: nextModel }),
 }));
 
-// A server tool the app adds. The default template has none of its own, so
-// the test adds one next to the frontend tools, as a developer would.
+// A server tool the app adds. These templates have none of their own, so the
+// test adds one next to the frontend tools, as a developer would.
 vi.mock("@assistant-ui/ai-sdk", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/ai-sdk")>();
   return {
@@ -50,11 +50,11 @@ vi.mock("../../../../../templates/mcp/app/api/mcp-client", () => ({
 }));
 
 const routes = [
-  {
-    name: "default",
-    path: "../../../../../templates/default/app/api/chat/route.ts",
+  ...["default", "cloud", "cloud-clerk"].map((name) => ({
+    name,
+    path: `../../../../../templates/${name}/app/api/chat/route.ts`,
     source: "frontendTools" as const,
-  },
+  })),
   {
     name: "mcp",
     path: "../../../../../templates/mcp/app/api/chat/route.ts",
