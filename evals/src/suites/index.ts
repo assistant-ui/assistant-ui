@@ -11,4 +11,5 @@ export const suites: Record<
     (await import("./test-quality/index.ts")).testQuality,
   "generative-ui": async () =>
     (await import("./generative-ui/index.ts")).generativeUI,
+  "agent-docs": async () => (await import("./agent-docs/index.ts")).agentDocs,
 };
