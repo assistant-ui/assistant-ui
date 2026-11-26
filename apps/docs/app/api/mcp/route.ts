@@ -22,6 +22,7 @@ import {
 } from "@/lib/mcp-tool-definitions";
 import { examples, source, design, elementsDocs, siteTree } from "@/lib/source";
 import { rewriteLegacyTapDocsPath } from "@/lib/legacy-tap-docs";
+import { rewriteMovedDocsPath } from "@/lib/moved-docs";
 import {
   DOCS_SITES,
   docsSiteBaseUrl,
@@ -186,7 +187,9 @@ function normalizePathname(rawPath: string, requestUrl?: string) {
 
 function rewriteLegacyPath(pathname: string) {
   return (
-    rewriteLegacyTapDocsPath(pathname) ?? rewriteLegacyDocsSitePath(pathname)
+    rewriteLegacyTapDocsPath(pathname) ??
+    rewriteLegacyDocsSitePath(pathname) ??
+    rewriteMovedDocsPath(pathname)
   );
 }
 

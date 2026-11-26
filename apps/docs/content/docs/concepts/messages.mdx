@@ -74,7 +74,7 @@ An assistant message is live while the run that writes it is in progress. Its `s
 | --- | --- |
 | `running` | Parts are still arriving. |
 | `complete` | The model finished its answer. |
-| `incomplete` | The run stopped early. The `reason` says why: `cancelled`, `error`, `length`, `content-filter` or `other`. |
+| `incomplete` | The run stopped early. The `reason` says why: `cancelled`, `error`, `tool-calls`, `length`, `content-filter` or `other`. |
 | `requires-action` | A tool call is waiting, either for a result your app supplies or for the user to approve or answer. |
 
 Each part has a status of its own too, so the last text part can show a cursor while the parts before it are done.
