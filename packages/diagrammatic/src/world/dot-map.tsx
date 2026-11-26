@@ -69,9 +69,8 @@ function ringPath(r: number): { r: number; arc: string } {
 
 /**
  * A country's halftone glyphs as three path strings, one per glyph kind, so
- * each glyph costs a few bytes instead of an element: a map has about 4,200
- * of them, and drawing each as its own element with its own paint came to
- * about 740 KB of markup per map. A dot is a zero-length segment that the
+ * each of a map's ~4,200 glyphs costs a few bytes of path data rather than
+ * an element with its own paint. A dot is a zero-length segment that the
  * stroke's round cap draws, a square a segment as long as the stroke is wide
  * (WebKit draws a zero-length segment's square cap round), and a ring a pair
  * of arcs. The kind is picked from the dot's position, so the pattern is

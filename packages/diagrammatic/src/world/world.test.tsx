@@ -56,7 +56,7 @@ describe("DotWorldMap", () => {
 
     expect(html).not.toContain("<circle");
     expect(html).not.toContain("NaN");
-    // About 4,200 glyphs printed as one element each came to ~740 KB.
+    // ~4,200 glyphs; an element per glyph would be several times this.
     expect(html.length).toBeLessThan(150_000);
     expect(new Set(marks.map((mark) => mark[1])).size).toBe(marks.length);
     // One path per glyph kind: dots, squares and rings.
