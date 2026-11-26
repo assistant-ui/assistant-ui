@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { CheckFailure } from "./browser.ts";
 
-const freePort = () =>
+export const freePort = () =>
   new Promise<number>((resolve, reject) => {
     const server = createServer();
     server.once("error", reject);

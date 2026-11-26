@@ -2,8 +2,14 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { agentPrompt, runAgent } from "./agent.ts";
-import { buildAndStart, useBin } from "./app.ts";
+import {
+  agentPrompt,
+  BUNDLED_DOCS_DIR,
+  runAgent,
+  type DocsMode,
+} from "./agent.ts";
+import { bundleDocs } from "./bundle.ts";
+import { buildAndStart, freePort, useBin } from "./app.ts";
 import { CheckFailure, openDriver } from "./browser.ts";
 import { docsFor } from "./docs.ts";
 import { startMockLLM } from "./mock-llm.ts";
@@ -19,6 +25,8 @@ import type {
 export interface DocsCandidate extends SuiteCandidate {
   /** Where the AI docs come from: the live site or a local `next dev` of apps/docs. */
   docsUrl: string;
+  /** local: a docs folder beside the project; web: the live site; bundled: in the project with an AGENTS.md index. */
+  mode: DocsMode;
 }
 
 export interface Outcome extends TranscriptSummary {
@@ -41,17 +49,26 @@ const timeoutMs = Number(process.env.AGENT_TIMEOUT_MIN ?? 30) * 60_000;
 const candidate: DocsCandidate = {
   label: process.env.DOCS_LABEL ?? "live",
   docsUrl: process.env.DOCS_URL ?? "https://www.assistant-ui.com",
+  mode: (process.env.DOCS_MODE ?? "local") as DocsMode,
 };
+if (!["local", "web", "bundled"].includes(candidate.mode)) {
+  throw new Error(
+    `DOCS_MODE must be local, web or bundled, not ${candidate.mode}`,
+  );
+}
 
 async function runTrial(
   task: AgentTask,
   docs: DocsCandidate,
 ): Promise<Outcome> {
-  const docsDir = await docsFor(docs.docsUrl, join(runsRoot, "docs"));
+  const snapshot = await docsFor(docs.docsUrl, join(runsRoot, "docs"));
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const runDir = join(runsRoot, "runs", `${task.id}-${docs.label}-${stamp}`);
   const projectDir = join(runDir, "app");
   mkdirSync(projectDir, { recursive: true });
+  if (docs.mode === "bundled") bundleDocs(snapshot, projectDir);
+  const docsDir =
+    docs.mode === "bundled" ? join(projectDir, BUNDLED_DOCS_DIR) : snapshot;
 
   // The agent tests against one mock; the check gets a fresh one on the same port, so nothing the agent sent counts.
   const agentMock = await startMockLLM(0, join(runDir, "mock-agent.jsonl"));
@@ -59,6 +76,8 @@ async function runTrial(
     task.prompt(agentMock.url),
     docsDir,
     agentMock.url,
+    docs.mode,
+    await freePort(),
   );
   writeFileSync(join(runDir, "prompt.md"), prompt);
   let agent;
@@ -67,7 +86,8 @@ async function runTrial(
       prompt,
       runDir,
       projectDir,
-      docsDir,
+      docsDir: docs.mode === "local" ? docsDir : undefined,
+      webDocs: docs.mode === "web",
       model,
       timeoutMs,
     });
@@ -111,7 +131,7 @@ async function runTrial(
   mkdirSync(join(resultsDir, "trials"), { recursive: true });
   writeFileSync(
     join(resultsDir, "trials", `${task.id}--${docs.label}--${stamp}.json`),
-    `${JSON.stringify({ task: task.id, label: docs.label, docsUrl: docs.docsUrl, model, ...outcome }, null, 2)}\n`,
+    `${JSON.stringify({ task: task.id, label: docs.label, mode: docs.mode, docsUrl: docs.docsUrl, model, ...outcome }, null, 2)}\n`,
   );
   writeFileSync(join(runDir, "outcome.json"), JSON.stringify(outcome, null, 2));
   return outcome;

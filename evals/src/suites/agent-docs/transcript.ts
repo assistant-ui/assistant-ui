@@ -59,6 +59,11 @@ export function summarizeTranscript(
       if (block.name === "Read") {
         const doc = rel(String(input.file_path ?? ""));
         if (doc && !summary.docsRead.includes(doc)) summary.docsRead.push(doc);
+      } else if (block.name === "WebFetch") {
+        const url = String(input.url ?? "");
+        const page = url.replace(/^https?:\/\/[^/]+/, "");
+        if (page && !summary.docsRead.includes(page))
+          summary.docsRead.push(page);
       } else if (block.name === "Grep" || block.name === "Glob") {
         if (String(input.path ?? "").startsWith(docsDir)) {
           summary.docsSearches.push(String(input.pattern ?? ""));

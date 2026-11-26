@@ -81,6 +81,8 @@ export interface Driver {
 
 export async function openDriver(url: string): Promise<Driver> {
   const page: ChromePage = await openChromePage(url, 1280);
+  // Let the app hydrate before anything is typed.
+  await sleep(2_000);
   const run = <T>(body: string, ms = 15_000) =>
     page.evaluate<T>(`(async () => { ${HELPERS}\n${body} })()`, ms);
 
@@ -120,22 +122,31 @@ export async function openDriver(url: string): Promise<Driver> {
         "has a chat input",
         "no text field found on the page",
       );
-      await run(
-        `const c = composer(); setValue(c, ${JSON.stringify(text)}); return true;`,
-      );
-      await sleep(300);
-      const how = await run<string>(`
-        const c = composer();
-        const scope = c.closest("form") ?? c.parentElement?.parentElement?.parentElement ?? document;
-        const buttons = [...scope.querySelectorAll('button, [role="button"]')].filter((b) => visible(b) && !b.disabled && b.getAttribute("aria-disabled") !== "true");
-        const send = buttons.find((b) => /send|submit/i.test(labelOf(b) + " " + ownText(b))) ?? buttons.find((b) => b.getAttribute("type") === "submit");
-        if (send) { click(send); return "button"; }
-        c.focus();
-        for (const type of ["keydown", "keypress", "keyup"]) {
-          c.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-        }
-        return "enter";`);
-      void how;
+      const attempt = async () => {
+        await run(
+          `const c = composer(); setValue(c, ${JSON.stringify(text)}); return true;`,
+        );
+        await sleep(300);
+        await run<string>(`
+          const c = composer();
+          const scope = c.closest("form") ?? c.parentElement?.parentElement?.parentElement ?? document;
+          const buttons = [...scope.querySelectorAll('button, [role="button"]')].filter((b) => visible(b) && !b.disabled && b.getAttribute("aria-disabled") !== "true");
+          const send = buttons.find((b) => /send|submit/i.test(labelOf(b) + " " + ownText(b))) ?? buttons.find((b) => b.getAttribute("type") === "submit");
+          if (send) { click(send); return "button"; }
+          c.focus();
+          for (const type of ["keydown", "keypress", "keyup"]) {
+            c.dispatchEvent(new KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+          }
+          return "enter";`);
+      };
+      // The sent message shows up in the thread; if it doesn't, the page wasn't ready yet, so try once more.
+      const shown = `return document.body.innerText.includes(${JSON.stringify(text)});`;
+      await attempt();
+      try {
+        await waitUntil(shown, 5_000, "sends", "");
+      } catch {
+        await attempt();
+      }
       await sleep(300);
     },
     async clickText(pattern, step, nth = 0) {
@@ -187,18 +198,36 @@ export async function openDriver(url: string): Promise<Driver> {
       await sleep(500);
     },
     async attachImage(step) {
+      // Pickers often create their file input only when the attach button is clicked, so catch that input too.
+      await run(`
+        window.__picked = document.querySelector('input[type="file"]');
+        if (!window.__picked) {
+          const original = HTMLInputElement.prototype.click;
+          HTMLInputElement.prototype.click = function () {
+            if (this.type === "file") { window.__picked = this; return; }
+            return original.call(this);
+          };
+          HTMLInputElement.prototype.showPicker = function () {
+            if (this.type === "file") window.__picked = this;
+          };
+          const attach = [...document.querySelectorAll('button, [role="button"], label')]
+            .filter(visible)
+            .find((b) => /attach|upload|add (a )?file|add image|add photo|paperclip/i.test(labelOf(b) + " " + ownText(b)));
+          if (attach) click(attach);
+        }
+        return true;`);
       await waitUntil(
-        `return !!document.querySelector('input[type="file"]');`,
+        "return !!window.__picked;",
         5_000,
         step,
-        "no file input on the page",
+        "no file input on the page and no attach button that opens one",
       );
       // A 1x1 red PNG.
       await run(`
         const b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
         const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
         const file = new File([bytes], "red-dot.png", { type: "image/png" });
-        const input = document.querySelector('input[type="file"]');
+        const input = window.__picked;
         const dt = new DataTransfer();
         dt.items.add(file);
         input.files = dt.files;

@@ -2,6 +2,8 @@ import { execFileSync, spawn } from "node:child_process";
 import {
   closeSync,
   mkdirSync,
+  mkdtempSync,
+  rmSync,
   openSync,
   symlinkSync,
   writeFileSync,
@@ -24,18 +26,36 @@ const LIBRARY_PRIVATE = [
   "Accounts",
 ];
 
-/** The fixed instructions every trial gets; only the task and the addresses change. */
-export function agentPrompt(task: string, docsDir: string, mockUrl: string) {
+/** Where the agent finds the docs, by arm: the same task prompt otherwise. */
+export type DocsMode = "local" | "web" | "bundled";
+
+export const BUNDLED_DOCS_DIR = ".assistant-ui-docs";
+
+const docsParagraph = (mode: DocsMode, docsDir: string) =>
+  mode === "web"
+    ? "Documentation: the assistant-ui docs are on the web at https://www.assistant-ui.com. Start from https://www.assistant-ui.com/llms.txt, the index the site serves to agents; append `.md` to any docs page URL for its markdown. Use these docs to learn assistant-ui. The network is open only for those docs, for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost."
+    : mode === "bundled"
+      ? `Documentation: the assistant-ui docs are saved in this folder under ${BUNDLED_DOCS_DIR}/, and AGENTS.md indexes them. Use these docs to learn assistant-ui. The network is open only for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost, so read the docs from this folder rather than the web.`
+      : `Documentation: the assistant-ui docs are saved in ${docsDir}. Start from ${docsDir}/llms.txt, the index the site serves to agents; every page it links is saved there as markdown. Use these docs to learn assistant-ui. The network is open only for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost, so read the docs from this folder rather than the web.`;
+
+/** The fixed instructions every trial gets; only the task, the docs' location and the addresses change. */
+export function agentPrompt(
+  task: string,
+  docsDir: string,
+  mockUrl: string,
+  mode: DocsMode = "local",
+  appPort = 3000,
+) {
   return `You are a coding agent. A developer asked you to build the app below with assistant-ui, a React library for AI chat interfaces.
 
-Work in the current directory, which is empty. Build the app here.
+Work in the current directory${mode === "bundled" ? ", which holds only the docs" : ", which is empty"}. Build the app here.
 
-Documentation: the assistant-ui docs are saved in ${docsDir}. Start from ${docsDir}/llms.txt, the index the site serves to agents; every page it links is saved there as markdown. Use these docs to learn assistant-ui. The network is open only for installing things (the npm registry, the assistant-ui and shadcn component registries, GitHub downloads) and for localhost, so read the docs from this folder rather than the web.
+${docsParagraph(mode, docsDir)}
 
 Every app must:
 - Use Next.js (App Router) with TypeScript and npm. \`npm run build\` must pass, \`npm run start\` must serve the app, and the chat is on the home page \`/\`.
 - Use the model server running at ${mockUrl}/v1. It is OpenAI-compatible (Chat Completions and Responses APIs), takes any API key (use "mock"), and serves the model id "mock-1". It is a scripted mock, not a real model: unless the task says otherwise it replies "Echo: <the user's last message>". Keep this exact address; don't use any other model provider.
-- Before you finish, build the app and check that the feature works. You may start the app on any free port; stop every server you started before you finish.
+- Before you finish, build the app and check that the feature works. To try it, start it on port ${appPort}, and stop every server you started before you finish.
 
 The task:
 ${task}
@@ -93,9 +113,16 @@ export async function runAgent(opts: {
   prompt: string;
   runDir: string;
   projectDir: string;
-  docsDir: string;
+  /** A docs folder outside the project to make readable; none when the docs are on the web or in the project. */
+  docsDir?: string | undefined;
   model: string;
   timeoutMs: number;
+  /** Lets the agent read the live docs site with WebFetch and its shell. */
+  webDocs?: boolean | undefined;
+  /** More hosts its shell may reach. */
+  extraDomains?: string[] | undefined;
+  /** More environment variables for the agent and its shell. */
+  extraEnv?: Record<string, string> | undefined;
 }): Promise<AgentRun> {
   const { runDir, projectDir, docsDir } = opts;
   const bin = join(runDir, "bin");
@@ -111,13 +138,23 @@ export async function runAgent(opts: {
   writeFileSync(join(runDir, "npmrc"), "fund=false\naudit=false\n");
 
   const home = homedir();
+  // Short, so the sandbox keeps it as the shell's $TMPDIR.
+  const tmp = mkdtempSync("/tmp/aui-ad-");
   // More folders the agent must neither read nor write, such as other work on this machine (comma-separated).
   const privateDirs =
     process.env.AGENT_DOCS_PRIVATE_DIRS?.split(",").filter(Boolean) ?? [];
   const settings = {
     permissions: {
-      allow: ["Read", "Edit", "Write", "Glob", "Grep", "Bash"],
-      deny: ["WebFetch", "WebSearch"],
+      allow: [
+        "Read",
+        "Edit",
+        "Write",
+        "Glob",
+        "Grep",
+        "Bash",
+        ...(opts.webDocs ? ["WebFetch(domain:www.assistant-ui.com)"] : []),
+      ],
+      deny: opts.webDocs ? ["WebSearch"] : ["WebFetch", "WebSearch"],
       blockReadsOutsideWorkingDirectories: true,
     },
     sandbox: {
@@ -166,8 +203,11 @@ export async function runAgent(opts: {
           "fonts.gstatic.com",
           "localhost",
           "127.0.0.1",
+          ...(opts.webDocs ? ["www.assistant-ui.com"] : []),
+          ...(opts.extraDomains ?? []),
         ],
         allowLocalBinding: true,
+        strictAllowlist: true,
       },
     },
     autoMemoryEnabled: false,
@@ -187,6 +227,11 @@ export async function runAgent(opts: {
     npm_config_cache: join(runDir, "npm-cache"),
     npm_config_userconfig: join(runDir, "npmrc"),
     NEXT_TELEMETRY_DISABLED: "1",
+    // Its own temp folder, so trials running side by side never share scratch files.
+    CLAUDE_CODE_TMPDIR: tmp,
+    // If the agent runs \`assistant-ui setup\`, it must not open a browser on this machine.
+    SETUP_AGENT_BROWSER: "/usr/bin/true",
+    ...opts.extraEnv,
     CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
   };
   if (process.env.CLAUDE_CONFIG_DIR) {
@@ -211,11 +256,11 @@ export async function runAgent(opts: {
       "--strict-mcp-config",
       "--disable-slash-commands",
       "--tools",
-      "Bash,Read,Write,Edit,Glob,Grep",
-      "--add-dir",
-      docsDir,
+      `Bash,Read,Write,Edit,Glob,Grep${opts.webDocs ? ",WebFetch" : ""}`,
+      ...(docsDir ? ["--add-dir", docsDir] : []),
       "--permission-mode",
-      "dontAsk",
+      // The sandbox, not the permission prompt, is the boundary: every command runs inside it.
+      "bypassPermissions",
       "--output-format",
       "stream-json",
       "--verbose",
@@ -255,6 +300,7 @@ export async function runAgent(opts: {
   }
   closeSync(out);
   closeSync(err);
+  rmSync(tmp, { recursive: true, force: true });
   return {
     exitCode,
     timedOut,
