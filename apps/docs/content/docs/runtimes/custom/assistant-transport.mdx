@@ -125,17 +125,60 @@ The endpoint returns a stream of state snapshots using the [`assistant-stream`](
 
 ### Handling commands
 
-`request.commands` holds every command the frontend queued since its last request, oldest first. Each has a `type`: `add-message` carries the user's `message` (its `role`, `id` and `text` or `image` parts), `add-tool-result` carries the `toolCallId`, `toolName`, `result` and `isError` of a result the frontend added, such as a frontend tool's output, and a [custom command](#custom-commands) carries the fields you declared for it. Apply them to the state before the agent runs:
+`request.commands` holds every command the frontend queued since its last request, oldest first. Model each command with a literal `type` and list every one in the request's `commands` union, custom commands included: a command outside the union fails validation before your callback runs. Then apply the commands to the state before the agent runs:
 
 ```python
+from typing import Any, Literal
+
+from pydantic import BaseModel
+
 from assistant_stream import RunController, create_run
 from assistant_stream.serialization import DataStreamResponse
+
+
+class MessagePart(BaseModel):
+    type: str
+    text: str | None = None
+    image: str | None = None
+
+
+class UserMessage(BaseModel):
+    role: Literal["user"] = "user"
+    id: str | None = None
+    parts: list[MessagePart]
+
+
+class AddMessageCommand(BaseModel):
+    type: Literal["add-message"]
+    message: UserMessage
+    parentId: str | None = None
+    sourceId: str | None = None
+
+
+class AddToolResultCommand(BaseModel):
+    type: Literal["add-tool-result"]
+    toolCallId: str
+    toolName: str
+    result: Any
+    isError: bool = False
+
+
+class MyCustomCommand(BaseModel):
+    type: Literal["my-custom-command"]
+    data: str
+
+
+class ChatRequest(BaseModel):
+    state: dict[str, Any] | None = None
+    commands: list[AddMessageCommand | AddToolResultCommand | MyCustomCommand]
+
 
 @app.post("/assistant")
 async def chat_endpoint(request: ChatRequest):
     async def run_callback(controller: RunController):
         if controller.state is None:
-            controller.state = {"messages": []}
+            controller.state = {}
+        controller.state.setdefault("messages", [])
 
         for command in request.commands:
             if command.type == "add-message":
@@ -153,7 +196,7 @@ async def chat_endpoint(request: ChatRequest):
     return DataStreamResponse(stream)
 ```
 
-This appends every new message to the end of the thread. With editing turned on, `add-message` also carries `parentId` and `sourceId`; [Editing messages](#editing-messages) shows how to cut the thread back to the parent first.
+This keeps assistant-ui's message shape, with its `parts`, in the state, as the custom agent reference below does; the LangGraph reference turns the same commands into LangChain messages instead. It also appends every new message to the end of the thread. With editing turned on, `add-message` carries a `parentId`; [Editing messages](#editing-messages) shows how to cut the thread back to that parent first.
 
 ### Streaming updates
 
