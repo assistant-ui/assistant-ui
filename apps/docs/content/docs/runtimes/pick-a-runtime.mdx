@@ -141,8 +141,10 @@ Use one of these when your backend is not a framework with a runtime above, such
 | [`AssistantTransport`](/docs/runtimes/custom/assistant-transport) | `ExternalStoreRuntime` + protocol | A backend that streams its agent state | Your agent has state worth showing, or you need commands of your own |
 
 ```text
-is your backend AI SDK v5 or later, LangGraph, Google ADK, A2A, AG-UI, Eve or OpenCode?
-└── yes → use that framework's runtime above
+is your backend one of the frameworks above (AI SDK, LangGraph, LangChain, Eve,
+Google ADK, A2A, AG-UI, OpenCode, Mastra, OpenAI Agents, Pydantic AI, Cloudflare
+Agents, Claude Managed Agents)?
+└── yes → use its runtime or guide above
 └── no → continue
     │
     do you already have message state in redux / zustand / tanstack-query?

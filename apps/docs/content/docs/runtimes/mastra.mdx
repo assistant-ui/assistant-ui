@@ -88,6 +88,7 @@ mastra/
 Define the agent in `chefAgent.ts`:
 
 ```ts title="mastra/agents/chefAgent.ts"
+import { Agent } from "@mastra/core/agent";
 
 export const chefAgent = new Agent({
   name: "chef-agent",
@@ -112,6 +113,8 @@ OPENAI_API_KEY=sk-...
 Initialize Mastra with the agent so it can be looked up by name:
 
 ```ts title="mastra/index.ts"
+import { Mastra } from "@mastra/core";
+import { chefAgent } from "./agents/chefAgent";
 
 export const mastra = new Mastra({
   agents: { chefAgent },
@@ -126,6 +129,9 @@ export const mastra = new Mastra({
 Replace the default route with one that streams from the Mastra agent:
 
 ```ts title="app/api/chat/route.ts"
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { toAISdkStream } from "@mastra/ai-sdk";
+import { mastra } from "@/mastra";
 
 export const maxDuration = 30;
 
@@ -213,6 +219,7 @@ Set the model provider keys (`OPENAI_API_KEY`, etc.) in `.env.development`. The 
 ### Define an agent
 
 ```ts title="src/mastra/agents/chefAgent.ts"
+import { Agent } from "@mastra/core/agent";
 
 export const chefAgent = new Agent({
   name: "chef-agent",
@@ -232,6 +239,9 @@ export const chefAgent = new Agent({
 Open the Mastra entry point. You will set three things in the same `Mastra` constructor: the agent, a chat route, and CORS for the frontend's origin.
 
 ```ts title="src/mastra/index.ts"
+import { Mastra } from "@mastra/core";
+import { chefAgent } from "./agents/chefAgent";
+import { chatRoute } from "@mastra/ai-sdk";
 
 export const mastra = new Mastra({
   agents: { chefAgent },
@@ -293,6 +303,10 @@ Open the file containing `useChatRuntime` (typically `app/assistant.tsx`) and pa
 
 ```tsx title="app/assistant.tsx" {8}
 "use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export const Assistant = () => {
   const runtime = useChatRuntime({
