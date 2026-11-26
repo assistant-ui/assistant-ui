@@ -149,6 +149,19 @@ describe("the Cloud SDK reference covers the client", () => {
     ).toEqual([]);
   });
 
+  it("the cloud skill names every thread and message method", () => {
+    const { skills } = JSON.parse(
+      readFileSync(path.join(__dirname, "agent-skills.generated.json"), "utf8"),
+    ) as { skills: { name: string; content: string }[] };
+    const skill = skills.find((entry) => entry.name === "cloud")!.content;
+    expect(
+      all
+        .map((method) => method.name)
+        .filter((name) => /^cloud\.threads\.(messages\.)?\w+$/.test(name))
+        .filter((name) => !skill.includes(`${name}(`)),
+    ).toEqual([]);
+  });
+
   // A row spells out a shape's fields, or names the shape and lets the
   // section's prose list them.
   it("names every field a method takes or returns", () => {
