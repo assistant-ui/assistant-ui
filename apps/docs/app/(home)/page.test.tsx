@@ -35,6 +35,7 @@ vi.mock("@/components/pages/home/library-body", () => ({
 }));
 
 import HomePage from "./page";
+import { rewriteMovedDocsPath } from "@/lib/moved-docs";
 
 afterEach(cleanup);
 
@@ -50,7 +51,8 @@ it("gives the Mastra tab its own snippet and a real docs page", async () => {
     "api: process.env.NEXT_PUBLIC_MASTRA_URL!",
   );
 
-  const docs = mastra.getAttribute("data-docs")!.split("#")[0]!;
+  const linked = mastra.getAttribute("data-docs")!;
+  const docs = (rewriteMovedDocsPath(linked) ?? linked).split("#")[0]!;
   expect(
     existsSync(path.join(repoRoot, "apps/docs/content", `${docs}.mdx`)),
   ).toBe(true);

@@ -93,7 +93,7 @@ export default function App() {
   {
     id: "mastra",
     label: "Mastra",
-    docs: "/docs/runtimes/mastra#separate-server",
+    docs: "/docs/integrations/frameworks/mastra/separate-server",
     changed: [2, 6, 7, 8],
     caption: "Set NEXT_PUBLIC_MASTRA_URL to your Mastra server's chat route.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
@@ -115,7 +115,7 @@ export default function App() {
   {
     id: "custom",
     label: "Custom",
-    docs: "/docs/runtimes/pick-a-runtime#your-own-backend",
+    docs: "/docs/runtimes/custom/overview",
     changed: [2, 6, 7, 8],
     caption: "No adapter at all. Your store, your transport, any backend.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
