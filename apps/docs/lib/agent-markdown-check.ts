@@ -98,6 +98,32 @@ export function findAgentMarkdownProblems(
   return problems;
 }
 
+export type AgentMarkdownVerdict = {
+  ok: boolean;
+  pageCount: number;
+  problems: AgentMarkdownProblem[];
+  /** Problems that fail the build; an empty section is only reported. */
+  blocking: AgentMarkdownProblem[];
+};
+
+/**
+ * Checks a whole llms-full.txt. A body with no pages fails too, so a format
+ * change or a truncated file can't turn the check into a silent pass.
+ */
+export function checkLLMsFull(text: string): AgentMarkdownVerdict {
+  const pages = splitLLMsFull(text);
+  const problems = pages.flatMap(findAgentMarkdownProblems);
+  const blocking = problems.filter(
+    (problem) => problem.kind !== "empty-section",
+  );
+  return {
+    ok: pages.length > 0 && blocking.length === 0,
+    pageCount: pages.length,
+    problems,
+    blocking,
+  };
+}
+
 export function summarizeAgentMarkdownProblems(
   problems: AgentMarkdownProblem[],
 ): string {

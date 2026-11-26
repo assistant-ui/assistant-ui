@@ -1,9 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
-  findAgentMarkdownProblems,
+  checkLLMsFull,
   isLLMsFullBody,
-  splitLLMsFull,
   summarizeAgentMarkdownProblems,
 } from "../lib/agent-markdown-check.ts";
 
@@ -34,28 +33,20 @@ if (bodies.length === 0) {
 let failed = false;
 for (const body of bodies) {
   const text = readFileSync(body, "utf-8");
-  const pages = splitLLMsFull(text);
   const where = path.relative(process.cwd(), body);
-  if (pages.length === 0) {
+  const { ok, pageCount, problems, blocking } = checkLLMsFull(text);
+  if (pageCount === 0) {
     console.error(`check-agent-markdown: ${where} holds no pages.`);
-    failed = true;
-    continue;
-  }
-  const problems = pages.flatMap(findAgentMarkdownProblems);
-  const blocking = problems.filter(
-    (problem) => problem.kind !== "empty-section",
-  );
-
-  console.log(
-    `Agent markdown: ${pages.length} pages, ${(Buffer.byteLength(text) / 1e6).toFixed(2)} MB in ${where}`,
-  );
-  if (problems.length > 0)
-    console.log(summarizeAgentMarkdownProblems(problems));
-  if (blocking.length > 0) {
+  } else {
+    console.log(
+      `Agent markdown: ${pageCount} pages, ${(Buffer.byteLength(text) / 1e6).toFixed(2)} MB in ${where}`,
+    );
+    if (problems.length > 0)
+      console.log(summarizeAgentMarkdownProblems(problems));
     for (const problem of blocking.slice(0, 50))
       console.error(`  ${problem.url}: ${problem.kind} ${problem.detail}`);
-    failed = true;
   }
+  if (!ok) failed = true;
 }
 
 if (failed) {

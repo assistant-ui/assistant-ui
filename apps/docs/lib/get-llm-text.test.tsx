@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { getLLMText } from "./get-llm-text";
 import {
+  checkLLMsFull,
   findAgentMarkdownProblems,
   isLLMsFullBody,
 } from "./agent-markdown-check";
@@ -155,6 +156,46 @@ describe("agent markdown keeps what the page shows", () => {
     ));
 
     expect(markdown).toContain("- `app/`\n  - `page.tsx`\n- `package.json`");
+  });
+});
+
+describe("checkLLMsFull", () => {
+  it("fails a body with no pages, so a format change can't pass silently", () => {
+    expect(checkLLMsFull("")).toMatchObject({ ok: false, pageCount: 0 });
+    expect(checkLLMsFull("<html>not markdown</html>")).toMatchObject({
+      ok: false,
+      pageCount: 0,
+    });
+  });
+
+  it("passes clean pages and only reports an empty section", () => {
+    const text = [
+      "# A",
+      "URL: /docs/a",
+      "",
+      "Text.",
+      "",
+      "## Empty",
+      "",
+      "# B",
+      "URL: /docs/b",
+      "",
+      "Live demo: A thread.",
+    ].join("\n");
+
+    const verdict = checkLLMsFull(text);
+    expect(verdict).toMatchObject({ ok: true, pageCount: 2, blocking: [] });
+    expect(verdict.problems.map((problem) => problem.kind)).toEqual([
+      "empty-section",
+    ]);
+  });
+
+  it("fails on a placeholder", () => {
+    const verdict = checkLLMsFull(
+      "# A\nURL: /docs/a\n\n[interactive preview omitted]\n",
+    );
+    expect(verdict.ok).toBe(false);
+    expect(verdict.blocking).toHaveLength(1);
   });
 });
 
