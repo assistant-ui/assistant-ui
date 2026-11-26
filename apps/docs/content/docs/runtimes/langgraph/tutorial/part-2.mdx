@@ -89,7 +89,7 @@ This displays the tool name and arguments passed to it, but not the result.
 
 ### Bind tool UI
 
-Register the tool UI in a toolkit and pass it to the `AssistantRuntimeProvider` that the template sets up in `app/assistant.tsx`:
+Register the tool UI in a toolkit and pass it to the `AssistantRuntimeProvider` that the template sets up in `app/assistant.tsx`. The entry's `type: "backend"` marks `price_snapshot` as a tool the LangGraph server defines and runs, so the toolkit only supplies its renderer ([Externally defined tools](/docs/tools/defining-tools#externally-defined-tools)):
 
 ```tsx title="@/app/assistant.tsx" {3,7,9-14,27,30}
 "use client";

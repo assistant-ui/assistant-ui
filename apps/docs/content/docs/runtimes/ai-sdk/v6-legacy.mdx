@@ -248,7 +248,7 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const aiSDKTools = {
-    ...frontendTools(tools),
+    ...frontendTools(tools ?? {}),
     // your backend tools...
   };
 
@@ -264,7 +264,7 @@ export async function POST(req: Request) {
 }
 ```
 
-Frontend tools are registered through the provider's `config` (see the [tools guide](/docs/tools/defining-tools)) and serialized for the backend via `frontendTools`.
+Register frontend tools with `Tools({ toolkit })` on the provider's `config` ([Registering a toolkit](/docs/tools/defining-tools#registering-a-toolkit-with-tools)). The transport uploads their schemas and `frontendTools` turns them into AI SDK tools. It throws on a missing `tools` value, hence `tools ?? {}`. A compiled `"use generative"` toolkit is not uploaded, because the compiler assumes your server already has its schemas.
 
 ## Multi-step tool calls
 
@@ -337,32 +337,7 @@ export async function POST(req: Request) {
 
 Set `experimental_toolApprovalSecret` so the server runs only approved calls it asked about. Without it, a client can change a pending call's input or post an approval for a call the model never made. [Sign approval requests](/docs/runtimes/ai-sdk/v7#sign-approval-requests) in the v7 guide explains how it works and how to choose the secret. Use `ai` 6.0.221 or later on the server and the client: older releases either lack the option or drop the signature when the user answers.
 
-On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` so the response is sent back to the server when the user decides:
-
-```tsx title="@/app/page.tsx"
-"use client";
-
-import { useChat } from "@ai-sdk/react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
-import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-
-export default function Page() {
-  const chat = useChat({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-  });
-  const runtime = useAISDKRuntime(chat);
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-Render the gate with a toolkit entry. The `approval` field carries the gate state, and `respondToApproval` is the only correct way to acknowledge it (it reads the approval id from the part):
+On the client, two pieces connect the gate. `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` posts the response back to the server once the user decides, and a toolkit entry renders the gate. An entry with `type: "backend"` and a `render` draws a tool that your server defines and runs:
 
 ```tsx title="@/app/page.tsx"
 "use client";
@@ -373,48 +348,14 @@ import {
   AuiConfig,
   defineToolkit,
   Tools,
-  type ToolApprovalResponse,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { DeployToolUI } from "@/components/deploy-tool-ui";
 
 const toolkit = defineToolkit({
-  deploy: {
-    type: "backend",
-    render: ({ args, approval, respondToApproval, result }) => {
-      // A refused response rejects and a precondition throws, so `try`/`await`
-      // covers both and the controls stay actionable.
-      const answer = async (response: ToolApprovalResponse) => {
-        try {
-          await respondToApproval(response);
-        } catch (failure) {
-          console.error(failure);
-        }
-      };
-
-      if (approval?.approved === undefined) {
-        return (
-          <div>
-            <p>Approve deploy to {args.target}?</p>
-            <button onClick={() => void answer({ approved: true })}>
-              Approve
-            </button>
-            <button
-              onClick={() =>
-                void answer({ approved: false, reason: "user denied" })
-              }
-            >
-              Deny
-            </button>
-          </div>
-        );
-      }
-      if (approval?.approved === false) return <p>Denied</p>;
-      if (result === undefined) return <p>Approved, deploying…</p>;
-      return <p>Deployed {result.deployed}</p>;
-    },
-  },
+  deploy: { type: "backend", render: DeployToolUI },
 });
 
 export default function Page() {
@@ -423,6 +364,7 @@ export default function Page() {
   });
   const runtime = useAISDKRuntime(chat);
   const config = AuiConfig({ tools: Tools({ toolkit }) });
+
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
@@ -431,7 +373,7 @@ export default function Page() {
 }
 ```
 
-See the [tool UI guide](/docs/tools/tool-ui#server-side-approval-gates) for the full three-state semantics of `approval.approved` and the `isAutomatic` flag.
+`DeployToolUI` is the renderer from [Server-side approval gates](/docs/tools/tool-approvals#server-side-approval-gates). That section covers the three states of `approval.approved`, `approval.resolution`, `isAutomatic`, and what to do when `respondToApproval` rejects.
 
 ## Quote context
 
@@ -469,7 +411,7 @@ import { frontendTools } from "@assistant-ui/react-ai-sdk";
 export async function POST(req: Request) {
   const { messages, tools, config } = await req.json();
 
-  const aiSDKTools = frontendTools(tools);
+  const aiSDKTools = frontendTools(tools ?? {});
 
   const result = streamText({
     abortSignal: req.signal,

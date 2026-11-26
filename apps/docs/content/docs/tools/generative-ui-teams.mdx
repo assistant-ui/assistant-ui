@@ -161,6 +161,10 @@ Datetime pickers use `aui:datetime:date:<encodeURIComponent(fieldId)>` for the d
 
 **There is no change event.** Adaptive Cards has no way to dispatch when a control's value changes, so a standalone control carrying `$action` gets a companion "Submit" `ActionSet` appended, plus a `fallback` warning. Five such controls produce five separate submit buttons. The idiomatic shape is to put `$action` on a `Form`, a `Card` marked `asForm`, or a `Card` footer and leave the controls actionless, which yields one submit for the whole card.
 
+### Required fields and length limits
+
+`required: true` sets `isRequired` on a `Select`, `RadioGroup`, `CheckboxGroup`, `Checkbox`, `Input`, or `DatePicker`. A `Slider` takes no required flag. `maxLength` on a text `Input` maps to `maxLength` when it is a positive integer, and is dropped with a warning otherwise. Teams text inputs cannot enforce a minimum length, so a nonzero `minLength` is dropped with a warning, and so are numeric `min` and `max` on an `Input`.
+
 ## Actions
 
 ### Outbound

@@ -910,7 +910,26 @@ const useInteractablesResource = ({
 };
 
 /**
- * Registers the unstable interactables store scope.
+ * Registers the interactables store scope, which holds the state of every
+ * mounted interactable and exposes it to the model.
+ *
+ * Mount it as `unstable_interactables` in an `AuiConfig`. For each interactable
+ * name with a registered instance it adds one `update_{name}` frontend tool to
+ * the `modelContext` scope, and it stamps the state of changed instances onto
+ * each outgoing user message as `metadata.custom.interactables`. Your route
+ * has to upload the model context's tools and turn those snapshots into text
+ * (`unstable_injectInteractableContext` in `@assistant-ui/ai-sdk`).
+ *
+ * Pass a `persistence` adapter to keep app-scoped state across reloads.
+ * Thread-scoped instances never use the adapter; they restore from the
+ * thread's history. Keep the adapter object stable, because a new adapter
+ * identity starts a new persistence scope and resets app-scoped state.
+ *
+ * ```tsx
+ * const config = AuiConfig({
+ *   unstable_interactables: unstable_Interactables({ persistence: adapter }),
+ * });
+ * ```
  *
  * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */

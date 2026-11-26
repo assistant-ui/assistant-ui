@@ -1,13 +1,13 @@
 ---
 title: WebMCP provider
-description: Expose your app's frontend tools to a WebMCP-capable browser with unstable_useWebMcpProvider.
+description: "Expose your app's frontend tools to a WebMCP-capable browser with unstable_useWebMcpProvider."
 ---
 
-WebMCP is a browser-native way for a page to publish tools to the agent the *user* is running, through `document.modelContext` (with `navigator.modelContext` as a fallback). A page calls `registerTool` and the agent can call it.
+WebMCP is a browser-native way for a page to publish tools to the agent the *user* is running, through `document.modelContext` (with `navigator.modelContext` as a fallback). A page calls `registerTool` and the agent can call it. It runs the opposite way from the other [MCP pages](/docs/tools/mcp#which-mcp-page-do-i-need): your page is the tool server, not an MCP client.
 
 By default the explainer exposes a registered tool to the page itself, to same-origin documents in the same frame tree, and to the browser's built-in agent. Reaching an author-provided agent in another origin needs the `exposedTo` option, which this hook does not set, so treat the audience as the built-in agent unless that changes.
 
-`unstable_useWebMcpProvider` connects the two directions you already have. Every frontend tool registered in the assistant-ui model context is published to the browser's WebMCP host, and the results come back through the same `Tool` contract your chat runtime uses. You define a tool once; both your assistant and the user's browser agent can call it.
+`unstable_useWebMcpProvider` connects the two directions you already have. Every frontend tool registered in the assistant-ui model context is published to the browser's WebMCP host, and calls run through the same `Tool` contract your chat runtime uses. You define a tool once, and both your assistant and the user's browser agent can call it.
 
 <Callout type="warn">
   This hook is `unstable_`. WebMCP itself is an emerging browser API and the
@@ -23,7 +23,7 @@ Chrome's [WebMCP guide](https://developer.chrome.com/docs/ai/webmcp) covers the 
 
 ## Usage
 
-Mount it once, anywhere inside your `AuiProvider`:
+Mount it once, anywhere under the provider that registers your tools:
 
 ```tsx title="app/page.tsx"
 import { unstable_useWebMcpProvider } from "@assistant-ui/react";
@@ -36,17 +36,19 @@ const WebMcpTools = () => {
 };
 ```
 
-`status` is `"unsupported"` when the page has no `modelContext` (see [Browser support](#browser-support)) and `"active"` once the provider is running. The check runs when the hook mounts and is not repeated: WebMCP defines no availability event, and the provider does not poll, so an extension that injects `modelContext` into an already-rendered page is only picked up on the next mount. `registeredToolNames` is the sorted list of names the provider is publishing; a name that the host refuses (because the page already registered it, or because the page's tools permission is off) drops out of the list once the refusal arrives. A name appears for the commit in which its registration is set up, so treat the list as what the provider intends to have live rather than a synchronous read of the host.
+`status` is `"unsupported"` when the page has no `modelContext` (see [Browser support](#browser-support)) and `"active"` once the provider is running. The check runs when the hook mounts and is not repeated: WebMCP defines no availability event, and the provider does not poll, so an extension that injects `modelContext` into an already-rendered page is only picked up on the next mount.
 
-With no `filter`, the provider publishes every enabled frontend tool that has an `execute`; backend tools, disabled tools, and tools with no client-side implementation are skipped. A tool authored without a `type` counts as frontend when it has an `execute`, since that is what separates the deprecated type-less form from a backend or human tool. A `filter` you pass **replaces** that default rather than narrowing it; see below.
+`registeredToolNames` is the sorted list of names the provider is publishing. A name the host refuses (because the page already registered it, or because the page's tools permission is off) drops out once the refusal arrives. A name appears in the commit that sets up its registration, so read the list as what the provider intends to have live, not a synchronous read of the host.
 
-A complete setup (a task-list page whose toolkit is published to the browser, with a destructive tool held back) runs in [`examples/with-webmcp`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-webmcp).
+With no `filter`, the provider publishes every enabled frontend tool that has an `execute`. Backend tools, disabled tools, and tools with no client-side implementation are skipped, and so are `type: "mcp"` toolkit entries, which never reach the model context. A tool authored without a `type` counts as frontend when it has an `execute`. A `filter` you pass **replaces** that default; see below.
+
+A complete setup, a task-list page whose toolkit is published to the browser with one destructive tool held back, runs in [`examples/with-webmcp`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-webmcp).
 
 ## Choosing which tools to publish
 
-Pass a `filter` to choose which tools to publish. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. The inline arrow below is a new function on every render, which is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion for tools registered with `useAssistantTool` or a toolkit. Tools added through `ModelContextRegistry.addTool` are rebuilt on every read, so they miss that cache; the re-sync still registers nothing new, it only re-converts.
+Pass a `filter` to choose which tools to publish. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. An inline arrow is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion for toolkit tools. Tools added through `ModelContextRegistry.addTool` are rebuilt on every read, so they miss that cache. The re-sync still registers nothing new, it only re-converts.
 
-Your `filter` **replaces** the default predicate, it does not run after it. A name-only filter like `PUBLIC_TOOLS.has(name)` will therefore publish a backend or disabled tool whose name is in the set. To narrow the default instead of replacing it, compose against the exported predicate:
+Your `filter` **replaces** the default predicate. It does not run after it, so a name-only filter such as `PUBLIC_TOOLS.has(name)` publishes a backend or disabled tool whose name is in the set. To narrow the default instead, compose against the exported predicate:
 
 ```tsx
 import {
@@ -62,20 +64,38 @@ unstable_useWebMcpProvider({
 });
 ```
 
-Replacement is deliberate: it is also the only way to widen the set (publishing a tool the default would skip), which an `unstable_` hook should not take away from you.
+Replacement is deliberate. It is also the only way to widen the set, by publishing a tool the default would skip.
 
-A tool the browser agent can call is a tool *anyone* driving that browser can call, without your assistant's system prompt in the loop. Publish the tools you would be comfortable exposing as an unauthenticated API for the current session, and keep destructive ones out.
+## Security
+
+A tool the browser agent can call is a tool *anyone* driving that browser can call, without your assistant's system prompt or approval step in the loop. Publish only what you would expose as an unauthenticated API for the current session, and keep destructive tools out. Allowlist by name, as above, so a tool added to the toolkit later is not published by accident.
+
+- **`human()` is unavailable.** A call from WebMCP rejects with `human input not supported in WebMCP context`, which the agent receives as an error result. A tool that asks for approval through `human()` therefore cannot be approved there. It fails, while a tool that never asks runs unasked.
+- **User-managed MCP tools are frontend tools.** Tools from [user-managed MCP servers](/docs/tools/user-managed-mcp) have an `execute`, so the default filter publishes them. Exclude them unless you want the browser agent to use the user's connected servers; a server with `requireApproval: false` would run without any prompt.
+- **Tool results are page data.** What your tool returns goes to whichever agent called it.
 
 ## Lifecycle
 
 The provider owns its registrations:
 
 - A tool that leaves the model context is unregistered.
-- Changing a tool's `description`, or replacing the tool object with a different `parameters` schema, re-registers it under the new signature; changing only its `execute` implementation does not, because the live registration calls through to the latest version. A provider that keeps one tool object and edits the schema inside it is not observed: detecting that means reading `parameters` on every sync, which costs a schema conversion for every tool on every model-context change.
+- Changing a tool's `description`, or replacing the tool object with a different `parameters` schema, re-registers it under the new signature. Changing only its `execute` does not, because the live registration calls through to the latest version. Editing the schema inside the same tool object is not observed, since detecting that would cost a schema conversion for every tool on every change.
 - Unmounting unregisters everything.
-- A registration the host rejects is dropped with a `console.warn`, and its name is left alone; the provider only ever aborts its own registration signal, so it cannot remove a tool it does not own. That name is then not retried while the tool stays in the model context, so a permanent collision warns once rather than on every sync. The trade-off is that a *transient* collision is not retried either: if the page later frees the name, the provider does not notice. Removing the tool from the model context and adding it back retries it, as does remounting.
+- A registration the host rejects is dropped with a `console.warn`, and its name is left alone, since the provider only aborts its own registration signal. The name is not retried while the tool stays in the model context, so a permanent collision warns once. A *transient* collision is not retried either: if the page later frees the name, the provider does not notice. Remove the tool from the model context and add it back, or remount, to retry.
 
-Calls are executed through the same path as a frontend tool call: Standard Schema parameters are validated first (including `experimental_onSchemaValidationError`), `toModelOutput` shapes the result if you define it, and the host's `AbortSignal` is merged with the registration's own lifetime, so an unregistered tool cancels in-flight work. `human()` is not available, because a WebMCP caller has no assistant-ui composer to answer with.
+A call runs through the same path as a frontend tool call. Standard Schema parameters are validated first (including `experimental_onSchemaValidationError`), `toModelOutput` shapes the result when you define it, and the host's `AbortSignal` is merged with the registration's own lifetime, so an unregistered tool cancels in-flight work.
+
+## Troubleshooting
+
+| Symptom or message | Cause and fix |
+| --- | --- |
+| `status` stays `"unsupported"` | The page has no `document.modelContext`. See [Browser support](#browser-support). The check runs once on mount, so reload after enabling the flag. |
+| `[assistant-ui] WebMCP registration for tool "x" was not permitted; the page's tools permission is disabled.` | The page's tools permission is off, which a cross-origin iframe without `allow="tools"` hits. Grant it, or mount the hook in the top-level page. |
+| `[assistant-ui] WebMCP registration for tool "x" failed (name may already be registered).` | The page or another script already registered that name. Rename the tool or unregister the other one. |
+| `[assistant-ui] Skipping WebMCP registration for tool "x": filter or schema conversion failed.` | Your `filter` or the tool's `parameters` threw. The error follows the message. |
+| A tool is missing from `registeredToolNames` | It is a backend, human, disabled, or `execute`-less tool, your `filter` excluded it, or the host refused it. |
+| The agent gets `human input not supported in WebMCP context` | The tool calls `human()`. See [Security](#security). |
+| The agent gets `Tool "x" has no client-side implementation.`, `Tool "x" is no longer registered`, or `Tool execution was cancelled.` | The tool has no `execute`, the call arrived after the tool was unregistered, or the call was aborted. |
 
 ## API
 

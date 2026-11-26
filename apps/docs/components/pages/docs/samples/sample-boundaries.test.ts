@@ -102,9 +102,7 @@ const KNOWN_STATIC_RUNTIME_IMPORTS = new Set([
 
 // Samples whose bare `Thread` still reaches the docs assistant from a page.
 // The tools pages were out of scope when this test was added.
-const KNOWN_UNSCOPED_THREADS = new Set([
-  "content/docs/tools/tool-ui.mdx -> components/pages/docs/samples/tool-ui.tsx",
-]);
+const KNOWN_UNSCOPED_THREADS = new Set<string>([]);
 
 describe("docs samples", () => {
   it("load a runtime-building sample into an MDX page only through lazyComponent", () => {

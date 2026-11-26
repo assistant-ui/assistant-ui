@@ -3,7 +3,7 @@ title: Interactables (legacy)
 description: Deprecated legacy interactables APIs for registering model-editable components with per-instance update tools.
 ---
 
-import { Interactables, useAssistantInteractable, useInteractableState } from "@/generated/typeDocs";
+import { useAssistantInteractable, useInteractableState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -22,7 +22,9 @@ Scheduled for removal on/after 2026-09-14. See
 [Interactables migration guide](https://www.assistant-ui.com/docs/tools/interactables#migrating-from-the-previous-api).
 </Callout>
 
-<ParametersTable {...Interactables} />
+```ts
+const Interactables: Resource<ClientOutput<"interactables">, []>;
+```
 
 ### useAssistantInteractable
 

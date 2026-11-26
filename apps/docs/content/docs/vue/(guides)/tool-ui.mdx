@@ -78,21 +78,25 @@ Read these fields from `tool.part`:
 
 ## Register it
 
-Put a renderer in `Tools({ toolkit })` when the tool definition and UI belong to the assistant configuration. The toolkit also registers tool definitions with model context. The Vue renderer needs a cast because the shared toolkit's `render` field is typed as a React component:
+Put a renderer in `Tools({ toolkit })` when the tool definition and UI belong to the assistant configuration. The toolkit also registers tool definitions with model context. An entry with `type: "backend"` and only a `render` draws a tool that your server defines and runs, as [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools) describes. The Vue renderer needs a cast because the shared toolkit's `render` field is typed as a React component:
 
 ```vue title="app/components/Assistant.client.vue"
 <script setup lang="ts">
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
 import { AISDKChat } from "@assistant-ui/ai-sdk";
-import { Tools, type ToolCallMessagePartComponent } from "@assistant-ui/core/react";
+import {
+  Tools,
+  defineToolkit,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/core/react";
 import WeatherToolUI from "./WeatherToolUI.vue";
 
-const toolkit = {
+const toolkit = defineToolkit({
   weather: {
-    type: "backend" as const,
+    type: "backend",
     render: WeatherToolUI as unknown as ToolCallMessagePartComponent,
   },
-};
+});
 
 const config = AuiConfig({
   threads: AISDKChat(),
@@ -104,6 +108,8 @@ const config = AuiConfig({
   <AuiProvider :config="config"><slot /></AuiProvider>
 </template>
 ```
+
+The toolkit above sits in `<script setup>`, which runs once per component instance, so its identity is stable for that instance. [Registering a toolkit with `Tools()`](/docs/tools/defining-tools#registering-a-toolkit-with-tools) covers why identity matters and what happens when two mounts define the same tool name.
 
 To register from a Vue component's lifecycle, use `aui.tools.setToolUI`. This component is lifted from the Nuxt example, with an unused type import omitted:
 
@@ -165,7 +171,7 @@ This is an abridged excerpt from the registry `message.vue`. A fallback can read
 
 `tool.addResult(result)` supplies a missing result. `tool.resume(payload)` continues an interrupted call with a payload. `tool.respondToApproval(response)` answers a server approval gate and returns a promise that rejects if the answer cannot be recorded. The matching runtime adapter handles each action. Check `tool.part.status.type === "requires-action"` and `s.thread.capabilities.answerToolCall` before offering controls.
 
-An approval response can be `{ approved: boolean }`, `{ optionId: string }`, `{ text: string }`, or `{ answers: Record<string, ToolApprovalAnswer> }`. Decision and option responses may also carry `text` and `reason`; a response may combine `approved` with `optionId`. Use the request's `display`, options, and questions to decide which form to send.
+[Server-side approval gates](/docs/tools/tool-approvals#server-side-approval-gates) explains the three states of `approval.approved` and the `resolution` field; the component below follows those rules. An approval response can be `{ approved: boolean }`, `{ optionId: string }`, `{ text: string }`, or `{ answers: Record<string, ToolApprovalAnswer> }`. Decision and option responses may also carry `text` and `reason`; a response may combine `approved` with `optionId`. Use the request's `display`, options, and questions to decide which form to send.
 
 This component handles a plain allow or deny request:
 

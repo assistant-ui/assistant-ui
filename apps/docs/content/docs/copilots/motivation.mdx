@@ -145,6 +145,8 @@ function SmartTransactionHistory() {
 }
 ```
 
+`analyzeTransaction` runs in the browser (`"use client"`), and the client does not upload the schema of a toolkit file marked `"use generative"`. Your route has to import `./transaction-toolkit` through `AISDKToolkit` for the model to learn the tool; see [Defining Tools](/docs/tools/defining-tools#quick-start-use-generative). Without a server of your own, compile with [`backendless`](/docs/tools/defining-tools#running-without-your-own-backend).
+
 ### 4. Adding Custom Context (Model Context)
 
 Add dynamic context based on the user's transaction patterns:

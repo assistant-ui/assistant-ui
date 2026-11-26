@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
   const model = openai("gpt-6-luna");
 
-  const aiSDKTools = frontendTools(tools);
+  const aiSDKTools = frontendTools(tools ?? {});
   const prunedMessages = pruneMessages({
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     reasoning: "none",

@@ -407,12 +407,20 @@ Guard every text or reasoning part this way, not just the trailing one. An empty
 Accumulate tool calls in a `Map` outside the streaming loop so they persist across chunks:
 
 ```tsx
+import { toToolsJSONSchema } from "assistant-stream";
+
 async *run({ messages, abortSignal, context }) {
+  const tools = Object.entries(toToolsJSONSchema(context.tools)).map(
+    ([name, { description, parameters }]) => ({
+      type: "function" as const,
+      function: { name, description, parameters },
+    }),
+  );
   const stream = await openai.chat.completions.create({
     model: "gpt-6-luna",
     reasoning_effort: "none",
     messages: convertToOpenAIMessages(messages),
-    tools: context.tools,
+    tools,
     stream: true,
     signal: abortSignal,
   });
@@ -485,7 +493,9 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See the [tools guide](/docs/tools/defining-tools) for advanced patterns.
+`context.tools` holds the registered tool objects, schemas included, so convert them for your provider with `toToolsJSONSchema` from `assistant-stream`, as the streaming example above does. That function skips disabled tools, `type: "backend"` entries, and the schemas of compiled `"use generative"` frontend and human tools, which the compiler marks as already known by your server. If no server of yours imports the toolkit file, compile with the `backendless` option so the schemas reach your adapter: [Running without your own backend](/docs/tools/defining-tools#running-without-your-own-backend).
+
+See the [tools guide](/docs/tools/defining-tools) for advanced patterns, including [how to register a toolkit](/docs/tools/defining-tools#registering-a-toolkit-with-tools).
 
 ### Human-in-the-loop tools
 
@@ -578,7 +588,7 @@ const toolkit = defineToolkit({
 
 ### Approval gates
 
-The [server-side approval gate](/docs/tools/tool-ui#server-side-approval-gates) is also supported on `LocalRuntime`, for actions your backend executes after the user authorizes them. Where a human tool asks the user to supply the tool result, an approval gate asks the user to allow or block an action the adapter performs. Emit `approval: { id }` on the tool call part and end the run with the same `requires-action` status:
+The [server-side approval gate](/docs/tools/tool-approvals#server-side-approval-gates) is also supported on `LocalRuntime`, for actions your backend executes after the user authorizes them. Where a human tool asks the user to supply the tool result, an approval gate asks the user to allow or block an action the adapter performs. Emit `approval: { id }` on the tool call part and end the run with the same `requires-action` status:
 
 ```tsx
 return {

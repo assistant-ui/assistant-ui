@@ -1,197 +1,101 @@
 ---
 title: Model Context Protocol (MCP)
-description: Connect MCP servers as a tool catalog in your assistant-ui app.
+description: "Expose tools from MCP servers you choose to the model with defineMcpToolkit and AISDKToolkit."
 ---
 
-[MCP](https://modelcontextprotocol.io/) is an open protocol for exposing tools, resources, and prompts to LLMs. One MCP server can publish many tools (file system, GitHub, Slack, your own service) and any MCP-aware client can use them. The AI SDK has a built-in MCP client; this page is the wiring guide for plugging it into an assistant-ui app.
+[MCP](https://modelcontextprotocol.io/) is an open protocol for exposing tools, resources, and prompts to LLMs. One MCP server can publish many tools (file system, GitHub, Slack, your own service). This page covers MCP servers that **you** pick: your API route connects to them and hands their tools to the model.
 
 <AgentSetup product="guides/mcp" />
+
+## Which MCP page do I need?
+
+| You want to | Read | The MCP client runs in |
+| --- | --- | --- |
+| Give the model tools from MCP servers you choose | This page | Your API route |
+| Let end users add and sign in to their own MCP servers | [User-managed MCP](/docs/tools/user-managed-mcp) | The browser |
+| Show an MCP tool's `ui://` widget inline in the thread | [MCP Apps](/docs/tools/mcp-apps) | A sandboxed iframe, with data from your route |
+| Let the user's browser agent call your app's tools | [WebMCP](/docs/tools/webmcp) | Not an MCP client: your page is the server |
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    client["client"] --> api["/api/chat"] --> mcp["MCP client"] --> server["MCP server<br/>(HTTP, SSE, stdio)"]
-    mcp --> tools["tools()"] --> stream["passed to<br/>streamText({ tools })"]
+    browser["browser<br/>Tools({ toolkit })"] -->|"messages, uploaded tools"| route["/api/chat<br/>AISDKToolkit"]
+    route -->|"http, sse, stdio"| servers["MCP servers"]
+    route --> stream["streamText({ tools })"]
 ```
 
-The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, or toolkit entries with `render`) renders the results.
+- `defineMcpToolkit` creates toolkit entries with `type: "mcp"`. An entry holds only the server config, so you declare it on the server and the URL and headers never reach the browser.
+- On the route, `AISDKToolkit` connects to each server with `@ai-sdk/mcp`, lists its tools, and merges them with your provider tools, toolkit tools, and the tools uploaded by the browser. MCP tools run on the server.
+- The model's calls arrive in the browser as ordinary backend tool calls, which render with `ToolFallback` or a renderer keyed by name. The browser never uploads MCP tools and runs none of them. If you do declare `type: "mcp"` entries in a toolkit the browser imports, `Tools({ toolkit })` skips them.
 
-<Callout type="info">
-  If you use a `"use generative"` toolkit, spread `defineMcpToolkit({ ... })`
-  in the toolkit and use `AISDKToolkit` in your route. It opens the MCP clients,
-  merges their tools with your toolkit, and closes them when you call `close()`.
-</Callout>
+`@ai-sdk/mcp` ships as a dependency of `@assistant-ui/ai-sdk`, so this path needs no extra install.
 
 ## Setup
 
 <Steps>
 <Step>
 
-### Install the MCP client
+### Declare the servers
 
-<InstallCommand npm={["@ai-sdk/mcp"]} />
+Put `defineMcpToolkit({ ... })` in a plain module that only route handlers import. It holds one entry per server. The entry key names the connection and appears in error messages. The server publishes the tool names.
 
-For stdio transports (local dev only), also install the official MCP SDK:
+```ts title="app/mcp-toolkit.ts"
+import { defineMcpToolkit } from "@assistant-ui/react";
 
-<InstallCommand npm={["@modelcontextprotocol/sdk"]} />
-
-</Step>
-<Step>
-
-### Connect to an MCP server
-
-Set the server URL and any auth token your server requires:
-
-```sh title=".env.local"
-MCP_SERVER_URL=https://your-mcp-server.example/mcp
-MCP_TOKEN=...
-```
-
-Then inside your AI SDK route handler, create the client with the transport that matches your server. **HTTP** is the production transport; **SSE** is the legacy streaming transport; **stdio** spawns a local process and is dev-only.
-
-```ts title="app/api/chat/route.ts"
-import { createMCPClient } from "@ai-sdk/mcp";
-
-const mcpClient = await createMCPClient({
-  transport: {
+export const mcpToolkit = defineMcpToolkit({
+  github: {
     type: "http",
-    url: process.env.MCP_SERVER_URL!,
-    headers: { Authorization: `Bearer ${process.env.MCP_TOKEN}` },
+    url: process.env.GITHUB_MCP_URL!,
+    headers: { Authorization: `Bearer ${process.env.GITHUB_MCP_TOKEN}` },
+    connectionTimeout: 10_000,
   },
 });
 ```
 
-For stdio:
+Only the route imports this file, so the URL and token stay out of the browser bundle. Read them from server-only environment variables. A server config takes these fields:
 
-```ts
-import { createMCPClient } from "@ai-sdk/mcp";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+| Transport | Fields |
+| --- | --- |
+| `http` (Streamable HTTP, recommended) or `sse` (legacy) | `url`, `headers`, `redirect`, `connectionTimeout` |
+| `stdio` (a local subprocess; Node, Bun, or Deno only) | `command`, `args`, `env`, `cwd`, `connectionTimeout` |
 
-const mcpClient = await createMCPClient({
-  transport: new StdioClientTransport({
-    command: "node",
-    args: ["./mcp-server/dist/index.js"],
-  }),
-});
-```
+`connectionTimeout` is in milliseconds and covers creating the client plus listing its tools, so a bad URL or a hung process fails the request instead of stalling it. `redirect` is `"error"` by default, which rejects HTTP redirects; set `"follow"` only for servers you trust.
 
 </Step>
 <Step>
 
-### Define MCP servers in your toolkit
+### Connect in the route
 
-In a generative toolkit, spread `defineMcpToolkit({ ... })` with one entry per
-MCP server. The entry key names the server connection; the MCP server publishes
-the actual tool names. Use a readable key because it appears in connection,
-tool-listing, and close errors for debugging.
-
-```tsx title="app/toolkit.tsx"
-"use generative";
-
-import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
-
-export default defineToolkit({
-  ...defineMcpToolkit({
-    github: {
-      type: "http",
-      url: "https://mcp.example.com/mcp",
-      connectionTimeout: 10_000,
-    },
-  }),
-});
-```
-
-Use `{ server, disabled }` when a whole MCP server should stay configured but
-not expose tools for the current request, such as missing credentials, feature
-flags, or plan gating:
-
-```tsx
-defineMcpToolkit({
-  docs: {
-    server: {
-      type: "http",
-      url: process.env.DOCS_MCP_URL!,
-    },
-    disabled: !process.env.DOCS_MCP_URL,
-  },
-});
-```
-
-Use `tools` when the server should stay enabled but specific MCP tools should
-be hidden from the model:
-
-```tsx
-defineMcpToolkit({
-  docs: {
-    server: {
-      type: "http",
-      url: process.env.DOCS_MCP_URL!,
-    },
-    tools: {
-      deleteDocument: {
-        disabled: !userCanDelete,
-      },
-    },
-  },
-});
-```
-
-If multiple MCP servers expose the same tool name, wrap the entry with
-`{ server, prefix }` to give each server's tools distinct model-visible names:
-
-```tsx
-export default defineToolkit({
-  ...defineMcpToolkit({
-    docs: {
-      server: { type: "http", url: "https://docs.example.com/mcp" },
-      prefix: "docs_",
-    },
-    github: {
-      server: { type: "http", url: "https://github.example.com/mcp" },
-      prefix: "github_",
-    },
-  }),
-});
-```
-
-If both servers publish `search`, the model receives `docs_search` and
-`github_search` instead of an ambiguous duplicate.
-
-`connectionTimeout` is optional and measured in milliseconds. Set it to fail
-the server-side MCP readiness flow (`createMCPClient()` plus `tools()`) before
-a bad URL or hanging local process can stall the route.
-
-Use `AISDKToolkit` in the route. It opens the MCP clients, merges their tools
-with the rest of your toolkit, and closes them when you call `close()`:
+Wrap the toolkit in an `AISDKToolkit`, pass the browser's uploaded `tools` as `frontend`, and close the connections when the response ends:
 
 ```ts title="app/api/chat/route.ts"
-import { AISDKToolkit } from "@assistant-ui/ai-sdk";
+import { AISDKToolkit, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages } from "ai";
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import type { UIMessage } from "ai";
-import toolkit from "../../toolkit";
+import { mcpToolkit } from "../../mcp-toolkit";
 
 export async function POST(req: Request) {
-  const { messages, tools }: { messages: UIMessage[]; tools?: Record<string, any> } =
-    await req.json();
+  const {
+    messages,
+    tools,
+  }: { messages: UIMessage[]; tools?: FrontendTools } = await req.json();
 
-  const aiToolkit = new AISDKToolkit({ toolkit });
+  // Built per request and closed below; see "Connection lifecycle" for a shared one.
+  const aiToolkit = new AISDKToolkit({ toolkit: mcpToolkit });
 
   try {
-    const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+    const aiSDKTools = await aiToolkit.tools({ frontend: tools ?? {} });
 
     const result = streamText({
       abortSignal: req.signal,
       model: openai("gpt-6-luna"),
       messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
       tools: aiSDKTools,
-      onFinish: async () => {
-        await aiToolkit.close();
-      },
-      onAbort: async () => {
-        await aiToolkit.close();
-      },
+      stopWhen: stepCountIs(10),
+      onFinish: () => aiToolkit.close(),
+      onAbort: () => aiToolkit.close(),
     });
 
     return result.toUIMessageStreamResponse();
@@ -202,25 +106,165 @@ export async function POST(req: Request) {
 }
 ```
 
+`stopWhen` lets the model read an MCP result and answer. Without it the AI SDK stops after one step, so the tool runs and the assistant says nothing; see [Multi-step tool calls](/docs/tools/backend#multi-step-tool-calls). The toolkit is built inside the handler, so each request opens its own connections and `close()` ends them. [Connection lifecycle](#connection-lifecycle) covers the alternative of one toolkit at module scope.
+
+To expose your own tools next to the MCP ones, import your `"use generative"` toolkit and merge: `new AISDKToolkit({ toolkit: { ...toolkit, ...mcpToolkit } })`. See [Backend tools](/docs/tools/backend) for the rest of the route (request body, browser tools, multi-modal results).
+
 </Step>
 <Step>
 
-### Wire the tools into the route
+### Render the calls
 
-For manual MCP client control, `mcpClient.tools()` returns an object shaped
-exactly like the `tools` argument of `streamText`. Spread it in alongside any of
-your own tools, and close the client when the response finishes or setup fails:
+With no setup, `ToolFallback` shows each call's name, arguments, and result. To render one tool yourself, add a render-only entry whose key is the **model-visible** tool name (the MCP tool name with any `prefix` in front):
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit, externalTool } from "@assistant-ui/react";
+
+type Args = { repo: string; number: number };
+type Result = { title: string; url: string };
+
+export default defineToolkit({
+  get_issue: {
+    execute: externalTool(),
+    render: ({ args, result }: { args: Args; result?: Result }) => (
+      <div className="rounded border p-3">
+        <div className="font-mono text-sm">
+          {args.repo}#{args.number}
+        </div>
+        {result && <a href={result.url}>{result.title}</a>}
+      </div>
+    ),
+  },
+});
+```
+
+`externalTool()` tells the compiler the server owns this tool, so the entry exists only in the browser build and no server-side name conflict arises. The route does not import this file for it. Mount the toolkit with `Tools` as described in [Registering a toolkit](/docs/tools/defining-tools#registering-a-toolkit-with-tools); renderer props, status states, and approvals are covered in [Tool UI](/docs/tools/tool-ui). React Native and Ink use the same keys with a render-only `{ type: "backend", render }` entry.
+
+</Step>
+</Steps>
+
+## Declare the servers in a toolkit file
+
+Instead of a separate module, you can spread `defineMcpToolkit({ ... })` into a `"use generative"` toolkit, so the servers sit next to your tools and the route imports one toolkit:
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
+
+export default defineToolkit({
+  ...defineMcpToolkit({
+    docs: { type: "http", url: "https://docs.example.com/mcp" },
+  }),
+  // ...your own tools
+});
+```
+
+The route then passes that toolkit to `AISDKToolkit` directly. For an MCP-only toolkit, export `defineMcpToolkit({ ... })` as the default.
+
+<Callout type="warn">
+  A `"use generative"` file is also compiled into your browser bundle, and the client build keeps `defineMcpToolkit(...)` as written, headers and `env` included. Use this form only for servers whose config holds no secret. Otherwise declare them on the server as in the steps above.
+</Callout>
+
+## Choose which tools the model sees
+
+Wrap an entry as `{ server, prefix, disabled, tools }` to control what it exposes:
+
+```tsx
+defineMcpToolkit({
+  docs: {
+    server: { type: "http", url: "https://docs.example.com/mcp" },
+    prefix: "docs_",
+    tools: { delete_document: { disabled: true } },
+  },
+  github: {
+    server: { type: "http", url: "https://github.example.com/mcp" },
+    prefix: "github_",
+    disabled: !process.env.GITHUB_MCP_URL,
+  },
+});
+```
+
+| Option | Effect |
+| --- | --- |
+| `prefix` | Prepended as-is to every tool name from this server (`docs_` + `search` is `docs_search`). Add your own separator. |
+| `disabled` | Skips the whole server: `AISDKToolkit` does not connect to it. |
+| `tools` | Hides individual tools. Keys are the **original** MCP tool names, before the prefix. |
+
+`tools` is a denylist. A tool the server adds later reaches the model unless you gate it with [approval](#require-approval-for-a-tool).
+
+`defineMcpToolkit` is plain data, so options are fixed when you create it. A toolkit created at module scope cannot vary per request. For a per-request decision (a plan, a feature flag, a user role), create it inside the handler and `close()` it as in the setup route:
+
+```ts
+const session = await getSession(req);
+const aiToolkit = new AISDKToolkit({
+  toolkit: defineMcpToolkit({
+    docs: {
+      server: { type: "http", url: process.env.DOCS_MCP_URL! },
+      disabled: !session.canUseDocs,
+      tools: { delete_document: { disabled: !session.canDelete } },
+    },
+  }),
+});
+```
+
+## Name collisions
+
+The model sees one flat list of tool names, and `aiToolkit.tools()` refuses to build it when two names match. It rejects the request with an error before `streamText` starts:
+
+- Two MCP servers expose the same name: `MCP tool name collision: "search" is exposed by both "docs" and "github". Rename one of the toolkit entries or expose distinct MCP tool names.`
+- An MCP tool matches one of your toolkit, provider, or uploaded browser tools: `MCP tool "search" from "docs" conflicts with toolkit tool "search". Rename one of the tools so each model-visible tool name is unique.`
+
+Give each server a `prefix`, so `docs_search` and `github_search` stay distinct. Names are compared after the prefix is applied and after `tools` entries are disabled, so a disabled duplicate does not count. Outside `AISDKToolkit` nothing detects collisions: when you spread tool maps from several clients yourself, the later spread silently wins.
+
+User-managed MCP resolves collisions differently, by registering none of the colliding tools; see [Tool names](/docs/tools/user-managed-mcp#tool-names).
+
+## Require approval for a tool
+
+MCP tools run on the server, so approval is a server-side gate, not a `humanTool()`. Set AI SDK v7's call-level `toolApproval` on `streamText`, keyed by the model-visible name (prefix included):
+
+```ts
+const result = streamText({
+  // ...
+  tools: aiSDKTools,
+  toolApproval: { github_delete_repository: "user-approval" },
+});
+```
+
+The call then arrives in the browser with `approval` and `respondToApproval`, which the default `ToolFallback` and your own renderers handle like any other backend tool. The client wiring (`sendAutomaticallyWhen`) is in [Server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval), and the renderer API is in [Tool approvals](/docs/tools/tool-approvals#server-side-approval-gates). Servers that end users connect themselves use a different mechanism; see [Tool approvals](/docs/tools/user-managed-mcp#tool-approvals).
+
+## Connection lifecycle
+
+`AISDKToolkit` opens one client per `defineMcpToolkit` entry, on the first `tools()` call for that entry.
+
+- **Per request** (the setup route): construct the `AISDKToolkit` in the handler and call `close()` in `onFinish`, `onAbort`, and the `catch`. `onFinish` runs after the stream completes, so connections stay open while the model keeps calling tools; a cancelled request runs `onAbort` instead. This fits serverless.
+- **Shared**: construct it once at module scope, as [Backend tools](/docs/tools/backend) does, and never call `close()` per request. Clients stay open and are reused, and each `tools()` call re-lists the tools. A client that fails to connect or times out is dropped, so the next call retries it. A client whose connection drops after it connected is not: every later `tools()` call throws `MCP toolkit entry "<name>" failed to list tools: …` until you call `close()`, after which the next call reconnects. This fits a long-lived Node server.
+```ts
+const aiToolkit = new AISDKToolkit({ toolkit: mcpToolkit });
+
+export async function POST(req: Request) {
+  // ...
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools ?? {} });
+  // pass aiSDKTools to streamText; no onFinish, onAbort, or catch close
+}
+```
+
+`close()` closes every client. If some fail, it throws `MCP toolkit entry "github" failed to close: ...`, or an `AggregateError` when several fail.
+
+## Without a toolkit
+
+If the route builds its AI SDK tools by hand, use the MCP client directly. `tools()` returns the same shape as `streamText`'s `tools` argument. `stopWhen` is needed here for the same reason as in the setup route:
 
 ```ts title="app/api/chat/route.ts"
 import { createMCPClient } from "@ai-sdk/mcp";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages } from "ai";
-import type { UIMessage } from "ai";
-
-export const maxDuration = 60;
+import { streamText, convertToModelMessages, stepCountIs } from "ai";
 
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const { messages, tools } = await req.json();
 
   const mcpClient = await createMCPClient({
     transport: {
@@ -231,19 +275,16 @@ export async function POST(req: Request) {
   });
 
   try {
-    const tools = await mcpClient.tools();
+    const aiSDKTools = { ...frontendTools(tools ?? {}), ...(await mcpClient.tools()) };
 
     const result = streamText({
       abortSignal: req.signal,
       model: openai("gpt-6-luna"),
-      messages: await convertToModelMessages(messages, { tools }),
-      tools,
-      onFinish: async () => {
-        await mcpClient.close();
-      },
-      onAbort: async () => {
-        await mcpClient.close();
-      },
+      messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+      tools: aiSDKTools,
+      stopWhen: stepCountIs(10),
+      onFinish: () => mcpClient.close(),
+      onAbort: () => mcpClient.close(),
     });
 
     return result.toUIMessageStreamResponse();
@@ -254,239 +295,28 @@ export async function POST(req: Request) {
 }
 ```
 
-`onFinish` is the right place to call `close()`: it fires after the stream completes, so the connection stays open as long as the model is still calling tools. A cancelled request skips `onFinish` and runs `onAbort`, so the route closes the client there too.
+For stdio here, install `@modelcontextprotocol/sdk` and pass `new StdioClientTransport({ command, args })` as the `transport`. The MCP client uses Node APIs, so keep it server-side.
 
-</Step>
-<Step>
+If your server calls `sampling/createMessage`, assistant-cloud users can trace it with [`wrapSamplingHandler`](/docs/cloud/traces) and [`createSamplingCollector`](/docs/cloud/traces).
 
-### Combine multiple MCP servers
+## Security
 
-Each server has its own client. Spread their tool maps together:
+- **Tool descriptions and results are untrusted input.** A server controls the text the model reads for each tool and each result, so a compromised or malicious server can try to steer the model. Connect only servers you trust, and gate tools with side effects behind [approval](#require-approval-for-a-tool).
+- **Credentials stay on the server.** Keep tokens in server-only environment variables and out of any file the browser bundles (see [the toolkit file variation](#declare-the-servers-in-a-toolkit-file)).
+- **stdio runs a process with your route's privileges.** Spawn only commands you wrote, and never build `command` or `args` from user input.
+- **The browser's `tools` and `system` are untrusted.** See [Treat the body as untrusted](/docs/tools/backend#treat-the-body-as-untrusted).
 
-```ts
-const githubClient = await createMCPClient({
-  transport: { type: "http", url: process.env.GITHUB_MCP_URL! },
-});
-const filesClient = await createMCPClient({
-  transport: { type: "http", url: process.env.FILES_MCP_URL! },
-});
+## Troubleshooting
 
-const tools = {
-  ...(await githubClient.tools()),
-  ...(await filesClient.tools()),
-};
-
-// remember to close both in onFinish
-```
-
-If two servers expose tools with the same name, the later spread wins. Rename or scope as needed.
-
-</Step>
-<Step>
-
-### Render results in the UI
-
-Tool calls flow through the existing assistant-ui tool-call rendering. With no
-setup, the bundled `<ToolFallback>` component renders the call name, arguments,
-and result. To customize the appearance for a specific tool in a generative
-toolkit, add an `externalTool()` renderer whose key matches the MCP tool name:
-
-<PlatformTabs>
-<Tab value="React">
-
-```tsx title="app/toolkit.tsx"
-"use generative";
-
-import { defineMcpToolkit, defineToolkit, externalTool } from "@assistant-ui/react";
-
-type Args = { repo: string; number: number };
-type Result = { title: string; state: string; url: string };
-
-export default defineToolkit({
-  ...defineMcpToolkit({
-    github: { type: "http", url: "https://mcp.example.com/mcp" },
-  }),
-  github_get_issue: {
-    execute: externalTool(),
-    render: ({ args, result }: { args: Args; result?: Result }) => (
-      <div className="rounded border p-3">
-        <div className="font-mono text-sm">{args.repo}#{args.number}</div>
-        {result && (
-          <a href={result.url} className="underline">
-            {result.title} ({result.state})
-          </a>
-        )}
-      </div>
-    ),
-  },
-});
-```
-
-</Tab>
-<Tab value="React Native">
-
-```tsx title="components/GitHubIssueToolUI.tsx"
-import { defineToolkit } from "@assistant-ui/react-native";
-import { Linking, Pressable, Text, View } from "react-native";
-
-type Args = { repo: string; number: number };
-type Result = { title: string; state: string; url: string };
-
-export const toolkit = defineToolkit({
-  github_get_issue: {
-    type: "backend",
-    render: ({ args, result }: { args: Args; result?: Result }) => (
-      <View style={{ borderWidth: 1, borderRadius: 6, padding: 12 }}>
-        <Text style={{ fontFamily: "Menlo", fontSize: 13 }}>
-          {args.repo}#{args.number}
-        </Text>
-        {result && (
-          <Pressable onPress={() => Linking.openURL(result.url)}>
-            <Text style={{ textDecorationLine: "underline" }}>
-              {result.title} ({result.state})
-            </Text>
-          </Pressable>
-        )}
-      </View>
-    ),
-  },
-});
-```
-
-</Tab>
-<Tab value="React Ink">
-
-```tsx title="components/GitHubIssueToolUI.tsx"
-import { defineToolkit } from "@assistant-ui/react-ink";
-import { Box, Text } from "ink";
-
-type Args = { repo: string; number: number };
-type Result = { title: string; state: string; url: string };
-
-export const toolkit = defineToolkit({
-  github_get_issue: {
-    type: "backend",
-    render: ({ args, result }: { args: Args; result?: Result }) => (
-      <Box borderStyle="round" paddingX={1} flexDirection="column">
-        <Text>
-          {args.repo}#{args.number}
-        </Text>
-        {result && (
-          <Text>
-            {result.title} ({result.state}) — {result.url}
-          </Text>
-        )}
-      </Box>
-    ),
-  },
-});
-```
-
-</Tab>
-</PlatformTabs>
-
-Register the toolkit once with `Tools({ toolkit })`. Renderer keys such as
-`github_get_issue` must match the tool names your MCP server publishes.
-
-```tsx title="app/components/RuntimeProvider.tsx"
-"use client";
-
-import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import type { ReactNode } from "react";
-
-import toolkit from "../toolkit";
-
-export function MyRuntimeProvider({ children }: { children: ReactNode }) {
-  const runtime = useChatRuntime();
-  const config = AuiConfig({ tools: Tools({ toolkit }) });
-  return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={config}
-    >
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
-
-</Step>
-<Step>
-
-### Require approval before an MCP tool runs
-
-MCP tools execute on the server, so approval is a server-side tool gate, not a `humanTool()` result. Gate the call with AI SDK v7's call-level `toolApproval` option, keyed by the tool's model-visible name. The tool name stays the same, so your custom renderer or the default `ToolFallback` receives `approval` and `respondToApproval` like any other backend tool:
-
-```ts title="app/api/chat/route.ts"
-const tools = await mcpClient.tools();
-
-const result = streamText({
-  abortSignal: req.signal,
-  model: openai("gpt-6-luna"),
-  messages: await convertToModelMessages(messages, { tools }),
-  tools,
-  toolApproval: {
-    github_delete_repository: "user-approval",
-  },
-  onFinish: async () => {
-    await mcpClient.close();
-  },
-  onAbort: async () => {
-    await mcpClient.close();
-  },
-});
-```
-
-With `AISDKToolkit`, pass the same `toolApproval` option alongside the tools returned by `await aiToolkit.tools(...)`; key it by the prefixed name when the entry sets one.
-
-On the client, let the AI SDK send the recorded approval decision back to the
-route:
-
-```tsx title="app/components/RuntimeProvider.tsx"
-import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-
-const runtime = useChatRuntime({
-  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-});
-```
-
-Use this pattern for backend-owned actions such as deleting, writing, deploying, or calling privileged MCP tools. Use `humanTool()` only when the user supplies the tool result itself. For custom approval UIs, see [Server-side approval gates](/docs/tools/tool-ui#server-side-approval-gates); for the full wire setup, see [Server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
-
-</Step>
-<Step>
-
-### Run and verify
-
-Start the app and trigger a tool call (e.g., ask the assistant to do something the MCP server can do). Confirm:
-
-- The tool call appears in the chat with the expected arguments.
-- The result renders (either via your custom `ToolUI` or the fallback).
-- No connection leaks: the MCP client closes after each response. If you see open connections accumulating, check `onFinish`.
-
-</Step>
-</Steps>
-
-## Notes
-
-- **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in client code.
-- **Per-request lifecycle.** A fresh client per request keeps connection state simple. For high-throughput servers, pool clients yourself with care: the AI SDK's `tools()` call assumes the connection is alive when `streamText` runs.
-- **Sampling.** If your MCP server uses `sampling/createMessage` (lets the server ask the LLM mid-call), assistant-cloud users can use [`wrapSamplingHandler`](/docs/cloud/traces) and [`createSamplingCollector`](/docs/cloud/traces) for observability. This is independent of the wiring above.
-- **Transport choice.** HTTP for any networked server. SSE only if the server doesn't speak HTTP. stdio is for local development against an MCP server in your monorepo.
-
-## Related
-
-<Cards>
-  <Card
-    title="AI SDK runtime"
-    description="The runtime that ferries MCP tool calls to the chat UI."
-    href="/docs/runtimes/ai-sdk/v7"
-  />
-  <Card
-    title="Tools and tool UI"
-    description="Build custom renderers for tool calls and approvals."
-    href="/docs/tools/defining-tools"
-  />
-</Cards>
+| Error or symptom | Cause and fix |
+| --- | --- |
+| `MCP toolkit entry "github" failed to connect: ...` | The URL, transport `type`, or credentials are wrong. The message carries the underlying error. |
+| `MCP toolkit entry "github" failed to list tools: ...` | The connection opened but `tools/list` failed. Check the server's logs. |
+| `MCP toolkit entry "github" timed out while connecting after 10000ms.` | The server did not answer within `connectionTimeout`. The phase reads `listing tools` when listing is the slow step. |
+| `MCP tool name collision: ...` or `MCP tool "x" from "y" conflicts with ...` | Two tools share a model-visible name. Add a `prefix`; see [Name collisions](#name-collisions). |
+| `MCP toolkit entry "github" requires AISDKToolkit.` | The route calls the deprecated `generativeTools()`. Use `new AISDKToolkit({ toolkit }).tools(...)`. |
+| `stdio MCP transport requires a runtime that can spawn a subprocess` | A `stdio` entry loaded in an edge, worker, or browser runtime. Use an `http` server, or run the route on Node. |
+| The assistant runs an MCP tool, then says nothing | The route has no `stopWhen`, so the AI SDK stops after the first step. Add `stopWhen: stepCountIs(10)`; see [Multi-step tool calls](/docs/tools/backend#multi-step-tool-calls). |
+| The model never calls the tools | The route does not return `await aiToolkit.tools(...)` to `streamText`, the entry is `disabled`, or the tool is hidden by `tools`. |
+| Calls show but your renderer does not | The renderer key is not the model-visible name. With a `prefix`, key it `docs_search`, not `search`. |
+| Connections pile up | A per-request toolkit is missing `close()` in `onFinish`, `onAbort`, or the `catch`. |

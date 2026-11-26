@@ -17,14 +17,17 @@ Suggestions are predefined prompts that show users what your assistant can do. T
 Configure suggestions using the `Suggestions()` API in your runtime provider:
 
 ```tsx
-import { AuiConfig, Tools, Suggestions } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Suggestions,
+} from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
 
   const config = AuiConfig({
-    tools: Tools({ toolkit: myToolkit }),
     suggestions: Suggestions([
       "What can you help me with?",
       "Tell me a joke",
@@ -320,7 +323,6 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   }, [user.isPremium]);
 
   const config = AuiConfig({
-    tools: Tools({ toolkit: myToolkit }),
     suggestions: Suggestions(suggestions),
   });
 

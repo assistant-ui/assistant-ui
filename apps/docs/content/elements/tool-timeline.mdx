@@ -96,14 +96,14 @@ export function SessionTimeline() {
 
 ### Place it beside the message parts, not inside them
 
-`SessionTimeline` replaces the per-part rendering for tool calls and reasoning, so silence those in `MessagePrimitive.Parts` to avoid showing the same steps twice:
+`SessionTimeline` replaces the per-part rendering for tool calls and reasoning, so suppress those in `MessagePrimitive.Parts` to avoid showing the same steps twice. Returning `null` from the children function hands the part to its default renderer, which also draws a registered tool UI; return an empty fragment to render nothing:
 
 ```tsx
 <MessagePrimitive.Root>
   <SessionTimeline />
-  <MessagePrimitive.Parts
-    components={{ tools: { Fallback: () => null }, Reasoning: () => null }}
-  />
+  <MessagePrimitive.Parts>
+    {({ part }) => (part.type === "text" ? null : <></>)}
+  </MessagePrimitive.Parts>
 </MessagePrimitive.Root>
 ```
 

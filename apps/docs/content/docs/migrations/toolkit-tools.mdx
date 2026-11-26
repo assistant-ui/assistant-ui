@@ -10,7 +10,21 @@ The component and hook based tool APIs are deprecated:
 - `makeAssistantToolUI`
 - `useAssistantToolUI`
 
-Use a toolkit registered with `Tools({ toolkit })` instead. Toolkits keep the model contract, browser execution, and tool-call rendering in one named map, which avoids duplicate registrations and makes the client/backend split explicit.
+Use a toolkit registered with `Tools({ toolkit })` instead. A toolkit keeps the model contract, browser execution, and tool-call rendering in one named map, which avoids duplicate registrations and makes the client and backend split explicit. [Defining Tools](/docs/tools/defining-tools) owns the toolkit API; this page only maps the old calls onto it.
+
+## What replaces what
+
+| Before | After |
+| --- | --- |
+| `toolName` | The key in the toolkit |
+| Tool with an `execute` that runs in the browser | An entry with `execute` that starts with `"use client"` (generative), or `type: "frontend"` (plain) |
+| Tool with `type: "human"` | `execute: humanTool()` (generative), or `type: "human"` (plain) |
+| `makeAssistantToolUI` and `useAssistantToolUI` | `render` or `renderText` on the entry, with `execute: externalTool()` (generative) or `type: "backend"` (plain) when another system runs the tool |
+| `description`, `parameters`, `render`, `renderText`, `display`, `disabled`, `providerOptions` | The same fields on the entry |
+| A tool whose `execute` closes over component state | `execute: stubTool()` plus `useAuiToolOverrides`; see [Dynamic Tools](/docs/tools/dynamic-tools) |
+| A tool component you mount or unmount to turn the tool on or off | `useAuiToolOverrides({ name: { disabled: true } })`; see [Disabling a tool](/docs/tools/defining-tools#disabling-a-tool) |
+| A renderer that closes over props or state | `useInlineRender`; see [Renderers that need props or state](/docs/tools/tool-ui#renderers-that-need-props-or-state) |
+| A renderer for one message surface | The `part.toolUI` children API of `MessagePrimitive.Parts`; see [Tool Resolution](/docs/primitives/message#tool-resolution) |
 
 ## Before
 
@@ -43,7 +57,19 @@ export function App() {
 }
 ```
 
-## After
+On the server, this tool arrived in the request body and your route turned it into an AI SDK tool with `frontendTools(tools)`.
+
+## Choose a path
+
+|  | Plain toolkit | `"use generative"` toolkit |
+| --- | --- | --- |
+| Build plugin | None | `withAui`, `aui()`, or the Metro plugin |
+| Where the schema comes from | The client uploads it on every request | The server build of the toolkit |
+| Server route | Unchanged: `frontendTools(tools)` | Import the toolkit with `AISDKToolkit` |
+
+The generative path is the default for new code. The plain path moves the registration with no build or route changes and is a safe first step.
+
+### After: `"use generative"`
 
 ```tsx title="app/toolkit.tsx"
 "use generative";
@@ -68,6 +94,33 @@ export default defineToolkit({
 });
 ```
 
+### After: plain toolkit
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export const toolkit = defineToolkit({
+  get_weather: {
+    type: "frontend",
+    description: "Get the current weather for a city.",
+    parameters: z.object({
+      city: z.string(),
+    }),
+    execute: async ({ city }) => fetchWeather(city),
+    render: ({ args, result }) => (
+      <WeatherCard city={args.city} weather={result} />
+    ),
+  },
+});
+```
+
+### Register the toolkit
+
+Both paths register the toolkit once on the runtime provider, where `const config = AuiConfig({ tools: Tools({ toolkit }) })`:
+
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
 
@@ -91,31 +144,67 @@ export function App() {
 }
 ```
 
-`useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
+For the plain toolkit, import the named export: `import { toolkit } from "./toolkit"`.
 
-## Mechanical Steps
+### Update the route (generative only)
 
-1. Create a `Toolkit` object.
+A compiled client does not upload the schemas of its frontend and human tools, because it assumes your server imports the same file. A route that still calls only `frontendTools(tools)` never tells the model about them. Import the toolkit through `AISDKToolkit`:
+
+```ts title="app/api/chat/route.ts"
+import { AISDKToolkit } from "@assistant-ui/ai-sdk"; // [!code ++]
+import toolkit from "../../toolkit"; // [!code ++]
+
+const aiToolkit = new AISDKToolkit({ toolkit }); // [!code ++]
+
+export async function POST(req: Request) {
+  const { messages, tools } = await req.json();
+
+  const aiSDKTools = {
+    ...frontendTools(tools ?? {}), // [!code --]
+    ...(await aiToolkit.tools({ frontend: tools })), // [!code ++]
+    // your other server tools
+  };
+  // ...
+}
+```
+
+If no server of yours imports the toolkit, compile with the [`backendless` option](/docs/tools/defining-tools#running-without-your-own-backend) so the client keeps uploading every schema. [Backend tools](/docs/tools/backend) has the full route.
+
+## Mechanical steps
+
+1. Create a toolkit with `defineToolkit`.
 2. Move each `toolName` into the toolkit key.
-3. Move `description`, `parameters`, `execute`, `providerOptions`, `render`, `renderText`, and `display` onto the toolkit entry.
-4. Register the toolkit once with `config={config}` on your runtime provider, where `const config = AuiConfig({ tools: Tools({ toolkit }) })`.
-5. Remove `<Tool />`, `<ToolUI />`, `useAssistantTool(...)`, and `useAssistantToolUI(...)` registrations.
+3. Move `description`, `parameters`, `execute`, `providerOptions`, `render`, `renderText`, and `display` onto the entry, then apply the table above for `type`. In a `"use generative"` file never write `type`; the compiler infers it from `execute`.
+4. Register the toolkit once with `config={config}` on your runtime provider.
+5. Remove `<Tool />`, `<ToolUI />`, `useAssistantTool(...)`, and `useAssistantToolUI(...)`.
+6. For a generative toolkit, update the route as above.
 
-## UI-Only Tool Renderers
+Search your code for `makeAssistantTool` and `useAssistantTool` to confirm nothing is left.
 
-If you used `makeAssistantToolUI` or `useAssistantToolUI` for a backend, MCP, or
-LangGraph tool, the tool executes elsewhere. Prefer a `"use generative"` toolkit
-with `execute: externalTool()` so the compiler omits the server entry, while the
-client keeps your renderer as `type: "backend"`:
+## UI-only tool renderers
+
+A `makeAssistantToolUI` or `useAssistantToolUI` call attached a renderer to a tool that runs elsewhere, such as your backend, an MCP server, or LangGraph:
 
 ```tsx
-// app/toolkit.tsx
+const WebSearchUI = makeAssistantToolUI({
+  toolName: "web_search",
+  render: ({ args, result }) => (
+    <SearchResults query={args.query} results={result?.results ?? []} />
+  ),
+});
+```
+
+Move the renderer onto a toolkit entry whose key matches the tool name. In a generative file, `externalTool()` leaves the entry off the server build and keeps it on the client as `type: "backend"`:
+
+```tsx title="app/toolkit.tsx"
 "use generative";
 
 import { defineToolkit, externalTool } from "@assistant-ui/react";
+import { z } from "zod";
 
 export default defineToolkit({
   web_search: {
+    parameters: z.object({ query: z.string() }),
     execute: externalTool(),
     render: ({ args, result }) => (
       <SearchResults query={args.query} results={result?.results ?? []} />
@@ -124,113 +213,33 @@ export default defineToolkit({
 });
 ```
 
-Register it like any toolkit: `config={config}` where `const config = AuiConfig({ tools: Tools({ toolkit }) })`.
-Render-only entries upload no schema and run no browser code. They only attach
-UI for matching tool-call message parts. For MCP server catalogs, spread
-`defineMcpToolkit({ ... })` in the same generative toolkit.
+Without the compiler, write `{ type: "backend", render }` in a plain toolkit. Either way the entry uploads no schema and runs no browser code; it only attaches UI to matching tool-call parts. See [Defining Tools](/docs/tools/defining-tools#tool-kinds) for both shapes. For MCP server catalogs, spread `defineMcpToolkit({ ... })` into the toolkit; see [MCP](/docs/tools/mcp).
 
-For a one-off renderer that should only affect a particular message surface, use `MessagePrimitive.Parts` inline tool render overrides instead of a global registration.
+## Tools that use component state
 
-## Dynamic Tools
+A `useAssistantTool` call inside a component could close over its state:
 
-If a tool needs component state or props, keep the toolkit contract in a `"use generative"` file and use `stubTool()` for the executor. The component that owns the state supplies the real executor with `useAuiToolOverrides(...)`:
+```tsx
+function TaskBoard() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  useAssistantTool({
+    toolName: "add_task",
+    type: "frontend",
+    description: "Add a task to the board.",
+    parameters: z.object({ title: z.string() }),
+    execute: async ({ title }) => {
+      setTasks((prev) => [...prev, { id: crypto.randomUUID(), title }]);
+      return { ok: true };
+    },
+  });
+
+  return <TaskList tasks={tasks} />;
+}
+```
+
+A toolkit entry cannot close over state, so split the tool: the entry declares the contract with `execute: stubTool()`, and `useAuiToolOverrides` in the same component supplies the executor. [Dynamic Tools](/docs/tools/dynamic-tools) walks through the full rewrite of this component.
 
 <Callout type="warn">
   `useAuiToolOverrides` is experimental and its API may change.
 </Callout>
-
-```tsx title="task-board-toolkit.tsx"
-"use generative";
-
-import { defineToolkit, stubTool } from "@assistant-ui/react";
-import { z } from "zod";
-
-export type Task = { id: string; title: string };
-
-export default defineToolkit({
-  add_task: {
-    description: "Add a task to the board.",
-    parameters: z.object({ title: z.string() }),
-    execute: stubTool(),
-    renderText: {
-      running: "Adding task",
-      complete: "Task added",
-    },
-  },
-});
-```
-
-```tsx title="TaskBoard.tsx"
-import {
-  AuiConfig,
-  AuiProvider,
-  Tools,
-  useAui,
-  useAuiToolOverrides,
-} from "@assistant-ui/react";
-import { useState, type Dispatch, type SetStateAction } from "react";
-import type { Task } from "./task-board-toolkit";
-import toolkit from "./task-board-toolkit";
-
-function TaskBoard() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const aui = useAui();
-  const config = AuiConfig({ tools: Tools({ toolkit }) });
-
-  return (
-    <AuiProvider extends={aui} config={config}>
-      <TaskBoardToolOverrides setTasks={setTasks} />
-      <TaskList tasks={tasks} />
-    </AuiProvider>
-  );
-}
-
-function TaskBoardToolOverrides({
-  setTasks,
-}: {
-  setTasks: Dispatch<SetStateAction<Task[]>>;
-}) {
-  useAuiToolOverrides({
-    add_task: {
-      execute: async ({ title }) => {
-        setTasks((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), title },
-        ]);
-        return { ok: true };
-      },
-    },
-  });
-  return null;
-}
-```
-
-This keeps the model-facing contract in the toolkit file while the component owns the stateful executor.
-
-## Generative Toolkits
-
-For tools authored in a `"use generative"` file, export a toolkit with `defineToolkit(...)`. The compiler splits backend, frontend, and human tools for you. This is the default shape to use for docs and copy-paste examples:
-
-```tsx
-"use generative";
-
-import { defineToolkit } from "@assistant-ui/react";
-import { z } from "zod";
-
-export default defineToolkit({
-  create_chart: {
-    description: "Create a chart for the user.",
-    parameters: z.object({
-      title: z.string(),
-      values: z.array(z.number()),
-    }),
-    execute: async ({ title, values }) => {
-      "use client";
-      return renderChart(title, values);
-    },
-    render: ChartTool,
-  },
-});
-```
-
-Frontend and human tools produced by the generative compiler already have their schema defaults on the backend, so the client no longer re-uploads those schemas.

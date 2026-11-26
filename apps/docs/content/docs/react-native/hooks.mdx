@@ -116,7 +116,7 @@ const runtime = useRemoteThreadListRuntime({
 
 ### Tools
 
-Author tools in a `"use generative"` file with `defineToolkit`, the same API as on the web ([Defining Tools](/docs/tools/defining-tools)). The tool definition is forwarded to the model; when the model calls it, the `execute` function runs and the `render` component displays the result.
+Author tools in a `"use generative"` file with `defineToolkit`, the same API as on the web ([Defining Tools](/docs/tools/defining-tools)). When the model calls a tool marked `"use client"`, its `execute` function runs on the device and the `render` component displays the result.
 
 Add the [`@assistant-ui/metro`](https://www.npmjs.com/package/@assistant-ui/metro) plugin so Metro compiles the `"use generative"` directive:
 
@@ -173,6 +173,8 @@ function ToolProvider({ children }: { children: React.ReactNode }) {
   );
 }
 ```
+
+The device build marks a frontend tool's schema as already known by your server, so the app does not upload it. The model learns about `get_weather` only if a server of yours imports the same file. A route that builds its tools with `frontendTools(tools)`, as an Expo API route does, never sees that schema; compile with `aui: { backendless: true }` so the app uploads it. See [Running without your own backend](/docs/tools/defining-tools#running-without-your-own-backend) and [Client-defined tools](/docs/tools/backend#client-defined-tools-frontendtools).
 
 ### useAssistantDataUI
 

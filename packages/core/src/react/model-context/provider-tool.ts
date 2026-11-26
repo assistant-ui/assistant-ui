@@ -17,8 +17,22 @@ export type ProviderToolConfig<
 >;
 
 /**
- * Marks a tool as provider-executed. The use-generative compiler converts
- * `execute: providerTool(...)` into a `type: "provider"` tool entry.
+ * Marks a tool as provider-executed: the model provider runs it (for example a
+ * hosted web search), so there is no `execute` to write. The use-generative
+ * compiler converts `execute: providerTool(...)` into a `type: "provider"` tool
+ * entry and lifts the config onto it. The config must be an inline object
+ * literal of static, non-function properties that do not duplicate a property
+ * already on the entry.
+ *
+ * @example
+ * ```tsx
+ * web_search: {
+ *   execute: providerTool({
+ *     providerId: "openai.web_search_preview",
+ *     args: { searchContextSize: "low" },
+ *   }),
+ * },
+ * ```
  */
 export function providerTool(_config: ProviderToolConfig): never {
   throw new Error(

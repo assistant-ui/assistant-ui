@@ -5,7 +5,7 @@ platforms: ["react"]
 ---
 
 <Callout type="info">
-This page is for a **backend that already emits `generative-ui` message parts**. If you are starting fresh and want the model to compose an interface, use the [`present` tool](/docs/tools/generative-ui) instead: it ships a component vocabulary, generates the model-facing schema for you, and renders inside the stock `Thread` without extra wiring. The two are not versions of one API and their specs are not interchangeable; see [Spec shape](#spec-shape).
+This page is for a **backend that already emits `generative-ui` message parts**. To let the model compose an interface from a vocabulary, use the [`present` tool](/docs/tools/generative-ui) instead; see [When not to use the primitive](#when-not-to-use-the-primitive).
 </Callout>
 
 `MessagePrimitive.GenerativeUI` renders UI described by the agent at runtime as a JSON spec. Instead of hard-coding a component per tool, the agent emits a `generative-ui` message part containing a tree of components by name. assistant-ui resolves each name against a **consumer-provided allowlist** and renders the result. The producer is your backend rather than a model tool call: you decide what goes into the part and prompt your agent to emit it.
@@ -18,7 +18,7 @@ The default shadcn `Thread` does **not** render `generative-ui` parts. You must 
 
 ## When not to use the primitive
 
-- **A vocabulary the model composes freely** → the [`present` tool](/docs/tools/generative-ui)
+- **A vocabulary the model composes freely** → the [`present` tool](/docs/tools/generative-ui), which ships its own vocabulary, generates the model-facing schema, and renders in the stock `Thread` without extra wiring. Its tree and this page's spec are different shapes; see [Spec shape](#spec-shape).
 - **User input and two-way interaction** → [Tool UI](/docs/tools/tool-ui) or [Interactables](/docs/tools/interactables)
 - **LangGraph `push_ui_message`** → [LangGraph data UI](/docs/runtimes/langgraph/generative-ui)
 - **Untrusted HTML or third-party widgets** → [MCP Apps](/docs/tools/mcp-apps) (sandboxed frames)
@@ -28,14 +28,16 @@ The default shadcn `Thread` does **not** render `generative-ui` parts. You must 
 ### 1. Define your component allowlist
 
 ```tsx title="components/gui.tsx"
-const Card = ({ title, children }) => (
-  <div className="rounded-xl border bg-card p-4 shadow-sm">
+import type { ReactNode } from "react";
+
+const Card = ({ title, children }: { title?: string; children?: ReactNode }) => (
+  <div className="rounded-xl border bg-card p-4">
     <div className="text-base font-semibold">{title}</div>
     <div className="mt-2">{children}</div>
   </div>
 );
 
-const Button = ({ label }) => (
+const Button = ({ label }: { label?: string }) => (
   <button className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground">
     {label}
   </button>
@@ -67,15 +69,15 @@ See [Opt-in wiring](#opt-in-wiring) for all three integration patterns.
 }
 ```
 
-**AI SDK (`useChatRuntime`)** maps tool results to `tool-call` parts, not `generative-ui` parts. Use the [AI SDK interim bridge](#pattern-3--ai-sdk-interim-bridge).
+**AI SDK (`useChatRuntime`)** maps tool results to `tool-call` parts, not `generative-ui` parts. Use the [AI SDK interim bridge](#pattern-3-ai-sdk-interim-bridge).
 
 Live routes in [`examples/with-generative-ui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui): static primitive (`/primitive`), GUI chat bridge (`/gui-chat`).
 
 ## Opt-in wiring
 
-The stock `thread` element's part switch returns `null` for unknown part types, including `generative-ui`. Add one of these patterns in **your** assistant message renderer.
+The stock `thread` element's part switch returns `null` for unknown part types, including `generative-ui`. Add one of these patterns in **your** assistant message renderer. `UnknownComponentFallback` stands for a component like the one under [Error handling](#error-handling); omit `Fallback` to let an unknown name throw.
 
-### Pattern 1 — `MessagePrimitive.Parts`
+### Pattern 1: `MessagePrimitive.Parts`
 
 ```tsx
 <MessagePrimitive.Parts
@@ -88,7 +90,7 @@ The stock `thread` element's part switch returns `null` for unknown part types, 
 />
 ```
 
-### Pattern 2 — `GroupedParts` case (shadcn Thread fork)
+### Pattern 2: `GroupedParts` case (shadcn Thread fork)
 
 ```tsx
 case "generative-ui":
@@ -100,11 +102,11 @@ case "generative-ui":
   );
 ```
 
-Also exclude `render_gui` from tool-group chrome in `groupBy` if you use the AI SDK bridge (return `null` for that tool name).
+If you use the AI SDK bridge, also exclude `render_gui` from tool-group chrome in `groupBy` (return `null` for that tool name).
 
-### Pattern 3 — AI SDK interim bridge
+### Pattern 3: AI SDK interim bridge
 
-When using `useChatRuntime`, map a dedicated tool result to the renderer:
+When using `useChatRuntime`, define a tool on your server whose result is the spec, and map that tool result to the renderer. The tool is an ordinary server-side AI SDK `tool()` that returns `{ spec }`, so no toolkit or `Tools()` registration is involved. `render_gui` and `parseRenderGuiResult` below come from the example's own `lib/render-gui-tool.ts`, not from assistant-ui; `parseRenderGuiResult` validates the result and returns a `GenerativeUISpec`.
 
 ```tsx
 case "tool-call":
@@ -150,7 +152,7 @@ The spec is plain JSON, so any agent can emit it and you can validate it on the 
 
 To keep malformed or adversarial payloads from overflowing the renderer, content nested beyond 64 levels is ignored.
 
-This is a different shape from the flat `_type` tree the [`present` tool](/docs/tools/generative-ui) uses. The two are not interchangeable: this primitive accepts `component` objects plus string, number, and array nodes; the Slack and Teams converters take the flat tree in either spelling, and the A2UI converter produces one with `$type`.
+This is a different shape from the flat `_type` tree the [`present` tool](/docs/tools/generative-ui) uses, and the two are not interchangeable: this primitive accepts `component` objects plus string, number, and array nodes; the Slack and Teams converters take the flat tree in either spelling, and the A2UI converter produces one with `$type`.
 
 ## Streaming
 

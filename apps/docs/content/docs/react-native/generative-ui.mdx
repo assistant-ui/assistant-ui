@@ -57,6 +57,8 @@ export function RuntimeProvider({ runtime }: { runtime: AssistantRuntime }) {
 
 Your route forwards the toolkit's tools to the model, as for any frontend tool. To run `render_spec` on the server instead, see [frontend and backend execution](/generative-frame/docs/assistant-ui#frontend-and-backend-execution).
 
+On the web, [Set up spec mode](/docs/tools/generative-ui#set-up-spec-mode) registers the same `render_spec` through `createWidgetToolkit`, which also adds the widget tools and runs only in a browser. On React Native you register the `createSpecToolkit` entries yourself, as above; [On React Native](/generative-frame/docs/assistant-ui#on-react-native) covers the rest, including a server-defined `render_spec`.
+
 ## On a phone
 
 Every component dispatches the same events with the same payloads as on the web, writes a value bound with `$bindState` back the same way, and an `asForm` Card or a `Form` collects its named controls when a submit button or a field's return key submits it. The default styles follow the device's light or dark mode, and text on a Card with its own `background` turns white.

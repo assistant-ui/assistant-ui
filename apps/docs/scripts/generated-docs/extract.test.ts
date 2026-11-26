@@ -5,6 +5,7 @@ import {
   exportSpecifierDeprecated,
   extractSignature,
   processClassDeclaration,
+  processComponentDeclaration,
   processTypeOrInterface,
 } from "./extract.mts";
 
@@ -280,6 +281,129 @@ describe("deprecation tags", () => {
         deprecated: "Use `flag` instead.",
         experimental: undefined,
       },
+    ]);
+  });
+});
+
+describe("resource props", () => {
+  const resourceSource = (hook: string, tail: string) =>
+    project.createSourceFile(
+      "/resource/index.ts",
+      `
+      type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => { hook: unknown; value?: V };
+      const resource = <R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A> => (() => ({ hook })) as never;
+      ${hook}
+      ${tail}
+    `,
+    );
+
+  it("documents the first hook argument of a resource as its props", () => {
+    const source = resourceSource(
+      `const useThing = (props: {
+        /** Where to look. */
+        toolkit?: string;
+        count: number;
+      }) => 1;`,
+      "export const Thing = resource(useThing);",
+    );
+
+    expect(
+      processComponentDeclaration(
+        source.getVariableDeclarationOrThrow("Thing"),
+        "Thing",
+      )?.map(({ name, required, description }) => ({
+        name,
+        required,
+        description,
+      })),
+    ).toEqual([
+      { name: "toolkit", required: false, description: "Where to look." },
+      { name: "count", required: true, description: undefined },
+    ]);
+  });
+
+  it("has no props for a resource without arguments or with a list argument", () => {
+    const source = resourceSource(
+      `const useNone = () => 1;
+      const useList = (items?: string[]) => 1;`,
+      `export const None = resource(useNone);
+      export const List = resource(useList);`,
+    );
+
+    for (const name of ["None", "List"]) {
+      expect(
+        processComponentDeclaration(
+          source.getVariableDeclarationOrThrow(name),
+          name,
+        ),
+      ).toBeUndefined();
+    }
+  });
+
+  it("does not expand a resource element prop into its plumbing fields", () => {
+    const source = project.createSourceFile(
+      "/resource/element.ts",
+      `
+      type ResourceElement<V> = { readonly hook: (...args: any[]) => V; readonly args: readonly unknown[] };
+      type ClientElement<K extends string> = ResourceElement<{ name: K }>;
+      type DerivedElement<K extends string> = ResourceElement<{ derived: K }>;
+      type ScopeElement = ClientElement<"thread">;
+      export type Options = {
+        direct?: ResourceElement<number> | undefined;
+        aliased?: ClientElement<"thread"> | DerivedElement<"thread">;
+        twiceAliased: ScopeElement;
+        plain?: { depth: number };
+      };
+    `,
+    );
+
+    const props = processTypeOrInterface(
+      source.getTypeAliasOrThrow("Options"),
+      "Options",
+    );
+
+    expect(
+      props?.map(({ name, children }) => ({ name, expanded: !!children })),
+    ).toEqual([
+      { name: "direct", expanded: false },
+      { name: "aliased", expanded: false },
+      { name: "twiceAliased", expanded: false },
+      { name: "plain", expanded: true },
+    ]);
+  });
+});
+
+describe("non-object types", () => {
+  it("does not document built-in members of primitive, list or tuple types", () => {
+    const source = project.createSourceFile(
+      "/non-object/types.ts",
+      `
+      export type Align = "start" | "end";
+      export type Node = string | { component: string };
+      export type Entry = [name: string, value: number];
+      interface Template { template: { componentId: string } }
+      export type Options<TEvent extends "a.b" | "c.d"> = {
+        selector: TEvent | { scope: string; event: TEvent };
+        children: readonly string[] | { componentId: string } | Template;
+        plain: { depth: number };
+      };
+    `,
+    );
+
+    for (const name of ["Align", "Node", "Entry"]) {
+      expect(
+        processTypeOrInterface(source.getTypeAliasOrThrow(name), name),
+      ).toBeUndefined();
+    }
+    expect(
+      processTypeOrInterface(
+        source.getTypeAliasOrThrow("Options"),
+        "Options",
+      )?.map(({ name, children }) => ({ name, expanded: !!children })),
+    ).toEqual([
+      { name: "selector", expanded: false },
+      { name: "children", expanded: false },
+      { name: "plain", expanded: true },
     ]);
   });
 });

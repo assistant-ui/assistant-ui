@@ -40,6 +40,8 @@ function WidgetInstructions() {
 }
 ```
 
+Create the toolkit once, at module scope, as above: [`Tools` registers again](/docs/tools/defining-tools#registering-a-toolkit-with-tools) whenever the toolkit's identity changes.
+
 `createWidgetToolkit` returns `{ toolkit, tools, registry }`. `toolkit` holds entries for `read_me`, `show_widget`, `edit_widget`, `preview_widget`, and, when you pass `spec`, `render_spec`. `tools` are the underlying [tool definitions](/generative-frame/docs/tools), and `registry` holds the latest code per widget title.
 
 `useWidgetInstructions(tools, { preload })` adds a system prompt section that tells the model when to use the tools. When `read_me` offers a `spec` module, its guidance is preloaded by default so the model can call `render_spec` without first calling `read_me`. `buildWidgetInstructions` uses the same default on the server. If default preloading fails, the instructions tell the model to load the guidance on demand.
@@ -123,7 +125,7 @@ Pass `tools` to your `AuiConfig`, and register `guidance` as `system` [model con
 
 ## Frontend and backend execution
 
-By default the tools execute in the browser. Your route forwards their schemas to the model with `frontendTools` from `@assistant-ui/ai-sdk`:
+By default the tools execute in the browser. Your route forwards their schemas to the model with `frontendTools` from `@assistant-ui/ai-sdk`, as [Client-defined tools](/docs/tools/backend#client-defined-tools-frontendtools) describes:
 
 ```ts title="app/api/chat/route.ts (abridged)"
 import { frontendTools } from "@assistant-ui/ai-sdk";

@@ -38,6 +38,7 @@ The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@a
 - `app/index.tsx` renders the `Thread`.
 - `components/tools.tsx` holds the weather toolkit and its tool UIs.
 - `global.css` holds the Tailwind and Uniwind setup plus the color tokens; `metro.config.js` wires Uniwind around the assistant-ui Metro transformer.
+- `metro.config.js` compiles the toolkit with `aui: { backendless: true }`, because `app/api/chat+api.ts` never imports it: the device build uploads each tool's schema in the request body and the route reads them with `frontendTools`. See [Running without your own backend](https://www.assistant-ui.com/docs/tools/defining-tools#running-without-your-own-backend).
 - `@/components/assistant-ui/*` and `@/components/ui/*` resolve to the kit sources in `packages/ui/src/components/react-native` through `tsconfig.json` paths. A project scaffolded with `npx assistant-ui create --native` gets the same files installed under `components/` from the registry instead.
 
 ## Learn more

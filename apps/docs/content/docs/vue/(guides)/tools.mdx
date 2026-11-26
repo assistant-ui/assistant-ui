@@ -5,6 +5,8 @@ description: Give the model tools that run on your server or in the browser, and
 
 Tools let the model request work and receive a result. A backend tool runs in your server route. A frontend tool runs in the browser. A tool that waits for the user renders a prompt in the browser and receives its result from that UI. All three arrive in the thread as tool calls, which you can render with [Tool UI](/docs/vue/tool-ui).
 
+The toolkit model is the one [Defining tools](/docs/tools/defining-tools) describes for React: the same tool kinds, the same `Tools()` registration rules, and the same server wiring in [Backend tools](/docs/tools/backend). This page covers what differs in Vue. The examples spell out each entry's `type`, because `defineToolkit` returns a plain toolkit unchanged when no build step compiles the file.
+
 ## Backend tools
 
 Define a backend tool in the server route's `streamText` `tools` object. Its `execute` runs on the server; the browser receives the resulting tool call and can render it. This is the `weather` tool from `examples/with-nuxt/server/api/chat.post.ts`, abridged:
@@ -34,13 +36,13 @@ The route returns `result.toUIMessageStreamResponse()`. To render the call, regi
 
 ## Frontend tools
 
-Put a browser tool in a toolkit with `type: "frontend"`, a `parameters` schema, and `execute`. Register the toolkit with `Tools({ toolkit })` from `@assistant-ui/core/react` under `tools` in `AuiConfig`. `parameters` accepts a Standard Schema such as Zod or a JSON Schema object. This example uses Zod, so add it to your app (`pnpm add zod`), and reads the browser's time zone:
+Put a browser tool in a toolkit with `type: "frontend"`, a `parameters` schema, and `execute`. `parameters` accepts a Standard Schema such as Zod or a JSON Schema object. This example uses Zod, so add it to your app (`pnpm add zod`), and reads the browser's time zone:
 
 ```ts title="app/toolkit.ts"
 import { z } from "zod";
-import type { Toolkit } from "@assistant-ui/core/react";
+import { defineToolkit } from "@assistant-ui/core/react";
 
-export const toolkit = {
+export const toolkit = defineToolkit({
   get_timezone: {
     type: "frontend",
     description: "Get the user's current time zone.",
@@ -53,8 +55,10 @@ export const toolkit = {
       complete: "Time zone ready",
     },
   },
-} satisfies Toolkit;
+});
 ```
+
+Register the toolkit with `Tools({ toolkit })` from `@assistant-ui/core/react` under `tools` in `AuiConfig`:
 
 ```vue title="app/components/Assistant.client.vue"
 <script setup lang="ts">
@@ -76,6 +80,8 @@ const config = AuiConfig({
   </AuiProvider>
 </template>
 ```
+
+Import `toolkit` from a module, as above. `Tools` registers again whenever the toolkit's identity changes, and a second mount that defines the same tool name throws; [Registering a toolkit with `Tools()`](/docs/tools/defining-tools#registering-a-toolkit-with-tools) has the rules.
 
 `AssistantChatTransport` sends the frontend tool's name, description, and JSON Schema parameters in the request body. The server route turns those uploaded schemas into AI SDK tools with `frontendTools(tools)`. Keep server tools in the same `streamText` map:
 
@@ -160,7 +166,7 @@ These fields come from `ToolDefinition`. The Vue column describes what the Vue b
 | `render` | Vue rendering | Vue component shown for a matching call. Cast it to `ToolCallMessagePartComponent`, the shared registry's declared type. |
 | `renderText` | Vue rendering | Running and complete text. Vue renders string or number results. |
 | `display` | Stored in tools scope | Inline or standalone presentation hint. Human entries default to standalone; `MessagePrimitiveParts` does not read the hint. |
-| `disabled` | Request filtering | Hides the entry from the uploaded tool schemas. A call that names a disabled frontend tool gets an error result and does not run. |
+| `disabled` | Request filtering | Hides the entry from the uploaded tool schemas. A call that names a disabled frontend tool gets an error result and does not run. See [Disabling a tool](/docs/tools/defining-tools#disabling-a-tool). |
 | `providerOptions` | Sent to server | Provider options included alongside the uploaded schema. |
 
 `ToolDefinition` declares `render` with a React component type because the tools scope is shared. Pass a Vue component with `as unknown as ToolCallMessagePartComponent`, as the Nuxt example does in `RegisterToolUIs.vue`. The Vue renderer receives `tool.part` and `tool.addResult` through its required `tool` prop.

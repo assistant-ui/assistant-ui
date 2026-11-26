@@ -4,17 +4,36 @@ description: Tools whose executor closes over React state. Declare the contract 
 platforms: ["react"]
 ---
 
-Most tools are static: their executor is fixed at build time. But some tools need to read or write **component state**, for example to add to a list the user can also edit, mutate a canvas, or pre-fill a form. The executor for those has to close over a React setter, which can't live in a build-split `"use generative"` file.
+Most tools are static: their executor is fixed at build time. Some tools need to read or write **component state**, for example to add to a list the user can also edit, mutate a canvas, or pre-fill a form. The executor for those has to close over a React setter, which can't live in a build-split `"use generative"` file.
 
-The pattern: declare the model-facing **contract** in the toolkit with `execute: stubTool()`, and supply the **real executor** at runtime in the component that owns the state with `useAuiToolOverrides`.
+The pattern: declare the model-facing **contract** in the toolkit with `execute: stubTool()`, and supply the **real executor** at runtime in the component that owns the state with `useAuiToolOverrides`. The [tool kinds table](/docs/tools/defining-tools#tool-kinds) lists `stubTool()` next to the other kinds; this page is the walkthrough.
 
 <Callout type="warn">
   `useAuiToolOverrides` is experimental and its API may change.
 </Callout>
 
+## How the pieces fit
+
+- The toolkit entry keeps the description, parameters, and renderer. The compiler marks it `type: "frontend"`, sends its schema to your server build, and strips the stub from the client build.
+- `useAuiToolOverrides` registers a partial tool at priority 1000. Registrations are merged per tool name with the higher priority winning field by field, so the override's `execute` replaces the missing one and everything else comes from the toolkit.
+- The runtime runs that executor in the browser when the model calls the tool, like any other frontend `execute`.
+
 ## 1. Declare the contract with `stubTool()`
 
-In your `"use generative"` file, give the tool its description, parameters, and renderer, and mark the executor as a stub. The compiler ships the schema to the backend and strips the stub, so the model can call the tool but nothing executes until the component supplies the real implementation. Keeping schemas in a separate non-directive module lets the component import the arg types too:
+Give the tool its description, parameters, and renderer, and mark the executor as a stub. The model can call the tool because your server knows the schema; nothing executes until a component supplies the implementation. Keep the schema in a separate non-directive module so the component can import the argument type too:
+
+```ts title="app/state.ts"
+import { z } from "zod";
+
+export type Task = { id: string; title: string; done: boolean };
+
+export const manageTasksParameters = z.object({
+  action: z.enum(["add", "toggle", "remove", "clear"]),
+  id: z.string().optional(),
+  title: z.string().optional(),
+});
+export type ManageTasksArgs = z.infer<typeof manageTasksParameters>;
+```
 
 ```tsx title="app/task-board-toolkit.tsx"
 "use generative";
@@ -37,9 +56,11 @@ export default defineToolkit({
 });
 ```
 
+A stub tool is a frontend tool, so the compiler requires a `render` or `renderText`. Your route has to import this toolkit through `AISDKToolkit`; see [Backend tools](/docs/tools/backend#generative-toolkits-aisdktoolkit).
+
 ## 2. Supply the executor with `useAuiToolOverrides`
 
-The component that owns the state registers the toolkit, then renders a small null-returning child that provides the executor closing over its `setState`:
+The component that owns the state registers the toolkit, then renders a small child that returns `null` and provides the executor closing over `setTasks`:
 
 ```tsx title="app/TaskBoard.tsx"
 import {
@@ -50,7 +71,7 @@ import {
   useAuiToolOverrides,
 } from "@assistant-ui/react";
 import { useState, type Dispatch, type SetStateAction } from "react";
-import type { Task } from "./state";
+import type { ManageTasksArgs, Task } from "./state";
 import toolkit from "./task-board-toolkit";
 
 function TaskBoard() {
@@ -72,14 +93,17 @@ function TaskBoardToolOverrides({
 }) {
   useAuiToolOverrides({
     manage_tasks: {
-      execute: async ({ action, id, title }) => {
+      execute: async ({ action, id, title }: ManageTasksArgs) => {
         switch (action) {
-          case "add":
-            setTasks((prev) => [
-              ...prev,
-              { id: crypto.randomUUID(), title: title ?? "Untitled", done: false },
-            ]);
-            return { success: true };
+          case "add": {
+            const task = {
+              id: crypto.randomUUID(),
+              title: title ?? "Untitled",
+              done: false,
+            };
+            setTasks((prev) => [...prev, task]);
+            return { success: true, id: task.id };
+          }
           case "toggle":
             setTasks((prev) =>
               prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
@@ -91,8 +115,6 @@ function TaskBoardToolOverrides({
           case "clear":
             setTasks([]);
             return { success: true };
-          default:
-            return { success: false, error: "Unknown action" };
         }
       },
     },
@@ -101,15 +123,52 @@ function TaskBoardToolOverrides({
 }
 ```
 
-The override supplies **only** the `execute`; the description, parameters, and `renderText` stay in the toolkit file. An override registers above toolkit defaults, so it wins for that tool name. Return a useful payload (e.g. a new item's `id`) and the model picks it up on the next turn.
+The override supplies **only** the `execute`; the description, parameters, and `renderText` stay in the toolkit file. Return a useful payload, such as a new item's `id`: it becomes the call's `result`, the renderer receives it, and the model reads it on the next turn. To send images or files back to the model, see [multi-modal tool results](/docs/tools/defining-tools#multi-modal-tool-results).
 
-<Callout type="info">
-  Keep the override keys stable after mount, and let only one mounted provider
-  define a given tool name at a time. The null-returning overrides component
-  re-binds the executor whenever the setter changes, without remounting the
-  provider.
-</Callout>
+The executor receives the same context as any frontend `execute`, including an `abortSignal` that fires when the user stops the run; see [Cancellation](/docs/tools/defining-tools#cancellation-and-execution-context).
+
+Registering the toolkit inside the component that owns the state, as above, keeps its renderer scoped to that component. It does not hide the tool from the model: your server knows the schema either way, so the model can call the tool while no override is mounted, and then nothing runs.
+
+## Rules for overrides
+
+- **Keep the keys stable after mount.** Adding or removing a key while mounted is not observed.
+- **Define a name in one mounted provider at a time.** Two overrides for the same tool at the same priority throw `You tried to define a tool with the name manage_tasks, but it already exists.`
+- **Closures stay fresh.** The hook registers once on mount and reads the latest `execute` on every call, so you do not need to memoize the overrides object.
+- **Unmounting removes the override.** The toolkit entry becomes a stub with no executor again.
+- **An override can carry any partial tool field.** To hide a tool at runtime instead, override `disabled: true`. That hides only tools the client uploads; a compiled tool stays visible to the model through your server build and a call to it gets an error result. See [Disabling a tool](/docs/tools/defining-tools#disabling-a-tool).
+
+## Without the build plugin
+
+A plain toolkit entry can omit `execute` and let an override supply it. Declare `type: "frontend"` yourself and keep `parameters` and a `render` or `renderText`:
+
+```tsx title="app/task-board-toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { manageTasksParameters } from "./state";
+
+export const toolkit = defineToolkit({
+  manage_tasks: {
+    type: "frontend",
+    description: "Manage tasks on the board.",
+    parameters: manageTasksParameters,
+    renderText: { running: "Updating tasks…", complete: "Tasks updated" },
+  },
+});
+```
+
+Mount the same `useAuiToolOverrides` component. The client uploads a frontend tool only once it has an `execute`, so the model sees this tool only while the override is mounted, and your route reads it from `tools` with `frontendTools`; see [Backend tools](/docs/tools/backend#client-defined-tools-frontendtools).
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `[assistant-ui] stubTool() has no runtime implementation` at import | The file was not compiled. Add `"use generative"` as the first line and the `withAui` or `aui()` plugin |
+| The model calls the tool and nothing happens | No override is mounted for that name. Mount `useAuiToolOverrides` where the tool must work |
+| The model never calls the tool | Your server does not know the schema. Import the toolkit through `AISDKToolkit` in the route |
+| `You tried to define a tool with the name …, but it already exists.` | Two mounted overrides define the same name. Keep one |
+| A tool you added after mount never runs | Keys are read once. Declare every key on first render |
 
 ## When to use this vs. Interactables
 
-If you mainly want the model to update a piece of component state with a partial-update tool generated for you, [Interactables](/docs/tools/interactables) does that without a `stubTool`. Use dynamic tools when you want full control over the tool's name, schema, executor logic, and return value. The two compose: the [with-interactables example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables) uses both side by side.
+If you mainly want the model to update a piece of component state with a partial-update tool generated for you, [Interactables](/docs/tools/interactables) does that without a `stubTool`. Use dynamic tools when you want full control over the tool's name, schema, executor logic, and return value. The two compose: the [companion tools](/docs/tools/interactables#companion-tools) section shows an Interactable with a `stubTool` for a side effect that state cannot express.

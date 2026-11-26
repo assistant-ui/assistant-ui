@@ -68,7 +68,9 @@ export function ChatScreen() {
 
 ## Register a named tool interface
 
-Register a renderer on a toolkit entry with `Tools({ toolkit })`. The `render` function supplies the UI for a `type: "backend"` entry, so the backend or another provider keeps defining and executing the tool. The native `Thread` renders tool parts one by one, so `display: "standalone"` only matters when the same toolkit also drives a grouped renderer such as the web thread.
+Register a renderer on a toolkit entry with `Tools({ toolkit })`. A `type: "backend"` entry with a `render` draws a tool that your backend or another provider already defines and runs, as [Externally defined tools](/docs/tools/defining-tools#externally-defined-tools) describes. In a `"use generative"` file compiled by `@assistant-ui/metro`, write `execute: externalTool()` instead of `type`. The same entry shape renders the tools of an MCP server, keyed by the model-visible name ([MCP](/docs/tools/mcp#render-the-calls)).
+
+The native `Thread` renders tool parts one by one, so `display: "standalone"` only matters when the same toolkit also drives a grouped renderer such as the web thread. [Registering a toolkit with `Tools()`](/docs/tools/defining-tools#registering-a-toolkit-with-tools) covers identity, duplicate names, and where to mount `Tools`.
 
 ```tsx title="app/runtime-provider.tsx"
 import {
@@ -96,7 +98,6 @@ const RunCommand: ToolCallMessagePartComponent<{ command: string }> = ({
 const toolkit = defineToolkit({
   run_command: {
     type: "backend",
-    display: "standalone",
     render: RunCommand,
   },
 });
@@ -116,7 +117,7 @@ export function RuntimeProvider({
 }
 ```
 
-The `Tools` resource matches the renderer to `run_command` and the thread renders it for matching tool-call parts. For tool definitions and server wiring, see [Tool UI](/docs/tools/tool-ui).
+The `Tools` resource matches the renderer to `run_command` and the thread renders it for matching tool-call parts. [Tool UI](/docs/tools/tool-ui) covers the render props, status values, and deferred rendering; [Backend tools](/docs/tools/backend) covers the server side.
 
 ## Ask for approval
 
@@ -126,7 +127,7 @@ Install the approval card when a backend tool can pause for a server-side approv
 npx assistant-ui@latest add elements-approval-card
 ```
 
-An approval renderer receives `approval` and `respondToApproval`. Render the controls only while `approval.approved` is undefined and no `resolution` is recorded, since a cancelled or expired request leaves `approved` unset but can no longer be answered. When the host lists options, offer only the actions that have a matching option and answer with its `optionId`, so the decision keeps the requested scope: a declared option list is a host constraint, and the card never adds an approval path beyond it. Without options, allow once and deny send a boolean that records a one-time decision, and there is no always allow. `respondToApproval` rejects when the runtime could not record the decision; the card stays mounted, so catching the rejection leaves the user free to answer again.
+An approval renderer receives `approval` and `respondToApproval`; [Server-side approval gates](/docs/tools/tool-approvals#server-side-approval-gates) defines the three states of `approval.approved`, the `resolution` field, and the rejection behavior, and [Approval options](/docs/tools/tool-approvals#approval-options) defines the option kinds. The renderer below follows them: it renders the controls only while the request is open, and when the host lists options it offers only the actions that have a matching option and answers with that option's `optionId`, so the card never adds an approval path beyond the host's list. Without options, allow once and deny send a boolean that records a one-time decision, and there is no always allow. `respond` catches a rejected answer, so the card stays mounted and the user can answer again.
 
 ```tsx title="components/assistant-ui/elements/run-command-approval.tsx"
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";

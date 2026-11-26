@@ -47,7 +47,12 @@ if (fs.existsSync(path.join(monorepoRoot, "pnpm-workspace.yaml"))) {
   };
 }
 
-module.exports = withUniwindConfig(withAui(config), {
-  cssEntryFile: "./global.css",
-  dtsFile: "./uniwind-types.d.ts",
-});
+// The chat route never imports the toolkit, so the device build uploads the
+// frontend tool schemas itself.
+module.exports = withUniwindConfig(
+  withAui({ ...config, aui: { backendless: true } }),
+  {
+    cssEntryFile: "./global.css",
+    dtsFile: "./uniwind-types.d.ts",
+  },
+);

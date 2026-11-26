@@ -22,9 +22,29 @@ export type McpToolkitDefinition = Record<string, McpToolkitEntry>;
 
 /**
  * Defines MCP server tools as a spreadable toolkit fragment. Pass a raw
- * `McpServerConfig` for always-on servers, or `{ server, disabled, tools }`
+ * `McpServerConfig` for always-on servers, or `{ server, disabled, prefix, tools }`
  * when a server should stay configured but not expose all tools for the current
  * request.
+ *
+ * Each key names a server, not a tool: the model sees the tools the server
+ * lists, with `prefix` prepended to each name. Set `tools: { name: { disabled:
+ * true } }` to hide individual tools, or `disabled: true` to skip the whole
+ * server. The entries have `type: "mcp"`, so `Tools` does not register them
+ * with model context. Your server opens the connections when it builds the tool
+ * set with `AISDKToolkit`. In a `"use generative"` file the client build keeps
+ * this call as written, so keep tokens out of `headers` and `env`.
+ *
+ * @example
+ * ```tsx
+ * export default defineMcpToolkit({
+ *   docs: { type: "http", url: "https://mcp.example.com/mcp" },
+ *   github: {
+ *     server: { type: "http", url: "https://github.example.com/mcp" },
+ *     prefix: "github_",
+ *     tools: { delete_repo: { disabled: true } },
+ *   },
+ * });
+ * ```
  */
 export function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit {
   return Object.fromEntries(

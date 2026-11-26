@@ -1,0 +1,53 @@
+---
+title: Generative UI vocabulary
+description: How the components of the default generative UI vocabulary behave beyond their props, from chart scales and table formats to tabs, citations, diagrams, and maps.
+platforms: ["react"]
+---
+
+These notes describe how individual components of the default [generative UI](/docs/tools/generative-ui) vocabulary behave. The same behavior holds in the `present` tool and in [spec mode](/docs/tools/generative-ui#spec-mode).
+
+For every component's props, with a live preview and the JSON the model writes, see the [component vocabulary reference](/elements/vocabulary). The controls that collect input, such as `Input`, `Select`, `DatePicker`, and `Slider`, are covered under [Control values](/docs/tools/generative-ui#control-values), and React Native differences under [Generative UI on React Native](/docs/react-native/generative-ui).
+
+## Charts
+
+`Chart` accepts positive and negative values. Its scale always includes zero, so bars grow upward or downward from the zero line, areas fill to that line, and stacked bars and areas keep positive and negative totals on their respective sides. A chart that contains both positive and negative values draws a zero baseline. When `showAxis` is set, the ticks include zero and use round values for a mixed domain.
+
+Bars and data points in line and area charts expose a native tooltip with the point label and formatted value. A point without a label shows its position, counting from 1. Tooltips on named series also include the series label. Sparklines remain compact and do not add point targets.
+
+Use `series[].color` to set an individual series to `emphasis`, `secondary`, `alpha-70`, `white`, `white-70`, or `white-50`. The same color fills that series' legend swatch, while the legend label stays muted.
+
+## Tables and facts
+
+`Table` takes `columns`, `rows`, and optional `sortable`. Each column has a required `label`, an optional `align` of `"start"` or `"end"`, and an optional `format`. A format has a `kind` of `"number"`, `"currency"`, `"percent"`, or `"date"`; numeric kinds can set `decimals` from 0 to 20, currency also needs a `currency` code, and percent takes a fraction, so `0.25` renders as 25%. Number, currency, and percent columns end-align by default. Dates accept ISO strings or epoch numbers. Values with the wrong type, or a format the platform cannot apply, stay as their raw text. A sortable header cycles ascending, descending, then the original row order, and marks the sorted column with an arrow.
+
+`Fact` takes `label` and `value`, plus optional `delta`, `trend`, and `upIsGood`. `delta` renders as a change chip beside the value. Set `trend` to `"up"`, `"down"`, or `"flat"` to choose its direction, or omit it to infer down from a leading minus sign. The arrow carries the direction, so a sign that agrees with it is dropped from the chip. `upIsGood` defaults to `true` and flips which direction is positive when set to `false`.
+
+## Carousels
+
+Carousel paging controls appear only when cards overflow the available width. Each press moves one card, and motion follows the user's reduced motion preference.
+
+## Tabs, steps, and timelines
+
+`Tabs` shows one child panel at a time under a row of tabs, labeled in order by its `tabs` strings, and `label` names the row for screen readers; a panel without a label is labeled with its number. Every panel stays mounted, so a control on a hidden tab keeps its value. On the web, the arrow keys, Home, and End move between tabs. Slack and Teams show every panel in order under its label.
+
+`Steps` numbers its `steps`, each a `title` with an optional `detail`, for instructions to follow in order. `Timeline` lists its `items`, each a `time` label, a `title`, and an optional `detail`, for schedules, itineraries, and histories. A `present` tree skips an entry without a title; spec mode reports it to the model as an invalid prop instead.
+
+## Citations
+
+`Citation` shows a source the answer draws on: its `title`, an optional `snippet`, and the `source` it comes from, which defaults to the link's domain. Only an `http` or `https` `url` to a plain host makes the title a link, which opens in a new tab on the web and through `Linking` on React Native; any other value leaves the title as plain text.
+
+## Checklists
+
+Set `progress` on a `CheckboxGroup` to show how many of its options are checked, as a count and a bar, for a checklist the user works through. The count follows the boxes as the user checks them, also when spec mode binds the group's value. Slack and Teams show the options without the count.
+
+## Diagrams and maps
+
+`Diagram` takes Mermaid source in `code` and an optional `title`. `Map` takes `places`, each a `label` with `lat`, `lng`, and an optional `detail`, and `route` to draw a line through them in order; a place without valid coordinates is skipped.
+
+The default vocabulary draws neither, so it adds no dependency: `Diagram` shows its source, and `Map` lists its places, each linking to OpenStreetMap. Slack, Teams, and React Native show the same. The `generative-ui` registry item, installed in the [quick start](/docs/tools/generative-ui#install-the-package), draws them with the [Mermaid diagram](/elements/mermaid-diagram) and [Geo map](/elements/geo-map) elements, which bring `beautiful-mermaid` and `leaflet` into your app, and the map loads OpenStreetMap tiles. [Styling](/docs/tools/generative-ui#styling) shows how to wire them in.
+
+## Related guides
+
+- [Generative UI](/docs/tools/generative-ui): set up `present` or spec mode, extend the vocabulary, and style it
+- [Component vocabulary reference](/elements/vocabulary): every component's props, with a live preview
+- [Generative UI on Slack](/docs/tools/generative-ui-slack) and [on Microsoft Teams](/docs/tools/generative-ui-teams): how each component maps to Block Kit and Adaptive Cards

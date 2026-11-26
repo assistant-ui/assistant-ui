@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { FC, ReactNode } from "react";
+import { Fragment, type FC, type ReactNode } from "react";
 import {
   Definition,
   DefinitionAnnotation,
@@ -26,55 +26,58 @@ type ParameterDef = {
   children?: Array<ParametersTableProps>;
 };
 
-const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+// Groups: 1-2 code span (matching backtick runs), 3-4 link, 5 strong, 6-7 emphasis.
+const INLINE_MARKDOWN_REGEX =
+  /(`+)(?!`)([\s\S]*?[^`])\1(?!`)|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(?=\S)([\s\S]*?\S)\*\*|(?<![\w*])([*_])(?![\s*_])([\s\S]*?[^\s*_])\6(?![\w*])/g;
 
-function renderLinkLabel(label: string): ReactNode {
-  if (label.startsWith("`") && label.endsWith("`")) {
-    return <code>{label.slice(1, -1)}</code>;
-  }
-  return label;
-}
+const SAFE_HREF_REGEX = /^(?:\/|#|https?:|mailto:)/;
 
-export function renderDescription(description: string | ReactNode): ReactNode {
-  if (typeof description !== "string") return description;
-
+function renderInlineMarkdown(text: string): ReactNode {
   const parts: ReactNode[] = [];
   let lastIndex = 0;
-  for (const match of description.matchAll(MARKDOWN_LINK_REGEX)) {
-    const fullMatch = match[0]!;
-    const label = match[1]!;
-    const linkHref = match[2]!;
-    const index = match.index ?? 0;
-    if (index > lastIndex) {
-      parts.push(description.slice(lastIndex, index));
-    }
+  for (const match of text.matchAll(INLINE_MARKDOWN_REGEX)) {
+    const index = match.index;
+    if (index > lastIndex) parts.push(text.slice(lastIndex, index));
+    lastIndex = index + match[0].length;
 
-    const children = renderLinkLabel(label);
-    parts.push(
-      linkHref.startsWith("/") ? (
-        <Link
-          key={`${linkHref}-${index}`}
-          className={DESCRIPTION_LINK_CLASSNAME}
-          href={linkHref}
-        >
-          {children}
-        </Link>
-      ) : (
-        <a
-          key={`${linkHref}-${index}`}
-          className={DESCRIPTION_LINK_CLASSNAME}
-          href={linkHref}
-        >
-          {children}
-        </a>
-      ),
-    );
-    lastIndex = index + fullMatch.length;
+    const [, , code, label, href, strong, , emphasis] = match;
+    if (code !== undefined) {
+      parts.push(<code key={index}>{code}</code>);
+    } else if (label !== undefined && href !== undefined) {
+      const children = renderInlineMarkdown(label);
+      parts.push(
+        !SAFE_HREF_REGEX.test(href) ? (
+          <Fragment key={index}>{children}</Fragment>
+        ) : href.startsWith("/") ? (
+          <Link key={index} className={DESCRIPTION_LINK_CLASSNAME} href={href}>
+            {children}
+          </Link>
+        ) : (
+          <a key={index} className={DESCRIPTION_LINK_CLASSNAME} href={href}>
+            {children}
+          </a>
+        ),
+      );
+    } else if (strong !== undefined) {
+      parts.push(<strong key={index}>{renderInlineMarkdown(strong)}</strong>);
+    } else if (emphasis !== undefined) {
+      parts.push(<em key={index}>{renderInlineMarkdown(emphasis)}</em>);
+    }
   }
 
-  if (lastIndex === 0) return description;
-  if (lastIndex < description.length) parts.push(description.slice(lastIndex));
+  if (lastIndex === 0) return text;
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
   return parts;
+}
+
+/**
+ * Renders the inline markdown JSDoc descriptions carry (code spans, links,
+ * strong, emphasis) as React elements; everything else, HTML included, stays
+ * escaped text.
+ */
+export function renderDescription(description: string | ReactNode): ReactNode {
+  if (typeof description !== "string") return description;
+  return renderInlineMarkdown(description);
 }
 
 const Parameter: FC<{ parameter: ParameterDef }> = ({

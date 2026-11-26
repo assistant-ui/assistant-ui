@@ -11,7 +11,7 @@ import { type ExportInfo, discoverIntegrationExports } from "./discover.mts";
 import {
   extractExportShape,
   extractSupportingTypeShapes,
-  isPrimitiveOnlyType,
+  isNonObjectType,
   type ExtractedShape,
   type InheritedFrom,
   type PropModel,
@@ -192,6 +192,11 @@ export function buildTypeDocs(exports: ExportInfo[]): {
   for (const item of exports) {
     if (!item.sourcePath) continue;
     if (typeDocs.has(item.name)) continue;
+    const filePath = path.join(REPO_ROOT, item.sourcePath);
+    if (!fs.existsSync(filePath)) continue;
+    // An alias that may be a primitive or a list renders as its signature,
+    // so it neither gets a table nor pulls in its file's types.
+    if (isNonObjectType(filePath, item.name)) continue;
     const shape = extractExportShape(item);
     const td = shape ? shapeToTypeDoc(shape) : undefined;
     if (td) {
@@ -200,8 +205,6 @@ export function buildTypeDocs(exports: ExportInfo[]): {
       // Either the shape couldn't be projected, or every property was
       // filtered as inherited. In both cases, fall back to absorbing other
       // supporting type aliases declared in the same file.
-      const filePath = path.join(REPO_ROOT, item.sourcePath);
-      if (!fs.existsSync(filePath)) continue;
       for (const [name, supportingShape] of extractSupportingTypeShapes(
         filePath,
         item.jsDocRenderOptions,
@@ -233,7 +236,7 @@ export function buildTypeDocs(exports: ExportInfo[]): {
       if (localTypeDocs.has(item.name)) continue;
       const filePath = path.join(REPO_ROOT, item.sourcePath);
       if (!fs.existsSync(filePath)) continue;
-      if (isPrimitiveOnlyType(filePath, item.name)) continue;
+      if (isNonObjectType(filePath, item.name)) continue;
       const shape = extractExportShape(item);
       const td = shape ? shapeToTypeDoc(shape) : undefined;
       if (td) localTypeDocs.set(item.name, td);

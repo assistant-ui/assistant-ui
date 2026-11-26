@@ -40,7 +40,7 @@ It is built on [assistant-ui](https://www.assistant-ui.com) and [Lexical](https:
 
 ## How the assistant edits the page
 
-`components/editor.tsx` registers the open page and its comments as [interactables](https://www.assistant-ui.com/docs/tools/interactables). assistant-ui builds two tools from their schemas, `update_document` and `update_comments`, and the model calls them. An edit streams into the page as the model writes it, with the assistant's name at the place it is writing, and lands as one undo step.
+`components/editor.tsx` registers the open page and its comments as [interactables](https://www.assistant-ui.com/docs/tools/interactables). assistant-ui builds two tools from their schemas, `update_document` and `update_comments`, and the model calls them. [The update tool](https://www.assistant-ui.com/docs/tools/interactables#the-update-tool) describes their arguments and results, and [Streaming updates](https://www.assistant-ui.com/docs/tools/interactables#streaming-updates) how an edit reaches the page while the model writes it. An edit streams into the page as the model writes it, with the assistant's name at the place it is writing, and lands as one undo step.
 
 The page, the edit mode and an edit that waits for review are saved in the browser, in `localStorage`, under the key in `lib/document.ts`. The bar's size is kept in `sessionStorage`, and chats last until the page is reloaded.
 
