@@ -66,7 +66,12 @@ Create a backend API route using the Vercel AI SDK. This is the same endpoint yo
 
 ```ts title="app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -77,13 +82,20 @@ export async function POST(req: Request) {
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="app/api/chat/route.ts" tab="Anthropic"
 import { anthropic } from "@ai-sdk/anthropic";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -94,13 +106,20 @@ export async function POST(req: Request) {
     model: anthropic("claude-sonnet-5"),
     messages: await convertToModelMessages(messages),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="app/api/chat/route.ts" tab="Google"
 import { google } from "@ai-sdk/google";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -111,7 +130,9 @@ export async function POST(req: Request) {
     model: google("gemini-3.8-flash"),
     messages: await convertToModelMessages(messages),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 

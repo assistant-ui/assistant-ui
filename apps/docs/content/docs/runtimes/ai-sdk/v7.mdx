@@ -117,6 +117,8 @@ export async function POST(req: Request) {
 
 ### Set up the frontend
 
+The React example renders the `Thread` component from the assistant-ui registry. Add it with `npx shadcn@latest add @assistant-ui/thread` once the registry is in your `components.json`, and wrap your app in `TooltipProvider`; [Manual Installation](/docs/manual-installation#manual-setup) shows both.
+
 <PlatformTabs>
 <Tab value="React">
 
@@ -228,7 +230,7 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 ## Frontend tools and system messages
 
-`AssistantChatTransport` (used by default) forwards system messages and frontend tools to your backend on every request. Consume them with `frontendTools`:
+`AssistantChatTransport` (used by default) forwards system messages and frontend tools to your backend on every request. The system message holds the instructions the page registers, for example with `useAssistantInstructions`, and arrives as the `system` field of the request body; pass it to `streamText` as `instructions`, v7's name for the deprecated `system` option. Consume frontend tools with `frontendTools`:
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -255,7 +257,7 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
@@ -538,7 +540,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-Your attachment adapter's `send` should return `content` parts in the AI SDK shape, e.g. for files:
+Your attachment adapter's `send` returns `content` parts in assistant-ui's message part shape, not the AI SDK's; the runtime converts each one to an AI SDK file part (`mediaType` and `url`) before the request reaches your route. For files:
 
 ```ts
 return {
@@ -555,7 +557,7 @@ return {
 };
 ```
 
-For images, use `{ type: "image", image: <data url or remote url> }`. AI SDK will pass these to providers that accept multimodal content.
+For images, use `{ type: "image", image: <data url or remote url> }`. `SimpleImageAttachmentAdapter` from `@assistant-ui/react` already returns this shape. The AI SDK passes both to providers that accept multimodal content.
 
 ## Persisting chat history
 

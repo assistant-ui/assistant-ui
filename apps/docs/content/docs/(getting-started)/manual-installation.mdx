@@ -6,6 +6,8 @@ platforms: ["react"]
 
 <Callout title="Prefer the guided setup?">
   Tell your coding agent to `install and set up assistant-ui`; see [Installation](/docs/installation). Agents already in a setup can follow these steps.
+
+  Coding agents: outside a setup session, `init`, `create` and `add` stop with exit code 2 and point you to `npx assistant-ui@latest setup` (add `--unattended` when nobody will answer). [Manual Setup](#manual-setup) below uses the shadcn CLI and runs anywhere.
 </Callout>
 
 ## Quick Start
@@ -118,7 +120,12 @@ Add an API endpoint:
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -128,18 +135,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Anthropic"
 import { anthropic } from "@ai-sdk/anthropic";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -149,18 +163,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: anthropic("claude-sonnet-5"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Azure"
 import { azure } from "@ai-sdk/azure";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -170,18 +191,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: azure("your-deployment-name"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="AWS"
 import { bedrock } from "@ai-sdk/amazon-bedrock";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -191,18 +219,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: bedrock("us.anthropic.claude-sonnet-5"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Gemini"
 import { google } from "@ai-sdk/google";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -212,18 +247,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: google("gemini-3.8-flash"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="GCP"
 import { vertex } from "@ai-sdk/google-vertex";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -233,18 +275,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: vertex("gemini-3.8-flash"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Groq"
 import { groq } from "@ai-sdk/groq";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -254,18 +303,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: groq("openai/gpt-oss-120b"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Fireworks"
 import { fireworks } from "@ai-sdk/fireworks";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -275,18 +331,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: fireworks("accounts/fireworks/models/llama-v3p3-70b-instruct"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Cohere"
 import { cohere } from "@ai-sdk/cohere";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -296,18 +359,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: cohere("command-r-plus"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Ollama"
 import { ollama } from "ollama-ai-provider-v2";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -317,18 +387,25 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: ollama("gpt-oss:20b"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 ```ts title="/app/api/chat/route.ts" tab="Chrome AI"
 import { chromeai } from "chrome-ai";
 import { frontendTools } from "@assistant-ui/ai-sdk";
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 
 export const maxDuration = 30;
 
@@ -338,15 +415,21 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: chromeai(),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
 </Tabs>
+
+This is the AI SDK v7 form: `instructions` replaces `streamText`'s older `system` option, and `createUIMessageStreamResponse` with `toUIMessageStream` replaces `result.toUIMessageStreamResponse()`. Both older forms still run on v7 but are deprecated; see [AI SDK v7](/docs/runtimes/ai-sdk/v7).
+
+For a local model or any other OpenAI-compatible server, create the provider with its address: `createOpenAI({ baseURL: "http://localhost:11434/v1", apiKey: "unused" })` from `@ai-sdk/openai`, then `model: provider.chat("<model id>")` for servers that only speak Chat Completions. [LLM Gateways](/docs/integrations/gateways) has more.
 
 The `system` prompt and the `tools` schemas in the request body come from the browser, so any caller can change them. Treat both as untrusted input. A system prompt only guides the model, so enforce authorization, argument validation and usage limits in server code, define tools the server executes on the server rather than from the request, and authenticate the route before deploying.
 
@@ -412,6 +495,28 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
   <Step>
 
 ### Use it in your app
+
+The components show tooltips, so wrap your app once in `TooltipProvider`. `shadcn add` installed it with the components:
+
+```tsx title="/app/layout.tsx"
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+Then render a thread:
 
 <Tabs items={["Thread", "AssistantModal"]}>
 
