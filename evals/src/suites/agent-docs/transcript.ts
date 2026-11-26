@@ -42,10 +42,18 @@ export function summarizeTranscript(
     } catch {
       continue;
     }
+    // A background task finishing after the agent's answer wakes it for another, shorter result, so keep them all.
     if (event.type === "result") {
-      summary.turns = event.num_turns ?? summary.turns;
-      summary.costUsd = event.total_cost_usd ?? null;
-      if (typeof event.result === "string") summary.finalMessage = event.result;
+      summary.turns += event.num_turns ?? 0;
+      // The cost is the session's running total; the turns count only that answer.
+      if (typeof event.total_cost_usd === "number") {
+        summary.costUsd = Math.max(summary.costUsd ?? 0, event.total_cost_usd);
+      }
+      if (typeof event.result === "string" && event.result.trim()) {
+        summary.finalMessage = summary.finalMessage
+          ? `${summary.finalMessage}\n\n${event.result}`
+          : event.result;
+      }
       continue;
     }
     if (event.type !== "assistant") continue;
