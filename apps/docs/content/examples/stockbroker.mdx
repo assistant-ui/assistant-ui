@@ -78,14 +78,25 @@ export default function StockbrokerChat() {
 In your LangGraph workflow, define an interrupt point:
 
 ```python
-from langgraph.graph import StateGraph
+from typing import Annotated, TypedDict
+
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, StateGraph
+from langgraph.graph.message import add_messages
 
-def prepare_trade(state):
+
+class State(TypedDict, total=False):
+    messages: Annotated[list, add_messages]
+    trade: dict
+    needs_approval: bool
+    result: str
+
+
+def prepare_trade(state: State):
     # Prepare trade details
-    return {"trade": trade_details, "needs_approval": True}
+    return {"trade": {"symbol": "AAPL", "shares": 10}, "needs_approval": True}
 
-def execute_trade(state):
+def execute_trade(state: State):
     # Execute the approved trade
     return {"result": "Trade executed"}
 
@@ -95,6 +106,7 @@ graph.add_node("prepare", prepare_trade)
 graph.add_node("execute", execute_trade)
 
 # Interrupt before execute for human approval
+graph.add_edge(START, "prepare")
 graph.add_edge("prepare", "execute")
 app = graph.compile(interrupt_before=["execute"], checkpointer=MemorySaver())
 ```

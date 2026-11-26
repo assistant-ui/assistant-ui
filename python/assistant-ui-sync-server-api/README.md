@@ -185,12 +185,19 @@ Main client for interacting with assistant-ui backends.
 **Constructor:**
 
 ```python
-AssistantClient(
-    base_url: str,
-    headers: Optional[Dict[str, str] | Callable] = None,
-    timeout: Optional[float] = None,
-    **kwargs
-)
+from typing import Awaitable, Callable, Dict, Optional, Union
+
+
+class AssistantClient:
+    def __init__(
+        self,
+        base_url: str,
+        headers: Optional[
+            Union[Dict[str, str], Callable[[], Union[Dict[str, str], Awaitable[Dict[str, str]]]]]
+        ] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ): ...
 ```
 
 **Methods:**
