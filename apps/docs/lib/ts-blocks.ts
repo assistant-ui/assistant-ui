@@ -1,5 +1,6 @@
 // Type-checks the TypeScript code blocks in the docs against the workspace's
-// built packages. Blocks on one page build on each other, so a block may use
+// packages: built when CI builds them before the docs tests, as source when
+// it doesn't. Blocks on one page build on each other, so a block may use
 // any name an earlier block on the page imports or declares, unless both are
 // titled as different files. A title is a file path: an import of `./x` or
 // `@/x` reaches the block titled with that path. Imports of the reader's own
