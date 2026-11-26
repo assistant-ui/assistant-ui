@@ -42,6 +42,14 @@ def pages():
 PAGES = list(pages())
 
 
+def names_missing_from_package(error):
+    """Whether an ImportError means the sample names something assistant_stream
+    lacks, rather than an optional dependency this environment doesn't have."""
+    if isinstance(error, ModuleNotFoundError):
+        return (error.name or "").split(".")[0] == "assistant_stream"
+    return "cannot import name" in str(error) and "assistant_stream" in str(error)
+
+
 def run_page(file):
     """Run a page's blocks in order. Returns (namespace, ran, skipped)."""
     namespace = {"__name__": "docs_sample"}
@@ -60,10 +68,10 @@ def run_page(file):
             if inspect.iscoroutine(result):
                 asyncio.run(result)
         except ImportError as error:
-            module = (getattr(error, "name", None) or "").partition(".")[0]
-            if module == "assistant_stream" or "assistant_stream" in str(error):
+            if names_missing_from_package(error):
                 raise
-            skipped.append((line, f"needs {module or error}"))
+            missing = getattr(error.__cause__, "name", None) or error.name
+            skipped.append((line, f"needs {missing or error}"))
             unavailable |= defined
             continue
         except NameError as error:
