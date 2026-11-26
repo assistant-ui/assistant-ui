@@ -400,7 +400,6 @@ const RUNTIMES: readonly DocsEntry[] = [
 ];
 
 const INTEGRATIONS: readonly DocsEntry[] = [
-  { path: "integrations/frameworks/ai-sdk", mark: "vercel" },
   { path: "integrations/gateways", name: "LLM gateways" },
   { path: "integrations/observability/langfuse", mark: "langfuse" },
   { path: "integrations/observability/langsmith", mark: "langchain" },

@@ -25,14 +25,14 @@ flowchart LR
 
 ## Frameworks
 
-Framework integrations that pair with assistant-ui at the API-route layer. The agent framework guides live under [Runtimes](/docs/runtimes/pick-a-runtime), next to the runtime each one uses.
+Frameworks pair with assistant-ui at the API-route layer. Their guides live under [Runtimes](/docs/runtimes/pick-a-runtime), next to the runtime each one uses.
 
 <Cards>
   <Card
     icon={<VercelIcon width={20} height={20} />}
     title="Vercel AI SDK"
-    description="The canonical first-party adapter. Full setup lives under runtimes; this entry is the architectural pointer."
-    href="/docs/integrations/frameworks/ai-sdk"
+    description="The canonical first-party runtime, and the route most integrations here assume."
+    href="/docs/runtimes/ai-sdk/overview"
   />
   <PlatformOnly platforms={["react"]}>
     <Card
