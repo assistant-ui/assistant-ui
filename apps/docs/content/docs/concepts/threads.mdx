@@ -27,7 +27,7 @@ A thread list is what lets a user come back. It holds many threads, switches bet
   </Flow.Column>
 </Flow.Root>
 
-Each item in the list has an id, a title, the time of its last message, and a status: `regular`, `archived`, or `new` for a thread the user has opened but not yet sent anything in. When threads are stored, a new thread is written to storage when its first message is sent, so opening an empty chat and leaving it stores nothing.
+Each item in the list has an id and a status, and, once they are known, a title and the time of its last message. The status is `regular`, `archived`, or `new` for a thread the user has opened but not yet sent anything in. When threads are stored, a new thread is written to storage when its first message is sent, so opening an empty chat and leaving it stores nothing.
 
 ## Where threads are kept
 
@@ -35,7 +35,7 @@ Each item in the list has an id, a title, the time of its last message, and a st
 | --- | --- | --- |
 | In memory (the default) | One thread that resets on reload | Nothing |
 | A [history adapter](/docs/concepts/adapters#history-adapter) | One thread that survives a reload | Load and append for messages |
-| [Assistant Cloud](/docs/cloud) | A full thread list with titles, synced across devices | Nothing beyond passing `cloud` |
+| [Assistant Cloud](/docs/cloud) | A full thread list with titles, stored in the cloud | Nothing beyond passing `cloud` |
 | Your own database | A full thread list in tables you own | A `RemoteThreadListAdapter` |
 | Your own store | A thread list that lives next to your messages in Redux, Zustand or similar | An `ExternalStoreThreadListAdapter` |
 
@@ -48,18 +48,20 @@ import { useLocalRuntime } from "@assistant-ui/react";
 import { AssistantCloud } from "assistant-cloud";
 
 const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
   anonymous: true,
 });
 
-const runtime = useLocalRuntime(modelAdapter, { cloud });
+function useMyRuntime() {
+  return useLocalRuntime(modelAdapter, { cloud });
+}
 ```
 
 Most framework runtimes take `cloud` the same way, for example `useChatRuntime({ cloud })`; AG-UI and A2A go through `useCloudThreadListRuntime` instead. Where the messages themselves are stored depends on the runtime: `useLocalRuntime` and the AI SDK runtime keep them in the cloud, while runtimes whose backend already keeps the transcript, such as LangGraph, load it from that backend and store a copy in the cloud for the dashboard. [Which runtime](/docs/cloud/runtimes) lists each one.
 
 ## Your own database
 
-`useRemoteThreadListRuntime` wraps any runtime hook and asks a `RemoteThreadListAdapter` you write to list, create, rename, archive and delete threads. Messages are saved per thread through a history adapter. You keep every row in your own database, next to the rest of your app's data.
+`useRemoteThreadListRuntime` wraps any runtime hook and asks a `RemoteThreadListAdapter` you write to list, create, rename, archive and delete threads. With runtimes that take a history adapter, the messages of each thread are saved through it; runtimes whose backend keeps the transcript load it from there. You keep every row in your own database, next to the rest of your app's data.
 
 [Thread list adapters](/docs/integrations/persistence/thread-list-adapters) describes the contract and the cases a production list has to handle, such as the first message racing thread creation, and [custom thread persistence](/docs/integrations/persistence/custom-adapter) builds one with Postgres.
 

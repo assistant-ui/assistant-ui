@@ -56,7 +56,8 @@ function AssistantMessage() {
       <MessagePrimitive.Parts>
         {({ part }) => {
           if (part.type === "text") return <MessagePartPrimitive.Text />;
-          return part.toolUI ?? null;
+          if (part.type === "tool-call") return part.toolUI ?? null;
+          return null;
         }}
       </MessagePrimitive.Parts>
     </MessagePrimitive.Root>
@@ -64,7 +65,7 @@ function AssistantMessage() {
 }
 ```
 
-`part.toolUI` is the component registered for that tool, if there is one. Inside the function, a component reads its own part, so `MessagePartPrimitive.Text` shows the text of the part it was rendered for. The styled [Thread element](/elements/thread) does this for every part type, and the [Message primitive](/docs/primitives/message) page lists the rest of the options.
+For a tool call, `part.toolUI` is the UI registered for that tool, already rendered, or `null` when there is none. Inside the function, a component reads its own part, so `MessagePartPrimitive.Text` shows the text of the part it was rendered for. The styled [Thread element](/elements/thread) does this for every part type, and the [Message primitive](/docs/primitives/message) page lists the rest of the options.
 
 ## Status
 
@@ -77,7 +78,7 @@ An assistant message is live while the run that writes it is in progress. Its `s
 | `incomplete` | The run stopped early. The `reason` says why: `cancelled`, `error`, `tool-calls`, `length`, `content-filter` or `other`. |
 | `requires-action` | A tool call is waiting, either for a result your app supplies or for the user to approve or answer. |
 
-Each part has a status of its own too, so the last text part can show a cursor while the parts before it are done.
+While a message streams, each of its parts reports a status too, so the last text part can show a cursor while the parts before it are done.
 
 ## Attachments
 
@@ -91,7 +92,7 @@ A message starts in the composer, which holds the draft: its text and its attach
 
 Editing a message or regenerating a reply doesn't overwrite anything. The new version is added next to the old one, and the thread shows one version at a time. The messages form a tree, and the thread is the path through it that the user picked.
 
-Each message knows which version it is and how many there are, which is what a branch picker reads to show "2 / 3" and switch between them. [Branching](/docs/guides/branching) shows how to add one.
+The runtime tracks which version of a message is showing and how many there are, which is what a branch picker reads to show "2 / 3" and switch between them. [Branching](/docs/guides/branching) shows how to add one.
 
 ## Metadata
 
