@@ -331,3 +331,24 @@ def test_chat_endpoint_skips_custom_commands(monkeypatch: pytest.MonkeyPatch) ->
     [message] = inputs[0]["messages"]
     assert isinstance(message, ToolMessage)
     assert message.tool_call_id == "call-1"
+
+
+def test_chat_endpoint_runs_no_model_turn_for_custom_commands_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[object] = []
+
+    class RecordingGraph:
+        async def astream(self, input_state, **_kwargs):
+            calls.append(input_state)
+            return
+            yield
+
+    monkeypatch.setattr(main, "graph", RecordingGraph())
+
+    response = TestClient(main.app).post(
+        "/assistant", json={"state": {"messages": []}, "commands": [CUSTOM_COMMAND]}
+    )
+
+    assert response.status_code == 200
+    assert calls == []

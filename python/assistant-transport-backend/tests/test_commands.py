@@ -98,7 +98,7 @@ def test_a_tool_result_lands_on_the_call_with_its_id(main):
     assert "result" not in state["messages"][1]["parts"][0]
 
 
-def test_a_result_for_an_unknown_call_changes_nothing(main):
+def test_a_result_for_an_unknown_call_changes_nothing(main, capsys):
     sent = {"messages": [{"role": "assistant", "parts": [tool_call("call_a")]}]}
     response, state = post(
         main, sent, [{"type": "add-tool-result", "toolCallId": "missing", "result": 1}]
@@ -106,6 +106,16 @@ def test_a_result_for_an_unknown_call_changes_nothing(main):
 
     assert response.status_code == 200
     assert "result" not in state["messages"][0]["parts"][0]
+    assert "No tool call missing" in capsys.readouterr().out
+
+
+def test_custom_commands_alone_get_no_reply(main):
+    response, state = post(
+        main, {"messages": []}, [{"type": "my-custom-command", "data": "hello"}]
+    )
+
+    assert response.status_code == 200
+    assert state["messages"] == []
 
 
 def test_custom_commands_are_accepted_alongside_built_in_ones(main):

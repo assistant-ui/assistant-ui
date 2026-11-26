@@ -74,6 +74,11 @@ class CustomCommand(BaseModel):
 Command = Union[AddMessageCommand, AddToolResultCommand, CustomCommand]
 
 
+def only_custom(commands: list) -> bool:
+    """Whether every command is custom. Those change state but ask for no reply."""
+    return bool(commands) and all(isinstance(command, CustomCommand) for command in commands)
+
+
 class AssistantRequest(BaseModel):
     """Request payload for the assistant endpoint."""
     commands: List[Command] = Field(
@@ -162,6 +167,8 @@ async def assistant_endpoint(request: AssistantRequest):
                 controller.state = {}
             controller.state.setdefault("messages", [])
             apply_commands(controller.state, request.commands)
+            if only_custom(request.commands):
+                return
 
             await asyncio.sleep(1)
 

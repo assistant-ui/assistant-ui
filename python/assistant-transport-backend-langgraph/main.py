@@ -85,6 +85,11 @@ class CustomCommand(BaseModel):
         return value
 
 
+def only_custom(commands: list) -> bool:
+    """Whether every command is custom. Those change state but ask for no reply."""
+    return bool(commands) and all(isinstance(command, CustomCommand) for command in commands)
+
+
 class ChatRequest(BaseModel):
     """Request payload for the chat endpoint."""
     model_config = ConfigDict(populate_by_name=True)
@@ -564,6 +569,9 @@ async def chat_endpoint(request: ChatRequest):
                 ))
             # Custom commands land here. This backend has none of its own, so
             # it accepts and skips them; handle your types by `command.type`.
+
+        if only_custom(request.commands):
+            return
 
         # Add messages to controller state
         for message in input_messages:
