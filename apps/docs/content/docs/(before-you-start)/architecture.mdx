@@ -57,7 +57,7 @@ Each chat uses one runtime, chosen by its backend:
 
 ## Backend
 
-Your backend produces the answers. It can be a route that calls a model through the AI SDK, an agent framework such as LangGraph or Mastra, or any server whose output a runtime can read. It streams text, tool calls, reasoning and agent state, and the runtime turns each into parts of a message.
+Your backend produces the answers. It can be a route that calls a model through the AI SDK, an agent framework such as LangGraph or Mastra, or any server whose output a runtime can read. Depending on the runtime and protocol, it streams text, tool calls, reasoning or agent state, and the runtime turns what it receives into parts of a message.
 
 When no runtime fits your backend, have it send the [data stream](/docs/runtimes/custom/data-stream) or [assistant transport](/docs/runtimes/custom/assistant-transport) protocol, and use the runtime made for it.
 
