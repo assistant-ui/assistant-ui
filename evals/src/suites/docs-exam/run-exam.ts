@@ -40,7 +40,7 @@ const concurrency = positiveInt(
 );
 /** --only, checked against the exam so a typo can't silently select nothing. */
 const onlyIds = (ids: string[]) => {
-  if (!args.only) return undefined;
+  if (args.only === undefined) return undefined;
   const only = new Set(args.only.split(",").filter(Boolean));
   const unknown = [...only].filter((id) => !ids.includes(id));
   if (unknown.length || only.size === 0) {

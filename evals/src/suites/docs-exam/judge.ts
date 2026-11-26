@@ -75,7 +75,13 @@ export async function judge(
       cwd: emptyDir,
       timeoutMs: 180_000,
     });
-    return { ...parseVerdict(run.result), costUsd: run.costUsd };
+    try {
+      return { ...parseVerdict(run.result), costUsd: run.costUsd };
+    } catch (e) {
+      throw Object.assign(e instanceof Error ? e : new Error(String(e)), {
+        costUsd: run.costUsd,
+      });
+    }
   } finally {
     rmSync(emptyDir, { recursive: true, force: true });
   }

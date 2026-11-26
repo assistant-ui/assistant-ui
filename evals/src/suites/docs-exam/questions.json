@@ -640,10 +640,10 @@
       "id": "h033",
       "cluster": "styling",
       "question": "How do I make the chat column in the default Thread wider?",
-      "reference": "The thread element sets a CSS variable, `--thread-max-width: 44rem`, on its root, and the message list and composer use `max-w-(--thread-max-width)`. Change that value in your copy of thread.aui.tsx (the file is yours), or override the variable from a parent's CSS.",
+      "reference": "The thread element sets a CSS variable, `--thread-max-width: 44rem`, as an inline style on its own root, and the message list and composer use `max-w-(--thread-max-width)`. Change that value in your copy of thread.aui.tsx (the file is yours). Setting the variable on a parent element has no effect, because the root's own value wins.",
       "keyPoints": [
         "Through the --thread-max-width CSS variable (44rem by default)",
-        "Change it in your own copy of the thread component (or override the variable)"
+        "Change it in your own copy of the thread component"
       ],
       "sources": [
         {
@@ -1744,12 +1744,17 @@
       "id": "h092",
       "cluster": "ai-sdk",
       "question": "How does useChatRuntime let a resumable-stream server know which thread a stream belongs to?",
-      "reference": "It doesn't send the thread to the server. The server creates a stream id for each reply and returns it in the `x-resumable-stream-id` response header. AssistantChatTransport's resumable fetch keeps that id on the client, keyed by the thread (it passes the thread id to itself in an internal header that it strips before the request goes out), reconnects with it after a reload, and clears it when the finish event arrives.",
+      "reference": "The chat request's body carries the thread as `id` (its remoteId once the thread is saved), so the server can tie the stream it starts to that thread. The server then creates a stream id for the reply and returns it in the `x-resumable-stream-id` response header, and resuming goes by that stream id, not the thread. AssistantChatTransport's resumable fetch stores the stream id on the client per thread (it passes the thread to itself in an internal header that it strips before the request goes out), reconnects with it after a reload, and clears it when the finish event arrives.",
       "keyPoints": [
-        "The server keys the stream by a stream id it returns in the x-resumable-stream-id header, not by a thread id from the client",
-        "The client stores that stream id per thread and reconnects with it"
+        "The request body's id is the thread's id (its remoteId once saved)",
+        "The server returns a stream id in the x-resumable-stream-id header; resuming uses that id, which the client stores per thread"
       ],
       "sources": [
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 76,
+          "anchor": "const id = (await threadListItem?.initialize())?.remoteId ?? options.id;"
+        },
         {
           "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
           "line": 147,

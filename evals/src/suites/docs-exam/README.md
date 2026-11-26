@@ -34,15 +34,15 @@ The hand grades are 89% correct, so kappa is the stricter number. 22 of the 25 f
 
 ## Running
 
-It needs the `claude` CLI signed in (or `ANTHROPIC_API_KEY`). No workspace install is needed: the suite uses only Node built-ins.
+It needs Claude Code 2.1.259 or later (for `--permission-prompts none`; the runs here used 2.1.332), signed in or with `ANTHROPIC_API_KEY`. No workspace install is needed: the suite uses only Node built-ins. `pnpm eval` loads `evals/.env`; the direct `node` commands below take `--env-file-if-exists=.env` for the same.
 
 ```bash
 cd evals
 TRIALS=1 CANDIDATES=skim pnpm eval docs-exam heldout   # the score: held-out questions, skim reader
 TRIALS=1 pnpm eval docs-exam                           # both cases, both readers
-node src/suites/docs-exam/run-exam.ts --exam heldout --reader skim --out /tmp/run.json [--only h001,h002]
-node src/suites/docs-exam/run-exam.ts --regrade /tmp/run.json --out /tmp/regraded.json   # judge saved answers again
-node src/suites/docs-exam/validate-judge.ts --set test   # judge vs hand grades
+node --env-file-if-exists=.env src/suites/docs-exam/run-exam.ts --exam heldout --reader skim --out /tmp/run.json   # add --only h001,h002 for some
+node --env-file-if-exists=.env src/suites/docs-exam/run-exam.ts --regrade /tmp/run.json --out /tmp/regraded.json   # judge saved answers again
+node --env-file-if-exists=.env src/suites/docs-exam/validate-judge.ts --set test   # judge vs hand grades
 ```
 
 | Variable | Default | |

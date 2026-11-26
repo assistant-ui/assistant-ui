@@ -50,7 +50,8 @@ const runs = {
   test: ["before-deep", "before-skim", "after-deep", "after-skim"],
 }[args.set === "test" ? "test" : "dev"]!;
 const selected =
-  args.set === "all"
+  args.only?.split(",") ??
+  (args.set === "all"
     ? [
         "first-pass/before-deep",
         "first-pass/before-skim",
@@ -61,7 +62,7 @@ const selected =
         "after-deep",
         "after-skim",
       ]
-    : (args.only?.split(",") ?? runs);
+    : runs);
 
 interface Item {
   run: string;
@@ -116,6 +117,8 @@ const verdicts = await pool(
 );
 console.log("");
 
+// The verdicts are saved first, so a run where every judge call failed keeps its errors.
+if (args.out) writeFileSync(args.out, JSON.stringify({ verdicts }, null, 2));
 const graded = verdicts.filter((v) => v.judge);
 const a = agreement(
   graded.map((v) => ({ hand: v.hand, judge: v.judge!.grade })),

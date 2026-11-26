@@ -30,20 +30,45 @@ const childEnv = () =>
 // Readers run in their own process groups, which a Ctrl-C on the runner
 // doesn't reach, so the runner stops the live ones itself on the way out.
 const live = new Set<number>();
-const stopLive = () => {
+const signalLive = (signal: NodeJS.Signals) => {
   for (const pid of live) {
     try {
-      process.kill(-pid, "SIGTERM");
+      process.kill(-pid, signal);
     } catch {
       // Already gone.
     }
   }
 };
-process.once("exit", stopLive);
+const shutdownHooks: (() => void)[] = [];
+/** Runs `hook` when the runner exits or is interrupted, such as removing a temp folder. */
+export const onShutdown = (hook: () => void) => {
+  shutdownHooks.push(hook);
+};
+const runShutdownHooks = () => {
+  for (const hook of shutdownHooks.splice(0)) {
+    try {
+      hook();
+    } catch {
+      // Best effort on the way out.
+    }
+  }
+};
+process.once("exit", () => {
+  signalLive("SIGKILL");
+  runShutdownHooks();
+});
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    stopLive();
-    process.exit(128 + (signal === "SIGINT" ? 2 : 15));
+    // SIGTERM first; whatever is still running 2 s later is killed.
+    signalLive("SIGTERM");
+    const deadline = Date.now() + 2_000;
+    const check = setInterval(() => {
+      if (live.size > 0 && Date.now() < deadline) return;
+      clearInterval(check);
+      signalLive("SIGKILL");
+      runShutdownHooks();
+      process.exit(128 + (signal === "SIGINT" ? 2 : 15));
+    }, 100);
   });
 }
 
@@ -109,12 +134,24 @@ export function runClaude(o: ClaudeOptions): Promise<ClaudeRun> {
       reject(e);
     };
     child.on("error", fail);
-    // At the deadline the call fails at once; a child that ignores SIGTERM is killed 5 s later.
+    // At the deadline the group gets SIGTERM, and SIGKILL 5 s later if the
+    // child is still there. The call fails once the child has exited (not on
+    // `close`, which a grandchild holding a pipe can delay), so a pool slot
+    // never holds two live readers.
     let killTimer: NodeJS.Timeout | undefined;
     const timer = setTimeout(() => {
+      const timedOut = new Error(`claude timed out after ${o.timeoutMs} ms`);
+      if (child.exitCode !== null || child.signalCode !== null) {
+        fail(timedOut);
+        return;
+      }
+      child.once("exit", () => fail(timedOut));
       killGroup("SIGTERM");
-      killTimer = setTimeout(() => killGroup("SIGKILL"), 5_000);
-      fail(new Error(`claude timed out after ${o.timeoutMs} ms`));
+      killTimer = setTimeout(() => {
+        killGroup("SIGKILL");
+        // Exit follows SIGKILL; this only guards against a child that can't be signalled.
+        setTimeout(() => fail(timedOut), 1_000).unref();
+      }, 5_000);
     }, o.timeoutMs);
     child.on("close", (code) => {
       clearTimeout(timer);

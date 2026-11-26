@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runClaude } from "./claude.ts";
+import { onShutdown, runClaude } from "./claude.ts";
 import { judge, type Verdict } from "./judge.ts";
 import { pool, positiveInt } from "./pool.ts";
 
@@ -165,6 +165,24 @@ export function prepareDocs(): { dir: string; label: string } {
     : join(repoRoot, "apps/docs/content/docs");
   // The reader reports real paths (macOS tmpdir is a symlink), so pages must be relative to the real one.
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "docs-exam-text-")));
+  let scratch: string | undefined;
+  try {
+    return prepareInto(dir, content, (s) => {
+      scratch = s;
+    });
+  } catch (e) {
+    // A failed extraction leaves no folders behind.
+    rmSync(dir, { recursive: true, force: true });
+    if (scratch) rmSync(scratch, { recursive: true, force: true });
+    throw e;
+  }
+}
+
+function prepareInto(
+  dir: string,
+  content: string,
+  onScratch: (dir: string) => void,
+): { dir: string; label: string } {
   extract(dir, content);
   // A path inside this checkout is recorded relative to it, so a saved run names no local folders.
   const inRepo = relative(repoRoot, content);
@@ -172,6 +190,7 @@ export function prepareDocs(): { dir: string; label: string } {
   const elements = join(content, "../elements");
   if (process.env.DOCS_ELEMENTS !== "0" && existsSync(elements)) {
     const scratch = mkdtempSync(join(tmpdir(), "docs-exam-elements-"));
+    onScratch(scratch);
     extract(scratch, elements);
     // The extractor writes pages under docs/; the site serves these at /elements.
     renameSync(join(scratch, "docs"), join(dir, "elements"));
@@ -189,6 +208,9 @@ export function prepareDocs(): { dir: string; label: string } {
   docsText = { dir, label, owned: true };
   return docsText;
 }
+
+// An interrupted run still removes the folder it extracted.
+onShutdown(() => cleanupDocs());
 
 /** Removes the folder prepareDocs extracted itself; a DOCS_TEXT_DIR folder is never touched. */
 export function cleanupDocs() {
@@ -265,6 +287,21 @@ export function pagesRead(events: StreamEvent[], docsDir: string) {
   };
 }
 
+/** Node caps timers at 2^31-1 ms and fires anything longer at once, so the reader timeout stays under it. */
+const readerTimeoutMs = () => {
+  const seconds = positiveInt(
+    "READER_TIMEOUT_S",
+    process.env.READER_TIMEOUT_S,
+    480,
+  );
+  if (seconds * 1000 > 2 ** 31 - 1) {
+    throw new RangeError(
+      `READER_TIMEOUT_S must be at most 2147483, got ${seconds}`,
+    );
+  }
+  return seconds * 1000;
+};
+
 export async function askReader(
   q: ExamQuestion,
   reader: Reader,
@@ -290,9 +327,7 @@ export async function askReader(
       model,
       tools,
       cwd: docsDir,
-      timeoutMs:
-        positiveInt("READER_TIMEOUT_S", process.env.READER_TIMEOUT_S, 480) *
-        1000,
+      timeoutMs: readerTimeoutMs(),
     });
     const { pages, searches } = pagesRead(run.events as StreamEvent[], docsDir);
     return {
@@ -328,7 +363,13 @@ export async function grade(
     );
     return { ...a, verdict, judgeCostUsd: costUsd };
   } catch (e) {
-    return { ...a, judgeError: e instanceof Error ? e.message : String(e) };
+    // A reply the judge sent but that held no verdict was still paid for.
+    const cost = (e as { costUsd?: number | null }).costUsd ?? null;
+    return {
+      ...a,
+      judgeError: e instanceof Error ? e.message : String(e),
+      judgeCostUsd: cost,
+    };
   }
 }
 

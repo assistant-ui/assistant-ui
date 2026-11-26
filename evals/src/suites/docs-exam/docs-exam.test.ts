@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { agreement } from "./agreement.ts";
+import { runClaude } from "./claude.ts";
 import {
   type ExamRun,
   type GradedAnswer,
@@ -263,5 +267,69 @@ describe("pagesRead", () => {
       pages: ["docs/cli.md"],
       searches: ["Grep: runtime"],
     });
+  });
+});
+
+describe("runClaude with a fake CLI", () => {
+  const dir = mkdtempSync(join(tmpdir(), "docs-exam-fake-cli-"));
+  const fake = (name: string, body: string) => {
+    const file = join(dir, name);
+    writeFileSync(file, `#!/bin/sh\n${body}\n`);
+    chmodSync(file, 0o755);
+    return file;
+  };
+  const call = (bin: string, timeoutMs = 10_000) => {
+    process.env.CLAUDE_BIN = bin;
+    return runClaude({
+      prompt: "q",
+      systemPrompt: "s",
+      model: "m",
+      tools: "Read",
+      cwd: dir,
+      timeoutMs,
+    });
+  };
+
+  it("returns the result event's text and cost", async () => {
+    const bin = fake(
+      "ok",
+      `echo '{"type":"assistant","message":{"content":[]}}'; echo '{"type":"result","result":" hi ","total_cost_usd":0.25}'`,
+    );
+    const run = await call(bin);
+    assert.equal(run.result, "hi");
+    assert.equal(run.costUsd, 0.25);
+    assert.equal(run.events.length, 2);
+  });
+
+  it("rejects a non-zero exit with its stderr", async () => {
+    await assert.rejects(
+      call(fake("fail", "echo boom >&2; exit 3")),
+      /exited 3: boom/,
+    );
+  });
+
+  it("rejects an error result even on exit 0", async () => {
+    const bin = fake(
+      "err",
+      `echo '{"type":"result","is_error":true,"result":"rate limited"}'`,
+    );
+    await assert.rejects(call(bin), /error result: rate limited/);
+  });
+
+  it("stops a reader at the deadline", async () => {
+    const started = Date.now();
+    await assert.rejects(
+      call(fake("hang", "sleep 30"), 300),
+      /timed out after 300 ms/,
+    );
+    assert.ok(
+      Date.now() - started < 4_000,
+      "a reader that obeys SIGTERM stops at once",
+    );
+  });
+
+  it("cleans up", () => {
+    delete process.env.CLAUDE_BIN;
+    rmSync(dir, { recursive: true, force: true });
   });
 });
