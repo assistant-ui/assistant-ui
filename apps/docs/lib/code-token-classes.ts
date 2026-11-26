@@ -1,0 +1,84 @@
+import type { ShikiTransformer } from "shiki";
+import latte from "shiki/themes/catppuccin-latte.mjs";
+import mocha from "shiki/themes/catppuccin-mocha.mjs";
+
+type ThemeLike = {
+  colors?: Record<string, string>;
+  tokenColors?: { settings?: { foreground?: string } }[];
+  semanticTokenColors?: Record<string, string | { foreground?: string }>;
+};
+
+function themeColors(theme: ThemeLike): string[] {
+  const colors = new Set<string>();
+  const add = (color: string | undefined) => {
+    if (color && /^#[0-9a-f]{6}$/i.test(color)) colors.add(color.toLowerCase());
+  };
+  add(theme.colors?.["editor.foreground"]);
+  for (const token of theme.tokenColors ?? []) add(token.settings?.foreground);
+  for (const value of Object.values(theme.semanticTokenColors ?? {}))
+    add(typeof value === "string" ? value : value.foreground);
+  return [...colors].sort();
+}
+
+// Every token color the docs' two code themes can produce.
+const PALETTE = {
+  light: new Set(themeColors(latte as ThemeLike)),
+  dark: new Set(themeColors(mocha as ThemeLike)),
+};
+
+const tokenClass = (mode: "light" | "dark", color: string) =>
+  `s${mode[0]}-${color.slice(1)}`;
+
+/**
+ * Shiki writes each token's two colors inline:
+ * `style="--shiki-light:#4c4f69;--shiki-dark:#cdd6f4"`. A page prints that
+ * once in its HTML and once more, longer, in its flight data, and a long code
+ * page has thousands of tokens: on /docs/tools/tool-ui those styles were about
+ * 450 KB of 1.4 MB. This moves each palette color to a class
+ * (`sl-4c4f69 sd-cdd6f4`) that styles/code-tokens.css defines; a color
+ * outside the palette stays inline.
+ */
+export function codeTokenClasses(): ShikiTransformer {
+  return {
+    name: "docs:code-token-classes",
+    span(node) {
+      const style = node.properties.style;
+      if (typeof style !== "string") return;
+      const kept: string[] = [];
+      const classes: string[] = [];
+      for (const raw of style.split(";")) {
+        const declaration = raw.trim();
+        if (!declaration) continue;
+        const match = /^--shiki-(light|dark):(#[0-9a-fA-F]{6})$/.exec(
+          declaration,
+        );
+        const mode = match?.[1] as "light" | "dark" | undefined;
+        const color = match?.[2]?.toLowerCase();
+        if (mode && color && PALETTE[mode].has(color)) {
+          classes.push(tokenClass(mode, color));
+        } else {
+          kept.push(declaration);
+        }
+      }
+      if (classes.length === 0) return;
+      this.addClassToHast(node, classes);
+      if (kept.length > 0) node.properties.style = kept.join(";");
+      else delete node.properties.style;
+    },
+  };
+}
+
+/** The stylesheet behind the token classes: styles/code-tokens.css. */
+export function codeTokenCss(): string {
+  const rules = (["light", "dark"] as const).flatMap((mode) =>
+    [...PALETTE[mode]].map(
+      (color) =>
+        `.${tokenClass(mode, color)} {\n  --shiki-${mode}: ${color};\n}`,
+    ),
+  );
+  return [
+    "/* Generated from lib/code-token-classes.ts by scripts/generate-code-tokens.mts; lib/code-token-classes.test.ts checks it. */",
+    ...rules,
+    "",
+  ].join("\n");
+}
