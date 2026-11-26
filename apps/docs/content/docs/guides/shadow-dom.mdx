@@ -1,0 +1,64 @@
+---
+title: Shadow DOM
+description: Keep tooltips, popovers and dialogs inside the shadow root that holds your styles.
+platforms: ["react"]
+---
+
+A browser extension or an embeddable widget often renders its UI inside a shadow root and adopts its compiled stylesheet there, so the host page's CSS and the widget's CSS stay apart. Tooltips, popovers, dialogs and preview cards portal to `document.body` by default. That is outside the shadow root, so they render without your styles.
+
+`PortalContainerContext` tells them to portal into a node you choose instead.
+
+## Provide a container
+
+Add the context to your project:
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/elements-portal-container.json
+```
+
+Render a node inside the shadow root and pass it as the context's value, above the assistant-ui components:
+
+```tsx title="components/shadow-root-portals.tsx"
+"use client";
+
+import { useState, type ReactNode } from "react";
+import { PortalContainerContext } from "@/components/assistant-ui/utils/portal-container";
+
+export function ShadowRootPortals({ children }: { children: ReactNode }) {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+
+  return (
+    <>
+      <div ref={setContainer} />
+      <PortalContainerContext.Provider value={container}>
+        {children}
+      </PortalContainerContext.Provider>
+    </>
+  );
+}
+```
+
+The value can be any element inside the shadow root, or the `ShadowRoot` itself. With no provider, popups portal to `document.body` as before.
+
+## Components that read it
+
+[Assistant modal](/elements/assistant-modal), [Inline citation](/elements/inline-citation) and the conversation map render their own portals and read the context.
+
+Components such as [Tooltip icon button](/elements/tooltip-icon-button) and [Model selector](/elements/model-selector) open their popups through the shadcn primitives in `components/ui`. Those files are yours, and `npx shadcn add` installs shadcn's version of them, so pass the container to each primitive's `Portal` yourself:
+
+```tsx title="components/ui/tooltip.tsx"
+import { useContext } from "react"; // [!code ++]
+import { PortalContainerContext } from "@/components/assistant-ui/utils/portal-container"; // [!code ++]
+
+function TooltipContent({
+  // ...
+}) {
+  const container = useContext(PortalContainerContext); // [!code ++]
+
+  return (
+    <TooltipPrimitive.Portal container={container}> // [!code ++]
+```
+
+Make the same change in `popover.tsx`, in `DialogPortal` in `dialog.tsx`, and in any other primitive you use that portals, such as `select.tsx`. The Radix primitives take the same `container` prop.
+
+Leave the Radix menu in `dropdown-menu.tsx` and the Radix select in `select.tsx` portaling to `document.body`. They move keyboard focus by comparing items against `document.activeElement`, which inside a shadow root is the shadow host, so a menu opened from the keyboard focuses its last item instead of its first. The message action menu in [Thread](/elements/thread) and the item menu in [Thread list](/elements/thread-list) are Radix menus, so they stay in `document.body` too.

@@ -1,10 +1,11 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useContext, type ComponentProps } from "react";
 import { PreviewCard } from "@base-ui/react/preview-card";
 import { cn } from "@/lib/utils";
 import { floating, mono } from "./surfaces";
 import { hostOf, safeHref } from "../utils/href";
+import { PortalContainerContext } from "../utils/portal-container";
 
 export interface Source {
   domain?: string | undefined;
@@ -48,6 +49,7 @@ export function Citation({
   const href = safeHref(source.url);
   const publishedAt = formatPublishedAt(source.publishedAt);
   const hasMetadata = domain !== undefined || publishedAt !== undefined;
+  const portalContainer = useContext(PortalContainerContext);
 
   return (
     <PreviewCard.Root open={open} onOpenChange={onOpenChange}>
@@ -62,7 +64,7 @@ export function Citation({
       >
         {index + 1}
       </PreviewCard.Trigger>
-      <PreviewCard.Portal>
+      <PreviewCard.Portal container={portalContainer}>
         <PreviewCard.Positioner side="top" sideOffset={8}>
           <PreviewCard.Popup
             className={cn(

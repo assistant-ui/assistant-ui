@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { PortalContainerContext } from "../utils/portal-container";
 import { Citation, InlineCitation, type Source } from "./inline-citation";
 
 afterEach(cleanup);
@@ -47,6 +48,24 @@ describe("InlineCitation", () => {
     expect(screen.getByText(SOURCE.title)).toBeTruthy();
     expect(screen.getByText(SOURCE.snippet)).toBeTruthy();
     expect(screen.getByText("Jan 2024")).toBeTruthy();
+  });
+
+  it("renders the preview in the PortalContainerContext container inside a shadow root", () => {
+    const host = document.body.appendChild(document.createElement("div"));
+    const shadow = host.attachShadow({ mode: "open" });
+    const portalContainer = shadow.appendChild(document.createElement("div"));
+    const mount = shadow.appendChild(document.createElement("div"));
+
+    render(
+      <PortalContainerContext.Provider value={portalContainer}>
+        <Citation index={0} source={SOURCE} open />
+      </PortalContainerContext.Provider>,
+      { container: mount },
+    );
+
+    expect(portalContainer.textContent).toContain(SOURCE.snippet);
+    expect(document.body.textContent).not.toContain(SOURCE.snippet);
+    host.remove();
   });
 
   it("links safe source URLs but leaves unsafe ones inert", () => {

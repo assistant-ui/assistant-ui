@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useContext,
   useRef,
   useState,
   type ComponentProps,
@@ -10,6 +11,7 @@ import {
 import { PreviewCard } from "@base-ui/react/preview-card";
 import { cn } from "@/lib/utils";
 import { floating } from "./surfaces";
+import { PortalContainerContext } from "../utils/portal-container";
 import { clamp } from "../utils/range";
 
 export interface ConversationMapEntry {
@@ -41,6 +43,7 @@ export function ConversationMap({
     PreviewCard.createHandle<ConversationMapEntry>(),
   );
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const portalContainer = useContext(PortalContainerContext);
 
   const inView = new Set(visibleIds);
   const activeIndex = entries.findIndex((entry) => entry.id === activeId);
@@ -134,7 +137,7 @@ export function ConversationMap({
 
       <PreviewCard.Root handle={handle}>
         {({ payload }) => (
-          <PreviewCard.Portal>
+          <PreviewCard.Portal container={portalContainer}>
             <PreviewCard.Positioner side={side} sideOffset={10}>
               <PreviewCard.Popup
                 className={cn(

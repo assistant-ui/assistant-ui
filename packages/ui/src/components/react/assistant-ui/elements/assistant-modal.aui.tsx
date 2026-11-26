@@ -6,6 +6,7 @@ import {
   type ComponentPropsWithoutRef,
   type FC,
   forwardRef,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -26,6 +27,7 @@ import {
 } from "@/components/assistant-ui/elements/thread-list.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { type ModalView, useModalSize } from "../utils/modal-size";
+import { PortalContainerContext } from "../utils/portal-container";
 
 export const AssistantModal: FC = () => {
   const [open, setOpen] = useState(false);
@@ -33,6 +35,7 @@ export const AssistantModal: FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const { size, reset, handleProps } = useModalSize(contentRef);
   const thread = useMemo(() => <Thread />, []);
+  const portalContainer = useContext(PortalContainerContext);
 
   useAuiEvent("thread.runStart", () => {
     setView("thread");
@@ -62,7 +65,7 @@ export const AssistantModal: FC = () => {
           )}
         />
       </div>
-      <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Portal container={portalContainer}>
         <PopoverPrimitive.Positioner
           side="top"
           align="end"
@@ -113,7 +116,8 @@ const AssistantModalHeader: FC<{
     if (shownViewRef.current === view) return;
     shownViewRef.current = view;
     const heading = titleRef.current;
-    const active = document.activeElement;
+    const root = heading?.getRootNode() as Document | ShadowRoot | undefined;
+    const active = root?.activeElement ?? document.activeElement;
     if (
       active === document.body ||
       active === heading?.closest("[role='dialog']")

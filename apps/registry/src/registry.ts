@@ -342,7 +342,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Numbered references inside a sentence, each with a hover preview of its source.",
     file: "inline-citation.tsx",
     dependencies: ["@base-ui/react"],
-    usesElements: ["href"],
+    usesElements: ["href", "portal-container"],
   }),
   createElementRegistryItem({
     slug: "link-preview",
@@ -530,7 +530,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, and a hover preview of what it says.",
     file: "conversation-map.tsx",
     dependencies: ["@base-ui/react"],
-    usesElements: ["range"],
+    usesElements: ["range", "portal-container"],
   }),
   createElementRegistryItem({
     slug: "todo-list",
@@ -1732,6 +1732,21 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "elements-portal-container",
+    type: "registry:component",
+    title: "Elements Portal Container",
+    description:
+      "Points the popups of the assistant modal, inline citations and the conversation map at a container you choose, such as a node inside a shadow root.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/portal-container.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/portal-container.ts",
+      },
+    ],
+  },
+  {
     name: "assistant-modal",
     type: "registry:component",
     title: "Assistant Modal",
@@ -1751,6 +1766,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/elements-modal-size.json",
+      "https://r.assistant-ui.com/elements-portal-container.json",
     ],
     baseDependencies: ["@base-ui/react"],
   },
