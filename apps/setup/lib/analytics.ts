@@ -90,7 +90,7 @@ const readReported = (): Reported => {
 export const firstForSetup = (setup: string, key: string) => {
   if (typeof window === "undefined") return false;
   const stored = readReported();
-  const keys = stored[setup] ?? [];
+  const keys = Object.hasOwn(stored, setup) ? stored[setup]! : [];
   if (keys.includes(key)) return false;
   const others = Object.entries(stored).filter(([id]) => id !== setup);
   reportedInMemory = Object.fromEntries([

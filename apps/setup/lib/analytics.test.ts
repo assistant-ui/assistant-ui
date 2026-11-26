@@ -33,6 +33,13 @@ describe("firstForSetup", () => {
     expect(reloaded.firstForSetup("setupB", "agent_connected")).toBe(false);
   });
 
+  it("takes a setup id that names an object property as any other", async () => {
+    const { firstForSetup } = await freshTab();
+    expect(firstForSetup("constructor", "closed")).toBe(true);
+    expect(firstForSetup("constructor", "closed")).toBe(false);
+    expect(firstForSetup("toString", "closed")).toBe(true);
+  });
+
   it("remembers the last ten setups and lets older ones drop off", async () => {
     const { firstForSetup } = await freshTab();
     for (let n = 0; n < 11; n++) firstForSetup(`setup${n}`, "closed");
