@@ -20,6 +20,9 @@ from assistant_stream.state_proxy import StateProxyJSONEncoder
 logger = logging.getLogger(__name__)
 
 
+DATA_STREAM_HEADER = "x-vercel-ai-data-stream"
+
+
 class DataStreamEncoder(StreamEncoder):
     def encode_chunk(self, chunk: AssistantStreamChunk) -> str | None:
         if chunk.type == "text-delta":
@@ -110,6 +113,11 @@ class DataStreamEncoder(StreamEncoder):
     def get_media_type(self) -> str:
         return "text/plain"
 
+    def get_headers(self) -> dict[str, str]:
+        # Same header as the TypeScript DataStreamEncoder: useDataStreamRuntime
+        # detects the data stream protocol from it when `protocol` is omitted.
+        return {DATA_STREAM_HEADER: "v1"}
+
     def get_keepalive_token(self) -> str:
         return DATA_STREAM_KEEPALIVE_LINE
 
@@ -175,6 +183,3 @@ class DataStreamResponse(AssistantStreamResponse):
         heartbeat: HeartbeatOption = False,
     ):
         super().__init__(stream, DataStreamEncoder(), heartbeat=heartbeat)
-        # Same header as the TypeScript DataStreamEncoder: useDataStreamRuntime
-        # detects the data stream protocol from it when `protocol` is omitted.
-        self.headers["x-vercel-ai-data-stream"] = "v1"

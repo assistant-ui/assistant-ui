@@ -32,7 +32,7 @@ async def create_resumable_assistant_stream_response(
     return StreamingResponse(
         body,
         media_type=resolved_encoder.get_media_type(),
-        headers=_merge_headers(headers, stream_id),
+        headers=_merge_headers(resolved_encoder, headers, stream_id),
     )
 
 
@@ -59,14 +59,14 @@ async def create_resume_assistant_stream_response(
     return StreamingResponse(
         body,
         media_type=resolved_encoder.get_media_type(),
-        headers=_merge_headers(headers, stream_id),
+        headers=_merge_headers(resolved_encoder, headers, stream_id),
     )
 
 
 def _merge_headers(
-    extra: Mapping[str, str] | None, stream_id: str
+    encoder: StreamEncoder, extra: Mapping[str, str] | None, stream_id: str
 ) -> dict[str, str]:
-    merged: dict[str, str] = {}
+    merged: dict[str, str] = dict(encoder.get_headers())
     if extra is not None:
         for key, value in extra.items():
             if key.lower() != RESUMABLE_STREAM_ID_HEADER:
