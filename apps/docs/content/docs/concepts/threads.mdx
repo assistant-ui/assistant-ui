@@ -39,7 +39,7 @@ Each item in the list has an id and a status, and, once they are known, a title 
 | In memory (the default) | One thread that resets on reload | Nothing |
 | A [history adapter](/docs/concepts/adapters#history-adapter) | One thread that survives a reload | Load and append for messages |
 | [Assistant Cloud](/docs/cloud) | A full thread list with titles, stored in the cloud | Nothing beyond passing `cloud` |
-| [The browser](#the-browser) | A full thread list in `localStorage`, for prototypes and single-user apps | A three-line storage wrapper |
+| [The browser](#the-browser) | A full thread list in `localStorage`, for prototypes and single-user apps | A small storage wrapper |
 | Your own database | A full thread list in tables you own | A `RemoteThreadListAdapter` |
 | Your own store | A thread list that lives next to your messages in Redux, Zustand or similar | An `ExternalStoreThreadListAdapter` |
 
@@ -100,12 +100,18 @@ import {
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
-// The storage is only touched when a method runs in the browser, so this is safe to prerender.
+// Next.js also renders this component on the server, where there is no localStorage.
+const inBrowser = () => typeof window !== "undefined";
+
 const threads = createLocalStorageAdapter({
   storage: {
-    getItem: async (key) => window.localStorage.getItem(key),
-    setItem: async (key, value) => window.localStorage.setItem(key, value),
-    removeItem: async (key) => window.localStorage.removeItem(key),
+    getItem: async (key) => (inBrowser() ? localStorage.getItem(key) : null),
+    setItem: async (key, value) => {
+      if (inBrowser()) localStorage.setItem(key, value);
+    },
+    removeItem: async (key) => {
+      if (inBrowser()) localStorage.removeItem(key);
+    },
   },
   titleGenerator: createSimpleTitleAdapter(),
 });
