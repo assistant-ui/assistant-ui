@@ -14,7 +14,7 @@ When a reasoning model responds, it may emit a sequence of reasoning tokens and 
 
 Try it below. You play the backend: Reasoning, Tool call and Text each stream one part into the assistant message, Finish and Fail end the run, and the panel shows the message's `status` and each part's group path. Adjacent parts that share the `group-chainOfThought` prefix fold into one section, and a text part closes it.
 
-<PartsPlayground />
+<PartsPlayground description="You play the backend: stream reasoning, tool-call and text parts into one assistant message, and see how adjacent parts group" />
 
 <Callout type="info">
 The older `components.ChainOfThought` prop on `MessagePrimitive.Parts` and `components` prop on `ChainOfThoughtPrimitive.Parts` are legacy APIs. They still work for existing code, but new code should use `MessagePrimitive.GroupedParts`.

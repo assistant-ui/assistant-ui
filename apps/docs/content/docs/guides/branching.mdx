@@ -15,7 +15,7 @@ Where the branches live depends on who holds the messages. `LocalRuntime` keeps 
 
 A thread is a tree, not a list. Every message records its parent, and messages that share a parent are branches of each other. The thread shows one path through the tree, from the first message to the head, and the branch picker on a message moves that path to a sibling. Nothing is deleted when you edit or regenerate.
 
-<BranchTreeSample />
+<BranchTreeSample description="A thread drawn as a message tree, with the visible path from the first message to the head" />
 
 The panel reads the tree with `thread.export()`. It returns an `ExportedMessageRepository`: every message with its `parentId`, plus the `headId`. That is also the shape a `ThreadHistoryAdapter` loads, which is how saved threads keep their branches.
 

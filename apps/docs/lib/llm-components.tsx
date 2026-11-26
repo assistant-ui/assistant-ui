@@ -133,5 +133,13 @@ export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
   ParametersTable: ParametersTableLLM,
   PrimitivesTypeTable: PrimitivesTypeTableLLM,
   Flow: FlowLLM,
+  // Agents read mermaid source; the SVG the page draws would reach them as
+  // nothing.
+  MermaidDiagram: ({ children }: { children?: ReactNode }) =>
+    typeof children === "string" && children.trim() ? (
+      <pre>
+        <code className="language-mermaid">{children.trim()}</code>
+      </pre>
+    ) : null,
   TapTutorialSlideshow: TapTutorialSlideshowLLM,
 });

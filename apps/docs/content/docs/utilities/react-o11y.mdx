@@ -23,7 +23,7 @@ import {
 - **Reactive**: built on the same reactive core as the runtimes, so spans stream into your UI as they change.
 
 <div className="not-prose my-6">
-  <WaterfallSample />
+  <WaterfallSample description="A span waterfall: nested spans on a shared timeline, with depth and duration" />
 </div>
 
 ## Installation
@@ -77,7 +77,7 @@ export function TraceView({ spans }: { spans: SpanData[] }) {
 `data-span-status` exposes each span's lifecycle, so running, completed, failed, and skipped spans can be styled with CSS alone.
 
 <div className="not-prose my-6">
-  <StatusSample />
+  <StatusSample description="Spans styled by status: running, completed, failed and skipped" />
 </div>
 
 ### Collapsible subtrees
@@ -85,7 +85,7 @@ export function TraceView({ spans }: { spans: SpanData[] }) {
 Collapsing a span with `SpanPrimitive.CollapseToggle` removes its descendants from the visible flat list, so they are not rendered. Click a chevron to collapse a subtree.
 
 <div className="not-prose my-6">
-  <CollapseSample />
+  <CollapseSample description="A span tree where each chevron collapses or expands that span's subtree" />
 </div>
 
 ### Streaming spans
@@ -93,7 +93,7 @@ Collapsing a span with `SpanPrimitive.CollapseToggle` removes its descendants fr
 `SpanResource` re-derives the tree whenever the `spans` prop changes, so spans stream in and update live.
 
 <div className="not-prose my-6">
-  <StreamingSample />
+  <StreamingSample description="Spans streaming in and updating live as the spans prop changes" />
 </div>
 
 ## Anatomy
