@@ -9,9 +9,13 @@ const read = (relative: string) =>
 
 const manifest = (pkg: string) =>
   JSON.parse(read(`packages/${pkg}/package.json`)) as {
+    version: string;
     dependencies?: Record<string, string>;
     peerDependencies?: Record<string, string>;
   };
+
+const publishedRange = (range: string | undefined, workspaceDir: string) =>
+  range === "workspace:^" ? `^${manifest(workspaceDir).version}` : range;
 
 const caretLine = (range: string | undefined) => {
   const match = /^\^(\d+)\.(\d+)\.\d+$/.exec(range ?? "");
@@ -20,13 +24,16 @@ const caretLine = (range: string | undefined) => {
 };
 
 describe("docs pages state the versions the manifests declare", () => {
-  it("names the assistant-cloud line that core and react depend on", () => {
+  it("names the assistant-cloud line that core and the platform packages depend on", () => {
     const page = read(
       "apps/docs/content/docs/cloud/(integrations)/upgrade-from-0-1.mdx",
     );
-    for (const pkg of ["core", "react"]) {
+    for (const pkg of ["core", "react", "react-native", "react-ink"]) {
       const { minor } = caretLine(
-        manifest(pkg).dependencies?.["assistant-cloud"],
+        publishedRange(
+          manifest(pkg).dependencies?.["assistant-cloud"],
+          "cloud",
+        ),
       );
       expect(page).toContain(`depend on \`assistant-cloud\` ${minor}.`);
     }
