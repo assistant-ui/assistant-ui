@@ -1025,6 +1025,47 @@ describe("SetupWizard", () => {
     await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
   });
 
+  it("keeps the disconnected dialog away when the user steps back from a finished setup the agent left", () => {
+    const events = captureEvents();
+    const state = connected({
+      status: "installing",
+      completion: { proposedAt: 5 },
+      steps: [{ id: "s1", title: "Install", status: "done", createdAt: 4 }],
+    });
+    render(<SetupWizard checkout={context(state, false)} />);
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Installation",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(events("setup_error")).toEqual([]);
+  });
+
+  it("keeps Finish reachable when the agent leaves while working on a follow-up", () => {
+    const state = connected({
+      status: "installing",
+      completion: { proposedAt: 5 },
+      log: [
+        { id: "l1", role: "user", phase: "installing", at: 6, text: "More" },
+      ],
+      steps: [
+        { id: "s1", title: "Add the route", status: "active", createdAt: 7 },
+      ],
+    });
+    render(<SetupWizard checkout={context(state, false)} />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Installing",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      screen.getByText(/Claude Code is no longer connected/),
+    ).toBeDefined();
+    expect(footer().getByRole("button", { name: "Finish" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
+
   it("puts a question's answer on the Next button and sends it from the footer", async () => {
     const state = connected({
       status: "planning",

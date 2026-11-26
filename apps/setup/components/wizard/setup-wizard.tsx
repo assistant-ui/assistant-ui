@@ -739,9 +739,9 @@ export function SetupWizard({
     phase === "quiet" && !checkout.degraded,
     state?.agent.lastSeenAt ?? null,
   );
-  // Once the agent has finished, closing the setup no longer needs it: the finish page says it left instead of covering Finish.
-  const disconnected =
-    agentAway && page.id !== "connect" && page.id !== "finish";
+  // Once the agent has proposed finishing, closing the setup no longer needs it: on whichever page the user is looking at, Finish stays reachable and the proposal says the agent left.
+  const agentFinished = state !== undefined && finishProposed(state);
+  const disconnected = agentAway && page.id !== "connect" && !agentFinished;
   const wasDegraded = useRef(false);
   useEffect(() => {
     const was = wasDegraded.current;
@@ -799,7 +799,12 @@ export function SetupWizard({
 
   const proposal =
     !reviewing && state !== undefined && finishProposed(state) ? (
-      <FinishProposal checkout={checkout} agentName={name} onClosed={close} />
+      <FinishProposal
+        checkout={checkout}
+        agentName={name}
+        onClosed={close}
+        agentAway={agentAway}
+      />
     ) : null;
 
   const view = ((): PageView => {
