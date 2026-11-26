@@ -426,7 +426,9 @@ function PinButton() {
   return (
     <button
       type="button"
-      onClick={() => aui.threadListItem.updateCustom({ ...custom, pinned: !pinned })}
+      onClick={() =>
+        aui.threadListItem.updateCustom({ ...custom, pinned: !pinned })
+      }
     >
       {pinned ? "Unpin" : "Pin"}
     </button>
