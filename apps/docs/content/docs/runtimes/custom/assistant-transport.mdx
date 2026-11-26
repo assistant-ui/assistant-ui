@@ -185,7 +185,7 @@ async def chat_endpoint(request: ChatRequest):
                 controller.state["messages"].append(command.message.model_dump())
             elif command.type == "add-tool-result":
                 for message in controller.state["messages"]:
-                    for part in message["parts"]:
+                    for part in message.get("parts", []):
                         if part.get("toolCallId") == command.toolCallId:
                             part["result"] = command.result
                             part["isError"] = command.isError
