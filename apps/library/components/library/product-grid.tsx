@@ -16,6 +16,7 @@ import {
   type LibraryItem,
 } from "@/lib/library/catalog";
 import { cn } from "@/lib/utils";
+import { BlockViewer } from "./block-viewer";
 import { DesignSpecimen, PrimitiveSample } from "./component-previews";
 import { ItemMark } from "./item-mark";
 import { ItemMenu } from "./item-menu";
@@ -383,12 +384,48 @@ function ProductGallery({ items }: { items: readonly LibraryItem[] }) {
   );
 }
 
+/** Blocks, one after another, each in a viewer with its preview and source. */
+function BlockList({ items }: { items: readonly LibraryItem[] }) {
+  return (
+    <ul role="list" className="flex flex-col gap-14">
+      {items.map((item) =>
+        item.preview?.kind === "block" ? (
+          <li key={item.id} className="flex min-w-0 flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <h3 className="text-[15px] leading-6">
+                  <ItemLink item={item} />
+                </h3>
+                <p className="text-muted-foreground text-sm text-pretty">
+                  {item.description}
+                </p>
+              </div>
+              <ItemMenu item={item} />
+            </div>
+            <BlockViewer
+              slug={item.preview.slug}
+              title={item.name}
+              files={item.preview.files}
+              entry={item.preview.entry}
+              elements={item.preview.elements}
+            />
+          </li>
+        ) : null,
+      )}
+    </ul>
+  );
+}
+
 /** A category's items: previews where the category has them, cards otherwise. */
 export function ProductGrid({ items }: { items: readonly LibraryItem[] }) {
   const [first] = items;
 
   if (!first) {
     return <p className="text-muted-foreground text-sm">Nothing matches.</p>;
+  }
+
+  if (first.category === "blocks") {
+    return <BlockList items={items} />;
   }
 
   if (GALLERY_CATEGORIES.includes(first.category)) {

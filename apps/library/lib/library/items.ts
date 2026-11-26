@@ -1,7 +1,7 @@
 import "server-only";
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import matter from "gray-matter";
 import { agentSetupPrompt, pageSetupPrompt } from "@/lib/agent-setup-prompt";
 import { getSkills } from "@/lib/agent-skills";
@@ -10,8 +10,10 @@ import {
   ELEMENTS,
   elementRegistryName,
 } from "@/components/pages/elements/registry";
-import { BLOCKS } from "@/lib/blocks";
+import blockRegistry from "@/registry/registry.json";
 import { ELEMENT_INDEX } from "@/lib/catalog/element-index";
+import { blockElements } from "@/components/pages/blocks/block-source";
+import { registry as auiRegistry } from "../../../registry/src/registry";
 import { BASE_URL } from "@/lib/constants";
 import { elementProductSlug } from "@/lib/catalog/products/elements";
 import { generativeFrame } from "@/lib/catalog/products/generative-frame";
@@ -136,23 +138,110 @@ const PRIMITIVE_PAGES = [
   "chain-of-thought",
 ] as const;
 
-const blocks: LibraryItem[] = BLOCKS.map((block) => ({
-  id: `blocks/${block.slug}`,
-  category: "blocks",
-  name: block.title,
-  description: block.description,
-  href: docsUrl(`/blocks/${block.slug}`),
-  external: true,
-  prompt: agentSetupPrompt(
-    [],
-    `Add the ${block.title} block from ${block.githubLink}`,
-  ),
-  preview: {
-    kind: "image",
-    light: docsUrl(block.image.light),
-    dark: docsUrl(block.image.dark),
-  },
-}));
+const AUI_ITEM = /^https:\/\/r\.assistant-ui\.com\/(?:base\/)?(.+)\.json$/;
+const REGISTRY_DIR = join(process.cwd(), "..", "registry");
+const auiItems = new Map(auiRegistry.map((item) => [item.name, item]));
+
+/**
+ * The files a block's assistant-ui registry dependencies install, and theirs
+ * in turn, each at the path it lands in a project. Dependencies from other
+ * registries, such as shadcn's, are left out.
+ */
+const auiDependencyFiles = (dependencies: readonly string[]) => {
+  const seen = new Set<string>();
+  const files = new Map<string, string>();
+  const walk = (list: readonly string[]) => {
+    for (const dependency of list) {
+      const name = AUI_ITEM.exec(dependency)?.[1];
+      const item = name ? auiItems.get(name) : undefined;
+      if (!item || seen.has(item.name)) continue;
+      seen.add(item.name);
+      for (const file of item.files ?? []) {
+        const path = file.target ?? file.path;
+        if (files.has(path)) continue;
+        files.set(
+          path,
+          readFileSync(
+            join(REGISTRY_DIR, file.sourcePath ?? file.path),
+            "utf8",
+          ),
+        );
+      }
+      walk([
+        ...(item.registryDependencies ?? []),
+        ...(item.baseRegistryDependencies ?? []),
+      ]);
+    }
+  };
+  walk(dependencies);
+  return [...files].map(([path, code]) => ({ path, code }));
+};
+
+/** The blocks authored in this app's registry, each shown running. */
+const blocks: LibraryItem[] = blockRegistry.items
+  .filter((item) => item.type === "registry:block")
+  .map((block) => {
+    // The Code tab shows each file where it lands in a project: a page at its
+    // target, and a component at its path inside the block, under components/.
+    const folder = `registry/blocks/${block.name}`;
+    const sources = block.files.map((file) => ({
+      path: file.path,
+      code: readFileSync(join(process.cwd(), file.path), "utf8"),
+    }));
+    const titles = new Map(
+      ELEMENTS.map((element) => [element.slug, element.title]),
+    );
+    const elements = [
+      ...new Set(blockElements(sources, ELEMENTS).map((use) => use.slug)),
+    ].map((slug) => ({
+      slug,
+      title: titles.get(slug) ?? slug,
+      href: docsUrl(`/elements/${slug}`),
+    }));
+    const blockFiles = block.files.map((file, index) => ({
+      path:
+        ("target" in file ? file.target?.replace(/^~\//, "") : undefined) ??
+        (file.path.startsWith(`${folder}/`)
+          ? relative(folder, file.path)
+          : file.path.replace(/^registry\/shared\//, "")),
+      // Imports read as they do once installed, which is how shadcn rewrites
+      // `@/registry/.../components/` and `.../lib/` imports to the aliases.
+      code: sources[index]!.code.replaceAll(
+        `@/${folder}/components/`,
+        "@/components/",
+      )
+        .replaceAll("@/registry/shared/lib/", "@/lib/")
+        .replaceAll("@/registry/shared/components/", "@/components/"),
+    }));
+    // The block's own files first, then what its assistant-ui dependencies add.
+    const ownPaths = new Set(blockFiles.map((file) => file.path));
+    const files = [
+      ...blockFiles,
+      ...auiDependencyFiles(block.registryDependencies ?? []).filter(
+        (file) => !ownPaths.has(file.path),
+      ),
+    ];
+    return {
+      id: `blocks/${block.name}`,
+      category: "blocks",
+      name: block.title,
+      description: block.description,
+      href: `${REPO_TREE}/apps/library/registry/blocks/${block.name}`,
+      external: true,
+      prompt: agentSetupPrompt(
+        [],
+        `Add the ${block.title} block from ${REPO_TREE}/apps/library/registry/blocks/${block.name}`,
+      ),
+      preview: {
+        kind: "block",
+        slug: block.name,
+        files,
+        entry: files[0]?.path ?? "",
+        elements,
+      },
+      wide: true,
+    } satisfies LibraryItem;
+  });
 
 /** Mirrors the template table in content/docs/(getting-started)/cli.mdx. */
 const TEMPLATES: readonly (readonly [name: string, description: string])[] = [

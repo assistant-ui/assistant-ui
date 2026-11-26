@@ -1,0 +1,175 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "assistant-ui-library",
+  "homepage": "https://www.assistant-ui.com",
+  "items": [
+    {
+      "name": "chat",
+      "type": "registry:block",
+      "title": "Chat",
+      "description": "A full-height chat with a header and new-chat button over the assistant-ui thread.",
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/ai-sdk",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "https://r.assistant-ui.com/base/ai-sdk-backend.json",
+        "https://r.assistant-ui.com/base/thread.json",
+        "https://r.assistant-ui.com/base/tooltip-icon-button.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/chat/page.tsx",
+          "type": "registry:page",
+          "target": "app/chat/page.tsx"
+        },
+        {
+          "path": "registry/blocks/chat/components/chat.tsx",
+          "type": "registry:component",
+          "target": "components/chat.tsx"
+        },
+        {
+          "path": "registry/shared/lib/demo-runtime.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/lib/runtime-provider.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/.env.example",
+          "type": "registry:file",
+          "target": "~/.env.example"
+        }
+      ]
+    },
+    {
+      "name": "chat-sidebar",
+      "type": "registry:block",
+      "title": "Chat sidebar",
+      "description": "A chat app with past conversations in a collapsible sidebar, a sheet on narrow screens.",
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/ai-sdk",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "button",
+        "sheet",
+        "tooltip",
+        "https://r.assistant-ui.com/base/ai-sdk-backend.json",
+        "https://r.assistant-ui.com/base/thread.json",
+        "https://r.assistant-ui.com/base/thread-list.json",
+        "https://r.assistant-ui.com/base/tooltip-icon-button.json",
+        "https://r.assistant-ui.com/base/utils.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/chat-sidebar/page.tsx",
+          "type": "registry:page",
+          "target": "app/chat-sidebar/page.tsx"
+        },
+        {
+          "path": "registry/shared/components/chat-sidebar.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "registry/shared/lib/demo-runtime.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/lib/runtime-provider.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/.env.example",
+          "type": "registry:file",
+          "target": "~/.env.example"
+        }
+      ]
+    },
+    {
+      "name": "base",
+      "type": "registry:block",
+      "title": "Base",
+      "description": "The full assistant-ui chat app, unthemed: thread list, attachments, mentions, slash commands, model picker, and voice input.",
+      "dependencies": [
+        "@assistant-ui/react",
+        "@assistant-ui/react-lexical",
+        "@assistant-ui/ai-sdk",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "button",
+        "sheet",
+        "skeleton",
+        "tooltip",
+        "https://r.assistant-ui.com/base/ai-sdk-backend.json",
+        "https://r.assistant-ui.com/base/attachment.json",
+        "https://r.assistant-ui.com/base/markdown-text.json",
+        "https://r.assistant-ui.com/base/message-timing.json",
+        "https://r.assistant-ui.com/base/tool-fallback.json",
+        "https://r.assistant-ui.com/base/tool-group.json",
+        "https://r.assistant-ui.com/base/tooltip-icon-button.json",
+        "https://r.assistant-ui.com/base/reasoning.json",
+        "https://r.assistant-ui.com/base/quote.json",
+        "https://r.assistant-ui.com/base/composer-trigger-popover.json",
+        "https://r.assistant-ui.com/base/directive-text.json",
+        "https://r.assistant-ui.com/base/model-selector.json",
+        "https://r.assistant-ui.com/base/thread-list.json",
+        "https://r.assistant-ui.com/base/dot-matrix.json",
+        "https://r.assistant-ui.com/base/utils.json"
+      ],
+      "files": [
+        {
+          "path": "registry/blocks/base/page.tsx",
+          "type": "registry:page",
+          "target": "app/base/page.tsx"
+        },
+        {
+          "path": "registry/blocks/base/components/base.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "registry/shared/components/chat-sidebar.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "registry/shared/lib/demo-runtime.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/lib/runtime-provider.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/.env.example",
+          "type": "registry:file",
+          "target": "~/.env.example"
+        }
+      ]
+    },
+    {
+      "name": "chat-sidebar-layout",
+      "type": "registry:component",
+      "title": "Chat sidebar layout",
+      "description": "The collapsible conversations sidebar the chat blocks share. Put a thread, or anything else, in its main area.",
+      "dependencies": ["@assistant-ui/react", "lucide-react"],
+      "registryDependencies": [
+        "button",
+        "sheet",
+        "tooltip",
+        "https://r.assistant-ui.com/base/thread-list.json",
+        "https://r.assistant-ui.com/base/tooltip-icon-button.json",
+        "https://r.assistant-ui.com/base/utils.json"
+      ],
+      "files": [
+        {
+          "path": "registry/shared/components/chat-sidebar.tsx",
+          "type": "registry:component"
+        }
+      ]
+    }
+  ]
+}

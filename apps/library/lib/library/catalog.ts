@@ -101,11 +101,25 @@ export type LibraryInstall =
   | { kind: "npm"; names: readonly string[] }
   | { kind: "command"; command: string };
 
+/** A block's file, by its path inside the block's folder. */
+export type BlockFile = { path: string; code: string };
+
+export type BlockElement = { slug: string; title: string; href: string };
+
 export type LibraryPreview =
   | { kind: "demo"; slug: string }
   | { kind: "specimen"; slug: string }
   | { kind: "sample"; slug: string }
   | { kind: "theme"; slug: string }
+  /** A block from the library registry, running beside its source. */
+  | {
+      kind: "block";
+      slug: string;
+      files: readonly BlockFile[];
+      entry: string;
+      /** The assistant-ui elements the block uses, linked to their pages. */
+      elements: readonly BlockElement[];
+    }
   | { kind: "image"; light: string; dark: string };
 
 export const LIBRARY_MARKS = [
