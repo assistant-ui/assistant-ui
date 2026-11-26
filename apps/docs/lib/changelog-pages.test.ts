@@ -54,7 +54,7 @@ describe("summarizeRelease", () => {
     expect(JSON.stringify(release)).not.toContain("Updated dependencies");
   });
 
-  it("marks a release with only dependency updates as quiet", () => {
+  it("marks a release with only dependency updates as quiet and names them", () => {
     const release = summarizeRelease({
       pkg: "@assistant-ui/react-ink",
       version: "0.0.29",
@@ -66,7 +66,13 @@ describe("summarizeRelease", () => {
       url: "https://github.com/assistant-ui/assistant-ui/releases/tag/y",
       date: "2026-11-24T10:00:00Z",
     });
-    expect(release).toMatchObject({ count: 0, quiet: true, headline: "" });
+    expect(release).toMatchObject({
+      count: 0,
+      quiet: true,
+      groups: [],
+      preamble: "Updated dependencies: `@assistant-ui/core@0.3.25`",
+      headline: "Updated dependencies: @assistant-ui/core@0.3.25",
+    });
   });
 });
 

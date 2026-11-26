@@ -52,6 +52,17 @@ function plainText(markdown: string): string {
 
 export function summarizeRelease(release: PackageRelease): ChangelogRelease {
   const parsed = parseRelease(release.body);
+  // A release that only bumps dependencies says which ones, rather than
+  // showing no notes.
+  if (
+    parsed.bullets.length === 0 &&
+    !parsed.preamble &&
+    parsed.dependencies.length > 0
+  ) {
+    parsed.preamble = `Updated dependencies: ${parsed.dependencies
+      .map((dependency) => `\`${dependency}\``)
+      .join(", ")}`;
+  }
   const groups = groupByType(parsed.bullets);
   const semver = extractChangeType(release.body);
   const count = parsed.bullets.length;

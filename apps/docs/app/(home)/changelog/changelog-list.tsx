@@ -11,11 +11,15 @@ import {
 import type { ChangelogDay, ChangelogRelease } from "@/lib/changelog-pages";
 import { cn } from "@/lib/utils";
 
+// Days are grouped by their UTC date, so they print in UTC too. In the
+// reader's zone, a day could print as the one before it west of UTC, and the
+// client's date then differed from the server's (React error #418).
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 

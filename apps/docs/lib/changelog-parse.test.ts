@@ -27,6 +27,7 @@ describe("parseRelease", () => {
     expect(parseRelease(`### Patch Changes\n\n${deps}\n`)).toEqual({
       preamble: "",
       bullets: [],
+      dependencies: ["setup-agent@0.2.3", "@assistant-ui/core@0.3.25"],
     });
   });
 

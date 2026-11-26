@@ -26,7 +26,16 @@ export type ParsedBullet = {
 export type ParsedRelease = {
   preamble: string;
   bullets: ParsedBullet[];
+  /** Packages listed under "Updated dependencies", e.g. `@assistant-ui/core@0.3.25`. */
+  dependencies: string[];
 };
+
+// The bullet runs to the next top-level bullet, a blank line or the end of
+// the notes, so its indented list of bumped packages goes with it. (Under the
+// `m` flag a bare `$` would stop at the end of the bullet's first line.)
+const UPDATED_DEPENDENCIES_RE =
+  /^[-*]\s+Updated dependencies[\s\S]*?(?=\n[-*]\s|\n\n|(?![\s\S]))/gm;
+const DEPENDENCY_ITEM_RE = /^\s+[-*]\s+(\S+@\S+)\s*$/gm;
 
 const PR_RE = /\[#(\d+)\]\(([^)]+)\)/;
 const HASH_RE_BACKTICK_LINKED = /\[`([a-f0-9]{6,40})`\]\(([^)]+)\)/;
@@ -43,16 +52,16 @@ function removeMatch(line: string, match: RegExpMatchArray): string {
 }
 
 export function parseRelease(markdown: string): ParsedRelease {
+  const dependencies: string[] = [];
   const cleaned = markdown
     .replace(/\r\n/g, "\n")
     .replace(/^#{1,6}\s+(Patch|Minor|Major)\s+Changes\s*$/gim, "")
-    // The bullet runs to the next top-level bullet, a blank line or the end
-    // of the notes, so its indented list of bumped packages goes with it.
-    // (Under the `m` flag a bare `$` would stop at the first line's end.)
-    .replace(
-      /^[-*]\s+Updated dependencies[\s\S]*?(?=\n[-*]\s|\n\n|(?![\s\S]))/gm,
-      "",
-    )
+    .replace(UPDATED_DEPENDENCIES_RE, (block) => {
+      for (const item of block.matchAll(DEPENDENCY_ITEM_RE)) {
+        dependencies.push(item[1]!);
+      }
+      return "";
+    })
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
@@ -163,6 +172,7 @@ export function parseRelease(markdown: string): ParsedRelease {
   return {
     preamble: preambleLines.join("\n").trim(),
     bullets,
+    dependencies,
   };
 }
 
