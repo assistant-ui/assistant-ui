@@ -442,6 +442,7 @@ const adapter: RemoteThreadListAdapter = {
   async updateCustom(remoteId, custom) {
     await fetch(`/api/threads/${remoteId}`, {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ custom }),
     });
   },
