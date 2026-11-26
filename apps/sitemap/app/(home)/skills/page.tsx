@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
-import { hasAgentIcon } from "@/components/library/agent-icons";
-import { AgentMarquee } from "@/components/pages/skills/agent-marquee";
-import { CopyCommand, CopyRow } from "@/components/pages/skills/copy-command";
-import { SkillList, type SkillRow } from "@/components/pages/skills/skill-list";
+import { AgentList } from "@/components/pages/skills/agent-list";
+import { CopyCommand } from "@/components/pages/skills/copy-command";
+import { McpPanel } from "@/components/pages/skills/mcp-panel";
+import {
+  SkillList,
+  SkillsLibrary,
+  type SkillRow,
+} from "@/components/pages/skills/skill-list";
 import { PageFrame } from "@/components/shared/page-frame";
+import { Button } from "@/components/ui/button";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { getSkills } from "@/lib/agent-skills";
 import { getLibraryItems } from "@/lib/library/items";
@@ -38,9 +44,6 @@ const lead = (text: string) => {
   return clause.endsWith(".") ? clause : `${clause}.`;
 };
 
-const agentDirectory = (description: string) =>
-  description.replace(/^Installs into /, "").replace(/\.$/, "");
-
 export default function SkillsPage() {
   const skills = getSkills();
   const libraryItems = getLibraryItems();
@@ -68,91 +71,79 @@ export default function SkillsPage() {
 
   return (
     <PageFrame pad="sub">
-      <header className="max-w-2xl">
-        <h1 className={typePage}>assistant-ui, taught to your coding agent.</h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-          Skills are instructions your agent reads before it writes assistant-ui
-          code: the current APIs, the packages to pick, and the migrations. One
-          command installs all {skills.length}, and you call one by name, such
-          as <span className="font-mono">/setup</span> in Claude Code.
-        </p>
-      </header>
-      <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-center md:gap-8">
-        <CopyCommand command={INSTALL_ALL} className="flex-none" />
-        <div className="min-w-0 flex-1">
-          <AgentMarquee
-            agents={agents.filter((agent) => hasAgentIcon(agent.id))}
-          />
+      <SkillsLibrary items={libraryItems}>
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-16">
+          <header className="max-w-2xl">
+            <h1 className={typePage}>
+              assistant-ui, taught to your coding agent.
+            </h1>
+            <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+              Skills are instructions your agent reads before it writes
+              assistant-ui code: the current APIs, the packages to pick, and the
+              migrations. One command installs all {skills.length}. The MCP
+              server lets it look up the live docs while it works.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Button nativeButton={false} render={<Link href="/docs/llm" />}>
+                Read the docs
+              </Button>
+              <CopyCommand command={INSTALL_ALL} />
+            </div>
+          </header>
+          <McpPanel />
         </div>
-      </div>
 
-      <section
-        id="skills"
-        aria-labelledby="skills-heading"
-        className="border-foreground/10 mt-16 scroll-mt-24 border-t pt-12 md:mt-20 md:pt-16"
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-          <h2 id="skills-heading" className={typeSection}>
-            What each skill covers.
-          </h2>
-          <a
-            href={REPO}
-            className="group/link text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[13px] transition-colors"
-          >
-            Read the source
-            <ArrowUpRightIcon
-              aria-hidden
-              className="size-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 motion-reduce:transition-none"
-            />
-          </a>
-        </div>
-        <SkillList skills={skillRows} libraryItems={libraryItems} />
-      </section>
+        <section
+          id="skills"
+          aria-labelledby="skills-heading"
+          className="border-foreground/10 mt-16 scroll-mt-24 border-t pt-12 md:mt-20 md:pt-16"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+            <h2 id="skills-heading" className={typeSection}>
+              What each skill covers.
+            </h2>
+            <a
+              href={REPO}
+              className="group/link text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[13px] transition-colors"
+            >
+              Read the source
+              <ArrowUpRightIcon
+                aria-hidden
+                className="size-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 motion-reduce:transition-none"
+              />
+            </a>
+          </div>
+          <SkillList skills={skillRows} />
+        </section>
 
-      <section
-        id="agents"
-        aria-labelledby="agents-heading"
-        className="border-foreground/10 mt-16 scroll-mt-24 border-t pt-12 md:mt-20 md:pt-16"
-      >
-        <div className="flex max-w-2xl flex-col gap-3">
-          <h2 id="agents-heading" className={typeSection}>
-            Works in {agents.length} agents.
-          </h2>
-          <p className={cn(typeDeck, "max-w-[52ch]")}>
-            The command finds the agents you have. To install into one, copy its
-            command; each agent reads skills from the folder beside its name.
-          </p>
-          <a
-            href={AGENTS_DOCS}
-            className="group/link text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 text-[13px] transition-colors"
-          >
-            The list of supported agents
-            <ArrowUpRightIcon
-              aria-hidden
-              className="size-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 motion-reduce:transition-none"
-            />
-          </a>
-        </div>
-        <ul className="mt-8 grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-4">
-          {agents.map((agent) => {
-            const command =
-              agent.install?.kind === "command" ? agent.install.command : "";
-            return (
-              <li key={agent.id}>
-                <CopyRow
-                  command={command}
-                  label={`Copy the command for ${agent.name}: ${command}`}
-                >
-                  <span className="block truncate text-sm">{agent.name}</span>
-                  <span className="text-muted-foreground block truncate font-mono text-xs [font-variant-ligatures:none]">
-                    {agentDirectory(agent.description)}
-                  </span>
-                </CopyRow>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+        <section
+          id="agents"
+          aria-labelledby="agents-heading"
+          className="border-foreground/10 mt-16 scroll-mt-24 border-t pt-12 md:mt-20 md:pt-16"
+        >
+          <div className="flex max-w-2xl flex-col gap-3">
+            <h2 id="agents-heading" className={typeSection}>
+              Works in {agents.length} agents.
+            </h2>
+            <p className={cn(typeDeck, "max-w-[52ch]")}>
+              The command finds the agents you have. Each one reads skills from
+              the folder under its name, and its menu copies the command that
+              installs into it alone.
+            </p>
+            <a
+              href={AGENTS_DOCS}
+              className="group/link text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 text-[13px] transition-colors"
+            >
+              The list of supported agents
+              <ArrowUpRightIcon
+                aria-hidden
+                className="size-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 motion-reduce:transition-none"
+              />
+            </a>
+          </div>
+          <AgentList agents={agents} />
+        </section>
+      </SkillsLibrary>
     </PageFrame>
   );
 }

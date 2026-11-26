@@ -6,6 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
+- Icons for Codemaker and Neovate in `components/library/agent-icons.tsx`; the Skills page shows their first letter until there is a source for them.
 - Link `/skills` from the site: the header's Library menu (Extend, beside Skills) or the Resources menu.
 - Link `/utilities` from the site the same way (the Library menu's Extend group has Utilities).
 - Build `/starters` as its own page, grouped by platform, and point each Platforms tile's "Start from" links at it instead of GitHub.
@@ -692,3 +693,53 @@ Files:
 - `app/(home)/(platforms)/react/page.tsx` and `app/(home)/(platforms)/vue/page.tsx` (new).
 
 When folding back: in `apps/docs`, these replace `app/(products)/native` and `app/(products)/ink` (decide whether they keep `SubProjectLayout`), `/native` needs a redirect to `/react-native`, and `PLATFORM_LINKS` in `lib/constants.ts` changes to the four new addresses.
+
+## Skills hero with an MCP panel, agents with icons and menus (2026-11-25)
+
+The `/skills` hero now follows the home page's: under the deck, a "Read the docs" button (to `/docs/llm`) and the copyable `npx skills add assistant-ui/skills`. Beside it, as Vercel puts a demo in each page's hero, an MCP panel:
+
+- A header with the server address (`https://www.assistant-ui.com/mcp`) and a copy button.
+- Connect: a picker for Claude Code, Cursor, VS Code, Windsurf, Zed, and Claude Desktop, showing the file or terminal, the setup from the MCP section of `/docs/llm`, a copy button, and the one-line follow-up step (Cursor also gets its "Add to Cursor" link).
+- Try it: a search box that calls the server's real `search_docs` tool over MCP (a JSON-RPC `tools/call` to `/api/mcp`, which this app forwards to the docs server) and lists the top four pages, each linking to it. Four example queries start a search in one click.
+
+The agent marquee is gone. "Works in 79 agents" keeps its list, now with each agent's icon (the library's mark) and the library's plus menu (Add to cart, Copy install command, Copy assistant-ui prompt) instead of a row that copied on click. Codemaker and Neovate have no icon in the library, so they show their first letter. One `LibraryProvider` and cart sheet now wrap the whole page, so the skills' and the agents' menus share one cart.
+
+Files:
+
+- `components/pages/skills/mcp-panel.tsx` (new): the MCP panel.
+- `components/pages/skills/agent-list.tsx` (new): the agents with icons and menus.
+- `components/pages/skills/skill-list.tsx`: `SkillsLibrary` (provider and cart sheet), `SkillList` without its own provider.
+- `app/(home)/skills/page.tsx`: the hero, the panel, the lists inside `SkillsLibrary`.
+- `components/pages/skills/copy-command.tsx`: `CopyRow` removed.
+- `components/pages/skills/agent-marquee.tsx` and the `skills-agent-marquee` keyframes in `app/globals.css`: removed.
+
+When folding back: in `apps/docs` the panel can call `/mcp` directly (same origin); copy the skills files to the same paths.
+
+## MCP panel redrawn on the home demo's frame (2026-11-25)
+
+ellie found the first MCP panel "really ugly": a bordered header strip, a bordered tab strip, a row of client buttons that ran out of room, and a tinted box inside the bordered box. It now uses the frame ellie approved for the home demo: segmented tabs above (Connect, Search the docs) with the server address and its copy button on the same row, one lifted frame below, and a caption line under it.
+
+- Connect: the frame's header row holds a dropdown for the coding agent (Claude Code, Cursor, VS Code, Windsurf, Zed, Claude Desktop), the file or "Terminal", and copy; the setup fills the rest. The caption is that agent's follow-up step, with "Add to Cursor" on its right for Cursor.
+- Search the docs: the header row is the search field; four example searches sit below it until you search, then the top four pages from the real `search_docs` tool. The caption says the results are live.
+
+The blue live dot on the tab is gone, and the frame is one fixed height (17rem) so switching agents or tabs doesn't move the hero.
+
+Files:
+
+- `components/pages/skills/mcp-panel.tsx`: the new layout; the setups and the search call are unchanged.
+
+When folding back: as in "Skills hero with an MCP panel".
+
+## MCP panel: agent icons, highlighted setups, the Cursor link (2026-11-25)
+
+- Each coding agent in the panel's dropdown, and the one picked in its header, shows its icon: the library's agent marks for Claude Code, Cursor, GitHub Copilot, Windsurf, and Zed, and the Claude mark for Claude Desktop.
+- The VS Code option is now "GitHub Copilot": the repo has no VS Code mark, and the setup is for Copilot Chat in VS Code (its note says so).
+- The setups are highlighted with Shiki (bash for the terminal command, JSON for the config files) in the GitHub themes the rest of the site uses, following light and dark.
+- "Add to Cursor" now looks and moves like "Read the source": muted text with an up-right arrow that nudges on hover (off for reduced motion).
+- The server address and its copy button stay.
+
+Files:
+
+- `components/pages/skills/mcp-panel.tsx`: icons, `DeferredHighlight`, the Cursor link.
+
+When folding back: as in "Skills hero with an MCP panel".

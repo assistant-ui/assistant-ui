@@ -152,6 +152,7 @@ export function HeroCta({
       style={style}
     >
       <Button
+        size="lg"
         nativeButton={false}
         render={
           <Link
@@ -163,9 +164,10 @@ export function HeroCta({
         Explore the library
       </Button>
       <Button
+        size="lg"
         variant="ghost"
         nativeButton={false}
-        className="group/expert hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent"
+        className="group/expert border-border hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent"
         render={
           <Link
             href={CONTACT_SALES_PATH}

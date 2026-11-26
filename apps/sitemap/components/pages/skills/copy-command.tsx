@@ -1,7 +1,6 @@
 "use client";
 
 import { CheckIcon, CopyIcon } from "lucide-react";
-import type { ReactNode } from "react";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
@@ -60,37 +59,6 @@ export function CopyCommand({
       <span className="mt-0.5">
         <CopyMark copied={isCopied} />
       </span>
-      <span role="status" className="sr-only">
-        {isCopied ? "Copied" : ""}
-      </span>
-    </button>
-  );
-}
-
-/** A list entry that copies a command when pressed. */
-export function CopyRow({
-  command,
-  label,
-  children,
-}: {
-  command: string;
-  label: string;
-  children: ReactNode;
-}) {
-  const { isCopied, copyToClipboard } = useCopyToClipboard({
-    copiedDuration: 2000,
-  });
-
-  return (
-    <button
-      type="button"
-      onClick={() => copyToClipboard(command)}
-      aria-label={label}
-      title={command}
-      className="group rounded-control hover:bg-foreground/[0.025] focus-visible:ring-ring flex w-full items-center justify-between gap-3 px-2 py-1.5 text-start transition-colors outline-none focus-visible:ring-2"
-    >
-      <span className="min-w-0">{children}</span>
-      <CopyMark copied={isCopied} />
       <span role="status" className="sr-only">
         {isCopied ? "Copied" : ""}
       </span>

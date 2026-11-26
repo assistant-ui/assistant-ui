@@ -11,6 +11,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { XIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { GenerativeMarkdown } from "@/components/assistant-ui/elements/generative-markdown";
 import { CartSheet } from "@/components/library/cart-sheet";
@@ -227,25 +228,28 @@ function Skill({ skill }: { skill: SkillRow }) {
   );
 }
 
-/**
- * The skills as library rows: glyph, name, summary, and the library's add or
- * copy menu. A row opens its SKILL.md in a dialog. The provider and cart sheet
- * let the cart buttons share the library's cart.
- */
-export function SkillList({
-  skills,
-  libraryItems,
+/** The skills as library rows: glyph, name, summary, and the library's add or copy menu. A row opens its SKILL.md in a dialog. */
+export function SkillList({ skills }: { skills: readonly SkillRow[] }) {
+  return (
+    <ul className="mt-8 flex flex-col gap-1">
+      {skills.map((skill) => (
+        <Skill key={skill.item.id} skill={skill} />
+      ))}
+    </ul>
+  );
+}
+
+/** One library provider and cart sheet for the page, so every add-to-cart on it shares the library's cart. */
+export function SkillsLibrary({
+  items,
+  children,
 }: {
-  skills: readonly SkillRow[];
-  libraryItems: readonly LibraryItem[];
+  items: readonly LibraryItem[];
+  children: ReactNode;
 }) {
   return (
-    <LibraryProvider items={libraryItems}>
-      <ul className="mt-8 flex flex-col gap-1">
-        {skills.map((skill) => (
-          <Skill key={skill.item.id} skill={skill} />
-        ))}
-      </ul>
+    <LibraryProvider items={items}>
+      {children}
       <CartSheet />
     </LibraryProvider>
   );
