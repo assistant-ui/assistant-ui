@@ -8,6 +8,9 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 - Link `/skills` from the site: the header's Library menu (Extend, beside Skills) or the Resources menu.
 - Link `/utilities` from the site the same way (the Library menu's Extend group has Utilities).
+- Build `/starters` as its own page, grouped by platform, and point each Platforms tile's "Start from" links at it instead of GitHub.
+- Link `/platforms` from the site (the Products menu's Platforms group and the Library menu's Start group).
+- Point the header's Products menu (Platforms group) and the footer's Platforms column at `/react`, `/react-native`, `/ink`, and `/vue`; they still go to `/docs`, `/native`, `/ink`, and `/docs/vue`.
 - Build the other nine runtime demos on `/demos` from the Thread file once its design is settled: each one complete file in `components/demos/` (`useChatRuntime` plus the whole chat UI, starting from a copy of Thread's, and anything only that demo needs), with a `.preview.tsx` that runs its Thread on a script. Reasoning, Tools, Approval, Sources, Attachments, Branching, Suggestions, Voice, Generative UI.
 - Restyle the ChatGPT, Claude, Grok, and Perplexity clones the way Gemini was: a folder each with the file, `data.json`, and `themes.css`, signed in as the demo person.
 - A Design action in the react-grab toolbar: copy a design prompt, or leave notes on elements (not decided).
@@ -651,3 +654,41 @@ Files:
 - `components/pages/utilities/copy-install.tsx` (new): the package name that copies its install command.
 
 When folding back: copy the three files to the same paths in `apps/docs`.
+
+## Platforms page (2026-11-25)
+
+A new page at `/platforms`, in the same style as `/utilities`: a headline and short deck, then a framed 2×2 grid with hairlines between the tiles. Platforms and Starters stay separate pages: four platforms against about fifty starters, and design.md treats platforms as ways to install the library rather than a product line.
+
+- React: the Thread demo from `/demos`, answering from its script.
+- React Native: the hosted Expo demo the `/native` page embeds, in a phone-shaped frame.
+- Ink: the hosted terminal demo the `/ink` page embeds.
+- Vue: the Vue quickstart's `Assistant.client.vue`, highlighted, since there is no hosted Vue demo.
+
+Under each preview: the package name (pressing it copies `npm install` for it), the title linking to that platform's page (`/docs`, `/native`, `/ink`, `/docs/vue`), one line from that page, and "Start from" links to the platform's templates and examples on GitHub, taken from the library's Starters. The iframes load after hydration and lazily.
+
+Files:
+
+- `app/(home)/platforms/page.tsx` (new, since moved to `app/(home)/(platforms)/platforms/page.tsx`): the page and its tiles.
+- `components/pages/platforms/live-frame.tsx` (new): a hosted demo in an iframe.
+
+When folding back: copy both files to the same paths in `apps/docs`; the page also uses `components/pages/utilities/copy-install.tsx` and `components/demos/thread.preview.tsx` from this app.
+
+## A page per platform, in a (platforms) route group (2026-11-25)
+
+Each platform now has its own page, kept together in the route group `app/(home)/(platforms)/` so the folder groups them without adding `/platforms` to their addresses: `/react`, `/react-native`, `/ink`, and `/vue`. The `/platforms` overview moved into the same group (its address is unchanged) and its tiles link to these four pages.
+
+- `/ink`: the docs `/ink` page, copied, with the live terminal demo.
+- `/react-native`: the docs `/native` page, copied, with the live Expo demo, at a new address.
+- `/react` (new): the same shape as those two. The Thread demo answering from a script, the setup from the manual installation guide, the 17 React primitives, and three notes (any backend, styled or unstyled, shared runtime).
+- `/vue` (new): the same shape, with the Nuxt quickstart's component and route as its figure (there is no hosted Vue demo), the 11 Vue primitive groups, and three notes.
+
+They use the site's own header and footer, not the docs' sub-project header. Each page's footer links to the other three.
+
+Files:
+
+- `app/(home)/(platforms)/platforms/page.tsx` (moved from `app/(home)/platforms/page.tsx`): tile links.
+- `app/(home)/(platforms)/ink/page.tsx`, `terminal-demo.tsx` (copied from `apps/docs/app/(products)/ink/`): metadata on the page, footer links.
+- `app/(home)/(platforms)/react-native/page.tsx` (copied from `apps/docs/app/(products)/native/page.tsx`) and `layout.tsx` (metadata): footer links.
+- `app/(home)/(platforms)/react/page.tsx` and `app/(home)/(platforms)/vue/page.tsx` (new).
+
+When folding back: in `apps/docs`, these replace `app/(products)/native` and `app/(products)/ink` (decide whether they keep `SubProjectLayout`), `/native` needs a redirect to `/react-native`, and `PLATFORM_LINKS` in `lib/constants.ts` changes to the four new addresses.
