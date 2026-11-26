@@ -40,6 +40,8 @@ import { shallowArrayEqual } from "../../runtime/utils/external-message-conversi
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
+  ThreadRuntimeEventPayload,
+  ThreadRuntimeEventType,
 } from "../../runtime/interfaces/thread-runtime-core";
 import type {
   ExternalThreadQueueAdapter,
@@ -539,6 +541,43 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this._updateStoreSnapshot(store);
+  }
+
+  private _heldEvents: (() => void)[] | null = null;
+
+  public override _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
+    event: E,
+    payload: ThreadRuntimeEventPayload[E],
+  ) {
+    if (this._heldEvents) {
+      this._heldEvents.push(() =>
+        super._notifyEventSubscribers(event, payload),
+      );
+      return;
+    }
+    super._notifyEventSubscribers(event, payload);
+  }
+
+  /**
+   * Applies a host snapshot at once but holds the lifecycle events it raises
+   * (`initialize`, `runStart`, `runEnd`). The returned function delivers
+   * them, so a caller can publish the state before paint and still reach
+   * listeners that subscribe later in the same commit.
+   */
+  public __internal_setAdapterHoldingEvents(
+    store: ExternalStoreAdapter<any>,
+  ): () => void {
+    const held: (() => void)[] = [];
+    const outer = this._heldEvents;
+    this._heldEvents = held;
+    try {
+      this.__internal_setAdapter(store);
+    } finally {
+      this._heldEvents = outer;
+    }
+    return () => {
+      for (const deliver of held.splice(0)) deliver();
+    };
   }
 
   private _evictPlaceholder() {

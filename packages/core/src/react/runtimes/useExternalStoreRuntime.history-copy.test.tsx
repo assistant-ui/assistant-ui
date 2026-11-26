@@ -112,6 +112,21 @@ describe("useExternalStoreRuntime history copy", () => {
     app.view.unmount();
   });
 
+  it("copies a user message the host adds in the update that starts the run", async () => {
+    const { history, unstable_copy } = historyAdapter();
+    const app = setup(history);
+    app.update({ isRunning: true, messages: [user("user-1")] });
+    app.update({
+      isRunning: false,
+      messages: [user("user-1"), assistant("assistant-1")],
+    });
+    await settle();
+
+    expect(unstable_copy).toHaveBeenCalledOnce();
+    expect(unstable_copy.mock.calls[0]![1]).toEqual(["user-1", "assistant-1"]);
+    app.view.unmount();
+  });
+
   it("does not copy while running", async () => {
     const { history, unstable_copy } = historyAdapter();
     const app = setup(history);

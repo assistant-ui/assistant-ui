@@ -31,4 +31,18 @@ export class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
     this.threads.__internal_setAdapter(getThreadListAdapter(adapter));
     this.threads.getMainThreadRuntimeCore().__internal_setAdapter(adapter);
   }
+
+  /**
+   * Like `setAdapter`, but returns a function that delivers the thread
+   * lifecycle events the update raised instead of delivering them during it.
+   */
+  public __internal_setAdapterHoldingEvents(
+    adapter: ExternalStoreAdapter<any>,
+  ): () => void {
+    this._adapter = adapter;
+    this.threads.__internal_setAdapter(getThreadListAdapter(adapter));
+    return this.threads
+      .getMainThreadRuntimeCore()
+      .__internal_setAdapterHoldingEvents(adapter);
+  }
 }
