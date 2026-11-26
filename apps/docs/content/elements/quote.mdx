@@ -85,7 +85,12 @@ function Composer() {
 The quote lives in message metadata, not in message content, so the model never sees it unless the route handler adds it. `injectQuoteContext` prepends the quoted text as a markdown blockquote before conversion.
 
 ```typescript title="app/api/chat/route.ts"
-import { convertToModelMessages, streamText } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 
 export async function POST(req: Request) {
@@ -97,7 +102,11 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+
+    stream: toUIMessageStream({ stream: result.stream }),
+
+  });
 }
 ```
 
