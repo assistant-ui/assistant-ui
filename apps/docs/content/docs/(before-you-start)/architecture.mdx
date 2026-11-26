@@ -44,7 +44,7 @@ Components never talk to your backend. They read state from the runtime and send
 
 ## Runtime
 
-The runtime owns the conversation: the messages, the composer, the run in progress, branches, edits and regenerations. It also converts the messages your backend sends into the message parts the components render.
+The runtime manages the conversation: the messages, the composer, the run in progress, branches, edits and regenerations. With most runtimes you never handle the messages yourself. `useExternalStoreRuntime` instead reads them from a store you own and calls your handlers when the user sends, edits or reloads a message. The runtime also converts the messages your backend sends into the message parts the components render.
 
 An app uses one runtime, chosen by its backend:
 
@@ -74,14 +74,14 @@ Cloud is optional. You can store threads in your own database through a thread l
 <Flow.Root
   llm={`graph TD
     A[Frontend Components] --> B[Runtime]
-    B --> D[External Providers or LLM APIs]`}
+    B --> D[Agent Server]`}
 >
   <Flow.Column>
     <Flow.Node tone="pink">Frontend Components</Flow.Node>
     <Flow.Arrow direction="down" length={36} />
     <Flow.Node tone="blue">Runtime</Flow.Node>
     <Flow.Arrow direction="down" length={36} />
-    <Flow.Node tone="red">External Providers or LLM APIs</Flow.Node>
+    <Flow.Node tone="red">Agent Server</Flow.Node>
   </Flow.Column>
 </Flow.Root>
 
