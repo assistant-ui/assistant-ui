@@ -4,7 +4,7 @@ description: Let an agent call safe tools on its own and wait for the user to al
 platforms: ["react"]
 ---
 
-Some tools change things that are hard to undo: refunds, emails, deploys. This recipe builds a support agent that looks up orders on its own but pauses before it refunds one. The chat shows the refund it wants to make with Allow and Deny buttons, and the tool runs only after the user allows it. The server signs each request, so a client cannot forge an approval.
+Some tools change things that are hard to undo: refunds, emails, deploys. This recipe builds a support agent that looks up orders on its own but pauses before it refunds one. The chat shows the refund it wants to make with Allow and Deny buttons, and the tool runs only after the user allows it. The server signs each approval request, so a client cannot forge an approval.
 
 ![The refund waiting for Allow or Deny](./images/tool-approval.webp)
 
@@ -122,7 +122,7 @@ Set `TOOL_APPROVAL_SECRET` to a long random string, for example from `openssl ra
 - `needsApproval` also takes a function that gets the tool input and returns whether to ask, for example only for refunds above an amount.
 - `lookupOrder` has no `needsApproval`, so it runs at once. Mark only the tools whose effects you would want a person to see first.
 - For your own approval UI, register a tool UI for the tool and call `respondToApproval`; see [Server-side approval gates](/docs/tools/tool-ui#server-side-approval-gates).
-- A pending approval survives a page reload only if the thread's history adapter saves updates; see [Save chat history in your own database](/docs/recipes/chat-history).
+- To keep a pending approval across page reloads, save threads with a history adapter that implements `update`; see [Save chat history in your own database](/docs/recipes/chat-history).
 
 ## Run it
 

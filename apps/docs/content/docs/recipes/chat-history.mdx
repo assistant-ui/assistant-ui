@@ -4,7 +4,7 @@ description: Keep every thread and message in a database you own, with a thread 
 platforms: ["react"]
 ---
 
-Your users expect their conversations to be there tomorrow, and you may need the data in your own database for compliance, search or analytics. This recipe stores every thread and message in SQLite through four small API routes, and adds a thread list sidebar where users can switch, rename, archive and delete threads. The storage code is one small module, so moving to Postgres or another store is a contained change.
+Your users expect their conversations to be there tomorrow, and you may need the data in your own database for compliance, search or analytics. This recipe stores every thread and message in SQLite through three small API routes, and adds a thread list sidebar where users can switch, rename, archive and delete threads. The storage code is one small module, so moving to Postgres or another store is a contained change.
 
 ![A thread list sidebar next to a saved conversation](./images/chat-history.webp)
 
@@ -16,7 +16,7 @@ Follow https://www.assistant-ui.com/docs/recipes/chat-history.md to save my assi
 
 - **[Threads](/docs/concepts/threads)**: a thread is one conversation, and the thread list holds them all. The runtime asks your adapter for the list and creates a thread row the first time a new thread gets a message.
 - **`RemoteThreadListAdapter`** maps thread list actions (list, create, rename, archive, delete, title) to your API.
-- **`ThreadHistoryAdapter`** loads and saves the messages of the open thread. With `useChatRuntime` you implement its `withFormat` variant, which hands you the AI SDK message already encoded for storage. [Adapters](/docs/concepts/adapters) lists the other adapter slots.
+- **`ThreadHistoryAdapter`** loads and saves the messages of the open thread. With `useChatRuntime` you implement its `withFormat` variant, which gives you a format adapter that encodes each AI SDK message for storage and decodes it on load. [Adapters](/docs/concepts/adapters) lists the other adapter slots.
 - **[`useChatRuntime`](/docs/runtimes/ai-sdk/v7)** talks to the chat route, as in a new app.
 
 ## The code
@@ -348,9 +348,9 @@ export default function Home() {
 ## How it works
 
 - The runtime calls `list()` to fill the sidebar. A new thread exists only in the browser until its first message; then the history adapter calls `aui.threadListItem.initialize()`, which calls your `initialize()` and returns the new `remoteId`. Always await it before you write a message, or the first message races the thread row.
-- `withFormat` receives a format adapter. Store `format.format`, `format.getId(message)`, `item.parentId` and `format.encode(item)` as they are, and pass the row back through `format.decode` on load. With `useChatRuntime` the format string is `"ai-sdk/v6"`, also on AI SDK v7; never rename it, or stored history stops loading.
+- `withFormat` receives a format adapter. Store `format.format`, `format.getId(item.message)`, `item.parentId` and `format.encode(item)` as they are, and pass the row back through `format.decode` on load. With `useChatRuntime` the format string is `"ai-sdk/v6"`, also on AI SDK v7; never rename it, or stored history stops loading.
 - `parent_id` records the message tree, so edits and regenerations come back as branches. Return rows in the order you saved them.
-- `update` rewrites a message that changed after it was saved. The runtime uses it to finish an assistant message saved early, for example one paused on a [tool approval](/docs/recipes/tool-approval), so save it as an upsert.
+- `update` rewrites a message that changed after it was saved. The runtime uses it to finish an assistant message saved early, for example one paused on a [tool approval](/docs/recipes/tool-approval), so make the save an upsert.
 - `generateTitle` runs once the first message settles. This example titles the thread with the start of the first message; call a model there for a summary title.
 - `unstable_useAdapters` runs once per open thread. Read `aui.threadListItem` inside each call, not when the hook mounts, and memoize what it returns.
 - This example has one user. In your app, add a user id column and filter every query by the signed-in user, as [Custom thread persistence](/docs/integrations/persistence/custom-adapter) does with Postgres and Auth.js.
