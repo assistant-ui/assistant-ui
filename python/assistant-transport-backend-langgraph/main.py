@@ -7,7 +7,7 @@ import json
 import os
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 from uuid import uuid4
 
 import uvicorn
@@ -24,7 +24,7 @@ from langgraph.channels import DeltaChannel
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Load environment variables
 load_dotenv()
@@ -48,7 +48,7 @@ class UserMessage(BaseModel):
 
 class AddMessageCommand(BaseModel):
     """Command to add a new message to the conversation."""
-    type: str = Field(default="add-message", description="Command type")
+    type: Literal["add-message"] = Field(default="add-message", description="Command type")
     message: UserMessage = Field(..., description="User message")
 
 
@@ -56,7 +56,7 @@ class AddToolResultCommand(BaseModel):
     """Command to add a tool result to the conversation."""
     model_config = ConfigDict(populate_by_name=True)
 
-    type: str = Field(default="add-tool-result", description="Command type")
+    type: Literal["add-tool-result"] = Field(default="add-tool-result", description="Command type")
     tool_call_id: str = Field(..., alias="toolCallId", description="ID of the tool call")
     tool_name: str | None = Field(None, alias="toolName", description="Name of the tool")
     result: Any = Field(..., description="Tool execution result")
@@ -67,12 +67,30 @@ class AddToolResultCommand(BaseModel):
     )
 
 
+BUILT_IN_COMMANDS = ("add-message", "add-tool-result")
+
+
+class CustomCommand(BaseModel):
+    """Any other command, such as one sent with useAssistantTransportSendCommand."""
+    model_config = ConfigDict(extra="allow")
+
+    type: str = Field(..., description="Command type")
+
+    @field_validator("type")
+    @classmethod
+    def not_built_in(cls, value: str) -> str:
+        # A built-in command that failed its own model must not pass as custom.
+        if value in BUILT_IN_COMMANDS:
+            raise ValueError(f"malformed {value} command")
+        return value
+
+
 class ChatRequest(BaseModel):
     """Request payload for the chat endpoint."""
     model_config = ConfigDict(populate_by_name=True)
 
-    commands: list[AddMessageCommand | AddToolResultCommand] = Field(
-        ..., description="List of commands to execute"
+    commands: list[AddMessageCommand | AddToolResultCommand | CustomCommand] = Field(
+        ..., description="Every command queued since the last request, oldest first"
     )
     system: str | None = Field(None, description="System prompt")
     tools: dict[str, Any] | None = Field(None, description="Available tools")
@@ -544,6 +562,8 @@ async def chat_endpoint(request: ChatRequest):
                     artifact=command.artifact if command.artifact is not None else command.result,
                     status="error" if command.is_error else "success",
                 ))
+            # Custom commands land here. This backend has none of its own, so
+            # it accepts and skips them; handle your types by `command.type`.
 
         # Add messages to controller state
         for message in input_messages:

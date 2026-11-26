@@ -8,13 +8,13 @@ This server implements the assistant-transport protocol with static responses.
 import os
 import asyncio
 import random
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Literal, Optional, Union
 from contextlib import asynccontextmanager
 import uvicorn 
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from dotenv import load_dotenv
 
 from assistant_stream.serialization import AssistantTransportResponse
@@ -40,27 +40,82 @@ class UserMessage(BaseModel):
 
 class AddMessageCommand(BaseModel):
     """Command to add a new message to the conversation."""
-    type: str = Field(default="add-message", description="Command type")
+    type: Literal["add-message"] = Field(default="add-message", description="Command type")
     message: UserMessage = Field(..., description="User message")
 
 
 class AddToolResultCommand(BaseModel):
     """Command to add a tool result to the conversation."""
-    type: str = Field(default="add-tool-result", description="Command type")  
+    type: Literal["add-tool-result"] = Field(default="add-tool-result", description="Command type")
     toolCallId: str = Field(..., description="ID of the tool call")
-    result: Dict[str, Any] = Field(..., description="Tool execution result")
+    toolName: Optional[str] = Field(None, description="Name of the tool")
+    result: Any = Field(..., description="Tool execution result")
+    isError: Optional[bool] = Field(None, description="Whether the tool failed")
+
+
+BUILT_IN_COMMANDS = ("add-message", "add-tool-result")
+
+
+class CustomCommand(BaseModel):
+    """Any other command, such as one sent with useAssistantTransportSendCommand."""
+    model_config = ConfigDict(extra="allow")
+
+    type: str = Field(..., description="Command type")
+
+    @field_validator("type")
+    @classmethod
+    def not_built_in(cls, value: str) -> str:
+        # A built-in command that failed its own model must not pass as custom.
+        if value in BUILT_IN_COMMANDS:
+            raise ValueError(f"malformed {value} command")
+        return value
+
+
+Command = Union[AddMessageCommand, AddToolResultCommand, CustomCommand]
 
 
 class AssistantRequest(BaseModel):
     """Request payload for the assistant endpoint."""
-    commands: List[Union[AddMessageCommand, AddToolResultCommand]] = Field(
-        ..., description="List of commands to execute"
+    commands: List[Command] = Field(
+        ..., description="Every command queued since the last request, oldest first"
     )
     system: Optional[str] = Field(None, description="System prompt")
     tools: Optional[Dict[str, Any]] = Field(None, description="Available tools")
     # Additional fields that may be sent by the frontend
     runConfig: Optional[Dict[str, Any]] = Field(None, description="Run configuration")
     state: Optional[Dict[str, Any]] = Field(None, description="State")
+
+
+def find_tool_call(messages: Any, tool_call_id: str) -> Any:
+    """The tool-call part with this id, newest message first, or None.
+
+    Reads by index, so writes to the returned part stream on every
+    assistant-stream version (iterated values forward writes from 0.0.37).
+    """
+    for m in range(len(messages) - 1, -1, -1):
+        parts = messages[m].get("parts") or []
+        for p in range(len(parts)):
+            part = parts[p]
+            if part.get("type") == "tool-call" and part.get("toolCallId") == tool_call_id:
+                return part
+    return None
+
+
+def apply_commands(state: Any, commands: List[Command]) -> None:
+    """Apply every command to the state, oldest first."""
+    for command in commands:
+        if isinstance(command, AddMessageCommand):
+            state["messages"].append(command.message.model_dump())
+        elif isinstance(command, AddToolResultCommand):
+            part = find_tool_call(state["messages"], command.toolCallId)
+            if part is None:
+                print(f"⚠️ No tool call {command.toolCallId} for its result")
+                continue
+            part["result"] = command.result
+            if command.isError is not None:
+                part["isError"] = command.isError
+        # Custom commands land here. This backend has none of its own, so it
+        # accepts and skips them; handle your types by `command.type`.
 
 
 @asynccontextmanager
@@ -103,10 +158,10 @@ async def assistant_endpoint(request: AssistantRequest):
             print("run_callback")
             await asyncio.sleep(1)
 
-            if (request.commands[0].type == "add-message"):
-                controller.state["messages"].append(request.commands[0].message.model_dump())
-            if (request.commands[0].type == "add-tool-result"):
-                controller.state["messages"][-1]["parts"][-1]["result"] = request.commands[0].result
+            if controller.state is None:
+                controller.state = {}
+            controller.state.setdefault("messages", [])
+            apply_commands(controller.state, request.commands)
 
             await asyncio.sleep(1)
 
