@@ -75,9 +75,8 @@ function FlavorFileGroup({
 /**
  * One group of the Manual tab for both flavors. Most registry files are the
  * same in Base UI and Radix UI; such a file renders once, outside the flavor
- * switch, and only what differs renders per flavor. Rendering the whole group
- * per flavor sent every shared file's source twice, about 260 KB on the
- * manual installation page.
+ * switch, so its source reaches the page once, and only what differs renders
+ * per flavor.
  */
 function FileGroup({
   title,

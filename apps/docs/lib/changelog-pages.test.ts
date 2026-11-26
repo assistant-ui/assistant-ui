@@ -4,7 +4,7 @@ import {
   plainText,
   summarizeRelease,
   type ChangelogDay,
-} from "@/lib/changelog-pages";
+} from "./changelog-pages";
 
 const commit = "fc73a27c08a7826000bd30950df9dc664a9b5d59";
 const body = `### Patch Changes

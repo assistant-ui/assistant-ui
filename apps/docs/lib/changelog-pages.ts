@@ -119,9 +119,8 @@ export const CHANGELOG_PAGE_LIMITS = {
   /**
    * Rows on one page. A row costs about 2 KB of HTML and payload, so a full
    * page stays under 1 MB, well under the 2 MB at which site audits flag a
-   * page. Eight days alone once put 1,400 changes on one page (3.8 MB). A
-   * single day over the limit still gets one page; the biggest so far, at
-   * 780 rows, came to 0.63 MB.
+   * page; eight busy days can hold 1,400 changes. A single day over the
+   * limit still gets one page of its own (the biggest, 780 rows, is 0.63 MB).
    */
   rows: 400,
 } as const;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRelease } from "@/lib/changelog-parse";
+import { parseRelease } from "./changelog-parse";
 
 const commit = (sha: string) =>
   `[\`${sha.slice(0, 7)}\`](https://github.com/assistant-ui/assistant-ui/commit/${sha})`;
