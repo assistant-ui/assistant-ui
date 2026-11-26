@@ -16,7 +16,7 @@ export class CheckFailure extends Error {
  * text on the screen. Nothing depends on assistant-ui's own class names.
  */
 const HELPERS = String.raw`
-const arg = (b64) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))));
+const arg = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
 const visible = (el) => {
   const r = el.getBoundingClientRect();
   const s = getComputedStyle(el);
@@ -62,9 +62,9 @@ const click = (el) => {
 };
 `;
 
-/** A value for the page-side code, base64-encoded so it can never break out of the string it sits in. */
-const lit = (value: unknown) =>
-  `arg("${Buffer.from(JSON.stringify(value)).toString("base64")}")`;
+/** A string for the page-side code, base64-encoded so it can never break out of the literal it sits in. */
+const lit = (value: string | number) =>
+  `arg("${Buffer.from(String(value), "utf8").toString("base64")}")`;
 
 export interface Driver {
   url: string;
@@ -156,13 +156,13 @@ export async function openDriver(url: string): Promise<Driver> {
     },
     async clickText(pattern, step, nth = 0) {
       await waitUntil(
-        `return findByText(${lit(pattern)}).length > ${lit(nth)};`,
+        `return findByText(${lit(pattern)}).length > Number(${lit(nth)});`,
         20_000,
         step,
         `nothing matching /${pattern}/i to click`,
       );
       await run(
-        `click(findByText(${lit(pattern)})[${lit(nth)}]); return true;`,
+        `click(findByText(${lit(pattern)})[Number(${lit(nth)})]); return true;`,
       );
       await sleep(300);
     },
