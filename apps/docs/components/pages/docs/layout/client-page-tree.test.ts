@@ -46,7 +46,8 @@ const folder = (
     ...(options.index && { index: options.index }),
     ...(options.platforms && { platforms: options.platforms }),
     ...(options.root && { root: options.root }),
-  }) as PageTree.Folder;
+    // fumadocs sets these keys even when they are undefined.
+  }) as unknown as PageTree.Folder;
 
 const separator = (name: string): PageTree.Separator => ({
   $id: `sep-${name}`,
