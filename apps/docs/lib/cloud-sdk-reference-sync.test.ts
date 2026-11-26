@@ -149,7 +149,7 @@ describe("the Cloud SDK reference covers the client", () => {
     ).toEqual([]);
   });
 
-  it("the cloud skill names every thread and message method", () => {
+  it("the cloud skill names every thread and message method, project-wide ones too", () => {
     const { skills } = JSON.parse(
       readFileSync(path.join(__dirname, "agent-skills.generated.json"), "utf8"),
     ) as { skills: { name: string; content: string }[] };
@@ -157,7 +157,9 @@ describe("the Cloud SDK reference covers the client", () => {
     expect(
       all
         .map((method) => method.name)
-        .filter((name) => /^cloud\.threads\.(messages\.)?\w+$/.test(name))
+        .filter((name) =>
+          /^cloud\.(projects\.)?threads\.(messages\.)?\w+$/.test(name),
+        )
         .filter((name) => !skill.includes(`${name}(`)),
     ).toEqual([]);
   });
