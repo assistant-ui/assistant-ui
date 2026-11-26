@@ -6,6 +6,7 @@ platforms: ["react"]
 
 import { ThreadPrimitiveSample } from "@/components/pages/docs/samples/thread-primitive";
 import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
+import { TurnAnchorSample } from "@/components/pages/docs/samples/turn-anchor.lazy";
 
 The Thread primitive is the scrollable message container. It handles viewport management, auto-scrolling, empty states, message rendering, and suggestions. You provide the layout and styling.
 
@@ -123,6 +124,8 @@ By default, new messages appear at the bottom and scroll down. With `turnAnchor=
   {/* messages */}
 </ThreadPrimitive.Viewport>
 ```
+
+<TurnAnchorSample />
 
 When `turnAnchor="top"` is set, `MessagePrimitive.Root` registers the latest assistant message as the top-anchor target and the preceding user message as the anchor, so no additional component is required. The viewport itself manages a stable reserve element that provides the missing scroll range while the assistant response grows. This is the behavior used by the [Thread](/elements/thread) component by default.
 

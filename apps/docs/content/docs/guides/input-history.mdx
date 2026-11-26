@@ -4,7 +4,13 @@ description: Terminal-style ArrowUp/ArrowDown recall of previously sent messages
 platforms: ["react"]
 ---
 
+import { InputHistorySample } from "@/components/pages/docs/samples/input-history.lazy";
+
 Input history lets users press ArrowUp in an empty composer to recall previously sent messages, newest first, like a shell prompt. ArrowDown steps back toward the newest entry and finally restores the draft that was being typed when browsing started.
+
+<InputHistorySample />
+
+Click the composer above and press ArrowUp three times, then ArrowDown. The entries come from the thread's own user messages; send a new one and it joins the history.
 
 <Callout type="warn">
   This API is marked unstable and may change without notice.

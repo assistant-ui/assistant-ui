@@ -12,6 +12,28 @@ It works with any encoder that already ships in `assistant-stream` (the AI SDK U
 
 A user sends a long prompt, walks away, and reloads the tab. Without resumable streams the LLM call is wasted; with them the client picks up where it left off. The same flow handles dropped mobile connections and lets a stream started on one device be read on another, gated by an opaque stream id.
 
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant P as POST /api/chat
+    participant C as ResumableStreamContext
+    participant G as GET /api/chat/resume/[streamId]
+    B->>P: send message
+    P->>C: ctx.run(streamId, makeStream)
+    C-->>P: bytes, also written to the store
+    P-->>B: stream + stream id header
+    Note over B: storage keeps the stream id
+    Note over B,P: tab reloads, connection drops
+    Note over C: the producer keeps writing to the store
+    B->>G: chat.resumeStream()
+    G->>C: ctx.resume(streamId)
+    C-->>G: stored bytes, then new ones
+    G-->>B: replay until finish
+    Note over B: finish event clears the stream id
+```
+
+The first request becomes the producer and writes every byte to the store as it streams. A reconnect is a consumer: it reads what the store already has, then follows the producer until it finalizes.
+
 If your responses are short or you do not care about reload survival, the standard `streamText().toUIMessageStreamResponse()` path is enough.
 
 ## Setup
