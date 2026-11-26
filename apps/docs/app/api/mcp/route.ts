@@ -259,16 +259,18 @@ function normalizePath(rawPath: string, requestUrl: string) {
 }
 
 function listPages(path: string | undefined) {
-  const normalizedPrefix = path ? normalizePageUrlPrefix(path) : undefined;
-
-  return allPages()
-    .map(({ page }) => pageSummary(page))
-    .filter(
-      (page) =>
-        !normalizedPrefix ||
-        page.url === normalizedPrefix ||
-        page.url.startsWith(`${normalizedPrefix}/`),
+  const pages = allPages().map(({ page }) => pageSummary(page));
+  if (!path) return pages;
+  const under = (prefix: string) =>
+    pages.filter(
+      (page) => page.url === prefix || page.url.startsWith(`${prefix}/`),
     );
+
+  // A folder whose overview moved keeps its other pages, so the move applies
+  // only to a prefix with no pages left under it.
+  const pathname = normalizePathname(path);
+  const direct = pathname ? under(`/${pathname}`) : pages;
+  return direct.length > 0 ? direct : under(normalizePageUrlPrefix(path));
 }
 
 function serializeNode(node: PageTree.Node): unknown {

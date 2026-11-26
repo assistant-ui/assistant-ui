@@ -83,7 +83,16 @@ export function agentPath(path: string): string {
   try {
     return agentText(decodeURIComponent(path));
   } catch {
-    return agentText(path);
+    // One malformed escape fails the whole decode, so decode the rest one by one.
+    return agentText(
+      path.replace(/%[0-9a-f]{2}/gi, (escape) => {
+        try {
+          return decodeURIComponent(escape);
+        } catch {
+          return escape;
+        }
+      }),
+    );
   }
 }
 

@@ -137,6 +137,10 @@ describe("agentDocsRead", () => {
     expect(
       agentDocsRead("/docs/jane.doe%40example.com.md", headers())?.path,
     ).toBe("/docs/[email]");
+    expect(
+      agentDocsRead("/docs/%E0%A4%A/jane.doe%40example.com.md", headers())
+        ?.path,
+    ).toBe("/docs/%E0%A4%A/[email]");
   });
 
   it("leaves a page opened in a browser alone", () => {

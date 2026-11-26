@@ -606,6 +606,31 @@ describe("POST /api/mcp", () => {
     expect(text).not.toContain("/docs/installation");
   });
 
+  it("lists the pages still in a folder whose overview moved", async () => {
+    const { source } = await import("@/lib/source");
+    vi.mocked(source.getPages).mockReturnValueOnce([
+      {
+        url: "/docs/runtimes/custom/local-runtime",
+        data: { title: "LocalRuntime", description: "Local." },
+      },
+      {
+        url: "/docs/runtimes/pick-a-runtime",
+        data: { title: "Pick a runtime", description: "Pick." },
+      },
+    ] as never);
+
+    const response = await requestMcp("tools/call", {
+      name: "list_pages",
+      arguments: { path: "/docs/runtimes/custom" },
+    });
+    const text = getToolCallResult(response).content.find(
+      (block) => block.type === "text",
+    )?.text;
+
+    expect(text).toContain("/docs/runtimes/custom/local-runtime");
+    expect(text).not.toContain("/docs/runtimes/pick-a-runtime");
+  });
+
   it("meters the docs resources that repeat the tool work", async () => {
     await requestMcp("resources/read", {
       uri: "assistant-ui://navigation",
