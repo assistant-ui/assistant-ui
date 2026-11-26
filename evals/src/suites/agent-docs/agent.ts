@@ -135,6 +135,7 @@ export async function runAgent(opts: {
   const home = homedir();
   const webHost = opts.webDocs ? new URL(opts.webDocs).hostname : undefined;
   // Where node and npm really live (an nvm or fnm install sits in the home directory): the install root.
+  // Never the home directory itself or one of its parents, as a node at `~/bin/node` would give.
   const toolchain = [
     ...new Set(
       ["node", "npm"].flatMap((tool) => {
@@ -145,7 +146,7 @@ export async function runAgent(opts: {
         }
       }),
     ),
-  ];
+  ].filter((dir) => !`${home}/`.startsWith(`${dir}/`));
   // create-next-app, shadcn and the assistant-ui CLI keep a preferences file here.
   const cliPrefs = ["create-next-app", "shadcn", "assistant-ui"].map((cli) =>
     process.platform === "darwin"
@@ -160,8 +161,15 @@ export async function runAgent(opts: {
   const settings = {
     permissions: {
       allow: ["Read", "Edit", "Write", "Glob", "Grep", "Bash"],
-      deny: ["WebFetch", "WebSearch"],
+      // The file tools run outside the sandbox, so they are fenced here: no writes outside the
+      // working folders, and none into the docs, which every trial of the run shares.
+      deny: [
+        "WebFetch",
+        "WebSearch",
+        ...(docsDir ? [`Edit(/${docsDir}/**)`, `Write(/${docsDir}/**)`] : []),
+      ],
       blockReadsOutsideWorkingDirectories: true,
+      blockWritesOutsideWorkingDirectories: true,
     },
     sandbox: {
       enabled: true,
