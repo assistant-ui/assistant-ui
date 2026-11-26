@@ -308,7 +308,7 @@ const config: NextConfig = {
     },
     {
       source: "/docs/cloud/overview",
-      destination: "/docs/cloud/dashboard/overview",
+      destination: "/docs/cloud/dashboard#overview",
       permanent: true,
     },
     {

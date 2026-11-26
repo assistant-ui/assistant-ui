@@ -1,18 +1,7 @@
 {
   "title": "Dashboard",
-  "description": "Every page of the dashboard and what each figure means.",
+  "description": "What each page of the dashboard answers and what its figures mean.",
   "icon": "LayoutDashboard",
   "root": true,
-  "pages": [
-    "index",
-    "overview",
-    "threads",
-    "conversation-views",
-    "runs",
-    "models",
-    "users",
-    "engagement",
-    "intelligence",
-    "exports"
-  ]
+  "pages": ["index", "conversation-views"]
 }
