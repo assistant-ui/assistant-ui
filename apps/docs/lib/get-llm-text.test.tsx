@@ -138,6 +138,7 @@ describe("agent markdown keeps what the page shows", () => {
       "- [`<AssistantRuntimeProvider runtime={runtime}>`](/docs/api-reference/context-providers/assistant-runtime-provider) — Provides the highest level context. Provides: Thread Context, [Composer Context](#composer-context)\n  - [`ThreadPrimitive`](/docs/api-reference/primitives/thread)",
     );
     expect(markdown).not.toContain("#45a049");
+    expect(markdown).not.toContain("#ff9933");
   });
 
   it("keeps a file tree as a nested list", async () => {
