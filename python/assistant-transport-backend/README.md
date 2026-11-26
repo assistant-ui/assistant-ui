@@ -91,7 +91,7 @@ Main endpoint that implements the assistant-transport protocol.
 
 ## Scripted Reply
 
-The backend calls no model. After it applies the request's commands to the state, it streams the same scripted assistant message every time: a short text part, then a `get_weather` tool call whose arguments arrive in two chunks, with a pause between steps so you can watch the stream.
+The backend calls no model. After it applies the first command in the request to the state, it streams the same scripted assistant message every time: a short text part, then a `get_weather` tool call whose arguments arrive in two chunks, with a pause between steps so you can watch the stream.
 
 ## Integration with Frontend
 

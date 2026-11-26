@@ -6,6 +6,7 @@ Usage: python3 -I python-blocks.py <doc file>...   (paths from the repo root)
 
 Prints one JSON object per line, one per block:
   file, line        where the block starts (1-based, the line after the fence)
+  source            the block's code
   syntax            the SyntaxError, if the block does not compile
   undefined         names the block uses that neither it, an earlier block on
                     the same page, nor Python defines
@@ -37,10 +38,13 @@ LOCAL_PACKAGES = {
     "assistant_ui": ROOT / "python/assistant-ui-sync-server-api/src/assistant_ui",
 }
 
-FENCE = re.compile(r"^(\s*)(`{3,}|~{3,})(?:python|py|python3)(?:\s|$)")
+FENCE = re.compile(r"^\s*(`{3,}|~{3,})\s*([^\s`]*)")
+PYTHON = {"python", "py", "python3"}
 
 
 def blocks(text):
+    """(line, code) of each Python fence. Other fences are skipped whole, so a
+    Python example quoted inside a longer Markdown fence is not a block."""
     lines = text.split("\n")
     i = 0
     while i < len(lines):
@@ -48,13 +52,15 @@ def blocks(text):
         if not match:
             i += 1
             continue
-        fence = match.group(2)
-        close = re.compile(rf"^\s*{re.escape(fence)}\s*$")
+        fence, language = match.groups()
+        # A closing fence repeats the opening character at least as many times.
+        close = re.compile(rf"^\s*{re.escape(fence[0])}{{{len(fence)},}}\s*$")
         start = i + 1
         end = start
         while end < len(lines) and not close.match(lines[end]):
             end += 1
-        yield start + 1, textwrap.dedent("\n".join(lines[start:end]))
+        if language in PYTHON:
+            yield start + 1, textwrap.dedent("\n".join(lines[start:end]))
         i = end + 1
 
 
@@ -221,7 +227,7 @@ def accepted_keywords(defs):
                 if inner is None:
                     return None
                 accepted |= inner
-            elif any(
+            elif not node.bases and any(
                 "dataclass" in ast.unparse(d) for d in node.decorator_list
             ):
                 accepted |= {
@@ -239,9 +245,10 @@ def accepted_keywords(defs):
     return accepted
 
 
-def check_locals(tree):
+def check_locals(tree, bound):
+    """Check imports from local packages and keyword arguments to what they
+    bind. `bound` carries the page's imported callables from block to block."""
     imports, keywords = [], []
-    bound = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and not node.level and node.module:
             if module_file(node.module) is None:
@@ -249,6 +256,8 @@ def check_locals(tree):
                     imports.append(node.module)
                 continue
             for alias in node.names:
+                if alias.name == "*":
+                    continue
                 found = lookup(node.module, alias.name)
                 if found is None:
                     imports.append(f"{node.module}.{alias.name}")
@@ -278,8 +287,9 @@ def check_locals(tree):
 
 def check(file):
     page_names = set()
+    page_bound = {}
     for line, source in blocks((ROOT / file).read_text()):
-        result = {"file": file, "line": line}
+        result = {"file": file, "line": line, "source": source}
         try:
             tree = ast.parse(source)
             compile(
@@ -297,7 +307,7 @@ def check(file):
             and not (name.startswith("__") and name.endswith("__"))
         )
         page_names |= defined
-        result["imports"], result["keywords"] = check_locals(tree)
+        result["imports"], result["keywords"] = check_locals(tree, page_bound)
         yield result
 
 

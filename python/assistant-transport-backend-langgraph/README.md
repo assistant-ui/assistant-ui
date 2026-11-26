@@ -163,15 +163,15 @@ const runtime = useAssistantTransportRuntime({
 
 ## Customizing the LangGraph
 
-You can customize the graph in the `create_graph()` function. Currently, it implements a simple chat node using OpenAI's GPT-6 Luna model. You can:
+You can customize the graph in the `create_graph()` function. It wires an `agent` node, which calls OpenAI's GPT-6 Luna model, to a `tools` node, which runs the server tools. You can:
 
 - Add more nodes for different functionalities
-- Implement tool calling
+- Add more tools
 - Add conditional edges
 - Integrate with different LLMs
 - Add memory or persistence
 
-`create_graph()` already routes tool calls between an `agent` node and a `tools` node. Add a node the same way:
+This is how `create_graph()` wires its two nodes. Register a new node with `add_node` and route to it with an edge or a conditional edge in the same way:
 ```python
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, StateGraph

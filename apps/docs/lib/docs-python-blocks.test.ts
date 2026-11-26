@@ -24,48 +24,69 @@ const PAGES = [
   ),
 );
 
-// Names a page leaves to the reader on purpose: their own app, auth or
-// settings, or the inside of a function an earlier block defines. Every
-// other name a block uses must come from Python, from the block itself or
-// from a block above it on the same page.
-const READER_SUPPLIED: Record<string, string[]> = {
+// Names a block leaves to the reader on purpose: their own app, auth or
+// settings, or the inside of a function an earlier block defines. Each entry
+// names the block by a piece of its code. Every other name a block uses must
+// come from Python, from the block itself or from a block above it on the
+// same page.
+const READER_SUPPLIED: Record<string, { block: string; names: string[] }[]> = {
   "apps/docs/content/docs/runtimes/ag-ui/durable-threads.mdx": [
-    "verify_session", // the app's own session check
-    "Deps", // the agent's own deps type
-    "MCP_URL", // the reader's MCP server
-    "streams", // built in the production lifespan above the block
+    // the app's own session check and agent deps type
+    {
+      block: "async def current_user(request)",
+      names: ["verify_session", "Deps"],
+    },
+    // the reader's MCP server
+    { block: "MCPToolset(MCP_URL)", names: ["MCP_URL"] },
+    // built in the production lifespan above the block
+    { block: "keepalive_interval=15", names: ["streams"] },
   ],
   "apps/docs/content/docs/runtimes/custom/assistant-transport.mdx": [
-    "your_agent", // the reader's agent
-    "graph", // the reader's compiled LangGraph graph
-    "request", // inside chat_endpoint from "Handling commands"
-    "controller", // inside run_callback from "Handling commands"
+    { block: "your_agent.stream()", names: ["your_agent"] },
+    // the reader's compiled LangGraph graph
+    { block: "graph.astream(", names: ["graph"] },
+    // loops inside chat_endpoint and run_callback from "Handling commands"
+    { block: "command.parentId is None", names: ["request", "controller"] },
+    { block: '"my-custom-command"', names: ["request", "controller"] },
   ],
   "python/assistant-stream/README.md": [
-    "current_user", // the app's own auth: request -> user id
+    // the app's own auth: request -> user id
+    { block: "owner=current_user", names: ["current_user"] },
   ],
   "python/assistant-stream/README_LANGGRAPH.md": [
-    "controller", // inside a run callback
-    "namespace", // from graph.astream(..., subgraphs=True)
-    "graph", // the reader's compiled LangGraph graph
-    "input_messages", // the reader's input
+    // calls made inside a run callback over graph.astream(..., subgraphs=True)
+    { block: '"messages", chunk)', names: ["controller", "namespace"] },
+    { block: '"updates", updates)', names: ["controller", "namespace"] },
+    { block: "graph.astream(", names: ["graph", "input_messages"] },
   ],
   // The README walks through the package's own main.py.
   "python/assistant-transport-backend-langgraph/README.md": [
-    "GraphState",
-    "agent_node",
-    "tool_executor_node",
-    "should_call_tools",
-    "should_continue_after_tools",
+    {
+      block: "def create_graph(",
+      names: [
+        "GraphState",
+        "agent_node",
+        "tool_executor_node",
+        "should_call_tools",
+        "should_continue_after_tools",
+      ],
+    },
   ],
   "python/assistant-ui-sync-server-api/README.md": [
-    "fetch_token", // the app's own token source
+    // the app's own token source
+    { block: "await fetch_token()", names: ["fetch_token"] },
   ],
 };
+
+const allowedIn = (block: Block) =>
+  (READER_SUPPLIED[block.file] ?? [])
+    .filter((entry) => block.source.includes(entry.block))
+    .flatMap((entry) => entry.names);
 
 type Block = {
   file: string;
   line: number;
+  source: string;
   syntax?: string;
   undefined?: string[];
   imports?: string[];
@@ -110,7 +131,7 @@ describe.skipIf(!hasPython && !process.env.CI)(
     it("use only names Python or the page defines", () => {
       expect(
         blocks.flatMap((block) => {
-          const allowed = READER_SUPPLIED[block.file] ?? [];
+          const allowed = allowedIn(block);
           const missing = (block.undefined ?? []).filter(
             (name) => !allowed.includes(name),
           );
@@ -142,16 +163,22 @@ describe.skipIf(!hasPython && !process.env.CI)(
     });
 
     it("leave no stale reader-supplied names", () => {
-      const used = new Set(
-        blocks.flatMap((block) =>
-          (block.undefined ?? []).map((name) => `${block.file} ${name}`),
-        ),
-      );
       expect(
-        Object.entries(READER_SUPPLIED).flatMap(([file, names]) =>
-          names
-            .filter((name) => !used.has(`${file} ${name}`))
-            .map((name) => `${file} ${name}`),
+        Object.entries(READER_SUPPLIED).flatMap(([file, entries]) =>
+          entries.flatMap((entry) => {
+            const matching = blocks.filter(
+              (block) =>
+                block.file === file && block.source.includes(entry.block),
+            );
+            if (matching.length === 0)
+              return [`${file}: no block has ${entry.block}`];
+            return entry.names
+              .filter(
+                (name) =>
+                  !matching.some((block) => block.undefined?.includes(name)),
+              )
+              .map((name) => `${file}: ${entry.block} uses no ${name}`);
+          }),
         ),
       ).toEqual([]);
     });

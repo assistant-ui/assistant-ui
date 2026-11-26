@@ -144,18 +144,34 @@ const { message_id, run } = await cloud.threads.messages.create(thread_id, {
   open_run: true,
 });
 if (run) {
-  const beat = setInterval(
-    () => void cloud.threads.runs.heartbeat(thread_id, run.lease_id),
-    run.heartbeat_interval_ms,
-  );
+  let ended = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // Schedule each beat from the interval the last response gave.
+  const beat = (ms: number) => {
+    timer = setTimeout(async () => {
+      try {
+        const next = await cloud.threads.runs.heartbeat(thread_id, run.lease_id);
+        if (!ended) beat(next.heartbeat_interval_ms);
+      } catch (error) {
+        // 409 and 404 mean the run is over; retry anything else.
+        const over = error instanceof CloudAPIError && (error.status === 409 || error.status === 404);
+        if (!ended && !over) beat(ms);
+      }
+    }, ms);
+  };
+  beat(run.heartbeat_interval_ms);
+
+  let reason: "done" | "error" = "error";
   try {
     await cloud.threads.messages.update(thread_id, message_id, {
       content: { role: "assistant", content: [{ type: "text", text: "Your refund is on its way." }] },
       lease_id: run.lease_id,
     });
+    reason = "done";
   } finally {
-    clearInterval(beat);
-    await cloud.threads.runs.end(thread_id, run.lease_id, { reason: "done" });
+    ended = true;
+    clearTimeout(timer);
+    await cloud.threads.runs.end(thread_id, run.lease_id, { reason });
   }
 }
 ```

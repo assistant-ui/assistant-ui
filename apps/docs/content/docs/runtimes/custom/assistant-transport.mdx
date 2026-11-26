@@ -581,7 +581,7 @@ const runtime = useAssistantTransportRuntime({
 
 When the backend receives `add-message` with a `parentId`:
 
-1. Truncate all messages after the parent.
+1. Truncate all messages after the parent, or all of them when `parentId` is `null` (the first message was edited).
 2. Append the new message.
 3. Stream the updated state back.
 
@@ -591,11 +591,16 @@ In the `run_callback` from [Handling commands](#handling-commands), that becomes
 for command in request.commands:
     if command.type == "add-message":
         messages = controller.state["messages"]
-        if command.parentId is not None:
-            parent = next(
-                i for i, m in enumerate(messages) if m.get("id") == command.parentId
+        if command.parentId is None:
+            controller.state["messages"] = []
+        else:
+            parent_idx = next(
+                (i for i, m in enumerate(messages) if m.get("id") == command.parentId),
+                None,
             )
-            controller.state["messages"] = list(messages)[: parent + 1]
+            if parent_idx is not None:
+                # Copy out of the state proxy; it does not slice.
+                controller.state["messages"] = list(messages)[: parent_idx + 1]
         controller.state["messages"].append(command.message.model_dump())
 ```
 

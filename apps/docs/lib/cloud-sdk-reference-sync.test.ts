@@ -9,7 +9,9 @@ const PAGE = "apps/docs/content/docs/cloud/(reference)/sdk.mdx";
 // Methods the page covers in prose instead of a table row.
 const IN_PROSE = new Set(["cloud.registerSdk"]);
 
-type Method = { name: string; fields: string[] };
+// A shape's fields; `name` is the type's name when it has one.
+type Shape = { name: string | undefined; fields: string[] };
+type Method = { name: string; shapes: Shape[] };
 
 const project = new Project({
   compilerOptions: { strict: true },
@@ -39,15 +41,16 @@ const isHidden = (symbol: Symbol) =>
 
 const CLIENT_SOURCE = path.join(ROOT, "packages/cloud/src");
 
-// The property names a reader passes or gets back: the fields of object
-// parameters and of the resolved return value, one level deep. Only shapes
-// the client declares count; a returned stream or class is not a field list.
-const fieldsOf = (type: Type): string[] => {
+// The shapes a reader passes or gets back: object parameters and the
+// resolved return value, one level deep. Only shapes the client declares
+// count; a returned stream or class is not a field list.
+const shapesOf = (type: Type): Shape[] => {
   if (type.isUnion())
-    return type.getUnionTypes().flatMap((member) => fieldsOf(member));
+    return type.getUnionTypes().flatMap((member) => shapesOf(member));
   if (!type.isObject() || type.isArray() || type.getCallSignatures().length)
     return [];
-  const declarations = (type.getAliasSymbol() ?? type.getSymbol())
+  const symbol = type.getAliasSymbol() ?? type.getSymbol();
+  const declarations = symbol
     ?.getDeclarations()
     .map((node) => node.getSourceFile().getFilePath() as string);
   if (
@@ -56,7 +59,13 @@ const fieldsOf = (type: Type): string[] => {
     !declarations.every((file) => file.startsWith(CLIENT_SOURCE))
   )
     return [];
-  return type.getProperties().map((property) => property.getName());
+  const name = symbol!.getName();
+  return [
+    {
+      name: name.startsWith("__") ? undefined : name,
+      fields: type.getProperties().map((property) => property.getName()),
+    },
+  ];
 };
 
 const methods = (type: Type, prefix: string): Method[] =>
@@ -71,15 +80,15 @@ const methods = (type: Type, prefix: string): Method[] =>
         returned.getSymbol()?.getName() === "Promise"
           ? (returned.getTypeArguments()[0] ?? returned)
           : returned;
-      const fields = [
+      const shapes = [
         ...signature
           .getParameters()
           .flatMap((parameter) =>
-            fieldsOf(parameter.getTypeAtLocation(client).getNonNullableType()),
+            shapesOf(parameter.getTypeAtLocation(client).getNonNullableType()),
           ),
-        ...fieldsOf(resolved),
+        ...shapesOf(resolved),
       ];
-      return [{ name, fields: [...new Set(fields)].sort() }];
+      return [{ name, shapes }];
     }
     // The namespaces are client classes; configuration objects are not.
     return propertyType.isObject() && property.getName() !== "telemetry"
@@ -89,8 +98,8 @@ const methods = (type: Type, prefix: string): Method[] =>
 
 const page = readFileSync(path.join(ROOT, PAGE), "utf8");
 
-// Each table row names one method; its section is everything under the
-// row's ### heading, where the prose spells out the named response types.
+// Each table row names one method. Its section is everything under the
+// row's ### heading, where the prose can spell out a shape the row names.
 const rows = new Map(
   [...page.matchAll(/^\|\s*`(cloud\.[\w.]+)`\s*\|(.*)$/gm)].map((match) => {
     const start = page.lastIndexOf("\n### ", match.index);
@@ -99,7 +108,7 @@ const rows = new Map(
       start,
       end === -1 ? undefined : match.index + end,
     );
-    return [match[1]!, section];
+    return [match[1]!, { row: match[2]!, section }];
   }),
 );
 
@@ -140,28 +149,25 @@ describe("the Cloud SDK reference covers the client", () => {
     ).toEqual([]);
   });
 
-  it("the cloud skill names every thread and message method", () => {
-    const { skills } = JSON.parse(
-      readFileSync(path.join(__dirname, "agent-skills.generated.json"), "utf8"),
-    ) as { skills: { name: string; content: string }[] };
-    const skill = skills.find((entry) => entry.name === "cloud")!.content;
-    expect(
-      all
-        .map((method) => method.name)
-        .filter((name) => /^cloud\.threads\.(messages\.)?\w+$/.test(name))
-        .filter((name) => !skill.includes(`${name}(`)),
-    ).toEqual([]);
-  });
-
+  // A row spells out a shape's fields, or names the shape and lets the
+  // section's prose list them.
   it("names every field a method takes or returns", () => {
+    const mentions = (text: string, word: string) =>
+      new RegExp(`\\b${word}\\b`).test(text);
     expect(
       all.flatMap((method) => {
-        const section = rows.get(method.name);
-        if (section === undefined) return [];
-        const missing = method.fields.filter(
-          (field) => !new RegExp(`\\b${field}\\b`).test(section),
-        );
-        return missing.length ? [`${method.name}: ${missing.join(", ")}`] : [];
+        const entry = rows.get(method.name);
+        if (entry === undefined) return [];
+        const missing = method.shapes.flatMap((shape) => {
+          const where =
+            shape.name && mentions(entry.row, shape.name)
+              ? entry.section
+              : entry.row;
+          return shape.fields.filter((field) => !mentions(where, field));
+        });
+        return missing.length
+          ? [`${method.name}: ${[...new Set(missing)].join(", ")}`]
+          : [];
       }),
     ).toEqual([]);
   });

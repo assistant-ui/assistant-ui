@@ -13,7 +13,7 @@ from pydantic_ai import Agent
 from starlette.applications import Starlette
 from assistant_stream.pydantic_ai import DurableAGUI, SqliteThreadStore
 
-agent = Agent("openai:gpt-5.4-mini")
+agent = Agent("openai:gpt-5.4-mini")  # reads OPENAI_API_KEY
 durable = DurableAGUI(
     agent,
     threads=SqliteThreadStore("threads.db"),
