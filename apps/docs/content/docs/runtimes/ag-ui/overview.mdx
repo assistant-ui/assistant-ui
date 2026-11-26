@@ -18,9 +18,9 @@ If your backend is not AG-UI-compliant, see [picking a runtime](/docs/runtimes/p
 
 ## Architecture
 
-`@assistant-ui/react-ag-ui` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). The runtime owns AG-UI event parsing and message reconstruction; you provide an `HttpAgent` from `@ag-ui/client` and the adapter handles the wire protocol.
+`@assistant-ui/react-ag-ui` is layered on `ExternalStoreRuntime` (see [architecture](/docs/concepts/runtime)). The runtime owns AG-UI event parsing and message reconstruction; you provide an `HttpAgent` from `@ag-ui/client` and the adapter handles the wire protocol.
 
-Shared adapters (attachments, speech, dictation, feedback, history) work the same way described in [adapters](/docs/runtimes/concepts/adapters).
+Shared adapters (attachments, speech, dictation, feedback, history) work the same way described in [adapters](/docs/concepts/adapters).
 
 ## Requirements
 

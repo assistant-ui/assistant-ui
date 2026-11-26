@@ -75,13 +75,13 @@ Pass either a pre-built `client` or a `baseUrl`, from which the runtime creates 
 | `onError` | `(error: Error) => void` | Error callback. |
 | `onCancel` | `() => void` | Cancellation callback. |
 | `onArtifactComplete` | `(artifact: A2AArtifact) => void` | Fired when an incremental artifact finishes. |
-| `adapters.attachments` | `AttachmentAdapter` | Custom attachment handling. See [adapters](/docs/runtimes/concepts/adapters#attachment-adapter). |
-| `adapters.speech` | `SpeechSynthesisAdapter` | Text-to-speech. See [adapters](/docs/runtimes/concepts/adapters#speech-adapter). |
-| `adapters.dictation` | `DictationAdapter` | Speech-to-text input. See [adapters](/docs/runtimes/concepts/adapters#dictation-adapter). |
+| `adapters.attachments` | `AttachmentAdapter` | Custom attachment handling. See [adapters](/docs/concepts/adapters#attachment-adapter). |
+| `adapters.speech` | `SpeechSynthesisAdapter` | Text-to-speech. See [adapters](/docs/concepts/adapters#speech-adapter). |
+| `adapters.dictation` | `DictationAdapter` | Speech-to-text input. See [adapters](/docs/concepts/adapters#dictation-adapter). |
 | `adapters.voice` | `RealtimeVoiceAdapter` | Realtime voice session. See [voice](/docs/guides/voice). |
-| `adapters.feedback` | `FeedbackAdapter` | Feedback collection. See [adapters](/docs/runtimes/concepts/adapters#feedback-adapter). |
-| `adapters.history` | `ThreadHistoryAdapter` | Message persistence. See [adapters](/docs/runtimes/concepts/adapters#history-adapter). |
-| `adapters.threadList` | `UseA2AThreadListAdapter` | Thread switching. See [threads](/docs/runtimes/concepts/threads). |
+| `adapters.feedback` | `FeedbackAdapter` | Feedback collection. See [adapters](/docs/concepts/adapters#feedback-adapter). |
+| `adapters.history` | `ThreadHistoryAdapter` | Message persistence. See [adapters](/docs/concepts/adapters#history-adapter). |
+| `adapters.threadList` | `UseA2AThreadListAdapter` | Thread switching. See [threads](/docs/concepts/threads). |
 
 ## Hooks
 
@@ -378,8 +378,8 @@ This prepends `/{tenant}` to all API paths (e.g. `/my-org/message:send`).
 | Task cancellation | Yes |
 | Message editing | Yes |
 | Message reload | Yes |
-| History persistence | Via [history adapter](/docs/runtimes/concepts/adapters#history-adapter) |
-| Thread list management | Via [thread list adapter](/docs/runtimes/concepts/threads) |
+| History persistence | Via [history adapter](/docs/concepts/adapters#history-adapter) |
+| Thread list management | Via [thread list adapter](/docs/concepts/threads) |
 
 ## Related
 
@@ -398,6 +398,6 @@ This prepends `/{tenant}` to all API paths (e.g. `/my-org/message:send`).
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, threads."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
 </Cards>

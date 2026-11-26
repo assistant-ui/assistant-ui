@@ -1,0 +1,221 @@
+---
+title: Runtime
+description: "The runtime holds the conversation, runs each turn against your backend, and is the only part of the chat that talks to it."
+---
+
+A runtime is the conversation's state and the engine that moves it forward. It keeps the messages, the text in the composer, the reply in progress and every earlier version of an edited message. When the user sends, the runtime calls your backend and turns the answer into a message as it streams in.
+
+Components never call your backend. They read state from the runtime and send it actions such as send, edit, regenerate and cancel. That split is why you can restyle the whole chat without touching how it talks to the model, or swap the backend without touching a component.
+
+<Flow.Root
+  llm={`graph LR
+    A[Components] -- actions --> B[Runtime]
+    B -- state --> A
+    B -- request --> C[Your backend]
+    C -- stream --> B`}
+>
+  <Flow.Row>
+    <Flow.Node tone="pink">Components</Flow.Node>
+    <Flow.Arrow label="actions" reverseLabel="state" />
+    <Flow.Node tone="blue">Runtime</Flow.Node>
+    <Flow.Arrow label="request" reverseLabel="stream" />
+    <Flow.Node tone="red">Your backend</Flow.Node>
+  </Flow.Row>
+</Flow.Root>
+
+## One runtime per chat
+
+You create a runtime with a hook and hand it to `AssistantRuntimeProvider`. Every component inside the provider reads from that runtime.
+
+The smallest runtime is `useLocalRuntime`. You give it one function that calls your API with the thread's messages and returns the reply:
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import type { ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react";
+
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    const result = await fetch("<YOUR_API_ENDPOINT>", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+    const data = await result.json();
+    return {
+      content: [{ type: "text", text: data.text }],
+    };
+  },
+};
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const runtime = useLocalRuntime(MyModelAdapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Most apps use a runtime made for their backend instead, such as `useChatRuntime` for the Vercel AI SDK or `useLangGraphRuntime` for LangGraph. They all expose the same state to the components, so the rest of your app doesn't change when you switch. [Picking a runtime](/docs/runtimes/pick-a-runtime) lists them.
+
+## A turn, step by step
+
+1. The user sends from the composer. The runtime adds their [message](/docs/concepts/messages) to the thread and clears the composer.
+2. The runtime starts a run. It adds an empty assistant message with the status `running` and sends your backend the messages so far, along with the system instructions and tools your app has registered.
+3. Your backend streams its answer. The runtime turns each piece into a part of the assistant message: text, reasoning, a tool call. Components re-render as the parts grow.
+4. The run ends. The status becomes `complete`, `incomplete` with a reason such as `cancelled` or `error`, or `requires-action` when a tool call is waiting for a result or for the user.
+
+With `ExternalStoreRuntime`, and the framework runtimes built on it, your store or the framework does the adding and streaming, and the runtime renders the messages the store holds. The turn looks the same on screen.
+
+Editing a message or regenerating a reply starts a new run from that point. The earlier reply is kept as a branch, so the user can switch back to it.
+
+Your components see this through state. A stop button, for example, reads whether a run is in progress and calls `cancelRun`:
+
+```tsx
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+function StopButton() {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  if (!isRunning) return null;
+  return <button onClick={() => aui.thread.cancelRun()}>Stop</button>;
+}
+```
+
+[The Context API](/docs/concepts/context-api) covers every scope you can read this way.
+
+## What the runtime owns, and what you own
+
+| The runtime owns | You own |
+| --- | --- |
+| The messages of the open thread, their parts and status | The backend that calls the model, and its API keys |
+| The composer's text and attachments | Server-side tools and what they can reach |
+| The run in progress, and cancelling it | Where threads are stored, through an [adapter](/docs/concepts/adapters) or [Assistant Cloud](/docs/cloud) |
+| Branches from edits and regenerations | The components, which you can restyle or replace |
+| The thread list, once you give it somewhere to keep [threads](/docs/concepts/threads) | |
+
+<AnchorAlias id="the-three-layers" />
+<AnchorAlias id="core-runtimes" />
+<AnchorAlias id="protocol-layers" />
+<AnchorAlias id="framework-adapters" />
+<AnchorAlias id="how-features-flow" />
+<AnchorAlias id="choosing-a-layer" />
+
+## Two cores: the runtime keeps the messages, or you do
+
+Every runtime is built on one of two core runtimes. Which one sits under yours decides who holds the messages.
+
+`LocalRuntime` keeps the messages itself. You write the call to your backend, as in the example above, and editing, regenerating and branching work without more code.
+
+`ExternalStoreRuntime` reads the messages from a store you already have, such as Redux or Zustand, and calls your handlers when the user sends, edits or regenerates. Features turn on as you provide the handlers for them.
+
+| | LocalRuntime | ExternalStoreRuntime |
+| --- | --- | --- |
+| Who holds the messages | The runtime | Your store |
+| Setup | One `run` function | Messages plus a handler per action |
+| Editing and branching | Built in | Turned on by `onEdit` and `setMessages` |
+| Best fit | A new app with its own API | An app whose state already lives in a store |
+
+The runtimes for frameworks build on these. `useChatRuntime`, `useLangGraphRuntime` and the other framework runtimes sit on `ExternalStoreRuntime`, because the framework already keeps the messages. Two wire protocols sit in between for backends you write yourself: the [data stream](/docs/runtimes/custom/data-stream) protocol streams message parts on top of `LocalRuntime`, and [assistant transport](/docs/runtimes/custom/assistant-transport) streams your agent's whole state on top of `ExternalStoreRuntime`.
+
+<Flow.Root
+  llm={`graph TD
+    subgraph Framework["Framework runtimes"]
+      A1[ai-sdk]
+      A2[react-langgraph]
+      A3[react-langchain]
+      A4[react-google-adk]
+      A5[react-a2a]
+      A6[react-ag-ui]
+      A7[react-opencode]
+      A8[eve]
+    end
+    subgraph Protocol["Protocols"]
+      P1[DataStream]
+      P2[AssistantTransport]
+    end
+    subgraph Core["Core runtimes"]
+      C1[LocalRuntime]
+      C2[ExternalStoreRuntime]
+    end
+    A1 --> C2
+    A2 --> C2
+    A3 --> C2
+    A4 --> C2
+    A5 --> C2
+    A6 --> C2
+    A7 --> C2
+    A8 --> C2
+    P1 --> C1
+    P2 --> C2`}
+>
+  <Flow.Canvas
+    edges={[
+      { from: "datastream", to: "local", route: "down", midFrac: 0.4, laneOffset: -60 },
+      { from: "transport", to: "external", route: "down", midFrac: 0.65, toOffset: -14 },
+      { from: "adapters", to: "external", route: "down", midFrac: 0.4, toOffset: 14 },
+    ]}
+  >
+    <div className="grid max-w-2xl grid-cols-[1fr_1.6fr] gap-4">
+      <Flow.Group>
+        <Flow.GroupLabel>Protocols</Flow.GroupLabel>
+        <Flow.Column className="items-stretch gap-5">
+          <Flow.Row className="justify-start">
+            <Flow.Node flowId="datastream">DataStream</Flow.Node>
+          </Flow.Row>
+          <Flow.Row className="justify-end">
+            <Flow.Node flowId="transport">AssistantTransport</Flow.Node>
+          </Flow.Row>
+        </Flow.Column>
+      </Flow.Group>
+      <Flow.Group flowId="adapters">
+        <Flow.GroupLabel>Framework runtimes</Flow.GroupLabel>
+        <Flow.Row className="flex-wrap justify-start">
+          <Flow.Node>ai-sdk</Flow.Node>
+          <Flow.Node>react-langgraph</Flow.Node>
+          <Flow.Node>react-langchain</Flow.Node>
+          <Flow.Node>react-google-adk</Flow.Node>
+          <Flow.Node>react-a2a</Flow.Node>
+          <Flow.Node>react-ag-ui</Flow.Node>
+          <Flow.Node>react-opencode</Flow.Node>
+          <Flow.Node>eve</Flow.Node>
+        </Flow.Row>
+      </Flow.Group>
+    </div>
+    <div className="h-14" aria-hidden />
+    <Flow.Group className="mx-auto w-fit">
+      <Flow.GroupLabel>Core runtimes</Flow.GroupLabel>
+      <Flow.Row className="gap-10">
+        <Flow.Node flowId="local">LocalRuntime</Flow.Node>
+        <Flow.Node flowId="external">ExternalStoreRuntime</Flow.Node>
+      </Flow.Row>
+    </Flow.Group>
+  </Flow.Canvas>
+</Flow.Root>
+
+Start at the top and go down a layer only when the one above can't do what you need. Features such as attachments, speech and feedback plug in through [adapters](/docs/concepts/adapters), which work the same way in every runtime that supports them; the adapters page lists which runtime supports which.
+
+## Next
+
+<Cards>
+  <Card
+    title="Messages and parts"
+    description="What a message is made of, and how each part reaches the screen."
+    href="/docs/concepts/messages"
+  />
+  <Card
+    title="Picking a runtime"
+    description="The runtime for your framework, or the path for a backend of your own."
+    href="/docs/runtimes/pick-a-runtime"
+  />
+</Cards>

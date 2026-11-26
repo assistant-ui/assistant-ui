@@ -170,7 +170,7 @@ authorized to update application-wide or user-wide ADK state.
 
 ## Thread management
 
-Three options, picked by what you want to own. See [threads](/docs/runtimes/concepts/threads) for the general model.
+Three options, picked by what you want to own. See [threads](/docs/concepts/threads) for the general model.
 
 ### ADK session adapter
 
@@ -201,7 +201,7 @@ Pass a `cloud` instance to use Assistant Cloud for the thread list and a dashboa
 
 ```ts
 const runtime = useAdkRuntime({
-  cloud, // see "AssistantCloud" in /docs/runtimes/concepts/threads
+  cloud, // see "AssistantCloud" in /docs/concepts/threads
   stream: createAdkStream({ api: "/api/chat" }),
 });
 ```
@@ -292,6 +292,6 @@ them.
   <Card
     title="Threads"
     description="General model for multi-thread support across runtimes."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/concepts/threads"
   />
 </Cards>

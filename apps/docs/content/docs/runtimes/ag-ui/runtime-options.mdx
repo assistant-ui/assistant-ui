@@ -49,11 +49,11 @@ If the getter throws, the error is reported and the run continues without host e
 
 | Adapter | Slot | Notes |
 | --- | --- | --- |
-| Attachments | `adapters.attachments` | See [attachment adapter](/docs/runtimes/concepts/adapters#attachment-adapter). |
-| Speech | `adapters.speech` | Text-to-speech. See [speech adapter](/docs/runtimes/concepts/adapters#speech-adapter). |
+| Attachments | `adapters.attachments` | See [attachment adapter](/docs/concepts/adapters#attachment-adapter). |
+| Speech | `adapters.speech` | Text-to-speech. See [speech adapter](/docs/concepts/adapters#speech-adapter). |
 | Dictation | `adapters.dictation` | Speech-to-text input. |
 | Voice | `adapters.voice` | Realtime voice session. See [voice](/docs/guides/voice). |
-| Feedback | `adapters.feedback` | Thumbs up / down. See [feedback adapter](/docs/runtimes/concepts/adapters#feedback-adapter). |
+| Feedback | `adapters.feedback` | Thumbs up / down. See [feedback adapter](/docs/concepts/adapters#feedback-adapter). |
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
 
@@ -374,7 +374,7 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
 | Run resumption | Yes |
 | Interrupts (human-in-the-loop) | Experimental (`unstable_*` API, see [Interrupts](#interrupts-experimental)) |
 | Multi-thread | Experimental (`adapters.threadList`) |
-| History persistence | Via [history adapter](/docs/runtimes/concepts/adapters#history-adapter) |
+| History persistence | Via [history adapter](/docs/concepts/adapters#history-adapter) |
 
 ## Related
 
@@ -393,6 +393,6 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, thread list."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
 </Cards>

@@ -5,7 +5,6 @@
   "root": true,
   "pages": [
     "pick-a-runtime",
-    "concepts",
     "custom",
     "ai-sdk",
     "eve",
