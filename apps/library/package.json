@@ -22,6 +22,7 @@
     "next-themes": "^0.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-native-web": "^0.21.4",
     "react-resizable-panels": "^4.15.0",
     "server-only": "^0.0.1",
     "sonner": "^2.0.8"
@@ -32,6 +33,7 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "react-native": "^0.88.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   }

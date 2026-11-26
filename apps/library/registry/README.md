@@ -55,8 +55,21 @@ Every block's `page.tsx` checks for `OPENAI_API_KEY`. With it, the block talks
 to the AI SDK route at `/api/chat`; without it, it plays the scripted replies
 in `shared/lib/demo-runtime.tsx` (weather calls a tool, code returns a code
 block, comparisons return a table, anything else reasons first), so a block
-works the moment it is installed. Both shared files install into `lib/` with
-every block.
+works the moment it is installed. The scripts themselves live in
+`shared/lib/demo-script.ts`, which imports nothing, so web and native runtimes
+share them. The shared files install into `lib/` with every block.
+
+## Native blocks
+
+`native-chat-thread` is a React Native block for Expo. Its `page.tsx` installs
+as an Expo Router screen (`app/native-chat-thread/index.tsx`), and its
+component uses only `react-native` and `@assistant-ui/react-native`, styled
+with `StyleSheet`. It runs on `shared/lib/native-runtime-provider.tsx`: the
+chat route in `EXPO_PUBLIC_CHAT_API` when set, the scripted demo otherwise.
+
+The library previews native blocks through react-native-web: `next.config.ts`
+aliases `react-native` to `react-native-web`, and the preview renders on the
+client only.
 
 The library's blocks page renders each block's component on the demo runtime,
 in `components/library/block-previews.tsx`. The viewer's Code tab shows the
@@ -65,7 +78,7 @@ files listed in `registry.json` and what their assistant-ui dependencies add.
 ## Adding a block
 
 1. Make `blocks/<block-name>/` with `page.tsx` and `components/`.
-2. Add it to `registry.json` and `registry.ts`, copying `chat`.
+2. Add it to `registry.json` and `registry.ts`, copying `chat-thread`.
 3. Add its preview to `components/library/block-previews.tsx`.
 
 When it is time to publish, move its `registry.ts` entry into

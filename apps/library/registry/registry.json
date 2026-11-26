@@ -4,33 +4,47 @@
   "homepage": "https://www.assistant-ui.com",
   "items": [
     {
-      "name": "chat",
+      "name": "chat-thread",
       "type": "registry:block",
-      "title": "Chat",
-      "description": "A full-height chat with a header and new-chat button over the assistant-ui thread.",
+      "title": "Chat thread",
+      "description": "A full-height chat: a header with a new-chat button over a thread built in the block from assistant-ui primitives and elements.",
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/ai-sdk",
         "lucide-react"
       ],
       "registryDependencies": [
+        "button",
+        "skeleton",
         "https://r.assistant-ui.com/base/ai-sdk-backend.json",
-        "https://r.assistant-ui.com/base/thread.json",
-        "https://r.assistant-ui.com/base/tooltip-icon-button.json"
+        "https://r.assistant-ui.com/base/attachment.json",
+        "https://r.assistant-ui.com/base/file.json",
+        "https://r.assistant-ui.com/base/follow-up-suggestions.json",
+        "https://r.assistant-ui.com/base/image.json",
+        "https://r.assistant-ui.com/base/markdown-text.json",
+        "https://r.assistant-ui.com/base/reasoning.json",
+        "https://r.assistant-ui.com/base/tooltip-icon-button.json",
+        "https://r.assistant-ui.com/base/tool-fallback.json",
+        "https://r.assistant-ui.com/base/tool-group.json",
+        "https://r.assistant-ui.com/base/utils.json"
       ],
       "files": [
         {
-          "path": "registry/blocks/chat/page.tsx",
+          "path": "registry/blocks/chat-thread/page.tsx",
           "type": "registry:page",
-          "target": "app/chat/page.tsx"
+          "target": "app/chat-thread/page.tsx"
         },
         {
-          "path": "registry/blocks/chat/components/chat.tsx",
+          "path": "registry/blocks/chat-thread/components/chat-thread.tsx",
           "type": "registry:component",
-          "target": "components/chat.tsx"
+          "target": "components/chat-thread.tsx"
         },
         {
           "path": "registry/shared/lib/demo-runtime.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/lib/demo-script.ts",
           "type": "registry:lib"
         },
         {
@@ -52,9 +66,11 @@
       "dependencies": [
         "@assistant-ui/react",
         "@assistant-ui/ai-sdk",
-        "lucide-react"
+        "lucide-react",
+        "react-resizable-panels"
       ],
       "registryDependencies": [
+        "resizable",
         "button",
         "sheet",
         "tooltip",
@@ -79,6 +95,10 @@
           "type": "registry:lib"
         },
         {
+          "path": "registry/shared/lib/demo-script.ts",
+          "type": "registry:lib"
+        },
+        {
           "path": "registry/shared/lib/runtime-provider.tsx",
           "type": "registry:lib"
         },
@@ -98,9 +118,11 @@
         "@assistant-ui/react",
         "@assistant-ui/react-lexical",
         "@assistant-ui/ai-sdk",
-        "lucide-react"
+        "lucide-react",
+        "react-resizable-panels"
       ],
       "registryDependencies": [
+        "resizable",
         "button",
         "sheet",
         "skeleton",
@@ -140,6 +162,10 @@
           "type": "registry:lib"
         },
         {
+          "path": "registry/shared/lib/demo-script.ts",
+          "type": "registry:lib"
+        },
+        {
           "path": "registry/shared/lib/runtime-provider.tsx",
           "type": "registry:lib"
         },
@@ -155,8 +181,13 @@
       "type": "registry:component",
       "title": "Chat sidebar layout",
       "description": "The collapsible conversations sidebar the chat blocks share. Put a thread, or anything else, in its main area.",
-      "dependencies": ["@assistant-ui/react", "lucide-react"],
+      "dependencies": [
+        "@assistant-ui/react",
+        "lucide-react",
+        "react-resizable-panels"
+      ],
       "registryDependencies": [
+        "resizable",
         "button",
         "sheet",
         "tooltip",
@@ -168,6 +199,39 @@
         {
           "path": "registry/shared/components/chat-sidebar.tsx",
           "type": "registry:component"
+        }
+      ]
+    },
+    {
+      "name": "native-chat-thread",
+      "type": "registry:block",
+      "title": "Native chat thread",
+      "description": "A full-screen React Native chat for Expo: a header with a new-chat button over a thread built from the assistant-ui native primitives, styled with StyleSheet.",
+      "dependencies": ["@assistant-ui/react-native", "@assistant-ui/ai-sdk"],
+      "registryDependencies": [],
+      "files": [
+        {
+          "path": "registry/blocks/native-chat-thread/page.tsx",
+          "type": "registry:page",
+          "target": "app/native-chat-thread/index.tsx"
+        },
+        {
+          "path": "registry/blocks/native-chat-thread/components/native-chat-thread.tsx",
+          "type": "registry:component",
+          "target": "components/native-chat-thread.tsx"
+        },
+        {
+          "path": "registry/shared/lib/demo-script.ts",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/lib/native-runtime-provider.tsx",
+          "type": "registry:lib"
+        },
+        {
+          "path": "registry/shared/native/.env.example",
+          "type": "registry:file",
+          "target": "~/.env.example"
         }
       ]
     }

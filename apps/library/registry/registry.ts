@@ -32,6 +32,7 @@ const sharedLib = (
 const SHARED_LIB = [
   sharedLib("runtime-provider.tsx"),
   sharedLib("demo-runtime.tsx"),
+  sharedLib("demo-script.ts"),
   // The key that switches a block from demo replies to the real route.
   {
     type: "registry:file",
@@ -59,14 +60,14 @@ const blockComponent = (
 
 export const blocks: RegistryItem[] = [
   {
-    name: "chat",
+    name: "chat-thread",
     type: "registry:block",
-    title: "Chat",
+    title: "Chat thread",
     description:
-      "A full-height chat with a header and new-chat button over the assistant-ui thread.",
+      "A full-height chat: a header with a new-chat button over a thread built in the block from assistant-ui primitives and elements.",
     files: [
-      blockPage("chat"),
-      blockComponent("chat", "chat.tsx"),
+      blockPage("chat-thread"),
+      blockComponent("chat-thread", "chat-thread.tsx"),
       ...SHARED_LIB,
     ],
     dependencies: [
@@ -75,11 +76,22 @@ export const blocks: RegistryItem[] = [
       "lucide-react",
     ],
     registryDependencies: [
+      "button",
+      "skeleton",
       "https://r.assistant-ui.com/ai-sdk-backend.json",
-      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/attachment.json",
+      "https://r.assistant-ui.com/file.json",
+      "https://r.assistant-ui.com/follow-up-suggestions.json",
+      "https://r.assistant-ui.com/image.json",
+      "https://r.assistant-ui.com/markdown-text.json",
+      "https://r.assistant-ui.com/reasoning.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/tool-fallback.json",
+      "https://r.assistant-ui.com/tool-group.json",
+      "https://r.assistant-ui.com/utils.json",
     ],
   },
+
   {
     name: "chat-sidebar",
     type: "registry:block",
@@ -91,8 +103,10 @@ export const blocks: RegistryItem[] = [
       "@assistant-ui/react",
       "@assistant-ui/ai-sdk",
       "lucide-react",
+      "react-resizable-panels",
     ],
     registryDependencies: [
+      "resizable",
       "button",
       "sheet",
       "tooltip",
@@ -120,8 +134,10 @@ export const blocks: RegistryItem[] = [
       "@assistant-ui/react-lexical",
       "@assistant-ui/ai-sdk",
       "lucide-react",
+      "react-resizable-panels",
     ],
     registryDependencies: [
+      "resizable",
       "button",
       "sheet",
       "skeleton",
@@ -150,8 +166,13 @@ export const blocks: RegistryItem[] = [
     description:
       "The collapsible conversations sidebar the chat blocks share. Put a thread, or anything else, in its main area.",
     files: [CHAT_SIDEBAR],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "react-resizable-panels",
+    ],
     registryDependencies: [
+      "resizable",
       "button",
       "sheet",
       "tooltip",
@@ -159,5 +180,32 @@ export const blocks: RegistryItem[] = [
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/utils.json",
     ],
+  },
+  {
+    name: "native-chat-thread",
+    type: "registry:block",
+    title: "Native chat thread",
+    description:
+      "A full-screen React Native chat for Expo: a header with a new-chat button over a thread built from the assistant-ui native primitives, styled with StyleSheet.",
+    files: [
+      // An Expo Router screen rather than a Next.js page.
+      {
+        type: "registry:page",
+        path: "app/native-chat-thread/index.tsx",
+        target: "app/native-chat-thread/index.tsx",
+        sourcePath: "../library/registry/blocks/native-chat-thread/page.tsx",
+      },
+      blockComponent("native-chat-thread", "native-chat-thread.tsx"),
+      sharedLib("demo-script.ts"),
+      sharedLib("native-runtime-provider.tsx"),
+      // The chat route that switches the block from demo replies to real ones.
+      {
+        type: "registry:file",
+        path: ".env.example",
+        target: "~/.env.example",
+        sourcePath: "../library/registry/shared/native/.env.example",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native", "@assistant-ui/ai-sdk"],
   },
 ];

@@ -22,6 +22,17 @@ const config: NextConfig = {
     ],
   },
   skipTrailingSlashRedirect: true,
+  // The native blocks render in the block viewer through react-native-web.
+  turbopack: {
+    resolveAlias: { "react-native": "react-native-web" },
+  },
+  webpack: (webpack) => {
+    webpack.resolve.alias = {
+      ...webpack.resolve.alias,
+      "react-native$": "react-native-web",
+    };
+    return webpack;
+  },
 };
 
 export default config;
