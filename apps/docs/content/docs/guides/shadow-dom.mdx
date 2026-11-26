@@ -1,6 +1,6 @@
 ---
 title: Shadow DOM
-description: Keep tooltips, popovers and dialogs inside the shadow root that holds your styles.
+description: Keep popups inside the shadow root that holds your styles.
 platforms: ["react"]
 ---
 
@@ -59,6 +59,12 @@ function TooltipContent({
     <TooltipPrimitive.Portal container={container}> // [!code ++]
 ```
 
-Make the same change in `popover.tsx`, in `DialogPortal` in `dialog.tsx`, and in any other primitive you use that portals, such as `select.tsx`. The Radix primitives take the same `container` prop.
+Which other primitives can take the container depends on whether your shadcn style uses [Base UI or Radix UI](/docs/base-ui).
 
-Leave the Radix menu in `dropdown-menu.tsx` and the Radix select in `select.tsx` portaling to `document.body`. They move keyboard focus by comparing items against `document.activeElement`, which inside a shadow root is the shadow host, so a menu opened from the keyboard focuses its last item instead of its first. The message action menu in [Thread](/elements/thread) and the item menu in [Thread list](/elements/thread-list) are Radix menus, so they stay in `document.body` too.
+With Base UI, make the same change in `popover.tsx`, in `DialogPortal` in `dialog.tsx`, and in any other primitive you use that portals, such as `dropdown-menu.tsx` and `select.tsx`. Base UI looks up the focused element inside the shadow root, so dialogs, popovers, menus and selects move focus there the same way they do in `document.body`.
+
+With Radix UI, pass the container only to `tooltip.tsx` and `hover-card.tsx`, which don't move focus. Leave every other primitive that portals in `document.body`, including `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx`, `drawer.tsx`, `popover.tsx`, `dropdown-menu.tsx`, `context-menu.tsx`, `menubar.tsx` and `select.tsx`. Radix decides where focus goes by reading `document.activeElement`, which inside a shadow root is the shadow host. Portaled into the shadow root, a dialog or popover can open with focus on its panel instead of its first control and lets Tab move focus out of it, and in a menu or select the arrow keys jump to the last item and stay there. In `document.body` these popups render without your shadow root's styles. To keep them styled, use a Base UI style, whose primitives can portal into the shadow root.
+
+In a Radix style the assistant modal is a Radix popover. It still reads the context so that it keeps your styles, but inside a shadow root it can open with focus on its panel and Tab does not cycle within it.
+
+The message action menu in [Thread](/elements/thread) and the item menu in [Thread list](/elements/thread-list) are Radix menus in either style, so they portal to `document.body` and render there without your shadow root's styles, even in a Base UI style.

@@ -1,6 +1,13 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { PortalContainerContext } from "../utils/portal-container";
 import { ConversationMap, type ConversationMapEntry } from "./conversation-map";
 
 const ENTRIES: ConversationMapEntry[] = [
@@ -132,6 +139,30 @@ describe("ConversationMap", () => {
     fireEvent.keyDown(first!, { key: "ArrowUp" });
 
     expect(document.activeElement).toBe(first);
+  });
+
+  it("renders the preview card in the PortalContainerContext container inside a shadow root", async () => {
+    const host = document.body.appendChild(document.createElement("div"));
+    const shadow = host.attachShadow({ mode: "open" });
+    const portalContainer = shadow.appendChild(document.createElement("div"));
+    const mount = shadow.appendChild(document.createElement("div"));
+
+    render(
+      <PortalContainerContext.Provider value={portalContainer}>
+        <ConversationMap entries={ENTRIES} />
+      </PortalContainerContext.Provider>,
+      { container: mount },
+    );
+    const tick = mount.querySelector<HTMLElement>(
+      '[data-slot="conversation-map-tick"]',
+    )!;
+    tick.focus();
+
+    await waitFor(() =>
+      expect(portalContainer.textContent).toContain("the ready dot"),
+    );
+    expect(document.body.textContent).not.toContain("the ready dot");
+    host.remove();
   });
 
   it("renders nothing for an empty conversation", () => {
