@@ -48,7 +48,7 @@
     "check:links": {
       "dependsOn": ["build"],
       "cache": false,
-      "passThroughEnv": ["LINKINATOR_EXTERNAL"]
+      "passThroughEnv": ["LINKINATOR_EXTERNAL", "LINKINATOR_PORT"]
     },
     "check:lighthouse": {
       "dependsOn": ["build"],
