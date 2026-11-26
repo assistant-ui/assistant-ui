@@ -10,9 +10,10 @@ import {
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import type { DocsSiteLoader, source } from "@/lib/source";
-import { DEFAULT_PLATFORM, PLATFORM_LABELS } from "@/lib/constants";
+import { DEFAULT_PLATFORM, PLATFORM_LABELS, SURFACES } from "@/lib/constants";
 import {
   getPagePlatform,
+  getPagePlatforms,
   getPlatformTree,
 } from "@/components/pages/docs/platform/tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
@@ -88,10 +89,10 @@ export async function DocsRoutePage({
   const markdownUrl = `${page.url}.md`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${contentDir}/${page.path}`;
 
-  // A page links to the pages of its own platform. A shared page is
-  // prerendered without knowing the reader's platform, so it follows the
-  // default platform's order; the whole tree would jump between the books of
-  // every platform.
+  // A page links to the pages of its own platform; the whole tree would jump
+  // between the books of every platform. A page several surfaces share is
+  // prerendered without knowing the reader's surface, so it renders the
+  // default platform's order and carries each surface's for the client.
   const neighbours = getDocsNeighbours(
     platformAware
       ? getPlatformTree(tree, getPagePlatform(tree, page.url))
@@ -100,6 +101,26 @@ export async function DocsRoutePage({
   );
   const footerPrevious = neighbours.previous;
   const footerNext = neighbours.next;
+  const pagePlatforms = platformAware
+    ? getPagePlatforms(tree, page.url)
+    : undefined;
+  const sharingSurfaces = platformAware
+    ? SURFACES.filter(
+        (surface) => !pagePlatforms || pagePlatforms.includes(surface),
+      )
+    : [];
+  const neighboursByPlatform =
+    sharingSurfaces.length > 1
+      ? Object.fromEntries(
+          sharingSurfaces.flatMap((surface) => {
+            const found = getDocsNeighbours(
+              getPlatformTree(tree, surface),
+              page.url,
+            );
+            return found.previous || found.next ? [[surface, found]] : [];
+          }),
+        )
+      : undefined;
 
   return (
     <DocsPageShell
@@ -121,6 +142,7 @@ export async function DocsRoutePage({
             <DocsPager
               {...(footerPrevious && { previous: footerPrevious })}
               {...(footerNext && { next: footerNext })}
+              neighboursByPlatform={neighboursByPlatform}
               markdownUrl={markdownUrl}
               title={page.data.title}
               platformAwareMarkdown={platformAware}
@@ -153,7 +175,11 @@ export async function DocsRoutePage({
           )}
         </header>
         <MdxBody components={mdxComponents} />
-        <DocsFooter previous={footerPrevious} next={footerNext} />
+        <DocsFooter
+          previous={footerPrevious}
+          next={footerNext}
+          neighboursByPlatform={neighboursByPlatform}
+        />
       </DocsBody>
     </DocsPageShell>
   );

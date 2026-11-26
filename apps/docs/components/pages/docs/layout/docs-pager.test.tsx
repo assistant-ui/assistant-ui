@@ -89,6 +89,35 @@ describe("DocsPager", () => {
     expect(screen.getByRole("link", { name: "Next page" })).toBeTruthy();
   });
 
+  it.each<[Platform, string]>([
+    ["react", "/docs/runtimes"],
+    ["rn", "/docs/react-native/elements"],
+    ["ink", "/docs/runtimes"],
+  ])(
+    "on a shared page, follows the %s reader's own book",
+    (platform, nextUrl) => {
+      render(
+        <PlatformScope platform={platform}>
+          <DocsPager
+            title="Messages"
+            previous={{ name: "Runtime", url: "/docs/concepts/runtime" }}
+            next={{ name: "Runtimes", url: "/docs/runtimes" }}
+            neighboursByPlatform={{
+              rn: {
+                previous: { name: "Runtime", url: "/docs/concepts/runtime" },
+                next: { name: "Elements", url: "/docs/react-native/elements" },
+              },
+            }}
+          />
+        </PlatformScope>,
+      );
+
+      expect(
+        screen.getByRole("link", { name: /^Next: / }).getAttribute("href"),
+      ).toBe(nextUrl);
+    },
+  );
+
   it("does not show page actions without a Markdown URL", () => {
     render(<DocsPager title="Example" />);
 
