@@ -6,7 +6,7 @@ import {
 } from "@/lib/changelog-parse";
 import type { PackageRelease, ReleaseGroup } from "@/lib/releases";
 
-export const QUIET_TYPES: ReadonlySet<ChangeType> = new Set([
+const QUIET_TYPES: ReadonlySet<ChangeType> = new Set([
   "chore",
   "ci",
   "build",
