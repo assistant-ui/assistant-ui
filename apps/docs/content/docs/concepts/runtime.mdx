@@ -96,11 +96,11 @@ function StopButton() {
 
 ## When a turn doesn't finish on its own
 
-A run can stop before the model is done, for three reasons.
+A run can end before the reply is finished, for three reasons.
 
 **The user stops it.** The stop button in the registry's `Thread` is `ComposerPrimitive.Cancel`, which in the main composer calls `cancelRun` like the button above. The runtime aborts the request: `LocalRuntime` fires the `abortSignal` your adapter received, the AI SDK runtime stops its chat stream, and `ExternalStoreRuntime` calls your `onCancel` (without one, nothing can be stopped and the button stays disabled). Whatever already streamed stays in the thread, and the message ends `incomplete` with the reason `cancelled`. Your server sees the request close; pass that signal on to the model call, as `abortSignal: req.signal` does in an AI SDK route, so the model stops generating too.
 
-**The backend fails.** The message keeps the parts that arrived and ends `incomplete` with the reason `error`, carrying the error on its status. Nothing shows it until your message component renders `MessagePrimitive.Error`, which renders its children only for such a message; inside it, `ErrorPrimitive.Message` prints the error. The registry's `Thread` already includes both. The text comes from your backend: an AI SDK route sends a generic "An error occurred." unless you pass `onError` to `toUIMessageStreamResponse`, which keeps server details from leaking by default, and with `LocalRuntime` whatever your adapter throws becomes the error. The user retries by regenerating the reply.
+**The backend fails.** The message keeps the parts that arrived and ends `incomplete` with the reason `error`, carrying the error on its status. Nothing shows it until your message component renders `MessagePrimitive.Error`, which renders its children only for such a message; inside it, `ErrorPrimitive.Message` prints the error. The registry's `Thread` already includes both. The text comes from your backend. An AI SDK route sends a generic "An error occurred." so server details don't leak, unless you pass `onError` to `toUIMessageStreamResponse`; with `LocalRuntime`, whatever your adapter throws becomes the error. The user retries by regenerating the reply.
 
 **A tool call needs an answer.** The message ends `requires-action` while a [tool](/docs/tools) call waits for a result or for the user to approve it. The run picks up again once every waiting call has its answer. `LocalRuntime` continues on its own. The AI SDK runtime sends the results back only when you pass `useChatRuntime` a `sendAutomaticallyWhen` check, such as `lastAssistantMessageIsCompleteWithToolCalls` from `ai`; without it, the turn stays where it is.
 
