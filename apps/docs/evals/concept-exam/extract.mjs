@@ -171,14 +171,15 @@ function allPages(dir, urlParts, out = []) {
   return out;
 }
 
-// The output folder is replaced, so only an empty folder or an earlier
-// extraction (it has INDEX.md) qualifies, and never a folder holding this exam.
+// The output folder is replaced, so only an empty folder or one an earlier
+// extraction marked as its own qualifies, and never a folder holding this exam.
+export const MARKER = ".concept-exam-extract";
+
 export function safeToReplace(dir) {
   if (!path.relative(dir, here).startsWith("..")) return false;
   if (!fs.existsSync(dir)) return true;
   return (
-    fs.readdirSync(dir).length === 0 ||
-    fs.existsSync(path.join(dir, "INDEX.md"))
+    fs.readdirSync(dir).length === 0 || fs.existsSync(path.join(dir, MARKER))
   );
 }
 
@@ -192,6 +193,7 @@ function main() {
   }
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(path.join(outDir, MARKER), "written by extract.mjs\n");
   walk(docsRoot, [], 0);
   const orphans = allPages(docsRoot, []).filter(([file]) => !seen.has(file));
   if (orphans.length) {

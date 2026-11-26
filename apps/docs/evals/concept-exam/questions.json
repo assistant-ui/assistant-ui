@@ -18,10 +18,10 @@
       "id": "q02",
       "concept": "runtime-choice",
       "question": "My Next.js app already calls the Vercel AI SDK v7's streamText in an API route. Which runtime should the client use, and what does the route have to return for it to work?",
-      "reference": "Use useChatRuntime from @assistant-ui/ai-sdk (@assistant-ui/react-ai-sdk re-exports it). Its default transport, AssistantChatTransport (an AI SDK chat transport), POSTs to /api/chat with the thread's UI messages, and also adds the system instructions and the JSON schemas of frontend tools registered in the app. The route converts the messages with convertToModelMessages, calls streamText, and returns the AI SDK UI message stream: result.toUIMessageStreamResponse(), or the equivalent createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) }) that the v7 guide shows. To let the model call frontend tools, the route passes the incoming tools through frontendTools(tools).",
+      "reference": "Use useChatRuntime from @assistant-ui/ai-sdk (@assistant-ui/react-ai-sdk re-exports it). Its default transport, AssistantChatTransport (an AI SDK chat transport), POSTs to /api/chat with the thread's UI messages, and also adds the system instructions and the JSON schemas of frontend tools registered in the app. The route converts the messages with convertToModelMessages, calls streamText, and returns the AI SDK UI message stream; the v7 guide writes that as createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) }). The shorter result.toUIMessageStreamResponse() is still on StreamTextResult in ai@7 (the default template's route uses it), so an answer that names it is right too. To let the model call frontend tools, the route passes the incoming tools through frontendTools(tools).",
       "keyPoints": [
         "useChatRuntime from @assistant-ui/ai-sdk (also exported by @assistant-ui/react-ai-sdk)",
-        "The route returns the AI SDK UI message stream (toUIMessageStreamResponse, or createUIMessageStreamResponse with toUIMessageStream)",
+        "The route returns the AI SDK UI message stream (the v7 guide's createUIMessageStreamResponse with toUIMessageStream)",
         "The client POSTs the UI messages to /api/chat by default (AssistantChatTransport)"
       ]
     },
@@ -41,7 +41,7 @@
       "id": "q04",
       "concept": "custom-backend",
       "question": "My agent is a Python service I wrote myself. What are my options for connecting assistant-ui to it, and how do I choose between them?",
-      "reference": "There are four paths. (1) Stream a protocol assistant-ui already reads: the Python assistant-stream package emits the data stream format for useDataStreamRuntime (or the AI SDK UI message stream for useChatRuntime). (2) Assistant transport: the backend streams the agent's whole state and accepts commands, and the client uses useAssistantTransportRuntime with a converter from your state to messages; assistant-stream has the Python side. (3) Write the client glue yourself: useLocalRuntime with a ChatModelAdapter that fetches your endpoint and returns or yields message parts, or useExternalStoreRuntime if your app keeps the messages. (4) If the agent already speaks a standard protocol (AG-UI, A2A, LangGraph), use that runtime. Choose by what the backend owns: plain message streaming fits the data stream; an agent whose state is more than messages fits assistant transport; total control on the client fits LocalRuntime or ExternalStoreRuntime.",
+      "reference": "There are four paths. (1) Stream the data stream protocol: the Python assistant-stream package's create_run with DataStreamResponse emits it, and the client uses useDataStreamRuntime with protocol: \"data-stream\", since the Python response sends no protocol header. (2) Assistant transport: the backend streams the agent's whole state and accepts commands, and the client uses useAssistantTransportRuntime with a converter from your state to messages; assistant-stream has the Python side. (3) Write the client glue yourself: useLocalRuntime with a ChatModelAdapter that fetches your endpoint and returns or yields message parts, or useExternalStoreRuntime if your app keeps the messages. (4) If the agent already speaks a standard protocol (AG-UI, A2A, LangGraph), use that runtime. Choose by what the backend owns: plain message streaming fits the data stream; an agent whose state is more than messages fits assistant transport; total control on the client fits LocalRuntime or ExternalStoreRuntime.",
       "keyPoints": [
         "Data stream protocol with useDataStreamRuntime (assistant-stream on the Python side)",
         "Assistant transport with useAssistantTransportRuntime, which streams the agent's state",
@@ -338,10 +338,10 @@
       "id": "q31",
       "concept": "adapters",
       "question": "What are adapters in assistant-ui? Give examples of features that need one, and say what happens when it's missing.",
-      "reference": "Adapters are small objects you pass to a runtime (adapters: { ... }) to plug in a feature that needs a service outside the chat: attachments, speech (text-to-speech), dictation (speech-to-text), feedback, history, suggestions, voice, and thread lists. Each feature's capability is on only when its adapter is present. Without one, the feature is off and its controls are disabled: no attach button working, no read-aloud, no feedback, no persistence (messages stay in memory). The same adapter interfaces work across the runtimes that support them.",
+      "reference": "Adapters are small objects you pass to a runtime (adapters: { ... }) to plug in a feature that needs a service outside the chat: attachments, speech (text-to-speech), dictation (speech-to-text), feedback, history, suggestions, voice, and thread lists. A capability such as attachments, speech, dictation or feedback is on only when its adapter is present, and the primitives and registry components read that to enable their controls. Without one: adding a file fails with the reason no-adapter (useChatRuntime ships a default attachment adapter); Speak and Dictate are disabled; feedback is only recorded on the message; without a history adapter, a runtime that keeps its own messages holds them in memory (ExternalStoreRuntime reads them from your store instead); without a suggestion adapter there are no generated follow-ups, though static Suggestions(...) and state-supplied suggestions still show. The same adapter interfaces work across the runtimes that support them.",
       "keyPoints": [
         "Pluggable objects for features: attachments, speech, dictation, feedback, history, suggestions",
-        "Missing adapter = capability off, controls disabled/hidden",
+        "A missing adapter turns its capability off: the controls are disabled or hidden, or the data isn't kept",
         "Passed to the runtime (adapters option)"
       ]
     },

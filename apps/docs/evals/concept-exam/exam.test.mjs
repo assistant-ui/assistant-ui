@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { mdxToText, safeToReplace } from "./extract.mjs";
+import { MARKER, mdxToText, safeToReplace } from "./extract.mjs";
 import { failed, hedgesIn, score } from "./score.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -86,7 +86,9 @@ describe("safeToReplace", () => {
       expect(safeToReplace(path.join(tmp, "missing"))).toBe(true);
       fs.writeFileSync(path.join(tmp, "notes.txt"), "keep me");
       expect(safeToReplace(tmp)).toBe(false);
-      fs.writeFileSync(path.join(tmp, "INDEX.md"), "# docs");
+      fs.writeFileSync(path.join(tmp, "INDEX.md"), "# someone else's index");
+      expect(safeToReplace(tmp)).toBe(false);
+      fs.writeFileSync(path.join(tmp, MARKER), "");
       expect(safeToReplace(tmp)).toBe(true);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
