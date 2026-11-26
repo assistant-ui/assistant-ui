@@ -28,7 +28,7 @@ node score.mjs score /tmp/deep.json /tmp/deep-grades.json
 
 `--model` picks the reader (default `sonnet`), `--only q04,q33` reruns some questions, and `--concurrency` sets how many run at once. A full run of 38 questions takes three to six minutes.
 
-The sandbox was checked: asked to read a file outside the folder, the reader gets "outside <folder>; --restricted confines the file tools to the working directory" for both `Read` and `Glob`. Its prior knowledge is held back only by the prompt.
+The sandbox was checked: asked to read a file outside the folder, the reader gets "outside <folder>; --restricted confines the file tools to the working directory" for both `Read` and `Glob`. Its prior knowledge is held back only by the prompt. Prop tables the site builds from generated type data (`<ParametersTable {...Name} />`) stay as tags in the extracted text, so the reader sees those pages' prose and examples but not their prop lists; concept questions rarely need them.
 
 ## Grading
 
@@ -47,7 +47,9 @@ A reader's hedges ("the docs don't say X") are findings too, even on a correct a
 
 | Run | Deep reader | Skim reader |
 | --- | --- | --- |
-| Before: main at a097902a8 | 32/38 correct (84%) | 30/38 correct (79%) |
+| Before: main at 5439bc338 | 32/38 correct (84%) | 30/38 correct (79%) |
 | After: the concept fixes from AUI-337 | 38/38 correct (100%) | 37/38 correct (97%) |
 
-[results/](results/README.md) has every answer, every grade, and what the readers missed and still hedge on.
+The after runs ask the same questions whose misses drove the fixes, so they show those gaps closed; they are not a held-out measure of the docs. [results/](results/README.md) has every answer, every grade, and what the readers missed and still hedge on.
+
+`exam.test.mjs` checks the question file, the extractor and the scorer without calling a model, as part of the docs app's tests.

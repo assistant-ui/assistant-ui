@@ -6,10 +6,10 @@ The reader is `claude -p` with Sonnet. "Before" is main at 5439bc338, this PR's 
 
 | Run | Correct | Weighted | "The docs don't say" sentences | Pages per question |
 | --- | --- | --- | --- | --- |
-| `before-deep` | 32/38 (84%) | 92% | 27 | 5.8 |
-| `after-deep` | 38/38 (100%) | 100% | 18 | 4.9 |
+| `before-deep` | 32/38 (84%) | 92% | 28 | 5.8 |
+| `after-deep` | 38/38 (100%) | 100% | 19 | 4.8 |
 | `before-skim` | 30/38 (79%) | 89% | 25 | 2.4 |
-| `after-skim` | AFTER_SKIM_CORRECT | AFTER_SKIM_WEIGHTED | AFTER_SKIM_HEDGES | AFTER_SKIM_PAGES |
+| `after-skim` | 37/38 (97%) | 99% | 13 | 2.1 |
 
 `first-pass/` holds the first recording, made before #10885 landed (main at a097902a8, and the same commit plus round one of these edits). It found the same six gaps for the deep reader and the same eight for the skim reader, and it scored the same after the fixes: 38/38 deep, 37/38 skim. `first-pass/followup-deep.json` reruns q15, q16 and q28 after the edits on where branches live and on `append`.
 
@@ -26,7 +26,9 @@ The reader is `claude -p` with Sonnet. "Before" is main at 5439bc338, this PR's 
 | q33 Stop | partly | partly | The composer page said `ComposerPrimitive.Cancel` only ends edits; nothing said streamed text stays. |
 | q34 Errors | partly | partly | No page said where the error text comes from. |
 
-AFTER_SKIM_SENTENCE
+After the fixes, the only miss is q22 for the skim reader, which reads only the Tool UI page. No skim run opened more than three pages, and no reader failed.
+
+Each answer is one sample, so the skim reader's choice of pages varies between runs: in one after run it skipped the data stream page and missed the Python path (q04), which is why the backend picker now names the Python package too.
 
 ## What the readers still hedge on
 
