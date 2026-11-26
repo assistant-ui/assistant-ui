@@ -99,6 +99,41 @@ type Names = {
   specifiers: { specifier: string; names: string[]; isDefault: boolean }[];
 };
 
+/** API references show signatures (`const useX: () => T;`, `function f(): T;`).
+ *  Declaring them lets their types be checked; line numbers stay the same. */
+function declareSignatures(block: TsBlock) {
+  const sf = ts.createSourceFile(
+    `b.${block.lang}`,
+    block.code,
+    ts.ScriptTarget.Latest,
+    true,
+    block.lang === "tsx" ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const at: number[] = [];
+  for (const statement of sf.statements) {
+    const declared = (
+      ts.canHaveModifiers(statement) ? (ts.getModifiers(statement) ?? []) : []
+    ).some((m) => m.kind === ts.SyntaxKind.DeclareKeyword);
+    if (declared) continue;
+    const signature =
+      (ts.isVariableStatement(statement) &&
+        statement.declarationList.declarations.every(
+          (d) => !d.initializer && d.type,
+        )) ||
+      (ts.isFunctionDeclaration(statement) && !statement.body);
+    if (!signature) continue;
+    // after `export`, if any
+    const exported = (ts.getModifiers(statement) ?? []).find(
+      (m) => m.kind === ts.SyntaxKind.ExportKeyword,
+    );
+    at.push(exported ? exported.getEnd() + 1 : statement.getStart(sf));
+  }
+  let code = block.code;
+  for (const position of at.reverse())
+    code = `${code.slice(0, position)}declare ${code.slice(position)}`;
+  return { ...block, code };
+}
+
 function readNames(block: TsBlock): Names {
   const sf = ts.createSourceFile(
     `b.${block.lang}`,
@@ -465,7 +500,7 @@ export async function checkTsBlocks(
     const pageDir = path.join(dir, "pages", slug(page));
     const parsed = blocks
       .filter((b) => !b.fragment)
-      .map((block) => ({ block, names: readNames(block) }));
+      .map((block) => ({ block, names: readNames(declareSignatures(block)) }));
     for (const { block, names } of parsed)
       if (names.syntax.length) syntaxErrors.set(block, names.syntax);
     const valid = parsed.filter(({ names }) => !names.syntax.length);
@@ -541,7 +576,7 @@ export async function checkTsBlocks(
         }
       }
       // point `./x` and `@/x` at the page block titled x, or at a stub
-      let code = block.code;
+      let code = declareSignatures(block).code;
       for (const { specifier, names: imported, isDefault } of own.specifiers) {
         if (isBare(specifier)) {
           if (specifier.startsWith("node:")) continue;

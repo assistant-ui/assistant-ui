@@ -5,9 +5,6 @@
     "TS2304 history: myHistoryAdapter,",
     "TS2304 runtimeHook: () => useLocalRuntime(chatModelAdapter),"
   ],
-  "apps/docs/content/docs/(reference)/api-reference/adapters/suggestions.mdx": [
-    "TS1155 const createSuggestionAdapter: (options: CreateSuggestionAdapterOptions) => SuggestionAdapter;"
-  ],
   "apps/docs/content/docs/(reference)/api-reference/context-providers/assistant-runtime-provider.mdx": [
     "TS2304 message: Derived({",
     "TS7006 get: (aui) => aui.thread.message({ index }),",
@@ -15,11 +12,6 @@
     "TS7031 function MessageScope({ index, children }) {"
   ],
   "apps/docs/content/docs/(reference)/api-reference/external-store/message-conversion.mdx": [
-    "TS1155 const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;",
-    "TS1155 const getExternalStoreMessages: <T>(input: { messages: readonly ThreadMessage[]; } | ThreadMessage | ThreadMessage[\"cont",
-    "TS1155 const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callbac",
-    "TS1155 const unstable_createExternalMessageConversionCache: () => ExternalMessageConversionCache;",
-    "TS1155 const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThr",
     "TS2304 const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callbac",
     "TS2304 const unstable_createExternalMessageConversionCache: () => ExternalMessageConversionCache;",
     "TS2503 const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callbac",
@@ -28,18 +20,11 @@
     "TS2503 const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThr",
     "TS2503 const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThr"
   ],
-  "apps/docs/content/docs/(reference)/api-reference/external-store/runtime.mdx": [
-    "TS1155 const pickExternalStoreSharedOptions: (options: ExternalStoreSharedOptions) => ExternalStoreSharedOptions;"
-  ],
   "apps/docs/content/docs/(reference)/api-reference/generative-ui/actions.mdx": [
-    "TS1155 const emptyActionRegistry: ActionRegistry;",
-    "TS1155 const hasFieldReference: (value: unknown) => boolean;",
-    "TS1155 const resolveFieldReferences: (value: unknown, fields: Readonly<Record<string, unknown>>) => unknown;",
     "TS2304 const emptyActionRegistry: ActionRegistry;",
     "TS2304 ctx: ActionDispatchContext,"
   ],
   "apps/docs/content/docs/(reference)/api-reference/generative-ui/components.mdx": [
-    "TS1155 const defaultGenerativeUILibrary: GenerativeUILibrary;",
     "TS2304 const defaultGenerativeUILibrary: GenerativeUILibrary;",
     "TS2304 const generative = new JSONGenerativeUI({",
     "TS2304 library: defineGenerativeComponents({",
@@ -47,24 +32,7 @@
     "TS2304 type GenerativeUILibrary = Record<string, GenerativeUIComponent>;",
     "TS7006 render: (props) => <Card {...props} />,"
   ],
-  "apps/docs/content/docs/(reference)/api-reference/generative-ui/tokens.mdx": [
-    "TS1155 const ALERT_TONES: readonly [\"info\", \"success\", \"warning\", \"danger\"];",
-    "TS1155 const ALIGNS: readonly [\"start\", \"center\", \"end\"];",
-    "TS1155 const BUTTON_STYLES: readonly [\"primary\", \"secondary\", \"outline\", \"ghost\", \"danger\"];",
-    "TS1155 const COLORS: readonly [\"emphasis\", \"secondary\", \"alpha-70\", \"white\", \"white-70\", \"white-50\"];",
-    "TS1155 const ICON_NAMES: readonly [\"sun\", \"moon\", \"cloud\", \"rain\", \"snow\", \"wind\", \"play\", \"pause\", \"check\", \"x\", \"star\", \"hear",
-    "TS1155 const IMAGE_SIZE_TOKENS: readonly [\"sm\", \"md\", \"lg\"];",
-    "TS1155 const JUSTIFIES: readonly [\"start\", \"center\", \"end\", \"between\"];",
-    "TS1155 const TEXT_SIZES: readonly [\"sm\", \"md\", \"lg\", \"xl\", \"2xl\", \"3xl\"];",
-    "TS1155 const WEIGHTS: readonly [\"normal\", \"medium\", \"semibold\", \"bold\"];"
-  ],
   "apps/docs/content/docs/(reference)/api-reference/hooks/composer-triggers.mdx": [
-    "TS1155 const unstable_useTriggerPopoverRootContext: () => TriggerPopoverRootContextValue;",
-    "TS1155 const unstable_useTriggerPopoverRootContextOptional: () => TriggerPopoverRootContextValue | null;",
-    "TS1155 const unstable_useTriggerPopoverScopeContext: () => TriggerPopoverResourceOutput;",
-    "TS1155 const unstable_useTriggerPopoverScopeContextOptional: () => TriggerPopoverResourceOutput | null;",
-    "TS1155 const unstable_useTriggerPopoverTriggers: () => ReadonlyMap<string, RegisteredTrigger>;",
-    "TS1155 const unstable_useTriggerPopoverTriggersOptional: () => ReadonlyMap<string, RegisteredTrigger>;",
     "TS18004 directive={{ onInserted }}",
     "TS2304 <ComposerTriggerPopover",
     "TS2304 <ComposerTriggerPopover char=\"/\" {...slash} />",
@@ -80,29 +48,12 @@
     "TS2304 { id: \"translate\", execute: () => runTranslate(), icon: \"Languages\" },"
   ],
   "apps/docs/content/docs/(reference)/api-reference/hooks/primitives.mdx": [
-    "TS1155 const unstable_useComposerRunStartFocusGuard: () => Unstable_ComposerRunStartFocusGuard;",
-    "TS1155 const unstable_useThreadMessageIds: () => readonly string[];",
-    "TS1155 const useMessagePartFile: () => FileMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };",
-    "TS1155 const useMessagePartImage: () => ImageMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };",
-    "TS1155 const useMessagePartReasoning: () => ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartSt",
-    "TS1155 const useMessagePartSource: () => ({ readonly type: \"source\"; readonly sourceType: \"url\"; readonly id: string; readonly ",
-    "TS1155 const useMessagePartText: () => (TextMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) ",
-    "TS1155 const useMessageQuote: () => QuoteInfo | undefined;",
-    "TS1155 const useMessageTiming: () => MessageTiming | undefined;",
-    "TS1155 const useRuntimeAdapters: () => RuntimeAdapters | null;",
-    "TS1155 const useThreadViewport: { (): ThreadViewportState; <TSelected>(selector: (state: ThreadViewportState) => TSelected): TS",
-    "TS1155 const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options: { optional: true; }): ReadonlyStore<Th",
     "TS1345 s.part.type === \"data\" && (!name || s.part.name === name)",
     "TS2304 setIsOpen(false);",
     "TS2552 const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options: { optional: true; }): ReadonlyStore<Th",
     "TS2552 const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options: { optional: true; }): ReadonlyStore<Th"
   ],
   "apps/docs/content/docs/(reference)/api-reference/integrations/ai-sdk.mdx": [
-    "TS1155 const RESUMABLE_STREAM_ID_HEADER: \"x-resumable-stream-id\";",
-    "TS1155 const frontendTools: (tools: FrontendTools) => ToolSet;",
-    "TS1155 const generativeTools: (options: GenerativeToolsOptions) => ToolSet;",
-    "TS1155 const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage<unknown, UIDataTypes, UITools>>() => UseChatHelpers<UI_MES",
-    "TS1155 const useAISDKError: () => Error | undefined;",
     "TS2304 abortSignal: req.signal,",
     "TS2304 const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });",
     "TS2304 const frontendTools: (tools: FrontendTools) => ToolSet;",
@@ -118,14 +69,10 @@
     "TS2552 model: myModel,"
   ],
   "apps/docs/content/docs/(reference)/api-reference/integrations/assistant-cloud-ai-sdk.mdx": [
-    "TS1155 const aiSDKV6FormatAdapter: MessageFormatAdapter<",
     "TS2304 AISDKStorageFormat",
     "TS2304 UIMessage,"
   ],
   "apps/docs/content/docs/(reference)/api-reference/integrations/assistant-cloud.mdx": [
-    "TS1155 const DEFAULT_RUN_STALE_AFTER_MS: 30000;",
-    "TS1155 const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string",
-    "TS1155 const readAnonymousRefreshToken: (baseUrl: string) => string | null;",
     "TS2304 const collector = createSamplingCollector();",
     "TS2304 const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string",
     "TS2304 const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: { append: (threadId: string, messageId: string",
@@ -144,14 +91,6 @@
     "TS7006 (data) => samplingCalls.push(data),"
   ],
   "apps/docs/content/docs/(reference)/api-reference/integrations/eve.mdx": [
-    "TS1155 const convertEveMessage: (message: EveMessage, index: number, messages: readonly EveMessage[], options?: ConvertEveMessa",
-    "TS1155 const convertEveMessages: (data: Pick<ConversationState, \"messages\">, options?: ConvertEveMessagesOptions) => ThreadMess",
-    "TS1155 const getEveMessageContent: (message: AppendMessage) => EveMessageContent;",
-    "TS1155 const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: Interaction[\"request\"]) => Answer;",
-    "TS1155 const useEveError: () => Error | undefined;",
-    "TS1155 const useEveEvents: () => EveRuntimeExtras[\"events\"];",
-    "TS1155 const useEveReset: () => () => void;",
-    "TS1155 const useEveSession: () => EveRuntimeExtras[\"session\"] | undefined;",
     "TS2304 const convertEveMessage: (message: EveMessage, index: number, messages: readonly EveMessage[], options?: ConvertEveMessa",
     "TS2304 const convertEveMessage: (message: EveMessage, index: number, messages: readonly EveMessage[], options?: ConvertEveMessa",
     "TS2304 const convertEveMessage: (message: EveMessage, index: number, messages: readonly EveMessage[], options?: ConvertEveMessa",
@@ -164,9 +103,6 @@
     "TS2304 const useEveSession: () => EveRuntimeExtras[\"session\"] | undefined;"
   ],
   "apps/docs/content/docs/(reference)/api-reference/model-context/context.mdx": [
-    "TS1155 const ModelContextClient: Resource<ClientOutput<\"modelContext\">, [options?: ModelContextOptions | undefined]>;",
-    "TS1155 const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?: { clickable?: boolean | undefined; edi",
-    "TS1155 const mergeModelContexts: (configSet: Set<ModelContextProvider>, options?: ModelContextOptions) => ModelContext;",
     "TS2304 const ModelContextClient: Resource<ClientOutput<\"modelContext\">, [options?: ModelContextOptions | undefined]>;",
     "TS2304 const ModelContextClient: Resource<ClientOutput<\"modelContext\">, [options?: ModelContextOptions | undefined]>;"
   ],
@@ -198,18 +134,18 @@
     "TS2304 <ComposerPrimitive.TriggerPopover.Directive formatter={formatter} />",
     "TS2304 <MicIcon />",
     "TS2304 <StopIcon />",
-    "TS2322 <ComposerPrimitive.Attachments />",
     "TS2657 <ComposerPrimitive.Input"
   ],
   "apps/docs/content/docs/(reference)/api-reference/primitives/composition.mdx": [
     "TS2304 </Composer.Send>;",
+    "TS2304 <Button>Send</Button>",
+    "TS2304 <Button>Send</Button>",
     "TS2304 <Composer.Send asChild>",
     "TS2304 <Composer.Send>Send</Composer.Send>;",
     "TS2304 <Composer.Send>Send</Composer.Send>;"
   ],
   "apps/docs/content/docs/(reference)/api-reference/primitives/message.mdx": [
     "TS1128 {({ part, children }) => { ... }}",
-    "TS1155 const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) ",
     "TS1381 {({ part, children }) => { ... }}",
     "TS1381 {({ part, children }) => { ... }}",
     "TS2304 <ActionBar />",
@@ -222,9 +158,8 @@
     "TS2304 case \"group-tool\":      return <ToolStack>{children}</ToolStack>;",
     "TS2304 case \"indicator\":       return <LoadingDots />;",
     "TS2304 components={{ Card: MyCard, Button: MyButton }}",
-    "TS2304 const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) ",
-    "TS2552 components={{ Card: MyCard, Button: MyButton }}",
-    "TS2741 <MessagePrimitive.Unstable_PartsGrouped"
+    "TS2304 components={{ Card: MyCard, Button: MyButton }}",
+    "TS2304 const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) "
   ],
   "apps/docs/content/docs/(reference)/api-reference/primitives/selection-toolbar.mdx": [
     "TS2304 <QuoteIcon /> Quote"
@@ -241,35 +176,18 @@
     "TS2304 {() => <MyMessage />}"
   ],
   "apps/docs/content/docs/(reference)/api-reference/transport/assistant-transport.mdx": [
-    "TS1155 const useAssistantTransportSendCommand: () => (command: AssistantTransportCommand) => void;",
     "TS2304 function useAssistantTransportState(): UserExternalState;"
   ],
   "apps/docs/content/docs/(reference)/api-reference/transport/frame.mdx": [
     "TS1005 return <iframe ref={iframeRef} src=\"...\" />;",
     "TS1005 return <iframe ref={iframeRef} src=\"...\" />;",
     "TS1109 return <iframe ref={iframeRef} src=\"...\" />;",
-    "TS1109 return <iframe ref={iframeRef} src=\"...\" />;",
-    "TS1155 const FRAME_MESSAGE_CHANNEL: \"assistant-ui-frame\";"
+    "TS1109 return <iframe ref={iframeRef} src=\"...\" />;"
   ],
   "apps/docs/content/docs/(reference)/api-reference/utilities/miscellaneous.mdx": [
-    "TS1155 const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController;",
-    "TS1155 const createSimpleTitleAdapter: () => TitleGenerationAdapter;",
-    "TS1155 const createThreadRowsSelector: (options?: ThreadRowsOptions) => (state: AssistantState) => readonly ThreadRow[];",
-    "TS1155 const defaultDirectiveFormatter: DirectiveFormatter;",
-    "TS1155 const fromThreadMessageLike: (like: ThreadMessageLike, fallbackId: string, fallbackStatus: MessageStatus) => ThreadMessa",
-    "TS1155 const generateId: (size?: number) => string;",
-    "TS1155 const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;",
-    "TS1155 const readAnonymousRefreshToken: (baseUrl: string) => string | null;",
-    "TS1155 const unstable_defaultDirectiveFormatter: DirectiveFormatter;",
-    "TS1155 const unstable_defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;",
     "TS2304 <AuiProvider extends={aui} config={config}>{children}</AuiProvider>;",
     "TS2304 message: Derived({",
     "TS7006 get: (aui) => aui.thread.message({ index: 0 }),"
-  ],
-  "apps/docs/content/docs/(reference)/api-reference/voice/session.mdx": [
-    "TS1155 const useVoiceControls: () => { connect: () => void; disconnect: () => void; mute: () => void; unmute: () => void; };",
-    "TS1155 const useVoiceState: () => VoiceSessionState | undefined;",
-    "TS1155 const useVoiceVolume: () => number;"
   ],
   "apps/docs/content/docs/cloud/(auth)/anonymous-sessions.mdx": [
     "TS2304 authToken: getAccessToken,",
@@ -416,8 +334,6 @@
   ],
   "apps/docs/content/docs/concepts/context-api.mdx": [
     "TS18004 aui.message.part({ toolCallId });",
-    "TS18004 aui.message.switchToBranch({ position, branchId });",
-    "TS18004 aui.message.switchToBranch({ position, branchId });",
     "TS2304 analytics.track(\"message_sent\", {",
     "TS2304 aui.chainOfThought.setCollapsed(collapsed);",
     "TS2304 aui.message.part({ index: idx });",
@@ -445,7 +361,7 @@
     "TS2451 const role = useAuiState((s) => s.optional.message?.role ?? \"none\");",
     "TS2552 aui.composer.addAttachment(file); // File object",
     "TS2552 aui.composer.setText(text);",
-    "TS2552 aui.thread.append(message);",
+    "TS2552 aui.thread.append(message); // a user message starts a reply unless it sets startRun: false",
     "TS2552 aui.threads.switchToThread(threadId);"
   ],
   "apps/docs/content/docs/concepts/threads.mdx": [
@@ -492,10 +408,10 @@
     "TS7031 const Input = ({ label, ...props }) => ("
   ],
   "apps/docs/content/docs/copilots/model-context.mdx": [
+    "TS2304 const ClickableButton = makeAssistantVisible(Button, {",
     "TS2304 const ReadableComponent = makeAssistantVisible(MyComponent);",
     "TS2304 const result = await searchDatabase(query);",
-    "TS2304 getModelContext: () => ({ system: longReferenceText, priority: -1 }),",
-    "TS2307 ```"
+    "TS2304 getModelContext: () => ({ system: longReferenceText, priority: -1 }),"
   ],
   "apps/docs/content/docs/copilots/motivation.mdx": [
     "TS2304 <SmartButton onClick={() => handleRefund(transaction.id)}>",
@@ -628,9 +544,7 @@
   ],
   "apps/docs/content/docs/guides/resumable-streams.mdx": [
     "TS1108 return createResumableAssistantStreamResponse({",
-    "TS1108 return createResumeAssistantStreamResponse({",
-    "TS2345 const result = streamText({ /* model, messages, tools, ... */ });",
-    "TS2459 "
+    "TS1108 return createResumeAssistantStreamResponse({"
   ],
   "apps/docs/content/docs/guides/slash-commands.mdx": [
     "TS1109 return (/* ... */);",
@@ -649,7 +563,6 @@
     "TS2304 CodeHeader: MyCodeHeader,",
     "TS2304 SyntaxHighlighter: MySyntaxHighlighter,",
     "TS2304 mermaid: { SyntaxHighlighter: MermaidRenderer }",
-    "TS2559 {({ part }) => part.type === \"text\" ? <StreamdownText {...part} /> : null}",
     "TS2657 <StreamdownTextPrimitive caret=\"block\" />  // ▋",
     "TS7031 function MyCodeComponent({ children }) {",
     "TS7031 function MyCodeComponent({ children, ...props }) {"
@@ -689,10 +602,7 @@
   ],
   "apps/docs/content/docs/guides/voice.mdx": [
     "TS2304 const client = await MyVoiceClient.connect();",
-    "TS2304 const runtime = useChatRuntime({",
-    "TS2304 const runtime = useChatRuntime({",
     "TS2440 import type { RealtimeVoiceAdapter } from \"@assistant-ui/react\";",
-    "TS2554 voice: new MyVoiceAdapter({ /* provider options */ }),",
     "TS7006 client.on(\"mode\", (mode) => helpers.emitMode(mode));",
     "TS7006 client.on(\"transcript\", (item) => helpers.emitTranscript(item));"
   ],
@@ -711,7 +621,6 @@
     "TS2304 const runtime = useLocalRuntime(chatModel, {",
     "TS2304 custom: (event) => myLogger.log(event),",
     "TS2304 runtimeHook: () => useLocalRuntime(chatModel),",
-    "TS2339 <Text>{args.city}: {result?.temperature}°F</Text>",
     "TS2552 <ThreadListItemRuntimeProvider runtime={threadListItemRuntime}>",
     "TS2741 <AssistantRuntimeProvider runtime={runtime}>"
   ],
@@ -821,9 +730,7 @@
     "TS2709 } satisfies FileRouter;"
   ],
   "apps/docs/content/docs/integrations/auth/clerk.mdx": [
-    "TS1108 if (!userId) return new Response(null, { status: 401 });",
-    "TS2307 ",
-    "TS2307 </Step>"
+    "TS1108 if (!userId) return new Response(null, { status: 401 });"
   ],
   "apps/docs/content/docs/integrations/auth/next-auth.mdx": [
     "TS7031 async jwt({ token, user }) {",
@@ -1231,10 +1138,6 @@
     "TS2322 className=\"web:resize-none web:outline-none\"",
     "TS2552 <Header />"
   ],
-  "apps/docs/content/docs/react-native/generative-ui.mdx": [
-    "TS2305 import { useListViewItemText } from \"@assistant-ui/generative-ui/spec\";",
-    "TS2322 toolkit: spec.entries({ execution: \"frontend\", display: \"standalone\" }),"
-  ],
   "apps/docs/content/docs/react-native/history.mdx": [
     "TS18004 convertMessage,",
     "TS18004 hasEarlier,",
@@ -1257,18 +1160,19 @@
   "apps/docs/content/docs/react-native/hooks.mdx": [
     "TS2304 adapter: myThreadListAdapter,",
     "TS2304 const runtime = useLocalRuntime(chatModel, {",
-    "TS2304 runtimeHook: () => useLocalRuntime(chatModel),",
-    "TS2339 <Text>{someOuterProp}: {result?.value}</Text>"
+    "TS2304 runtimeHook: () => useLocalRuntime(chatModel),"
   ],
   "apps/docs/content/docs/react-native/migration.mdx": [
     "TS2741 <AssistantRuntimeProvider runtime={runtime}>"
   ],
   "apps/docs/content/docs/react-native/primitives.mdx": [
+    "TS2304 </Button>",
     "TS2304 </View>",
     "TS2304 </View>",
     "TS2304 <AttachmentPrimitive.Name style={styles.filename} />",
     "TS2304 <AttachmentPrimitive.Root style={styles.attachment}>",
     "TS2304 <AttachmentPrimitive.Thumb style={styles.extension} />",
+    "TS2304 <Button>",
     "TS2304 <ChainOfThoughtPrimitive.Root style={styles.chainOfThought}>",
     "TS2304 <ComposerPrimitive.Cancel style={styles.cancelButton}>",
     "TS2304 <ComposerPrimitive.Cancel style={styles.cancelButton}>",
@@ -1386,18 +1290,6 @@
     "TS2304 threadId: currentThreadId,",
     "TS2304 { description: \"selectedRecord\", value: JSON.stringify(record) },",
     "TS2552 const [agUiMessage] = toAgUiMessages([message]);"
-  ],
-  "apps/docs/content/docs/runtimes/ai-sdk/v4-legacy.mdx": [
-    "TS2551 return result.toDataStreamResponse();"
-  ],
-  "apps/docs/content/docs/runtimes/ai-sdk/v5-legacy.mdx": [
-    "TS2740 messages: convertToModelMessages(messages, { tools: aiSDKTools }),"
-  ],
-  "apps/docs/content/docs/runtimes/ai-sdk/v6-legacy.mdx": [
-    "TS1108 return {",
-    "TS2304 adapters: { attachments: myAttachmentAdapter },",
-    "TS2304 model: getModel(config?.modelName),",
-    "TS2339 needsApproval: ({ input }) => input.target === \"production\","
   ],
   "apps/docs/content/docs/runtimes/ai-sdk/v7.mdx": [
     "TS1108 return {",
@@ -1557,6 +1449,7 @@
     "TS2304 messages: myMessages,",
     "TS2304 messages: storedMessages,",
     "TS2304 mutationFn: api.chat,",
+    "TS2304 queryFn: () => fetchMessages(threadId),",
     "TS2304 saveSelectedBranch({",
     "TS2304 setCursor(page.previousCursor);",
     "TS2304 setIsRunning(false);",
@@ -1601,7 +1494,6 @@
     "TS2552 messages,",
     "TS2552 onCancel, // cancel",
     "TS2552 onReload, // regenerate",
-    "TS2552 queryFn: () => fetchMessages(threadId),",
     "TS2552 setMessages((current) => [...page.messages, ...current]);",
     "TS2552 setMessages((prev) =>",
     "TS2552 setMessages((prev) =>",
@@ -1654,9 +1546,7 @@
     "TS2304 stream: () => streamFromBackend(threadId),",
     "TS2304 suggestion: mySuggestionAdapter,",
     "TS2552 fetch(url, { signal: abortSignal });",
-    "TS2552 fetch(url, { signal: abortSignal });",
-    "TS2769 signal: abortSignal,",
-    "TS2769 signal: abortSignal,"
+    "TS2552 fetch(url, { signal: abortSignal });"
   ],
   "apps/docs/content/docs/runtimes/google-adk/api.mdx": [
     "TS1108 return adkEventStream(events);",
@@ -2014,9 +1904,8 @@
     "TS2304 </CounterContext.Provider>",
     "TS2304 <CounterContext.Provider value={value}>",
     "TS2304 items.map((item) => withKey(item.id, Item({ text: item.text }))),",
-    "TS2345 useContextProvider(ThemeContext, \"dark\", () => useResource(Button()));",
+    "TS2304 useContextProvider(ThemeContext, \"dark\", () => useResource(Button()));",
     "TS2552 items.map((item) => withKey(item.id, Item({ text: item.text }))),",
-    "TS2554 useContextProvider(ThemeContext, \"dark\", () => useResource(Button()));",
     "TS7006 items.map((item) => withKey(item.id, Item({ text: item.text }))),"
   ],
   "apps/docs/content/docs/tap/composition.mdx": [
@@ -2118,8 +2007,8 @@
   "apps/docs/content/examples/chatgpt.mdx": [
     "TS2304 <EmptyState />",
     "TS2304 <PrimaryAction />",
-    "TS2307 ",
-    "TS2322 <ThreadPrimitive.Messages />",
+    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
+    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
     "TS2657 <AuiIf condition={(s) => s.thread.isRunning}>"
   ],
   "apps/docs/content/examples/claude.mdx": [
@@ -2229,16 +2118,19 @@
     "TS2304 <EmptyState />",
     "TS2304 <ModelPicker />",
     "TS2304 <SearchModePicker />",
+    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
+    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
     "TS2304 { id: \"labs\", name: \"Labs\", description: \"Apps, slides, and dashboards\", Icon: Sparkles },",
     "TS2304 { id: \"research\", name: \"Research\", description: \"In-depth reports on complex topics\", Icon: Telescope },",
     "TS2304 { id: \"search\", name: \"Search\", description: \"Fast answers to everyday questions\", Icon: Search },",
     "TS2304 {m.id === mode ? <Check /> : <m.Icon />}",
-    "TS2322 <ThreadPrimitive.Messages />",
     "TS2552 {m.id === mode ? <Check /> : <m.Icon />}",
-    "TS2657 <AuiIf condition={(s) => s.thread.isRunning}>",
-    "TS7031 const Composer = ({ placeholder }) => ("
+    "TS2657 <AuiIf condition={(s) => s.thread.isRunning}>"
   ],
   "apps/docs/content/examples/stockbroker.mdx": [
-    "TS2554 { signal: abortSignal }"
+    "TS2304 </Button>",
+    "TS2304 </Button>",
+    "TS2304 <Button onClick={() => addResult({ approved: false })}>",
+    "TS2304 <Button onClick={() => addResult({ approved: true })}>"
   ]
 }

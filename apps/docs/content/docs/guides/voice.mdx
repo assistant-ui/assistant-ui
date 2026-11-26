@@ -181,9 +181,11 @@ export class MyVoiceAdapter implements RealtimeVoiceAdapter {
 Pass a `RealtimeVoiceAdapter` implementation on the runtime:
 
 ```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
 const runtime = useChatRuntime({
   adapters: {
-    voice: new MyVoiceAdapter({ /* provider options */ }),
+    voice: new MyVoiceAdapter(),
   },
 });
 ```
