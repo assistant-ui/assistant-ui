@@ -140,6 +140,8 @@ Use one of these when your backend is not a framework with a runtime above, such
 | [`DataStream`](/docs/runtimes/custom/data-stream) | `LocalRuntime` + protocol | A backend that streams the data stream protocol | You want a thin message-stream contract, or you are moving off AI SDK v4 |
 | [`AssistantTransport`](/docs/runtimes/custom/assistant-transport) | `ExternalStoreRuntime` + protocol | A backend that streams its agent state | Your agent has state worth showing, or you need commands of your own |
 
+A Python backend can serve either protocol with the [`assistant-stream`](https://pypi.org/project/assistant-stream/) package: `create_run` runs your callback and `DataStreamResponse` streams the result. The DataStream and AssistantTransport pages show the setup for each.
+
 ```text
 is your backend one of the frameworks above (AI SDK, LangGraph, LangChain, Eve,
 Google ADK, A2A, AG-UI, OpenCode, Mastra, OpenAI Agents, Pydantic AI, Cloudflare

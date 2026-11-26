@@ -170,7 +170,7 @@ Use the API object for:
 
 ```tsx
 // Thread actions
-aui.thread.append(message);
+aui.thread.append(message); // a user message starts a reply unless it sets startRun: false
 aui.thread.startRun(config);
 aui.thread.resumeRun(config);
 aui.thread.cancelRun();
@@ -186,7 +186,7 @@ aui.message.speak();
 aui.message.stopSpeaking();
 aui.message.submitFeedback({ type: "positive" });
 aui.message.submitFeedback({ type: "negative", comment: "Quoted the wrong date" });
-aui.message.switchToBranch({ position, branchId });
+aui.message.switchToBranch({ position: "next" }); // or "previous", or { branchId }
 aui.message.getState();
 aui.message.part({ index: idx });
 aui.message.part({ toolCallId });
@@ -316,7 +316,7 @@ Each scope provides access to specific state and actions:
 
 ### Scope Resolution
 
-The Context API resolves the current scope from the component's location:
+The Context API resolves the current scope from the component's location. The list primitives create the scopes as they render: `ThreadPrimitive.Messages` renders each message inside its own `message` scope, and `MessagePrimitive.Parts` renders each part inside a `part` scope. A component rendered for one message therefore reads that message with no id to pass, and the same component works for every message in the list:
 
 ```tsx
 function MessageButton() {

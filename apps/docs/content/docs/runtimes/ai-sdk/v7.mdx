@@ -71,6 +71,8 @@ npm init -y
 For React Native and Ink, host this route in a separate backend project and
 point the client runtime at its absolute URL.
 
+For a local model or another OpenAI-compatible server, create the provider with its address, `createOpenAI({ baseURL })` from `@ai-sdk/openai`, and use `provider.chat("<model id>")` when the server only speaks Chat Completions.
+
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
 import {
@@ -117,6 +119,8 @@ export async function POST(req: Request) {
 
 ### Set up the frontend
 
+The React example renders the `Thread` component from the assistant-ui registry. Add `"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"` under `registries` in your `components.json`, then run `npx shadcn@latest add @assistant-ui/thread`; [Manual Installation](/docs/manual-installation#manual-setup) walks through both.
+
 <PlatformTabs>
 <Tab value="React">
 
@@ -131,7 +135,7 @@ export default function Home() {
   const runtime = useChatRuntime();
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="h-full">
+      <div className="h-dvh">
         <Thread />
       </div>
     </AssistantRuntimeProvider>
@@ -228,7 +232,7 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 ## Frontend tools and system messages
 
-`AssistantChatTransport` (used by default) forwards system messages and frontend tools to your backend on every request. Consume them with `frontendTools`:
+`AssistantChatTransport` (used by default) forwards system messages and frontend tools to your backend on every request. The system message holds the instructions the page registers, for example with `useAssistantInstructions`, and arrives as the `system` field of the request body; pass it to `streamText` as `instructions`, v7's name for the deprecated `system` option. Consume frontend tools with `frontendTools`:
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -255,7 +259,7 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
@@ -548,7 +552,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-Your attachment adapter's `send` should return `content` parts in the AI SDK shape, e.g. for files:
+Your attachment adapter's `send` returns `content` parts in assistant-ui's message part shape, not the AI SDK's; the runtime converts each one to an AI SDK file part (`mediaType` and `url`) before the request reaches your route. For files:
 
 ```ts
 return {
@@ -565,7 +569,7 @@ return {
 };
 ```
 
-For images, use `{ type: "image", image: <data url or remote url> }`. AI SDK will pass these to providers that accept multimodal content.
+For images, use `{ type: "image", image: <data url or remote url> }`. `SimpleImageAttachmentAdapter` from `@assistant-ui/react` already returns this shape. The AI SDK passes both to providers that accept multimodal content.
 
 ## Start a thread with initial messages
 

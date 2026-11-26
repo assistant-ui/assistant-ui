@@ -396,7 +396,7 @@ Provide `canResume` and `onResume` through your [runtime adapter](/docs/runtimes
 
 ### Cancel
 
-Cancels the current composition or edit session. Renders a `<button>` element unless `asChild` is set.
+In an edit composer, ends the edit and restores the message. In the thread's main composer, it is the stop button: it cancels the run in progress, or a send that is still being prepared, and is disabled when there is nothing to stop. Renders a `<button>` element unless `asChild` is set.
 
 ```tsx
 <ComposerPrimitive.Cancel className="rounded-md px-3 py-2 text-sm hover:bg-muted">

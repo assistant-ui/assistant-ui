@@ -1,0 +1,13 @@
+{
+  "q15": {
+    "grade": "correct"
+  },
+  "q16": {
+    "grade": "correct",
+    "note": "No longer hedges on where branches live."
+  },
+  "q28": {
+    "grade": "correct",
+    "note": "Learns that append of a user message starts a reply."
+  }
+}
