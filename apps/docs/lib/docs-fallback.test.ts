@@ -35,23 +35,9 @@ describe("docsOverviewPage", () => {
 
 describe("docsMarkdownRedirect", () => {
   it("sends a folder's markdown to its overview's markdown", () => {
-    expect(docsMarkdownRedirect(loader, ["runtimes", "ag-ui"])).toEqual({
-      url: "/docs/runtimes/ag-ui/overview.md",
-      permanent: false,
-    });
-  });
-
-  it("sends a moved page's markdown to the markdown of where it lives now", () => {
-    expect(
-      docsMarkdownRedirect(loader, ["runtimes", "concepts", "threads"]),
-    ).toEqual({ url: "/docs/concepts/threads.md", permanent: true });
-  });
-
-  it("drops the section anchor of a page that became a section", () => {
-    expect(docsMarkdownRedirect(loader, ["runtimes", "custom"])).toEqual({
-      url: "/docs/runtimes/pick-a-runtime.md",
-      permanent: true,
-    });
+    expect(docsMarkdownRedirect(loader, ["runtimes", "ag-ui"])).toBe(
+      "/docs/runtimes/ag-ui/overview.md",
+    );
   });
 
   it("keeps the platform and view the reader asked for", () => {
@@ -60,13 +46,13 @@ describe("docsMarkdownRedirect", () => {
         loader,
         ["runtimes", "ag-ui"],
         "platform=react-native&view=radix-ui",
-      )?.url,
+      ),
     ).toBe(
       "/docs/runtimes/ag-ui/overview.md?platform=react-native&view=radix-ui",
     );
   });
 
-  it("leaves a path with no page and no move to the 404", () => {
+  it("leaves a path with no page to the 404", () => {
     expect(docsMarkdownRedirect(loader, ["nope"])).toBeNull();
   });
 });

@@ -50,11 +50,13 @@ const TOKEN = /\b(?=[\w-]*\d)(?=[\w-]*[a-z])[\w-]{24,}\b/gi;
 /**
  * Text an agent typed, such as a search query, cut to `max` characters with
  * emails, addresses and token-like strings replaced, so an identifier pasted
- * into a query never reaches analytics.
+ * into a query never reaches analytics. The text is cut before the patterns
+ * run, because they backtrack on a long input.
  */
 export function agentText(value: string, max = 200): string {
   return value
     .trim()
+    .slice(0, max * 2)
     .replace(EMAIL, "[email]")
     .replace(IPV4, "[ip]")
     .replace(TOKEN, "[token]")

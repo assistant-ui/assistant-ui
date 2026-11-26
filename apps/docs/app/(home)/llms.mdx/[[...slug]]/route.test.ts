@@ -57,18 +57,6 @@ describe("GET for a path with no page", () => {
     });
     getPage.mockRestore();
   });
-
-  it("redirects a moved page's markdown for a reader that asked by Accept header", async () => {
-    await expect(
-      GET(request, {
-        params: Promise.resolve({ slug: ["guides", "tool-ui"] }),
-      }),
-    ).rejects.toMatchObject({
-      digest: expect.stringMatching(
-        /^NEXT_REDIRECT;replace;\/docs\/tools\/tool-ui\.md;308;/,
-      ),
-    });
-  });
 });
 
 describe("generateStaticParams", () => {

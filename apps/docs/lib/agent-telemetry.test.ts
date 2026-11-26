@@ -65,6 +65,13 @@ describe("agentText", () => {
     );
     expect(agentText("x".repeat(500))).toHaveLength(200);
   });
+
+  it("stays fast on a huge input with no match", () => {
+    const started = performance.now();
+    agentText("a".repeat(500_000));
+    agentText("1".repeat(500_000));
+    expect(performance.now() - started).toBeLessThan(250);
+  });
 });
 
 describe("agentDocsRead", () => {

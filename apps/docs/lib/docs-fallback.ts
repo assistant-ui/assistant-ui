@@ -1,5 +1,3 @@
-import { rewriteMovedDocsPath } from "./moved-docs";
-
 type PageLoader<Page> = { getPage(slug: string[]): Page | undefined };
 
 /**
@@ -15,23 +13,17 @@ export function docsOverviewPage<Page>(
 }
 
 /**
- * Where a request for the markdown of a /docs path with no page goes instead:
- * the markdown of the page it moved to (lib/moved-docs.ts), else of its
- * folder's overview page. Next.js already redirects the .md urls of moved
- * pages, but a page fetched with `Accept: text/markdown`, or a folder, only
- * reaches the route. `search` carries the platform and view the reader asked
- * for.
+ * The markdown url a folder's markdown request goes to: its overview page's.
+ * Moved pages never reach the markdown routes, because their redirects in
+ * lib/moved-docs.ts run first, for `Accept: text/markdown` requests too.
+ * `search` carries the platform and view the reader asked for.
  */
 export function docsMarkdownRedirect(
   loader: PageLoader<{ url: string }>,
   slug: string[],
   search = "",
-): { url: string; permanent: boolean } | null {
-  const moved = rewriteMovedDocsPath(["/docs", ...slug].join("/"));
-  const target = moved ?? docsOverviewPage(loader, slug)?.url;
-  if (!target) return null;
-  return {
-    url: `${target.split("#")[0]}.md${search ? `?${search}` : ""}`,
-    permanent: moved !== null,
-  };
+): string | null {
+  const overview = docsOverviewPage(loader, slug);
+  if (!overview) return null;
+  return `${overview.url}.md${search ? `?${search}` : ""}`;
 }

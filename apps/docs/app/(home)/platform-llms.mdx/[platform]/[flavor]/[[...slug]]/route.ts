@@ -1,5 +1,5 @@
 import { cacheLife } from "next/cache";
-import { notFound, permanentRedirect, redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { docsMarkdownRedirect } from "@/lib/docs-fallback";
 import { isPlatform } from "@/lib/docs-platform";
 import { getDocsMarkdown } from "@/lib/docs-markdown";
@@ -42,9 +42,8 @@ export async function GET(
     const query = new URLSearchParams();
     if (platform !== "react") query.set("platform", platform);
     if (flavor === "radix") query.set("view", "radix-ui");
-    const moved = docsMarkdownRedirect(source, slug, query.toString());
-    if (moved?.permanent) permanentRedirect(moved.url);
-    if (moved) redirect(moved.url);
+    const overview = docsMarkdownRedirect(source, slug, query.toString());
+    if (overview) redirect(overview);
   }
 
   return createMarkdownResponse(await getMarkdown(slug, platform, flavor));
