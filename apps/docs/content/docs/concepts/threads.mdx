@@ -3,6 +3,8 @@ title: Threads
 description: "A thread is one conversation. A thread list holds many, and you choose where they are kept: in memory, in the browser, in Assistant Cloud, or in your own database."
 ---
 
+import { ThreadListPlayground } from "@/components/pages/docs/samples/thread-list-playground.lazy";
+
 A thread is one conversation: its [messages](/docs/concepts/messages), its composer and the run in progress. Until you give it somewhere to keep threads, a runtime holds a single thread in memory, so a reload starts a new conversation.
 
 A thread list is what lets a user come back. It holds many threads, switches between them, starts new ones, and renames, archives or deletes old ones. The runtime keeps the open thread and the list in step. What you choose is where the threads are kept.
@@ -28,6 +30,10 @@ A thread list is what lets a user come back. It holds many threads, switches bet
 </Flow.Root>
 
 Each item in the list has an id and a status, and, once they are known, a title and the time of its last message. The status is `regular`, `archived`, or `new` for a thread the user has opened but not yet sent anything in. When threads are stored, a new thread is written to storage when its first message is sent, so opening an empty chat and leaving it stores nothing.
+
+Try it below. The thread list is backed by a `RemoteThreadListAdapter` that keeps its rows in memory, and the panel under the chat shows what the adapter stores and the latest calls the runtime made to it. Start a new thread and leave it empty, send a message, then rename, archive or delete a thread from its menu.
+
+<ThreadListPlayground />
 
 <AnchorAlias id="single-thread-default" />
 <AnchorAlias id="multi-thread-paths" />

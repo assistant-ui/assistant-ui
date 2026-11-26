@@ -172,3 +172,16 @@ it("sends the contact sales submit to both trackers before resolving", async () 
     props,
   );
 });
+
+it("reports docs sample use with the sample and action only", () => {
+  const capture = vi.fn();
+  globalObject.window = { posthog: { capture } };
+
+  analytics.docs.sampleInteracted("runtime-playground", "stream_text");
+
+  expect(capture).toHaveBeenCalledTimes(1);
+  expect(capture).toHaveBeenCalledWith("docs_sample_interacted", {
+    sample: "runtime-playground",
+    action: "stream_text",
+  });
+});

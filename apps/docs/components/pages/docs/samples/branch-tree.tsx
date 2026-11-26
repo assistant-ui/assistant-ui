@@ -14,6 +14,7 @@ import {
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { cn } from "@/lib/utils";
 import { SampleScope } from "./sample-scope";
+import { useSampleAnalytics } from "./use-sample-analytics";
 
 const REPLIES = [
   "Another take: start in Baixa and end at a miradouro at sunset.",
@@ -30,10 +31,11 @@ const wait = (ms: number, signal: AbortSignal) =>
     });
   });
 
-function createAdapter(): ChatModelAdapter {
+function createAdapter(onRun: () => void): ChatModelAdapter {
   let count = 0;
   return {
     async *run({ abortSignal }) {
+      onRun();
       const words = REPLIES[count++ % REPLIES.length]!.split(" ");
       for (let i = 1; i <= words.length; i++) {
         await wait(45, abortSignal);
@@ -212,7 +214,9 @@ const history: ThreadHistoryAdapter = {
 };
 
 function Sample() {
-  const adapter = useMemo(createAdapter, []);
+  const track = useSampleAnalytics("branch-tree");
+  // A run is any turn the model takes here: a send, an edit or a regenerate.
+  const adapter = useMemo(() => createAdapter(() => track("run")), [track]);
   const runtime = useLocalRuntime(adapter, { adapters: { history } });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
