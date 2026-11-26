@@ -483,6 +483,11 @@ export async function checkTsBlocks(
   const closure = docsBuildClosure(workspace);
   const located = new Map<string, Location>();
   const unresolvable = new Set<string>();
+  // specifiers of packages nobody installs -> the names imported from each
+  const missingModules = new Map<
+    string,
+    { names: Set<string>; isDefault: boolean }
+  >();
   const all: TsBlock[] = [];
   const prepared = new Map<string, Prepared>();
   const syntaxErrors = new Map<TsBlock, string[]>();
@@ -583,7 +588,16 @@ export async function checkTsBlocks(
           const name = packageName(specifier);
           if (!located.has(name))
             located.set(name, locatePackage(name, workspace, closure));
-          if (!located.get(name)) unresolvable.add(name);
+          if (!located.get(name)) {
+            unresolvable.add(name);
+            const stub = missingModules.get(specifier) ?? {
+              names: new Set<string>(),
+              isDefault: false,
+            };
+            for (const n of imported) stub.names.add(n);
+            stub.isDefault ||= isDefault;
+            missingModules.set(specifier, stub);
+          }
           continue;
         }
         const target =
@@ -640,7 +654,8 @@ export async function checkTsBlocks(
 
   for (const [file, stub] of stubs) {
     const lines = [...stub.names].map(
-      (n) => `export declare const ${n}: any;\nexport type ${n} = any;`,
+      (n) =>
+        `export declare const ${n}: any;\nexport type ${n}<A = any, B = any, C = any> = any;`,
     );
     if (stub.isDefault)
       lines.push("declare const _default: any;\nexport default _default;");
@@ -665,15 +680,25 @@ export async function checkTsBlocks(
     symlinkSync(where.link, link, "dir");
   }
   writeFileSync(path.join(dir, "reader-supplied.d.ts"), READER_SUPPLIED);
-  // a file without imports, so these declare modules rather than augment them
+  // a file without imports, so these declare modules rather than augment
+  // them; each name is a value and a (generic) type, both `any`
   writeFileSync(
     path.join(dir, "unresolvable.d.ts"),
-    `${[...unresolvable]
+    [...missingModules]
       .map(
-        (name) =>
-          `declare module ${JSON.stringify(name)};\ndeclare module ${JSON.stringify(`${name}/*`)};`,
+        ([specifier, { names, isDefault }]) =>
+          `declare module ${JSON.stringify(specifier)} {\n${[...names]
+            .map(
+              (n) =>
+                `  export const ${n}: any;\n  export type ${n}<A = any, B = any, C = any> = any;`,
+            )
+            .join("\n")}${
+            isDefault
+              ? "\n  const _default: any;\n  export default _default;"
+              : ""
+          }\n}`,
       )
-      .join("\n")}`,
+      .join("\n"),
   );
   // one copy of React's types, or a package installed elsewhere brings its own
   for (const name of ["react", "react-dom"]) {
@@ -738,7 +763,16 @@ export async function checkTsBlocks(
       mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, text);
     }
-    const output = (await Promise.all(programs.map(runTsc))).join("\n");
+    // tsc is multithreaded; a few at a time leave CPU for the other tests
+    const outputs: string[] = [];
+    const queue = [...programs];
+    await Promise.all(
+      Array.from({ length: 3 }, async () => {
+        for (let next = queue.shift(); next; next = queue.shift())
+          outputs.push(await runTsc(next));
+      }),
+    );
+    const output = outputs.join("\n");
     const errors = new Map<string, { line: number; text: string }[]>();
     const checkerErrors: string[] = [];
     let current: { text: string }[] | undefined;
