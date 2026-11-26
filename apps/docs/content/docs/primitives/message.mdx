@@ -149,7 +149,7 @@ Adapter coverage for the file path is still uneven, so check your adapter's conv
 
 ### Tool Resolution
 
-With the deprecated `components` prop, tool call parts resolve in this order:
+With the `components` prop, tool call parts resolve in this order:
 
 1. **`tools.Override`**: if provided, handles **all** tool calls
 2. **Globally registered tools**: tools registered via `Tools({ toolkit })`
@@ -175,13 +175,13 @@ In the children API, `part.toolUI` is the registered tool UI, or `null` when no 
 
 Returning `null` still allows registered tool UIs and data renderer UIs to render automatically. Return `<></>` if you want to suppress them entirely.
 
-### Components Prop (Deprecated)
+### Components Prop
 
-`components` is deprecated. This section only documents it so older code is still understandable:
+`components` maps each part type to a component: `Text`, `Reasoning`, `Image`, `File`, `Source`, `tools` (`by_name` and `Fallback`) and the rest below. It is a supported alternative to the `children` render function; use `children` when one function should decide per part. A few keys inside `components` are deprecated:
 
-- `ToolGroup` wraps consecutive tool-call parts
-- `ReasoningGroup` wraps consecutive reasoning parts
-- `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). This legacy path is deprecated; use `MessagePrimitive.GroupedParts` for grouped Chain of Thought in new code.
+- `ToolGroup` wraps consecutive tool-call parts (deprecated; use `MessagePrimitive.GroupedParts` with a `groupBy`)
+- `ReasoningGroup` wraps consecutive reasoning parts (deprecated, same replacement)
+- `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). It is deprecated; use `MessagePrimitive.GroupedParts` for grouped Chain of Thought in new code.
 - `data.by_name` and `data.Fallback` let you route custom data part types
 - `Quote` renders quoted message references from metadata
 - `Empty` renders when the message has no parts and, by default, when its last part is not a text or reasoning part
