@@ -4,6 +4,10 @@ import {
   publicAssistantLimitMessage,
 } from "@/lib/public-assistant-errors";
 
+/** Shown as is in the docs assistant panel. */
+export const DOCS_CHAT_DAILY_LIMIT_MESSAGE =
+  "You have reached the docs assistant's daily limit. It resets within a day.";
+
 function positiveSafeInteger(
   value: string | undefined,
   fallback: number,
@@ -89,6 +93,31 @@ const getPublicAssistantRateLimits = async () => {
       redis,
       prefix: "aui:public-assistant:global:alert",
       limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
+    // Docs assistant questions on top of the shared public assistant limits.
+    // A reader asks a handful a day; these stop one address or one browser
+    // session from using the docs assistant as a general model.
+    docsChatIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:docs-chat:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_DOCS_CHAT_REQUESTS_PER_IP_PER_DAY,
+          100,
+        ),
+        "1d",
+      ),
+    }),
+    docsChatSessionDaily: new Ratelimit({
+      redis,
+      prefix: "aui:docs-chat:session:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_DOCS_CHAT_REQUESTS_PER_SESSION_PER_DAY,
+          40,
+        ),
+        "1d",
+      ),
     }),
     sessionIssuanceBurst: new Ratelimit({
       redis,
@@ -365,6 +394,32 @@ export async function checkPublicAssistantRateLimit(
         publicAssistantLimitMessage("Public assistant usage"),
         globalDaily.reset,
       );
+    }
+    return null;
+  });
+}
+
+/**
+ * The docs assistant's own daily limits per address and per anonymous
+ * session, checked after `checkPublicAssistantRateLimit`.
+ */
+export async function checkDocsChatRateLimit(
+  request: Request,
+  sessionId: string,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "docs_chat", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "docs_chat");
+    // The session is checked first, so a session past its own limit does
+    // not keep spending the budget other readers on its address share.
+    for (const [limiter, key] of [
+      [limits.docsChatSessionDaily, sessionId],
+      [limits.docsChatIpDaily, ip],
+    ] as const) {
+      const result = await limiter.limit(key);
+      if (!result.success) {
+        return limitResponse(DOCS_CHAT_DAILY_LIMIT_MESSAGE, result.reset);
+      }
     }
     return null;
   });
