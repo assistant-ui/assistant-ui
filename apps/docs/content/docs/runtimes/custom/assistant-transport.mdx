@@ -125,14 +125,23 @@ The endpoint returns a stream of state snapshots using the [`assistant-stream`](
 
 ### Handling commands
 
+`request.commands` holds every command the frontend queued since its last request, oldest first. Each has a `type`: `add-message` carries the user's `message` (its `role`, `id` and `text` or `image` parts), `add-tool-result` carries the `toolCallId`, `toolName`, `result` and `isError` of a tool the browser ran, and a [custom command](#custom-commands) carries the fields you declared for it. Apply them to the state before the agent runs:
+
 ```python
-for command in request.commands:
-    if command.type == "add-message":
-        # Handle adding a user message
-    elif command.type == "add-tool-result":
-        # Handle tool execution result
-    elif command.type == "my-custom-command":
-        # Handle your custom command
+async def run_callback(controller: RunController):
+    if controller.state is None:
+        controller.state = {"messages": []}
+
+    for command in request.commands:
+        if command.type == "add-message":
+            controller.state["messages"].append(command.message.model_dump())
+        elif command.type == "add-tool-result":
+            for message in controller.state["messages"]:
+                for part in message["parts"]:
+                    if part.get("toolCallId") == command.toolCallId:
+                        part["result"] = command.result
+        elif command.type == "my-custom-command":
+            controller.state["custom_data"] = command.data
 ```
 
 ### Streaming updates

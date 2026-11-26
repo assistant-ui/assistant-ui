@@ -1,0 +1,12 @@
+---
+title: Upgrade from 0.1
+description: "Move an app from assistant-cloud 0.1 to the 0.2 line the assistant-ui runtimes depend on, and turn on what 0.2 reports."
+---
+
+`@assistant-ui/core` and `@assistant-ui/react` depend on `assistant-cloud` 0.2. An app that still lists `assistant-cloud` 0.1 in its own `package.json` installs a second, older copy of the client next to theirs, so update `assistant-cloud`, `@assistant-ui/react` and your integration package together. Then:
+
+- Add the `messageMetadata` callback to your route; see [Run reports](/docs/cloud/run-reports#messagemetadata-values). Without it runs show as *No model reported* and cannot be priced.
+- Pass `telemetry: { environment, release }` to `AssistantCloud` so runs can be filtered by deployment. Engagement events are on by default; see [Turning telemetry off](/docs/cloud/run-reports#redact-drop-or-turn-telemetry-off).
+- If your server emits OpenTelemetry spans, add the span processor from [Traces](/docs/cloud/traces).
+- Review **Settings › Access**: anonymous sessions and allowed origins are settings, and both default to open.
+- If you use `@assistant-ui/cloud-ai-sdk`, plan the move: the package is retired; see [Migrate from Cloud AI SDK](/docs/cloud/migrate-cloud-ai-sdk).

@@ -34,7 +34,7 @@ Choose the runtime that owns the conversation history before a thread is used. T
 | External-store runtime | `aui/v0` | Copies eligible backend messages with `external_id` values. |
 | Older AI SDK client | `ai-sdk/v5` | Its rows remain readable directly or through the `ai-sdk/v6` conversion path. |
 
-The AI SDK adapter pins the thread list item before it writes, so a later thread switch does not redirect an in flight history write. It waits for the run to settle, appends each unpersisted message once with its chained parent, and updates an already persisted message only when the encoded content changed. The cloud history adapter never deletes a message.
+The AI SDK adapter pins the thread list item before it writes, so a later thread switch does not redirect an in flight history write. It waits for the run to settle, appends each unpersisted message once with its chained parent, and updates an already persisted message only when the encoded content changed. The cloud history adapter deletes a stored message only when the runtime deletes that message from the thread, as `ActionBarPrimitive.Resume` does with an empty interrupted reply. It sends the stored ids through `cloud.threads.messages.delete` and skips a message that was never stored.
 
 When a local runtime write through a cloud history adapter fails, `thread.historyWriteError` carries its `operation`, `messageIds`, `threadId`, and a readable `message`. Listeners receive the event while bound to the affected thread, so a write that fails after you switch away reaches no listener; the runtime logs every failed write with `console.error` either way. The cloud's stored tree may no longer match the thread. A write returned to its caller still rejects.
 
@@ -75,7 +75,7 @@ A reply whose run is still beating loads with the code `run_in_progress` and `me
 
 ## From your code
 
-The client exposes list, create, update and feedback calls under `cloud.threads.messages`. A new root message sends `parent_id: null`; a child sends the remote id of its parent.
+The client exposes list, create, update, delete and feedback calls under `cloud.threads.messages`. A new root message sends `parent_id: null`; a child sends the remote id of its parent.
 
 ```ts title="messages.ts"
 const { message_id } = await cloud.threads.messages.create(threadId, {
@@ -106,7 +106,7 @@ Use `cloud.threads.messages.create` when an application mirrors its own message 
 | Parent id does not name a message in this thread | Answers 400 with `Parent message not found in thread`. |
 | Parent external id does not name a message in this thread | Answers 400 with `Parent message with external_id not found in thread`. |
 
-A delete request accepts from 1 to 200 message ids. It is best effort: a mixed batch answers 200 when at least one id belonged to the thread, and answers 404 `Messages not found` when none did.
+`cloud.threads.messages.delete(threadId, messageIds)` deletes stored messages by their cloud ids, from 1 to 200 in a request. It is best effort: a mixed batch answers 200 when at least one id belonged to the thread, and answers 404 `Messages not found` when none did, which the client throws as a `CloudAPIError` with `status` 404.
 
 ### What storing a message triggers
 
