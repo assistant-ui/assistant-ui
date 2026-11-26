@@ -208,3 +208,24 @@ async def test_data_stream_responses_declare_the_protocol_header() -> None:
     assert second.headers[RESUMABLE_STREAM_ID_HEADER] == "s1"
     assert "x-vercel-ai-data-stream" not in transport.headers
     await _collect_body(transport)
+
+
+@pytest.mark.anyio
+async def test_caller_headers_replace_encoder_headers_in_any_case() -> None:
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store()
+    )
+
+    async def callback(controller: RunController) -> None:
+        controller.append_text("hi")
+
+    response = await create_resumable_assistant_stream_response(
+        context=ctx,
+        stream_id="s1",
+        callback=callback,
+        headers={"X-Vercel-AI-Data-Stream": "v2", "X-Resumable-Stream-Id": "x"},
+    )
+    await _collect_body(response)
+
+    assert response.headers.getlist("x-vercel-ai-data-stream") == ["v2"]
+    assert response.headers.getlist(RESUMABLE_STREAM_ID_HEADER) == ["s1"]

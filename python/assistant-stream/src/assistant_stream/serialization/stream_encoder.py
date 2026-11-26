@@ -30,8 +30,9 @@ class StreamEncoder(ABC):
     def get_headers(self) -> dict[str, str]:
         """
         Returns response headers that declare the stream's protocol to the
-        client. None by default; DataStreamEncoder sends the data stream
-        header the TypeScript encoder sends.
+        client. Returns no headers (an empty dict) by default;
+        DataStreamEncoder sends the data stream header the TypeScript
+        encoder sends.
         """
         return {}
 
