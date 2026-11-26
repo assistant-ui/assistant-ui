@@ -8,8 +8,8 @@ import type { ExportedMessageRepository } from "../../runtime/utils/message-repo
 import { BaseSubscribable } from "../../subscribable/subscribable";
 
 /**
- * `createError` runs at each throw, so the error's stack shows the code that
- * made the call rather than the module that defined the message.
+ * `createError` runs at each throw, so the error's stack includes the frame of
+ * the code that made the call, not only the module that defined the message.
  */
 export const createInertComposer = <TIsEditing extends boolean>(
   createError: () => Error,
