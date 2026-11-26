@@ -68,7 +68,7 @@ export function elementGalleryMarkdown(slug: string): string | null {
       "",
       "## Spec",
       "",
-      `A ${generative.template.category.toLowerCase()} spec the model emits. Its components are listed in the [component vocabulary](/elements/vocabulary.md).`,
+      `The ${generative.template.category.toLowerCase()} spec this template renders. Its components are listed in the [component vocabulary](/elements/vocabulary.md).`,
       "",
       fence("json", JSON.stringify(generative.template.tree, null, 2)),
     );

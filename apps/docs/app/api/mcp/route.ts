@@ -950,7 +950,10 @@ function countMcpRequest(
   captureAgentEvent(request.headers, "mcp_client_initialized", {
     client_name: agentText(String(session.info["name"]), 64),
     client_version: agentText(String(session.info["version"]), 32),
-    protocol_version: agentText(String(session.protocolVersion), 32),
+    protocol_version:
+      typeof session.protocolVersion === "string"
+        ? agentText(session.protocolVersion, 32)
+        : undefined,
     client,
   });
 }
