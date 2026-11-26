@@ -1,4 +1,3 @@
-import { getLLMText } from "@/lib/get-llm-text";
 import { prepareDocChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
@@ -6,8 +5,7 @@ import {
   validateDocChatInput,
   validateFrontendToolsInput,
 } from "@/lib/validate-input";
-import { source, examples as examplesSource } from "@/lib/source";
-import { resolveDocsUrl } from "@/lib/docs-pages";
+import { listDocs, readDoc } from "@/lib/ai/docs-tools";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { getSession } from "@/lib/accounts-auth";
 import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
@@ -20,104 +18,8 @@ import {
   tool,
   zodSchema,
 } from "ai";
-import type * as PageTree from "fumadocs-core/page-tree";
 import type { UIMessageChunk } from "ai";
 import z from "zod";
-
-function normalizeSegment(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, "-");
-}
-
-function findFolderByPath(
-  tree: PageTree.Root,
-  path: string,
-): PageTree.Folder | undefined {
-  const segments = path.split("/").filter(Boolean);
-  let currentFolder: PageTree.Folder | undefined;
-  let children: PageTree.Node[] = tree.children;
-
-  for (const segment of segments) {
-    const folder = children.find(
-      (node): node is PageTree.Folder =>
-        node.type === "folder" &&
-        normalizeSegment(typeof node.name === "string" ? node.name : "") ===
-          normalizeSegment(segment),
-    );
-    if (!folder) return undefined;
-    currentFolder = folder;
-    children = folder.children;
-  }
-
-  return currentFolder;
-}
-
-function listChildren(nodes: PageTree.Node[]) {
-  return nodes.flatMap((node) => {
-    const description =
-      "description" in node && typeof node.description === "string"
-        ? node.description
-        : undefined;
-
-    switch (node.type) {
-      case "page":
-        return {
-          type: "page",
-          title: node.name,
-          url: node.url,
-          ...(description ? { description } : {}),
-        };
-      case "folder":
-        return {
-          type: "folder",
-          name: node.name,
-          ...(node.index ? { url: node.index.url } : {}),
-          ...(description ? { description } : {}),
-        };
-      default:
-        return [];
-    }
-  });
-}
-
-const DOCS_PATH_ERROR = "Only local docs paths are supported";
-
-function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
-  const raw = slugOrUrl.trim();
-  if (!raw) {
-    throw new Error("Slug/path is required");
-  }
-
-  const current = new URL(routeUrl);
-  const isAbsoluteUrl = /^https?:\/\//i.test(raw);
-
-  if (!isAbsoluteUrl) {
-    const cleaned = raw.replace(/^\/+/, "").replace(/^docs\//, "");
-    if (!cleaned || cleaned.includes("..")) {
-      throw new Error(DOCS_PATH_ERROR);
-    }
-    return cleaned;
-  }
-
-  const resolved = new URL(raw);
-  if (resolved.origin !== current.origin) {
-    throw new Error(DOCS_PATH_ERROR);
-  }
-
-  const cleaned = resolved.pathname.replace(/^\/+/, "").replace(/^docs\//, "");
-  if (!cleaned || cleaned.includes("..")) {
-    throw new Error(DOCS_PATH_ERROR);
-  }
-
-  return cleaned;
-}
-
-function resolveDocPage(slugs: string[]) {
-  if (slugs[0] === "examples") {
-    return examplesSource.getPage(slugs.slice(1));
-  }
-  const path = slugs.join("/");
-  return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
-}
 
 export const maxDuration = 300;
 
@@ -227,11 +129,11 @@ You have two documentation tools:
 
 1. **listDocs** - Browse documentation structure
    - Use with no path for root categories
-   - Use with path (e.g., "ui", "runtimes", "tap") to see pages in that section
+   - Use with path (e.g., "runtimes", "guides", "elements") to see pages in that section
    - Returns: list of folders and pages with URLs
 
 2. **readDoc** - Read a specific documentation page
-   - Input: slug (e.g., "ui/thread") or URL (e.g., "/elements/thread")
+   - Input: slug (e.g., "guides/attachments") or URL (e.g., "/elements/thread")
    - Returns: full page content
 
 **Recommended patterns:**
@@ -264,7 +166,7 @@ You also have tools for exploring the actual assistant-ui source code:
 - Default to a direct answer in 3 to 5 sentences; expand only when the question genuinely needs it
 - Include code only when the user asks for code, or when a snippet under 15 lines replaces a paragraph of explanation
 - Show only the lines that matter (the prop, the hook call, the config entry), never whole files or complete documentation examples
-- When a full example already exists in the docs, link to it instead of pasting it: "Full example: [Thread](/docs/ui/thread)"
+- When a full example already exists in the docs, link to it instead of pasting it: "Full example: [Attachments](/docs/guides/attachments)"
 - The pages you read are listed automatically as clickable sources under your reply, so do not append a link list at the end
 - For multi-step setups, give short prose steps with links, and expand code for at most the step the user is currently on
 </answer_style>
@@ -343,44 +245,11 @@ export async function POST(req: Request): Promise<Response> {
                   .string()
                   .optional()
                   .describe(
-                    "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
+                    "Path to browse (e.g., 'runtimes', 'runtimes/ai-sdk', 'elements'). Empty for root.",
                   ),
               }),
             ),
-            execute: async ({ path }) => {
-              const pageTree = source.pageTree;
-
-              if (!path) {
-                // Return root categories
-                return [
-                  ...listChildren(
-                    pageTree.children.filter(
-                      (node): node is PageTree.Folder => node.type === "folder",
-                    ),
-                  ),
-                  {
-                    type: "folder",
-                    name: "examples",
-                    description:
-                      "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
-                  },
-                ];
-              }
-
-              const segments = path.split("/").filter(Boolean);
-              if (segments[0] === "examples") {
-                const rest = segments.slice(1).join("/");
-                const target = rest
-                  ? findFolderByPath(examplesSource.pageTree, rest)
-                  : examplesSource.pageTree;
-                if (!target) return { error: "Path not found" };
-                return listChildren(target.children);
-              }
-
-              const targetFolder = findFolderByPath(pageTree, path);
-              if (!targetFolder) return { error: "Path not found" };
-              return listChildren(targetFolder.children);
-            },
+            execute: async ({ path }) => listDocs(path),
           }),
           readDoc: tool({
             description: "Read full content of a documentation page",
@@ -388,29 +257,12 @@ export async function POST(req: Request): Promise<Response> {
               z.object({
                 slugOrUrl: z
                   .string()
-                  .describe("Page slug (e.g., 'ui/thread') or URL"),
+                  .describe(
+                    "Page slug (e.g., 'guides/attachments', 'elements/thread') or URL",
+                  ),
               }),
             ),
-            execute: async ({ slugOrUrl }) => {
-              let normalized: string;
-              try {
-                normalized = normalizeDocPath(slugOrUrl, req.url);
-              } catch (error) {
-                return {
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : "Invalid docs path",
-                };
-              }
-
-              const slugs = normalized.split("/").filter(Boolean);
-              const page = resolveDocPage(slugs);
-              if (!page) return { error: `Page not found: ${slugOrUrl}` };
-
-              const content = await getLLMText(page);
-              return { title: page.data.title, url: page.url, content };
-            },
+            execute: async ({ slugOrUrl }) => readDoc(slugOrUrl, req.url),
           }),
         },
       },

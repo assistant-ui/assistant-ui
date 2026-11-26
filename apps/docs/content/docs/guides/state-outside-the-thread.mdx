@@ -112,7 +112,7 @@ export function ThreadMenu() {
 }
 ```
 
-The item also has `unarchive()`, `generateTitle()` to ask your backend for a title, `switchTo()`, and `updateCustom(custom)` for your own fields, such as an unread flag or a pin. When the thread list is kept in your own database, these calls on a saved thread reach the `RemoteThreadListAdapter` method of the same name (`updateCustom` only when the adapter implements it). On a new thread that is not saved yet, `updateCustom` changes the item in memory and hands the value to `initialize()` when the thread is created. [Thread list adapters](/docs/integrations/persistence/thread-list-adapters#custom-metadata) covers storing them.
+The item also has `unarchive()`, `generateTitle()` to ask your backend for a title, `switchTo()`, and `updateCustom(custom)` for your own fields, such as an unread flag or a pin. When the thread list is kept in your own database, `rename`, `archive`, `delete` and `generateTitle` on a saved thread call the `RemoteThreadListAdapter` method of the same name, and `unarchive` and `updateCustom` do so when the adapter implements them. `switchTo` opens the thread, and on an archived one it first calls `unarchive` when the adapter has it, unless you pass `{ unarchive: false }`. On a new thread that is not saved yet, `updateCustom` changes the item in memory and hands the value to `initialize()` when the thread is created. [Thread list adapters](/docs/integrations/persistence/thread-list-adapters#custom-metadata) covers storing them.
 
 ## One value per selector
 

@@ -38,6 +38,8 @@ vi.mock("@/lib/source", () => {
   return {
     source: emptySource,
     examples: emptySource,
+    elementsDocs: { ...emptySource, getPages: () => [] },
+    design: emptySource,
     docsSiteSources: {
       "safe-content-frame": emptySource,
       "generative-frame": emptySource,
