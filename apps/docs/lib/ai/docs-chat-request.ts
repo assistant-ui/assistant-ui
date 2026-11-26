@@ -8,7 +8,7 @@ import type { UIMessage } from "ai";
  * not have produced is refused before any model call.
  */
 
-/** The tools the docs assistant runs on the server. */
+/** The tools the docs assistant runs on the server (the route's tool set). */
 export const DOCS_ASSISTANT_TOOL_NAMES = [
   "listDocs",
   "readDoc",
@@ -16,10 +16,13 @@ export const DOCS_ASSISTANT_TOOL_NAMES = [
   "readFile",
 ] as const;
 
-/** Reader questions in one request; a longer thread starts a new one. */
+/** Reader questions in one thread; past this the reader starts a new one. */
 export const MAX_USER_TURNS = 40;
-/** User messages in a row with no reply between them (failed sends). */
-export const MAX_CONSECUTIVE_USER_MESSAGES = 4;
+/**
+ * User messages in a row with no reply between them. A send the server
+ * refused leaves the question without a reply, so a few in a row are normal.
+ */
+export const MAX_CONSECUTIVE_USER_MESSAGES = 8;
 /** Image attachments across the whole request. */
 export const MAX_IMAGES = 6;
 const MAX_PARTS_PER_MESSAGE = 400;

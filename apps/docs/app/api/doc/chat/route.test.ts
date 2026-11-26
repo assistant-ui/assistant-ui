@@ -66,6 +66,7 @@ vi.mock("@/lib/source", () => {
 });
 
 import type { UIMessageChunk } from "ai";
+import { DOCS_ASSISTANT_TOOL_NAMES } from "@/lib/ai/docs-chat-request";
 import { POST, withReadDocSources } from "./route";
 
 describe("POST /api/doc/chat access boundary", () => {
@@ -166,12 +167,9 @@ describe("POST /api/doc/chat access boundary", () => {
     const { options } = modelCall();
     expect(options.system).not.toContain("pirate");
     expect(options.system).not.toContain("currently viewing");
-    expect(Object.keys(options.tools).sort()).toEqual([
-      "bash",
-      "listDocs",
-      "readDoc",
-      "readFile",
-    ]);
+    expect(Object.keys(options.tools).sort()).toEqual(
+      [...DOCS_ASSISTANT_TOOL_NAMES].sort(),
+    );
     expect(options.maxOutputTokens).toBe(8192);
     expect(options).not.toHaveProperty("temperature");
   });
