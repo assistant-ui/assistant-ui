@@ -175,6 +175,22 @@ const statusLabel = (status: MessageStatus | undefined) => {
     : status.type;
 };
 
+/** One unbreakable chip per key, so a path wraps between keys and never inside one. */
+function GroupPath({ path }: { path: readonly string[] }) {
+  if (path.length === 0)
+    return <div className="text-muted-foreground">no group</div>;
+  return (
+    <div className="text-muted-foreground flex flex-wrap gap-x-1 font-mono">
+      {path.map((key, i) => (
+        <span key={key} className="whitespace-nowrap">
+          {i > 0 ? "› " : ""}
+          {key}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function Readout() {
   const reply = useAuiState((s) => s.thread.messages.at(-1));
   const status = reply?.role === "assistant" ? reply.status : undefined;
@@ -212,9 +228,7 @@ function Readout() {
                     {part.status.type}
                   </span>
                 </pre>
-                <pre className="text-muted-foreground font-mono whitespace-pre-wrap">
-                  {groupBy(part).join(" › ") || "no group"}
-                </pre>
+                <GroupPath path={groupBy(part)} />
               </li>
             ))}
           </ol>
@@ -237,13 +251,13 @@ function Playground() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="grid min-h-0 md:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid md:h-112 md:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="h-112 min-w-0">
           <Thread autoFocus={false} />
         </div>
         <aside
           aria-label="Backend controls"
-          className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] flex flex-col gap-4 border-t p-4 md:border-t-0 md:border-l"
+          className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] flex min-h-0 flex-col gap-4 border-t p-4 md:border-t-0 md:border-l"
         >
           <div>
             <div className="text-sm font-medium">You are the backend</div>
@@ -294,7 +308,9 @@ function Playground() {
               Fail
             </Button>
           </div>
-          <Readout />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <Readout />
+          </div>
           <Button
             size="sm"
             variant="ghost"
