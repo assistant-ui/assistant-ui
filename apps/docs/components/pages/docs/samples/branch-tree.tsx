@@ -124,6 +124,13 @@ function TreeNode({
           <span className="break-words">
             {text.length > 44 ? `${text.slice(0, 42)}…` : text}
           </span>
+          <span className="sr-only">
+            {message.id === headId
+              ? " (head, shown)"
+              : visible
+                ? " (shown)"
+                : " (not shown)"}
+          </span>
         </span>
       </div>
       {node.children.length > 0 && (
@@ -149,7 +156,6 @@ function TreeNode({
 
 function MessageTree() {
   const aui = useAui();
-  // Re-read the repository whenever the visible messages change: a send, a stream chunk, an edit or a branch switch.
   const messages = useAuiState((s) => s.thread.messages);
   const repository = useMemo<ExportedMessageRepository>(
     // The placeholder thread mounted before the history loads has no messages and cannot export.
@@ -197,7 +203,7 @@ function MessageTree() {
   );
 }
 
-/** Loads the seeded tree the way a saved thread loads: through a history adapter. */
+// The runtime mounts a placeholder thread before the main thread binds; a history adapter loads the seed into the main thread itself.
 const history: ThreadHistoryAdapter = {
   async load() {
     return SEED;
@@ -238,7 +244,6 @@ function Sample() {
   );
 }
 
-/** A real Thread on a local runtime with a canned model; the panel draws the message repository from `thread.export()`. */
 export function BranchTreeSample() {
   return (
     <div className="not-prose border-foreground/10 rounded-document my-6 overflow-hidden border">

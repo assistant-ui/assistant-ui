@@ -8,7 +8,7 @@ platforms: ["react"]
 
 Editing re-submits a message from a past point in the conversation and creates a new branch. The messages after the edited one are discarded, and the assistant generates a fresh response from that point forward. Each user message has an independent edit composer; only one can be active at a time.
 
-The edited message becomes a sibling of the original, under the same parent, and the original keeps everything that followed it:
+Those later messages leave the visible path but stay stored. The edited message becomes a sibling of the original, under the same parent, and the original keeps everything that followed it:
 
 ```mermaid
 flowchart TD

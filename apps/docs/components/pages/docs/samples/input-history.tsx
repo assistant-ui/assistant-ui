@@ -63,7 +63,6 @@ function Message() {
   );
 }
 
-/** A real composer with `unstable_useComposerInputHistory()`; the history ring comes from the thread's user messages. */
 export function InputHistorySample() {
   return (
     <SampleRuntimeProvider messages={MESSAGES}>

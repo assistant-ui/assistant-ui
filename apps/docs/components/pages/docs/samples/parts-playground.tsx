@@ -325,7 +325,6 @@ function Playground({ groups }: { groups: boolean }) {
   );
 }
 
-/** A real Thread on an external store runtime; the buttons play the backend that streams parts into the last assistant message. */
 export function PartsPlayground({
   groups = true,
 }: {

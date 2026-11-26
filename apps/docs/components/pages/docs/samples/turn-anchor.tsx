@@ -127,7 +127,6 @@ function AnchoredThread({
   );
 }
 
-/** Two real viewports on local runtimes with a streaming canned model; one button sends the same question to both. */
 export function TurnAnchorSample() {
   const [signal, setSignal] = useState(0);
   const [running, setRunning] = useState({ bottom: false, top: false });
