@@ -1,47 +1,5 @@
-import { scoreText, tokenize } from "./query";
+import { scoreText, STOP_WORDS, tokenize } from "./query";
 import type { SearchRecord } from "./types";
-
-// `tokenize` only drops single characters, and `scoreText` requires every token,
-// so a tool asking a natural-language question would otherwise have to find all
-// of its filler words on one page.
-const STOP_WORDS = new Set([
-  "about",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "by",
-  "can",
-  "do",
-  "does",
-  "for",
-  "from",
-  "how",
-  "in",
-  "is",
-  "it",
-  "of",
-  "on",
-  "or",
-  "should",
-  "that",
-  "the",
-  "this",
-  "to",
-  "was",
-  "what",
-  "when",
-  "where",
-  "which",
-  "who",
-  "why",
-  "with",
-  "would",
-  "you",
-  "your",
-]);
 
 /**
  * A page with the prose fumadocs already extracted for the search index.
@@ -52,6 +10,8 @@ const STOP_WORDS = new Set([
  */
 export type ContentRecord = SearchRecord & {
   contents: string[];
+  /** Compound API names from the page's code blocks. */
+  identifiers?: string[];
 };
 
 export type ContentMatch = {
@@ -118,6 +78,29 @@ export function searchContent(
     .map((entry) => entry.match);
 }
 
+// A query names a symbol when its words, joined, spell it ("useAuiState",
+// "use aui state", "@assistant-ui/react-ag-ui"). A long enough name also
+// matches the start of a symbol, and a documented symbol it extends
+// ("AssistantChatTransportInitOptions" finds `AssistantChatTransport`).
+const SYMBOL_PREFIX = 8;
+const BASE_SYMBOL = 12;
+const compact = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function symbolMatch(identifiers: readonly string[] = [], tokens: string[]) {
+  const name = compact(tokens.join(""));
+  if (name.length < 4) return false;
+  // "@base-ui" names a scope, so every package in it matches.
+  const prefix = name.length >= SYMBOL_PREFIX || tokens[0]?.startsWith("@");
+  return identifiers.some((identifier) => {
+    const symbol = compact(identifier);
+    return (
+      symbol === name ||
+      (prefix && symbol.startsWith(name)) ||
+      (symbol.length >= BASE_SYMBOL && name.startsWith(symbol))
+    );
+  });
+}
+
 function rank(
   records: readonly ContentRecord[],
   tokens: string[],
@@ -143,13 +126,15 @@ function rank(
       (total, entry) => total + entry.score,
       0,
     );
+    const symbolScore = symbolMatch(page.identifiers, tokens) ? 3 : 0;
 
     const score =
       titleScore * 8 +
       headingScore * 3 +
       urlScore * 3 +
       descriptionScore * 2 +
-      Math.min(bodyScore, 12);
+      Math.min(bodyScore, 12) +
+      symbolScore;
     if (score === 0) continue;
 
     const chosen = [...paragraphs]

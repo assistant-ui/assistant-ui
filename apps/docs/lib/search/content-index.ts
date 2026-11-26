@@ -3,7 +3,10 @@ import { searchablePages, type SearchablePage } from "./corpus";
 import { headingsFrom } from "./pages";
 
 function toRecord(page: SearchablePage): Promise<ContentRecord> {
-  return Promise.resolve(page.data.structuredData()).then((structured) => {
+  return Promise.all([
+    page.data.structuredData(),
+    page.data.codeIdentifiers?.() ?? [],
+  ]).then(([structured, identifiers]) => {
     return {
       url: page.url,
       title: page.data.title,
@@ -12,6 +15,7 @@ function toRecord(page: SearchablePage): Promise<ContentRecord> {
       contents: (structured.contents ?? [])
         .map((entry) => entry.content?.replace(/\s+/g, " ").trim() ?? "")
         .filter((text) => text.length > 0),
+      identifiers,
     };
   });
 }

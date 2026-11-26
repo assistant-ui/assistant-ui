@@ -47,8 +47,35 @@ export async function createContentManifest(root: string) {
 
 type CompiledPage = {
   metadata: unknown;
-  search: { structured: unknown; markdown?: string };
+  search: { structured: unknown; markdown?: string; identifiers?: string[] };
 };
+
+type MdastNode = { type: string; value?: string; children?: MdastNode[] };
+
+const MAX_IDENTIFIERS = 300;
+
+/**
+ * Compound API names (`useAuiState`, `SecurityConfig`) and npm package names
+ * (`@assistant-ui/react-ag-ui`) from a page's fenced code. fumadocs leaves code out of the structured prose, so a symbol that
+ * appears only in an example was unsearchable. These stay in the server-only
+ * content data; the browser index never sees them.
+ */
+export function codeIdentifiers(tree: MdastNode): string[] {
+  const found = new Set<string>();
+  const walk = (node: MdastNode) => {
+    if (node.type === "code" && node.value) {
+      for (const [name] of node.value.matchAll(/[A-Za-z_$][\w$]*/g)) {
+        if (name.length >= 6 && /[a-z0-9][A-Z]/.test(name)) found.add(name);
+      }
+      for (const [name] of node.value.matchAll(/@[a-z0-9][\w.-]*\/[\w.-]+/g)) {
+        found.add(name.replace(/[.-]+$/, ""));
+      }
+    }
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(tree);
+  return [...found].sort().slice(0, MAX_IDENTIFIERS);
+}
 
 async function createContentProcessor() {
   const [
@@ -128,6 +155,7 @@ async function compileContent(
         tree.children = tree.children.filter(
           (node) => node.type !== "mdxjsEsm",
         );
+        const identifiers = codeIdentifiers(tree);
         return {
           metadata,
           search: {
@@ -135,6 +163,7 @@ async function compileContent(
             ...(collection === "blog"
               ? { markdown: processor.stringify(tree) }
               : {}),
+            ...(identifiers.length > 0 ? { identifiers } : {}),
           },
         };
       };

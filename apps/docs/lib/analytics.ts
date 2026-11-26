@@ -109,10 +109,18 @@ export const analytics = {
     opened: (source: "header" | "sidebar" | "keyboard") =>
       trackEvent("search_opened", { source }),
 
-    querySubmitted: (query: string, resultsCount: number) =>
+    // `suggested_count` is how many results came from /api/search/suggest. A
+    // search the suggestions saved has results_count === suggested_count;
+    // search_no_results fires only when suggestions found nothing too.
+    querySubmitted: (
+      query: string,
+      resultsCount: number,
+      suggestedCount: number,
+    ) =>
       trackEvent("search_query_submitted", {
         query,
         results_count: resultsCount,
+        suggested_count: suggestedCount,
       }),
 
     resultClicked: (query: string, url: string, position: number) =>
