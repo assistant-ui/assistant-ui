@@ -12,13 +12,17 @@ const LazyFrame = lazy(() =>
 
 // No Suspense boundary, as in lib/lazy-component: hydration keeps the server
 // HTML until the chunk arrives. If the chunk fails to load, the reader still
-// gets the chart, without the tabs.
+// gets the chart, without the tabs, for the rest of the visit (React keeps a
+// lazy's failure). A chart that throws renders nothing instead of breaking
+// the page.
 export function ExampleFrame(props: ComponentProps<typeof Frame>) {
   return (
     <FallbackBoundary
       fallback={
         <div className="not-prose my-6">
-          <div className="mx-auto w-full max-w-[640px]">{props.preview}</div>
+          <div className="mx-auto w-full max-w-[640px]">
+            <FallbackBoundary fallback={null}>{props.preview}</FallbackBoundary>
+          </div>
         </div>
       }
     >

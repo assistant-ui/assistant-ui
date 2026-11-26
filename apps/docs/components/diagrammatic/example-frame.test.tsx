@@ -91,7 +91,7 @@ describe("ExampleFrame", () => {
     expect(screen.queryByText(/Couldn't load the source/)).toBeNull();
   });
 
-  it("only preloads the code chunk on hover, not the source", async () => {
+  it("does not fetch the source on hover or focus", async () => {
     const fetch = vi.fn(() => respond({ code: "", html: "" }));
     vi.stubGlobal("fetch", fetch);
 
