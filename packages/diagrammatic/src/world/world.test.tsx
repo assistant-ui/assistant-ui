@@ -81,4 +81,20 @@ describe("DotWorldMap", () => {
       fr.match(/<path/g)!.length,
     );
   });
+
+  it("keeps flow trails out of the halftone layer and its stroke", () => {
+    const html = renderToStaticMarkup(
+      <DotWorldMap
+        groups={{ a: ["US"], b: ["GB"] }}
+        flows={[{ from: "US", to: "GB" }]}
+      />,
+    );
+    const flow = html.indexOf('data-series2="GB"');
+    const before = html.slice(0, flow);
+    const open =
+      (before.match(/<g\b/g)?.length ?? 0) -
+      (before.match(/<\/g>/g)?.length ?? 0);
+    // Only the map's transform group and the flow's own group are open.
+    expect(open).toBe(2);
+  });
 });
