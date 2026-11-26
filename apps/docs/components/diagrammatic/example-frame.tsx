@@ -1,24 +1,50 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { CodeBlock } from "@/components/ui/code-block";
+import { lazy, Suspense, useState, type ReactNode } from "react";
+import { FallbackBoundary } from "@/lib/fallback-boundary";
 import { cn } from "@/lib/utils";
 import { plateSurface } from "./figure";
 
 const TABS = ["Preview", "Code"] as const;
 
+const loadCode = () => import("./example-code");
+const ExampleCode = lazy(() =>
+  loadCode().then((mod) => ({ default: mod.ExampleCode })),
+);
+
+// Pointing at the Code tab starts loading its chunk and source.
+const preload = (file: string) => {
+  loadCode().then(
+    (mod) => mod.loadExampleSource(file).catch(() => {}),
+    () => {},
+  );
+};
+
+function CodeStatus({ children }: { children: ReactNode }) {
+  return (
+    <p
+      role="tabpanel"
+      aria-live="polite"
+      className="text-muted-foreground border-border/60 rounded-lg border px-4 py-3 font-mono text-[13px]"
+    >
+      {children}
+    </p>
+  );
+}
+
+// The Code tab's source and highlighted HTML load when the reader opens it
+// (see app/api/diagrammatic/examples), instead of riding along in the page:
+// a page of examples carried each sample twice, up to 32 KB per example.
 export function ExampleFrame({
   preview,
-  code,
-  codeHtml,
   file,
 }: {
   preview: ReactNode;
-  code: string;
-  codeHtml: string;
   file: string;
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Preview");
+  // Counts opens of the Code tab, so an open after a failed load retries.
+  const [codeOpens, setCodeOpens] = useState(0);
 
   return (
     <div className="not-prose my-6">
@@ -32,7 +58,16 @@ export function ExampleFrame({
             type="button"
             role="tab"
             aria-selected={tab === entry}
-            onClick={() => setTab(entry)}
+            onClick={() => {
+              if (entry === "Code" && tab !== "Code") {
+                setCodeOpens((n) => n + 1);
+              }
+              setTab(entry);
+            }}
+            {...(entry === "Code" && {
+              onPointerEnter: () => preload(file),
+              onFocus: () => preload(file),
+            })}
             className={cn(
               "text-muted-foreground h-7 rounded-sm px-2.5 transition-colors motion-reduce:transition-none",
               tab === entry
@@ -55,15 +90,17 @@ export function ExampleFrame({
         <div className="mx-auto w-full max-w-[640px]">{preview}</div>
       </div>
       {tab === "Code" && (
-        <CodeBlock
-          role="tabpanel"
-          className="my-0"
-          title={`${file}.tsx`}
-          copyText={code}
-          viewportClassName="max-h-[32rem] overflow-y-auto"
+        <FallbackBoundary
+          fallback={
+            <CodeStatus>
+              Couldn&apos;t load the source. Open the Code tab again to retry.
+            </CodeStatus>
+          }
         >
-          <div dangerouslySetInnerHTML={{ __html: codeHtml }} />
-        </CodeBlock>
+          <Suspense fallback={<CodeStatus>Loading source…</CodeStatus>}>
+            <ExampleCode file={file} attempt={codeOpens} />
+          </Suspense>
+        </FallbackBoundary>
       )}
     </div>
   );

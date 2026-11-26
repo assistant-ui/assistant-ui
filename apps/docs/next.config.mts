@@ -190,6 +190,9 @@ const config: NextConfig = {
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
     "/[site]/docs/[[...slug]]": ["./components/diagrammatic/examples/**/*.tsx"],
+    "/api/diagrammatic/examples/[...file]": [
+      "./components/diagrammatic/examples/**/*.tsx",
+    ],
     "/elements/[slug]": [
       "./components/demo/elements/*.tsx",
       "../../packages/ui/src/components/react/assistant-ui/elements/*.tsx",
