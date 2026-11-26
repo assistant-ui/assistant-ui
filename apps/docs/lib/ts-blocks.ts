@@ -448,7 +448,7 @@ const SECTION_PACKAGES: [RegExp, string][] = [
 
 const NATIVE_PAGES = /\/react-native\/|\/examples\/expo\.mdx$/;
 
-const UNRESOLVED = /TS(2304|2552|18004) [^']*'([^']+)'/;
+const UNRESOLVED = /TS(2304|2552|2503|18004) [^']*'([^']+)'/;
 
 type Prepared = {
   block: TsBlock;

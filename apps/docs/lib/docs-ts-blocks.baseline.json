@@ -13,12 +13,7 @@
   ],
   "apps/docs/content/docs/(reference)/api-reference/external-store/message-conversion.mdx": [
     "TS2304 const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callbac",
-    "TS2304 const unstable_createExternalMessageConversionCache: () => ExternalMessageConversionCache;",
-    "TS2503 const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callbac",
-    "TS2503 const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callbac",
-    "TS2503 const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThr",
-    "TS2503 const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThr",
-    "TS2503 const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThr"
+    "TS2304 const unstable_createExternalMessageConversionCache: () => ExternalMessageConversionCache;"
   ],
   "apps/docs/content/docs/(reference)/api-reference/generative-ui/actions.mdx": [
     "TS2304 const emptyActionRegistry: ActionRegistry;",
