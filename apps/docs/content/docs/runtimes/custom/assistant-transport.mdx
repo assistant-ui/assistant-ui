@@ -595,9 +595,8 @@ for command in request.commands:
             parent = next(
                 i for i, m in enumerate(messages) if m.get("id") == command.parentId
             )
-            while len(messages) > parent + 1:
-                messages.pop()
-        messages.append(command.message.model_dump())
+            controller.state["messages"] = list(messages)[: parent + 1]
+        controller.state["messages"].append(command.message.model_dump())
 ```
 
 ## Resuming from a sync server
