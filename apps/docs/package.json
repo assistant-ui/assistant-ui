@@ -15,6 +15,7 @@
     "generate:api-reference": "tsx ./scripts/generate-api-reference.mts",
     "generate:agent-skills": "tsx ./scripts/generate-agent-skills.mts",
     "generate:source-snapshot": "tsx ./scripts/generate-source-snapshot.mts",
+    "generate:section-indexes": "tsx ./scripts/generate-section-indexes.mts",
     "verify:repo-source-traces": "tsx ./scripts/check-repo-source-traces.mts",
     "check:bundle-budget": "tsx ./scripts/check-bundle-budget.mts",
     "start": "next start",
