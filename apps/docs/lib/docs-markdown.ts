@@ -1,6 +1,6 @@
+import { sha256 } from "./sha256";
 import { getLLMText, type LLMRenderContext } from "@/lib/get-llm-text";
 import { source } from "@/lib/source";
-import { sha256 } from "./sha256";
 import { notFound } from "next/navigation";
 
 export async function getDocsMarkdown(
