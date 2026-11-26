@@ -75,6 +75,8 @@
         "$TURBO_ROOT$/templates/nuxt/server/api/**/*.ts",
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
+        "$TURBO_ROOT$/examples/recipe-*/app/**/*.{ts,tsx}",
+        "$TURBO_ROOT$/examples/recipe-*/lib/**/*.ts",
         "$TURBO_ROOT$/README.md",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
@@ -90,6 +92,8 @@
         "$TURBO_ROOT$/templates/nuxt/server/api/**/*.ts",
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
+        "$TURBO_ROOT$/examples/recipe-*/app/**/*.{ts,tsx}",
+        "$TURBO_ROOT$/examples/recipe-*/lib/**/*.ts",
         "$TURBO_ROOT$/README.md",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],

@@ -165,6 +165,24 @@ describe("tool approval recipe", () => {
     ).rejects.toThrow();
   });
 
+  it("refuses an approved call the server never requested", async () => {
+    const invented: UIMessage = {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-refundOrder",
+          toolCallId: "call_9",
+          state: "approval-responded",
+          input: { orderId: "A-1002", reason: "arrived broken" },
+          approval: { id: "approval_9", approved: true },
+        },
+      ],
+    };
+
+    await expect(chat([userMessage, invented], invented)).rejects.toThrow();
+  });
+
   it("refuses cross-origin requests", async () => {
     const response = await POST(
       new Request("http://localhost/api/chat", {

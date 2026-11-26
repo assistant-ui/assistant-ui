@@ -14,7 +14,7 @@ cp examples/recipe-tool-approval/.env.example examples/recipe-tool-approval/.env
 pnpm --filter recipe-tool-approval dev
 ```
 
-Ask it to refund order `A-1001`. The refund card waits for Approve or Deny.
+Ask it to refund order `A-1001`. The refund card waits for Allow or Deny.
 
 ## Test it
 
