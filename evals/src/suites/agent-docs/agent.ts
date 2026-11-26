@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   rmSync,
   openSync,
+  readFileSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -280,8 +281,21 @@ export async function runAgent(opts: {
   );
   let timedOut = false;
   const deadline = started + opts.timeoutMs;
+  // `claude -p` stays up while background tasks it started still run, and wakes for each one that ends,
+  // so once the agent has answered it gets a short grace period and is then stopped.
+  let answeredAt: number | undefined;
   while (!exited) {
     for (const pid of descendants(child.pid!)) seen.add(pid);
+    if (
+      answeredAt === undefined &&
+      readFileSync(transcript, "utf8").includes('"type":"result"')
+    ) {
+      answeredAt = Date.now();
+    }
+    if (answeredAt !== undefined && Date.now() > answeredAt + 30_000) {
+      kill(child.pid!);
+      break;
+    }
     if (Date.now() > deadline) {
       timedOut = true;
       kill(child.pid!);
