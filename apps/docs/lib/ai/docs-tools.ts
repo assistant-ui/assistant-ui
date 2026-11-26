@@ -249,13 +249,10 @@ export function resolveDocPage(slugs: string[]) {
 
 // The catalog page's own Installation section, which an element's MDX guide does not repeat.
 function installSection(element: FlatElement): string {
-  return [
-    "## Installation",
-    "",
-    "```bash",
-    `npx shadcn@latest add "@assistant-ui/${elementRegistryName(element)}"`,
-    "```",
-  ].join("\n");
+  const command = element.generative
+    ? "npm install @assistant-ui/generative-ui zod"
+    : `npx shadcn@latest add "@assistant-ui/${elementRegistryName(element)}"`;
+  return ["## Installation", "", "```bash", command, "```"].join("\n");
 }
 
 // What the element's catalog page shows: install command, usage, props, or the generative spec.

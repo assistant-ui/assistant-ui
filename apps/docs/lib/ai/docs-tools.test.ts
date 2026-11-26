@@ -278,6 +278,8 @@ describe("readDoc", () => {
   it("gives a generative element its render snippet and spec", async () => {
     const result = await read("elements/generative-card");
     const content = "content" in result ? result.content : "";
+    expect(content).toContain("npm install @assistant-ui/generative-ui zod");
+    expect(content).not.toContain("shadcn");
     expect(content).toContain("renderGenerativeUI(spec, library");
     expect(content).toContain('"type": "Card"');
   });
