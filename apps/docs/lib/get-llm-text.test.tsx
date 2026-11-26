@@ -129,6 +129,22 @@ describe("agent markdown keeps what the page shows", () => {
     );
     expect(markdown).not.toContain("#45a049");
   });
+
+  it("keeps a file tree as a nested list", async () => {
+    const Files = clientReference("fumadocs/files.tsx#Files");
+    const Folder = clientReference("fumadocs/files.tsx#Folder");
+    const File = clientReference("fumadocs/files.tsx#File");
+    const markdown = await render(() => (
+      <Files>
+        <Folder name="app" defaultOpen>
+          <File name="page.tsx" />
+        </Folder>
+        <File name="package.json" />
+      </Files>
+    ));
+
+    expect(markdown).toContain("- `app/`\n  - `page.tsx`\n- `package.json`");
+  });
 });
 
 describe("findAgentMarkdownProblems", () => {

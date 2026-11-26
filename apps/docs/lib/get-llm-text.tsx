@@ -167,6 +167,22 @@ const CLIENT_LLM_VARIANTS: Record<
   },
   ContextLevel: ({ color }, children) =>
     typeof color === "string" ? <>{children}</> : undefined,
+  // fumadocs file trees: one nested list, folders ending in `/`.
+  Files: (_props, children) =>
+    isEmptyNode(children) ? undefined : <ul>{children}</ul>,
+  Folder: ({ name }, children) =>
+    typeof name === "string" ? (
+      <li>
+        <code>{`${name}/`}</code>
+        {isEmptyNode(children) ? null : <ul>{children}</ul>}
+      </li>
+    ) : undefined,
+  File: ({ name }) =>
+    typeof name === "string" ? (
+      <li>
+        <code>{name}</code>
+      </li>
+    ) : undefined,
 };
 
 // Props a demo carries only to describe itself in agent markdown.
