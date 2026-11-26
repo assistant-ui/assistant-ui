@@ -1,10 +1,11 @@
 /*
- * The block's own styles. Menus and popovers render in the body, outside the
- * block's root element, so the theme is set on the page that holds the block.
+ * The look every demo on the chat shell shares. Menus and popovers render in
+ * the body, outside the shell's root element, so the theme is set on the page
+ * that holds the shell.
  */
 
 /* Theme: shadcn/ui neutral. */
-:root:has(.images-block) {
+:root:has(.chat-shell) {
   --radius: 14px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -33,7 +34,7 @@
   --float-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
-:root.dark:has(.images-block) {
+:root.dark:has(.chat-shell) {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -58,32 +59,32 @@
 }
 
 /* Medium text is a little lighter than the default 500. */
-:root:has(.images-block) {
+:root:has(.chat-shell) {
   --font-weight-medium: 430;
   --font-weight-normal: 400;
 }
 
 /*
- * Fonts: Geist and Geist Mono, loaded in layout.tsx, which also sets
+ * Fonts: Geist and Geist Mono, loaded in chat-sidebar.tsx, which also sets
  * `--font-sans` and `--font-mono` on the page because menus and tooltips
- * render in the body, outside the block's root element.
+ * render in the body, outside the shell's root element.
  */
-:root:has(.images-block),
-body:has(.images-block) {
+:root:has(.chat-shell),
+body:has(.chat-shell) {
   /* The docs site's `font-sans` and `font-mono` classes read these names. */
   --font-public-sans: var(--font-sans);
   --font-jetbrains-mono: var(--font-mono);
   --font-geist-sans: var(--font-sans);
 }
 
-body:has(.images-block) {
+body:has(.chat-shell) {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Anything that can be clicked shows the hand. */
-:root:has(.images-block)
+:root:has(.chat-shell)
   :where(button, [role="button"], [role="menuitem"], a[href]):not(
     :disabled,
     [aria-disabled="true"],
@@ -92,6 +93,6 @@ body:has(.images-block) {
   cursor: pointer;
 }
 
-.images-block {
+.chat-shell {
   height: 100%;
 }

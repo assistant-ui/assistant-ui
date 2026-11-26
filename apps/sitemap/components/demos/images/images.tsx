@@ -39,13 +39,10 @@ import {
   Image01Icon,
   ChartLineData01Icon,
   Delete01Icon,
-  UnfoldMoreIcon,
   ArrowDown02Icon,
   Mic01Icon,
   MicOff01Icon,
   RefreshIcon,
-  Search01Icon,
-  TimeQuarterPassIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import {
@@ -67,7 +64,6 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   SimpleImageAttachmentAdapter,
-  ThreadListPrimitive,
   ThreadPrimitive,
   WebSpeechDictationAdapter,
   type ThreadMessage,
@@ -106,20 +102,13 @@ import {
 import { Image } from "@/components/assistant-ui/elements/image";
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
 import {
+  ChatHeader,
   ChatList,
   ChatSidebar,
-  ChatSidebarTrigger,
-  HistoryNav,
-  useChatFrame,
+  SidebarUser,
+  SidebarUserItem,
+  SidebarUserSeparator,
 } from "@/app/(blocks)/blocks/demos/chat-sidebar";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import data from "./data.json";
 
 /** A model the picker lists: its `provider/id`, name, and provider. */
@@ -2125,44 +2114,21 @@ function User() {
 
   return (
     <>
-      <Menu>
-        <MenuTrigger
-          className={cn(
-            "hover:bg-accent data-popup-open:bg-accent flex h-11 w-full items-center gap-2.5 px-2 text-start transition-colors motion-reduce:transition-none",
-            rItem,
-            focusRing,
-          )}
-        >
-          <img
-            src="/blocks/avatars/you.svg"
-            alt=""
-            className="size-7 shrink-0 rounded-full"
-          />
-          <span className="flex min-w-0 flex-1 flex-col leading-4">
-            <span className="truncate font-medium">You</span>
-            <span className="text-muted-foreground truncate text-xs">
-              {made.length === 1
-                ? "1 picture"
-                : `${count(made.length)} pictures`}
-            </span>
-          </span>
-          <Icon
-            icon={UnfoldMoreIcon}
-            className="text-muted-foreground size-4 shrink-0"
-          />
-        </MenuTrigger>
-        <MenuPopup side="top" className="w-(--anchor-width)">
-          <MenuItem onClick={() => setUsageOpen(true)}>
-            <Icon icon={ChartLineData01Icon} />
-            Usage
-          </MenuItem>
-          <MenuSeparator />
-          <MenuItem disabled={made.length === 0} onClick={clearMade}>
-            <Icon icon={Delete01Icon} />
-            Clear my images
-          </MenuItem>
-        </MenuPopup>
-      </Menu>
+      <SidebarUser
+        detail={
+          made.length === 1 ? "1 picture" : `${count(made.length)} pictures`
+        }
+      >
+        <SidebarUserItem onClick={() => setUsageOpen(true)}>
+          <Icon icon={ChartLineData01Icon} />
+          Usage
+        </SidebarUserItem>
+        <SidebarUserSeparator />
+        <SidebarUserItem disabled={made.length === 0} onClick={clearMade}>
+          <Icon icon={Delete01Icon} />
+          Clear my images
+        </SidebarUserItem>
+      </SidebarUser>
       <Dialog open={usageOpen} onOpenChange={setUsageOpen}>
         <DialogContent className="max-w-sm sm:max-w-sm">
           <DialogHeader>
@@ -2313,188 +2279,12 @@ export function Images() {
           footer={<User />}
         >
           <EditorFrame>
-            <Header />
+            <ChatHeader newLabel="New image" searchLabel="Search images" />
             <Thread />
           </EditorFrame>
         </ChatSidebar>
       </OptionsProvider>
     </AssistantRuntimeProvider>
-  );
-}
-
-/**
- * The page's header. While the sidebar is not on screen (folded away, or on a
- * phone, which has none) it takes over the sidebar's Back and Forward, its
- * search, and its list of chats.
- */
-function Header() {
-  const title = useAuiState((s) => s.threadListItem.title);
-  const empty = useAuiState((s) => s.thread.isEmpty);
-  const { shown, history } = useChatFrame();
-
-  return (
-    <header className="flex h-12 shrink-0 items-center gap-0.5 px-3">
-      <ChatSidebarTrigger />
-      {!shown && <HistoryNav {...history} />}
-      <p className="min-w-0 flex-1 truncate px-1.5 font-medium">
-        {empty ? "" : title || "New image"}
-      </p>
-      <SearchCommand button={!shown} />
-      {!shown && <HistoryMenu />}
-      <Tip label="New image">
-        <ThreadListPrimitive.New className={iconButton}>
-          <Icon icon={Add01Icon} />
-        </ThreadListPrimitive.New>
-      </Tip>
-    </header>
-  );
-}
-
-/** The chats the sidebar lists, in its order: not the one not yet started, not the archived. */
-function useChats() {
-  const items = useAuiState((s) => s.threads.threadItems);
-  const ids = useAuiState((s) => s.threads.threadIds);
-  return useMemo(
-    () => ids.flatMap((id) => items.filter((item) => item.id === id)),
-    [items, ids],
-  );
-}
-
-/* Each chat is found by its name; its id only keeps two chats of one name apart. */
-const byName = (_value: string, search: string, keywords?: string[]) =>
-  (keywords ?? []).some((name) =>
-    name.toLowerCase().includes(search.trim().toLowerCase()),
-  )
-    ? 1
-    : 0;
-
-/** Finds a chat by its name, from the header's button or Cmd+K / Ctrl+K. */
-function SearchCommand({ button }: { button: boolean }) {
-  const aui = useAui();
-  const chats = useChats();
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
-        return;
-      if (event.key?.toLowerCase() !== "k") return;
-      // Caught on the way down, so the site's own Cmd+K search does not open behind this one.
-      event.preventDefault();
-      event.stopPropagation();
-      setOpen((wasOpen) => !wasOpen);
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, []);
-
-  const run = (action: () => void) => {
-    setOpen(false);
-    action();
-  };
-
-  return (
-    <>
-      {button && (
-        <Tip label="Search images">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-keyshortcuts="Meta+K Control+K"
-            className={iconButton}
-          >
-            <Icon icon={Search01Icon} />
-          </button>
-        </Tip>
-      )}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className={cn("gap-0 overflow-hidden p-0 sm:max-w-md", rSurface)}
-        >
-          <DialogHeader className="sr-only">
-            <DialogTitle>Search images</DialogTitle>
-            <DialogDescription>
-              Find a chat by its name, or start a new image.
-            </DialogDescription>
-          </DialogHeader>
-          <Command filter={byName} className="rounded-none bg-transparent">
-            <CommandInput placeholder="Search images" />
-            <CommandList className="p-1">
-              <CommandEmpty>No images match.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value="new"
-                  keywords={["New image"]}
-                  onSelect={() =>
-                    run(() => void aui.threads().switchToNewThread())
-                  }
-                >
-                  <Icon icon={Add01Icon} />
-                  New image
-                </CommandItem>
-              </CommandGroup>
-              {chats.length > 0 && (
-                <CommandGroup heading="Recent">
-                  {chats.map((chat) => (
-                    <CommandItem
-                      key={chat.id}
-                      value={chat.id}
-                      keywords={[chat.title || "New image"]}
-                      onSelect={() =>
-                        run(() => aui.threads().switchToThread(chat.id))
-                      }
-                    >
-                      <span className="truncate">
-                        {chat.title || "New image"}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-/** The chats as a menu, newest first, with the open one checked. */
-function HistoryMenu() {
-  const aui = useAui();
-  const chats = useChats();
-  const current = useAuiState((s) => s.threads.mainThreadId);
-
-  return (
-    <Menu>
-      <Tip label="History">
-        <MenuTrigger className={iconButton}>
-          <Icon icon={TimeQuarterPassIcon} />
-        </MenuTrigger>
-      </Tip>
-      <MenuPopup align="end" className="max-h-80 w-64 overflow-y-auto">
-        {chats.length === 0 ? (
-          <MenuLabel>No images yet</MenuLabel>
-        ) : (
-          <>
-            <MenuLabel>Recent</MenuLabel>
-            <MenuRadioGroup
-              value={current}
-              onValueChange={(id: string) => aui.threads().switchToThread(id)}
-            >
-              {chats.map((chat) => (
-                <MenuChoice key={chat.id} value={chat.id} closeOnClick>
-                  <span className="min-w-0 flex-1 truncate">
-                    {chat.title || "New image"}
-                  </span>
-                </MenuChoice>
-              ))}
-            </MenuRadioGroup>
-          </>
-        )}
-      </MenuPopup>
-    </Menu>
   );
 }
 

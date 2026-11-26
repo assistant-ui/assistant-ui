@@ -1,0 +1,89 @@
+{
+  "welcome": {
+    "title": "What can I help with?",
+    "note": "Replies here come from a script, not a model.",
+    "suggestions": [
+      {
+        "title": "Plan a weekend",
+        "label": "in Lisbon",
+        "prompt": "Plan a weekend in Lisbon."
+      },
+      {
+        "title": "Write a haiku",
+        "label": "about the first rain",
+        "prompt": "Write a haiku about the first rain."
+      },
+      {
+        "title": "Explain streaming",
+        "label": "in a chat interface",
+        "prompt": "How does streaming work in a chat interface?"
+      },
+      {
+        "title": "Debug an effect",
+        "label": "that runs twice",
+        "prompt": "Why does my useEffect run twice?"
+      }
+    ]
+  },
+  "replies": [
+    {
+      "match": "lisbon|weekend|trip|travel",
+      "thinking": "Two days, so one side of the river each day, and a slow evening in between.",
+      "answer": "Here is a weekend that keeps the walking reasonable.\n\n### Saturday\n\n- **Morning:** Alfama. Start at the Miradouro de Santa Luzia and wander down through the lanes.\n- **Lunch:** grilled sardines anywhere with a chalkboard menu.\n- **Afternoon:** Belém, for the tower, the monastery, and a pastel de nata still warm.\n- **Evening:** dinner in Bairro Alto, then a fado house.\n\n### Sunday\n\n- **Morning:** a day trip to Sintra, leaving early to beat the queues at Pena Palace.\n- **Evening:** back in town for sunset at the Miradouro da Senhora do Monte.\n\nTram 28 links most of the old town, but it fills up fast, so ride it early.",
+      "followUps": [
+        "Where should I stay?",
+        "Write a haiku about the first rain."
+      ]
+    },
+    {
+      "match": "stay|hotel|neighbou?rhood",
+      "thinking": "Where to sleep depends on how much hill they want at the end of the day.",
+      "answer": "- **Baixa or Chiado** if you want flat streets and everything close.\n- **Alfama** for character, with steep stairs to match.\n- **Príncipe Real** for quieter evenings and good restaurants.",
+      "followUps": [
+        "Plan a weekend in Lisbon.",
+        "How does streaming work in a chat interface?"
+      ]
+    },
+    {
+      "match": "haiku|poem",
+      "thinking": "Five, seven, five. Something small and wet.",
+      "answer": "First rain on the street,\nthe dust lets go of the day.\nEvery window shines.",
+      "followUps": ["Write another one.", "Plan a weekend in Lisbon."]
+    },
+    {
+      "match": "another",
+      "thinking": "Keep the same season, change the place.",
+      "answer": "A puddle, the sky\nheld still for a passing bus.\nThen it breaks again.",
+      "followUps": ["Why does my useEffect run twice?"]
+    },
+    {
+      "match": "stream",
+      "thinking": "Explain it from what the reader sees: the words arriving, then why.",
+      "answer": "A streamed reply arrives in pieces while the model is still writing it, so the interface can show words as they come instead of waiting for the end.\n\n1. The client sends the conversation to a route.\n2. The route asks the model and forwards each piece as soon as it arrives.\n3. The client adds each piece to the message on screen.\n\nIn assistant-ui the runtime does step 3: a `ChatModelAdapter` yields the reply so far, and the thread redraws the message each time.\n\n```ts\nasync *run({ messages }) {\n  let text = \"\";\n  for await (const piece of model.stream(messages)) {\n    text += piece;\n    yield { content: [{ type: \"text\", text }] };\n  }\n}\n```",
+      "followUps": ["Why does my useEffect run twice?", "What can you do?"]
+    },
+    {
+      "match": "useeffect|effect|react|twice",
+      "thinking": "Twice, and only in development, points at Strict Mode.",
+      "answer": "In development, React's **Strict Mode** mounts every component, unmounts it, and mounts it again, so each effect runs, cleans up, and runs a second time. It does this to show effects that forget to clean up after themselves.\n\nIt does not happen in a production build. The fix is usually a cleanup function, not removing Strict Mode:\n\n```tsx\nuseEffect(() => {\n  const controller = new AbortController();\n  fetch(url, { signal: controller.signal });\n  return () => controller.abort();\n}, [url]);\n```",
+      "followUps": [
+        "How does streaming work in a chat interface?",
+        "What can you do?"
+      ]
+    },
+    {
+      "match": "what can you do|help|^(hi|hello|hey)\\b",
+      "thinking": "Say what this chat really is before anything else.",
+      "answer": "This chat runs on a script, so it can answer a handful of questions: plans for a weekend in Lisbon, a haiku, how streaming works, and why an effect runs twice.\n\nEverything around the replies is real assistant-ui: the chats in the sidebar, search with **Cmd+K**, editing a message, trying a reply again and switching between the versions, attachments, and dictation.",
+      "followUps": [
+        "Plan a weekend in Lisbon.",
+        "Write a haiku about the first rain."
+      ]
+    }
+  ],
+  "fallback": {
+    "thinking": "Nothing in the script matches this one.",
+    "answer": "This chat runs on a script, so it has no reply for that. Try one of the questions below, or ask what it can do.",
+    "followUps": ["What can you do?", "Plan a weekend in Lisbon."]
+  }
+}

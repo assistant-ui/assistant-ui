@@ -2,8 +2,6 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
-import GeminiPage from "@/components/demos/gemini/page";
-import SearchEnginePage from "@/components/demos/search-engine/page";
 import {
   CatalogBrowser,
   type CatalogDemo,
@@ -19,7 +17,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Demos",
   description:
-    "Chat apps and blocks built on assistant-ui, each a folder of a few files with a live preview.",
+    "Blocks built on assistant-ui, each a folder of a few files with a live preview.",
 };
 
 /**
@@ -75,24 +73,16 @@ function CatalogHeader() {
     <header className="mb-10 max-w-2xl md:mb-12">
       <h1 className={typePage}>Every demo, in one place.</h1>
       <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-        Clones and blocks that run on this site. Try each one in place, and read
-        its files.
+        Blocks that run on this site. Try each one in place, and read its files.
       </p>
     </header>
   );
 }
 
-/** Scripted demos point here: a ChatModelAdapter is what replaces the script. */
-const SWAP_THE_SCRIPT = {
-  href: "/docs/runtimes/custom/local-runtime",
-  label: "Swap the script for a model",
-};
-
 export default async function DemosPage() {
-  const [images, searchEngine, gemini] = await Promise.all([
+  const [images, chat] = await Promise.all([
     readFolder("images"),
-    readFolder("search-engine"),
-    readFolder("gemini"),
+    readFolder("chat"),
   ]);
 
   const catalog: CatalogDemo[] = [
@@ -116,26 +106,25 @@ export default async function DemosPage() {
       full: "/blocks/demos/images",
     },
     {
-      id: "search-engine",
-      title: "Search engine",
-      kind: "Clone",
-      tags: ["Suggestions", "Attachments", "Slash commands"],
+      id: "chat",
+      title: "Chat",
+      kind: "Block",
+      tags: ["Thread list", "Branching", "Attachments"],
       description:
-        "A Google-style search page for assistant-ui whose answers open as a thread, on a script.",
-      preview: <SearchEnginePage />,
-      files: searchEngine,
-      docs: SWAP_THE_SCRIPT,
-    },
-    {
-      id: "gemini",
-      title: "Gemini",
-      kind: "Clone",
-      tags: ["Thread list", "Attachments", "Editing"],
-      description:
-        "A Gemini look and feel, rebuilt on assistant-ui, on a script.",
-      preview: <GeminiPage />,
-      files: gemini,
-      docs: SWAP_THE_SCRIPT,
+        "A chat with its chats in a sidebar, replies that think first, and every version of a retried or edited message, on a script.",
+      preview: (
+        <LiveFrame
+          src="/blocks/demos/chat"
+          title="Chat"
+          className="size-full rounded-none border-0"
+        />
+      ),
+      files: chat,
+      docs: {
+        href: "/docs/runtimes/custom/local-runtime",
+        label: "Swap the script for a model",
+      },
+      full: "/blocks/demos/chat",
     },
   ];
 

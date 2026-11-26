@@ -6,7 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- `/demos` lists only Images, Search engine, and Gemini for now (ellie, 2026-11-25). The other demos' files are still here (`thread.tsx`, `streaming-text.tsx`, the ChatGPT, Claude, Grok, and Perplexity clones, `clone.preview.tsx`, `script.ts`, `lib/scripted-demos.ts`); each comes back as a folder in the new shape. Still to add later: the runnable `/examples` (Modal, Form Filling Co-Pilot, AI SDK, Artifacts, Generative UI, Article Assistant).
+- `/demos` lists Images and Chat for now (ellie, 2026-11-25). Search engine and Gemini are already folders in the new shape (`components/demos/search-engine/`, `components/demos/gemini/`) and go back on the page by adding their entries to `app/(home)/demos/page.tsx`. The other demos' files are still here (`thread.tsx`, `streaming-text.tsx`, the ChatGPT, Claude, Grok, and Perplexity clones, `clone.preview.tsx`, `script.ts`, `lib/scripted-demos.ts`); each comes back as a folder in the new shape. Still to add later: the runnable `/examples` (Modal, Form Filling Co-Pilot, AI SDK, Artifacts, Generative UI, Article Assistant).
 - `/tw-shimmer`: the hero title no longer shimmers (the docs' does), and "> thinking" became "Thinking"; confirm or revert.
 - `/safe-content-frame`: the demo frame's colors are fixed at tint 106, so the token sheet's tint does not reach them.
 - Icons for Codemaker and Neovate in `components/library/agent-icons.tsx`; the Skills page shows their first letter until there is a source for them.
@@ -945,3 +945,31 @@ Files:
 - `app/(blocks)/blocks/demos/chat-sidebar.tsx` (copied, then `useChatFrame` added).
 
 When folding back: the sidebar change is additive, so Chat basic and Tasks keep working; they could take the same header the same way.
+
+## /demos shows Images only (2026-11-25)
+
+ellie: "don't delete Gemini and search engine, but remove them from the demos." Their entries are gone from `/demos`; their folders stay, unchanged. The page's intro line and description now speak of blocks only.
+
+Files:
+
+- `app/(home)/demos/page.tsx`.
+
+When folding back: nothing to add.
+
+## A shared chat shell, and a Chat demo on it (2026-11-25)
+
+ellie asked for a Chat demo with "the same layout as images.tsx. With the sidebar, the same nav user. Except it'll be new chat", a thread "styled more nicely" like Images, and left to me whether to make the layout a reusable shell. I recommended one shell, since Images' stylesheet was the docs Chat basic block's theme word for word and its layout only loaded fonts; ellie approved.
+
+- **The shell**, `app/(blocks)/blocks/demos/chat-sidebar.tsx`: besides the sidebar, it now carries the look (the theme in a new `chat-sidebar.css` beside it, scoped to `.chat-shell`, and Geist and Geist Mono set on the page, because menus render in the body), `ChatHeader` (the header Images had: Back and Forward, the Cmd+K search command, and the History menu while the sidebar is away, then New), `useChats`, and `SidebarUser` with `SidebarUserItem` and `SidebarUserSeparator`, the user row at the foot of the sidebar with each demo's own menu items. A demo passes its words ("New chat", "Search chats").
+- **Images** moved onto it: its header, search command, history menu, user row, `layout.tsx`, and `images.css` are gone, so the folder is `images.tsx`, `page.tsx`, and `data.json`, and the route keeps only `page.tsx`. Its user menu keeps Usage and Clear my images.
+- **Chat** (`components/demos/chat/`: `chat.tsx`, `page.tsx`, `data.json`), at `/blocks/demos/chat` and framed on `/demos` after Images. Its thread takes the Images message box and the docs Chat basic block's thread, trimmed to a thread: a welcome with four suggestions and a line saying the replies are scripted, replies that think first (a "Thinking" line that folds to "Thought it through" and opens on a click) and then write formatted text, Copy and Try again, Edit on a sent message, arrows between versions, follow-up suggestions, files attached in a strip above the message box, and dictation where the browser has it. The replies, their thinking, and their follow-ups are in `data.json`; anything else gets a reply that says it is scripted. Chats are named from their first message, as in Chat basic (`InMemoryThreadListAdapter` with `generateTitle`, under `useRemoteThreadListRuntime`). Its user menu has Keyboard shortcuts (a dialog) and Delete all chats. It needs nothing from the docs server.
+- `public/blocks/avatars/you.svg` copied from the docs, so the user row's picture does not need the docs server either.
+
+Files:
+
+- `app/(blocks)/blocks/demos/chat-sidebar.tsx`, `chat-sidebar.css` (new), `chat/page.tsx` (new); `images/layout.tsx` removed.
+- `components/demos/chat/` (new), `components/demos/images/images.tsx`; `images/layout.tsx` and `images/images.css` removed.
+- `app/(home)/demos/page.tsx`, `public/blocks/avatars/you.svg`.
+
+When folding back: the docs blocks each carry their own copy of this theme and their own header; moving them onto the shell is one change for all of them at once. The avatar already lives in the docs public folder.
+

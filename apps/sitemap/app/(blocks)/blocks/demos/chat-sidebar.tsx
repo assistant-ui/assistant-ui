@@ -30,10 +30,30 @@ import {
   MoreHorizontalIcon,
   Search01Icon,
   SidebarLeftIcon,
+  Tick02Icon,
+  TimeQuarterPassIcon,
   Unarchive03Icon,
+  UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { Menu as MenuPrimitive } from "@base-ui/react/menu";
+import { Geist, Geist_Mono } from "next/font/google";
 import { usePanelRef, type Layout } from "react-resizable-panels";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -47,6 +67,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import "./chat-sidebar.css";
 
 /* -------------------------------------------------------------------------- */
 /* Styles, on the scale of the block's own `block.css`                        */
@@ -109,6 +130,30 @@ const menuItem =
 
 const menuItemDestructive =
   "text-destructive data-highlighted:bg-destructive/5 data-highlighted:text-destructive";
+
+/* A solid menu, since some open over pictures, with 28px rows. */
+const popup =
+  "bg-popover text-popover-foreground border-border/60 z-50 flex min-w-40 origin-(--transform-origin) flex-col rounded-(--radius) border p-1 text-[0.8125rem] leading-[1.125rem] shadow-(--float-shadow) outline-none transition-[opacity,scale] duration-150 data-ending-style:scale-[0.96] data-ending-style:opacity-0 data-starting-style:scale-[0.96] data-starting-style:opacity-0 motion-reduce:transition-none";
+
+const popupItem =
+  "data-highlighted:bg-accent data-highlighted:text-accent-foreground relative flex min-h-7 shrink-0 items-center gap-2 rounded-[calc(var(--radius)-4px)] px-2 py-1 outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 pointer-coarse:min-h-9 [&_svg]:size-3.5 [&_svg]:shrink-0";
+
+/* -------------------------------------------------------------------------- */
+/* The look: the theme in chat-sidebar.css, and Geist for every demo on it     */
+/* -------------------------------------------------------------------------- */
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
+
+/* Menus and tooltips render in the body, so the fonts are set on the page too. */
+const pageFonts = `:root:has(.chat-shell), body:has(.chat-shell) {
+  --font-sans: ${geist.style.fontFamily}, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ${geistMono.style.fontFamily}, ui-monospace, SFMono-Regular, Menlo, monospace;
+}`;
 
 /* -------------------------------------------------------------------------- */
 /* ChatSidebar: the sidebar, and the page beside it                           */
@@ -254,87 +299,96 @@ export function ChatSidebar({
 
   return (
     <FrameContext.Provider value={frame}>
-      <TooltipProvider delay={300}>
-        <ResizablePanelGroup
-          {...snap}
-          className="bg-background text-foreground text-sm"
-        >
-          {!isMobile && (
-            <>
-              <ResizablePanel
-                id="sidebar"
-                panelRef={sidebarRef}
-                collapsible
-                collapsedSize={0}
-                defaultSize={defaultOpen ? width : 0}
-                minSize="12rem"
-                maxSize="24rem"
-                groupResizeBehavior="preserve-pixel-size"
-                onResize={(size) => {
-                  if (size.inPixels > 0) opened.current = true;
-                  setOpen(size.inPixels > 0);
-                }}
-                style={{ overflow: "hidden" }}
-              >
-                <aside
-                  aria-label={title}
-                  inert={!open}
-                  className="flex h-full min-w-48 flex-col"
+      <div
+        className={cn(
+          "chat-shell h-full font-sans antialiased",
+          geist.variable,
+          geistMono.variable,
+        )}
+      >
+        <style>{pageFonts}</style>
+        <TooltipProvider delay={300}>
+          <ResizablePanelGroup
+            {...snap}
+            className="bg-background text-foreground text-sm"
+          >
+            {!isMobile && (
+              <>
+                <ResizablePanel
+                  id="sidebar"
+                  panelRef={sidebarRef}
+                  collapsible
+                  collapsedSize={0}
+                  defaultSize={defaultOpen ? width : 0}
+                  minSize="12rem"
+                  maxSize="24rem"
+                  groupResizeBehavior="preserve-pixel-size"
+                  onResize={(size) => {
+                    if (size.inPixels > 0) opened.current = true;
+                    setOpen(size.inPixels > 0);
+                  }}
+                  style={{ overflow: "hidden" }}
                 >
-                  <div className="flex h-12 shrink-0 items-center gap-0.5 px-2">
-                    {historyNav ??
-                      (history ? (
-                        <HistoryNav {...chatHistory} />
-                      ) : (
-                        <TitleRow title={title} search={search} />
-                      ))}
-                    <Tip label="Hide the sidebar">
-                      <button
-                        type="button"
-                        onClick={toggle}
-                        className={cn(iconButton, "ms-auto")}
-                      >
-                        <Icon icon={SidebarLeftIcon} />
-                      </button>
-                    </Tip>
-                  </div>
-                  <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-                    {(history || historyNav) &&
-                      (search ? (
-                        <div className="mb-1 flex h-8 shrink-0 items-center gap-0.5">
+                  <aside
+                    aria-label={title}
+                    inert={!open}
+                    className="flex h-full min-w-48 flex-col"
+                  >
+                    <div className="flex h-12 shrink-0 items-center gap-0.5 px-2">
+                      {historyNav ??
+                        (history ? (
+                          <HistoryNav {...chatHistory} />
+                        ) : (
                           <TitleRow title={title} search={search} />
-                        </div>
-                      ) : (
-                        <span
-                          className={cn(
-                            sidebarTitle,
-                            "mb-1 flex h-8 shrink-0 items-center",
-                          )}
+                        ))}
+                      <Tip label="Hide the sidebar">
+                        <button
+                          type="button"
+                          onClick={toggle}
+                          className={cn(iconButton, "ms-auto")}
                         >
-                          {title}
-                        </span>
-                      ))}
-                    {list}
-                  </div>
-                  {footer && <div className="shrink-0 p-2">{footer}</div>}
-                </aside>
-              </ResizablePanel>
-              <ResizableHandle
-                disabled={!open}
-                // Hidden once the sidebar has finished sliding shut.
-                className={
-                  open
-                    ? ""
-                    : "pointer-events-none invisible transition-[visibility] delay-200 motion-reduce:delay-0"
-                }
-              />
-            </>
-          )}
-          <ResizablePanel id="main" className="flex min-w-0 flex-col">
-            {children}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </TooltipProvider>
+                          <Icon icon={SidebarLeftIcon} />
+                        </button>
+                      </Tip>
+                    </div>
+                    <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
+                      {(history || historyNav) &&
+                        (search ? (
+                          <div className="mb-1 flex h-8 shrink-0 items-center gap-0.5">
+                            <TitleRow title={title} search={search} />
+                          </div>
+                        ) : (
+                          <span
+                            className={cn(
+                              sidebarTitle,
+                              "mb-1 flex h-8 shrink-0 items-center",
+                            )}
+                          >
+                            {title}
+                          </span>
+                        ))}
+                      {list}
+                    </div>
+                    {footer && <div className="shrink-0 p-2">{footer}</div>}
+                  </aside>
+                </ResizablePanel>
+                <ResizableHandle
+                  disabled={!open}
+                  // Hidden once the sidebar has finished sliding shut.
+                  className={
+                    open
+                      ? ""
+                      : "pointer-events-none invisible transition-[visibility] delay-200 motion-reduce:delay-0"
+                  }
+                />
+              </>
+            )}
+            <ResizablePanel id="main" className="flex min-w-0 flex-col">
+              {children}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </TooltipProvider>
+      </div>
     </FrameContext.Provider>
   );
 }
@@ -695,3 +749,294 @@ function ChatMenu() {
     </ThreadListItemMorePrimitive.Root>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* ChatHeader: the page's header, standing in for the sidebar while it is away */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The page's header: the chat's name and a button to start a new one. While
+ * the sidebar is not on screen (folded away, or on a phone, which has none) it
+ * also takes over the sidebar's Back and Forward, its search, and its list of
+ * chats. The search opens from Cmd+K or Ctrl+K either way.
+ */
+export function ChatHeader({
+  newLabel,
+  searchLabel,
+}: {
+  /** What a new chat is called, such as "New image". */
+  newLabel: string;
+  /** What the search is for, such as "Search images". */
+  searchLabel: string;
+}) {
+  const title = useAuiState((s) => s.threadListItem.title);
+  const empty = useAuiState((s) => s.thread.isEmpty);
+  const { shown, history } = useChatFrame();
+
+  return (
+    <header className="flex h-12 shrink-0 items-center gap-0.5 px-3">
+      <ChatSidebarTrigger />
+      {!shown && <HistoryNav {...history} />}
+      <p className="min-w-0 flex-1 truncate px-1.5 font-medium">
+        {empty ? "" : title || newLabel}
+      </p>
+      <SearchCommand button={!shown} label={searchLabel} newLabel={newLabel} />
+      {!shown && <HistoryMenu newLabel={newLabel} />}
+      <Tip label={newLabel}>
+        <ThreadListPrimitive.New className={iconButton}>
+          <Icon icon={Add01Icon} />
+        </ThreadListPrimitive.New>
+      </Tip>
+    </header>
+  );
+}
+
+/** The chats the sidebar lists, in its order: not the one not yet started, not the archived. */
+export function useChats() {
+  const items = useAuiState((s) => s.threads.threadItems);
+  const ids = useAuiState((s) => s.threads.threadIds);
+  return useMemo(
+    () => ids.flatMap((id) => items.filter((item) => item.id === id)),
+    [items, ids],
+  );
+}
+
+/* Each chat is found by its name; its id only keeps two chats of one name apart. */
+const byName = (_value: string, search: string, keywords?: string[]) =>
+  (keywords ?? []).some((name) =>
+    name.toLowerCase().includes(search.trim().toLowerCase()),
+  )
+    ? 1
+    : 0;
+
+function SearchCommand({
+  button,
+  label,
+  newLabel,
+}: {
+  button: boolean;
+  label: string;
+  newLabel: string;
+}) {
+  const aui = useAui();
+  const chats = useChats();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey)
+        return;
+      if (event.key?.toLowerCase() !== "k") return;
+      // Caught on the way down, so the site's own Cmd+K search does not open behind this one.
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen((wasOpen) => !wasOpen);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+
+  const run = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+
+  return (
+    <>
+      {button && (
+        <Tip label={label}>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-keyshortcuts="Meta+K Control+K"
+            className={iconButton}
+          >
+            <Icon icon={Search01Icon} />
+          </button>
+        </Tip>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="gap-0 overflow-hidden rounded-(--radius) p-0 sm:max-w-md"
+        >
+          <DialogHeader className="sr-only">
+            <DialogTitle>{label}</DialogTitle>
+            <DialogDescription>
+              Find a chat by its name, or start a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <Command filter={byName} className="rounded-none bg-transparent">
+            <CommandInput placeholder={label} />
+            <CommandList className="p-1">
+              <CommandEmpty>No chats match.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="new"
+                  keywords={[newLabel]}
+                  onSelect={() =>
+                    run(() => void aui.threads().switchToNewThread())
+                  }
+                >
+                  <Icon icon={Add01Icon} />
+                  {newLabel}
+                </CommandItem>
+              </CommandGroup>
+              {chats.length > 0 && (
+                <CommandGroup heading="Recent">
+                  {chats.map((chat) => (
+                    <CommandItem
+                      key={chat.id}
+                      value={chat.id}
+                      keywords={[chat.title || newLabel]}
+                      onSelect={() =>
+                        run(() => aui.threads().switchToThread(chat.id))
+                      }
+                    >
+                      <span className="truncate">{chat.title || newLabel}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** The chats as a menu, newest first, with the open one checked. */
+function HistoryMenu({ newLabel }: { newLabel: string }) {
+  const aui = useAui();
+  const chats = useChats();
+  const current = useAuiState((s) => s.threads.mainThreadId);
+
+  return (
+    <MenuPrimitive.Root>
+      <Tip label="History">
+        <MenuPrimitive.Trigger className={iconButton}>
+          <Icon icon={TimeQuarterPassIcon} />
+        </MenuPrimitive.Trigger>
+      </Tip>
+      <ShellMenuPopup align="end" className="max-h-80 w-64 overflow-y-auto">
+        {chats.length === 0 ? (
+          <p className="text-muted-foreground px-2 py-1">No chats yet</p>
+        ) : (
+          <>
+            <p className="text-muted-foreground px-2 py-1">Recent</p>
+            <MenuPrimitive.RadioGroup
+              value={current}
+              onValueChange={(id: string) => aui.threads().switchToThread(id)}
+            >
+              {chats.map((chat) => (
+                <MenuPrimitive.RadioItem
+                  key={chat.id}
+                  value={chat.id}
+                  closeOnClick
+                  className={popupItem}
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {chat.title || newLabel}
+                  </span>
+                  <MenuPrimitive.RadioItemIndicator className="ms-auto ps-3">
+                    <Icon icon={Tick02Icon} />
+                  </MenuPrimitive.RadioItemIndicator>
+                </MenuPrimitive.RadioItem>
+              ))}
+            </MenuPrimitive.RadioGroup>
+          </>
+        )}
+      </ShellMenuPopup>
+    </MenuPrimitive.Root>
+  );
+}
+
+function ShellMenuPopup({
+  side = "bottom",
+  align = "start",
+  className,
+  ...props
+}: MenuPrimitive.Popup.Props &
+  Pick<MenuPrimitive.Positioner.Props, "side" | "align">) {
+  return (
+    <MenuPrimitive.Portal>
+      <MenuPrimitive.Positioner
+        side={side}
+        align={align}
+        sideOffset={6}
+        className="z-50 outline-none"
+      >
+        <MenuPrimitive.Popup className={cn(popup, className)} {...props} />
+      </MenuPrimitive.Positioner>
+    </MenuPrimitive.Portal>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* SidebarUser: the person at the foot of the sidebar, with the demo's menu    */
+/* -------------------------------------------------------------------------- */
+
+/** The user row for the sidebar's `footer`: who is signed in, then a menu of the demo's own items. */
+export function SidebarUser({
+  detail,
+  children,
+}: {
+  /** A line under the name, such as how many pictures were made. */
+  detail: string;
+  /** The menu's items: `<SidebarUserItem>` and `<SidebarUserSeparator>`. */
+  children: ReactNode;
+}) {
+  return (
+    <MenuPrimitive.Root>
+      <MenuPrimitive.Trigger
+        className={cn(
+          "hover:bg-accent data-popup-open:bg-accent flex h-11 w-full items-center gap-2.5 px-2 text-start transition-colors motion-reduce:transition-none",
+          rItem,
+          focusRing,
+        )}
+      >
+        <img
+          src="/blocks/avatars/you.svg"
+          alt=""
+          className="size-7 shrink-0 rounded-full"
+        />
+        <span className="flex min-w-0 flex-1 flex-col leading-4">
+          <span className="truncate font-medium">You</span>
+          <span className="text-muted-foreground truncate text-xs">
+            {detail}
+          </span>
+        </span>
+        <Icon
+          icon={UnfoldMoreIcon}
+          className="text-muted-foreground size-4 shrink-0"
+        />
+      </MenuPrimitive.Trigger>
+      <ShellMenuPopup side="top" className="w-(--anchor-width)">
+        {children}
+      </ShellMenuPopup>
+    </MenuPrimitive.Root>
+  );
+}
+
+export function SidebarUserItem({
+  className,
+  destructive = false,
+  ...props
+}: MenuPrimitive.Item.Props & { destructive?: boolean }) {
+  return (
+    <MenuPrimitive.Item
+      className={cn(popupItem, destructive && menuItemDestructive, className)}
+      {...props}
+    />
+  );
+}
+
+export function SidebarUserSeparator() {
+  return (
+    <MenuPrimitive.Separator className="bg-border mx-2 my-1 h-px shrink-0" />
+  );
+}
+
+/** An icon drawn the way the shell draws its own, for menu items and buttons. */
+export { Icon as ShellIcon };
