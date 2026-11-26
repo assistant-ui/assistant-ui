@@ -309,7 +309,7 @@ Use the `add` command to add individual components to your project.
 npx assistant-ui@latest add [component]
 ```
 
-The `add` command runs `shadcn add` against the assistant-ui registry. It copies each component's source into your project and installs the dependencies the component needs.
+The `add` command runs `shadcn add` against the assistant-ui registry. It copies each component's source into your project, by default under `components/assistant-ui/elements/` (`--path` changes it), and installs the dependencies the component needs. The copied files are yours to edit; [Components you own](/docs/concepts/components) explains what the CLI copies and what stays a package.
 
 **Popular Components**
 
@@ -351,7 +351,7 @@ Options:
 
 ## update
 
-Use the `update` command to update all `@assistant-ui/*`, `assistant-stream`, and `assistant-cloud` packages to their latest versions.
+Use the `update` command to update all `@assistant-ui/*`, `assistant-stream`, and `assistant-cloud` packages to their latest versions. It changes only those dependencies, so the components `add` copied into your project stay as they are.
 
 ```bash
 npx assistant-ui@latest update

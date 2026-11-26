@@ -1,0 +1,49 @@
+---
+title: Components you own
+description: "The chat UI has two layers: styled elements copied into your project, built on unstyled primitives from the package. You edit the first and compose the second."
+---
+
+assistant-ui splits the chat UI into two layers. **Primitives** come from the `@assistant-ui/react` package. They are unstyled, accessible parts such as `ThreadPrimitive.Viewport` and `ComposerPrimitive.Input` that do the behavior (state, keyboard, scrolling, streaming) and render plain elements. **Elements** such as `Thread`, `ThreadList` and `AssistantModal` are styled components built from those primitives, and they don't come from a package: the CLI copies their source into your project.
+
+That split is why you can change anything about how the chat looks without forking assistant-ui. The behavior stays in the package and improves when you update it. The markup and the styles are files in your repo.
+
+## What lives where
+
+| | Where it lives | Who changes it |
+| --- | --- | --- |
+| Elements: `Thread`, `ThreadList`, `MarkdownText`, `ToolFallback` and the rest of the [catalog](/elements) | `components/assistant-ui/elements/` by default, copied by `npx assistant-ui add` (`init` adds the starter set) | You. They are your files from the moment they are copied. |
+| The shadcn/ui parts the elements use, such as `Button` | `components/ui/`, added by shadcn | You |
+| Primitives, runtimes and adapters: `@assistant-ui/react`, `@assistant-ui/react-ai-sdk` and the other packages | `node_modules`, as npm dependencies | assistant-ui. `npx assistant-ui update` moves them to the latest versions. |
+
+Because elements are copies, `update` never touches them. `add <name> --overwrite` replaces your copy with the registry's current version and drops your edits, so commit first and re-apply them. `upgrade` runs codemods over your project, the copied elements included, when an API changes. The [CLI](/docs/cli) page lists every command.
+
+## Changing the look
+
+**Elements** are Tailwind classes on top of shadcn/ui theme variables (`bg-background`, `text-muted-foreground` and so on). Changing your theme's CSS variables, such as `--primary` or `--radius`, restyles them along with the rest of a shadcn app. Anything beyond that is an edit to the copied file. The `style` in `components.json` decides whether they are built on Radix UI or Base UI.
+
+**Primitives** take any styling. On the web each one accepts `className` and renders a plain element, `asChild` puts its behavior on your own component instead of a wrapper, and its state shows up as data attributes you can style, such as `data-copied` on `ActionBarPrimitive.Copy`.
+
+## Do you need Tailwind and shadcn/ui?
+
+Only for the elements, which are written with Tailwind classes and installed through the shadcn CLI. The primitives depend on neither, so an app styled with CSS modules, plain CSS or another component library builds its chat from primitives and can read an element's source to see how the parts fit together.
+
+## Which layer to start from
+
+Start from the elements when they are close to what you want, and edit them. A different color or spacing, an extra button or a changed empty state are all edits to a file you own. Build from [primitives](/docs/primitives) when the layout itself is different, such as a floating composer, a chat inside a canvas, or a message list with your own design system's components. Both layers read the same [runtime](/docs/concepts/runtime), so you can mix them: keep the `Thread` element and swap one message component for your own.
+
+React Native, Vue and the terminal (Ink) each have primitives of their own, and React Native and Vue have their own elements too; the runtime and the concepts on these pages carry over.
+
+## Next
+
+<Cards>
+  <Card
+    title="Primitives"
+    description="The parts every element is built from, and how they compose."
+    href="/docs/primitives"
+  />
+  <Card
+    title="Element catalog"
+    description="Every styled element with a live demo and its install command."
+    href="/elements"
+  />
+</Cards>

@@ -96,7 +96,10 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
           key={session.id}
           onError={() => {
             setFailedId(session.id);
-            analytics.setup.error({ reason: "session_unreadable" });
+            analytics.setup.error({
+              reason: "session_unreadable",
+              setup: session.id,
+            });
           }}
         >
           <Suspense fallback={null}>

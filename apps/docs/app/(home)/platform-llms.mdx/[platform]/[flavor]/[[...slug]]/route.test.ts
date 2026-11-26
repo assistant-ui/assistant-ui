@@ -61,6 +61,38 @@ describe("GET", () => {
   });
 });
 
+describe("GET for a folder", () => {
+  it.each([
+    ["vue", "radix", "?platform=vue&view=radix-ui"],
+    ["react", "radix", "?view=radix-ui"],
+    ["vue", "base", "?platform=vue"],
+  ] as const)(
+    "redirects %s %s to the overview's markdown with the same query",
+    async (platform, flavor, query) => {
+      const { source } = await import("@/lib/source");
+      const getPage = vi
+        .spyOn(source, "getPage")
+        .mockImplementation(((slug?: string[]) =>
+          slug?.join("/") === "runtimes/ag-ui/overview"
+            ? { url: "/docs/runtimes/ag-ui/overview" }
+            : undefined) as never);
+
+      await expect(
+        GET(new Request("https://example.com/docs/runtimes/ag-ui.md"), {
+          params: Promise.resolve({
+            platform,
+            flavor,
+            slug: ["runtimes", "ag-ui"],
+          }),
+        }),
+      ).rejects.toMatchObject({
+        digest: `NEXT_REDIRECT;replace;/docs/runtimes/ag-ui/overview.md${query};307;`,
+      });
+      getPage.mockRestore();
+    },
+  );
+});
+
 describe("generateStaticParams", () => {
   it("prerenders one valid variant so the rest are cached after their first request", async () => {
     const params = generateStaticParams();
