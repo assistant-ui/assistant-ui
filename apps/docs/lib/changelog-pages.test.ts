@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   paginateDays,
+  plainText,
   summarizeRelease,
   type ChangelogDay,
 } from "@/lib/changelog-pages";
@@ -73,6 +74,19 @@ describe("summarizeRelease", () => {
       preamble: "Updated dependencies: `@assistant-ui/core@0.3.25`",
       headline: "Updated dependencies: @assistant-ui/core@0.3.25",
     });
+  });
+});
+
+describe("plainText", () => {
+  it("drops links, code ticks and emphasis but keeps underscores in names", () => {
+    expect(
+      plainText(
+        "[`use_state`](https://example.com) is **now** _stable_ in __core__",
+      ),
+    ).toBe("use_state is now stable in core");
+    expect(plainText("`MAX_TOKENS` and snake_case_name stay")).toBe(
+      "MAX_TOKENS and snake_case_name stay",
+    );
   });
 });
 

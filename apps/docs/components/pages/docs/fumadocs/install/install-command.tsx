@@ -11,6 +11,7 @@ import {
   buildDownloadCommand,
   packagedFileUrl,
 } from "@/components/pages/docs/fumadocs/install/packaged-file-url";
+import { pairFlavorFiles } from "@/components/pages/docs/fumadocs/install/pair-flavor-files";
 import { SetupInstructions } from "@/components/pages/docs/fumadocs/install/setup-instructions";
 import {
   ExpoInstallTabs,
@@ -97,8 +98,7 @@ function FileGroup({
     );
   }
 
-  const radixByPath = new Map(radix.files.map((file) => [file.path, file]));
-  const basePaths = new Set(base.files.map((file) => file.path));
+  const { pairs, radixOnly } = pairFlavorFiles(base.files, radix.files);
   const source = (file: ResolvedFile | undefined) =>
     file ? <ComponentSourceFromFile file={file} /> : null;
 
@@ -113,8 +113,7 @@ function FileGroup({
           radix={<Dependencies packages={radix.dependencies} />}
         />
       )}
-      {base.files.map((file, index) => {
-        const twin = radixByPath.get(file.path);
+      {pairs.map(([file, twin], index) => {
         const key = `${file.path}-${index}`;
         return twin?.content === file.content ? (
           <ComponentSourceFromFile key={key} file={file} />
@@ -122,15 +121,13 @@ function FileGroup({
           <Flavored key={key} base={source(file)} radix={source(twin)} />
         );
       })}
-      {radix.files
-        .filter((file) => !basePaths.has(file.path))
-        .map((file, index) => (
-          <Flavored
-            key={`radix:${file.path}-${index}`}
-            base={null}
-            radix={source(file)}
-          />
-        ))}
+      {radixOnly.map((file, index) => (
+        <Flavored
+          key={`radix:${file.path}-${index}`}
+          base={null}
+          radix={source(file)}
+        />
+      ))}
     </div>
   );
 }

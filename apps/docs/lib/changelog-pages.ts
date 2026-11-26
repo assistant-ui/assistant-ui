@@ -46,8 +46,16 @@ function extractChangeType(
   return match[1]!.toLowerCase() as "major" | "minor" | "patch";
 }
 
-function plainText(markdown: string): string {
-  return markdown.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*_]/g, "");
+/**
+ * Markdown to the plain text of a one-line headline: link text, no code
+ * ticks, no emphasis. An underscore counts as emphasis only around a whole
+ * word, so identifiers like `use_state` keep theirs.
+ */
+export function plainText(markdown: string): string {
+  return markdown
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[`*]/g, "")
+    .replace(/(^|[^\w])__?(?=\S)(.*?\S)__?(?![\w])/g, "$1$2");
 }
 
 export function summarizeRelease(release: PackageRelease): ChangelogRelease {
@@ -111,7 +119,9 @@ export const CHANGELOG_PAGE_LIMITS = {
   /**
    * Rows on one page. A row costs about 2 KB of HTML and payload, so a full
    * page stays under 1 MB, well under the 2 MB at which site audits flag a
-   * page. Eight days alone once put 1,400 changes on one page (3.8 MB).
+   * page. Eight days alone once put 1,400 changes on one page (3.8 MB). A
+   * single day over the limit still gets one page; the biggest so far, at
+   * 780 rows, came to 0.63 MB.
    */
   rows: 400,
 } as const;
