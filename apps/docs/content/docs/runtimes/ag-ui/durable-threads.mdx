@@ -14,10 +14,10 @@ The Python `assistant-stream` package ships the server side for Pydantic AI as `
 ## Install
 
 ```sh
-pip install "assistant-stream[pydantic-ai]>=0.0.37" uvicorn
+pip install "assistant-stream[pydantic-ai]>=0.0.37" "pydantic-ai-slim[openai]" uvicorn
 ```
 
-Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs `assistant-stream` 0.0.37 or later and Python 3.11 or later.
+`pydantic-ai-slim[openai]` is for the OpenAI model below; install the extra for your own provider instead. Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs `assistant-stream` 0.0.37 or later and Python 3.11 or later.
 
 ## Server
 
@@ -85,7 +85,7 @@ durable = DurableAGUI(
 )
 ```
 
-`run_context` opens a resource for exactly one run, such as an MCP session. It returns an async context manager. The run enters it when it starts and exits it when the run finishes or is cancelled, in the task that runs it, so it stays open after the browser disconnects. It can yield a dict of extra `run_stream` arguments, which override `run_options`.
+`run_context` opens a resource for exactly one run, such as an MCP session. It returns an async context manager. The run enters it when it starts and exits it when the run finishes or is cancelled, in the task that runs it, so it stays open after the browser disconnects. It can yield a dict of extra `run_stream` arguments, which override `run_options`. `MCPToolset` needs Pydantic AI's MCP extra: `pip install "pydantic-ai-slim[mcp]"`.
 
 ```python
 from contextlib import asynccontextmanager

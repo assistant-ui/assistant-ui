@@ -5,7 +5,7 @@
 `assistant_stream.pydantic_ai.DurableAGUI` serves a Pydantic AI agent over AG-UI with runs that keep going when the browser closes, and that a reopened thread rejoins.
 
 ```sh
-pip install "assistant-stream[pydantic-ai]"   # Python 3.11+
+pip install "assistant-stream[pydantic-ai]" "pydantic-ai-slim[openai]"   # Python 3.11+
 ```
 
 ```python
