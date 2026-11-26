@@ -65,7 +65,10 @@ export function codeIdentifiers(tree: MdastNode): string[] {
   const walk = (node: MdastNode) => {
     if (node.type === "code" && node.value) {
       for (const [name] of node.value.matchAll(/[A-Za-z_$][\w$]*/g)) {
-        if (name.length >= 6 && /[a-z0-9][A-Z]/.test(name)) found.add(name);
+        // camelCase, PascalCase, or an acronym before a word (`UIMessage`).
+        if (name.length >= 6 && /[a-z0-9][A-Z]|[A-Z]{2}[a-z]/.test(name)) {
+          found.add(name);
+        }
       }
       for (const [name] of node.value.matchAll(/@[a-z0-9][\w.-]*\/[\w.-]+/g)) {
         found.add(name.replace(/[.-]+$/, ""));
@@ -74,7 +77,8 @@ export function codeIdentifiers(tree: MdastNode): string[] {
     for (const child of node.children ?? []) walk(child);
   };
   walk(tree);
-  return [...found].sort().slice(0, MAX_IDENTIFIERS);
+  // Keep the first names a page uses, then sort for a stable output.
+  return [...found].slice(0, MAX_IDENTIFIERS).sort();
 }
 
 async function createContentProcessor() {

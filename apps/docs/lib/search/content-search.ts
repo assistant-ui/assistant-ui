@@ -44,10 +44,12 @@ export function searchContent(
   limit: number,
   { anyToken = true }: { anyToken?: boolean } = {},
 ): ContentMatch[] {
-  const all = tokenize(query).filter((token) => !STOP_WORDS.has(token));
+  const words = tokenize(query);
+  const all = words.filter((token) => !STOP_WORDS.has(token));
   if (all.length === 0 || limit <= 0) return [];
 
-  const ranked = rank(records, all, limit);
+  // Symbol names keep their stop words: "on click" spells `onClick`.
+  const ranked = rank(records, all, limit, words);
   if (ranked.length > 0 || all.length === 1 || !anyToken) return ranked;
 
   // Every token has to appear on one page, so a specific question can rank
@@ -79,9 +81,11 @@ export function searchContent(
 }
 
 // A query names a symbol when its words, joined, spell it ("useAuiState",
-// "use aui state", "@assistant-ui/react-ag-ui"). A long enough name also
-// matches the start of a symbol, and a documented symbol it extends
-// ("AssistantChatTransportInitOptions" finds `AssistantChatTransport`).
+// "use aui state", "@assistant-ui/react-ag-ui"), or start it once they are
+// long enough to be specific. A single word also matches a documented symbol
+// it extends ("AssistantChatTransportInitOptions" finds
+// `AssistantChatTransport`); with more words, that would skip the
+// every-word requirement ("useChatRuntime langgraph").
 const SYMBOL_PREFIX = 8;
 const BASE_SYMBOL = 12;
 const compact = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -89,14 +93,14 @@ const compact = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
 function symbolMatch(identifiers: readonly string[] = [], tokens: string[]) {
   const name = compact(tokens.join(""));
   if (name.length < 4) return false;
-  // "@base-ui" names a scope, so every package in it matches.
-  const prefix = name.length >= SYMBOL_PREFIX || tokens[0]?.startsWith("@");
   return identifiers.some((identifier) => {
     const symbol = compact(identifier);
     return (
       symbol === name ||
-      (prefix && symbol.startsWith(name)) ||
-      (symbol.length >= BASE_SYMBOL && name.startsWith(symbol))
+      (name.length >= SYMBOL_PREFIX && symbol.startsWith(name)) ||
+      (tokens.length === 1 &&
+        symbol.length >= BASE_SYMBOL &&
+        name.startsWith(symbol))
     );
   });
 }
@@ -105,6 +109,7 @@ function rank(
   records: readonly ContentRecord[],
   tokens: string[],
   limit: number,
+  symbolTokens = tokens,
 ): ContentMatch[] {
   const ranked: { match: ContentMatch; score: number }[] = [];
 
@@ -126,7 +131,7 @@ function rank(
       (total, entry) => total + entry.score,
       0,
     );
-    const symbolScore = symbolMatch(page.identifiers, tokens) ? 3 : 0;
+    const symbolScore = symbolMatch(page.identifiers, symbolTokens) ? 3 : 0;
 
     const score =
       titleScore * 8 +

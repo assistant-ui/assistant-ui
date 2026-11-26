@@ -20,7 +20,8 @@ export function inSearchScope(url: string, scope: SearchScope) {
   return url === prefix || url.startsWith(`${prefix}/`);
 }
 
-const NPM_PACKAGE = /^@[a-z0-9][\w.-]*(?:\/[\w.-]+)?$/;
+// Scoped only: a bare "@name" could be a handle.
+const NPM_PACKAGE = /^@[a-z0-9][\w.-]*\/[\w.-]+$/;
 
 export function shouldSuggestDocsRoute(query: string, pages: RoutePage[]) {
   const normalized = query.trim().toLowerCase();

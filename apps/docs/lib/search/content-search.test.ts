@@ -98,7 +98,11 @@ describe("searchContent code identifiers", () => {
       description: "Render markdown.",
       headings: [],
       contents: ["Render markdown in messages."],
-      identifiers: ["@assistant-ui/react-markdown", "componentsByLanguage"],
+      identifiers: [
+        "@assistant-ui/react-markdown",
+        "componentsByLanguage",
+        "onClick",
+      ],
     },
     {
       url: "/docs/runtimes/ai-sdk",
@@ -127,6 +131,14 @@ describe("searchContent code identifiers", () => {
     expect(urls("AssistantChatTransportInitOptions")).toEqual([
       "/docs/runtimes/ai-sdk",
     ]);
+  });
+
+  it("keeps stop words in a spaced symbol name", () => {
+    expect(urls("on click")).toEqual(["/docs/guides/markdown"]);
+  });
+
+  it("extends a symbol only for a single word", () => {
+    expect(urls("AssistantChatTransport kubernetes")).toEqual([]);
   });
 
   it("needs more than a short fragment", () => {

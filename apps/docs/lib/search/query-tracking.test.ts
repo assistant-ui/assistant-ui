@@ -30,9 +30,9 @@ describe("settled search query tracking", () => {
   it("reports how many results the server suggested", () => {
     const onSettled = vi.fn();
     const tracker = createSettledQueryTracker(onSettled);
-    tracker.update("message draft", 2, true, 2);
+    tracker.update("message draft", 5, true, 2);
     tracker.flush();
-    expect(onSettled).toHaveBeenCalledExactlyOnceWith("message draft", 2, 2);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith("message draft", 5, 2);
   });
 
   it("waits for the results before starting the settle window", () => {

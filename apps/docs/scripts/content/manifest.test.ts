@@ -371,7 +371,7 @@ it("collects compound API names and package names from fenced code only", () => 
         {
           type: "code",
           value:
-            'import { useAuiState } from "@assistant-ui/react";\nconst value = readState(useAuiState);',
+            'import { useAuiState } from "@assistant-ui/react";\nconst value = readState(useAuiState) as UIMessage;',
         },
         {
           type: "paragraph",
@@ -379,5 +379,5 @@ it("collects compound API names and package names from fenced code only", () => 
         },
       ],
     }),
-  ).toEqual(["@assistant-ui/react", "readState", "useAuiState"]);
+  ).toEqual(["@assistant-ui/react", "UIMessage", "readState", "useAuiState"]);
 });

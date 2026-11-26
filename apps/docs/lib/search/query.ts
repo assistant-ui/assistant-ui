@@ -175,8 +175,16 @@ export function highlightMatches(
   ].sort((a, b) => b.length - a.length);
   if (unique.length === 0) return [{ type: "text", content: text }];
 
+  const stems = new Set(
+    tokens.map((token) => stem(token)).filter((root) => root !== undefined),
+  );
+  // A stem highlights the whole word it starts ("Styl" -> "Styling").
   const pattern = unique
-    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .map(
+      (token) =>
+        token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+        (stems.has(token) ? "[a-z]*" : ""),
+    )
     .join("|");
   const regex = new RegExp(`(${pattern})`, "gi");
   const segments: HighlightSegment[] = [];
@@ -267,7 +275,8 @@ function spreadScore(page: SearchRecord, tokens: string[]): number {
 }
 
 // A pasted docs link ("https://www.assistant-ui.com/docs/guides/branching")
-// opens its page, or searches for its last segment when the page has moved.
+// opens its page. When the page has moved, it searches for the link's anchor,
+// which names the exact section, or else its last path segment.
 const DOCS_LINK =
   /^https?:\/\/(?:www\.)?assistant-ui\.com(\/[^\s?#]*)?(?:\?[^\s#]*)?(?:#(\S*))?$/i;
 
@@ -296,6 +305,7 @@ export function searchOtherPages(
         },
       ];
     }
+    if (page) return [];
     const rest = link[2] || path.split("/").pop() || "";
     return rest ? searchOtherPages(records, rest, pathname) : [];
   }

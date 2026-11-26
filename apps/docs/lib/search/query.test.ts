@@ -194,6 +194,30 @@ describe("searchOtherPages queries", () => {
     ).toEqual(["/docs/runtimes/state"]);
   });
 
+  it("shows nothing else for a link to the current page", () => {
+    expect(
+      searchOtherPages(
+        pages,
+        "https://www.assistant-ui.com/docs/runtimes/state",
+        "/docs/runtimes/state",
+      ),
+    ).toEqual([]);
+  });
+
+  it("treats other sites' links as text", () => {
+    expect(urls("https://example.com/docs/runtimes/state")).toEqual([]);
+  });
+
+  it("highlights the whole word a stem matched", () => {
+    expect(
+      highlightMatches("Styling", ["styles"]).filter(
+        (segment) => segment.styles?.highlight,
+      ),
+    ).toEqual([
+      { type: "text", content: "Styling", styles: { highlight: true } },
+    ]);
+  });
+
   it("searches a moved link by its last segment", () => {
     expect(urls("https://assistant-ui.com/docs/old/styling")).toEqual([
       "/docs/guides/styling",

@@ -185,6 +185,8 @@ describe("queries that need no model", () => {
     "/docs/cloud",
     "x".repeat(121),
     "test@example.com",
+    "@johndoe",
+    "ask @johndoe/notes",
     "https://example.com",
     "apikey_secret",
     "sk-proj-example-secret",
@@ -194,6 +196,10 @@ describe("queries that need no model", () => {
   ])("skips %s", (text) => {
     expect(shouldSuggestDocsRoute(text, pages)).toBe(false);
   });
+});
+
+it("suggests for a scoped npm package name", () => {
+  expect(shouldSuggestDocsRoute("@assistant-ui/react-ag-ui", pages)).toBe(true);
 });
 
 it("never sends credential-like queries to the suggestion provider", async () => {
