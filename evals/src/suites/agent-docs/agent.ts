@@ -121,10 +121,10 @@ const requireWriteFence = (claude: string) => {
 };
 
 /** Processes whose working directory is `dir` or inside it. */
-const runningIn = (dir: string) => {
+const runningIn = (lsofBin: string, dir: string) => {
   let listing = "";
   try {
-    listing = execFileSync(lsof(), ["-d", "cwd", "-Fpn"], {
+    listing = execFileSync(lsofBin, ["-d", "cwd", "-Fpn"], {
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
     });
@@ -189,6 +189,8 @@ export async function runAgent(opts: {
   const runDir = resolve(opts.runDir);
   const claude = process.env.CLAUDE_BIN ?? which("claude");
   requireWriteFence(claude);
+  // Before any work, so a machine without it fails at once rather than after the agent ran.
+  const lsofBin = lsof();
   const bin = join(runDir, "bin");
   mkdirSync(bin, { recursive: true });
   for (const tool of ["node", "npm", "npx", "pnpm", "corepack"]) {
@@ -385,7 +387,7 @@ export async function runAgent(opts: {
   }
   // Servers the agent started in the background often leave its process tree at once, so also
   // stop anything still running from inside the trial folder.
-  for (const pid of runningIn(runDir)) kill(pid);
+  for (const pid of runningIn(lsofBin, runDir)) kill(pid);
   closeSync(out);
   closeSync(err);
   rmSync(tmp, { recursive: true, force: true });
