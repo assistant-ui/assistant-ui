@@ -5,8 +5,10 @@ import type { ReactNode } from "react";
 import { WaterfallSample } from "@/components/pages/docs/samples/o11y/waterfall.lazy";
 import { CopyInstall } from "@/components/pages/utilities/copy-install";
 import { HeatGraphPreview } from "@/components/pages/utilities/heat-graph-preview";
+import { DevToolsModalSample } from "@/components/pages/docs/samples/devtools.lazy";
+import { DemoFrame } from "@/components/shared/demo-frame";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { PageHero } from "@/components/shared/page-hero";
 import { highlightElementSource } from "@/lib/element-source";
 import { installCommand } from "@/lib/library/catalog";
 import { getLibraryItems } from "@/lib/library/items";
@@ -253,20 +255,27 @@ export default async function UtilitiesPage() {
 
   return (
     <PageFrame pad="sub">
-      <header className="max-w-3xl">
-        <h1 className={typePage}>
-          Small packages for the parts around a chat.
-        </h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[54ch]")}>
-          Loading states, activity graphs, run traces, sandboxed HTML, streamed
-          widgets, design review, and runtime inspection. Each one installs on
-          its own and has its own page.
-        </p>
-      </header>
+      <PageHero
+        title="Small packages for the parts around a chat."
+        deck="Loading states, activity graphs, run traces, sandboxed HTML, streamed widgets, design review, and runtime inspection. Each one installs on its own and has its own page."
+        primary={{ label: "Open in the library", href: "/library/utilities" }}
+        secondary={{
+          label: "Source on GitHub",
+          href: "https://github.com/assistant-ui/assistant-ui/tree/main/packages",
+        }}
+        demo={
+          <DemoFrame
+            caption="The real DevTools panel on a sample chat. Run a demo turn, then open it."
+            frameClassName="h-[30rem] [&_.not-prose]:my-0 [&_.not-prose>div]:rounded-none [&_.not-prose>div]:border-0"
+          >
+            <DevToolsModalSample />
+          </DemoFrame>
+        }
+      />
 
       <ul
         aria-label="Utilities"
-        className="border-foreground/10 mt-12 grid border-t border-l md:mt-16 md:grid-cols-2 lg:grid-cols-3"
+        className="border-foreground/10 mt-16 grid border-t border-l md:mt-20 md:grid-cols-2 lg:grid-cols-3"
       >
         {UTILITIES.map((utility) => {
           const item = items.get(utility.id);

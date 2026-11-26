@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { DemoFrame } from "@/components/shared/demo-frame";
+import { PageHero } from "@/components/shared/page-hero";
+import { LiveFrame } from "@/components/pages/platforms/live-frame";
 import { subProject } from "@/lib/docs-sites";
 import { cn } from "@/lib/utils";
-import { TerminalDemo } from "./terminal-demo";
 
 const { title, description } = subProject("ink");
 
 export const metadata: Metadata = { title, description };
 
-const ANALYTICS_PAGE = "ink" as const;
+const INK_DEMO =
+  process.env["NEXT_PUBLIC_INK_DEMO_URL"] ??
+  "https://assistant-ui-ink.vercel.app";
 
 const PRIMITIVES = [
   "Thread",
@@ -146,34 +148,24 @@ function RenderedSession() {
 export default function InkPage() {
   return (
     <PageFrame pad="sub">
-      <header className="max-w-2xl">
-        <h1 className={typePage}>AI chat, in the terminal.</h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-          Thread, Composer, and Message primitives for Ink. The same runtime and
-          adapters as the web SDK, rendered in ANSI.
-        </p>
-        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-          <CopyCommandButton
-            command="npx assistant-ui@latest create --ink my-app"
-            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
-          />
-          <Link
-            href="/docs/ink"
-            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+      <PageHero
+        title="AI chat, in the terminal."
+        deck="Thread, Composer, and Message primitives for Ink. The same runtime and adapters as the web SDK, rendered in ANSI."
+        primary={{ label: "Read the docs", href: "/docs/ink" }}
+        secondary={{ install: "npx assistant-ui@latest create --ink my-app" }}
+        demo={
+          <DemoFrame
+            caption="A real Ink render loop. Click and type."
+            frameClassName="h-[30rem]"
           >
-            Read the docs
-          </Link>
-        </div>
-      </header>
-
-      <figure className="mt-12 md:mt-16">
-        <TerminalDemo />
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
-          <span>fig. 01</span>
-          <span>a real Ink render loop — click and type</span>
-        </figcaption>
-      </figure>
-
+            <LiveFrame
+              src={INK_DEMO}
+              title="assistant-ui Ink demo"
+              className="size-full rounded-none border-0"
+            />
+          </DemoFrame>
+        }
+      />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <p className="text-sm font-medium">The setup</p>

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
 import { AgentList } from "@/components/pages/skills/agent-list";
-import { CopyCommand } from "@/components/pages/skills/copy-command";
 import { McpPanel } from "@/components/pages/skills/mcp-panel";
 import {
   SkillList,
@@ -10,8 +8,8 @@ import {
   type SkillRow,
 } from "@/components/pages/skills/skill-list";
 import { PageFrame } from "@/components/shared/page-frame";
-import { Button } from "@/components/ui/button";
-import { typeDeck, typePage, typeSection } from "@/components/shared/type";
+import { PageHero } from "@/components/shared/page-hero";
+import { typeDeck, typeSection } from "@/components/shared/type";
 import { getSkills } from "@/lib/agent-skills";
 import { getLibraryItems } from "@/lib/library/items";
 import { cn } from "@/lib/utils";
@@ -72,26 +70,13 @@ export default function SkillsPage() {
   return (
     <PageFrame pad="sub">
       <SkillsLibrary items={libraryItems}>
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-16">
-          <header className="max-w-2xl">
-            <h1 className={typePage}>
-              assistant-ui, taught to your coding agent.
-            </h1>
-            <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-              Skills are instructions your agent reads before it writes
-              assistant-ui code: the current APIs, the packages to pick, and the
-              migrations. One command installs all {skills.length}. The MCP
-              server lets it look up the live docs while it works.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button nativeButton={false} render={<Link href="/docs/llm" />}>
-                Read the docs
-              </Button>
-              <CopyCommand command={INSTALL_ALL} />
-            </div>
-          </header>
-          <McpPanel />
-        </div>
+        <PageHero
+          title="assistant-ui, taught to your coding agent."
+          deck={`Skills are instructions your agent reads before it writes assistant-ui code: the current APIs, the packages to pick, and the migrations. One command installs all ${skills.length}. The MCP server lets it look up the live docs while it works.`}
+          primary={{ label: "Read the docs", href: "/docs/llm" }}
+          secondary={{ install: INSTALL_ALL }}
+          demo={<McpPanel />}
+        />
 
         <section
           id="skills"

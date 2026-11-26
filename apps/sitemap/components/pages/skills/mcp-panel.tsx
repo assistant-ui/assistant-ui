@@ -8,12 +8,7 @@ import {
   CornerDownLeftIcon,
   SearchIcon,
 } from "lucide-react";
-import {
-  useState,
-  type CSSProperties,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { ClaudeIcon } from "@/components/icons/claude";
 import { AgentIcon } from "@/components/library/agent-icons";
 import {
@@ -22,6 +17,7 @@ import {
   MenuItem,
   MenuTrigger,
 } from "@/components/library/ui/menu";
+import { LIFT_SHADOW } from "@/components/shared/demo-frame";
 import { DeferredHighlight } from "@/components/shared/deferred-highlight";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
@@ -148,11 +144,6 @@ const CLIENTS: readonly Client[] = [
 ];
 
 const QUERIES = ["streaming", "tool UI", "thread list", "attachments"];
-
-/** The home demo's lift; the docs zero the shadow tokens, so it is inline. */
-const LIFT_SHADOW: CSSProperties = {
-  boxShadow: "0 1px 2px rgb(0 0 0 / 0.05), 0 24px 48px -20px rgb(0 0 0 / 0.28)",
-};
 
 type Result = { title: string; url: string; description?: string };
 

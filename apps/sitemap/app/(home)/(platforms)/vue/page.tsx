@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import { Highlight } from "@/components/shared/highlight";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
-import { CodeBlock } from "@/components/ui/code-block";
-import { cn } from "@/lib/utils";
+import { PageHero } from "@/components/shared/page-hero";
+import { CodeFilesDemo } from "@/components/pages/platforms/code-files-demo";
 
 export const metadata: Metadata = {
   title: "assistant-ui for Vue",
   description:
     "The assistant-ui runtime for Vue 3.5 and Nuxt, through a provider, composables, and unstyled primitives.",
 };
-
-const ANALYTICS_PAGE = "vue" as const;
 
 const PRIMITIVES = [
   "Thread",
@@ -87,47 +82,25 @@ export default defineEventHandler(async (event) => {
 export default function VuePage() {
   return (
     <PageFrame pad="sub">
-      <header className="max-w-2xl">
-        <h1 className={typePage}>AI chat, in Vue.</h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-          The same runtime as the React package, for Vue 3.5 and Nuxt, through a
-          provider, composables, and unstyled primitives.
-        </p>
-        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-          <CopyCommandButton
-            command="npm install @assistant-ui/vue"
-            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+      <PageHero
+        title="AI chat, in Vue."
+        deck="The same runtime as the React package, for Vue 3.5 and Nuxt, through a provider, composables, and unstyled primitives."
+        primary={{ label: "Read the docs", href: "/docs/vue" }}
+        secondary={{ install: "npm install @assistant-ui/vue" }}
+        demo={
+          <CodeFilesDemo
+            files={[
+              {
+                path: "app/components/Assistant.client.vue",
+                language: "vue",
+                code: COMPONENT,
+              },
+              { path: "server/api/chat.post.ts", language: "ts", code: ROUTE },
+            ]}
+            caption="The Nuxt quickstart's two files. Vue has no hosted demo to run here."
           />
-          <Link
-            href="/docs/vue"
-            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-          >
-            Read the docs
-          </Link>
-        </div>
-      </header>
-
-      <figure className="mt-12 md:mt-16">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <CodeBlock
-            title="app/components/Assistant.client.vue"
-            className="my-0"
-          >
-            <Highlight code={COMPONENT} language="vue" />
-          </CodeBlock>
-          <CodeBlock
-            title="server/api/chat.post.ts · abridged"
-            className="my-0"
-          >
-            <Highlight code={ROUTE} language="ts" />
-          </CodeBlock>
-        </div>
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
-          <span>fig. 01</span>
-          <span>the Nuxt quickstart: a component and its route</span>
-        </figcaption>
-      </figure>
-
+        }
+      />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">

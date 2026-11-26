@@ -1,17 +1,13 @@
 "use client";
 
-import { useHydrated } from "@/hooks/use-hydrated";
-import { LiveDot } from "@/components/shared/live-dot";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
-import { cn } from "@/lib/utils";
-
-const ANALYTICS_PAGE = "native" as const;
+import { DemoFrame } from "@/components/shared/demo-frame";
+import { PageHero } from "@/components/shared/page-hero";
+import { LiveFrame } from "@/components/pages/platforms/live-frame";
 
 const INSTALL_COMMAND = "npx assistant-ui@latest create --native my-app";
 
@@ -72,37 +68,25 @@ export default function App() {
 export default function NativePage() {
   return (
     <PageFrame pad="sub">
-      <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-20">
-        <header className="max-w-2xl">
-          <h1 className={typePage}>AI chat, on the phone.</h1>
-          <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-            Native Thread, Composer, and Message primitives for React Native.
-            The same runtime and adapters as the web SDK — Expo, iOS, Android,
-            and web.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <CopyCommandButton
-              command={INSTALL_COMMAND}
-              analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+      <PageHero
+        title="AI chat, on the phone."
+        deck="Native Thread, Composer, and Message primitives for React Native. The same runtime and adapters as the web SDK: Expo, iOS, Android, and web."
+        primary={{ label: "Read the docs", href: "/docs/react-native" }}
+        secondary={{ install: INSTALL_COMMAND }}
+        demo={
+          <DemoFrame
+            caption="A real Expo build. Tap around."
+            className="mx-auto w-full max-w-[300px]"
+            frameClassName="aspect-[9/17.5]"
+          >
+            <LiveFrame
+              src={DEMO_SRC}
+              title="assistant-ui React Native demo"
+              className="size-full rounded-none border-0"
             />
-            <Link
-              href="/docs/react-native"
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              Read the docs
-            </Link>
-          </div>
-        </header>
-
-        <figure className="mx-auto w-full max-w-[300px] lg:mx-0">
-          <NativeDemo />
-          <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
-            <span>fig. 01</span>
-            <span>a real Expo build — tap around</span>
-          </figcaption>
-        </figure>
-      </div>
-
+          </DemoFrame>
+        }
+      />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <p className="text-sm font-medium">The setup</p>
@@ -181,33 +165,5 @@ export default function NativePage() {
         </Link>
       </footer>
     </PageFrame>
-  );
-}
-
-function NativeDemo() {
-  const src = useHydrated() ? DEMO_SRC : null;
-
-  return (
-    <div className="border-foreground/10 overflow-hidden border">
-      <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 text-xs">
-        <span>~ assistant-ui · expo</span>
-        <span className="flex items-center gap-1.5">
-          <LiveDot />
-          live
-        </span>
-      </div>
-      {src ? (
-        <iframe
-          src={src}
-          title="assistant-ui React Native demo"
-          className="aspect-[9/17.5] w-full border-0"
-        />
-      ) : (
-        <div
-          className="bg-foreground/[0.025] dark:bg-foreground/[0.04] aspect-[9/17.5] w-full"
-          aria-hidden
-        />
-      )}
-    </div>
   );
 }

@@ -186,6 +186,17 @@ const CODE_HIKE_VARS: Record<keyof CodeRoles, string[]> = {
   tag: ["--ch-6"],
 };
 
+/**
+ * Shiki spans whose github-light color is `hex`. Server-rendered HTML writes
+ * `--shiki-light:#hex`; React writes a client-highlighted span's style as
+ * `--shiki-light: #hex`, so both spellings are matched. The rules also set the
+ * span's `--shiki-light` and `--shiki-dark`, because the kit's CodeBlock colors
+ * spans from those variables with a layered `!important` that an unlayered
+ * `color` cannot beat.
+ */
+const shikiSpans = (scope: string, hex: string) =>
+  `${scope} span[style*="--shiki-light:${hex}" i], ${scope} span[style*="--shiki-light: ${hex}" i]`;
+
 function codeThemeCss(theme: CodeThemeId): string[] {
   if (theme === "github") return [];
   const { light, dark } = CODE_PALETTES[theme];
@@ -200,12 +211,14 @@ function codeThemeCss(theme: CodeThemeId): string[] {
     ...roles.flatMap((role) =>
       SHIKI_GITHUB_LIGHT[role].map(
         (hex) =>
-          rule(`.shiki span[style*="--shiki-light:${hex}" i]`, [
+          rule(shikiSpans(".shiki", hex), [
             `color: ${light[role]} !important;`,
+            `--shiki-light: ${light[role]} !important;`,
           ]) +
           "\n" +
-          rule(`:root.dark .shiki span[style*="--shiki-light:${hex}" i]`, [
+          rule(shikiSpans(":root.dark .shiki", hex), [
             `color: ${dark[role]} !important;`,
+            `--shiki-dark: ${dark[role]} !important;`,
           ]),
       ),
     ),

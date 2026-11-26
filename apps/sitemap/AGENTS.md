@@ -13,6 +13,7 @@ A working copy of parts of the docs site (`apps/docs`) for redesigning pages wit
 - Change a docs file by copying it to the same path here and editing the copy, because `tsconfig.json` resolves `@/*` here first and then in `../docs`, and the same path keeps it easy to fold back.
 - Record every change as a `## Title (YYYY-MM-DD)` section in `CHANGES.md`, with a `Files:` list and a `When folding back:` paragraph, and keep its `## To do` list current, because `/changes` renders that file.
 - Read `apps/docs/content/design.md` before drawing anything, because its shape, color, type, copy, line, and motion rules apply here unchanged.
+- Use the `design-pages` skill (`.claude/skills/design-pages/`) before building or changing a page, because it holds ellie's hero, demo, and section rules for this app.
 - Build design alternatives as live variants with the `variants` skill (`@assistant-ui/variants` as a dev dependency) rather than describing them, and remove the variants and the dependency once one is chosen.
 - Verify a change in the browser at desktop and phone widths before calling it done.
 - Turn every new animation off under `prefers-reduced-motion`, because design.md requires it.

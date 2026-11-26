@@ -743,3 +743,61 @@ Files:
 - `components/pages/skills/mcp-panel.tsx`: icons, `DeferredHighlight`, the Cursor link.
 
 When folding back: as in "Skills hero with an MCP panel".
+
+## A design-pages skill for this app (2026-11-25)
+
+A project skill at `.claude/skills/design-pages/SKILL.md` collects ellie's page rules so every page here is built the same way. Its hero rule is ellie's: a title, one deck line, and exactly two `size="lg"` buttons, the main one first and then either the install command or a secondary action as a `ghost` button with a visible border; and always an interactive demo on the right, framed like the home demo. The rest records what ellie settled while building `/skills`, `/utilities`, and `/platforms`: the hairline-framed grid for packages, library rows with the plus menu for installable items, an icon on every product or agent option, highlighted code, the nudging arrow on secondary links, destructive remove actions, compact dialogs, and a dropdown instead of a row of buttons that runs out of room. `AGENTS.md` points to it.
+
+The home hero's `HeroCta` already follows the button rule (both `lg`, "Talk to the team" with a visible border); that change came with the commit before this entry.
+
+Files:
+
+- `.claude/skills/design-pages/SKILL.md` (new).
+- `AGENTS.md`: a line pointing to the skill.
+
+When folding back: the skill stays in this app unless its rules move into `apps/docs/content/design.md`.
+
+## Every page's hero on PageHero, with a demo beside it (2026-11-25)
+
+ellie's answers to the skill's questions: a hero is the title with an optional line under it (it may go later), the demo goes under the buttons on a phone, a page ends with its last section (no closing band), and every existing page follows the rules now.
+
+Three shared pieces hold the rules, so a page cannot drift from them:
+
+- `PageHero` (`components/shared/page-hero.tsx`): the title, the optional line, a `lg` main button, then a `lg` bordered ghost button that is either the install command or a secondary link, and the demo on the right.
+- `InstallButton` (`components/shared/install-button.tsx`): the install command as that bordered ghost button; it copies and shows a check.
+- `DemoFrame` (`components/shared/demo-frame.tsx`): the home demo's frame (controls above, one lifted frame, one caption line) and its `LIFT_SHADOW`.
+
+Each page's hero now:
+
+- `/skills`: Read the docs, the skills install command, the MCP panel.
+- `/utilities`: Open in the library, Source on GitHub, and the docs' DevTools sample (a sample chat whose launcher opens the real DevTools panel).
+- `/platforms`: Read the docs, `npx assistant-ui@latest create my-app`, and one demo with a tab per platform (each with its glyph): the Thread for React, the hosted Expo and Ink demos, and Vue's quickstart component. The grid tiles below lost their previews, since the hero now runs them, and show the platform's glyph instead.
+- `/react`, `/react-native`, `/ink`: Read the docs, the platform's create command, and its live demo (the Thread, the Expo build, the Ink terminal) in a `DemoFrame`. The Ink terminal moved up from under the hero.
+- `/vue`: Read the docs, `npm install @assistant-ui/vue`, and a code demo with a tab per quickstart file and a copy button, because there is no hosted Vue demo to run; its caption says so. The two code blocks that used to sit under the hero are gone.
+
+Files:
+
+- `components/shared/page-hero.tsx`, `install-button.tsx`, `demo-frame.tsx` (new).
+- `components/pages/platforms/platforms-demo.tsx`, `code-files-demo.tsx` (new).
+- `app/(home)/skills/page.tsx`, `app/(home)/utilities/page.tsx`, and every page in `app/(home)/(platforms)/`.
+- `components/pages/skills/mcp-panel.tsx`: uses the shared `LIFT_SHADOW`.
+- Removed: `components/pages/skills/copy-command.tsx` and `app/(home)/(platforms)/ink/terminal-demo.tsx`, which nothing used any more.
+
+When folding back: the three shared pieces go to the same paths in `apps/docs`; the platform pages replace the docs `(products)` pages as in "A page per platform".
+
+## Code follows the token sheet's code theme everywhere (2026-11-25)
+
+ellie set a code theme in the token sheet and the Skills page's MCP panel ignored it. Two causes:
+
+- The sheet found Shiki spans by `style*="--shiki-light:#hex"`. Server-rendered Shiki writes that, but code highlighted in the browser is styled by React, which writes `--shiki-light: #hex` with a space, so the MCP panel and the code demos never matched. The sheet now matches both spellings.
+- In dark mode the kit's `CodeBlock` colors spans with a layered `!important` from `--shiki-dark`, which beats the sheet's unlayered `color`. The sheet now also sets `--shiki-light` and `--shiki-dark` on the spans it recolors.
+
+The platform pages' setup blocks used the docs `Highlight`, in Catppuccin, which the sheet does not know. This app's copy of `Highlight` uses the GitHub themes, so every `Highlight` here follows the sheet too. Checked with the AI Ellie preset (Nord) on `/skills`, `/utilities`, `/react`, and `/vue`, in light and dark.
+
+Files:
+
+- `lib/tokens.ts`: `shikiSpans` (both spellings) and the variable overrides.
+- `components/shared/highlight.tsx` (copied from docs, then changed): GitHub themes with `defaultColor="light-dark()"`.
+- `.claude/skills/design-pages/SKILL.md`: the code rule says why it must be the GitHub themes.
+
+When folding back: the docs keep Catppuccin in `Highlight` unless the code theme setting moves to the docs too; `lib/tokens.ts` is a dev tool of this app.

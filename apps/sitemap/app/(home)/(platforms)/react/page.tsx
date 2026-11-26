@@ -2,20 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { ThreadPreview } from "@/components/demos/thread.preview";
-import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { DemoFrame } from "@/components/shared/demo-frame";
+import { PageHero } from "@/components/shared/page-hero";
 import { CodeBlock } from "@/components/ui/code-block";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "assistant-ui for React",
   description:
     "Thread, Composer, and Message primitives for React, on the runtime every assistant-ui platform shares.",
 };
-
-const ANALYTICS_PAGE = "react" as const;
 
 const PRIMITIVES = [
   "Thread",
@@ -82,39 +79,20 @@ export default function MyApp() {
 export default function ReactPage() {
   return (
     <PageFrame pad="sub">
-      <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-20">
-        <header className="max-w-2xl">
-          <h1 className={typePage}>AI chat, on the web.</h1>
-          <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-            Thread, Composer, and Message primitives for React, on the runtime
-            every assistant-ui platform shares. Bring any backend through an
-            adapter.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
-            <CopyCommandButton
-              command="npx assistant-ui@latest create my-app"
-              analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
-            />
-            <Link
-              href="/docs"
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              Read the docs
-            </Link>
-          </div>
-        </header>
-
-        <figure className="w-full">
-          <div className="border-foreground/10 h-[30rem] overflow-hidden border">
+      <PageHero
+        title="AI chat, on the web."
+        deck="Thread, Composer, and Message primitives for React, on the runtime every assistant-ui platform shares. Bring any backend through an adapter."
+        primary={{ label: "Read the docs", href: "/docs" }}
+        secondary={{ install: "npx assistant-ui@latest create my-app" }}
+        demo={
+          <DemoFrame
+            caption="The Thread, with replies from a script."
+            frameClassName="h-[30rem]"
+          >
             <ThreadPreview />
-          </div>
-          <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
-            <span>fig. 01</span>
-            <span>the Thread, with replies from a script</span>
-          </figcaption>
-        </figure>
-      </div>
-
+          </DemoFrame>
+        }
+      />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <p className="text-sm font-medium">The setup</p>

@@ -1,28 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRightIcon, ArrowUpRightIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import { ThreadPreview } from "@/components/demos/thread.preview";
-import { LiveFrame } from "@/components/pages/platforms/live-frame";
+import { PlatformsDemo } from "@/components/pages/platforms/platforms-demo";
 import { CopyInstall } from "@/components/pages/utilities/copy-install";
+import { NavGlyphArt } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { PageHero } from "@/components/shared/page-hero";
 import { highlightElementSource } from "@/lib/element-source";
 import { installCommand, type LibraryItem } from "@/lib/library/catalog";
 import { getLibraryItems } from "@/lib/library/items";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Platforms",
   description:
     "The assistant-ui runtime and its adapters, packaged for React, React Native, Ink, and Vue.",
 };
-
-/** The hosted demos the Native and Ink pages embed. */
-const EXPO_DEMO = "https://assistant-ui-expo.vercel.app/";
-const INK_DEMO =
-  process.env["NEXT_PUBLIC_INK_DEMO_URL"] ??
-  "https://assistant-ui-ink.vercel.app";
 
 /** From the Vue quickstart. */
 const VUE_SNIPPET = `<script setup lang="ts">
@@ -47,6 +39,7 @@ type Platform = {
   title: string;
   description: string;
   href: string;
+  glyph: "react" | "native" | "ink" | "vue";
   /** Library starters for this platform, templates first. */
   starters: readonly string[];
 };
@@ -58,6 +51,7 @@ const PLATFORMS: readonly Platform[] = [
     description:
       "The web distribution: the primitives, the runtime, and its adapters for any React app.",
     href: "/react",
+    glyph: "react",
     starters: [
       "templates/default",
       "templates/minimal",
@@ -70,6 +64,7 @@ const PLATFORMS: readonly Platform[] = [
     description:
       "Native Thread, Composer, and Message primitives on the same runtime, for Expo, iOS, Android, and web.",
     href: "/react-native",
+    glyph: "native",
     starters: ["examples/with-expo"],
   },
   {
@@ -78,6 +73,7 @@ const PLATFORMS: readonly Platform[] = [
     description:
       "Thread, Composer, and Message primitives for Ink, on the same runtime, rendered in ANSI.",
     href: "/ink",
+    glyph: "ink",
     starters: ["examples/with-react-ink", "examples/with-react-ink-web"],
   },
   {
@@ -86,6 +82,7 @@ const PLATFORMS: readonly Platform[] = [
     description:
       "The same runtime for Vue 3.5 and Nuxt, through a provider, composables, and unstyled primitives.",
     href: "/vue",
+    glyph: "vue",
     starters: ["templates/nuxt", "examples/with-vue"],
   },
 ];
@@ -119,21 +116,22 @@ function Tile({
   platform,
   item,
   starters,
-  preview,
 }: {
   platform: Platform;
   item: LibraryItem;
   starters: readonly LibraryItem[];
-  preview: ReactNode;
 }) {
   const packageName =
     item.install?.kind === "npm" ? item.install.names[0]! : item.name;
   return (
     <li className="border-foreground/10 flex min-w-0 flex-col border-r border-b">
-      <div className="flex h-[30rem] justify-center overflow-hidden px-5 pt-8 sm:px-8">
-        {preview}
-      </div>
-      <div className="flex flex-col items-start px-5 pt-6 pb-7 sm:px-8 sm:pb-9">
+      <div className="flex flex-col items-start px-5 pt-7 pb-7 sm:px-8 sm:pt-8 sm:pb-9">
+        <span
+          aria-hidden
+          className="border-foreground/10 bg-background rounded-document mb-5 grid size-11 place-items-center border"
+        >
+          <NavGlyphArt kind={platform.glyph} />
+        </span>
         {item.install ? (
           <CopyInstall
             packageName={packageName}
@@ -164,48 +162,19 @@ function Tile({
 export default async function PlatformsPage() {
   const items = new Map(getLibraryItems().map((item) => [item.id, item]));
   const vue = await highlightElementSource(VUE_SNIPPET);
-  const previews: Record<string, ReactNode> = {
-    "platforms/react": (
-      <div className="border-foreground/10 rounded-document h-full w-full max-w-md overflow-hidden border">
-        <ThreadPreview />
-      </div>
-    ),
-    "platforms/react-native": (
-      <LiveFrame
-        src={EXPO_DEMO}
-        title="assistant-ui React Native demo"
-        className="aspect-[9/17.5] h-full"
-      />
-    ),
-    "platforms/ink": (
-      <LiveFrame
-        src={INK_DEMO}
-        title="assistant-ui Ink demo"
-        className="h-full w-full"
-      />
-    ),
-    "platforms/vue": (
-      <div
-        className="w-full self-start [mask-image:linear-gradient(to_bottom,#000_70%,transparent),linear-gradient(to_right,#000_85%,transparent)] [mask-composite:intersect] text-[12.5px] leading-relaxed [&_code]:[font-variant-ligatures:none] [&_pre]:m-0 [&_pre]:bg-transparent! [&_pre]:font-mono [&_pre]:whitespace-pre"
-        dangerouslySetInnerHTML={{ __html: vue }}
-      />
-    ),
-  };
-
   return (
     <PageFrame pad="sub">
-      <header className="max-w-3xl">
-        <h1 className={typePage}>One runtime, wherever the chat runs.</h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[54ch]")}>
-          The runtime and its adapters, packaged for React, React Native, Ink,
-          and Vue. Each package brings primitives for its platform and has its
-          own page.
-        </p>
-      </header>
+      <PageHero
+        title="One runtime, wherever the chat runs."
+        deck="The runtime and its adapters, packaged for React, React Native, Ink, and Vue. Each package brings primitives for its platform and has its own page."
+        primary={{ label: "Read the docs", href: "/docs" }}
+        secondary={{ install: "npx assistant-ui@latest create my-app" }}
+        demo={<PlatformsDemo vueHtml={vue} />}
+      />
 
       <ul
         aria-label="Platforms"
-        className="border-foreground/10 mt-12 grid border-t border-l md:mt-16 md:grid-cols-2"
+        className="border-foreground/10 mt-16 grid border-t border-l md:mt-20 md:grid-cols-2"
       >
         {PLATFORMS.map((platform) => {
           const item = items.get(platform.id);
@@ -216,7 +185,6 @@ export default async function PlatformsPage() {
               platform={platform}
               item={item}
               starters={platform.starters.flatMap((id) => items.get(id) ?? [])}
-              preview={previews[platform.id]}
             />
           );
         })}
