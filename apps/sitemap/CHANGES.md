@@ -6,7 +6,7 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
-- Back to `/demos` (ellie, 2026-11-25: "we will come back to demos tmr"): add the runnable `/examples` (Modal, Form Filling Co-Pilot, AI SDK, Artifacts, Generative UI, Article Assistant), settle the tags, open a demo full screen when it is tapped on a phone, and add each feature demo as it is built.
+- `/demos` lists only Images, Search engine, and Gemini for now (ellie, 2026-11-25). The other demos' files are still here (`thread.tsx`, `streaming-text.tsx`, the ChatGPT, Claude, Grok, and Perplexity clones, `clone.preview.tsx`, `script.ts`, `lib/scripted-demos.ts`); each comes back as a folder in the new shape. Still to add later: the runnable `/examples` (Modal, Form Filling Co-Pilot, AI SDK, Artifacts, Generative UI, Article Assistant).
 - `/tw-shimmer`: the hero title no longer shimmers (the docs' does), and "> thinking" became "Thinking"; confirm or revert.
 - `/safe-content-frame`: the demo frame's colors are fixed at tint 106, so the token sheet's tint does not reach them.
 - Icons for Codemaker and Neovate in `components/library/agent-icons.tsx`; the Skills page shows their first letter until there is a source for them.
@@ -893,3 +893,55 @@ Files:
 - `app/globals.css`: one `@source` line removed.
 
 When folding back: the copy replaces the docs demo; the docs app already depends on `heat-graph`.
+
+## Search engine demo (2026-11-25)
+
+ellie asked for a search engine demo on `/demos` in one file, `search-engine.tsx`, that looks and feels like the Google-style search app built earlier the same day (picked from variants: the talking-bubbles doodle, a Google-style pill search bar, text links in the header, a grey footer band, and a chat thread after a search). It is listed with the clones. ellie approved it, and the separate `apps/search-engine` app was removed.
+
+The demo is the whole file: a scripted `ChatModelAdapter` on `useLocalRuntime` streams answers about assistant-ui with source links and follow-up questions; the header has the logo, Claude, Talk to the team, an apps grid, and a profile menu for the demo person; the home view has the animated logo (click to replay), the search bar with attach and voice, "Ask assistant-ui" and "I'm feeling lucky", and a few questions to try; typing `/` opens commands for the library, the docs, examples, the Playground, and clearing the thread; the footer is the docs footer's bottom row. Unlike the other demos there is no `.preview.tsx`: the script lives in the file, so the Code tab shows exactly what runs. Its link points at the local runtime docs ("Swap the script for a model").
+
+Where it differs from design.md, on purpose, because it imitates Google: the search bar is a pill, the profile avatar is violet, and the doodle's typing dots are blue. Its animations use the kit's `animate-in` utilities and stop under reduced motion. The bar takes focus only after a search, so the demo does not move the page when it appears.
+
+Files:
+
+- `components/demos/search-engine.tsx` (new).
+- `app/(home)/demos/page.tsx`: the Search engine entry, with its file read and highlighted like the others.
+
+When folding back: both files go to the same paths in `apps/docs` if the demos page moves there.
+
+## Demos as folders, and /demos as a page of live blocks (2026-11-25)
+
+ellie asked for every demo to be a folder with only `page.tsx`, `data.json`, one component (`<name>.tsx`), a CSS file if needed, and `layout.tsx` only if needed; for `/demos` to list only Images, Search engine, and Gemini; and then for the page to drop the list beside a viewer for "a search at the top" with each demo as a block you can use in place, keeping Code and Preview and full screen, with a tab per file in the code and only the main file's name in the preview.
+
+- **Images** (`components/demos/images/`), copied from the docs block `app/(blocks)/blocks/demos/images`: its ten component files merged into `images.tsx` (by a script: imports combined, only `Images` exported, the `ai` type import replaced by types read from `AssistantChatTransport`, one unused constant dropped), `block.css` renamed `images.css`, `layout.tsx` (Geist fonts and the CSS) and `page.tsx`, and `data.json`. Left out: the README, `.env.example`, the tests, and the two API routes, which stay in the docs app; `next.config.ts` forwards `/blocks/demos/:block/api/*` to the docs server. It still imports the docs blocks' shared `chat-sidebar.tsx`. The block sets its theme on the whole page, so it runs at its own address, `/blocks/demos/images`, shown in a frame on `/demos`: `app/(blocks)/blocks/demos/layout.tsx` is the docs frame layout, copied, and `app/(blocks)/blocks/demos/images/{page,layout}.tsx` each re-export the folder's file. Pictures need the docs dev server with its OpenAI key and `BLOCKS_LIVE_API`.
+- **Search engine** (`components/demos/search-engine/`): `search-engine.tsx` moved in, its questions, answers, sources, and follow-ups moved to `data.json` (each `match` is a regular expression's source), and `page.tsx` added. The footer's year is `process.env.COPYRIGHT_YEAR`, now set in `next.config.ts` as the docs config does, because `cacheComponents` refuses `new Date()` in a prerender.
+- **Gemini** (`components/demos/gemini/`): `page.tsx` added, `themes.css` renamed `gemini.css`, and `gemini.preview.tsx` removed: its script now lives in `gemini.tsx`, whose default export runs on `useLocalRuntime` with it (the helpers it took from `../script` are inlined). It still imports `../person`.
+- **`/demos`**: a search over title, kind, description, and tags at the top, then each demo as a block: its title (`typeSection`), one line, "Open in a new tab" when it has its own address, its docs link, and the window, now 36rem tall. The kind and tag filters are gone, and the intro line says what the page holds now. Each demo's files are read from its folder (component, page, layout, data, CSS). `DemoWindow` takes `files`; in Preview the title bar names the main file, in Code it has a tab per file. A stylesheet is highlighted on the client with `Highlight`, since the server highlighter knows only TSX and JSON.
+- **Token panel**: no button inside a framed page.
+
+Files:
+
+- `components/demos/images/` (new), `components/demos/search-engine/` (moved from `components/demos/search-engine.tsx`), `components/demos/gemini/` (`page.tsx` new, `gemini.css` renamed, `gemini.preview.tsx` removed, `gemini.tsx`).
+- `app/(blocks)/blocks/demos/layout.tsx` (copied), `app/(blocks)/blocks/demos/images/page.tsx` and `layout.tsx` (new).
+- `app/(home)/demos/page.tsx`, `components/pages/demos/catalog.tsx`, `components/pages/demos/demo-window.tsx`.
+- `next.config.ts` (the API forwarding and `COPYRIGHT_YEAR`), `components/dev/token-panel.tsx`.
+
+When folding back: the Images folder's shape (one component file) would replace the docs block's `components/` folder, so decide that for every docs block at once; the re-exporting route files and the API forwarding exist only because this app borrows the docs server. The docs config already sets `COPYRIGHT_YEAR`.
+
+
+## Images: the header stands in for the sidebar (2026-11-25)
+
+ellie asked to delete the "Images" heading above the gallery and, while the sidebar is hidden, to put Back and Forward and the search on the header row, the search as a search command, plus a History button that opens a menu of the chats.
+
+- The gallery's visible "Images" heading is gone; an `sr-only` one keeps the page's `h1`.
+- While the sidebar is not on screen (folded away, or on a phone, which has none), the header shows Back and Forward on the left, the same history the sidebar steps through, and Search and History beside New image on the right.
+- Search opens a command (the kit `Command` in a `Dialog`): New image, then the chats, matched by name; Enter opens one. Cmd+K or Ctrl+K opens it whether or not the sidebar is shown. It takes the key in the capture phase and stops it there, because the site's `SearchProvider` also opens its search on Cmd+K.
+- History opens a menu (the block's own menu parts) of the chats the sidebar lists, newest first, with the open one checked.
+- The shared sidebar is copied from `apps/docs/app/(blocks)/blocks/demos/chat-sidebar.tsx` to the same path here, with one addition: `useChatFrame()`, which gives a page header the sidebar's history and whether it is on screen.
+
+Files:
+
+- `components/demos/images/images.tsx`.
+- `app/(blocks)/blocks/demos/chat-sidebar.tsx` (copied, then `useChatFrame` added).
+
+When folding back: the sidebar change is additive, so Chat basic and Tasks keep working; they could take the same header the same way.

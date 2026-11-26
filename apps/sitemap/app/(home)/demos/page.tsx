@@ -1,232 +1,142 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Metadata } from "next";
 import { cacheLife } from "next/cache";
-import type { ReactNode } from "react";
-import { ChatGPT } from "@/components/demos/chatgpt";
-import { Claude } from "@/components/demos/claude";
-import { ScriptedClone } from "@/components/demos/clone.preview";
-import { GeminiPreview } from "@/components/demos/gemini/gemini.preview";
-import { Grok } from "@/components/demos/grok";
-import { Perplexity } from "@/components/demos/perplexity";
-import { StreamingTextPreview } from "@/components/demos/streaming-text.preview";
-import { ThreadPreview } from "@/components/demos/thread.preview";
+import GeminiPage from "@/components/demos/gemini/page";
+import SearchEnginePage from "@/components/demos/search-engine/page";
 import {
   CatalogBrowser,
   type CatalogDemo,
 } from "@/components/pages/demos/catalog";
+import type { DemoFile } from "@/components/pages/demos/demo-window";
 import { LiveFrame } from "@/components/pages/platforms/live-frame";
+import { Highlight } from "@/components/shared/highlight";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { highlightElementSource } from "@/lib/element-source";
-import {
-  CLONE_DEMOS,
-  SCRIPTED_DEMOS,
-  type ScriptedDemo,
-} from "@/lib/scripted-demos";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Demos",
   description:
-    "What the assistant-ui runtime handles, one file per feature, and familiar chat apps rebuilt on it, each with a scripted preview.",
+    "Chat apps and blocks built on assistant-ui, each a folder of a few files with a live preview.",
 };
 
-/** Where the docs show the same Thread on `useChatRuntime` and an AI SDK route. */
-const AI_SDK_SETUP = {
-  href: "/docs/runtimes/ai-sdk/overview",
-  label: "Set it up with a model",
-};
+/**
+ * Every demo is a folder in `components/demos` holding its component
+ * (`<name>.tsx`), `page.tsx`, `data.json`, and a `layout.tsx` and
+ * `<name>.css` only when it needs them. The Code tab lists them in this order.
+ */
+const FILE_ORDER = (name: string) => [
+  `${name}.tsx`,
+  "page.tsx",
+  "layout.tsx",
+  "data.json",
+  `${name}.css`,
+];
 
-const PREVIEWS: Partial<Record<string, ReactNode>> = {
-  thread: <ThreadPreview />,
-  streaming: <StreamingTextPreview />,
-  chatgpt: (
-    <ScriptedClone name="ChatGPT">
-      <ChatGPT />
-    </ScriptedClone>
-  ),
-  claude: (
-    <ScriptedClone name="Claude">
-      <Claude />
-    </ScriptedClone>
-  ),
-  grok: (
-    <ScriptedClone name="Grok">
-      <Grok />
-    </ScriptedClone>
-  ),
-  gemini: <GeminiPreview />,
-  perplexity: (
-    <ScriptedClone name="Perplexity">
-      <Perplexity />
-    </ScriptedClone>
-  ),
-};
+/** The server highlighter knows TSX and JSON; a stylesheet goes through the client one. */
+async function highlight(file: string, source: string) {
+  if (file.endsWith(".css")) return <Highlight code={source} language="css" />;
+  const html = await highlightElementSource(
+    source,
+    file.endsWith(".json") ? "json" : "tsx",
+  );
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+}
 
-/** The file the preview runs, so the tab and the preview cannot drift apart. */
-async function readSource(file: string) {
+/** The folder the preview runs, so the tab and the preview cannot drift apart. */
+async function readFolder(name: string): Promise<[DemoFile, ...DemoFile[]]> {
   "use cache";
   cacheLife("minutes");
-  const source = await readFile(
-    path.join(/* turbopackIgnore: true */ process.cwd(), file),
-    "utf8",
+  const folder = path.join(
+    /* turbopackIgnore: true */ process.cwd(),
+    "components/demos",
+    name,
   );
-  return source.trimEnd();
-}
-
-type LoadedDemo = ScriptedDemo & { html: string | null };
-
-async function load(demos: readonly ScriptedDemo[]): Promise<LoadedDemo[]> {
-  return Promise.all(
-    demos.map(async (demo) => ({
-      ...demo,
-      html: demo.file
-        ? await highlightElementSource(await readSource(demo.file.source))
-        : null,
-    })),
+  const present = new Set(await readdir(folder));
+  const files = await Promise.all(
+    FILE_ORDER(name)
+      .filter((file) => present.has(file))
+      .map(async (file) => {
+        const source = (
+          await readFile(path.join(folder, file), "utf8")
+        ).trimEnd();
+        return { name: file, code: await highlight(file, source) };
+      }),
   );
+  const [first, ...rest] = files;
+  if (!first) throw new Error(`No demo files in components/demos/${name}`);
+  return [first, ...rest];
 }
-
-const DOCS_ORIGIN =
-  process.env["NEXT_PUBLIC_DOCS_ORIGIN"] ?? "http://localhost:3000";
-const EXPO_DEMO = "https://assistant-ui-expo.vercel.app/";
-const INK_DEMO =
-  process.env["NEXT_PUBLIC_INK_DEMO_URL"] ??
-  "https://assistant-ui-ink.vercel.app";
-
-const FEATURE_TAGS: Record<string, readonly string[]> = {
-  thread: ["Markdown", "Suggestions", "Tools"],
-  streaming: ["Streaming", "Suggestions"],
-};
-const FEATURE_START: Record<string, string> = {
-  thread: "npx shadcn@latest add @assistant-ui/thread",
-  streaming: "npx shadcn@latest add @assistant-ui/elements-streaming-text",
-};
-const CLONE_TAGS = ["Thread list", "Attachments", "Editing"] as const;
-
-const frame = (src: string, title: string) => (
-  <LiveFrame
-    src={src}
-    title={title}
-    className="size-full rounded-none border-0"
-  />
-);
-
-/** The blocks the docs host, each running at its own page on the docs server. */
-const BLOCK_DEMOS: readonly CatalogDemo[] = [
-  {
-    id: "document-editor",
-    title: "Document editor",
-    description:
-      "A pages app with a floating assistant that edits the page you are on and waits for you to accept each change.",
-    tags: ["Tools", "Approval"],
-  },
-  {
-    id: "images",
-    title: "Images",
-    description:
-      "An image maker that turns a template or a message into a picture you edit beside the chat.",
-    tags: ["Tools", "Attachments"],
-  },
-  {
-    id: "chat-basic",
-    title: "Chat basic",
-    description:
-      "A whole chat written with every assistant-ui primitive, using only the shadcn/ui tooltip and resizable components.",
-    tags: ["Thread list", "Branching"],
-  },
-].map((block) => ({
-  ...block,
-  kind: "Block" as const,
-  preview: frame(`${DOCS_ORIGIN}/blocks/demos/${block.id}`, block.title),
-  docs: { href: `/blocks/${block.id}`, label: "About the block" },
-  full: `${DOCS_ORIGIN}/blocks/demos/${block.id}`,
-}));
-
-const PLATFORM_DEMOS: readonly CatalogDemo[] = [
-  {
-    id: "expo",
-    title: "React Native",
-    kind: "Platform",
-    tags: ["Mobile"],
-    description:
-      "A real Expo build of the assistant-ui chat, running on the web.",
-    preview: frame(EXPO_DEMO, "assistant-ui React Native demo"),
-    start: "npx assistant-ui@latest create --native my-app",
-    docs: { href: "/react-native", label: "About React Native" },
-    full: EXPO_DEMO,
-  },
-  {
-    id: "ink",
-    title: "Terminal",
-    kind: "Platform",
-    tags: ["Terminal"],
-    description: "A real Ink render loop of the assistant-ui chat, in ANSI.",
-    preview: frame(INK_DEMO, "assistant-ui Ink demo"),
-    start: "npx assistant-ui@latest create --ink my-app",
-    docs: { href: "/ink", label: "About Ink" },
-    full: INK_DEMO,
-  },
-];
 
 function CatalogHeader() {
   return (
     <header className="mb-10 max-w-2xl md:mb-12">
       <h1 className={typePage}>Every demo, in one place.</h1>
       <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-        Feature demos, clones, blocks, and platforms that run on this site.
-        Filter by kind or feature, try one, read its code, and start from it.
+        Clones and blocks that run on this site. Try each one in place, and read
+        its files.
       </p>
     </header>
   );
 }
 
+/** Scripted demos point here: a ChatModelAdapter is what replaces the script. */
+const SWAP_THE_SCRIPT = {
+  href: "/docs/runtimes/custom/local-runtime",
+  label: "Swap the script for a model",
+};
+
 export default async function DemosPage() {
-  const [demos, clones] = await Promise.all([
-    load(SCRIPTED_DEMOS),
-    load(CLONE_DEMOS),
+  const [images, searchEngine, gemini] = await Promise.all([
+    readFolder("images"),
+    readFolder("search-engine"),
+    readFolder("gemini"),
   ]);
 
   const catalog: CatalogDemo[] = [
-    ...demos.flatMap((demo) =>
-      demo.file && demo.html
-        ? [
-            {
-              id: demo.id,
-              title: demo.title,
-              kind: "Feature" as const,
-              tags: FEATURE_TAGS[demo.id] ?? [],
-              description: demo.description,
-              preview: PREVIEWS[demo.id],
-              file: { name: demo.file.name, html: demo.html },
-              ...(FEATURE_START[demo.id]
-                ? { start: FEATURE_START[demo.id] }
-                : {}),
-              docs: demo.link ?? AI_SDK_SETUP,
-            },
-          ]
-        : [],
-    ),
-    ...clones.flatMap((demo) =>
-      demo.file && demo.html
-        ? [
-            {
-              id: demo.id,
-              title: demo.title,
-              kind: "Clone" as const,
-              tags: CLONE_TAGS,
-              description: demo.description,
-              preview: PREVIEWS[demo.id],
-              file: { name: demo.file.name, html: demo.html },
-              docs: AI_SDK_SETUP,
-              full: `/examples/${demo.id}`,
-            },
-          ]
-        : [],
-    ),
-    ...BLOCK_DEMOS,
-    ...PLATFORM_DEMOS,
+    {
+      id: "images",
+      title: "Images",
+      kind: "Block",
+      tags: ["Tools", "Attachments"],
+      description:
+        "An image maker that turns a template or a message into a picture you edit beside the chat.",
+      // The block sets its theme on the whole page, so it runs at its own address, in a frame.
+      preview: (
+        <LiveFrame
+          src="/blocks/demos/images"
+          title="Images"
+          className="size-full rounded-none border-0"
+        />
+      ),
+      files: images,
+      docs: { href: "/blocks/images", label: "About the block" },
+      full: "/blocks/demos/images",
+    },
+    {
+      id: "search-engine",
+      title: "Search engine",
+      kind: "Clone",
+      tags: ["Suggestions", "Attachments", "Slash commands"],
+      description:
+        "A Google-style search page for assistant-ui whose answers open as a thread, on a script.",
+      preview: <SearchEnginePage />,
+      files: searchEngine,
+      docs: SWAP_THE_SCRIPT,
+    },
+    {
+      id: "gemini",
+      title: "Gemini",
+      kind: "Clone",
+      tags: ["Thread list", "Attachments", "Editing"],
+      description:
+        "A Gemini look and feel, rebuilt on assistant-ui, on a script.",
+      preview: <GeminiPage />,
+      files: gemini,
+      docs: SWAP_THE_SCRIPT,
+    },
   ];
 
   return (

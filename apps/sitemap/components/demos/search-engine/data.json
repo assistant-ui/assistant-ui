@@ -1,0 +1,197 @@
+{
+  "topics": [
+    {
+      "match": "install|set ?up|get(ting)? started|\\bstart\\b|npx|add it",
+      "question": "How do I install assistant-ui?",
+      "answer": "Ask your coding agent to **install and set up assistant-ui**. It runs:\n\n```bash\nnpx assistant-ui@latest setup\n```\n\nThe guided setup opens your browser when it needs you. You pick a runtime, a backend and the components you want, and the agent installs them and wires them into your project.",
+      "sources": [
+        {
+          "title": "Installation",
+          "url": "https://www.assistant-ui.com/docs/installation"
+        },
+        {
+          "title": "Manual installation",
+          "url": "https://www.assistant-ui.com/docs/manual-installation"
+        },
+        {
+          "title": "CLI",
+          "url": "https://www.assistant-ui.com/docs/cli"
+        }
+      ],
+      "followUps": ["Which runtime should I pick?", "What are Elements?"]
+    },
+    {
+      "match": "runtime|backend|ai sdk|langgraph|adapter|model|api\\b",
+      "question": "Which runtime should I pick?",
+      "answer": "A **runtime** connects assistant-ui's UI to your AI backend. Pick the one for the framework you already use:\n\n- **Vercel AI SDK**: `useChat`, streaming, tools, attachments and multi-step runs\n- **LangGraph**: a direct integration with the LangGraph SDK\n- **Google ADK**, **A2A** and **AG-UI** for agents that speak those protocols\n- **Local runtime**: a `ChatModelAdapter` for any API you call yourself\n\nThis search uses the local runtime, with a script in place of a model.",
+      "sources": [
+        {
+          "title": "Picking a runtime",
+          "url": "https://www.assistant-ui.com/docs/runtimes/pick-a-runtime"
+        },
+        {
+          "title": "AI SDK",
+          "url": "https://www.assistant-ui.com/docs/runtimes/ai-sdk/overview"
+        },
+        {
+          "title": "Local runtime",
+          "url": "https://www.assistant-ui.com/docs/runtimes/custom/local-runtime"
+        }
+      ],
+      "followUps": [
+        "How do I install assistant-ui?",
+        "What is Assistant Cloud?"
+      ]
+    },
+    {
+      "match": "element|component|thread\\b|ui kit|shadcn|style|design",
+      "question": "What are Elements?",
+      "answer": "**Elements** are ready-made pieces of chat UI: message actions, reasoning panels, tool cards, sources, charts and more than a hundred others. Each one installs with the shadcn CLI and lands as source code in your repo:\n\n```bash\nnpx shadcn@latest add @assistant-ui/thread\n```\n\nUnder them sit the **primitives** (Thread, Composer, Message, ActionBar), unstyled parts you compose into your own design.",
+      "sources": [
+        {
+          "title": "Elements",
+          "url": "https://www.assistant-ui.com/elements"
+        },
+        {
+          "title": "Components",
+          "url": "https://www.assistant-ui.com/components"
+        },
+        {
+          "title": "Primitives",
+          "url": "https://www.assistant-ui.com/docs/primitives"
+        }
+      ],
+      "followUps": [
+        "How do slash commands work?",
+        "How do I install assistant-ui?"
+      ]
+    },
+    {
+      "match": "slash|command|mention|trigger",
+      "question": "How do slash commands work?",
+      "answer": "Type **/** in the search bar to try one. A slash command opens a menu in the composer, and picking an item runs its `execute` callback:\n\n```tsx\nconst slash = unstable_useSlashCommandAdapter({\n  commands: [{ id: \"library\", execute: () => showLibrary() }],\n  removeOnExecute: true,\n});\n\n<ComposerTriggerPopover char=\"/\" {...slash} />\n```\n\nMentions use the same trigger popover, with **@** in place of **/**.",
+      "sources": [
+        {
+          "title": "Slash commands",
+          "url": "https://www.assistant-ui.com/docs/guides/slash-commands"
+        },
+        {
+          "title": "Mentions",
+          "url": "https://www.assistant-ui.com/docs/guides/mentions"
+        }
+      ],
+      "followUps": ["What are Elements?", "Show me the library"]
+    },
+    {
+      "match": "cloud|persist|save|history|threads|dashboard|pricing|price|cost",
+      "question": "What is Assistant Cloud?",
+      "answer": "**Assistant Cloud** is the hosted backend for assistant-ui apps. The runtime in your app talks to it directly:\n\n- **Persistence**: threads and messages are stored as they stream\n- **Titles**: a model names each conversation from its first message\n- **Run reports**: timing, tokens, tools, model and cost for every response\n- **Dashboard**: threads, runs, models, users and engagement",
+      "sources": [
+        {
+          "title": "Assistant Cloud",
+          "url": "https://www.assistant-ui.com/docs/cloud"
+        },
+        {
+          "title": "Cloud dashboard",
+          "url": "https://cloud.assistant-ui.com"
+        },
+        {
+          "title": "Pricing",
+          "url": "https://www.assistant-ui.com/pricing"
+        }
+      ],
+      "followUps": ["Which runtime should I pick?", "What is assistant-ui?"]
+    },
+    {
+      "match": "library|catalog|blocks|themes|starters|templates",
+      "question": "Show me the library",
+      "answer": "Everything you can install, by kind:\n\n- **Components** and **Elements**: the Thread and 150-odd chat pieces\n- **Blocks**: whole screens, like an images studio or an agent picker\n- **Themes**: presets with fonts, colors and radius\n- **Runtimes**, **Integrations** and **Tools**: connections to your backend\n- **Utilities** and **Skills**: helpers for you and for your coding agent",
+      "sources": [
+        {
+          "title": "Elements",
+          "url": "https://www.assistant-ui.com/elements"
+        },
+        {
+          "title": "Blocks",
+          "url": "https://www.assistant-ui.com/blocks"
+        },
+        {
+          "title": "Design",
+          "url": "https://www.assistant-ui.com/design"
+        }
+      ],
+      "followUps": ["What are Elements?", "Show me examples"]
+    },
+    {
+      "match": "example|demo|clone|chatgpt|claude|gemini|grok|perplexity|showcase",
+      "question": "Show me examples",
+      "answer": "Each of these is a working app built on assistant-ui:\n\n- **ChatGPT**, **Claude**, **Gemini**, **Grok** and **Perplexity** look-alikes\n- **AI SDK**, **LangGraph** and **Google ADK** apps, one per backend\n- **React Native** (Expo), **Vue**, **Svelte** and **Ink** for the terminal",
+      "sources": [
+        {
+          "title": "Examples",
+          "url": "https://www.assistant-ui.com/examples"
+        },
+        {
+          "title": "Showcase",
+          "url": "https://www.assistant-ui.com/showcase"
+        },
+        {
+          "title": "examples on GitHub",
+          "url": "https://github.com/assistant-ui/assistant-ui/tree/main/examples"
+        }
+      ],
+      "followUps": ["Show me the library", "How do I install assistant-ui?"]
+    },
+    {
+      "match": "docs|documentation|guide|learn|\\bread\\b",
+      "question": "Open the docs",
+      "answer": "The docs are in five parts:\n\n- **Getting started**: installation, the CLI and the devtools\n- **Runtimes**: one guide per backend, and how to pick\n- **Guides**: attachments, branching, editing, voice, slash commands and more\n- **Primitives**: every unstyled part and its props\n- **Cloud**: persistence, run reports and the dashboard",
+      "sources": [
+        {
+          "title": "Documentation",
+          "url": "https://www.assistant-ui.com/docs"
+        },
+        {
+          "title": "Guides",
+          "url": "https://www.assistant-ui.com/docs/guides"
+        },
+        {
+          "title": "llms.txt",
+          "url": "https://www.assistant-ui.com/llms.txt"
+        }
+      ],
+      "followUps": [
+        "How do I install assistant-ui?",
+        "Which runtime should I pick?"
+      ]
+    },
+    {
+      "match": "assistant-?ui|\\baui\\b|what is (it|this)|tell me about|explain|^(hi|hello|hey)\\b",
+      "question": "What is assistant-ui?",
+      "answer": "**assistant-ui** is an open-source TypeScript library for AI chat. It gives you:\n\n- **Primitives**: Thread, Composer, Message and more, unstyled and composable\n- **A runtime** that handles streaming, tools, attachments, branching and state\n- **Adapters** for any backend: the AI SDK, LangGraph, Mastra or your own API\n\nIt runs on React, React Native, Vue and in the terminal with Ink.",
+      "sources": [
+        {
+          "title": "assistant-ui",
+          "url": "https://www.assistant-ui.com"
+        },
+        {
+          "title": "Documentation",
+          "url": "https://www.assistant-ui.com/docs"
+        },
+        {
+          "title": "assistant-ui on GitHub",
+          "url": "https://github.com/assistant-ui/assistant-ui"
+        }
+      ],
+      "followUps": ["How do I install assistant-ui?", "Show me examples"]
+    }
+  ],
+  "fallback": {
+    "answer": "This search runs on a script, so it only knows a few answers about assistant-ui. Try one of the questions below, or type **/** in the search bar to see the commands.",
+    "followUps": [
+      "What is assistant-ui?",
+      "How do I install assistant-ui?",
+      "Which runtime should I pick?"
+    ]
+  }
+}

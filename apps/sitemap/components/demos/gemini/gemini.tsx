@@ -1,6 +1,6 @@
 "use client";
 
-import "./themes.css";
+import "./gemini.css";
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -19,10 +19,12 @@ import {
   useAui,
   useAuiEvent,
   useAuiState,
+  useLocalRuntime,
+  type ChatModelAdapter,
   type DirectiveFormatter,
   type FeedbackAdapter,
+  type ThreadMessage,
 } from "@assistant-ui/react";
-import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import {
   Add01Icon,
   Album02Icon,
@@ -133,7 +135,7 @@ import data from "./data.json";
 /** Ratings stay in the message's metadata; this demo sends them nowhere. */
 const feedback: FeedbackAdapter = { submit() {} };
 
-export const adapters = {
+const adapters = {
   attachments: new CompositeAttachmentAdapter([
     new SimpleImageAttachmentAdapter(),
     new SimpleTextAttachmentAdapter(),
@@ -143,11 +145,81 @@ export const adapters = {
   feedback,
 };
 
+/* -------------------------------------------------------------------------- */
+/* The script: what Gemini answers, in place of a model.                      */
+/* Swap `script` for a real ChatModelAdapter to answer with a model.          */
+/* -------------------------------------------------------------------------- */
+
+const THINKING = [
+  "Reading the request and what is attached to it.",
+  "This demo answers from a script, so the reply describes the clone instead of the question.",
+];
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function lastUserText(messages: readonly ThreadMessage[]) {
+  const message = messages.findLast((entry) => entry.role === "user");
+  return (message?.content ?? [])
+    .map((part) => (part.type === "text" ? part.text : ""))
+    .join(" ")
+    .trim();
+}
+
+/** Yields `text` a word at a time, each step the full text so far. */
+async function* streamWords(text: string, signal: AbortSignal) {
+  let shown = "";
+  for (const word of text.split(/(?<=\s)/)) {
+    if (signal.aborted) return;
+    shown += word;
+    yield shown;
+    await wait(30);
+  }
+}
+
+function quote(text: string) {
+  return text.length > 60 ? `${text.slice(0, 60).trimEnd()}…` : text;
+}
+
+function replyFor(asked: string, custom: Record<string, unknown>) {
+  const tool = typeof custom["tool"] === "string" ? custom["tool"] : null;
+  const opener =
+    custom["mode"] === "task"
+      ? `Here is how this task would go. The demo answers from a script, so nothing was done for “${quote(asked)}”.`
+      : `This is the Gemini clone answering from a script, so no model read “${quote(asked)}”.`;
+
+  return `${opener}${tool ? `\n\nThe **${tool}** chip rode along in the run config, so a real route could read it.` : ""}
+
+What works here:
+
+- **Chats** in the sidebar, with pin, rename, mark as unread, and delete
+- **Temporary chat**, which keeps a chat out of the list
+- **Attachments** from the + menu, and **@** for mentions
+- **Dictation**, **Listen**, ratings, copy, and redo under each reply
+- **Theme** under Settings, set to System, Light, or Dark`;
+}
+
+const script: ChatModelAdapter = {
+  async *run({ messages, abortSignal, runConfig }) {
+    const asked = lastUserText(messages) || "your message";
+    let thinking = "";
+    for (const step of THINKING) {
+      await wait(450);
+      if (abortSignal.aborted) return;
+      thinking += `${thinking ? "\n\n" : ""}${step}`;
+      yield { content: [{ type: "reasoning", text: thinking }] };
+    }
+    const reasoning = { type: "reasoning", text: thinking } as const;
+    for await (const text of streamWords(
+      replyFor(asked, runConfig?.custom ?? {}),
+      abortSignal,
+    )) {
+      yield { content: [reasoning, { type: "text", text }] };
+    }
+  },
+};
+
 export default function GeminiDemo() {
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({ api: "/api/chat" }),
-    adapters,
-  });
+  const runtime = useLocalRuntime(script, { adapters });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -217,7 +289,7 @@ function titleFrom(text: string) {
   return line.length > 40 ? `${line.slice(0, 40).trimEnd()}…` : line;
 }
 
-export function Gemini() {
+function Gemini() {
   const aui = useAui();
   const root = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<Theme>("system");

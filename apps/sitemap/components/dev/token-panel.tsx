@@ -88,6 +88,11 @@ export function TokenPanel() {
     () => true,
     () => false,
   );
+  const framed = useSyncExternalStore(
+    noopSubscribe,
+    () => window.self !== window.top,
+    () => false,
+  );
   const [tokens, setTokens] = useState<Tokens>(readSaved);
   const [open, setOpen] = useState(false);
   const { resolvedTheme } = useTheme();
@@ -103,7 +108,8 @@ export function TokenPanel() {
     }
   }, [tokens]);
 
-  if (!hydrated) return null;
+  // A demo framed on /demos shares the page's saved tokens; a second button inside the frame would cover the demo.
+  if (!hydrated || framed) return null;
 
   const css = tokenCss(tokens);
   const changes = css

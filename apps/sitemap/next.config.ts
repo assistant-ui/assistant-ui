@@ -15,6 +15,8 @@ const docsPublicFolders = readdirSync(`${docsApp}public`).filter((name) =>
 const config: NextConfig = {
   // The home page's sections and the library's demos come from the docs app, which is built with these on.
   cacheComponents: true,
+  // A prerender cannot read the clock, so the copyright year is fixed at build time.
+  env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   // The root AGENTS.md already points agents at the bundled Next.js docs.
   agentRules: false,
@@ -43,6 +45,11 @@ const config: NextConfig = {
       afterFiles: [],
       fallback: [
         { source: "/api/:path*", destination: `${docsOrigin}/api/:path*` },
+        // A block copied here still calls its own routes, which stay in the docs app.
+        {
+          source: "/blocks/demos/:block/api/:path*",
+          destination: `${docsOrigin}/blocks/demos/:block/api/:path*`,
+        },
         // Each utility's own docs site lives at /<utility>/docs on the docs server.
         {
           source: "/:project/docs/:path*",
