@@ -252,7 +252,7 @@ When `isSendDisabled` is `true`:
 
 - `composer.canSend` becomes `false`
 - `<ComposerPrimitive.Send>` is disabled
-- The send key (Enter, or `Cmd/Ctrl+Enter` with `submitMode="ctrlEnter"`) sends nothing, and the input swallows the keystroke
+- The send key (Enter, or `Cmd/Ctrl+Enter` with `submitMode="ctrlEnter"`) sends nothing. Where it would otherwise send, the input swallows the keystroke
 - The `Cmd/Ctrl+Shift+Enter` steer hotkey sends nothing either, but the input does not intercept it, so the textarea handles the keystroke as usual
 - `aui.composer.send()` short-circuits at the runtime, so direct calls cannot escape the gate
 

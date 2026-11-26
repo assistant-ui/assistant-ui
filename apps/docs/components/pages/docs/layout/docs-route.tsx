@@ -112,13 +112,10 @@ export async function DocsRoutePage({
   const neighboursByPlatform =
     sharingSurfaces.length > 1
       ? Object.fromEntries(
-          sharingSurfaces.flatMap((surface) => {
-            const found = getDocsNeighbours(
-              getPlatformTree(tree, surface),
-              page.url,
-            );
-            return found.previous || found.next ? [[surface, found]] : [];
-          }),
+          sharingSurfaces.map((surface) => [
+            surface,
+            getDocsNeighbours(getPlatformTree(tree, surface), page.url),
+          ]),
         )
       : undefined;
 
