@@ -5,7 +5,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import { DocsBuildCache } from "@farming-labs/docs/build";
 import { loader } from "fumadocs-core/source";
 import { remark } from "remark";
-import { createContentManifest, generateContentManifest } from "./manifest.mts";
+import {
+  codeIdentifiers,
+  createContentManifest,
+  generateContentManifest,
+} from "./manifest.mts";
 import { createContentSource } from "../../lib/content-source";
 
 vi.mock("remark", async (importOriginal) => {
@@ -357,4 +361,23 @@ it("imports only recorded pages in lite mode and keeps every page listed", async
   await generateContentManifest(root);
   expect(await generated()).toContain('import("../content/docs/index.mdx")');
   expect(await generated()).not.toContain("pendingPage");
+});
+
+it("collects compound API names and package names from fenced code only", () => {
+  expect(
+    codeIdentifiers({
+      type: "root",
+      children: [
+        {
+          type: "code",
+          value:
+            'import { useAuiState } from "@assistant-ui/react";\nconst value = readState(useAuiState) as UIMessage;',
+        },
+        {
+          type: "paragraph",
+          children: [{ type: "text", value: "useProseOnly" }],
+        },
+      ],
+    }),
+  ).toEqual(["@assistant-ui/react", "UIMessage", "readState", "useAuiState"]);
 });

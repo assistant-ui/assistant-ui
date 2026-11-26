@@ -44,7 +44,7 @@ import {
   highlightMatches,
   searchEntries,
   searchOtherPages,
-  tokenize,
+  searchTokens,
 } from "@/lib/search/query";
 import {
   SEARCH_SCOPES,
@@ -194,7 +194,7 @@ function SearchContent({
   }, [loadIndex, pathname]);
 
   const query = inputValue.trim();
-  const tokens = useMemo(() => tokenize(query), [query]);
+  const tokens = useMemo(() => searchTokens(query), [query]);
   const hasQuery = tokens.length > 0;
   const scopedIndex = useMemo(
     () => index.filter((page) => inSearchScope(page.url, scope)),
@@ -277,14 +277,22 @@ function SearchContent({
   const canAskAI = isEmpty && hasQuery && askAI !== null;
   const resultsReady = hasQuery && !waiting && indexStatus === "ready";
   const [queryTracker] = useState(() =>
-    createSettledQueryTracker((settledQuery, resultCount) => {
+    createSettledQueryTracker((settledQuery, resultCount, suggestedCount) => {
       if (resultCount === 0) analytics.search.noResults(settledQuery);
-      else analytics.search.querySubmitted(settledQuery, resultCount);
+      else
+        analytics.search.querySubmitted(
+          settledQuery,
+          resultCount,
+          suggestedCount,
+        );
     }),
   );
+  const suggestedCount = hasQuery
+    ? suggestedGroups.reduce((total, group) => total + group.items.length, 0)
+    : 0;
   useEffect(() => {
-    queryTracker.update(query, results.length, resultsReady);
-  }, [queryTracker, query, results.length, resultsReady]);
+    queryTracker.update(query, results.length, resultsReady, suggestedCount);
+  }, [queryTracker, query, results.length, resultsReady, suggestedCount]);
   useEffect(() => () => queryTracker.flush(), [queryTracker]);
 
   const handleSelect = (item: SearchHit) => {

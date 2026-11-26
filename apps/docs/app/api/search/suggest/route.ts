@@ -3,7 +3,7 @@ import { checkDocsSearchRateLimit } from "@/lib/rate-limit";
 import { buildContentIndex } from "@/lib/search/content-index";
 import { searchContent, type ContentRecord } from "@/lib/search/content-search";
 import { searchablePages } from "@/lib/search/corpus";
-import { scoreText, tokenize } from "@/lib/search/query";
+import { scoreText, searchTokens } from "@/lib/search/query";
 import {
   inSearchScope,
   SEARCH_SCOPES,
@@ -38,7 +38,7 @@ const listedLocally = (page: ContentRecord, tokens: string[]) =>
 async function findTextMatches(query: string, scope: SearchScope) {
   const index = await buildContentIndex();
   const records = index.filter((page) => inSearchScope(page.url, scope));
-  const tokens = tokenize(query);
+  const tokens = searchTokens(query);
   const unlisted = records.filter((page) => !listedLocally(page, tokens));
   const find = (pages: ContentRecord[], text: string) =>
     searchContent(pages, text, TEXT_MATCH_LIMIT, { anyToken: false });

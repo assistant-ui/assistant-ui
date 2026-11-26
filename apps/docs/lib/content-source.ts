@@ -24,6 +24,7 @@ type SearchEntry = {
     contents: { content: string; heading?: string; table?: string }[];
   };
   markdown?: string;
+  identifiers?: string[];
 };
 
 type ContentData<C extends Collection> = z.output<
@@ -32,6 +33,8 @@ type ContentData<C extends Collection> = z.output<
   load: () => Promise<{ body: ContentModule["default"]; toc: TableOfContents }>;
   structuredData: () => Promise<StructuredData>;
   getText: (format: "processed") => Promise<string>;
+  /** Compound API names from the page's code blocks; server-only search. */
+  codeIdentifiers: () => Promise<string[]>;
 };
 
 export function createContentSource<C extends Collection>(
@@ -67,6 +70,8 @@ export function createContentSource<C extends Collection>(
       },
       getText: async (_format: "processed") =>
         (await loadData())[entry.path]!.markdown ?? "",
+      codeIdentifiers: async () =>
+        (await loadData())[entry.path]!.identifiers ?? [],
     },
   }));
   return {

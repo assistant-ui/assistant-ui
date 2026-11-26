@@ -1,47 +1,5 @@
-import { scoreText, tokenize } from "./query";
+import { scoreText, STOP_WORDS, tokenize } from "./query";
 import type { SearchRecord } from "./types";
-
-// `tokenize` only drops single characters, and `scoreText` requires every token,
-// so a tool asking a natural-language question would otherwise have to find all
-// of its filler words on one page.
-const STOP_WORDS = new Set([
-  "about",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "by",
-  "can",
-  "do",
-  "does",
-  "for",
-  "from",
-  "how",
-  "in",
-  "is",
-  "it",
-  "of",
-  "on",
-  "or",
-  "should",
-  "that",
-  "the",
-  "this",
-  "to",
-  "was",
-  "what",
-  "when",
-  "where",
-  "which",
-  "who",
-  "why",
-  "with",
-  "would",
-  "you",
-  "your",
-]);
 
 /**
  * A page with the prose fumadocs already extracted for the search index.
@@ -52,6 +10,8 @@ const STOP_WORDS = new Set([
  */
 export type ContentRecord = SearchRecord & {
   contents: string[];
+  /** Compound API names from the page's code blocks. */
+  identifiers?: string[];
 };
 
 export type ContentMatch = {
@@ -84,10 +44,12 @@ export function searchContent(
   limit: number,
   { anyToken = true }: { anyToken?: boolean } = {},
 ): ContentMatch[] {
-  const all = tokenize(query).filter((token) => !STOP_WORDS.has(token));
+  const words = tokenize(query);
+  const all = words.filter((token) => !STOP_WORDS.has(token));
   if (all.length === 0 || limit <= 0) return [];
 
-  const ranked = rank(records, all, limit);
+  // Symbol names keep their stop words: "on click" spells `onClick`.
+  const ranked = rank(records, all, limit, words);
   if (ranked.length > 0 || all.length === 1 || !anyToken) return ranked;
 
   // Every token has to appear on one page, so a specific question can rank
@@ -118,10 +80,36 @@ export function searchContent(
     .map((entry) => entry.match);
 }
 
+// A query names a symbol when its words, joined, spell it ("useAuiState",
+// "use aui state", "@assistant-ui/react-ag-ui"), or start it once they are
+// long enough to be specific. A single word also matches a documented symbol
+// it extends ("AssistantChatTransportInitOptions" finds
+// `AssistantChatTransport`); with more words, that would skip the
+// every-word requirement ("useChatRuntime langgraph").
+const SYMBOL_PREFIX = 8;
+const BASE_SYMBOL = 12;
+const compact = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function symbolMatch(identifiers: readonly string[] = [], tokens: string[]) {
+  const name = compact(tokens.join(""));
+  if (name.length < 4) return false;
+  return identifiers.some((identifier) => {
+    const symbol = compact(identifier);
+    return (
+      symbol === name ||
+      (name.length >= SYMBOL_PREFIX && symbol.startsWith(name)) ||
+      (tokens.length === 1 &&
+        symbol.length >= BASE_SYMBOL &&
+        name.startsWith(symbol))
+    );
+  });
+}
+
 function rank(
   records: readonly ContentRecord[],
   tokens: string[],
   limit: number,
+  symbolTokens = tokens,
 ): ContentMatch[] {
   const ranked: { match: ContentMatch; score: number }[] = [];
 
@@ -143,13 +131,15 @@ function rank(
       (total, entry) => total + entry.score,
       0,
     );
+    const symbolScore = symbolMatch(page.identifiers, symbolTokens) ? 3 : 0;
 
     const score =
       titleScore * 8 +
       headingScore * 3 +
       urlScore * 3 +
       descriptionScore * 2 +
-      Math.min(bodyScore, 12);
+      Math.min(bodyScore, 12) +
+      symbolScore;
     if (score === 0) continue;
 
     const chosen = [...paragraphs]
