@@ -42,7 +42,7 @@ export function agentClientFamily(userAgent: string | null): string {
   return "other";
 }
 
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+const EMAIL = /(?:[^\s@/"]+|"(?:[^"\\]|\\.)+")@[^\s@/]+\.[^\s@/]+/gu;
 const IPV4 = /\b\d{1,3}(?:\.\d{1,3}){3}\b/g;
 const IPV6 =
   /\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4}\b/gi;
@@ -75,12 +75,6 @@ export type AgentDocsRead = {
   negotiated: boolean;
 };
 
-/**
- * Which agent read a request is, if any: llms.txt, llms-full.txt, a skill, a
- * page's markdown by its .md url, or any page fetched with
- * `Accept: text/markdown`. The proxy matches these paths (proxy.ts), because
- * the CDN answers most of them from cache without running a route.
- */
 // A path keeps its percent-encoding, which would hide an encoded `@` or `:`
 // from the scrub.
 function decodedPath(pathname: string) {
@@ -91,6 +85,12 @@ function decodedPath(pathname: string) {
   }
 }
 
+/**
+ * Which agent read a request is, if any: llms.txt, llms-full.txt, a skill, a
+ * page's markdown by its .md url, or any page fetched with
+ * `Accept: text/markdown`. The proxy matches these paths (proxy.ts), because
+ * the CDN answers most of them from cache without running a route.
+ */
 export function agentDocsRead(
   pathname: string,
   headers: Headers,

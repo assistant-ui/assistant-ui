@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { captureImmediate, afterTasks } = vi.hoisted(() => ({
   captureImmediate: vi.fn(async () => {}),
-  afterTasks: [] as unknown[],
+  afterTasks: [] as (() => unknown)[],
 }));
 
 vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
   after: (task: () => unknown) => {
-    afterTasks.push(task());
+    afterTasks.push(task);
   },
 }));
 
@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 // Waits for the work scheduled with `after`, which runs once the response is sent.
-const flush = () => Promise.all(afterTasks.splice(0));
+const flush = () => Promise.all(afterTasks.splice(0).map((task) => task()));
 
 describe("agentClientFamily", () => {
   it.each([
@@ -83,6 +83,9 @@ describe("agentText", () => {
       "from [ip] and [ip]",
     );
     expect(agentText("std::vector at 10:30")).toBe("std::vector at 10:30");
+    expect(agentText('mail "j doe"@example.com or josé@exämple.de')).toBe(
+      "mail [email] or [email]",
+    );
     expect(agentText("x".repeat(500))).toHaveLength(200);
   });
 
@@ -149,6 +152,7 @@ describe("captureAgentEvent", () => {
       path: "/llms.txt",
       skipped: undefined,
     });
+    expect(captureImmediate).not.toHaveBeenCalled();
     await flush();
     expect(captureImmediate).toHaveBeenCalledWith({
       distinctId: "docs-agent",
