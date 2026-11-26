@@ -27,12 +27,24 @@ You need a Google ADK agent running on a server (ADK JS or ADK Python) and React
 </Tab>
 <Tab value="React Native">
 
+In the app:
+
 <InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-google-adk"]} />
+
+In the backend project that hosts the API route below:
+
+<InstallCommand npm={["@assistant-ui/react-google-adk", "@google/adk"]} />
 
 </Tab>
 <Tab value="React Ink">
 
+In the app:
+
 <InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-google-adk", "ink", "react"]} />
+
+In the backend project that hosts the API route below:
+
+<InstallCommand npm={["@assistant-ui/react-google-adk", "@google/adk"]} />
 
 </Tab>
 </PlatformTabs>

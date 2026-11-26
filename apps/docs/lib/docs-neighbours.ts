@@ -37,10 +37,12 @@ function flatten(tree: Root): FlatPage[] {
   return pages;
 }
 
-export function getDocsNeighbours(
-  tree: Root,
-  url: string,
-): { previous?: DocsNeighbour | undefined; next?: DocsNeighbour | undefined } {
+export type DocsNeighbours = {
+  previous?: DocsNeighbour | undefined;
+  next?: DocsNeighbour | undefined;
+};
+
+export function getDocsNeighbours(tree: Root, url: string): DocsNeighbours {
   const pages = flatten(tree);
   const index = pages.findIndex((page) => page.url === url);
   if (index === -1) return {};

@@ -377,10 +377,20 @@ function AssistantMessage() {
 
 ### Attachments
 
+While a message is still sending, its attachments can be pending, for example while they upload, and a pending attachment may not have its `content` yet. Show a placeholder until `attachment.status.type` is `"complete"`.
+
 ```tsx
 <MessagePrimitive.Root>
   <MessagePrimitive.Attachments>
     {({ attachment }) => {
+      if (attachment.status.type !== "complete") {
+        return (
+          <div className="rounded-lg border p-2 text-sm text-muted-foreground">
+            {attachment.name}…
+          </div>
+        );
+      }
+
       if (attachment.type === "image") {
         const imageSrc = attachment.content?.find((part) => part.type === "image")?.image;
         if (!imageSrc) return null;
