@@ -557,6 +557,32 @@ return {
 
 For images, use `{ type: "image", image: <data url or remote url> }`. AI SDK will pass these to providers that accept multimodal content.
 
+## Start a thread with initial messages
+
+`useChatRuntime` takes the AI SDK's `messages` option, the same one `useChat` takes. Pass `UIMessage` objects to open the chat on a greeting or a seeded conversation:
+
+```tsx
+"use client";
+
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import type { UIMessage } from "ai";
+
+const initialMessages: UIMessage[] = [
+  {
+    id: "welcome",
+    role: "assistant",
+    parts: [{ type: "text", text: "Hi! Ask me anything about your order." }],
+  },
+];
+
+function Chat() {
+  const runtime = useChatRuntime({ messages: initialMessages });
+  // ...
+}
+```
+
+The runtime passes its options to every thread it opens, so each new thread starts from these messages. To bring back a user's own conversation after a reload, persist it with a history adapter instead, as the next section shows; a thread that already holds messages skips the adapter's `load()`, so use one or the other. With `LocalRuntime` the same option is called [`initialMessages`](/docs/runtimes/custom/local-runtime#start-with-initial-messages).
+
 ## Persisting chat history
 
 By default, messages live only in memory and reset on reload. To persist and restore history per thread, provide a `ThreadHistoryAdapter` via `adapters.history`.

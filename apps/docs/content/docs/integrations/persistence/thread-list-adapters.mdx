@@ -411,6 +411,43 @@ function ThreadListItemMeta() {
 
 `custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem.updateCustom(custom)`. On a new draft, this updates the item immediately without calling the adapter; `initialize(threadId, options?)` receives the value as `options.custom` when it creates the thread, and an adapter that ignores it loses the draft's metadata on the next `list()`. Later updates call `updateCustom` on the adapter. The cloud adapter includes it in `cloud.threads.create({ metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads.reload()` to re-run `list()`.
 
+#### Example: pinned and unread threads
+
+Flags such as a pin or an unread marker are custom metadata. The row reads its flag from `custom` and writes it back with `updateCustom`; the adapter stores it, and `list()` returns it on the next load.
+
+```tsx
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+function PinButton() {
+  const aui = useAui();
+  const custom = useAuiState((s) => s.threadListItem.custom);
+  const pinned = custom?.["pinned"] === true;
+
+  return (
+    <button
+      type="button"
+      onClick={() => aui.threadListItem.updateCustom({ ...custom, pinned: !pinned })}
+    >
+      {pinned ? "Unpin" : "Pin"}
+    </button>
+  );
+}
+```
+
+```ts
+const adapter: RemoteThreadListAdapter = {
+  // ...list, initialize, rename, archive, unarchive, delete, fetch, generateTitle
+  async updateCustom(remoteId, custom) {
+    await fetch(`/api/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ custom }),
+    });
+  },
+};
+```
+
+An unread marker works the same way: your server sets it when a reply finishes in a thread the user is not looking at, and the row clears it with `updateCustom` when the user opens the thread.
+
 ## ExternalStoreThreadListAdapter
 
 This adapter is for `ExternalStoreRuntime` only. It wires multi-thread support into an external state store.
