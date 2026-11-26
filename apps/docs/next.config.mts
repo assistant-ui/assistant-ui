@@ -552,11 +552,6 @@ const config: NextConfig = {
       destination: "/docs/api-reference/integrations/ai-sdk",
       permanent: true,
     },
-    {
-      source: "/docs/integrations/frameworks/cloudflare-agents/overview",
-      destination: "/docs/runtimes/cloudflare-agents",
-      permanent: true,
-    },
   ],
   rewrites: async () => ({
     beforeFiles: [
