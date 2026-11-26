@@ -95,10 +95,17 @@ const SCOPED_CSS = THEME_NAMES.filter((name) => name !== "default")
   ])
   .join("\n");
 
-const shownCss = (name: ThemeName) =>
+// What the reader would write in their own stylesheet: the light values on
+// :root and the dark ones on .dark, which must come after :root.
+const shownCss = (name: ThemeName): string[] =>
   name === "default"
-    ? "/* No overrides: the thread uses the variables\n   your shadcn setup already put in globals.css. */"
-    : `${cssBlock(":root", THEMES[name].light)}\n\n${cssBlock(".dark", THEMES[name].dark)}`;
+    ? [
+        "/* No overrides: the thread uses the variables\n   your shadcn setup already put in globals.css. */",
+      ]
+    : [
+        cssBlock(":root", THEMES[name].light),
+        cssBlock(".dark", THEMES[name].dark),
+      ];
 
 const CREATED_AT = new Date("2026-11-26T12:00:00Z");
 const HISTORY: ThreadMessageLike[] = [
@@ -183,9 +190,16 @@ export function ThemeSwitcherSample() {
       <p className="text-muted-foreground mt-4 mb-2 font-mono text-xs">
         app/globals.css
       </p>
-      <pre className="bg-code-surface rounded-document max-h-56 overflow-auto p-3 font-mono text-xs leading-relaxed">
-        <code>{shownCss(theme)}</code>
-      </pre>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {shownCss(theme).map((css) => (
+          <pre
+            key={css}
+            className="bg-code-surface rounded-document overflow-x-auto p-3 font-mono text-xs leading-relaxed sm:only:col-span-2"
+          >
+            <code>{css}</code>
+          </pre>
+        ))}
+      </div>
     </div>
   );
 }
