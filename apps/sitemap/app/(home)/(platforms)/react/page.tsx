@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { ThreadPreview } from "@/components/demos/thread.preview";
-import { Highlight } from "@/components/shared/highlight";
 import { PageFrame } from "@/components/shared/page-frame";
-import { DemoFrame } from "@/components/shared/demo-frame";
+import { DemoSetupPanel } from "@/components/shared/demo-setup-panel";
 import { PageHero } from "@/components/shared/page-hero";
-import { CodeBlock } from "@/components/ui/code-block";
 
 export const metadata: Metadata = {
   title: "assistant-ui for React",
@@ -84,26 +82,17 @@ export default function ReactPage() {
         deck="Thread, Composer, and Message primitives for React, on the runtime every assistant-ui platform shares. Bring any backend through an adapter."
         primary={{ label: "Read the docs", href: "/docs" }}
         secondary={{ install: "npx assistant-ui@latest create my-app" }}
-        demo={
-          <DemoFrame
-            caption="The Thread, with replies from a script."
-            frameClassName="h-[30rem]"
-          >
-            <ThreadPreview />
-          </DemoFrame>
+        showcase={
+          <DemoSetupPanel
+            frameClassName="h-[34rem]"
+            demo={<ThreadPreview />}
+            demoCaption="The Thread, with replies from a script."
+            files={[{ path: "app/page.tsx", language: "tsx", code: SNIPPET }]}
+            setupCaption="From the manual installation guide."
+          />
         }
       />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
-        <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className="text-sm font-medium">The setup</p>
-          <CodeBlock
-            title="app/page.tsx · from the manual installation guide"
-            className="my-0 mt-6 max-w-[44rem]"
-          >
-            <Highlight code={SNIPPET} language="tsx" />
-          </CodeBlock>
-        </section>
-
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">
             <p className="text-sm font-medium">The primitives</p>

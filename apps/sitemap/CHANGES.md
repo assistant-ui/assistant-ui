@@ -7,8 +7,8 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 ## To do
 
 - Back to `/demos` (ellie, 2026-11-25: "we will come back to demos tmr"): add the runnable `/examples` (Modal, Form Filling Co-Pilot, AI SDK, Artifacts, Generative UI, Article Assistant), settle the tags, open a demo full screen when it is tapped on a phone, and add each feature demo as it is built.
-- Overview pages (`/utilities`, `/platforms`, `/demos`) lose their hero demo and subject pages get a Demo and Setup panel, per the design-pages skill. Not done yet: ellie has not decided what an overview hero shows instead ("idk something cant pick").
-- `/skills`: ellie's idea, not decided: MCP becomes its own section beside "What each skill covers" and "Works in N agents", each section with a small interactive demo.
+- `/tw-shimmer`: the hero title no longer shimmers (the docs' does), and "> thinking" became "Thinking"; confirm or revert.
+- `/safe-content-frame`: the demo frame's colors are fixed at tint 106, so the token sheet's tint does not reach them.
 - Icons for Codemaker and Neovate in `components/library/agent-icons.tsx`; the Skills page shows their first letter until there is a source for them.
 - Link `/skills` from the site: the header's Library menu (Extend, beside Skills) or the Resources menu.
 - Link `/utilities` from the site the same way (the Library menu's Extend group has Utilities).
@@ -827,3 +827,69 @@ ellie: a page that collects things (the home page, `/utilities`) should not open
 Files:
 
 - `.claude/skills/design-pages/SKILL.md`: "Two kinds of page", and the subject page's Demo and Setup panel.
+
+## Overview hero variants on /utilities, and Skills in three sections (2026-11-25)
+
+ellie couldn't pick what an overview page shows beside its title now that the hero has no demo, so `/utilities` shows three options in `<Variants id="overview-hero">`: Copy only (the hero alone, full width), Index of the items (default: each utility with its glyph, package name, and title, linking to its page), and Install commands (each utility's command, copying on click). The DevTools demo is gone from the hero. `PageHero`'s `demo` prop is now `aside`, and optional.
+
+`/skills` follows ellie's idea: MCP becomes its own section beside the skills and the agents, and each section has a small interactive panel.
+
+- Hero: the title, one line, Read the docs and the install command, and an index of the three sections (Skills 17, MCP, Agents 79).
+- Skills: a panel to pick a skill (each with its glyph) and read the SKILL.md your agent gets, with copy for that skill's install command; the list of skills below.
+- MCP: the MCP panel (Connect, Search the docs), moved down from the hero.
+- Agents: a panel to pick any of the 79 agents (searchable, each with its icon), showing the command that installs into it and the skill folders that land in its directory; the list of agents below.
+
+Files:
+
+- `components/shared/overview-index.tsx` (new): `OverviewIndex` and `OverviewInstalls`.
+- `components/shared/page-section.tsx` (new): a section with its panel beside the copy.
+- `components/pages/skills/picker-parts.tsx`, `skill-picker.tsx`, `agent-picker.tsx` (new): the header-row picker (searchable when long) and the two panels.
+- `components/shared/page-hero.tsx`: `aside`, optional.
+- `app/(home)/skills/page.tsx`, `app/(home)/utilities/page.tsx`, and the platform pages (`demo` → `aside`).
+- `components/pages/skills/skill-list.tsx`: exports its Markdown styles and `body` for the skill panel.
+- `components/library/item-glyph.tsx`: exports `GlyphAgent` for the Agents index row.
+- `package.json`, `pnpm-lock.yaml`: `@assistant-ui/variants` again, until the pick.
+
+When folding back: the new shared pieces go to the same paths in `apps/docs`; never the variants.
+
+## Overview terminal, a page per utility, and the demo as its own row (2026-11-25)
+
+Overview heroes: ellie chose "a terminal that runs the install commands as a demo", then asked for tabs in the terminal's own header row, where "Terminal ~/my-app" was, and for each tab to run and show what comes out. `InstallTerminal` (`components/shared/install-terminal.tsx`) now has a tab per item in its header row (with each item's glyph) and a run-again button. A tab types its real install or create command after a `~/my-app $` prompt, then shows the next step from the item's docs and the item running where it can; tabs advance on their own until the reader picks one, and reduced motion shows each at once. It never prints invented install output.
+
+- `/utilities`: seven tabs, one per utility; the live heat graph and shimmer under theirs. The three hero variants and `@assistant-ui/variants` are gone again.
+- `/platforms`: four tabs; React, React Native, and Ink run their live demos after the create command, Vue shows its quickstart component. Its old platform demo file is gone.
+
+A page per utility, in a `(utilities)` route group at the docs' own addresses, built in parallel and then checked here: `/heat-graph`, `/tw-shimmer`, `/react-o11y`, `/safe-content-frame`, `/generative-frame`, `/variants`, and `/devtools` (new; DevTools had only a docs page). `/utilities` moved into the group too, and its tiles and tabs link to them.
+
+Subject pages (the seven utilities and the four platforms): ellie wants "the demo and the setup ... its own large row under the header hero". `PageHero` has a `showcase` prop for that: the hero is the copy alone and the `DemoSetupPanel` follows full width, with taller frames. React, React Native, and Ink got their Demo and Setup panels in this round, with their setup code moved up from the "The setup" sections (removed, with Ink's rendered-session figure).
+
+Demos on the utility pages: heat-graph's docs demo; the shimmer skeleton; the live trace waterfall; a new live Safe Content Frame demo (edit HTML, render it into a frame with its own origin, a script showing the cross-origin block); the docs' generative-frame replay restyled to sit in the panel; the Variants browser frame on a recipe page; and the docs' DevTools sample.
+
+Also:
+
+- `app/globals.css` scans `../docs/app/(demos)/heat-graph` and `../docs/app/variants-demo`, whose Tailwind classes the borrowed demos need.
+- `app/variants-demo/page.tsx` (copied from docs, import re-pointed): the page the Variants frame loads, since the docs server refuses to be framed from this app.
+- `next.config.ts` forwards `/:project/docs/*` (each utility's own docs site) to the docs server.
+- The design-pages skill: subject pages put the demo in a `showcase` row; overview pages use `InstallTerminal`, or `OverviewIndex` when the items are sections of one page.
+
+Files:
+
+- `components/shared/install-terminal.tsx`, `demo-setup-panel.tsx` (new), `page-hero.tsx` (`showcase`).
+- `app/(home)/(utilities)/` (new group): `utilities/page.tsx` (moved), and a folder per utility with its page and any demo it needed.
+- `app/(home)/(platforms)/platforms/page.tsx` and the `react`, `react-native`, `ink`, `vue` pages.
+- `app/variants-demo/page.tsx` (new), `app/globals.css`, `next.config.ts`, `.claude/skills/design-pages/SKILL.md`.
+- Removed: `components/pages/platforms/platforms-demo.tsx`.
+
+When folding back: the utility pages replace the docs `(demos)` pages of the same names (drop their `SubProjectLayout`, keep the metadata), `/devtools` is new, and the shared pieces go to the same paths in `apps/docs`. The `@source` lines and the rewrite exist only because this app borrows from the docs app.
+
+## The heat-graph demo, made to fit the panel (2026-11-25)
+
+ellie approved adding `heat-graph` as a dependency of this app, so the docs demo could be copied and changed here. The copy's theme picker is now the panel's one header row; the graph sits on the frame with no box of its own; the "fig. 01" caption is gone (the panel's caption says to hover a cell); and the per-theme code under the graph is highlighted in the GitHub themes, so the token sheet's code theme recolors it (checked with Nord). The `@source` line for the docs heat-graph folder is gone, since the demo now lives in this app.
+
+Files:
+
+- `package.json`, `pnpm-lock.yaml`: `heat-graph` (`workspace:*`).
+- `app/(home)/(utilities)/heat-graph/heat-graph-demo.tsx` (copied from `apps/docs/app/(demos)/heat-graph/`, then changed) and `page.tsx` (imports it).
+- `app/globals.css`: one `@source` line removed.
+
+When folding back: the copy replaces the docs demo; the docs app already depends on `heat-graph`.

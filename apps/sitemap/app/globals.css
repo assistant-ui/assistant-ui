@@ -5,6 +5,8 @@
 
 @source "../../docs/components";
 @source "../../docs/lib";
+/* The utility pages use demos that live in the docs app's routes. */
+@source "../../docs/app/variants-demo";
 
 /* The docs site declares these with `@theme inline`, which writes the values
    into the utilities. Declared again without `inline`, the utilities read the

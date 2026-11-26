@@ -43,6 +43,11 @@ const config: NextConfig = {
       afterFiles: [],
       fallback: [
         { source: "/api/:path*", destination: `${docsOrigin}/api/:path*` },
+        // Each utility's own docs site lives at /<utility>/docs on the docs server.
+        {
+          source: "/:project/docs/:path*",
+          destination: `${docsOrigin}/:project/docs/:path*`,
+        },
         ...docsPublicFolders.map((folder) => ({
           source: `/${folder}/:path*`,
           destination: `${docsOrigin}/${folder}/:path*`,

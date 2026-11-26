@@ -87,7 +87,7 @@ export default function VuePage() {
         deck="The same runtime as the React package, for Vue 3.5 and Nuxt, through a provider, composables, and unstyled primitives."
         primary={{ label: "Read the docs", href: "/docs/vue" }}
         secondary={{ install: "npm install @assistant-ui/vue" }}
-        demo={
+        showcase={
           <CodeFilesDemo
             files={[
               {

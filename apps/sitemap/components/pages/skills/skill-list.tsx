@@ -46,7 +46,7 @@ export type SkillRow = {
 };
 
 /** SKILL.md as the dialog reads it: the file's own `#` title repeats the dialog's, so it is left out. */
-const body = (content: string) => content.replace(/^# .*\n+/, "");
+export const body = (content: string) => content.replace(/^# .*\n+/, "");
 
 function download(name: string, content: string) {
   const url = URL.createObjectURL(
@@ -59,7 +59,7 @@ function download(name: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-const markdown = [
+export const markdown = [
   "text-[15px] leading-relaxed text-pretty [overflow-wrap:anywhere]",
   "[&_h2]:mt-7 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2:first-child]:mt-0",
   "[&_h3]:mt-5 [&_h3]:mb-1.5 [&_h3]:text-[15px] [&_h3]:font-semibold",

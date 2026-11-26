@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
 import { ArrowUpRightIcon } from "lucide-react";
+import { McpIcon } from "@/components/icons/mcp";
+import { GlyphAgent, LibraryPageGlyph } from "@/components/library/item-glyph";
 import { AgentList } from "@/components/pages/skills/agent-list";
+import { AgentPicker } from "@/components/pages/skills/agent-picker";
 import { McpPanel } from "@/components/pages/skills/mcp-panel";
+import { SkillPicker } from "@/components/pages/skills/skill-picker";
 import {
   SkillList,
   SkillsLibrary,
   type SkillRow,
 } from "@/components/pages/skills/skill-list";
 import { PageFrame } from "@/components/shared/page-frame";
+import { OverviewIndex } from "@/components/shared/overview-index";
 import { PageHero } from "@/components/shared/page-hero";
-import { typeDeck, typeSection } from "@/components/shared/type";
+import { PageSection } from "@/components/shared/page-section";
 import { getSkills } from "@/lib/agent-skills";
 import { getLibraryItems } from "@/lib/library/items";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Skills",
@@ -67,67 +71,88 @@ export default function SkillsPage() {
       item.install?.kind === "command",
   );
 
+  const link = (href: string, label: string) => (
+    <a
+      href={href}
+      className="group/link text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 transition-colors"
+    >
+      {label}
+      <ArrowUpRightIcon
+        aria-hidden
+        className="size-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 motion-reduce:transition-none"
+      />
+    </a>
+  );
+
   return (
     <PageFrame pad="sub">
       <SkillsLibrary items={libraryItems}>
         <PageHero
           title="assistant-ui, taught to your coding agent."
-          deck={`Skills are instructions your agent reads before it writes assistant-ui code: the current APIs, the packages to pick, and the migrations. One command installs all ${skills.length}. The MCP server lets it look up the live docs while it works.`}
+          deck="Skills your agent reads before it writes assistant-ui code, an MCP server it can search the live docs with, and the agents both work in."
           primary={{ label: "Read the docs", href: "/docs/llm" }}
           secondary={{ install: INSTALL_ALL }}
-          demo={<McpPanel />}
+          aside={
+            <OverviewIndex
+              label="On this page"
+              items={[
+                {
+                  name: "Skills",
+                  meta: String(skillRows.length),
+                  line: "The current APIs, the packages to pick, the migrations.",
+                  href: "#skills",
+                  icon: <LibraryPageGlyph page="skills" />,
+                },
+                {
+                  name: "MCP",
+                  line: "The live docs, searchable while your agent works.",
+                  href: "#mcp",
+                  icon: <McpIcon className="size-5" />,
+                },
+                {
+                  name: "Agents",
+                  meta: String(agents.length),
+                  line: "Where the skills install, and the command for each.",
+                  href: "#agents",
+                  icon: <GlyphAgent />,
+                },
+              ]}
+            />
+          }
         />
 
-        <section
+        <PageSection
           id="skills"
-          aria-labelledby="skills-heading"
-          className="border-foreground/10 mt-16 scroll-mt-24 border-t pt-12 md:mt-20 md:pt-16"
+          title="What each skill covers."
+          deck={`Instructions your agent reads before it writes code. One command installs all ${skillRows.length}, and you call one by name, such as /setup in Claude Code.`}
+          links={link(REPO, "Read the source")}
+          panel={<SkillPicker skills={skillRows} />}
         >
-          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-            <h2 id="skills-heading" className={typeSection}>
-              What each skill covers.
-            </h2>
-            <a
-              href={REPO}
-              className="group/link text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[13px] transition-colors"
-            >
-              Read the source
-              <ArrowUpRightIcon
-                aria-hidden
-                className="size-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 motion-reduce:transition-none"
-              />
-            </a>
-          </div>
           <SkillList skills={skillRows} />
-        </section>
+        </PageSection>
 
-        <section
+        <PageSection
+          id="mcp"
+          title="The live docs, inside your agent."
+          deck="assistant-ui hosts an MCP server with the documentation, examples, and components. There is nothing to install, and it is always current."
+          links={link("/docs/llm#mcp", "MCP setup in the docs")}
+          panel={<McpPanel />}
+        />
+
+        <PageSection
           id="agents"
-          aria-labelledby="agents-heading"
-          className="border-foreground/10 mt-16 scroll-mt-24 border-t pt-12 md:mt-20 md:pt-16"
+          title={`Works in ${agents.length} agents.`}
+          deck="The install command finds the agents you have. Each one reads skills from its own folder, and its menu copies the command that installs into it alone."
+          links={link(AGENTS_DOCS, "The list of supported agents")}
+          panel={
+            <AgentPicker
+              agents={agents}
+              skillNames={skillRows.map((row) => row.item.name)}
+            />
+          }
         >
-          <div className="flex max-w-2xl flex-col gap-3">
-            <h2 id="agents-heading" className={typeSection}>
-              Works in {agents.length} agents.
-            </h2>
-            <p className={cn(typeDeck, "max-w-[52ch]")}>
-              The command finds the agents you have. Each one reads skills from
-              the folder under its name, and its menu copies the command that
-              installs into it alone.
-            </p>
-            <a
-              href={AGENTS_DOCS}
-              className="group/link text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 text-[13px] transition-colors"
-            >
-              The list of supported agents
-              <ArrowUpRightIcon
-                aria-hidden
-                className="size-3.5 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 motion-reduce:transition-none"
-              />
-            </a>
-          </div>
           <AgentList agents={agents} />
-        </section>
+        </PageSection>
       </SkillsLibrary>
     </PageFrame>
   );

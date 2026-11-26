@@ -1149,6 +1149,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      heat-graph:
+        specifier: workspace:*
+        version: link:../../packages/heat-graph
       lucide-react:
         specifier: ^1.61.0
         version: 1.77.0(@types/react@19.3.0)(react@19.3.1)

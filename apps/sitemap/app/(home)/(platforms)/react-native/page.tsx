@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { Highlight } from "@/components/shared/highlight";
-import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { DemoFrame } from "@/components/shared/demo-frame";
+import { DemoSetupPanel } from "@/components/shared/demo-setup-panel";
 import { PageHero } from "@/components/shared/page-hero";
 import { LiveFrame } from "@/components/pages/platforms/live-frame";
 
@@ -73,31 +71,25 @@ export default function NativePage() {
         deck="Native Thread, Composer, and Message primitives for React Native. The same runtime and adapters as the web SDK: Expo, iOS, Android, and web."
         primary={{ label: "Read the docs", href: "/docs/react-native" }}
         secondary={{ install: INSTALL_COMMAND }}
-        demo={
-          <DemoFrame
-            caption="A real Expo build. Tap around."
-            className="mx-auto w-full max-w-[300px]"
-            frameClassName="aspect-[9/17.5]"
-          >
-            <LiveFrame
-              src={DEMO_SRC}
-              title="assistant-ui React Native demo"
-              className="size-full rounded-none border-0"
-            />
-          </DemoFrame>
+        showcase={
+          <DemoSetupPanel
+            demo={
+              <LiveFrame
+                src={DEMO_SRC}
+                title="assistant-ui React Native demo"
+                className="size-full rounded-none border-0"
+              />
+            }
+            demoCaption="A real Expo build, running on the web. Tap around."
+            files={[
+              { path: "app/_layout.tsx", language: "tsx", code: SNIPPET },
+            ]}
+            setupCaption="Abridged from examples/with-expo."
+            frameClassName="h-[36rem]"
+          />
         }
       />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
-        <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className="text-sm font-medium">The setup</p>
-          <CodeBlock
-            title="app/_layout.tsx · abridged from examples/with-expo"
-            className="my-0 mt-6 max-w-[44rem]"
-          >
-            <Highlight code={SNIPPET} language="tsx" />
-          </CodeBlock>
-        </section>
-
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">
             <p className="text-sm font-medium">The primitives</p>

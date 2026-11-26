@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRightIcon, ArrowUpRightIcon } from "lucide-react";
-import { PlatformsDemo } from "@/components/pages/platforms/platforms-demo";
+import { ThreadPreview } from "@/components/demos/thread.preview";
+import { LiveFrame } from "@/components/pages/platforms/live-frame";
 import { CopyInstall } from "@/components/pages/utilities/copy-install";
 import { NavGlyphArt } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
+import {
+  InstallTerminal,
+  type TerminalTab,
+} from "@/components/shared/install-terminal";
 import { PageHero } from "@/components/shared/page-hero";
-import { highlightElementSource } from "@/lib/element-source";
 import { installCommand, type LibraryItem } from "@/lib/library/catalog";
 import { getLibraryItems } from "@/lib/library/items";
 
@@ -16,22 +20,68 @@ export const metadata: Metadata = {
     "The assistant-ui runtime and its adapters, packaged for React, React Native, Ink, and Vue.",
 };
 
-/** From the Vue quickstart. */
-const VUE_SNIPPET = `<script setup lang="ts">
+const EXPO_DEMO = "https://assistant-ui-expo.vercel.app/";
+const INK_DEMO =
+  process.env["NEXT_PUBLIC_INK_DEMO_URL"] ??
+  "https://assistant-ui-ink.vercel.app";
+
+const liveFrame = (src: string, title: string) => (
+  <LiveFrame
+    src={src}
+    title={title}
+    className="size-full rounded-none border-0"
+  />
+);
+
+/** Each platform's start command, then its live demo; Vue's next step, since it has no hosted demo. */
+const TERMINAL: readonly TerminalTab[] = [
+  {
+    id: "react",
+    label: "React",
+    icon: <NavGlyphArt kind="react" />,
+    command: "npx assistant-ui@latest create my-app",
+    result: <ThreadPreview />,
+    caption: "The Thread demo, with replies from a script.",
+  },
+  {
+    id: "react-native",
+    label: "React Native",
+    icon: <NavGlyphArt kind="native" />,
+    command: "npx assistant-ui@latest create --native my-app",
+    result: liveFrame(EXPO_DEMO, "assistant-ui React Native demo"),
+    caption: "A real Expo build of the chat, running on the web.",
+  },
+  {
+    id: "ink",
+    label: "Ink",
+    icon: <NavGlyphArt kind="ink" />,
+    command: "npx assistant-ui@latest create --ink my-app",
+    result: liveFrame(INK_DEMO, "assistant-ui Ink demo"),
+    caption: "A real Ink render loop. Click and type.",
+  },
+  {
+    id: "vue",
+    label: "Vue",
+    icon: <NavGlyphArt kind="vue" />,
+    command: "npm install @assistant-ui/vue",
+    next: {
+      language: "vue",
+      code: `<script setup lang="ts">
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
 import { AISDKChat } from "@assistant-ui/ai-sdk";
 import Thread from "~/components/assistant-ui/thread.vue";
 
-const config = AuiConfig({
-  threads: AISDKChat(),
-});
+const config = AuiConfig({ threads: AISDKChat() });
 </script>
 
 <template>
-  <AuiProvider :config="config">
-    <Thread />
-  </AuiProvider>
-</template>`;
+  <AuiProvider :config="config"><Thread /></AuiProvider>
+</template>`,
+    },
+    caption:
+      "The Nuxt quickstart's component. Vue has no hosted demo to run here.",
+  },
+];
 
 type Platform = {
   /** The library item this tile installs. */
@@ -159,9 +209,8 @@ function Tile({
   );
 }
 
-export default async function PlatformsPage() {
+export default function PlatformsPage() {
   const items = new Map(getLibraryItems().map((item) => [item.id, item]));
-  const vue = await highlightElementSource(VUE_SNIPPET);
   return (
     <PageFrame pad="sub">
       <PageHero
@@ -169,7 +218,7 @@ export default async function PlatformsPage() {
         deck="The runtime and its adapters, packaged for React, React Native, Ink, and Vue. Each package brings primitives for its platform and has its own page."
         primary={{ label: "Read the docs", href: "/docs" }}
         secondary={{ install: "npx assistant-ui@latest create my-app" }}
-        demo={<PlatformsDemo vueHtml={vue} />}
+        aside={<InstallTerminal tabs={TERMINAL} frameClassName="h-[32rem]" />}
       />
 
       <ul

@@ -5,8 +5,11 @@ import type { ReactNode } from "react";
 import { WaterfallSample } from "@/components/pages/docs/samples/o11y/waterfall.lazy";
 import { CopyInstall } from "@/components/pages/utilities/copy-install";
 import { HeatGraphPreview } from "@/components/pages/utilities/heat-graph-preview";
-import { DevToolsModalSample } from "@/components/pages/docs/samples/devtools.lazy";
-import { DemoFrame } from "@/components/shared/demo-frame";
+import {
+  InstallTerminal,
+  type TerminalTab,
+} from "@/components/shared/install-terminal";
+import { ItemGlyph } from "@/components/library/item-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
 import { PageHero } from "@/components/shared/page-hero";
 import { highlightElementSource } from "@/lib/element-source";
@@ -62,6 +65,66 @@ const FRAME_HOSTS = [
   "0qzm…-h184756.scf.auiusercontent.com",
   "x81d…-h184756.scf.auiusercontent.com",
 ];
+
+/** What follows each install, abridged from the package's docs or README. */
+const NEXT_STEP: Record<string, { language: string; code: string }> = {
+  "utilities/heat-graph": {
+    language: "tsx",
+    code: `import * as HeatGraph from "heat-graph";
+
+<HeatGraph.Root data={data} weekStart="monday" colorScale={COLORS}>
+  <HeatGraph.Grid className="gap-[3px]">
+    {() => <HeatGraph.Cell className="aspect-square rounded-sm" />}
+  </HeatGraph.Grid>
+</HeatGraph.Root>`,
+  },
+  "utilities/tw-shimmer": {
+    language: "tsx",
+    code: `/* globals.css */ @import "tw-shimmer";
+
+<span className="shimmer text-foreground/60">Loading...</span>`,
+  },
+  "utilities/safe-content-frame": {
+    language: "ts",
+    code: `import { SafeContentFrame } from "safe-content-frame";
+
+const frame = new SafeContentFrame("my-app");
+await frame.renderHtml(modelGeneratedHtml, container);`,
+  },
+  "utilities/react-o11y": {
+    language: "tsx",
+    code: `import { SpanPrimitive, SpanResource } from "@assistant-ui/react-o11y";
+
+const config = AuiConfig({ span: SpanResource({ spans }) });
+
+<AuiProvider extends={null} config={config}>
+  <SpanPrimitive.Children components={{ Span: SpanRow }} />
+</AuiProvider>`,
+  },
+  "utilities/generative-frame": {
+    language: "tsx",
+    code: `import { Widget, useThemeTokens } from "generative-frame/react";
+
+<Widget code={args.widget_code ?? ""} streaming={running} tokens={tokens} />`,
+  },
+  "utilities/variants": {
+    language: "tsx",
+    code: `import { Variant, Variants } from "@assistant-ui/variants";
+
+<Variants id="pricing" label="Feature list" default="cards">
+  <Variant id="grid" label="Three-column grid"><FeatureGrid /></Variant>
+  <Variant id="cards" label="Field cards"><FeatureCards /></Variant>
+</Variants>`,
+  },
+  "utilities/devtools": {
+    language: "tsx",
+    code: `import { DevToolsModal } from "@assistant-ui/react-devtools";
+
+<AssistantRuntimeProvider runtime={runtime}>
+  <DevToolsModal />
+</AssistantRuntimeProvider>`,
+  },
+};
 
 type Utility = {
   /** The library item this tile installs. */
@@ -129,7 +192,7 @@ const UTILITIES: readonly Utility[] = [
     id: "utilities/devtools",
     title: "See inside the runtime.",
     description: "Inspect runtime state, context, and events in the browser.",
-    href: "/docs/devtools",
+    href: "/devtools",
     closesMd: true,
     top: true,
   },
@@ -229,6 +292,44 @@ function Tile({
 
 export default async function UtilitiesPage() {
   const items = new Map(getLibraryItems().map((item) => [item.id, item]));
+  const hero = {
+    title: "Small packages for the parts around a chat.",
+    deck: "Loading states, activity graphs, run traces, sandboxed HTML, streamed widgets, design review, and runtime inspection. Each one installs on its own and has its own page.",
+    primary: { label: "Open in the library", href: "/library/utilities" },
+    secondary: {
+      label: "Source on GitHub",
+      href: "https://github.com/assistant-ui/assistant-ui/tree/main/packages",
+    },
+  };
+  const terminal: TerminalTab[] = UTILITIES.flatMap((utility) => {
+    const item = items.get(utility.id);
+    if (!item?.install) return [];
+    const next = NEXT_STEP[utility.id];
+    const result =
+      utility.id === "utilities/heat-graph" ? (
+        <div className="overflow-x-auto p-3">
+          <HeatGraphPreview />
+        </div>
+      ) : utility.id === "utilities/tw-shimmer" ? (
+        <div className="flex flex-1 items-center justify-center p-4">
+          <ShimmerPreview />
+        </div>
+      ) : undefined;
+    return [
+      {
+        id: utility.id,
+        label:
+          item.install.kind === "npm"
+            ? item.install.names[0]!.replace("@assistant-ui/", "")
+            : item.name,
+        icon: <ItemGlyph item={item} />,
+        command: installCommand(item.install),
+        ...(next ? { next } : {}),
+        ...(result ? { result } : {}),
+        caption: utility.description,
+      },
+    ];
+  });
   const code = {
     "utilities/generative-frame": await highlightElementSource(
       SNIPPETS["generative-frame"],
@@ -255,23 +356,7 @@ export default async function UtilitiesPage() {
 
   return (
     <PageFrame pad="sub">
-      <PageHero
-        title="Small packages for the parts around a chat."
-        deck="Loading states, activity graphs, run traces, sandboxed HTML, streamed widgets, design review, and runtime inspection. Each one installs on its own and has its own page."
-        primary={{ label: "Open in the library", href: "/library/utilities" }}
-        secondary={{
-          label: "Source on GitHub",
-          href: "https://github.com/assistant-ui/assistant-ui/tree/main/packages",
-        }}
-        demo={
-          <DemoFrame
-            caption="The real DevTools panel on a sample chat. Run a demo turn, then open it."
-            frameClassName="h-[30rem] [&_.not-prose]:my-0 [&_.not-prose>div]:rounded-none [&_.not-prose>div]:border-0"
-          >
-            <DevToolsModalSample />
-          </DemoFrame>
-        }
-      />
+      <PageHero {...hero} aside={<InstallTerminal tabs={terminal} />} />
 
       <ul
         aria-label="Utilities"

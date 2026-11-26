@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { Highlight } from "@/components/shared/highlight";
-import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { DemoFrame } from "@/components/shared/demo-frame";
+import { DemoSetupPanel } from "@/components/shared/demo-setup-panel";
 import { PageHero } from "@/components/shared/page-hero";
 import { LiveFrame } from "@/components/pages/platforms/live-frame";
 import { subProject } from "@/lib/docs-sites";
-import { cn } from "@/lib/utils";
 
 const { title, description } = subProject("ink");
 
@@ -89,62 +86,6 @@ const App = () => {
 
 render(<App />);`;
 
-const SESSION_LINES: {
-  text: React.ReactNode;
-  dim?: boolean;
-}[] = [
-  {
-    text: (
-      <>
-        <span className="font-medium text-[#56b6c2]">demo-agent</span>
-        <span className="opacity-45"> ~/acme-app</span>
-      </>
-    ),
-  },
-  { text: "model: assistant-ui · 2 messages · streaming", dim: true },
-  { text: " " },
-  {
-    text: (
-      <>
-        <span className="opacity-45">&gt; </span>what is assistant-ui?
-      </>
-    ),
-  },
-  { text: " " },
-  { text: "A React library for AI chat" },
-  { text: "with the same runtime as the" },
-  { text: "web, rendered in ANSI:" },
-  { text: " " },
-  { text: <span className="font-medium">## In the terminal</span> },
-  { text: " " },
-  { text: "  • markdown and tables" },
-  { text: "  • syntax-highlighted code" },
-  { text: "  • tool calls with live status" },
-  { text: " " },
-  { text: "> search_docs · done", dim: true },
-  {
-    text: (
-      <span className="inline-block h-[1.1em] w-[0.55em] translate-y-[0.15em] animate-pulse bg-[oklch(0.985_0.002_var(--tint))] motion-reduce:animate-none" />
-    ),
-  },
-];
-
-function RenderedSession() {
-  return (
-    <div className="border-foreground/10 flex-1 border bg-[oklch(0.17_0.003_var(--tint))] px-4 py-3.5 font-mono text-[12px] leading-[1.8] text-[oklch(0.985_0.002_var(--tint))]">
-      {SESSION_LINES.map((line, index) => (
-        <p
-          key={index}
-          className={cn("hero-rise", line.dim && "opacity-45")}
-          style={{ animationDelay: `${150 + index * 140}ms` }}
-        >
-          {line.text}
-        </p>
-      ))}
-    </div>
-  );
-}
-
 export default function InkPage() {
   return (
     <PageFrame pad="sub">
@@ -153,39 +94,23 @@ export default function InkPage() {
         deck="Thread, Composer, and Message primitives for Ink. The same runtime and adapters as the web SDK, rendered in ANSI."
         primary={{ label: "Read the docs", href: "/docs/ink" }}
         secondary={{ install: "npx assistant-ui@latest create --ink my-app" }}
-        demo={
-          <DemoFrame
-            caption="A real Ink render loop. Click and type."
-            frameClassName="h-[30rem]"
-          >
-            <LiveFrame
-              src={INK_DEMO}
-              title="assistant-ui Ink demo"
-              className="size-full rounded-none border-0"
-            />
-          </DemoFrame>
+        showcase={
+          <DemoSetupPanel
+            frameClassName="h-[34rem]"
+            demo={
+              <LiveFrame
+                src={INK_DEMO}
+                title="assistant-ui Ink demo"
+                className="size-full rounded-none border-0"
+              />
+            }
+            demoCaption="A real Ink render loop. Click and type."
+            files={[{ path: "app.tsx", language: "tsx", code: SNIPPET }]}
+            setupCaption="Abridged from examples/with-react-ink."
+          />
         }
       />
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
-        <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className="text-sm font-medium">The setup</p>
-          <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,42rem)_minmax(0,1fr)] lg:gap-14">
-            <CodeBlock
-              title="app.tsx · abridged from examples/with-react-ink"
-              className="my-0"
-            >
-              <Highlight code={SNIPPET} language="tsx" />
-            </CodeBlock>
-            <figure className="flex flex-col">
-              <RenderedSession />
-              <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
-                <span>fig. 02</span>
-                <span>what it renders</span>
-              </figcaption>
-            </figure>
-          </div>
-        </section>
-
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">
             <p className="text-sm font-medium">The primitives</p>

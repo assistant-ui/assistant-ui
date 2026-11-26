@@ -23,29 +23,39 @@ function linkFor(href: string) {
 
 /**
  * Every page's hero, per the design-pages skill: the title, an optional line,
- * the main button and either the install command or a secondary link, and an
- * interactive demo on the right (under the buttons on a phone).
+ * the main button and either the install command or a secondary link, and on
+ * the right (under the buttons on a phone) a subject page's interactive demo or
+ * what an overview page shows instead. Without an aside the copy stands alone.
  */
 export function PageHero({
   title,
   deck,
   primary,
   secondary,
-  demo,
+  aside,
+  showcase,
 }: {
   title: ReactNode;
   deck?: ReactNode;
   primary: HeroLink;
   secondary: HeroSecondary;
-  demo: ReactNode;
+  /** A subject page's demo, or an overview page's aside. */
+  aside?: ReactNode;
+  /** A subject page's demo as its own full-width row under the hero copy. */
+  showcase?: ReactNode;
 }) {
   const Arrow =
     "href" in secondary && isExternal(secondary.href)
       ? ArrowUpRightIcon
       : ArrowRightIcon;
 
-  return (
-    <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-16">
+  const hero = (
+    <div
+      className={cn(
+        "grid items-center gap-12 lg:gap-16",
+        aside && "lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]",
+      )}
+    >
       <header className="max-w-2xl">
         <h1 className={typePage}>{title}</h1>
         {deck ? (
@@ -75,7 +85,14 @@ export function PageHero({
           )}
         </div>
       </header>
-      <div className="min-w-0">{demo}</div>
+      {aside ? <div className="min-w-0">{aside}</div> : null}
     </div>
+  );
+  if (!showcase) return hero;
+  return (
+    <>
+      {hero}
+      <div className="mt-12 md:mt-16">{showcase}</div>
+    </>
   );
 }
