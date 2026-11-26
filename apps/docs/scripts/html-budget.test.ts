@@ -2,17 +2,37 @@ import { describe, expect, it } from "vitest";
 import {
   checkHtmlBudget,
   formatHtmlBudgetReport,
-  routeFromHtmlPath,
+  routeFromServerPath,
 } from "./html-budget.mts";
 
-describe("routeFromHtmlPath", () => {
-  it("maps prerender files to routes", () => {
-    expect(routeFromHtmlPath("index.html")).toBe("/");
-    expect(routeFromHtmlPath("docs.html")).toBe("/docs");
-    expect(routeFromHtmlPath("docs/runtimes/ai-sdk/v7.html")).toBe(
+describe("routeFromServerPath", () => {
+  it("maps the default prerender files to routes", () => {
+    expect(routeFromServerPath("app/index.html")).toBe("/");
+    expect(routeFromServerPath("app/docs.html")).toBe("/docs");
+    expect(routeFromServerPath("app/docs/runtimes/ai-sdk/v7.html")).toBe(
       "/docs/runtimes/ai-sdk/v7",
     );
-    expect(routeFromHtmlPath("changelog\\2.html")).toBe("/changelog/2");
+    expect(routeFromServerPath("app\\changelog\\2.html")).toBe("/changelog/2");
+  });
+
+  it("maps a deployment adapter's route cache files to routes", () => {
+    const hash = "a".repeat(64);
+    expect(
+      routeFromServerPath(`route-cache/APP_PAGE/${hash}/$/index.html`),
+    ).toBe("/");
+    expect(
+      routeFromServerPath(
+        `route-cache/APP_PAGE/${hash}/$/docs/architecture.html`,
+      ),
+    ).toBe("/docs/architecture");
+  });
+
+  it("skips files that are not prerendered pages", () => {
+    expect(routeFromServerPath("app/docs/architecture.rsc")).toBeNull();
+    expect(routeFromServerPath("pages/404.html")).toBeNull();
+    expect(
+      routeFromServerPath("route-cache/APP_ROUTE/abc/$/styles/x.html"),
+    ).toBeNull();
   });
 });
 
@@ -29,6 +49,17 @@ describe("checkHtmlBudget", () => {
       ["/c", true],
       ["/b", true],
       ["/a", false],
+    ]);
+  });
+
+  it("counts a route found twice once, at its largest", () => {
+    const results = checkHtmlBudget(
+      [...pages, { route: "/a", bytes: 950 }],
+      1_000,
+      {},
+    );
+    expect(results.filter((r) => r.route === "/a")).toEqual([
+      { route: "/a", bytes: 950, limit: 1_000, over: false },
     ]);
   });
 

@@ -28,12 +28,21 @@ export type HtmlBudgetResult = PageWeight & {
   over: boolean;
 };
 
-// `.next/server/app/docs/architecture.html` holds the prerender of
-// `/docs/architecture`; `index.html` is the home page.
-export function routeFromHtmlPath(relativePath: string): string {
-  const withoutExt = relativePath.replace(/\\/g, "/").replace(/\.html$/, "");
+// Where `next build` leaves each prerendered page, relative to .next/server:
+// `app/docs/architecture.html` for `/docs/architecture` by default, or, when a
+// deployment adapter is set (as on Vercel),
+// `route-cache/APP_PAGE/<source route hash>/$/docs/architecture.html`. The home
+// page is `index.html` in both. Anything else is not a page.
+export function routeFromServerPath(relativePath: string): string | null {
+  const file = relativePath.replace(/\\/g, "/");
+  if (!file.endsWith(".html")) return null;
+  const rest = file.startsWith("app/")
+    ? file.slice("app/".length)
+    : /^route-cache\/APP_PAGE\/[^/]+\/\$\/(.+)$/.exec(file)?.[1];
+  if (rest === undefined) return null;
+  const withoutExt = rest.replace(/\.html$/, "");
   if (withoutExt === "index") return "/";
-  return `/${withoutExt.replace(/\/index$/, "")}`;
+  return `/${withoutExt}`;
 }
 
 export function checkHtmlBudget(
@@ -41,7 +50,14 @@ export function checkHtmlBudget(
   budget: number = HTML_BUDGET_BYTES,
   exceptions: Record<string, { bytes: number }> = HTML_BUDGET_EXCEPTIONS,
 ): HtmlBudgetResult[] {
-  return [...pages]
+  // A route can sit in both layouts (`next start` caches pages it serves in
+  // route-cache); count it once, at its largest.
+  const largest = new Map<string, number>();
+  for (const { route, bytes } of pages) {
+    largest.set(route, Math.max(bytes, largest.get(route) ?? 0));
+  }
+  return [...largest]
+    .map(([route, bytes]) => ({ route, bytes }))
     .sort((a, b) => b.bytes - a.bytes || a.route.localeCompare(b.route))
     .map((page) => {
       const limit = exceptions[page.route]?.bytes ?? budget;
@@ -77,7 +93,7 @@ export function formatHtmlBudgetReport(
     return {
       ok: false,
       report:
-        "Prerendered HTML against budget: no pages found in .next/server/app.",
+        "Prerendered HTML against budget: no prerendered pages found under .next/server.",
     };
   }
   const sizes = results.map((r) => r.bytes);
@@ -113,8 +129,9 @@ export function formatHtmlBudgetReport(
   if (!ok && over.length > 0) {
     lines.push(
       "",
-      "A page is over its HTML budget. Open its file under .next/server/app and",
-      "find the largest self.__next_f.push rows and inline <svg>/<style> blocks;",
+      "A page is over its HTML budget. Build locally, open its file under",
+      ".next/server/app and find the largest self.__next_f.push rows and inline",
+      "<svg>/<style> blocks;",
       "then move that weight out of the document: a cached stylesheet or asset,",
       "a fetch when the reader asks for it, or a client-only render. Add an",
       "exception in scripts/html-budget.mts only with a reason and a follow-up.",
