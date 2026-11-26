@@ -102,7 +102,7 @@ const GUIDES: readonly Guide[] = [
     name: "DevTools",
     tagline:
       "An in-browser panel for inspecting runtime state, model context, and events in development.",
-    docs: "/docs/devtools",
+    docs: "/docs/guides/devtools",
     agentMinutes: [2, 3],
   },
   {
@@ -142,7 +142,7 @@ const GUIDES: readonly Guide[] = [
     name: "RTL support",
     tagline:
       "Right-to-left layout for Arabic, Hebrew, and Persian chat interfaces.",
-    docs: "/docs/rtl",
+    docs: "/docs/guides/rtl",
     agentMinutes: [3, 6],
   },
 ];

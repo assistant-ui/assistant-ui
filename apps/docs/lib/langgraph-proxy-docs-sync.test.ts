@@ -8,7 +8,7 @@ const read = (relative: string) =>
   readFileSync(path.join(ROOT, relative), "utf8").replace(/\r\n/g, "\n");
 
 const docsProxySnippet = () => {
-  const doc = read("apps/docs/content/docs/runtimes/langgraph/quickstart.mdx");
+  const doc = read("apps/docs/content/docs/runtimes/langgraph/overview.mdx");
   const open = '```ts title="@/app/api/[..._path]/route.ts"\n';
   const start = doc.indexOf(open);
   if (start === -1) throw new Error("proxy snippet not found");

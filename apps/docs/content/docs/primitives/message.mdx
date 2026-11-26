@@ -251,6 +251,155 @@ function MyText() {
 }
 ```
 
+## Patterns
+
+### Custom Text Rendering
+
+```tsx
+function MarkdownText() {
+  return (
+    <div className="prose prose-sm">
+      <MessagePartPrimitive.Text />
+    </div>
+  );
+}
+
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MarkdownText />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+### Tool UI with by_name
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: MyText,
+    tools: {
+      by_name: {
+        get_weather: ({ result }) => (
+          <div className="rounded-lg border p-3">
+            <p className="font-medium">Weather</p>
+            <p>{result?.temperature}°F, {result?.condition}</p>
+          </div>
+        ),
+      },
+      Fallback: ({ toolName, status }) => (
+        <div className="text-muted-foreground text-sm">
+          {status.type === "running" ? `Running ${toolName}...` : `${toolName} completed`}
+        </div>
+      ),
+    },
+  }}
+/>
+```
+
+### Error Display
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <MessagePrimitive.Error>
+    <div className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+      Something went wrong. Please try again.
+    </div>
+  </MessagePrimitive.Error>
+</MessagePrimitive.Root>
+```
+
+### Error Display with ErrorPrimitive
+
+`ErrorPrimitive` reads the error string from the message status:
+
+```tsx
+import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <ErrorPrimitive.Root className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive" role="alert">
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Root>
+```
+
+`ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders; only `Message` returns `null` when there is no error. Wrap both in `<MessagePrimitive.Error>` to make the entire block conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
+
+### Render After Stream Completes
+
+To render content only once the assistant message has finished streaming (a follow-up card, a feedback prompt, a generated component that should not flicker through partial states), gate it with [`AuiIf`](/docs/api-reference/primitives/assistant-if) on `s.message.status`:
+
+```tsx
+import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+
+  <AuiIf
+    condition={(s) =>
+      s.message.role === "assistant" &&
+      s.message.status?.type === "complete"
+    }
+  >
+    <FollowUpCard />
+  </AuiIf>
+</MessagePrimitive.Root>;
+```
+
+`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/tools/tool-ui#deferred-rendering) in the Tool UI guide.
+
+### Role-Based Styling
+
+`MessagePrimitive.Root` sets `data-message-id` automatically but does not set a `data-role` attribute. Style by role in your message components:
+
+```tsx
+// In your ThreadPrimitive.Messages children render function:
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root data-role="user" className="flex justify-end">
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root data-role="assistant" className="flex justify-start">
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+### Attachments
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Attachments>
+    {({ attachment }) => {
+      if (attachment.type === "image") {
+        const imageSrc = attachment.content?.find((part) => part.type === "image")?.image;
+        if (!imageSrc) return null;
+        return <img src={imageSrc} alt={attachment.name} className="max-w-xs rounded-lg" />;
+      }
+
+      if (attachment.type === "document") {
+        return (
+          <div className="flex items-center gap-2 rounded-lg border p-2 text-sm">
+            📄 {attachment.name}
+          </div>
+        );
+      }
+
+      return null;
+    }}
+  </MessagePrimitive.Attachments>
+  <MessagePrimitive.Parts />
+</MessagePrimitive.Root>
+```
+
 ## Parts
 
 ### Root
@@ -450,155 +599,6 @@ Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
 // After
 <AuiIf condition={(s) => s.message.role === "user"}>...</AuiIf>
 <AuiIf condition={(s) => s.message.role === "assistant"}>...</AuiIf>
-```
-
-## Patterns
-
-### Custom Text Rendering
-
-```tsx
-function MarkdownText() {
-  return (
-    <div className="prose prose-sm">
-      <MessagePartPrimitive.Text />
-    </div>
-  );
-}
-
-<MessagePrimitive.Parts>
-  {({ part }) => {
-    if (part.type === "text") return <MarkdownText />;
-    return null;
-  }}
-</MessagePrimitive.Parts>
-```
-
-### Tool UI with by_name
-
-```tsx
-<MessagePrimitive.Parts
-  components={{
-    Text: MyText,
-    tools: {
-      by_name: {
-        get_weather: ({ result }) => (
-          <div className="rounded-lg border p-3">
-            <p className="font-medium">Weather</p>
-            <p>{result?.temperature}°F, {result?.condition}</p>
-          </div>
-        ),
-      },
-      Fallback: ({ toolName, status }) => (
-        <div className="text-muted-foreground text-sm">
-          {status.type === "running" ? `Running ${toolName}...` : `${toolName} completed`}
-        </div>
-      ),
-    },
-  }}
-/>
-```
-
-### Error Display
-
-```tsx
-<MessagePrimitive.Root>
-  <MessagePrimitive.Parts />
-  <MessagePrimitive.Error>
-    <div className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-      Something went wrong. Please try again.
-    </div>
-  </MessagePrimitive.Error>
-</MessagePrimitive.Root>
-```
-
-### Error Display with ErrorPrimitive
-
-`ErrorPrimitive` reads the error string from the message status:
-
-```tsx
-import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
-
-<MessagePrimitive.Root>
-  <MessagePrimitive.Parts />
-  <ErrorPrimitive.Root className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive" role="alert">
-    <ErrorPrimitive.Message />
-  </ErrorPrimitive.Root>
-</MessagePrimitive.Root>
-```
-
-`ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders; only `Message` returns `null` when there is no error. Wrap both in `<MessagePrimitive.Error>` to make the entire block conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
-
-### Render After Stream Completes
-
-To render content only once the assistant message has finished streaming (a follow-up card, a feedback prompt, a generated component that should not flicker through partial states), gate it with [`AuiIf`](/docs/api-reference/primitives/assistant-if) on `s.message.status`:
-
-```tsx
-import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
-
-<MessagePrimitive.Root>
-  <MessagePrimitive.Parts />
-
-  <AuiIf
-    condition={(s) =>
-      s.message.role === "assistant" &&
-      s.message.status?.type === "complete"
-    }
-  >
-    <FollowUpCard />
-  </AuiIf>
-</MessagePrimitive.Root>;
-```
-
-`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/tools/tool-ui#deferred-rendering) in the Tool UI guide.
-
-### Role-Based Styling
-
-`MessagePrimitive.Root` sets `data-message-id` automatically but does not set a `data-role` attribute. Style by role in your message components:
-
-```tsx
-// In your ThreadPrimitive.Messages children render function:
-function UserMessage() {
-  return (
-    <MessagePrimitive.Root data-role="user" className="flex justify-end">
-      <MessagePrimitive.Parts />
-    </MessagePrimitive.Root>
-  );
-}
-
-function AssistantMessage() {
-  return (
-    <MessagePrimitive.Root data-role="assistant" className="flex justify-start">
-      <MessagePrimitive.Parts />
-    </MessagePrimitive.Root>
-  );
-}
-```
-
-### Attachments
-
-```tsx
-<MessagePrimitive.Root>
-  <MessagePrimitive.Attachments>
-    {({ attachment }) => {
-      if (attachment.type === "image") {
-        const imageSrc = attachment.content?.find((part) => part.type === "image")?.image;
-        if (!imageSrc) return null;
-        return <img src={imageSrc} alt={attachment.name} className="max-w-xs rounded-lg" />;
-      }
-
-      if (attachment.type === "document") {
-        return (
-          <div className="flex items-center gap-2 rounded-lg border p-2 text-sm">
-            📄 {attachment.name}
-          </div>
-        );
-      }
-
-      return null;
-    }}
-  </MessagePrimitive.Attachments>
-  <MessagePrimitive.Parts />
-</MessagePrimitive.Root>
 ```
 
 ## Relationship to Components

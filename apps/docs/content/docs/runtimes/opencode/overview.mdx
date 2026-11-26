@@ -9,6 +9,8 @@ description: Build a React chat UI for OpenCode coding agents with assistant-ui 
 This adapter is experimental. The runtime API and exported hooks may change without notice.
 </Callout>
 
+OpenCode sessions map to assistant-ui threads: the runtime subscribes to the server's event stream and projects its messages into the open thread, and keeps the sessions as a thread list.
+
 ## When to use it
 
 Pick the OpenCode runtime when:
@@ -19,14 +21,126 @@ Pick the OpenCode runtime when:
 
 If your backend is not OpenCode-based, see [picking a runtime](/docs/runtimes/pick-a-runtime) for alternatives.
 
-## Architecture
+## Quickstart
 
-`@assistant-ui/react-opencode` is layered on `ExternalStoreRuntime` plus a `RemoteThreadList` for session-backed thread management (see [architecture](/docs/concepts/runtime)). OpenCode sessions map to assistant-ui threads; the runtime subscribes to a server-sent event stream and projects messages into the thread.
+You need a running [OpenCode](https://opencode.ai/) server (defaults to `http://localhost:4096`) and React 18 or 19.
 
-## Requirements
+### Install
 
-- A running [OpenCode](https://opencode.ai/) server (defaults to `http://localhost:4096`).
-- React 18 or 19.
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-opencode", "@opencode-ai/sdk"]} />
+
+<Steps>
+<Step>
+
+### Wire up the runtime provider
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useOpenCodeRuntime } from "@assistant-ui/react-opencode";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useOpenCodeRuntime({
+    baseUrl: "http://localhost:4096",
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`baseUrl` defaults to `http://localhost:4096` if omitted.
+
+</Step>
+<Step>
+
+### Render the Thread
+
+```tsx title="app/page.tsx"
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { MyRuntimeProvider } from "./MyRuntimeProvider";
+
+export default function Page() {
+  return (
+    <MyRuntimeProvider>
+      <Thread />
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Set up UI components
+
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
+
+</Step>
+</Steps>
+
+The runtime opens an SSE event stream against the OpenCode server, listens for session and message events, and projects them into the thread. Each OpenCode session corresponds to one thread; the thread list reflects sessions on the server.
+
+Archiving an OpenCode session is one-way: OpenCode has no way to unarchive it, so an archived session still opens but stays archived, and unarchiving it rejects.
+
+## Default model and agent
+
+Pin a default model or agent when starting new sessions:
+
+```tsx
+const runtime = useOpenCodeRuntime({
+  baseUrl: "http://localhost:4096",
+  defaultModel: { providerID: "anthropic", modelID: "claude-sonnet-5" },
+  defaultAgent: "coder",
+});
+```
+
+## Bring your own client
+
+If you need a pre-configured `OpencodeClient` (e.g. for auth headers), pass it directly:
+
+```tsx
+import { createOpencodeClient } from "@assistant-ui/react-opencode";
+
+const client = createOpencodeClient({
+  baseUrl: "http://localhost:4096",
+  // additional client config...
+});
+
+const runtime = useOpenCodeRuntime({ client });
+```
+
+Create the client once, outside the component or in `useState`. The runtime keeps its connection and thread list per client, so a client built inline on every render never settles.
+
+## Resuming a session
+
+Pass `initialSessionId` to open the runtime against an existing session on first load:
+
+```tsx
+const runtime = useOpenCodeRuntime({
+  baseUrl: "http://localhost:4096",
+  initialSessionId: "ses_abc123",
+});
+```
+
+## Store threads in Assistant Cloud
+
+Pass `cloud` to back the thread list with [Assistant Cloud](/docs/cloud) instead of the OpenCode server's session list. `cloud` is the only switch: unlike the runtimes whose list lives in the browser, `NEXT_PUBLIC_ASSISTANT_BASE_URL` alone keeps the OpenCode session list. Each cloud thread maps to an OpenCode session through its external id: a new thread creates a session, deleting the thread deletes its session when the session still exists, and the dashboard shows the conversation. The thread list opens cloud threads, so `initialSessionId` is not used with `cloud`. A cloud thread that no OpenCode runtime created has no session: it opens empty, and sending in it rejects. Renaming and archiving change the cloud thread only; the OpenCode session keeps its own title.
+
+```tsx
+const runtime = useOpenCodeRuntime({
+  baseUrl: "http://localhost:4096",
+  cloud,
+});
+```
 
 ## Sub-agent conversations
 
@@ -38,21 +152,17 @@ A `task` part carries `messages` only once its child session has loaded. While t
 
 Use assistant-ui's [`MessagePartPrimitive.Messages`](/docs/tools/multi-agent) inside a `task` tool renderer to display the child conversation. Nested conversations are read-only and inherit the parent thread's tool renderers.
 
-## Install
-
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-opencode", "@opencode-ai/sdk"]} />
-
 ## Next
 
 <Cards>
   <Card
-    title="Quickstart"
-    description="Minimal useOpenCodeRuntime setup against a local OpenCode server."
-    href="/docs/runtimes/opencode/quickstart"
-  />
-  <Card
     title="Hooks"
     description="Permissions, questions, session state, runtime extras."
     href="/docs/runtimes/opencode/hooks"
+  />
+  <Card
+    title="Pick a runtime"
+    description="Compare OpenCode to other runtime options."
+    href="/docs/runtimes/pick-a-runtime"
   />
 </Cards>

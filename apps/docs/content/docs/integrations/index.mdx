@@ -25,7 +25,7 @@ flowchart LR
 
 ## Frameworks
 
-Framework integrations that pair with assistant-ui at the API-route layer.
+Framework integrations that pair with assistant-ui at the API-route layer. The agent framework guides live under [Runtimes](/docs/runtimes/pick-a-runtime), next to the runtime each one uses.
 
 <Cards>
   <Card
@@ -38,24 +38,24 @@ Framework integrations that pair with assistant-ui at the API-route layer.
     <Card
       title="OpenAI Agents SDK"
       description="Run agents on your server and connect their UI message streams through the AI SDK runtime."
-      href="/docs/integrations/frameworks/openai-agents"
+      href="/docs/runtimes/openai-agents"
     />
     <Card
       title="Pydantic AI"
       description="Python agents and tools connected through the AG-UI runtime."
-      href="/docs/integrations/frameworks/pydantic-ai"
+      href="/docs/runtimes/pydantic-ai"
     />
     <Card
       icon={<CloudflareIcon width={20} height={20} />}
       title="Cloudflare Agents"
       description="Stateful Durable Object agents. Wired through the AI SDK runtime with WebSocket streaming."
-      href="/docs/integrations/frameworks/cloudflare-agents"
+      href="/docs/runtimes/cloudflare-agents"
     />
     <Card
       icon={<MastraIcon width={20} height={20} />}
       title="Mastra"
       description="TypeScript agent framework. Routed through the AI SDK runtime, full-stack or separate server."
-      href="/docs/integrations/frameworks/mastra/overview"
+      href="/docs/runtimes/mastra"
     />
   </PlatformOnly>
 </Cards>
@@ -142,6 +142,11 @@ Store threads and messages outside AssistantCloud.
     description="Worked example: Postgres + Drizzle, RemoteThreadListAdapter, ThreadHistoryAdapter with withFormat."
     href="/docs/integrations/persistence/custom-adapter"
   />
+  <Card
+    title="Thread list adapters"
+    description="The RemoteThreadListAdapter and ExternalStoreThreadListAdapter contracts and the cases a production list handles."
+    href="/docs/integrations/persistence/thread-list-adapters"
+  />
 </Cards>
 
 <PlatformOnly platforms={["react"]}>
@@ -179,8 +184,8 @@ Upload chat attachments to object storage instead of inlining as data URLs.
 
 assistant-ui doesn't ship a guide for every tool, but most fit one of two patterns:
 
-- **Routes through your AI SDK handler** (agent frameworks, observability tools, gateways): adapt the [Mastra full-stack](/docs/integrations/frameworks/mastra/full-stack) or [LLM gateway](/docs/integrations/gateways) pattern using the service's own SDK.
-- **Replaces the runtime entirely** (custom backends): see [custom backend](/docs/runtimes/custom/overview).
+- **Routes through your AI SDK handler** (agent frameworks, observability tools, gateways): adapt the [Mastra full-stack](/docs/runtimes/mastra#full-stack) or [LLM gateway](/docs/integrations/gateways) pattern using the service's own SDK.
+- **Replaces the runtime entirely** (custom backends): see [custom backend](/docs/runtimes/pick-a-runtime#your-own-backend).
 
 If you build something useful, [open an issue](https://github.com/assistant-ui/assistant-ui/issues) or post in [Discord](https://discord.gg/S9dwgCNEFs); the docs are open to contributions.
 

@@ -95,7 +95,10 @@ export async function InstallCommand(props: InstallCommandProps) {
         <p className="text-muted-foreground mt-3 text-sm">
           The <code>@assistant-ui</code> namespace resolves the Radix or Base UI
           flavor from your project&apos;s style through the{" "}
-          <a href="/docs/base-ui" className="underline underline-offset-2">
+          <a
+            href="/docs/guides/base-ui"
+            className="underline underline-offset-2"
+          >
             style-aware registry
           </a>{" "}
           entry in <code>components.json</code>. Without that entry, add by

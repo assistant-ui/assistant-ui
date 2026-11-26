@@ -8,6 +8,40 @@ export const MOVED_DOCS_PATHS: ReadonlyArray<readonly [string, string]> = [
   ["/docs/runtimes/concepts/adapters", "/docs/concepts/adapters"],
   ["/docs/runtimes/concepts/stability", "/docs/migrations/stability"],
   ["/docs/guides/context-api", "/docs/concepts/context-api"],
+  [
+    "/docs/runtimes/custom/overview",
+    "/docs/runtimes/pick-a-runtime#your-own-backend",
+  ],
+  ["/docs/runtimes/a2a/quickstart", "/docs/runtimes/a2a/overview"],
+  ["/docs/runtimes/ag-ui/quickstart", "/docs/runtimes/ag-ui/overview"],
+  [
+    "/docs/runtimes/google-adk/quickstart",
+    "/docs/runtimes/google-adk/overview",
+  ],
+  ["/docs/runtimes/opencode/quickstart", "/docs/runtimes/opencode/overview"],
+  ["/docs/runtimes/langgraph/quickstart", "/docs/runtimes/langgraph/overview"],
+  ["/docs/integrations/frameworks/mastra/overview", "/docs/runtimes/mastra"],
+  [
+    "/docs/integrations/frameworks/mastra/full-stack",
+    "/docs/runtimes/mastra#full-stack",
+  ],
+  [
+    "/docs/integrations/frameworks/mastra/separate-server",
+    "/docs/runtimes/mastra#separate-server",
+  ],
+  ["/docs/integrations/frameworks/mastra", "/docs/runtimes/mastra"],
+  [
+    "/docs/integrations/frameworks/openai-agents",
+    "/docs/runtimes/openai-agents",
+  ],
+  ["/docs/integrations/frameworks/pydantic-ai", "/docs/runtimes/pydantic-ai"],
+  [
+    "/docs/integrations/frameworks/cloudflare-agents",
+    "/docs/runtimes/cloudflare-agents",
+  ],
+  ["/docs/rtl", "/docs/guides/rtl"],
+  ["/docs/base-ui", "/docs/guides/base-ui"],
+  ["/docs/devtools", "/docs/guides/devtools"],
 ];
 
 const withoutFragment = (path: string) => path.split("#")[0]!;
