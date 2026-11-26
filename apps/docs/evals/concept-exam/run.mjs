@@ -127,7 +127,9 @@ function ask(question) {
         concept: question.concept,
         question: question.question,
         answer: answer.trim(),
-        pages: pages.filter((p) => p !== "INDEX.md"),
+        // Claude Code can also reread its own saved copy of a long tool result,
+        // which lives outside the docs folder; only docs pages count.
+        pages: pages.filter((p) => p !== "INDEX.md" && !p.startsWith("..")),
         searches,
         seconds: Math.round((Date.now() - started) / 1000),
         exitCode: code,

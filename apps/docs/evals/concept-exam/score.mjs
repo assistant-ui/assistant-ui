@@ -2,6 +2,7 @@
 // Two jobs, both offline:
 //   node score.mjs worksheet <answers.json>          prints a grading sheet
 //   node score.mjs score <answers.json> <grades.json> prints the score
+//   node score.mjs gaps <answers.json>               counts the reader's hedges
 //
 // A grade is one of: correct, partly, wrong, missing ("the docs don't say").
 // grades.json maps question id -> { grade, note }. Grade each answer against
@@ -19,6 +20,13 @@ const exam = JSON.parse(
 const byId = new Map(exam.questions.map((q) => [q.id, q]));
 const [mode, answersFile, gradesFile] = process.argv.slice(2);
 const answers = JSON.parse(fs.readFileSync(answersFile, "utf8")).results;
+
+// Sentences where the reader says the docs leave something out. Counting them
+// needs no grader, so it is a check on the hand grades.
+const HEDGE =
+  /\b(docs|pages|page|guide)\b[^.]{0,80}\b(don't|do not|doesn't|does not|never)\s+(clearly\s+|explicitly\s+|fully\s+)?(say|explain|mention|cover|show|specify|list|define|describe|reconcile|detail)/i;
+const hedgesIn = (text) =>
+  text.split(/(?<=[.!?])\s+/).filter((sentence) => HEDGE.test(sentence));
 
 if (mode === "worksheet") {
   for (const a of answers) {
@@ -61,9 +69,21 @@ if (mode === "worksheet") {
   for (const r of rows.filter((r) => r.grade !== "correct")) {
     console.log(`- ${r.id} ${r.concept}: ${r.grade}. ${r.note ?? ""}`);
   }
+} else if (mode === "gaps") {
+  let total = 0;
+  let pages = 0;
+  for (const a of answers) {
+    const hedges = hedgesIn(a.answer);
+    total += hedges.length;
+    pages += a.pages.length;
+    for (const h of hedges) console.log(`- ${a.id}: ${h}`);
+  }
+  console.log(
+    `\n${total} hedges in ${answers.length} answers; ${(pages / answers.length).toFixed(1)} pages read per question`,
+  );
 } else {
   console.error(
-    "usage: node score.mjs worksheet <answers.json> | score <answers.json> <grades.json>",
+    "usage: node score.mjs worksheet <answers.json> | score <answers.json> <grades.json> | gaps <answers.json>",
   );
   process.exit(1);
 }

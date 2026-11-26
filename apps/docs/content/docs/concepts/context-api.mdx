@@ -170,7 +170,7 @@ Use the API object for:
 
 ```tsx
 // Thread actions
-aui.thread.append(message);
+aui.thread.append(message); // a user message starts a reply unless it sets startRun: false
 aui.thread.startRun(config);
 aui.thread.resumeRun(config);
 aui.thread.cancelRun();

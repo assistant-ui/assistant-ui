@@ -11,7 +11,7 @@ Branching lets users navigate between alternative versions of a message. A new b
 - A user message is edited
 - An assistant message is reloaded (reload creates a new branch on the same message)
 
-assistant-ui tracks branches by observing changes to the `messages` array.
+Where the branches live depends on who holds the messages. `LocalRuntime` keeps the whole tree itself. With `ExternalStoreRuntime` your store holds one path, the `messages` array: when an edit or a regenerate replaces the end of that array, the runtime keeps the replaced messages as the other branch, and calls your `setMessages` with the chosen path when the user switches. To hand the runtime a tree you already have, such as one loaded from your database, pass it as `messageRepository` (see [External store](/docs/runtimes/custom/external-store)).
 
 ## Shortest Working Pattern
 

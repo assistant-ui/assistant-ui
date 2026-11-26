@@ -1,0 +1,127 @@
+{
+  "q01": {
+    "grade": "correct"
+  },
+  "q02": {
+    "grade": "correct"
+  },
+  "q03": {
+    "grade": "correct"
+  },
+  "q04": {
+    "grade": "partly",
+    "note": "Finds useDataStreamRuntime but the docs never say a Python service can emit the data stream (assistant-stream is only tied to assistant transport)."
+  },
+  "q05": {
+    "grade": "correct"
+  },
+  "q06": {
+    "grade": "correct"
+  },
+  "q07": {
+    "grade": "correct"
+  },
+  "q08": {
+    "grade": "correct"
+  },
+  "q09": {
+    "grade": "correct"
+  },
+  "q10": {
+    "grade": "correct"
+  },
+  "q11": {
+    "grade": "correct",
+    "note": "The docs never define each incomplete reason."
+  },
+  "q12": {
+    "grade": "correct"
+  },
+  "q13": {
+    "grade": "correct"
+  },
+  "q14": {
+    "grade": "correct",
+    "note": "The editing guide says later messages are 'discarded', which contradicts the branching concept; the reader had to reconcile them."
+  },
+  "q15": {
+    "grade": "correct",
+    "note": "Same 'discarded' contradiction."
+  },
+  "q16": {
+    "grade": "correct"
+  },
+  "q17": {
+    "grade": "correct"
+  },
+  "q18": {
+    "grade": "correct"
+  },
+  "q19": {
+    "grade": "correct"
+  },
+  "q20": {
+    "grade": "correct"
+  },
+  "q21": {
+    "grade": "correct"
+  },
+  "q22": {
+    "grade": "correct",
+    "note": "Hedged on whether the model continues after addResult."
+  },
+  "q23": {
+    "grade": "correct"
+  },
+  "q24": {
+    "grade": "correct"
+  },
+  "q25": {
+    "grade": "partly",
+    "note": "No page says the primitives work without Tailwind or shadcn, and there is no theming page for the web."
+  },
+  "q26": {
+    "grade": "partly",
+    "note": "Doesn't learn which code is copied into the project and which stays an npm package, or what update and upgrade touch."
+  },
+  "q27": {
+    "grade": "correct"
+  },
+  "q28": {
+    "grade": "correct"
+  },
+  "q29": {
+    "grade": "correct",
+    "note": "Inferred from the Store docs; no page says ThreadPrimitive.Messages gives each message its scope."
+  },
+  "q30": {
+    "grade": "correct"
+  },
+  "q31": {
+    "grade": "partly",
+    "note": "Can't say what happens without each adapter; the speech guide says Speak ignores a missing adapter, but the code disables it."
+  },
+  "q32": {
+    "grade": "correct"
+  },
+  "q33": {
+    "grade": "partly",
+    "note": "Unsure the partial reply stays; the composer page says ComposerPrimitive.Cancel only ends edits, but in the main composer it stops the run."
+  },
+  "q34": {
+    "grade": "partly",
+    "note": "Doesn't learn where the error text comes from (the server's onError) or that AI SDK failures land on the message."
+  },
+  "q35": {
+    "grade": "correct"
+  },
+  "q36": {
+    "grade": "correct"
+  },
+  "q37": {
+    "grade": "correct"
+  },
+  "q38": {
+    "grade": "correct"
+  }
+}
