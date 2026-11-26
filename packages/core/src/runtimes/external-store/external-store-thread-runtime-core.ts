@@ -1729,7 +1729,7 @@ export class ExternalStoreThreadRuntimeCore
   // was not on screen when it was sent. A user sibling is kept as the fallback
   // because an edit's earlier version is one.
   private _deleteMovedLeaf(messageId: string): void {
-    const wasHead = this.repository.getMessages().at(-1)?.id === messageId;
+    const wasHead = this.repository.headId === messageId;
     const { parentId } = this.repository.getMessage(messageId);
     this.repository.deleteMessage(messageId);
     if (!wasHead || parentId === null) return;
