@@ -84,7 +84,7 @@ const ignoreNext = () => {};
  * shows up only while a setup command runs, and the work between two
  * commands (an install, a build) often takes longer than the window.
  */
-export const AGENT_AWAY_GRACE_MS = 30_000;
+const AGENT_AWAY_GRACE_MS = 30_000;
 
 /** True once a quiet agent was last seen longer ago than its presence window and the grace. */
 const useAgentAway = (quiet: boolean, lastSeenAt: number | null) => {
