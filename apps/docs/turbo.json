@@ -76,6 +76,8 @@
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
         "$TURBO_ROOT$/README.md",
+        "$TURBO_ROOT$/python/*/README*.md",
+        "$TURBO_ROOT$/python/*/src/**/*.py",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
       "env": ["REDIS_*"]
@@ -91,6 +93,8 @@
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
         "$TURBO_ROOT$/README.md",
+        "$TURBO_ROOT$/python/*/README*.md",
+        "$TURBO_ROOT$/python/*/src/**/*.py",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
       "env": ["REDIS_*"]

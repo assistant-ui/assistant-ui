@@ -9,9 +9,11 @@ pip install "assistant-stream[pydantic-ai]"   # Python 3.11+
 ```
 
 ```python
+from pydantic_ai import Agent
 from starlette.applications import Starlette
 from assistant_stream.pydantic_ai import DurableAGUI, SqliteThreadStore
 
+agent = Agent("openai:gpt-5.4-mini")
 durable = DurableAGUI(
     agent,
     threads=SqliteThreadStore("threads.db"),

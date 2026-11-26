@@ -28,7 +28,40 @@ const PAGES = [
 // settings, or the inside of a function an earlier block defines. Every
 // other name a block uses must come from Python, from the block itself or
 // from a block above it on the same page.
-const READER_SUPPLIED: Record<string, string[]> = {};
+const READER_SUPPLIED: Record<string, string[]> = {
+  "apps/docs/content/docs/runtimes/ag-ui/durable-threads.mdx": [
+    "verify_session", // the app's own session check
+    "Deps", // the agent's own deps type
+    "MCP_URL", // the reader's MCP server
+    "streams", // built in the production lifespan above the block
+  ],
+  "apps/docs/content/docs/runtimes/custom/assistant-transport.mdx": [
+    "your_agent", // the reader's agent
+    "graph", // the reader's compiled LangGraph graph
+    "request", // inside chat_endpoint from "Handling commands"
+    "controller", // inside run_callback from "Handling commands"
+  ],
+  "python/assistant-stream/README.md": [
+    "current_user", // the app's own auth: request -> user id
+  ],
+  "python/assistant-stream/README_LANGGRAPH.md": [
+    "controller", // inside a run callback
+    "namespace", // from graph.astream(..., subgraphs=True)
+    "graph", // the reader's compiled LangGraph graph
+    "input_messages", // the reader's input
+  ],
+  // The README walks through the package's own main.py.
+  "python/assistant-transport-backend-langgraph/README.md": [
+    "GraphState",
+    "agent_node",
+    "tool_executor_node",
+    "should_call_tools",
+    "should_continue_after_tools",
+  ],
+  "python/assistant-ui-sync-server-api/README.md": [
+    "fetch_token", // the app's own token source
+  ],
+};
 
 type Block = {
   file: string;

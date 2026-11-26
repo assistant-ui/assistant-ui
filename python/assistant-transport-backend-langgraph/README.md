@@ -113,6 +113,10 @@ Frontend tools declared by `useAssistantTransportRuntime` are bound to the LangG
 The graph's `messages` state uses LangGraph's `DeltaChannel` with a bulk reducer:
 
 ```python
+from langchain_core.messages import BaseMessage
+from langgraph.graph import add_messages
+
+
 def add_messages_delta(state, writes):
     result = list(state)
     for write in writes:
@@ -167,26 +171,31 @@ You can customize the graph in the `create_graph()` function. Currently, it impl
 - Integrate with different LLMs
 - Add memory or persistence
 
-Example of adding a tool node:
+`create_graph()` already routes tool calls between an `agent` node and a `tools` node. Add a node the same way:
 ```python
-from langgraph.prebuilt import ToolExecutor
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph import END, StateGraph
 
-def create_graph():
+
+def create_graph(checkpointer=None):
     workflow = StateGraph(GraphState)
 
     # Add nodes
-    workflow.add_node("chat", chat_node)
-    workflow.add_node("tools", tool_node)
+    workflow.add_node("agent", agent_node)
+    workflow.add_node("tools", tool_executor_node)
+    workflow.set_entry_point("agent")
 
     # Add conditional routing
     workflow.add_conditional_edges(
-        "chat",
-        should_use_tools,
-        {
-            "tools": "tools",
-            "end": END
-        }
+        "agent",
+        should_call_tools,
+        {"tools": "tools", "end": END},
+    )
+    workflow.add_conditional_edges(
+        "tools",
+        should_continue_after_tools,
+        {"agent": "agent", "end": END},
     )
 
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer or InMemorySaver())
 ```

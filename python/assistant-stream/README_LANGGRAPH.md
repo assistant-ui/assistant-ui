@@ -19,12 +19,15 @@ The integration exposes `append_langgraph_event`, which folds the events produce
 ### Function Signature
 
 ```python
+from typing import Any
+
+
 def append_langgraph_event(
     state: Any,
     _namespace: Any,
     type: str,
     payload: Any,
-) -> None
+) -> None: ...
 ```
 
 ### Parameters
@@ -49,6 +52,8 @@ The function will:
 
 ```python
 from langchain_core.messages import AIMessageChunk
+
+from assistant_stream.modules.langgraph import append_langgraph_event
 
 # one chunk yielded by stream_mode="messages"
 chunk = (AIMessageChunk(content="Hello", id="msg1"), {})
