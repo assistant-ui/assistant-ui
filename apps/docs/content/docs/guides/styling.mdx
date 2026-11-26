@@ -1,6 +1,6 @@
 ---
-title: Styling and Theming
-description: "Make the chat look like your product: set the theme's colors, radius and fonts with CSS variables, edit the Tailwind classes in components you own, swap in a custom component, style by state with data attributes, add dark mode, or use className and your own CSS without Tailwind."
+title: Styling, Themes and Dark Mode
+description: "Make the chat look like your product: theme colors, radius and fonts with shadcn/ui CSS variables, edit the Tailwind classes in components you own, swap in a custom component, style by state with data attributes, add dark mode, or use className and your own CSS without Tailwind."
 platforms: ["react"]
 ---
 
@@ -25,7 +25,7 @@ flowchart LR
 - **Elements** such as `Thread` are styled components built from primitives. `npx assistant-ui init` sets up shadcn/ui and copies `Thread` and the files it uses into `components/assistant-ui/elements/`, and `npx assistant-ui add <name>` copies any other element. Both go through the shadcn CLI, the same way shadcn/ui copies a `Button`, so the files are yours: updating the packages doesn't overwrite them.
 - **Theme variables** live in your global stylesheet. The elements' Tailwind classes, such as `bg-background` and `text-muted-foreground`, read the same shadcn/ui variables as the rest of your app.
 
-## Change the theme: colors, radius and fonts
+## Change colors, radius and fonts with CSS variables
 
 Set CSS variables once and every element follows:
 
@@ -42,7 +42,7 @@ Set CSS variables once and every element follows:
 }
 ```
 
-The elements use shadcn/ui's variable names: `--background`, `--foreground`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--popover`, each with a `-foreground` partner for the text on it, plus `--border`, `--input`, `--ring` and `--radius`. A theme from your design system or from the [shadcn/ui theming guide](https://ui.shadcn.com/docs/theming) restyles the chat with the rest of your app. Fonts come from `--font-sans` and `--font-mono`: point them at the variable your font loader sets, as the starter does with `next/font` and `--font-inter`.
+The elements use shadcn/ui's variable names: `--background`, `--foreground`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--popover`, each with a `-foreground` partner for the text on it, plus `--border`, `--input`, `--ring` and `--radius`. The composer and the message bubbles are the exception for rounding: they take it from the `Thread` file, as the next section shows. A theme from your design system or from the [shadcn/ui theming guide](https://ui.shadcn.com/docs/theming) restyles the chat with the rest of your app. Fonts come from `--font-sans` and `--font-mono`: point them at the variable your font loader sets, as the starter does with `next/font` and `--font-inter`.
 
 ## Restyle a component you own
 
