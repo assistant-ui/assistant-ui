@@ -76,13 +76,15 @@ export function MyRuntimeProvider({
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import { useA2ARuntime } from "@assistant-ui/react-a2a";
 
+const A2A_URL = process.env.EXPO_PUBLIC_A2A_URL ?? "http://localhost:9999";
+
 export function MyRuntimeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const runtime = useA2ARuntime({
-    baseUrl: "http://localhost:9999",
+    baseUrl: A2A_URL,
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -91,6 +93,8 @@ export function MyRuntimeProvider({
   );
 }
 ```
+
+On a phone or an Android emulator, `localhost` is the device itself. Set `EXPO_PUBLIC_A2A_URL` in `.env` to an address the device can reach: your computer's LAN address, such as `http://192.168.1.20:9999`, or `http://10.0.2.2:9999` from the Android emulator. The iOS simulator can use `localhost`.
 
 </Tab>
 <Tab value="React Ink">

@@ -91,6 +91,8 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
+The [production proxy](/docs/runtimes/langgraph/overview#production-proxy-backend) refuses `threads/search` and thread deletes, because a search with your API key returns every user's threads; it explains what to serve instead.
+
 Setting `remoteId === externalId` keeps the ids assistant-ui stores aligned with the LangGraph thread ids your `load` and `stream` callbacks receive. See [thread list adapters](/docs/integrations/persistence/thread-list-adapters) for the full adapter contract.
 
 <Callout type="info">

@@ -252,7 +252,8 @@ When `isSendDisabled` is `true`:
 
 - `composer.canSend` becomes `false`
 - `<ComposerPrimitive.Send>` is disabled
-- Enter and the `Cmd/Ctrl+Shift+Enter` steer hotkey become no-ops
+- Enter sends nothing and the keystroke is swallowed
+- The `Cmd/Ctrl+Shift+Enter` steer hotkey sends nothing either, but the input does not intercept it, so the textarea handles the keystroke as usual
 - `aui.composer.send()` short-circuits at the runtime, so direct calls cannot escape the gate
 
 Read the same flag from React with `<AuiIf>` to render hints alongside the input:
