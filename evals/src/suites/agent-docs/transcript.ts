@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 export interface TranscriptSummary {
   turns: number;
+  /** How long the agent took to give its first answer, without any later wake-ups. */
+  answerSeconds: number | null;
   costUsd: number | null;
   /** Docs files the agent opened, relative to the docs folder, in order of first read. */
   docsRead: string[];
@@ -23,6 +25,7 @@ export function summarizeTranscript(
 ): TranscriptSummary {
   const summary: TranscriptSummary = {
     turns: 0,
+    answerSeconds: null,
     costUsd: null,
     docsRead: [],
     docsSearches: [],
@@ -45,6 +48,12 @@ export function summarizeTranscript(
     // A background task finishing after the agent's answer wakes it for another, shorter result, so keep them all.
     if (event.type === "result") {
       summary.turns += event.num_turns ?? 0;
+      if (
+        summary.answerSeconds === null &&
+        typeof event.duration_ms === "number"
+      ) {
+        summary.answerSeconds = Math.round(event.duration_ms / 1000);
+      }
       // The cost is the session's running total; the turns count only that answer.
       if (typeof event.total_cost_usd === "number") {
         summary.costUsd = Math.max(summary.costUsd ?? 0, event.total_cost_usd);

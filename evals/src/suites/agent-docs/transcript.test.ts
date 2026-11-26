@@ -35,6 +35,7 @@ test("summarizeTranscript finds the docs pages, node_modules lookups and the clo
       {
         type: "result",
         num_turns: 12,
+        duration_ms: 95_400,
         total_cost_usd: 0.4,
         result: "Built it. Docs: the route example is stale.",
       },
@@ -52,6 +53,7 @@ test("summarizeTranscript finds the docs pages, node_modules lookups and the clo
     assert.equal(summary.nodeModulesLookups, 1);
     assert.deepEqual(summary.webFetches, ["curl -s https://example.com/x"]);
     assert.equal(summary.turns, 12);
+    assert.equal(summary.answerSeconds, 95);
     assert.equal(summary.costUsd, 0.4);
     assert.equal(
       summary.finalMessage,
