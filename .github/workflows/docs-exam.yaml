@@ -41,6 +41,8 @@ env:
 jobs:
   exam:
     name: Docs exam
+    # The job holds a billing key, so it runs only code from main, never from a dispatched branch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -83,7 +85,11 @@ jobs:
           ANTHROPIC_BASE_URL: ${{ env.BILLING_GATEWAY }}
           EXAM: ${{ inputs.exam }}
           READER: ${{ inputs.reader }}
+          # A CI runner isn't a busy laptop; 8 at a time keeps a held-out run near 5 minutes, inside the key's lifetime.
+          EXAM_CONCURRENCY: "8"
+        # pipefail keeps tee from hiding a failed run; run-exam.ts exits 1 when no question was graded.
         run: |
+          set -euo pipefail
           mkdir -p "$RUNNER_TEMP/docs-exam"
           node evals/src/suites/docs-exam/run-exam.ts --exam "$EXAM" --reader "$READER" \
             --out "$RUNNER_TEMP/docs-exam/$EXAM-$READER.json" | tee "$RUNNER_TEMP/docs-exam/$EXAM-$READER.log"
@@ -101,6 +107,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
-          name: docs-exam-${{ inputs.exam }}-${{ inputs.reader }}
+          name: docs-exam-${{ inputs.exam }}-${{ inputs.reader }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/docs-exam/
           retention-days: 90
