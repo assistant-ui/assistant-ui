@@ -10,7 +10,25 @@ vi.mock("@/lib/search/corpus", () => ({
   searchablePages: () => [
     {
       url: "/docs/cloud",
-      data: { title: "Assistant Cloud", description: "Persist chats" },
+      data: {
+        title: "Assistant Cloud",
+        description: "Persist chats",
+        structuredData: () => ({
+          contents: [{ content: "Threads sync across devices." }],
+        }),
+      },
+    },
+    {
+      url: "/docs/tools",
+      data: {
+        title: "Tools",
+        description: "Let the model call functions",
+        structuredData: () => ({
+          contents: [
+            { content: "Pause a call for human-in-the-loop approval." },
+          ],
+        }),
+      },
     },
   ],
 }));
@@ -39,13 +57,37 @@ it("validates query length and the scope before doing paid work", async () => {
   expect(mocks.limit).not.toHaveBeenCalled();
 });
 
-it("disables only suggestions when no key is configured", async () => {
+it("serves body-text matches without a key or a rate limit", async () => {
   vi.stubEnv("JEV_KEY", "");
-  const response = await GET(request("save history"));
-  expect(await response.json()).toEqual({ pages: [], enabled: false });
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const response = await GET(request("human in the loop"));
+  expect(await response.json()).toEqual({
+    enabled: true,
+    pages: [
+      {
+        url: "/docs/tools",
+        title: "Tools",
+        description: "Let the model call functions",
+      },
+    ],
+  });
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(response.headers.get("x-robots-tag")).toBe("noindex");
+  expect(fetcher).not.toHaveBeenCalled();
   expect(mocks.limit).not.toHaveBeenCalled();
+});
+
+it("matches body text only when every word is on the page", async () => {
+  vi.stubEnv("JEV_KEY", "");
+  const response = await GET(request("human sync"));
+  expect(await response.json()).toEqual({ enabled: true, pages: [] });
+});
+
+it("respects the scope for body-text matches", async () => {
+  vi.stubEnv("JEV_KEY", "");
+  const response = await GET(request("human in the loop", "Elements"));
+  expect(await response.json()).toEqual({ enabled: true, pages: [] });
 });
 
 it("enforces rate limits before making a Jev request", async () => {
@@ -84,4 +126,39 @@ it("returns catalogue data rather than a URL invented by the model", async () =>
       },
     ],
   });
+});
+
+it("lists the model's picks first, then body-text matches it did not pick", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        answers: {
+          pages_0: {
+            type: "choice",
+            choice: "page_0",
+            confidence: 1,
+            probabilities: { page_0: 1 },
+          },
+        },
+      }),
+    ),
+  );
+  // The route keeps its Jev client, and the client keeps the fetch it was made with.
+  vi.resetModules();
+  const { GET: fresh } = await import("./route");
+
+  const pages = (await (await fresh(request("human loop"))).json()).pages;
+  expect(pages.map((page: { url: string }) => page.url)).toEqual([
+    "/docs/cloud",
+    "/docs/tools",
+  ]);
+});
+
+it("retries a misspelled query with the closest words in the docs", async () => {
+  vi.stubEnv("JEV_KEY", "");
+  const pages = (await (await GET(request("aproval"))).json()).pages;
+  expect(pages.map((page: { url: string }) => page.url)).toEqual([
+    "/docs/tools",
+  ]);
 });
