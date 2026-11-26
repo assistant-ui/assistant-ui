@@ -12,6 +12,7 @@ describe("proxy", () => {
 
   it.each([
     { "sec-fetch-site": "cross-site" },
+    { "sec-fetch-site": "same-site" },
     { origin: "https://evil.example" },
   ])("refuses a cross-origin call (%o)", (headers) => {
     expect(proxy(request(headers)).status).toBe(403);
