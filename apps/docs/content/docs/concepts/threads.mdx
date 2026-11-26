@@ -3,7 +3,7 @@ title: Threads
 description: "A thread is one conversation. A thread list holds many, and you choose where they are kept: in memory, in Assistant Cloud, or in your own database."
 ---
 
-A thread is one conversation: its [messages](/docs/concepts/messages), its composer and the run in progress. Every runtime starts with a single thread that lives in memory, so a reload starts a new conversation.
+A thread is one conversation: its [messages](/docs/concepts/messages), its composer and the run in progress. Until you give it somewhere to keep threads, a runtime holds a single thread in memory, so a reload starts a new conversation.
 
 A thread list is what lets a user come back. It holds many threads, switches between them, starts new ones, and renames, archives or deletes old ones. The runtime keeps the open thread and the list in step. What you choose is where the threads are kept.
 
