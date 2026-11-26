@@ -5,10 +5,10 @@ description: Wire the Vercel AI SDK into a React chat UI with assistant-ui, cove
 
 import { VercelIcon } from "@/components/icons/vercel";
 
-[Vercel AI SDK](https://ai-sdk.dev/) is the most common framework people pair with assistant-ui. The full setup, attachments, persistence, tool-call patterns, and version notes are documented under [runtimes/ai-sdk](/docs/runtimes/ai-sdk/overview); this page is the entry point in the integrations tree for discoverability and architecture context.
+[Vercel AI SDK](https://ai-sdk.dev/) is the most common framework people pair with assistant-ui. This page shows where it fits and when to pick it; the setup, attachments, persistence, tool-call patterns, and version notes are under [AI SDK runtime](/docs/runtimes/ai-sdk/overview).
 
 <Callout type="info">
-If you arrived here looking to wire up your first chat: jump to [AI SDK v7 quickstart](/docs/runtimes/ai-sdk/v7). This page is a high-level pointer.
+To wire up your first chat, start with the [AI SDK v7 quickstart](/docs/runtimes/ai-sdk/v7).
 </Callout>
 
 ## Where it slots in
@@ -27,34 +27,9 @@ flowchart LR
 
 ## Pick a version
 
-Four versions of `ai` are supported. New projects should pick **v7**; v6, v5, and v4 are documented for migration and existing apps that haven't upgraded.
+`@assistant-ui/ai-sdk` targets AI SDK v7 and needs `ai@^7.0.101`. New projects start there.
 
-<Cards>
-  <Card
-    icon={<VercelIcon width={20} height={20} />}
-    title="AI SDK v7 (current)"
-    description="Requires ai@^7 and @ai-sdk/react@^4. Async convertToModelMessages, tool inputSchema, toUIMessageStreamResponse."
-    href="/docs/runtimes/ai-sdk/v7"
-  />
-  <Card
-    icon={<VercelIcon width={20} height={20} />}
-    title="AI SDK v6 (legacy)"
-    description="Requires ai@^6 and @ai-sdk/react@^3. Async convertToModelMessages, tool inputSchema, toUIMessageStreamResponse."
-    href="/docs/runtimes/ai-sdk/v6-legacy"
-  />
-  <Card
-    icon={<VercelIcon width={20} height={20} />}
-    title="AI SDK v5 (legacy)"
-    description="Requires ai@^5 and @ai-sdk/react@^2. Synchronous convertToModelMessages, transitional API."
-    href="/docs/runtimes/ai-sdk/v5-legacy"
-  />
-  <Card
-    icon={<VercelIcon width={20} height={20} />}
-    title="AI SDK v4 (legacy)"
-    description="The original useChat-based path. Maintained for migration only."
-    href="/docs/runtimes/ai-sdk/v4-legacy"
-  />
-</Cards>
+A project on an older AI SDK major stays on an older assistant-ui package: v6 and v5 pin the last `@assistant-ui/react-ai-sdk` release built for their major, and v4 uses `@assistant-ui/react-data-stream`. The [runtime overview](/docs/runtimes/ai-sdk/overview#pick-a-version) lists the package for each major and links its guide.
 
 ## When to pick AI SDK
 

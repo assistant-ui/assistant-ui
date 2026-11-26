@@ -50,7 +50,7 @@ A project has two hosts. The frontend API answers the browser with an anonymous 
 |---|---|
 | [Authentication and access](/docs/cloud/authorization) | The three ways a client proves who it is, the rules a project enforces, and who the user and the workspace are |
 | [Conversations](/docs/cloud/threads) | Threads, messages and their formats, titles, attachments and retention |
-| [Integrations](/docs/cloud/runtimes) | One guide per runtime, servers and bots, and the migration from the Cloud AI SDK |
+| [Integrations](/docs/cloud/runtimes) | One guide per runtime, servers and bots, the migration from the Cloud AI SDK, and the upgrade from `assistant-cloud` 0.1 |
 | [Telemetry](/docs/cloud/run-reports) | Run reports field by field, traces and the receiver's rules, engagement events, feedback and scores |
 | [Cloud features](/docs/cloud/llm-providers) | The features the cloud runs on your conversations with a model: providers, intelligence, evaluators, assistants and harnesses |
 | [Dashboard](/docs/cloud/dashboard) | Every page of the dashboard with every figure defined |
@@ -84,12 +84,4 @@ Every page follows the same order: what the feature is, how it works, every cont
 
 The [demo project](https://cloud.assistant-ui.com/demo) is open without an account: a retailer's synthetic support assistant that gains an hour of conversations every hour, with every page of the dashboard read only. The screenshots in this book were taken there.
 
-## Upgrading from 0.1
-
-`@assistant-ui/core` requires `assistant-cloud@^0.2.1`, so update `assistant-cloud`, `@assistant-ui/react` and your integration package together. Then:
-
-- Add the `messageMetadata` callback to your route; see [Run reports](/docs/cloud/run-reports#messagemetadata-values). Without it runs show as *No model reported* and cannot be priced.
-- Pass `telemetry: { environment, release }` to `AssistantCloud` so runs can be filtered by deployment. Engagement events are on by default; see [Turning telemetry off](/docs/cloud/run-reports#redact-drop-or-turn-telemetry-off).
-- If your server emits OpenTelemetry spans, add the span processor from [Traces](/docs/cloud/traces).
-- Review **Settings › Access**: anonymous sessions and allowed origins are settings, and both default to open.
-- If you use `@assistant-ui/cloud-ai-sdk`, plan the move: the package is retired; see [Migrate from Cloud AI SDK](/docs/cloud/migrate-cloud-ai-sdk).
+An app on `assistant-cloud` 0.1 starts with [Upgrade from 0.1](/docs/cloud/upgrade-from-0-1).
