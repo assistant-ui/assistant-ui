@@ -25,7 +25,7 @@ They follow what people ask the docs assistant and search the docs for most, wri
 
 ## Running
 
-It needs the `claude` CLI signed in, Chrome (or `CHROME_PATH`), and macOS, where it has been run; Linux, where Claude Code's sandbox needs `bubblewrap` and `socat`, has the matching paths set but hasn't been run yet. A trial takes 4 to 10 minutes with Sonnet; each one installs packages and builds a Next.js app, so run at most two at a time on a laptop.
+It needs the `claude` CLI (2.1.314 or later) signed in, `lsof`, Chrome (or `CHROME_PATH`), and macOS, where it has been run; Linux, where Claude Code's sandbox needs `bubblewrap` and `socat`, has the matching paths set but hasn't been run yet. A trial takes 4 to 10 minutes with Sonnet; each one installs packages and builds a Next.js app, so run at most two at a time on a laptop.
 
 ```bash
 cd evals

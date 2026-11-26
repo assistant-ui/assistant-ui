@@ -1,6 +1,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import {
   closeSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   rmSync,
@@ -11,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -84,17 +85,54 @@ const descendants = (root: number) => {
   return out;
 };
 
+/** lsof lives in /usr/sbin on macOS and /usr/bin on most Linux systems; the cleanup needs it. */
+const lsof = () => {
+  const found = ["/usr/sbin/lsof", "/usr/bin/lsof"].find((path) =>
+    existsSync(path),
+  );
+  if (!found) {
+    throw new Error(
+      "agent-docs needs lsof to stop the servers an agent leaves running; install it.",
+    );
+  }
+  return found;
+};
+
+/**
+ * The file tools are fenced by `blockWritesOutsideWorkingDirectories`, which Claude Code
+ * 2.1.314 added; an older CLI ignores the key and would let Write and Edit reach anywhere.
+ */
+const requireWriteFence = (claude: string) => {
+  const version = /(\d+)\.(\d+)\.(\d+)/.exec(
+    execFileSync(claude, ["--version"], { encoding: "utf8" }),
+  );
+  const [major, minor, patch] = (version?.slice(1) ?? []).map(Number);
+  const ok =
+    major !== undefined &&
+    minor !== undefined &&
+    patch !== undefined &&
+    (major > 2 ||
+      (major === 2 && (minor > 1 || (minor === 1 && patch >= 314))));
+  if (!ok) {
+    throw new Error(
+      `agent-docs needs Claude Code 2.1.314 or later for its write fence; found ${version?.[0] ?? "an unknown version"}.`,
+    );
+  }
+};
+
 /** Processes whose working directory is `dir` or inside it. */
 const runningIn = (dir: string) => {
   let listing = "";
   try {
-    listing = execFileSync("/usr/sbin/lsof", ["-d", "cwd", "-Fpn"], {
+    listing = execFileSync(lsof(), ["-d", "cwd", "-Fpn"], {
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
     });
   } catch (error) {
     // lsof exits 1 when it can't inspect some processes but still prints the rest.
-    listing = String((error as { stdout?: string }).stdout ?? "");
+    const { stdout } = error as { stdout?: string };
+    if (stdout === undefined) throw error;
+    listing = stdout;
   }
   const pids: number[] = [];
   let pid = 0;
@@ -146,7 +184,11 @@ export async function runAgent(opts: {
   /** More environment variables for the agent and its shell. */
   extraEnv?: Record<string, string> | undefined;
 }): Promise<AgentRun> {
-  const { runDir, projectDir, docsDir } = opts;
+  const { projectDir, docsDir } = opts;
+  // Absolute, so the cleanup can match it against the working folders lsof reports.
+  const runDir = resolve(opts.runDir);
+  const claude = process.env.CLAUDE_BIN ?? which("claude");
+  requireWriteFence(claude);
   const bin = join(runDir, "bin");
   mkdirSync(bin, { recursive: true });
   for (const tool of ["node", "npm", "npx", "pnpm", "corepack"]) {
@@ -270,7 +312,7 @@ export async function runAgent(opts: {
   const err = openSync(join(runDir, "agent.stderr.log"), "w");
   const started = Date.now();
   const child = spawn(
-    process.env.CLAUDE_BIN ?? which("claude"),
+    claude,
     [
       "-p",
       opts.prompt,
