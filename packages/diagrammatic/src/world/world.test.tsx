@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { DotWorldMap, WORLD, WORLD_HEIGHT, WorldMap } from "./index";
+import { DOTS } from "./world-dots";
 
 describe("WorldMap", () => {
   it("ships plausible pre-projected geometry", () => {
@@ -41,5 +42,39 @@ describe("DotWorldMap", () => {
     expect(html).toContain('data-series2="AU"');
     expect(html).toContain("color-mix");
     expect(html).not.toContain("NaN");
+  });
+
+  it("draws each country's halftone as a few paths rather than an element per dot", () => {
+    const html = renderToStaticMarkup(
+      <DotWorldMap title="footprint" groups={{ shipping: ["US", "JP"] }} />,
+    );
+    const marks = [
+      ...html.matchAll(
+        /<g data-part="mark" data-series="(\w+)"[^>]*>(.*?)<\/g>/g,
+      ),
+    ];
+
+    expect(html).not.toContain("<circle");
+    expect(html).not.toContain("NaN");
+    // About 4,200 glyphs printed as one element each came to ~740 KB.
+    expect(html.length).toBeLessThan(150_000);
+    expect(new Set(marks.map((mark) => mark[1])).size).toBe(marks.length);
+    // Every dot of the grid is still drawn: each glyph starts with one move.
+    const glyphs = marks
+      .flatMap((mark) => [...mark[2]!.matchAll(/ d="([^"]+)"/g)])
+      .reduce((sum, d) => sum + (d[1]!.match(/M/g)?.length ?? 0), 0);
+    expect(glyphs).toBe(DOTS.length / 3);
+
+    // A translucent stroke on a zero-length segment paints darker in WebKit,
+    // so the alpha rides on each path's opacity instead.
+    const us = marks.find((mark) => mark[1] === "US")![0];
+    const fr = marks.find((mark) => mark[1] === "FR")![0];
+    expect(us).toContain('stroke="var(--dg-c1, #3b82f6)"');
+    expect(us.match(/<path [^>]*opacity="0.9"/g)).toHaveLength(
+      us.match(/<path/g)!.length,
+    );
+    expect(fr.match(/<path [^>]*opacity="0.22"/g)).toHaveLength(
+      fr.match(/<path/g)!.length,
+    );
   });
 });
