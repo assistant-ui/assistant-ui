@@ -45,7 +45,7 @@ export function agentClientFamily(userAgent: string | null): string {
 const EMAIL = /(?:[^\s@/"]+|"(?:[^"\\]|\\.)+")@[^\s@/]+\.[^\s@/]+/gu;
 const IPV4 = /\b\d{1,3}(?:\.\d{1,3}){3}\b/g;
 const IPV6 =
-  /\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4}\b/gi;
+  /\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4}\b|(?<![\w:])::(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4}\b/gi;
 // API keys, tokens and other long opaque strings that mix letters and digits.
 const TOKEN = /\b(?=[\w-]*\d)(?=[\w-]*[a-z])[\w-]{24,}\b/gi;
 
@@ -75,13 +75,15 @@ export type AgentDocsRead = {
   negotiated: boolean;
 };
 
-// A path keeps its percent-encoding, which would hide an encoded `@` or `:`
-// from the scrub.
-function decodedPath(pathname: string) {
+/**
+ * A docs path an agent asked for, decoded first: a path keeps its
+ * percent-encoding, which would hide an encoded `@` or `:` from the scrub.
+ */
+export function agentPath(path: string): string {
   try {
-    return decodeURIComponent(pathname);
+    return agentText(decodeURIComponent(path));
   } catch {
-    return pathname;
+    return agentText(path);
   }
 }
 
@@ -95,7 +97,7 @@ export function agentDocsRead(
   pathname: string,
   headers: Headers,
 ): AgentDocsRead | null {
-  const path = agentText(decodedPath(pathname));
+  const path = agentPath(pathname);
   const negotiated = MARKDOWN_ACCEPT.test(headers.get("accept") ?? "");
   if (pathname === "/llms.txt")
     return { kind: "llms", path, negotiated: false };

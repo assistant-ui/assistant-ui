@@ -37,6 +37,7 @@ import {
 } from "@/lib/xulux/template-service";
 import {
   agentClientFamily,
+  agentPath,
   agentText,
   captureAgentEvent,
   type AgentEventProperties,
@@ -392,6 +393,16 @@ function toolResultCount(tool: string, result: unknown): number | undefined {
   return undefined;
 }
 
+// The template tools report a failure, such as a sandbox outage, in their
+// result rather than by throwing.
+function returnedError(result: unknown) {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    typeof (result as { error?: unknown }).error === "string"
+  );
+}
+
 function toolCallStatus(error: unknown) {
   if (error instanceof ToolThrottledError) return "throttled";
   if (error instanceof PageNotFoundError) return "not_found";
@@ -413,7 +424,7 @@ async function toolResult(
       ...(subject.query !== undefined
         ? { query: agentText(subject.query) }
         : {}),
-      ...(subject.path !== undefined ? { path: agentText(subject.path) } : {}),
+      ...(subject.path !== undefined ? { path: agentPath(subject.path) } : {}),
       ...properties,
     });
 
@@ -421,7 +432,7 @@ async function toolResult(
     const result = await fn();
     const count = toolResultCount(tool, result);
     capture({
-      status: count === 0 ? "empty" : "ok",
+      status: returnedError(result) ? "error" : count === 0 ? "empty" : "ok",
       result_count: count,
       ...(tool === readPageTool.name
         ? { page: (result as { url: string }).url }

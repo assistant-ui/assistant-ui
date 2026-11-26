@@ -82,6 +82,9 @@ describe("agentText", () => {
     expect(agentText("from 2001:db8::8a2e:370:7334 and fe80::1")).toBe(
       "from [ip] and [ip]",
     );
+    expect(agentText("on ::1, ::1234:5678 and ::ffff:a00:1")).toBe(
+      "on [ip], [ip] and [ip]",
+    );
     expect(agentText("std::vector at 10:30")).toBe("std::vector at 10:30");
     expect(agentText('mail "j doe"@example.com or josé@exämple.de')).toBe(
       "mail [email] or [email]",

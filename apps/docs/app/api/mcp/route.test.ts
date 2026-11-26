@@ -825,6 +825,15 @@ describe("agent reads over MCP", () => {
     });
   });
 
+  it("scrubs an identifier the agent percent-encoded into a path", async () => {
+    await callTool("read_page", { path: "/docs/jane.doe%40example.com" });
+
+    expect(captured()[0]?.properties).toMatchObject({
+      status: "not_found",
+      path: "/docs/[email]",
+    });
+  });
+
   it("reads a folder as its overview page, as the html route does", async () => {
     const { source } = await import("@/lib/source");
     const { getLLMText } = await import("@/lib/get-llm-text");
@@ -871,6 +880,15 @@ describe("agent reads over MCP", () => {
       new Response("Public assistant temporarily unavailable", { status: 503 }),
     );
     await callTool("read_template", { templateId: "base-assistant-ui" });
+
+    expect(captured()[0]?.properties).toMatchObject({
+      tool: "read_template",
+      status: "error",
+    });
+  });
+
+  it("counts a template failure the tool returns as an error", async () => {
+    await callTool("read_template", { templateId: "no-such-template" });
 
     expect(captured()[0]?.properties).toMatchObject({
       tool: "read_template",
