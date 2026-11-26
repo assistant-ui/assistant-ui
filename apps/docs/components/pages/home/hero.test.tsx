@@ -42,10 +42,14 @@ describe("hero", () => {
     const prompt = screen.getByRole("button", {
       name: "Copy the setup prompt for your agent",
     });
-    expect(prompt.textContent).toBe("install and set up assistant-ui");
+    expect(prompt.textContent).toBe(
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+    );
     expect(prompt.textContent).not.toContain("Tell your coding agent");
     fireEvent.click(prompt);
-    expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
+    expect(writeText).toHaveBeenCalledWith(
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+    );
     expect(screen.queryByRole("link", { name: "Install manually" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Quick Start" })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
