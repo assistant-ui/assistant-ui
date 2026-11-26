@@ -3,6 +3,7 @@ export const PUBLIC_ASSISTANT_LIMITS = [
   "Daily usage",
   "Daily anonymous session",
   "Public assistant usage",
+  "Daily docs assistant",
   "Anonymous session",
   "Template tool rate",
   "Template tool daily",

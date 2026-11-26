@@ -678,3 +678,63 @@ describe("docs search limits", () => {
     ).toBe(503);
   });
 });
+
+describe("docs assistant limits", () => {
+  const request = () =>
+    new Request("https://www.assistant-ui.com/api/doc/chat", {
+      headers: { "x-vercel-forwarded-for": "203.0.113.10" },
+    });
+
+  it("caps questions per address and per session each day", async () => {
+    const { checkDocsChatRateLimit } = await import("./rate-limit");
+    expect(
+      await checkDocsChatRateLimit(request(), "session_1234567890"),
+    ).toBeNull();
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:docs-chat:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:docs-chat:session:daily", key: "session_1234567890" },
+    ]);
+    expect(mocks.configs.get("aui:docs-chat:ip:daily")).toEqual({
+      limit: 60,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:docs-chat:session:daily")).toEqual({
+      limit: 40,
+      window: "1d",
+    });
+  });
+
+  it.each(["aui:docs-chat:ip:daily", "aui:docs-chat:session:daily"])(
+    "answers 429 with Retry-After when %s is spent",
+    async (prefix) => {
+      const { checkDocsChatRateLimit } = await import("./rate-limit");
+      mocks.results.set(prefix, false);
+      const response = await checkDocsChatRateLimit(
+        request(),
+        "session_1234567890",
+      );
+      expect(response?.status).toBe(429);
+      expect(response?.headers.get("Retry-After")).toMatch(/^\d+$/);
+      await expect(response?.text()).resolves.toBe(
+        "Daily docs assistant limit exceeded",
+      );
+    },
+  );
+
+  it("fails closed if the limiter is unavailable or the IP is missing", async () => {
+    const { checkDocsChatRateLimit } = await import("./rate-limit");
+    mocks.errors.set("aui:docs-chat:ip:daily", new Error("unavailable"));
+    expect(
+      (await checkDocsChatRateLimit(request(), "session_1234567890"))?.status,
+    ).toBe(503);
+    mocks.errors.clear();
+    expect(
+      (
+        await checkDocsChatRateLimit(
+          new Request("https://www.assistant-ui.com/api/doc/chat"),
+          "session_1234567890",
+        )
+      )?.status,
+    ).toBe(503);
+  });
+});

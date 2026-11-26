@@ -90,6 +90,31 @@ const getPublicAssistantRateLimits = async () => {
       prefix: "aui:public-assistant:global:alert",
       limiter: Ratelimit.fixedWindow(1, "10m"),
     }),
+    // Docs assistant questions on top of the shared public assistant limits.
+    // A reader asks a handful a day; these stop one address or one browser
+    // session from using the docs assistant as a general model.
+    docsChatIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:docs-chat:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_DOCS_CHAT_REQUESTS_PER_IP_PER_DAY,
+          60,
+        ),
+        "1d",
+      ),
+    }),
+    docsChatSessionDaily: new Ratelimit({
+      redis,
+      prefix: "aui:docs-chat:session:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_DOCS_CHAT_REQUESTS_PER_SESSION_PER_DAY,
+          40,
+        ),
+        "1d",
+      ),
+    }),
     sessionIssuanceBurst: new Ratelimit({
       redis,
       prefix: "aui:public-assistant:session-issuance:burst",
@@ -365,6 +390,33 @@ export async function checkPublicAssistantRateLimit(
         publicAssistantLimitMessage("Public assistant usage"),
         globalDaily.reset,
       );
+    }
+    return null;
+  });
+}
+
+/**
+ * The docs assistant's own daily limits per address and per anonymous
+ * session, checked after `checkPublicAssistantRateLimit`.
+ */
+export async function checkDocsChatRateLimit(
+  request: Request,
+  sessionId: string,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "docs_chat", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "docs_chat");
+    for (const [limiter, key] of [
+      [limits.docsChatIpDaily, ip],
+      [limits.docsChatSessionDaily, sessionId],
+    ] as const) {
+      const result = await limiter.limit(key);
+      if (!result.success) {
+        return limitResponse(
+          publicAssistantLimitMessage("Daily docs assistant"),
+          result.reset,
+        );
+      }
     }
     return null;
   });
