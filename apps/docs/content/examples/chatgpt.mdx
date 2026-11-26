@@ -44,7 +44,11 @@ export const ChatGPT = () => (
     </AuiIf>
     <AuiIf condition={(s) => !s.thread.isEmpty}>
       <ThreadPrimitive.Viewport>
-        <ThreadPrimitive.Messages />
+        <ThreadPrimitive.Messages>
+          {({ message }) =>
+            message.role === "user" ? <UserMessage /> : <AssistantMessage />
+          }
+        </ThreadPrimitive.Messages>
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
           <Composer placeholder="Ask anything" />
           <p>ChatGPT can make mistakes. Check important info.</p>

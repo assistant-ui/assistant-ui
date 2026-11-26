@@ -55,8 +55,8 @@ export default function StockbrokerChat() {
         {
           input: { messages },
           streamMode: "messages",
+          signal: abortSignal,
         },
-        { signal: abortSignal }
       );
     },
     create: async () => {
