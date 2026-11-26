@@ -27,6 +27,26 @@ const childEnv = () =>
     ),
   ) as NodeJS.ProcessEnv;
 
+// Readers run in their own process groups, which a Ctrl-C on the runner
+// doesn't reach, so the runner stops the live ones itself on the way out.
+const live = new Set<number>();
+const stopLive = () => {
+  for (const pid of live) {
+    try {
+      process.kill(-pid, "SIGTERM");
+    } catch {
+      // Already gone.
+    }
+  }
+};
+process.once("exit", stopLive);
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    stopLive();
+    process.exit(128 + (signal === "SIGINT" ? 2 : 15));
+  });
+}
+
 /**
  * Runs `claude -p` once, confined to `cwd` (`--restricted`), with no user
  * settings, hooks or MCP servers (`--safe-mode`, `--strict-mcp-config`), and
@@ -58,8 +78,22 @@ export function runClaude(o: ClaudeOptions): Promise<ClaudeRun> {
         "stream-json",
         "--verbose",
       ],
-      { cwd: o.cwd, env: childEnv(), stdio: ["ignore", "pipe", "pipe"] },
+      // Its own process group, so a timeout can stop anything it started too.
+      {
+        cwd: o.cwd,
+        env: childEnv(),
+        stdio: ["ignore", "pipe", "pipe"],
+        detached: true,
+      },
     );
+    if (child.pid !== undefined) live.add(child.pid);
+    const killGroup = (signal: NodeJS.Signals) => {
+      try {
+        if (child.pid !== undefined) process.kill(-child.pid, signal);
+      } catch {
+        child.kill(signal);
+      }
+    };
     let out = "";
     let err = "";
     child.stdout.setEncoding("utf8").on("data", (d: string) => {
@@ -78,13 +112,14 @@ export function runClaude(o: ClaudeOptions): Promise<ClaudeRun> {
     // At the deadline the call fails at once; a child that ignores SIGTERM is killed 5 s later.
     let killTimer: NodeJS.Timeout | undefined;
     const timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      killTimer = setTimeout(() => child.kill("SIGKILL"), 5_000);
+      killGroup("SIGTERM");
+      killTimer = setTimeout(() => killGroup("SIGKILL"), 5_000);
       fail(new Error(`claude timed out after ${o.timeoutMs} ms`));
     }, o.timeoutMs);
     child.on("close", (code) => {
       clearTimeout(timer);
       clearTimeout(killTimer);
+      if (child.pid !== undefined) live.delete(child.pid);
       if (settled) return;
       const events: Record<string, unknown>[] = [];
       for (const line of out.split("\n")) {

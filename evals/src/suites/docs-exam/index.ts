@@ -64,11 +64,6 @@ export const docsExam: Suite<ExamCase, ReaderCandidate, ExamOutcome> = {
   async run(c, candidate) {
     const run = await runExam(c.exam, candidate.reader);
     const score = scoreRun(run.results);
-    if (score.graded === 0) {
-      throw new Error(
-        `no question was graded: ${run.results.find((r) => r.error || r.judgeError)?.error ?? "see the run file"}`,
-      );
-    }
     const stamp = run.startedAt.replace(/[:.]/g, "-");
     const dir = join(resultsDir, "runs");
     mkdirSync(dir, { recursive: true });
@@ -76,6 +71,13 @@ export const docsExam: Suite<ExamCase, ReaderCandidate, ExamOutcome> = {
     const files = { run: `${base}.json`, gaps: `${base}.gaps.md` };
     writeFileSync(files.run, `${JSON.stringify(run, null, 2)}\n`);
     writeFileSync(files.gaps, gapsMarkdown(run, c.exam.questions));
+    // The files are written first, so a run that graded nothing still leaves its errors to read.
+    if (score.graded === 0) {
+      const failed = run.results.find((r) => r.error || r.judgeError);
+      throw new Error(
+        `no question was graded (${failed?.error ?? failed?.judgeError ?? "no questions"}); answers: ${files.run}`,
+      );
+    }
     return { run, score, files };
   },
   view(o) {

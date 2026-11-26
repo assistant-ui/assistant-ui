@@ -1761,6 +1761,16 @@
           "anchor": "headers.delete(RESUMABLE_THREAD_ID_HEADER);"
         },
         {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 151,
+          "anchor": "resumable.storage.setStreamId(id, threadId);"
+        },
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 216,
+          "anchor": "const streamId = resumable.storage.getStreamId(options.id);"
+        },
+        {
           "file": "packages/assistant-stream/src/resumable/createResumableAssistantStreamResponse.ts",
           "line": 9,
           "anchor": "export const RESUMABLE_STREAM_ID_HEADER = \"x-resumable-stream-id\";"
