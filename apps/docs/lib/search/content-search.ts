@@ -131,7 +131,13 @@ function rank(
       (total, entry) => total + entry.score,
       0,
     );
-    const symbolScore = symbolMatch(page.identifiers, symbolTokens) ? 3 : 0;
+    // Spaced names keep their stop words ("on click"); questions drop them
+    // ("what is componentsByLanguage").
+    const symbolScore =
+      symbolMatch(page.identifiers, symbolTokens) ||
+      symbolMatch(page.identifiers, tokens)
+        ? 3
+        : 0;
 
     const score =
       titleScore * 8 +

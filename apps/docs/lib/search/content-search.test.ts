@@ -137,6 +137,12 @@ describe("searchContent code identifiers", () => {
     expect(urls("on click")).toEqual(["/docs/guides/markdown"]);
   });
 
+  it("finds a symbol named in a question", () => {
+    expect(urls("what is componentsByLanguage")).toEqual([
+      "/docs/guides/markdown",
+    ]);
+  });
+
   it("extends a symbol only for a single word", () => {
     expect(urls("AssistantChatTransport kubernetes")).toEqual([]);
   });
