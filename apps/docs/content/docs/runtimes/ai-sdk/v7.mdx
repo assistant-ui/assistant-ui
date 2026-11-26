@@ -350,14 +350,6 @@ export async function POST(req: Request) {
 }
 ```
 
-### Sign approval requests
-
-The approval answer comes back inside the message history the client posts, and the server runs whatever approved call it finds there. Set `experimental_toolApprovalSecret` so it runs only calls it asked about:
-
-- **What it protects.** The server signs each approval request with the secret, over the tool name, call id and input. When the answer comes back, it checks the signature before running the tool. An approval whose input the client changed, or an approved call the server never requested, fails with `InvalidToolApprovalSignatureError` and the tool does not run.
-- **How to set it.** Use a random string of at least 32 characters, for example from `openssl rand -hex 32`, kept in a server-only environment variable such as `TOOL_APPROVAL_SECRET`. Every server instance needs the same value. Changing it invalidates approvals that are still pending.
-- **Without it.** The server trusts the posted history. A client can edit a pending call's input, or post an approval for a call the model never made, and the tool runs with any input that passes its `inputSchema` and your `toolApproval` policy.
-
 On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` so the response is sent back to the server when the user decides:
 
 ```tsx title="@/app/page.tsx"
@@ -453,6 +445,14 @@ export default function Page() {
 ```
 
 See the [tool UI guide](/docs/tools/tool-ui#server-side-approval-gates) for the full three-state semantics of `approval.approved` and the `isAutomatic` flag.
+
+### Sign approval requests
+
+The approval answer comes back inside the message history the client posts, and the server runs whatever approved call it finds there. Set `experimental_toolApprovalSecret` so it runs only calls it asked about:
+
+- **What it protects.** The server signs each approval request with the secret, over the tool name, call id and input. When the answer comes back, it checks the signature before running the tool. An approval whose input the client changed, or an approved call the server never requested, fails with `InvalidToolApprovalSignatureError` and the tool does not run.
+- **How to set it.** Use a random string of at least 32 characters, for example from `openssl rand -hex 32`, kept in a server-only environment variable such as `TOOL_APPROVAL_SECRET`. Every server instance needs the same value. Changing it invalidates approvals that are still pending.
+- **Without it.** The server trusts the posted history. A client can edit a pending call's input, or post an approval for a call the model never made, and the tool runs with any input that passes its `inputSchema` and your approval policy (`toolApproval`, or the tool's own `needsApproval`).
 
 ## Quote context
 
