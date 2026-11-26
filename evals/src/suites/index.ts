@@ -5,6 +5,7 @@ export const suites: Record<
   string,
   () => Promise<Suite<SuiteCase, SuiteCandidate, unknown>>
 > = {
+  "docs-exam": async () => (await import("./docs-exam/index.ts")).docsExam,
   "comment-hygiene": async () =>
     (await import("./comment-hygiene/index.ts")).commentHygiene,
   "test-quality": async () =>
