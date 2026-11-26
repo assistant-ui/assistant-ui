@@ -3,75 +3,91 @@ title: "Architecture"
 description: How components, runtimes, and cloud services fit together.
 ---
 
-import { Sparkles, PanelsTopLeft, Database, Terminal } from "lucide-react";
+An assistant-ui app has three parts. Components draw the chat. A runtime holds the conversation and talks to your backend. Assistant Cloud, which is optional, stores the conversations and can report on runs. Read this page before you pick a runtime, so you know which part owns what.
 
-## assistant-ui is built on these main pillars:
+## The parts in code
 
-<div className="not-prose grid grid-cols-1 gap-4 md:grid-cols-3">
-  <Card
-    title="1. Frontend components"
-    description="Shadcn UI chat components with built-in state management"
-  />
-  <Card
-    title="2. Runtime"
-    description="State management layer connecting UI to LLMs and backend services"
-  />
-  <Card
-    title="3. Assistant Cloud"
-    description="Hosted service for thread persistence, history, and user management"
-  />
-</div>
+This is the chat page from [manual installation](/docs/manual-installation), which connects to an AI SDK route on your server:
 
+```tsx title="app/page.tsx"
+"use client";
 
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
-### 1. Frontend components
-Styled chat components built on top of shadcn/ui components. They read their state from the assistant-ui runtime provider. [View our components](/elements/thread)
+export default function Page() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
 
-### 2. Runtime
-A React state management context for assistant chat. The runtime handles data conversions between the local state and calls to backends and LLMs. Runtimes are available for frameworks like Vercel AI SDK, LangGraph, and LangChain, along with a local runtime and an ExternalStore runtime for when you need full control of the frontend message state. [You can view the runtimes we support](/docs/runtimes/pick-a-runtime)
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
-### 3. Assistant Cloud
-A hosted service for thread management and message history. Assistant Cloud stores complete message history, automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers so users can resume conversations at any point. [Cloud Docs](/docs/cloud)
+- `useChatRuntime` creates the runtime. It keeps the messages and sends each turn to `/api/chat`.
+- `AssistantRuntimeProvider` makes the runtime available to every component inside it.
+- `Thread` is a component. It renders the messages and the composer, and sends what the user does back to the runtime.
+- `/api/chat` is the backend. It calls the model and streams the answer back. The components and the runtime never call the model themselves.
 
+## Components
 
-## What each layer owns
+The components are the chat you see: `Thread`, `ThreadList`, `AssistantModal` and the rest of the [elements](/elements). The CLI copies them into your project under `components/assistant-ui`, so you can edit them like the rest of your code.
 
-Before picking a runtime or wiring components, it helps to see which layer owns which responsibility. assistant-ui draws hard lines between rendering, conversation state, and where the model actually runs.
+They are built from [primitives](/docs/primitives), unstyled parts such as `ThreadPrimitive.Viewport` and `ComposerPrimitive.Input`. Use the primitives directly when you want a layout the styled components don't give you.
 
-### UI layer
-Primitives and prebuilt components render the assistant experience: thread, messages, composer, message parts, actions, attachments, suggestions. They read and write through the runtime context, not directly against the backend or model.
+Components never talk to your backend. They read state from the runtime and send actions to it, such as sending, editing or regenerating a message.
 
-### Runtime layer
-The state and behavior boundary between UI and backend. The runtime owns or adapts conversation state: messages, thread state, composer state, run lifecycle, branching, editing, regeneration. Different runtimes exist because different backends own this state differently. `LocalRuntime` keeps state internal; `ExternalStoreRuntime` delegates to your store.
+## Runtime
 
-### Backend / agent layer
-Produces assistant output and app-specific behavior. Depending on the runtime and protocol, the backend may emit text, message parts, tool calls, metadata, agent state, attachments, or other events that the runtime maps into UI state.
+The runtime manages the conversation: the messages, the composer, the run in progress, branches, edits and regenerations. With most runtimes you never handle the messages yourself. `useExternalStoreRuntime` instead reads them from a store you own and calls your handlers when the user sends, edits or reloads a message. The runtime also converts the messages your backend sends into the message parts the components render.
 
-### Integration / protocol layer
-Runtime adapters and protocols bridge assistant-ui to different backend shapes: AI SDK, LangGraph, LangChain, ADK, A2A, AG-UI, OpenCode, or your own. The DataStream and AssistantTransport protocols let a generic backend talk to assistant-ui without a custom adapter per app.
+Each chat uses one runtime, chosen by its backend:
 
-### Persistence layer
-Thread and message history can be stored by Assistant Cloud or by your own database via thread and history adapters. Persistence is separate from rendering and backend generation, though the runtime coordinates with it.
+- `useChatRuntime` from `@assistant-ui/ai-sdk` for the Vercel AI SDK.
+- `useLangGraphRuntime` from `@assistant-ui/react-langgraph` for LangGraph, with similar adapters for LangChain, Google ADK, A2A, AG-UI and others.
+- `useLocalRuntime` when you write the call to your backend yourself.
+- `useExternalStoreRuntime` when your app already keeps the messages in its own store, such as Redux or Zustand.
 
-## There are three common ways to architect your assistant-ui application:
+[Pick a runtime](/docs/runtimes/pick-a-runtime) compares them, and [runtime architecture](/docs/runtimes/concepts/architecture) shows how they build on each other.
 
-#### **1. Direct Integration with External Providers**
+## Backend
+
+Your backend produces the answers. It can be a route that calls a model through the AI SDK, an agent framework such as LangGraph or Mastra, or any server whose output a runtime can read. Depending on the runtime and protocol, it streams text, tool calls, reasoning or agent state, and the runtime turns what it receives into parts of a message.
+
+When no runtime fits your backend, have it send the [data stream](/docs/runtimes/custom/data-stream) or [assistant transport](/docs/runtimes/custom/assistant-transport) protocol, and use the runtime made for it.
+
+## Assistant Cloud
+
+[Assistant Cloud](/docs/cloud) is a hosted service the runtime writes to. It stores threads and messages, so a user can return to a conversation later or on another device. It can also record run reports and the actions users take, and shows them in a dashboard. What it stores and reports depends on the runtime; [which runtime](/docs/cloud/runtimes) lists each one.
+
+Cloud is optional. You can store threads in your own database through a thread list adapter instead. [Threads](/docs/runtimes/concepts/threads) covers both.
+
+## Three common setups
+
+### The browser calls an agent server
 
 <Flow.Root
   llm={`graph TD
     A[Frontend Components] --> B[Runtime]
-    B --> D[External Providers or LLM APIs]`}
+    B --> D[Agent Server]`}
 >
   <Flow.Column>
     <Flow.Node tone="pink">Frontend Components</Flow.Node>
     <Flow.Arrow direction="down" length={36} />
     <Flow.Node tone="blue">Runtime</Flow.Node>
     <Flow.Arrow direction="down" length={36} />
-    <Flow.Node tone="red">External Providers or LLM APIs</Flow.Node>
+    <Flow.Node tone="red">Agent Server</Flow.Node>
   </Flow.Column>
 </Flow.Root>
 
-#### **2. Using your own API endpoint**
+The runtime connects straight to a service that accepts requests from the browser, such as an [A2A](/docs/runtimes/a2a/overview) or [AG-UI](/docs/runtimes/ag-ui/overview) agent server. Never put a model provider's API key in the browser, because every user can read it.
+
+### Your server calls the model
 
 <Flow.Root
   llm={`graph TD
@@ -90,7 +106,9 @@ Thread and message history can be stored by Assistant Cloud or by your own datab
   </Flow.Column>
 </Flow.Root>
 
-#### **3. With Assistant Cloud**
+A route on your server sits between the runtime and the model, as in the example above. API keys, server-side tools and authorization stay on your server. This is the most common setup.
+
+### Your server and Assistant Cloud
 
 <Flow.Root
   llm={`graph TD
@@ -122,6 +140,8 @@ Thread and message history can be stored by Assistant Cloud or by your own datab
     </Flow.Column>
   </Flow.Canvas>
 </Flow.Root>
+
+Your server still produces the answers. The runtime also writes the conversation to the cloud, and your server can send its traces and scores there. The cloud calls models through the [LLM providers](/docs/cloud/llm-providers) you connect, for features such as thread titles.
 
 ## Going deeper
 

@@ -1,9 +1,9 @@
 ---
-title: Custom Runtime
-description: Build a React chat UI for any AI backend with assistant-ui — four runtime patterns covering local state, REST, custom protocols, and external runtimes.
+title: Custom backend
+description: Connect assistant-ui to a backend that has no framework adapter, using one of four runtime patterns for local state, external stores, and two wire protocols.
 ---
 
-If no [framework adapter](/docs/runtimes/pick-a-runtime) fits your backend, this section gives you four building blocks. All four are built on one of the two core runtimes (see [architecture](/docs/runtimes/concepts/architecture)).
+Use this section when your backend is not one of the frameworks assistant-ui has an adapter for, such as your own REST API or an agent that keeps its own state. The components and adapters work the same as with a framework runtime. What changes is how messages reach the runtime: you write the call yourself, you hand over messages you already store, or your backend sends one of two protocols. All four paths build on the two core runtimes described in [runtime architecture](/docs/runtimes/concepts/architecture).
 
 ## The four paths
 
@@ -17,7 +17,7 @@ If no [framework adapter](/docs/runtimes/pick-a-runtime) fits your backend, this
 ## Decision tree
 
 ```text
-do you have an AI SDK / LangGraph / Google ADK / A2A backend?
+is your backend AI SDK v5 or later, LangGraph, Google ADK, A2A, AG-UI, Eve or OpenCode?
 └── yes → use that framework adapter; you do not need this section
 └── no → continue
     │
@@ -30,16 +30,6 @@ do you have an AI SDK / LangGraph / Google ADK / A2A backend?
         └── yes, and i want to stream a structured agent state → AssistantTransport
         └── no, the backend already speaks data stream protocol → DataStream
 ```
-
-## What each path gives you
-
-**`LocalRuntime`** is the lowest-friction path. You implement one method (`run` or `async *run`). Branching, editing, regeneration, multi-thread, and adapter slots all work without extra code.
-
-**`ExternalStoreRuntime`** is the inverse: you own the message array and provide callbacks for each interaction. UI features turn on based on which callbacks you provide. Ideal when chat state is a first-class entity in your existing store.
-
-**`DataStream`** is `LocalRuntime` plus a wire protocol. You do not write a `ChatModelAdapter`; your backend emits a standardized stream of message parts and the runtime consumes it directly.
-
-**`AssistantTransport`** is `ExternalStoreRuntime` plus a state-streaming protocol. Instead of sending message parts, your backend sends snapshots of its full agent state. The UI is a stateless view on top of that state. It supports custom commands beyond the built-in `add-message` and `add-tool-result`.
 
 ## Common building blocks
 

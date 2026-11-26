@@ -3,7 +3,7 @@ title: Runtime architecture
 description: How core runtimes, protocol layers, and framework adapters fit together.
 ---
 
-assistant-ui exposes runtime integrations at three layers.
+Every runtime in assistant-ui is built on one of two core runtimes, either directly or through a protocol. Knowing which one sits under yours tells you who owns the messages, which features need extra code, and where to go when an adapter doesn't do what you need. For where the runtime sits next to the components and your backend, start with [architecture](/docs/architecture).
 
 ## The three layers
 
