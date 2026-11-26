@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 export interface TranscriptSummary {
   turns: number;
@@ -70,17 +71,22 @@ export function summarizeTranscript(
         }
       } else if (block.name === "Bash") {
         const command = String(input.command ?? "");
-        if (command.includes(docsDir)) {
-          for (const [, path] of command.matchAll(
-            /(?:cat|head|tail|sed -n [^ ]+|less)\s+"?([^\s"|;]+\.(?:md|txt))/g,
-          )) {
-            const doc = rel(path!);
-            if (doc && !summary.docsRead.includes(doc))
-              summary.docsRead.push(doc);
-          }
-          if (/\b(grep|rg|find)\b/.test(command)) {
-            summary.docsSearches.push(command.slice(0, 200));
-          }
+        // Pages the shell printed: absolute paths into the docs, or paths relative to a `cd` into them.
+        const base = /\bcd\s+"?([^\s";&]+)/.exec(command)?.[1] ?? "";
+        for (const raw of command.split(/[\s;&|()]+/)) {
+          const token = raw.replace(/^["']|["']$/g, "");
+          if (!/\.(md|txt)$/.test(token) || token.includes("*")) continue;
+          const path = token.startsWith("/")
+            ? token
+            : base.startsWith(docsDir)
+              ? join(base, token)
+              : "";
+          const doc = rel(path);
+          if (doc && !summary.docsRead.includes(doc))
+            summary.docsRead.push(doc);
+        }
+        if (command.includes(docsDir) && /\b(grep|rg|find)\b/.test(command)) {
+          summary.docsSearches.push(command.slice(0, 200));
         }
         if (
           /\b(curl|wget)\b/.test(command) &&

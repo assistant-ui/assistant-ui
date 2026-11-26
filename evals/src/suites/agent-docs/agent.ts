@@ -229,7 +229,7 @@ export async function runAgent(opts: {
     NEXT_TELEMETRY_DISABLED: "1",
     // Its own temp folder, so trials running side by side never share scratch files.
     CLAUDE_CODE_TMPDIR: tmp,
-    // If the agent runs \`assistant-ui setup\`, it must not open a browser on this machine.
+    // If the agent runs `assistant-ui setup`, it must not open a browser on this machine.
     SETUP_AGENT_BROWSER: "/usr/bin/true",
     ...opts.extraEnv,
     CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
