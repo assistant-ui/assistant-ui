@@ -71,6 +71,8 @@ npm init -y
 For React Native and Ink, host this route in a separate backend project and
 point the client runtime at its absolute URL.
 
+For a local model or another OpenAI-compatible server, create the provider with its address, `createOpenAI({ baseURL })` from `@ai-sdk/openai`, and use `provider.chat("<model id>")` when the server only speaks Chat Completions.
+
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
 import {
@@ -117,7 +119,7 @@ export async function POST(req: Request) {
 
 ### Set up the frontend
 
-The React example renders the `Thread` component from the assistant-ui registry. Add it with `npx shadcn@latest add @assistant-ui/thread` once the registry is in your `components.json`, and wrap your app in `TooltipProvider`; [Manual Installation](/docs/manual-installation#manual-setup) shows both.
+The React example renders the `Thread` component from the assistant-ui registry. Add `"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"` under `registries` in your `components.json`, run `npx shadcn@latest add @assistant-ui/thread`, and wrap your app in `TooltipProvider`; [Manual Installation](/docs/manual-installation#manual-setup) walks through all three.
 
 <PlatformTabs>
 <Tab value="React">
