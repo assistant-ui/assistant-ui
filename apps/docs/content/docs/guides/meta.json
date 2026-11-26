@@ -6,6 +6,8 @@
   "platforms": ["react"],
   "pages": [
     "index",
+    "---Look and feel---",
+    "styling",
     "---Composer---",
     "attachments",
     "mentions",
