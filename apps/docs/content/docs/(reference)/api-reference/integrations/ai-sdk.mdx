@@ -73,12 +73,7 @@ Use this in your route handler before `convertToModelMessages` so the LLM
 sees the quoted text that the user is referring to.
 
 ```ts
-import {
-  convertToModelMessages,
-  createUIMessageStreamResponse,
-  streamText,
-  toUIMessageStream,
-} from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 
 export async function POST(req: Request) {
@@ -88,9 +83,7 @@ export async function POST(req: Request) {
     model: myModel,
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
-  return createUIMessageStreamResponse({
-    stream: toUIMessageStream({ stream: result.stream }),
-  });
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -167,12 +160,7 @@ the model needs it to address the `update_*` tool's `id` parameter. A custom
 only the fields that changed since the model's last known state.
 
 ```ts
-import {
-  convertToModelMessages,
-  createUIMessageStreamResponse,
-  streamText,
-  toUIMessageStream,
-} from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { unstable_injectInteractableContext } from "@assistant-ui/ai-sdk";
 
 export async function POST(req: Request) {
@@ -182,9 +170,7 @@ export async function POST(req: Request) {
     model: myModel,
     messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
   });
-  return createUIMessageStreamResponse({
-    stream: toUIMessageStream({ stream: result.stream }),
-  });
+  return result.toUIMessageStreamResponse();
 }
 ```
 
