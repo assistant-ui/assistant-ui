@@ -20,7 +20,12 @@ describe("questions.json", () => {
     for (const q of exam.questions) {
       expect(q.question.trim()).not.toBe("");
       expect(q.reference.trim()).not.toBe("");
+      expect(Array.isArray(q.keyPoints)).toBe(true);
       expect(q.keyPoints.length).toBeGreaterThan(0);
+      for (const keyPoint of q.keyPoints) {
+        expect(typeof keyPoint).toBe("string");
+        expect(keyPoint.trim()).not.toBe("");
+      }
     }
   });
 });
@@ -36,6 +41,7 @@ describe("mdxToText", () => {
     "  Bar,",
     '} from "./bar";',
     "export const meta = { a: 1 };",
+    "export type Props = { a: number };",
     "",
     "{/* a note for authors */}",
     "export for a toolkit, the schema stays on the server.",
@@ -59,6 +65,7 @@ describe("mdxToText", () => {
     expect(text).not.toContain("./foo");
     expect(text).not.toContain("Bar,");
     expect(text).not.toContain("meta =");
+    expect(text).not.toContain("type Props");
     expect(text).not.toContain("a note for authors");
     expect(text).toContain("export for a toolkit, the schema stays");
     expect(text).toContain('import { useAui } from "@assistant-ui/react";');

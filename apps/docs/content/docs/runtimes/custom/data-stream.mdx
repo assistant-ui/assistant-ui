@@ -158,6 +158,19 @@ A Python backend can stream the same format with the [`assistant-stream`](https:
 ```python title="main.py"
 from assistant_stream import RunController, create_run
 from assistant_stream.serialization import DataStreamResponse
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict]
+
+
+async def call_your_model(messages: list[dict]):
+    # Replace with your model's streaming call.
+    yield "Hello from Python"
 
 
 @app.post("/api/chat")

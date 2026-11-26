@@ -64,7 +64,8 @@
     "grade": "correct"
   },
   "q21": {
-    "grade": "correct"
+    "grade": "correct",
+    "note": "Its aside misspells toolApproval as toolAppproval; the steps above it name the option correctly, so the key points hold."
   },
   "q22": {
     "grade": "correct",

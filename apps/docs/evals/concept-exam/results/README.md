@@ -11,7 +11,7 @@ The reader is `claude -p` with Sonnet. "Before" is main at 5439bc338, this PR's 
 | `before-skim` | 30/38 (79%) | 89% | 25 | 2.4 |
 | `after-skim` | 37/38 (97%) | 99% | 13 | 2.1 |
 
-`first-pass/` holds the first recording, made before #10885 landed (main at a097902a8, and the same commit plus round one of these edits). It found the same six gaps for the deep reader and the same eight for the skim reader, and it scored the same after the fixes: 38/38 deep, 37/38 skim. `first-pass/followup-deep.json` reruns q15, q16 and q28 after the edits on where branches live and on `append`.
+`first-pass/` holds the first recording, made before #10885 landed (main at a097902a8, and the same commit plus round one of these edits). It found the same six gaps for the deep reader and the same eight for the skim reader, and it scored the same after the fixes: 38/38 deep, 37/38 skim. `first-pass/followup-deep.json` reruns q15, q16 and q28 after the edits on where branches live and on `append`. The first-pass files predate two runner fixes: their `pages` count every page the reader asked to open, and skim runs carry no `overBudget` flag (none opened more than three).
 
 ## What the reader got wrong or only partly right before
 

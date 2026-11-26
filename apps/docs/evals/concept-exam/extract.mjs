@@ -44,7 +44,7 @@ export function mdxToText(src) {
   // Only real ESM statements, so a prose line that starts with "import the
   // file" or "export your thread" stays.
   const MDX_STATEMENT =
-    /^(import\s+(type\s+)?(\{|\*|[A-Za-z_$][\w$]*\s*(,|from\b))|import\s+["']|export\s+((const|let|function|async|default)\b|\{|\*))/;
+    /^(import\s+(type\s+)?(\{|\*|[A-Za-z_$][\w$]*\s*(,|from\b))|import\s+["']|export\s+((const|let|var|function|async|default|type|interface|class|enum)\b|\{|\*))/;
   const lines = [];
   let inFence = false;
   let skipping = false;
@@ -187,7 +187,8 @@ function main() {
     console.error(
       `Refusing to replace ${outDir}: pass an empty folder or one an earlier extraction wrote.`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
