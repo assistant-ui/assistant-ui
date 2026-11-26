@@ -42,7 +42,7 @@ The value can be any `HTMLElement` inside the shadow root, or the `ShadowRoot` i
 
 ## Components that read it
 
-[Assistant modal](/elements/assistant-modal), [Inline citation](/elements/inline-citation) and the conversation map render their own portals and read the context.
+[Inline citation](/elements/inline-citation), the conversation map and, in a Base UI style, the [Assistant modal](/elements/assistant-modal) render their own portals and read the context.
 
 Components such as [Tooltip icon button](/elements/tooltip-icon-button) and [Model selector](/elements/model-selector) open their popups through the shadcn primitives in `components/ui`. Those files are yours, and `npx shadcn add` installs shadcn's version of them, so pass the container to each primitive's `Portal` yourself:
 
@@ -65,6 +65,6 @@ With Base UI, make the same change in `popover.tsx`, in `DialogPortal` in `dialo
 
 With Radix UI, pass the container only to `tooltip.tsx` and `hover-card.tsx`, which don't move focus. Leave every other primitive that portals in `document.body`, including `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx`, `drawer.tsx`, `popover.tsx`, `dropdown-menu.tsx`, `context-menu.tsx`, `menubar.tsx` and `select.tsx`. Radix decides where focus goes by reading `document.activeElement`, which inside a shadow root is the shadow host. Portaled into the shadow root, a dialog or popover can open with focus on its panel instead of its first control and lets Tab move focus out of it, and in a menu or select the arrow keys jump to the last item and stay there. In `document.body` these popups render without your shadow root's styles. To keep them styled, use a Base UI style, whose primitives can portal into the shadow root.
 
-In a Radix style the assistant modal is a Radix popover. It still reads the context so that it keeps your styles, but inside a shadow root it can open with focus on its panel and Tab does not cycle within it.
+In a Radix style the assistant modal is a Radix popover, so it ignores the context and portals to `document.body` like the other Radix popovers. Its focus works there, but it renders without your shadow root's styles.
 
 The message action menu in [Thread](/elements/thread) and the item menu in [Thread list](/elements/thread-list) are Radix menus in either style, so they portal to `document.body` and render there without your shadow root's styles, even in a Base UI style.

@@ -1736,7 +1736,7 @@ export const registry: RegistryItem[] = [
     type: "registry:component",
     title: "Elements Portal Container",
     description:
-      "Points the popups of the assistant modal, inline citations and the conversation map at a container you choose, such as a node inside a shadow root.",
+      "Points the popups of the Base UI assistant modal, inline citations and the conversation map at a container you choose, such as a node inside a shadow root.",
     files: [
       {
         type: "registry:component",
@@ -1766,6 +1766,8 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/elements-modal-size.json",
+    ],
+    baseRegistryDependencies: [
       "https://r.assistant-ui.com/elements-portal-container.json",
     ],
     baseDependencies: ["@base-ui/react"],
