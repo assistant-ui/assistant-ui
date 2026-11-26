@@ -177,7 +177,7 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 
 ### Components Prop
 
-`components` maps each part type to a component: `Text`, `Reasoning`, `Image`, `File`, `Source`, `tools` (`by_name` and `Fallback`) and the rest below. It is a supported alternative to the `children` render function; use `children` when one function should decide per part. A few keys inside `components` are deprecated:
+`components` maps each part type to a component: `Text`, `Reasoning`, `Image`, `File`, `Source`, `generativeUI` (a component allowlist and an optional `Fallback`), `tools` (`by_name` and `Fallback`) and the rest below. It is a supported alternative to the `children` render function; use `children` when one function should decide per part. A few keys inside `components` are deprecated:
 
 - `ToolGroup` wraps consecutive tool-call parts (deprecated; use `MessagePrimitive.GroupedParts` with a `groupBy`)
 - `ReasoningGroup` wraps consecutive reasoning parts (deprecated, same replacement)
