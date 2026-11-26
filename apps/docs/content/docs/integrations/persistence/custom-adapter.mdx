@@ -733,9 +733,9 @@ Send a message in a fresh thread. Check the database:
 
 ## When messages are loaded and saved
 
-The runtime decides when your history adapter runs. Knowing the order explains most "my messages did not save" and "my history did not load" reports.
+The runtime decides when your history adapter runs:
 
-- **`load()`** runs once when a thread mounts with no messages: when the page opens on a saved thread, and when the user switches to another one, since each switch mounts that thread. `useChatRuntime` skips it for a new thread that has no `remoteId` yet, and the adapter above returns no messages in that case too.
+- **`load()`** runs once when a thread mounts with no messages: when the page opens on a saved thread, and when the user switches to a thread that is not loaded yet. `useChatRuntime` skips it for a new thread that has no `remoteId` yet, and the adapter above returns no messages in that case too.
 - **`append()` for the user's message** runs when the message is sent, before the reply starts streaming.
 - **`append()` for the assistant's reply** runs once, after the reply ends: finished, stopped by the user, or failed. Nothing is written while the reply streams, so a reply cut off by a closed tab or a page reload is not stored. [Resumable streams](/docs/guides/resumable-streams) cover reconnecting to a reply that was still running.
 - **`update()`**, when you implement it, rewrites a message that changed after it was stored, such as a tool call whose result or approval arrived later. See [Support in-place updates](#support-in-place-updates-optional).
