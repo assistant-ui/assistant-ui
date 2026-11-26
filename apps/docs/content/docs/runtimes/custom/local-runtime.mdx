@@ -670,6 +670,20 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 
 Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
 
+## Start with initial messages
+
+`initialMessages` opens the thread with messages already in it, such as a greeting or a conversation you loaded yourself. Each one is a `ThreadMessageLike`: a `role` and its `content`, which can be a plain string.
+
+```tsx
+const runtime = useLocalRuntime(MyModelAdapter, {
+  initialMessages: [
+    { role: "assistant", content: "Hi! Ask me anything about your order." },
+  ],
+});
+```
+
+When the page is prerendered with Next.js `cacheComponents`, give each message a fixed `createdAt`. With a history adapter, a `load()` that returns messages replaces them; the [`initialMessages` option](#localruntimeoptions) describes how they are written to history. To replace the messages of a thread that is already open, call `aui.thread.reset(messages)`; it changes only what is in memory, so update your stored history too if a reload should show the new messages.
+
 ## Adapters
 
 Attachments, speech, feedback, history, and suggestions are wired through the standard adapter contracts, see [adapters](/docs/concepts/adapters):
