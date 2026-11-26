@@ -46,7 +46,7 @@ Components never talk to your backend. They read state from the runtime and send
 
 The runtime manages the conversation: the messages, the composer, the run in progress, branches, edits and regenerations. With most runtimes you never handle the messages yourself. `useExternalStoreRuntime` instead reads them from a store you own and calls your handlers when the user sends, edits or reloads a message. The runtime also converts the messages your backend sends into the message parts the components render.
 
-An app uses one runtime, chosen by its backend:
+Each chat uses one runtime, chosen by its backend:
 
 - `useChatRuntime` from `@assistant-ui/ai-sdk` for the Vercel AI SDK.
 - `useLangGraphRuntime` from `@assistant-ui/react-langgraph` for LangGraph, with similar adapters for LangChain, Google ADK, A2A, AG-UI and others.
@@ -63,7 +63,7 @@ When no runtime fits your backend, have it send the [data stream](/docs/runtimes
 
 ## Assistant Cloud
 
-[Assistant Cloud](/docs/cloud) is a hosted service the runtime writes to. It stores threads and messages as they stream, so a user can return to a conversation later or on another device. It also records a report for every run and the actions users take, and shows them in a dashboard.
+[Assistant Cloud](/docs/cloud) is a hosted service the runtime writes to. It stores threads and messages, so a user can return to a conversation later or on another device. It can also record run reports and the actions users take, and shows them in a dashboard. What it stores and reports depends on the runtime; [which runtime](/docs/cloud/runtimes) lists each one.
 
 Cloud is optional. You can store threads in your own database through a thread list adapter instead. [Threads](/docs/runtimes/concepts/threads) covers both.
 
@@ -141,7 +141,7 @@ A route on your server sits between the runtime and the model, as in the example
   </Flow.Canvas>
 </Flow.Root>
 
-Your server still produces the answers. The runtime also writes threads, messages and run reports to the cloud, and your server can send its traces and scores there. The cloud calls models through the [LLM providers](/docs/cloud/llm-providers) you connect, for features such as thread titles.
+Your server still produces the answers. The runtime also writes the conversation to the cloud, and your server can send its traces and scores there. The cloud calls models through the [LLM providers](/docs/cloud/llm-providers) you connect, for features such as thread titles.
 
 ## Going deeper
 
