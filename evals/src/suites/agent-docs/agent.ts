@@ -84,6 +84,33 @@ const descendants = (root: number) => {
   return out;
 };
 
+/** Processes whose working directory is `dir` or inside it. */
+const runningIn = (dir: string) => {
+  let listing = "";
+  try {
+    listing = execFileSync("/usr/sbin/lsof", ["-d", "cwd", "-Fpn"], {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (error) {
+    // lsof exits 1 when it can't inspect some processes but still prints the rest.
+    listing = String((error as { stdout?: string }).stdout ?? "");
+  }
+  const pids: number[] = [];
+  let pid = 0;
+  for (const line of listing.split("\n")) {
+    if (line.startsWith("p")) pid = Number(line.slice(1));
+    else if (
+      line.startsWith("n") &&
+      (line.slice(1) === dir || line.slice(1).startsWith(`${dir}/`)) &&
+      pid !== process.pid
+    ) {
+      pids.push(pid);
+    }
+  }
+  return pids;
+};
+
 const kill = (pid: number) => {
   try {
     process.kill(pid, "SIGKILL");
@@ -314,6 +341,9 @@ export async function runAgent(opts: {
     const [pid, ppid] = line.trim().split(/\s+/).map(Number);
     if (seen.has(pid!) && (ppid === 1 || seen.has(ppid!))) kill(pid!);
   }
+  // Servers the agent started in the background often leave its process tree at once, so also
+  // stop anything still running from inside the trial folder.
+  for (const pid of runningIn(runDir)) kill(pid);
   closeSync(out);
   closeSync(err);
   rmSync(tmp, { recursive: true, force: true });
