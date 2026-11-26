@@ -13,7 +13,6 @@
     "input-history",
     "headless-composer-input",
     "quoting",
-    "dictation",
     "---Messages---",
     "suggestions",
     "editing",
@@ -27,11 +26,12 @@
     "virtualization",
     "scrollbar",
     "streamdown",
-    "---Audio---",
+    "---Voice and speech---",
     "voice",
     "openai-realtime",
     "gemini-live",
     "speech",
+    "dictation",
     "---Programmatic---",
     "state-outside-the-thread",
     "---Providers---",
@@ -43,6 +43,10 @@
     "---Resilience---",
     "resumable-streams",
     "resumable-stream-stores",
-    "resumable-stream-deployment"
+    "resumable-stream-deployment",
+    "---Setup and debugging---",
+    "base-ui",
+    "rtl",
+    "devtools"
   ]
 }

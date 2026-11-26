@@ -554,7 +554,7 @@ const config: NextConfig = {
     },
     {
       source: "/docs/integrations/frameworks/cloudflare-agents/overview",
-      destination: "/docs/integrations/frameworks/cloudflare-agents",
+      destination: "/docs/runtimes/cloudflare-agents",
       permanent: true,
     },
   ],

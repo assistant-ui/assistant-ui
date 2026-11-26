@@ -25,17 +25,17 @@ Expo: init does not support it, and the web packages and registry above do not a
 
 ### Mastra (mastra:typescript)
 
-Docs: /docs/integrations/frameworks/mastra/overview.md
+Docs: /docs/runtimes/mastra.md
 
-Mastra has no runtime package of its own; the UI talks to it through the AI SDK runtime. Scaffold exactly as for the Vercel AI SDK above, then install \`@mastra/core\` and follow /docs/integrations/frameworks/mastra/full-stack.md: define the agent under mastra/, and replace the body of the chat route from that step with \`agent.stream(messages)\` returned as a UI message stream; the page's "Configure Next.js" step applies to Next.js only. If the user already runs a Mastra server, follow /docs/integrations/frameworks/mastra/separate-server.md instead and point the transport at it.
+Mastra has no runtime package of its own; the UI talks to it through the AI SDK runtime. Scaffold exactly as for the Vercel AI SDK above, then install \`@mastra/core\` and follow /docs/runtimes/mastra.md#full-stack: define the agent under mastra/, and replace the body of the chat route from that step with \`agent.stream(messages)\` returned as a UI message stream; the page's "Configure Next.js" step applies to Next.js only. If the user already runs a Mastra server, follow /docs/runtimes/mastra.md#separate-server instead and point the transport at it.
 
 ### LangGraph (langgraph:python or langgraph:typescript)
 
-Docs: /docs/runtimes/langgraph/quickstart.md
+Docs: /docs/runtimes/langgraph/overview.md
 
 Ask the user for the graph server URL and assistant id if a LangGraph server already exists (ask with --wait; never invent them). Otherwise scaffold one in the chosen language with \`langgraph new\` (Python) or \`npm create langgraph\` (TypeScript) beside the app and start it with \`langgraph dev\` on port 2024.
 
-In the app: install @assistant-ui/react, @assistant-ui/react-langgraph and @langchain/langgraph-sdk; add the assistant-ui registry to components.json and run \`npx shadcn@latest add @assistant-ui/thread\`; create lib/chatApi.ts and components/MyAssistant.tsx from the quickstart's manual setup; set the graph URL and assistant id in .env.local, as NEXT_PUBLIC_LANGGRAPH_API_URL and NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID on Next.js, or as VITE_LANGGRAPH_API_URL and VITE_LANGGRAPH_ASSISTANT_ID read through import.meta.env on Vite, React Router and TanStack Start, which expose only VITE_ variables to the browser. On Expo, follow /docs/runtimes/langgraph/quickstart.md?platform=rn instead: it installs @assistant-ui/react-native, takes the thread from /docs/react-native.md, and reads EXPO_PUBLIC_LANGGRAPH_API_URL and EXPO_PUBLIC_LANGGRAPH_ASSISTANT_ID. Configure the graph's model from the provider answer.
+In the app: install @assistant-ui/react, @assistant-ui/react-langgraph and @langchain/langgraph-sdk; add the assistant-ui registry to components.json and run \`npx shadcn@latest add @assistant-ui/thread\`; create lib/chatApi.ts and components/MyAssistant.tsx from the quickstart's manual setup; set the graph URL and assistant id in .env.local, as NEXT_PUBLIC_LANGGRAPH_API_URL and NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID on Next.js, or as VITE_LANGGRAPH_API_URL and VITE_LANGGRAPH_ASSISTANT_ID read through import.meta.env on Vite, React Router and TanStack Start, which expose only VITE_ variables to the browser. On Expo, follow /docs/runtimes/langgraph/overview.md?platform=rn instead: it installs @assistant-ui/react-native, takes the thread from /docs/react-native.md, and reads EXPO_PUBLIC_LANGGRAPH_API_URL and EXPO_PUBLIC_LANGGRAPH_ASSISTANT_ID. Configure the graph's model from the provider answer.
 
 ### Model provider
 

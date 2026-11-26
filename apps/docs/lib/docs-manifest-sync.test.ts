@@ -42,9 +42,7 @@ describe("docs pages state the versions the manifests declare", () => {
   it("gives the ai range @assistant-ui/ai-sdk peers on", () => {
     const range = manifest("ai-sdk").peerDependencies?.ai;
     const { major } = caretLine(range);
-    const page = read(
-      "apps/docs/content/docs/integrations/frameworks/ai-sdk.mdx",
-    );
+    const page = read("apps/docs/content/docs/runtimes/ai-sdk/overview.mdx");
     expect(page).toContain(
       `\`@assistant-ui/ai-sdk\` targets AI SDK v${major} and needs \`ai@${range}\`.`,
     );
