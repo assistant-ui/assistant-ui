@@ -2,9 +2,15 @@ import { cacheLife } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { docsMarkdownRedirect } from "@/lib/docs-fallback";
 import { isPlatform } from "@/lib/docs-platform";
-import { getDocsMarkdown } from "@/lib/docs-markdown";
+import {
+  getDocsMarkdown,
+  hasPageInAnyCase,
+  kebabCaseSlug,
+  missingMarkdownResponse,
+} from "@/lib/docs-markdown";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { createMarkdownResponse } from "@/lib/markdown-response";
+import { elementsMarkdownPages } from "@/lib/elements-markdown";
 import { source } from "@/lib/source";
 
 async function getMarkdown(
@@ -37,13 +43,24 @@ export async function GET(
     notFound();
   }
 
-  if (slug && !source.getPage(slug)) {
+  if (slug?.length && !source.getPage(slug)) {
     // The query that picked this platform and flavor (lib/markdown-rewrites.ts).
     const query = new URLSearchParams();
     if (platform !== "react") query.set("platform", platform);
     if (flavor === "radix") query.set("view", "radix-ui");
     const overview = docsMarkdownRedirect(source, slug, query.toString());
     if (overview) redirect(overview);
+    if (!hasPageInAnyCase(source.getPages(), slug)) {
+      const kebab = kebabCaseSlug(slug);
+      const page = kebab ? source.getPage(kebab) : undefined;
+      const search = query.toString();
+      if (page) redirect(`${page.url}.md${search ? `?${search}` : ""}`);
+      // Many old /docs/ui pages are elements now, so those are candidates.
+      return missingMarkdownResponse(`/docs/${slug.join("/")}`, [
+        ...source.getPages(),
+        ...elementsMarkdownPages(),
+      ]);
+    }
   }
 
   return createMarkdownResponse(await getMarkdown(slug, platform, flavor));

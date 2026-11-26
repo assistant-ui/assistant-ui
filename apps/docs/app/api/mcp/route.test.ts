@@ -987,3 +987,211 @@ describe("agent reads over MCP", () => {
     expect(mocks.captureImmediate).not.toHaveBeenCalled();
   });
 });
+
+// MCP 2026-07-28 clients (Claude Code, the Go SDK, the TypeScript SDK in auto
+// mode) open with a `server/discover` probe. The 2025 transport refused it
+// with a 400 before they fell back to `initialize`: one refused request in
+// every such session, 7% of all requests on Nov 25.
+describe("MCP 2026-07-28 clients", () => {
+  const MODERN = "2026-07-28";
+  const envelope = (name: string) => ({
+    "io.modelcontextprotocol/protocolVersion": MODERN,
+    "io.modelcontextprotocol/clientInfo": { name, version: "2.1.332" },
+    "io.modelcontextprotocol/clientCapabilities": {},
+  });
+
+  async function postModern(
+    method: string,
+    params: Record<string, unknown> = {},
+    headers: Record<string, string> = {},
+  ) {
+    mocks.captureImmediate.mockClear();
+    mocks.afterTasks.length = 0;
+    const response = await POST(
+      new Request(`${ORIGIN}/api/mcp`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json, text/event-stream",
+          "Content-Type": "application/json",
+          "MCP-Protocol-Version": MODERN,
+          "Mcp-Method": method,
+          ...(typeof params["name"] === "string"
+            ? { "Mcp-Name": params["name"] }
+            : {}),
+          "user-agent": "claude-code/2.1.332 (sdk-cli)",
+          "x-vercel-ip-country": "US",
+          ...headers,
+        },
+        body: encoder.encode(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: nextId++,
+            method,
+            params: { ...params, _meta: envelope("claude-code") },
+          }),
+        ),
+      }) as Parameters<typeof POST>[0],
+    );
+    const body = (await response.clone().json()) as JsonRpcResponse;
+    await Promise.all(mocks.afterTasks.splice(0).map((task) => task()));
+    return { response, body };
+  }
+
+  const captured = () =>
+    mocks.captureImmediate.mock.calls.map(
+      (call) => (call as unknown as [{ event: string; properties: object }])[0],
+    );
+
+  it("answers the server/discover probe instead of refusing it", async () => {
+    const { response, body } = await postModern("server/discover");
+
+    expect(response.status).toBe(200);
+    expect(body.error).toBeUndefined();
+    expect(body.result).toMatchObject({
+      supportedVersions: expect.arrayContaining([MODERN]),
+    });
+  });
+
+  it("announces no list changes, so clients open no listen stream", async () => {
+    const { body } = await postModern("server/discover");
+
+    expect(body.result).toMatchObject({
+      capabilities: {
+        tools: { listChanged: false },
+        resources: { listChanged: false },
+        prompts: { listChanged: false },
+      },
+    });
+  });
+
+  it("serves tools to a 2026-07-28 client without initialize", async () => {
+    const list = await postModern("tools/list");
+    expect(list.response.status).toBe(200);
+    expect(
+      (list.body.result as { tools: { name: string }[] }).tools.map(
+        (tool) => tool.name,
+      ),
+    ).toContain("search_docs");
+
+    const call = await postModern("tools/call", {
+      name: "search_docs",
+      arguments: { query: "escape key composer popover" },
+    });
+    expect(call.response.status).toBe(200);
+    expect(
+      searchedPages(getToolCallResult(call.body)).map((page) => page.url),
+    ).toEqual(["/docs/guides/keyboard"]);
+  });
+
+  it("keeps serving 2025 clients that send no envelope", async () => {
+    const response = await requestMcp("initialize", {
+      protocolVersion: "2025-11-25",
+      capabilities: {},
+      clientInfo: { name: "codex-mcp-client", version: "0.172.0" },
+    });
+
+    expect(response.result).toMatchObject({ protocolVersion: "2025-11-25" });
+  });
+
+  it("records the client a 2026-07-28 session names in its probe", async () => {
+    await postModern("server/discover");
+
+    expect(captured()).toEqual([
+      expect.objectContaining({
+        event: "mcp_client_initialized",
+        properties: expect.objectContaining({
+          client_name: "claude-code",
+          client_version: "2.1.332",
+          protocol_version: MODERN,
+          client: "claude-code",
+        }),
+      }),
+    ]);
+  });
+
+  it("counts later 2026-07-28 requests as no new session", async () => {
+    await postModern("tools/list");
+
+    expect(captured()).toEqual([]);
+  });
+
+  it("records the method of a refused request", async () => {
+    const { response } = await postModern(
+      "tools/list",
+      {},
+      { "MCP-Protocol-Version": "2025-06-18" },
+    );
+
+    expect(response.status).toBe(400);
+    expect(captured()).toEqual([
+      expect.objectContaining({
+        event: "mcp_request_rejected",
+        properties: expect.objectContaining({
+          status: 400,
+          reason: "header-mismatch",
+          method: "tools/list",
+        }),
+      }),
+    ]);
+  });
+});
+
+describe("read_page misses", () => {
+  it("reads an API name written in another case as its kebab-case page", async () => {
+    const { source } = await import("@/lib/source");
+    const { getLLMText } = await import("@/lib/get-llm-text");
+    const page = {
+      url: "/docs/primitives/thread-list",
+      data: { title: "ThreadList" },
+    };
+    const getPage = vi
+      .spyOn(source, "getPage")
+      .mockImplementation(((slug?: string[]) =>
+        slug?.join("/") === "primitives/thread-list"
+          ? page
+          : undefined) as never);
+    vi.mocked(getLLMText).mockResolvedValueOnce("# ThreadList");
+
+    const response = await requestMcp("tools/call", {
+      name: "read_page",
+      arguments: { path: "/docs/primitives/ThreadList" },
+    });
+    getPage.mockRestore();
+
+    const result = getToolCallResult(response);
+    expect(result.isError).toBeUndefined();
+    expect(JSON.parse(result.content[0]!.text!)).toMatchObject({
+      url: "/docs/primitives/thread-list",
+      content: "# ThreadList",
+    });
+  });
+
+  it("names the nearest pages when nothing matches", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "read_page",
+      arguments: { path: "/docs/guides/keyboard-shortcuts" },
+    });
+
+    const result = getToolCallResult(response);
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toBe(
+      "Page not found: /docs/guides/keyboard-shortcuts. Nearest pages: /docs/guides/keyboard",
+    );
+  });
+
+  it("reads an elements gallery page that has no MDX page", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "read_page",
+      arguments: { path: "/elements/generative-cart" },
+    });
+
+    const result = getToolCallResult(response);
+    expect(result.isError).toBeUndefined();
+    const page = JSON.parse(result.content[0]!.text!) as {
+      url: string;
+      content: string;
+    };
+    expect(page.url).toBe("/elements/generative-cart");
+    expect(page.content).toContain("## Spec");
+  });
+});
