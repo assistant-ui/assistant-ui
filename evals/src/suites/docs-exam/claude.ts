@@ -68,10 +68,24 @@ export function runClaude(o: ClaudeOptions): Promise<ClaudeRun> {
     child.stderr.setEncoding("utf8").on("data", (d: string) => {
       err += d;
     });
-    child.on("error", reject);
-    const timer = setTimeout(() => child.kill("SIGTERM"), o.timeoutMs);
+    let settled = false;
+    const fail = (e: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(e);
+    };
+    child.on("error", fail);
+    // At the deadline the call fails at once; a child that ignores SIGTERM is killed 5 s later.
+    let killTimer: NodeJS.Timeout | undefined;
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      killTimer = setTimeout(() => child.kill("SIGKILL"), 5_000);
+      fail(new Error(`claude timed out after ${o.timeoutMs} ms`));
+    }, o.timeoutMs);
     child.on("close", (code) => {
       clearTimeout(timer);
+      clearTimeout(killTimer);
+      if (settled) return;
       const events: Record<string, unknown>[] = [];
       for (const line of out.split("\n")) {
         if (!line.trim()) continue;
@@ -85,13 +99,14 @@ export function runClaude(o: ClaudeOptions): Promise<ClaudeRun> {
         | { result?: string; total_cost_usd?: number; is_error?: boolean }
         | undefined;
       if (code !== 0 || !final || final.is_error) {
-        reject(
+        fail(
           new Error(
             `claude exited ${code}${final?.is_error ? " with an error result" : ""}: ${(err || final?.result || "").slice(-300)}`,
           ),
         );
         return;
       }
+      settled = true;
       resolve({
         result: (final.result ?? "").trim(),
         events,

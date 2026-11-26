@@ -602,9 +602,16 @@
       "id": "h031",
       "cluster": "elements",
       "question": "Is there a component for showing a code diff in a message?",
-      "reference": "Yes, the diff-viewer element renders code diffs with highlighted additions and deletions.",
-      "keyPoints": ["Yes, the diff-viewer element"],
+      "reference": "Yes. The code-diff element (on the Elements page \"Code diff\") shows one file's unified diff with tinted additions and removals, sized for chat, from an edit tool's result or data you pass. The registry also has a diff-viewer item that renders code diffs with highlighted additions and deletions.",
+      "keyPoints": [
+        "Yes, a ready-made diff element (code-diff or diff-viewer)"
+      ],
       "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 314,
+          "anchor": "slug: \"code-diff\","
+        },
         {
           "file": "apps/registry/src/registry.ts",
           "line": 1906,
@@ -1737,15 +1744,26 @@
       "id": "h092",
       "cluster": "ai-sdk",
       "question": "How does useChatRuntime let a resumable-stream server know which thread a stream belongs to?",
-      "reference": "When resumable streams are on, AssistantChatTransport sets the `x-assistant-ui-resumable-thread-id` header to the thread id on the chat request, and the server keys the stream by it so a reconnect can find it.",
+      "reference": "It doesn't send the thread to the server. The server creates a stream id for each reply and returns it in the `x-resumable-stream-id` response header. AssistantChatTransport's resumable fetch keeps that id on the client, keyed by the thread (it passes the thread id to itself in an internal header that it strips before the request goes out), reconnects with it after a reload, and clears it when the finish event arrives.",
       "keyPoints": [
-        "A request header, x-assistant-ui-resumable-thread-id, carries the thread id"
+        "The server keys the stream by a stream id it returns in the x-resumable-stream-id header, not by a thread id from the client",
+        "The client stores that stream id per thread and reconnects with it"
       ],
       "sources": [
         {
           "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
-          "line": 24,
-          "anchor": "const RESUMABLE_THREAD_ID_HEADER = \"x-assistant-ui-resumable-thread-id\";"
+          "line": 147,
+          "anchor": "const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);"
+        },
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 144,
+          "anchor": "headers.delete(RESUMABLE_THREAD_ID_HEADER);"
+        },
+        {
+          "file": "packages/assistant-stream/src/resumable/createResumableAssistantStreamResponse.ts",
+          "line": 9,
+          "anchor": "export const RESUMABLE_STREAM_ID_HEADER = \"x-resumable-stream-id\";"
         }
       ]
     },

@@ -8,6 +8,7 @@ import {
   pagesRead,
 } from "./exam.ts";
 import { judgeMessage, parseVerdict } from "./judge.ts";
+import { pool, positiveInt } from "./pool.ts";
 import { gapsMarkdown, scoreRun } from "./score.ts";
 
 describe("questions", () => {
@@ -86,7 +87,30 @@ describe("judge", () => {
   });
 });
 
+describe("settings", () => {
+  it("reads positive integers and refuses anything else", () => {
+    assert.equal(positiveInt("X", undefined, 4), 4);
+    assert.equal(positiveInt("X", "", 4), 4);
+    assert.equal(positiveInt("X", "8", 4), 8);
+    assert.throws(
+      () => positiveInt("X", "abc", 4),
+      /X must be a positive integer/,
+    );
+    assert.throws(() => positiveInt("X", "0", 4));
+    assert.throws(() => positiveInt("X", "1.5", 4));
+  });
+
+  it("pool refuses a concurrency that would start no workers", async () => {
+    await assert.rejects(pool([1], Number.NaN, async (x) => x));
+    assert.deepEqual(await pool([1, 2, 3], 2, async (x) => x * 2), [2, 4, 6]);
+  });
+});
+
 describe("agreement", () => {
+  it("refuses an empty comparison instead of reporting perfect agreement", () => {
+    assert.throws(() => agreement([]), /no graded answers/);
+  });
+
   it("counts exact and correct-vs-not agreement and kappa", () => {
     const a = agreement([
       { hand: "correct", judge: "correct" },

@@ -24,6 +24,8 @@ const ratio = (a: number, b: number) => (b === 0 ? 1 : a / b);
 export function agreement(
   pairs: { hand: HandGrade; judge: Grade }[],
 ): Agreement {
+  // No pairs means nothing was validated, not perfect agreement.
+  if (pairs.length === 0) throw new Error("no graded answers to compare");
   const confusion: Record<string, Record<string, number>> = {};
   let exact = 0;
   let both = 0;

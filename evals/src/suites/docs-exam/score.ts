@@ -31,7 +31,7 @@ export function scoreRun(results: GradedAnswer[]): ExamScore {
   const correct = count("correct");
   const partly = count("partly");
   const n = graded.length;
-  const answered = results.filter((r) => !r.error);
+  const answered = results.filter((r) => !r.error && r.answer);
   return {
     graded: n,
     errors: results.length - n,

@@ -7,15 +7,15 @@
 // re-recorded results/ runs (check it there once), "all" is both.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { agreement, type HandGrade } from "./agreement.ts";
 import { judge, type Verdict } from "./judge.ts";
-import { pool } from "./pool.ts";
+import { pool, positiveInt } from "./pool.ts";
 
-const examDir = new URL(
-  "../../../../apps/docs/evals/concept-exam/",
-  import.meta.url,
-).pathname;
+const examDir = fileURLToPath(
+  new URL("../../../../apps/docs/evals/concept-exam/", import.meta.url),
+);
 const { values: args } = parseArgs({
   options: {
     set: { type: "string", default: "dev" },
@@ -37,6 +37,9 @@ const exam = JSON.parse(
 };
 const byId = new Map(exam.questions.map((q) => [q.id, q]));
 
+if (!["dev", "test", "all"].includes(args.set!)) {
+  throw new Error(`--set must be dev, test or all, got "${args.set}"`);
+}
 const runs = {
   dev: [
     "first-pass/before-deep",
@@ -91,22 +94,26 @@ for (const run of selected) {
 console.log(
   `judging ${items.length} hand-graded answers from ${selected.join(", ")}`,
 );
-const verdicts = await pool(items, Number(args.concurrency), async (it) => {
-  const q = byId.get(it.id)!;
-  try {
-    const v = await judge({
-      question: q.question,
-      reference: q.reference,
-      keyPoints: q.keyPoints,
-      answer: it.answer,
-    });
-    process.stdout.write(v.grade === "correct" ? "." : v.grade[0]!);
-    return { ...it, judge: v as Verdict | null };
-  } catch (e) {
-    process.stdout.write("E");
-    return { ...it, judge: null, error: String(e) };
-  }
-});
+const verdicts = await pool(
+  items,
+  positiveInt("--concurrency", args.concurrency, 4),
+  async (it) => {
+    const q = byId.get(it.id)!;
+    try {
+      const v = await judge({
+        question: q.question,
+        reference: q.reference,
+        keyPoints: q.keyPoints,
+        answer: it.answer,
+      });
+      process.stdout.write(v.grade === "correct" ? "." : v.grade[0]!);
+      return { ...it, judge: v as Verdict | null };
+    } catch (e) {
+      process.stdout.write("E");
+      return { ...it, judge: null, error: String(e) };
+    }
+  },
+);
 console.log("");
 
 const graded = verdicts.filter((v) => v.judge);

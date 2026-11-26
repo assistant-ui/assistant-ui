@@ -13,7 +13,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runClaude } from "./claude.ts";
 import { judge, type Verdict } from "./judge.ts";
-import { pool } from "./pool.ts";
+import { pool, positiveInt } from "./pool.ts";
 
 export const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 /** The concept exam (apps/docs) owns the docs extractor and the reader prompts; this suite reuses them. */
@@ -128,7 +128,7 @@ export function findStaleSources(exam: Exam) {
   return stale;
 }
 
-let docsText: { dir: string; label: string } | undefined;
+let docsText: { dir: string; label: string; owned: boolean } | undefined;
 
 const extract = (out: string, content: string) =>
   execFileSync(
@@ -153,7 +153,11 @@ export function prepareDocs(): { dir: string; label: string } {
     if (!existsSync(join(given, "INDEX.md"))) {
       throw new Error(`DOCS_TEXT_DIR has no INDEX.md: ${given}`);
     }
-    docsText = { dir: realpathSync(given), label: resolve(given) };
+    docsText = {
+      dir: realpathSync(given),
+      label: resolve(given),
+      owned: false,
+    };
     return docsText;
   }
   const content = process.env.DOCS_CONTENT_DIR
@@ -182,13 +186,13 @@ export function prepareDocs(): { dir: string; label: string } {
     rmSync(scratch, { recursive: true, force: true });
     label = `${label} + elements`;
   }
-  docsText = { dir, label };
+  docsText = { dir, label, owned: true };
   return docsText;
 }
 
-/** Removes the folder prepareDocs extracted, unless it came from DOCS_TEXT_DIR. */
+/** Removes the folder prepareDocs extracted itself; a DOCS_TEXT_DIR folder is never touched. */
 export function cleanupDocs() {
-  if (docsText && !process.env.DOCS_TEXT_DIR) {
+  if (docsText?.owned) {
     rmSync(docsText.dir, { recursive: true, force: true });
   }
   docsText = undefined;
@@ -286,7 +290,9 @@ export async function askReader(
       model,
       tools,
       cwd: docsDir,
-      timeoutMs: Number(process.env.READER_TIMEOUT_S ?? 480) * 1000,
+      timeoutMs:
+        positiveInt("READER_TIMEOUT_S", process.env.READER_TIMEOUT_S, 480) *
+        1000,
     });
     const { pages, searches } = pagesRead(run.events as StreamEvent[], docsDir);
     return {
@@ -347,7 +353,8 @@ export async function runExam(
   const startedAt = new Date().toISOString();
   const results = await pool(
     questions,
-    o.concurrency ?? Number(process.env.EXAM_CONCURRENCY ?? 4),
+    o.concurrency ??
+      positiveInt("EXAM_CONCURRENCY", process.env.EXAM_CONCURRENCY, 4),
     async (q) => {
       const graded = await grade(
         q,

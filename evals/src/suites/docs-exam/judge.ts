@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runClaude } from "./claude.ts";
@@ -60,21 +60,23 @@ export function parseVerdict(text: string): Verdict {
   };
 }
 
-// The judge needs no files; it runs in an empty folder with no tools.
-let emptyDir: string | undefined;
-
 export async function judge(
   input: JudgeInput,
   model = process.env.JUDGE_MODEL ?? "sonnet",
 ): Promise<Verdict & { costUsd: number | null }> {
-  emptyDir ??= mkdtempSync(join(tmpdir(), "docs-exam-judge-"));
-  const run = await runClaude({
-    prompt: judgeMessage(input),
-    systemPrompt: judgePrompt,
-    model,
-    tools: "",
-    cwd: emptyDir,
-    timeoutMs: 180_000,
-  });
-  return { ...parseVerdict(run.result), costUsd: run.costUsd };
+  // The judge needs no files; it runs with no tools in an empty folder of its own.
+  const emptyDir = mkdtempSync(join(tmpdir(), "docs-exam-judge-"));
+  try {
+    const run = await runClaude({
+      prompt: judgeMessage(input),
+      systemPrompt: judgePrompt,
+      model,
+      tools: "",
+      cwd: emptyDir,
+      timeoutMs: 180_000,
+    });
+    return { ...parseVerdict(run.result), costUsd: run.costUsd };
+  } finally {
+    rmSync(emptyDir, { recursive: true, force: true });
+  }
 }

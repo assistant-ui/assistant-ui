@@ -63,21 +63,21 @@ The `.gaps.md` file is the to-do list for a person: first every sentence where t
 
 ## CI
 
-`.github/workflows/docs-exam.yaml` runs one exam on demand (`workflow_dispatch`), puts the findings in the job summary and uploads the answers. It has no schedule: a weekly run would add about $75 a month of model spend, and today the only model spend in CI is claude-review. It uses the same short-lived assistant-billing key as claude-review; add the commented `schedule` once that spend is approved.
+A workflow that runs one exam on demand (`workflow_dispatch`), puts the findings in the job summary and uploads the answers is in its own PR, assistant-ui#10916, since workflow permissions need an owner's decision. It has no schedule: a weekly run would add about $75 a month of model spend, and today the only model spend in CI is claude-review. It uses the same short-lived assistant-billing key as claude-review; add the commented `schedule` once that spend is approved.
 
 ## Baseline
 
-`baseline/` holds the first held-out runs, on main at a690f33d4 (Nov 26 2026), skim reader, Sonnet reader and judge.
+`baseline/` holds the findings files of the first runs, on main at a690f33d4 (Nov 26 2026), skim reader, Sonnet reader and judge. The full answers aren't committed (they would be most of this PR's lines); `run-exam.ts` writes them again.
 
 | Run | Correct | Partly | Wrong | Said "the docs don't say" | Conflict sentences | Pages per question |
 | --- | --- | --- | --- | --- | --- | --- |
-| **Held-out, docs + Elements (the score)** | **75/100** | 20 | 5 | 73 | 2 | 2.0 |
-| Held-out, docs only | 67/100 | 23 | 10 | 73 | 3 | 2.1 |
+| **Held-out, docs + Elements (the score)** | **76/100** | 20 | 4 | 73 | 2 | 2.0 |
+| Held-out, docs only | 67/100 | 24 | 9 | 73 | 3 | 2.1 |
 | Concept exam's 38, docs only, same judge | 34/38 (89%) | 4 | 0 | 16 | 0 | 2.3 |
 
-- **The held-out exam has room to climb; the concept exam doesn't.** The same reader and judge score 89% on the 38 questions the concept fixes were tuned on and 75% on questions no fix has seen. (The concept exam's hand grades gave the same reader 37/38; the judge is a little stricter.)
+- **The held-out exam has room to climb; the concept exam doesn't.** The same reader and judge score 89% on the 38 questions the concept fixes were tuned on and 76% on questions no fix has seen. (The concept exam's hand grades gave the same reader 37/38; the judge is a little stricter.)
 - **Run-to-run noise is a few points.** Between the two held-out runs, 11 of 100 grades changed; on the 90 questions the Elements catalog doesn't touch, 65 and 69 were correct. Compare changes larger than that, or run twice.
-- **"Wrong" is mostly "found nothing".** All 5 wrong answers (all 10 without Elements) say the docs don't say; none states a wrong API. A skimmer who misses gets silence, not misinformation.
-- **Where it misses.** By topic, with Elements: AI SDK runtime options 0/2 (extra request fields, the resumable thread header), ExternalStoreRuntime `setMessages` 0/1, and 1 of 2 for attachments, markdown smoothing, LangGraph interrupts, the assistant-stream controller and the message queue. In each, the answer is in the code (often a typing or a doc comment) but not on a page the skimmer opened. The findings files list every miss with the pages read.
-- **The Elements catalog matters.** Ready-made element questions go from 2/10 to 6/10 when the reader can see `/elements`, and 15 of 100 answers opened an Elements page. Only 47 of the 365 `/docs` pages link to it.
+- **"Wrong" is mostly "found nothing".** All 4 wrong answers (all 9 without Elements) say the docs don't say; none states a wrong API. A skimmer who misses gets silence, not misinformation.
+- **Where it misses.** By topic, with Elements: AI SDK runtime options 0/2 (extra request fields, how resumable streams are keyed), ExternalStoreRuntime `setMessages` 0/1, and 1 of 2 for attachments, markdown smoothing, LangGraph interrupts, the assistant-stream controller and the message queue. In each, the answer is in the code (often a typing or a doc comment) but not on a page the skimmer opened. The findings files list every miss with the pages read.
+- **The Elements catalog matters.** Ready-made element questions go from 2/10 to 7/10 when the reader can see `/elements`, and 15 of 100 answers opened an Elements page. Only 47 of the 365 `/docs` pages link to it.
 - **Conflicts found:** the CLI page gives `update` and `upgrade` in both orders, and the v7 page called `toUIMessageStreamResponse()` the v5 form while other pages use it on v7 (fixed in assistant-ui#10912).
