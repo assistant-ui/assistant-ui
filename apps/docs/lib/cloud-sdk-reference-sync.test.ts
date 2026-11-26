@@ -115,6 +115,34 @@ describe("the Cloud SDK reference covers the client", () => {
     expect([...rows.keys()].filter((name) => !names.has(name))).toEqual([]);
   });
 
+  it("the agent skills call only client methods that exist", () => {
+    const names = new Set(all.map((method) => method.name));
+    const { skills } = JSON.parse(
+      readFileSync(path.join(__dirname, "agent-skills.generated.json"), "utf8"),
+    ) as { skills: { name: string; content: string }[] };
+    expect(
+      skills.flatMap(({ name, content }) =>
+        [...content.matchAll(/\bcloud((?:\.\w+)+)\s*\(/g)]
+          .map((match) => `cloud${match[1]}`)
+          .filter((call) => !names.has(call))
+          .map((call) => `${name}: ${call}`),
+      ),
+    ).toEqual([]);
+  });
+
+  it("the cloud skill names every thread and message method", () => {
+    const { skills } = JSON.parse(
+      readFileSync(path.join(__dirname, "agent-skills.generated.json"), "utf8"),
+    ) as { skills: { name: string; content: string }[] };
+    const skill = skills.find((entry) => entry.name === "cloud")!.content;
+    expect(
+      all
+        .map((method) => method.name)
+        .filter((name) => /^cloud\.threads\.(messages\.)?\w+$/.test(name))
+        .filter((name) => !skill.includes(`${name}(`)),
+    ).toEqual([]);
+  });
+
   it("names every field a method takes or returns", () => {
     expect(
       all.flatMap((method) => {
