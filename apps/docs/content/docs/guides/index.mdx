@@ -1,6 +1,6 @@
 ---
 title: Guides
-description: Practical recipes for building AI chat features in React with assistant-ui — attachments, branching, multi-agent, voice, slash commands, generative UI, and more.
+description: "Practical recipes for building AI chat features in React with assistant-ui: attachments, branching, voice, slash commands, part grouping, resumable streams, and more."
 platforms: ["react"]
 ---
 
@@ -8,7 +8,7 @@ Guides are task-oriented walkthroughs for building specific features on top of a
 
 ## Composer
 
-Extend the message input with file attachments, mentions, slash commands, voice, and quoting.
+Extend the message input with file attachments, mentions, slash commands, input history, quoting, and dictation, or bring your own input.
 
 <Cards>
   <Card title="Attachments" href="/docs/guides/attachments">
@@ -19,6 +19,12 @@ Extend the message input with file attachments, mentions, slash commands, voice,
   </Card>
   <Card title="Slash Commands" href="/docs/guides/slash-commands">
     `/`-style commands with arguments, async loading, and combining with mentions.
+  </Card>
+  <Card title="Input History" href="/docs/guides/input-history">
+    Recall earlier messages with ArrowUp and ArrowDown in an empty composer, like a shell prompt, with `unstable_useComposerInputHistory`.
+  </Card>
+  <Card title="Headless Composer Input" href="/docs/guides/headless-composer-input">
+    Bring your own editor or textarea and keep composer state, send gating, and trigger popovers through `unstable_useComposerInput`.
   </Card>
   <Card title="Quoting" href="/docs/guides/quoting">
     Selection toolbar, programmatic `setQuote`, and forwarding quote context to the LLM.
@@ -45,6 +51,9 @@ Customize how messages render, are edited, branched, and suggested.
   <Card title="Message Timing" href="/docs/guides/message-timing">
     Display response duration and stream timing with `useMessageTiming` (experimental).
   </Card>
+  <Card title="Part Grouping" href="/docs/guides/part-grouping">
+    Group adjacent parts, such as reasoning steps and tool calls, with `MessagePrimitive.GroupedParts` and `groupPartByType`.
+  </Card>
 </Cards>
 
 ## Tools & Generative UI
@@ -62,6 +71,9 @@ Tool calling and generative UI have their own [Tools](/docs/tools) section, whic
 Render specialized message content.
 
 <Cards>
+  <Card title="Image Generation" href="/docs/guides/image-generation">
+    Generate images in your backend, store each as an `ImageMessagePart`, and render it with the `Image` component.
+  </Card>
   <Card title="Chain of Thought" href="/docs/guides/chain-of-thought">
     Display the assistant's reasoning steps in a collapsible accordion.
   </Card>
@@ -70,6 +82,12 @@ Render specialized message content.
   </Card>
   <Card title="Thread Virtualization" href="/docs/guides/virtualization">
     Render very long threads with @tanstack/react-virtual and per-index message rendering.
+  </Card>
+  <Card title="Custom Scrollbar" href="/docs/guides/scrollbar">
+    Replace the viewport's system scrollbar with the Radix UI Scroll Area.
+  </Card>
+  <Card title="Streamdown" href="/docs/guides/streamdown">
+    Render streaming markdown with Shiki highlighting, KaTeX math, and Mermaid diagrams through `@assistant-ui/react-streamdown`.
   </Card>
 </Cards>
 
@@ -80,6 +98,12 @@ Voice input and output.
 <Cards>
   <Card title="Voice" href="/docs/guides/voice">
     Realtime bidirectional audio with `RealtimeVoiceAdapter` and `createVoiceSession`.
+  </Card>
+  <Card title="OpenAI Realtime" href="/docs/guides/openai-realtime">
+    Connect the microphone straight to OpenAI Realtime over WebRTC with `OpenAIRealtimeVoiceAdapter`.
+  </Card>
+  <Card title="Gemini Live" href="/docs/guides/gemini-live">
+    Connect the microphone straight to the Gemini Live API over a WebSocket with `GeminiLiveVoiceAdapter`.
   </Card>
   <Card title="Speech" href="/docs/guides/speech">
     Text-to-speech for assistant messages via `SpeechSynthesisAdapter`.
@@ -122,5 +146,21 @@ Run assistant-ui outside a conventional browser deployment.
   </Card>
   <Card title="VS Code" href="/docs/guides/vscode">
     Run assistant-ui in a VS Code extension webview, with route handlers in the extension host.
+  </Card>
+</Cards>
+
+## Resilience
+
+Keep a response streaming when the connection does not.
+
+<Cards>
+  <Card title="Resumable Streams" href="/docs/guides/resumable-streams">
+    Persist an in-flight response on the server so a reload, a dropped connection, or a new tab picks up the same stream.
+  </Card>
+  <Card title="Custom Resumable Stream Stores" href="/docs/guides/resumable-stream-stores">
+    Implement `ResumableStreamStore` to keep streams in Postgres, Durable Objects, or another backend you run.
+  </Card>
+  <Card title="Resumable Stream Deployment" href="/docs/guides/resumable-stream-deployment">
+    Authorization, serverless lifetimes, TTLs, and limits to set before resumable streams serve production traffic.
   </Card>
 </Cards>
