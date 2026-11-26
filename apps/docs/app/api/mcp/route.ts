@@ -2,9 +2,15 @@ import { cacheLife } from "next/cache";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  CLIENT_INFO_META_KEY,
+  DEFAULT_MAX_REQUEST_BODY_SIZE,
   McpServer,
+  PROTOCOL_VERSION_META_KEY,
   ResourceTemplate,
   WebStandardStreamableHTTPServerTransport,
+  createMcpHandler,
+  isLegacyRequest,
+  readRequestBody,
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getLLMText } from "@/lib/get-llm-text";
@@ -43,6 +49,14 @@ import {
   type AgentEventProperties,
 } from "@/lib/agent-telemetry";
 import { docsOverviewPage } from "@/lib/docs-fallback";
+import { kebabCaseSlug, nearestPages } from "@/lib/docs-markdown";
+import { getDesignMarkdown } from "@/lib/design-markdown";
+import {
+  elementGalleryMarkdown,
+  elementsMarkdownPages,
+  vocabularyMarkdown,
+} from "@/lib/elements-markdown";
+import { getElement } from "@/components/pages/elements/registry";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 // One sandbox call bounds the template tools at 30s and the rest is in-process
@@ -143,7 +157,18 @@ function allPages() {
       kind: "design" as const,
       page,
     })),
-    ...elementsDocs.getPages().map((page) => ({
+    {
+      kind: "design" as const,
+      page: {
+        url: "/design/components",
+        data: {
+          title: "Design components",
+          description: "Every design system component, with its markdown url.",
+        },
+      },
+    },
+    // The elements MDX pages and the gallery pages built from the registry.
+    ...elementsMarkdownPages().map((page) => ({
       kind: "elements" as const,
       page,
     })),
@@ -341,10 +366,69 @@ async function searchDocs(query: string) {
 
 class PageNotFoundError extends Error {}
 
+function findDocsPage(slugs: string[]) {
+  const page = source.getPage(slugs) ?? docsOverviewPage(source, slugs);
+  if (page) return page;
+  // An API name in another case: primitives/ThreadList is thread-list.
+  const kebab = kebabCaseSlug(slugs);
+  return kebab
+    ? (source.getPage(kebab) ?? docsOverviewPage(source, kebab))
+    : undefined;
+}
+
+// A miss names the nearest pages, as the markdown 404 does, so the agent's
+// next call can be a read rather than another guess.
+function pageNotFound(path: string) {
+  const nearest = nearestPages(
+    path,
+    allPages().map(({ page }) => page),
+    5,
+  );
+  return new PageNotFoundError(
+    `Page not found: ${path}` +
+      (nearest.length > 0
+        ? `. Nearest pages: ${nearest.map((page) => page.url).join(", ")}`
+        : ""),
+  );
+}
+
 async function readPage(path: string | undefined, requestUrl: string) {
   if (!path) throw new Error("path is required");
 
   const normalized = normalizePath(path, requestUrl);
+  if (normalized.kind === "elements" && normalized.slugs.length === 1) {
+    // An element named as in code: ThreadList is thread-list.
+    const slugs = elementsDocs.getPage(normalized.slugs)
+      ? normalized.slugs
+      : (kebabCaseSlug(normalized.slugs) ?? normalized.slugs);
+    const [slug] = slugs as [string];
+    const mdxPage = elementsDocs.getPage(slugs);
+    if (mdxPage) {
+      return {
+        title: mdxPage.data.title,
+        url: mdxPage.url,
+        content: await getLLMText(mdxPage),
+      };
+    }
+    const gallery =
+      slug === "vocabulary"
+        ? { title: "Component vocabulary", content: vocabularyMarkdown() }
+        : elementGalleryPage(slug);
+    if (gallery) return { ...gallery, url: `/elements/${slug}` };
+  }
+  // /design and /design/components are the design index, which has no page.
+  if (
+    normalized.kind === "design" &&
+    (normalized.slugs.length === 0 ||
+      normalized.slugs.join("/").toLowerCase() === "components")
+  ) {
+    const slugs = normalized.slugs.length === 0 ? [] : ["components"];
+    return {
+      title: "Design",
+      url: slugs.length === 0 ? "/design" : "/design/components",
+      content: (await getDesignMarkdown(slugs, "base")) ?? "",
+    };
+  }
   const page =
     normalized.kind === "site"
       ? resolveDocsUrl(normalized.pathname)
@@ -354,16 +438,21 @@ async function readPage(path: string | undefined, requestUrl: string) {
           ? design.getPage(normalized.slugs)
           : normalized.kind === "elements"
             ? elementsDocs.getPage(normalized.slugs)
-            : (source.getPage(normalized.slugs) ??
-              docsOverviewPage(source, normalized.slugs));
+            : findDocsPage(normalized.slugs);
 
-  if (!page) throw new PageNotFoundError(`Page not found: ${path}`);
+  if (!page) throw pageNotFound(path);
 
   return {
     title: page.data.title,
     url: page.url,
     content: await getLLMText(page),
   };
+}
+
+function elementGalleryPage(slug: string) {
+  const content = elementGalleryMarkdown(slug);
+  const element = getElement(slug);
+  return content && element ? { title: element.title, content } : null;
 }
 
 function toolTextResult(text: string) {
@@ -412,7 +501,7 @@ function toolCallStatus(error: unknown) {
 }
 
 async function toolResult(
-  request: NextRequest,
+  request: Request,
   tool: string,
   subject: ToolCallSubject,
   fn: () => unknown | Promise<unknown>,
@@ -542,7 +631,7 @@ function templateVarToPath(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value.join("/") : (value ?? "");
 }
 
-function registerResources(server: McpServer, request: NextRequest) {
+function registerResources(server: McpServer, request: Request) {
   const requestUrl = request.url;
 
   server.registerResource(
@@ -604,7 +693,7 @@ async function throttleMessage(denial: Response, suffix: string) {
   );
 }
 
-async function requireTemplateToolBudget(request: NextRequest) {
+async function requireTemplateToolBudget(request: Request) {
   const denial = await checkMcpTemplateToolRateLimit(request);
   if (!denial) return;
 
@@ -615,7 +704,7 @@ async function requireTemplateToolBudget(request: NextRequest) {
   throw new ToolThrottledError(await throttleMessage(denial, suffix));
 }
 
-async function requireDocsToolBudget(request: NextRequest) {
+async function requireDocsToolBudget(request: Request) {
   const denial = await checkMcpDocsToolRateLimit(request);
   // These tools cost one in-process render and nothing external, so a
   // rate-limit store outage serves them unmetered rather than taking the
@@ -624,10 +713,22 @@ async function requireDocsToolBudget(request: NextRequest) {
   throw new ToolThrottledError(await throttleMessage(denial, ""));
 }
 
-function buildMcpServer(request: NextRequest) {
+function buildMcpServer(request: Request) {
   const server = new McpServer(
     { name: "assistant-ui-docs", version: "1.0.0" },
-    { maxToolInputElements: 10_000, instructions: serverInstructions },
+    {
+      maxToolInputElements: 10_000,
+      instructions: serverInstructions,
+      // The tools, pages and prompt change only with a deploy, and this
+      // stateless endpoint has no stream to announce a change on. Without
+      // these, 2026-07-28 clients open a `subscriptions/listen` stream that
+      // would hold a function open until its time limit.
+      capabilities: {
+        tools: { listChanged: false },
+        resources: { listChanged: false },
+        prompts: { listChanged: false },
+      },
+    },
   );
   const requestUrl = request.url;
   const requestOrigin = new URL(requestUrl).origin;
@@ -799,9 +900,12 @@ const MCP_REJECTION_REASONS: ReadonlyArray<readonly [string, RegExp]> = [
   ["unsupported-protocol-version", /unsupported protocol version/i],
   ["parse-error", /parse error/i],
   ["already-initialized", /already initialized|only one initialization/i],
-  ["batch-too-large", /batch must not exceed/i],
+  ["batch", /batch/i],
   ["not-acceptable", /not acceptable/i],
   ["unsupported-media-type", /unsupported media type/i],
+  ["envelope", /_meta envelope|header names protocol revision/i],
+  ["header-mismatch", /headers and body disagree/i],
+  ["invalid-request", /not a valid json-rpc message/i],
   ["session", /session/i],
 ];
 
@@ -815,13 +919,51 @@ function mcpRejectionReason(body: unknown) {
   return "other";
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function rpcMethod(message: unknown) {
+  if (Array.isArray(message)) return "batch";
+  if (!isRecord(message)) return undefined;
+  return typeof message["method"] === "string"
+    ? agentText(message["method"], 64)
+    : "response";
+}
+
+// The client a new session names: `initialize` carries it in the 2025
+// protocol, and the `server/discover` probe carries it in its `_meta`
+// envelope in 2026-07-28, which has no `initialize`.
+function sessionClient(message: unknown) {
+  if (!isRecord(message) || !isRecord(message["params"])) return undefined;
+  const params = message["params"];
+  if (message["method"] === "initialize" && isRecord(params["clientInfo"])) {
+    return {
+      info: params["clientInfo"],
+      protocolVersion: params["protocolVersion"],
+    };
+  }
+  const meta = params["_meta"];
+  if (
+    message["method"] === "server/discover" &&
+    isRecord(meta) &&
+    isRecord(meta[CLIENT_INFO_META_KEY])
+  ) {
+    return {
+      info: meta[CLIENT_INFO_META_KEY],
+      protocolVersion: meta[PROTOCOL_VERSION_META_KEY],
+    };
+  }
+  return undefined;
+}
+
 // One event when a client opens a session, with the name and version it
 // reports: many clients send a bare `node` user-agent, so this is the only
-// place their name shows. One event when the transport refuses a request,
-// with the reason, because the CDN logs show only the status.
+// place their name shows. One event when a request is refused, with the
+// reason and the JSON-RPC method, because the CDN logs show only the status.
 function countMcpRequest(
   request: NextRequest,
-  server: McpServer,
+  message: unknown,
   response: Response,
 ) {
   const client = agentClientFamily(request.headers.get("user-agent"));
@@ -829,9 +971,11 @@ function countMcpRequest(
 
   if (response.status >= 400) {
     const body = response.clone();
+    const method = rpcMethod(message);
     captureAgentEvent(request.headers, "mcp_request_rejected", async () => ({
       status: response.status,
       reason: mcpRejectionReason(await body.json().catch(() => null)),
+      ...(method !== undefined ? { method } : {}),
       protocol_version:
         protocolVersion === null ? undefined : agentText(protocolVersion, 32),
       client,
@@ -839,16 +983,40 @@ function countMcpRequest(
     return;
   }
 
-  const clientInfo = server.server.getClientVersion();
-  if (!clientInfo) return;
+  const session = sessionClient(message);
+  if (!session) return;
   captureAgentEvent(request.headers, "mcp_client_initialized", {
-    client_name: agentText(String(clientInfo.name), 64),
-    client_version: agentText(String(clientInfo.version), 32),
+    client_name: agentText(String(session.info["name"]), 64),
+    client_version: agentText(String(session.info["version"]), 32),
+    protocol_version:
+      typeof session.protocolVersion === "string"
+        ? agentText(session.protocolVersion, 32)
+        : undefined,
     client,
   });
 }
 
-export async function POST(request: NextRequest) {
+// MCP 2026-07-28 has no `initialize`: a client opens with a `server/discover`
+// probe and sends every request with the revision in `MCP-Protocol-Version`
+// and a `_meta` envelope. Claude Code, the Go and Python SDKs and the
+// TypeScript SDK in auto mode all probe first, and the 2025 transport below
+// would answer the probe with a 400. This handler serves that revision. It is
+// strict: a request without the envelope goes to the 2025 transport instead.
+const modernMcp = createMcpHandler(
+  ({ requestInfo }) => {
+    if (!requestInfo) throw new Error("The docs MCP server serves HTTP only");
+    return buildMcpServer(requestInfo);
+  },
+  { legacy: "reject" },
+);
+
+// The 2025 protocol, stateless: a fresh server and transport per request,
+// answered with JSON rather than a stream.
+async function serveLegacy(
+  request: NextRequest,
+  normalizedRequest: Request,
+  options: { parsedBody: unknown } | undefined,
+) {
   const server = buildMcpServer(request);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -856,14 +1024,40 @@ export async function POST(request: NextRequest) {
   });
   await server.connect(transport);
   try {
-    const normalizedRequest = await normalizeMcpRequestHeaders(request);
-    const response = await transport.handleRequest(normalizedRequest);
-    countMcpRequest(request, server, response);
-    return response;
+    return await transport.handleRequest(normalizedRequest, options);
   } finally {
     await transport.close().catch(() => {});
     await server.close().catch(() => {});
   }
+}
+
+// Reads at most the transports' body limit, whatever Content-Length says.
+// An oversized or unparseable body is left to the transports, which answer
+// it with a 413 or a parse error.
+async function readJsonBody(request: Request): Promise<unknown> {
+  try {
+    const body = await readRequestBody(
+      request.clone(),
+      DEFAULT_MAX_REQUEST_BODY_SIZE,
+    );
+    if (body.tooLarge) return undefined;
+    return JSON.parse(body.text) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const normalizedRequest = await normalizeMcpRequestHeaders(request);
+  // Parsed once for routing, both eras and the event. A body that is not
+  // JSON is left to the 2025 transport, which answers it with a parse error.
+  const message = await readJsonBody(normalizedRequest);
+  const options = message === undefined ? undefined : { parsedBody: message };
+  const response = (await isLegacyRequest(normalizedRequest, message))
+    ? await serveLegacy(request, normalizedRequest, options)
+    : await modernMcp.fetch(normalizedRequest, options);
+  countMcpRequest(request, message, response);
+  return response;
 }
 
 export function OPTIONS() {
