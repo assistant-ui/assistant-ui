@@ -988,10 +988,6 @@ describe("agent reads over MCP", () => {
   });
 });
 
-// MCP 2026-07-28 clients (Claude Code, the Go SDK, the TypeScript SDK in auto
-// mode) open with a `server/discover` probe. The 2025 transport refused it
-// with a 400 before they fell back to `initialize`: one refused request in
-// every such session, 7% of all requests on Nov 25.
 describe("MCP 2026-07-28 clients", () => {
   const MODERN = "2026-07-28";
   const envelope = (name: string) => ({
@@ -1109,7 +1105,7 @@ describe("MCP 2026-07-28 clients", () => {
     ]);
   });
 
-  it("counts later 2026-07-28 requests as no new session", async () => {
+  it("records no session for a 2026-07-28 request other than the probe", async () => {
     await postModern("tools/list");
 
     expect(captured()).toEqual([]);
@@ -1133,6 +1129,70 @@ describe("MCP 2026-07-28 clients", () => {
         }),
       }),
     ]);
+  });
+});
+
+describe("request bodies", () => {
+  it("refuses an oversized body that names no length before parsing it", async () => {
+    // Valid JSON over the 4 MiB limit, streamed without Content-Length.
+    const parts = [
+      '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{},"pad":"',
+      ...Array.from({ length: 5 }, () => "x".repeat(1024 * 1024)),
+      '"}',
+    ].map((part) => encoder.encode(part));
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        const part = parts.shift();
+        if (part) controller.enqueue(part);
+        else controller.close();
+      },
+    });
+    const response = await POST(
+      new Request(`${ORIGIN}/api/mcp`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json, text/event-stream",
+          "Content-Type": "application/json",
+        },
+        body,
+        duplex: "half",
+      } as RequestInit) as Parameters<typeof POST>[0],
+    );
+
+    expect(response.status).toBe(413);
+  });
+});
+
+describe("pages built from the registry over MCP", () => {
+  it("lists the elements gallery pages", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "list_pages",
+      arguments: { path: "/elements" },
+    });
+
+    const pages = JSON.parse(getToolCallResult(response).content[0]!.text!) as {
+      url: string;
+    }[];
+    expect(pages.map((page) => page.url)).toEqual(
+      expect.arrayContaining([
+        "/elements/generative-cart",
+        "/elements/vocabulary",
+      ]),
+    );
+  });
+
+  it("reads /design/components as the design index", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "read_page",
+      arguments: { path: "/design/components" },
+    });
+
+    const result = getToolCallResult(response);
+    expect(result.isError).toBeUndefined();
+    expect(JSON.parse(result.content[0]!.text!)).toMatchObject({
+      url: "/design/components",
+      content: expect.stringMatching(/^# Design/),
+    });
   });
 });
 

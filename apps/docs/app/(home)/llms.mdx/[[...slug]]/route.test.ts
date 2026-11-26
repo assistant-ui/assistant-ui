@@ -59,6 +59,75 @@ describe("GET for a path with no page", () => {
   });
 });
 
+describe("GET for a name in another case", () => {
+  const pages = [
+    {
+      url: "/docs/guides/attachments",
+      slugs: ["guides", "attachments"],
+      data: { title: "Attachments" },
+    },
+    {
+      url: "/docs/primitives/thread-list",
+      slugs: ["primitives", "thread-list"],
+      data: { title: "ThreadList" },
+    },
+  ];
+
+  async function withPages<T>(run: () => Promise<T>) {
+    const { source } = await import("@/lib/source");
+    const getPages = vi
+      .spyOn(source, "getPages")
+      .mockReturnValue(pages as never);
+    try {
+      return await run();
+    } finally {
+      getPages.mockRestore();
+    }
+  }
+
+  it("answers a case-only difference in place, never redirecting to itself", async () => {
+    getDocsMarkdown.mockClear();
+    const response = await withPages(() =>
+      GET(new Request("https://example.com/docs/guides/Attachments.md"), {
+        params: Promise.resolve({ slug: ["guides", "Attachments"] }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(getDocsMarkdown).toHaveBeenCalledWith(["guides", "attachments"], {
+      flavor: "base",
+      platform: "react",
+    });
+  });
+
+  it("redirects an API name to its kebab-case page", async () => {
+    await expect(
+      withPages(() =>
+        GET(new Request("https://example.com/docs/primitives/ThreadList.md"), {
+          params: Promise.resolve({ slug: ["primitives", "ThreadList"] }),
+        }),
+      ),
+    ).rejects.toMatchObject({
+      digest: expect.stringMatching(
+        /^NEXT_REDIRECT;replace;\/docs\/primitives\/thread-list\.md;307;/,
+      ),
+    });
+  });
+
+  it("answers a missing page with a markdown 404 that names the nearest", async () => {
+    const response = await withPages(() =>
+      GET(new Request("https://example.com/docs/primitives/thread-lists.md"), {
+        params: Promise.resolve({ slug: ["primitives", "thread-lists"] }),
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toContain(
+      "[ThreadList](/docs/primitives/thread-list.md)",
+    );
+  });
+});
+
 describe("generateStaticParams", () => {
   it("prerenders one page so the rest are cached after their first request", () => {
     expect(generateStaticParams()).toEqual([{ slug: [] }]);

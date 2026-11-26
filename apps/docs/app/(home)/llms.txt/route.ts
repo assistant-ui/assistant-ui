@@ -1,5 +1,6 @@
 import { cacheLife } from "next/cache";
-import { design, elementsDocs, examples, source } from "@/lib/source";
+import { design, examples, source } from "@/lib/source";
+import { elementsMarkdownPages } from "@/lib/elements-markdown";
 import { buildLLMSIndex } from "@/lib/llms-index";
 import { docsSitePages } from "@/lib/docs-pages";
 
@@ -10,7 +11,7 @@ async function getIndex() {
     source.getPages(),
     examples.getPages(),
     design.getPages(),
-    elementsDocs.getPages(),
+    elementsMarkdownPages(),
     docsSitePages().map(({ site, pages }) => ({ title: site.title, pages })),
   );
 }

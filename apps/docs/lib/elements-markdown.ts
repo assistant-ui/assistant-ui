@@ -17,6 +17,10 @@ import {
   getGenerativeElement,
 } from "@/lib/generative-elements";
 
+const VOCABULARY_TITLE = "Component vocabulary";
+const VOCABULARY_DESCRIPTION =
+  "Intrinsic generative-ui components the model can emit through the present tool, rendered through the elements theme.";
+
 // The page shows the model's spelling of the reserved keys.
 const MODEL_SPELLING: Record<string, string> = {
   $type: "_type",
@@ -106,9 +110,9 @@ export function elementGalleryMarkdown(slug: string): string | null {
 /** The markdown for /elements/vocabulary: every component the model can emit. */
 export function vocabularyMarkdown(): string {
   const lines = [
-    "# Component vocabulary",
+    `# ${VOCABULARY_TITLE}`,
     "",
-    "Intrinsic generative-ui components the model can emit through the present tool, rendered through the elements theme. Each example is the JSON the model writes.",
+    `${VOCABULARY_DESCRIPTION} Each example is the JSON the model writes.`,
   ];
   for (const category of COMPONENT_CATEGORIES) {
     lines.push("", `## ${category.label}`);
@@ -125,9 +129,9 @@ export function vocabularyMarkdown(): string {
           ...props.map((row) => {
             const type =
               row.enumValues && row.enumValues.length > 0
-                ? row.enumValues.map((value) => `"${value}"`).join(" \\| ")
+                ? row.enumValues.map((value) => `"${value}"`).join(" | ")
                 : row.type;
-            return `| \`${row.name}\`${row.required ? " (required)" : ""} | \`${type}\` | ${cell(row.description ?? "")} |`;
+            return `| \`${row.name}\`${row.required ? " (required)" : ""} | \`${cell(type)}\` | ${cell(row.description ?? "")} |`;
           }),
         );
       }
@@ -149,6 +153,7 @@ export function vocabularyMarkdown(): string {
  */
 export function elementsMarkdownPages(): {
   url: string;
+  slugs: string[];
   data: { title: string; description?: string | undefined };
 }[] {
   const pages = elementsDocs.getPages();
@@ -158,8 +163,14 @@ export function elementsMarkdownPages(): {
     ...ELEMENTS.filter((element) => !urls.has(`/elements/${element.slug}`)).map(
       (element) => ({
         url: `/elements/${element.slug}`,
+        slugs: [element.slug],
         data: { title: element.title, description: element.description },
       }),
     ),
+    {
+      url: "/elements/vocabulary",
+      slugs: ["vocabulary"],
+      data: { title: VOCABULARY_TITLE, description: VOCABULARY_DESCRIPTION },
+    },
   ];
 }

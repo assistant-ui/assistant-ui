@@ -10,6 +10,7 @@ import {
   WebStandardStreamableHTTPServerTransport,
   createMcpHandler,
   isLegacyRequest,
+  readRequestBody,
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getLLMText } from "@/lib/get-llm-text";
@@ -49,8 +50,10 @@ import {
 } from "@/lib/agent-telemetry";
 import { docsOverviewPage } from "@/lib/docs-fallback";
 import { kebabCaseSlug, nearestPages } from "@/lib/docs-markdown";
+import { getDesignMarkdown } from "@/lib/design-markdown";
 import {
   elementGalleryMarkdown,
+  elementsMarkdownPages,
   vocabularyMarkdown,
 } from "@/lib/elements-markdown";
 import { getElement } from "@/components/pages/elements/registry";
@@ -154,7 +157,8 @@ function allPages() {
       kind: "design" as const,
       page,
     })),
-    ...elementsDocs.getPages().map((page) => ({
+    // The elements MDX pages and the gallery pages built from the registry.
+    ...elementsMarkdownPages().map((page) => ({
       kind: "elements" as const,
       page,
     })),
@@ -383,13 +387,36 @@ async function readPage(path: string | undefined, requestUrl: string) {
 
   const normalized = normalizePath(path, requestUrl);
   if (normalized.kind === "elements" && normalized.slugs.length === 1) {
-    const [slug] = normalized.slugs as [string];
-    const gallery = elementsDocs.getPage(normalized.slugs)
-      ? null
-      : slug === "vocabulary"
+    // An element named as in code: ThreadList is thread-list.
+    const slugs = elementsDocs.getPage(normalized.slugs)
+      ? normalized.slugs
+      : (kebabCaseSlug(normalized.slugs) ?? normalized.slugs);
+    const [slug] = slugs as [string];
+    const mdxPage = elementsDocs.getPage(slugs);
+    if (mdxPage) {
+      return {
+        title: mdxPage.data.title,
+        url: mdxPage.url,
+        content: await getLLMText(mdxPage),
+      };
+    }
+    const gallery =
+      slug === "vocabulary"
         ? { title: "Component vocabulary", content: vocabularyMarkdown() }
         : elementGalleryPage(slug);
     if (gallery) return { ...gallery, url: `/elements/${slug}` };
+  }
+  // /design and /design/components are the design index, which has no page.
+  if (
+    normalized.kind === "design" &&
+    (normalized.slugs.length === 0 ||
+      normalized.slugs.join("/") === "components")
+  ) {
+    return {
+      title: "Design",
+      url: normalized.slugs.length === 0 ? "/design" : "/design/components",
+      content: (await getDesignMarkdown(normalized.slugs, "base")) ?? "",
+    };
   }
   const page =
     normalized.kind === "site"
@@ -960,11 +987,10 @@ function countMcpRequest(
 
 // MCP 2026-07-28 has no `initialize`: a client opens with a `server/discover`
 // probe and sends every request with the revision in `MCP-Protocol-Version`
-// and a `_meta` envelope. Claude Code, the Go SDK and the TypeScript SDK in
-// auto mode all probe first. The 2025 transport below refused the probe with
-// a 400, so each of their sessions began with one refused request before it
-// fell back to `initialize`. This handler serves that revision. It is strict:
-// a request without the envelope is routed to the 2025 transport instead.
+// and a `_meta` envelope. Claude Code, the Go and Python SDKs and the
+// TypeScript SDK in auto mode all probe first, and the 2025 transport below
+// would answer the probe with a 400. This handler serves that revision. It is
+// strict: a request without the envelope goes to the 2025 transport instead.
 const modernMcp = createMcpHandler(
   ({ requestInfo }) => {
     if (!requestInfo) throw new Error("The docs MCP server serves HTTP only");
@@ -994,12 +1020,17 @@ async function serveLegacy(
   }
 }
 
+// Reads at most the transports' body limit, whatever Content-Length says.
+// An oversized or unparseable body is left to the transports, which answer
+// it with a 413 or a parse error.
 async function readJsonBody(request: Request): Promise<unknown> {
-  // An oversized body is left to the transports, which refuse it with a 413.
-  const length = Number(request.headers.get("content-length"));
-  if (length > DEFAULT_MAX_REQUEST_BODY_SIZE) return undefined;
   try {
-    return (await request.clone().json()) ?? undefined;
+    const body = await readRequestBody(
+      request.clone(),
+      DEFAULT_MAX_REQUEST_BODY_SIZE,
+    );
+    if (body.tooLarge) return undefined;
+    return JSON.parse(body.text) ?? undefined;
   } catch {
     return undefined;
   }

@@ -1,5 +1,6 @@
 import { getLLMText, type LLMRenderContext } from "@/lib/get-llm-text";
 import { source } from "@/lib/source";
+import { sha256 } from "./sha256";
 import { notFound } from "next/navigation";
 
 export async function getDocsMarkdown(
@@ -128,6 +129,8 @@ export function nearestPages<Page extends MarkdownPage>(
 export function missingMarkdownResponse(
   pathname: string,
   pages: readonly MarkdownPage[],
+  // The platform and view query of the request, kept on the /docs links.
+  search = "",
 ): Response {
   const nearest = nearestPages(pathname, pages);
   const lines = [
@@ -144,16 +147,20 @@ export function missingMarkdownResponse(
         const description = page.data.description
           ? `: ${page.data.description}`
           : "";
-        return `- [${page.data.title}](${page.url}.md)${description}`;
+        const query =
+          search && page.url.startsWith("/docs") ? `?${search}` : "";
+        return `- [${page.data.title}](${page.url}.md${query})${description}`;
       }),
     );
   }
   lines.push("", "Every page is listed in [llms.txt](/llms.txt).", "");
 
-  return new Response(lines.join("\n"), {
+  const body = lines.join("\n");
+  return new Response(body, {
     status: 404,
     headers: {
       "Cache-Control": "no-cache, must-revalidate",
+      ETag: `"sha256-${sha256(body)}"`,
       "Content-Type": "text/markdown; charset=utf-8",
       "X-Robots-Tag": "noindex, follow",
     },
@@ -161,16 +168,28 @@ export function missingMarkdownResponse(
 }
 
 /**
- * Whether a page's slug matches this one when case is ignored. The markdown
- * routes already serve `/docs/guides/Attachments.md` as the attachments
- * page, so only a slug with no page in any case is missing.
+ * The page a slug in the wrong case names: the page whose slug matches when
+ * case is ignored, or else the kebab-case form of an API name. The markdown
+ * routes answer `/docs/guides/Attachments.md` with the attachments page and
+ * redirect `/docs/primitives/ThreadList.md` to the thread-list page.
  */
-export function hasPageInAnyCase(
-  pages: readonly { slugs: string[] }[],
+export function pageInAnyCase<Page extends { slugs: string[] }>(
+  pages: readonly Page[],
   slug: readonly string[],
-): boolean {
+): Page | undefined {
   const wanted = slug.join("/").toLowerCase();
-  return pages.some((page) => page.slugs.join("/").toLowerCase() === wanted);
+  const kebab = (kebabCaseSlug(slug) ?? slug).join("/");
+  return (
+    pages.find((page) => page.slugs.join("/").toLowerCase() === wanted) ??
+    pages.find((page) => page.slugs.join("/") === kebab)
+  );
+}
+
+export function sameIgnoringCase(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return left.join("/").toLowerCase() === right.join("/").toLowerCase();
 }
 
 /**

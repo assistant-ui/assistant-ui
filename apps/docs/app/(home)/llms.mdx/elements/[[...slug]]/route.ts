@@ -3,7 +3,11 @@ import { getLLMText } from "@/lib/get-llm-text";
 import { elementsDocs } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { createMarkdownResponse } from "@/lib/markdown-response";
-import { missingMarkdownResponse } from "@/lib/docs-markdown";
+import {
+  kebabCaseSlug,
+  missingMarkdownResponse,
+  sameIgnoringCase,
+} from "@/lib/docs-markdown";
 import {
   elementGalleryMarkdown,
   elementsMarkdownPages,
@@ -47,6 +51,20 @@ export async function GET(
 ) {
   const { slug } = await params;
   if (slug && slug.length > 0 && !hasElementsMarkdown(slug)) {
+    // An element named as in code: ThreadList is thread-list.
+    const kebab = kebabCaseSlug(slug);
+    if (kebab && hasElementsMarkdown(kebab)) {
+      // Only the case differs: answer in place rather than redirect to a url
+      // that matches this one where urls are matched without case.
+      const markdown = sameIgnoringCase(kebab, slug)
+        ? await getMarkdown(kebab)
+        : null;
+      if (markdown !== null) return createMarkdownResponse(markdown);
+      return new Response(null, {
+        status: 307,
+        headers: { Location: `/elements/${kebab.join("/")}.md` },
+      });
+    }
     return missingMarkdownResponse(
       `/elements/${slug.join("/")}`,
       elementsMarkdownPages(),

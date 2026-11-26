@@ -3,11 +3,15 @@ import "@/test/mock-content";
 import sitemap from "./sitemap";
 import { GET as elementsMarkdown } from "./(home)/llms.mdx/elements/[[...slug]]/route";
 import { GET as designMarkdown } from "./(home)/llms.mdx/design/[[...slug]]/route";
+import { GET as llmsTxt } from "./(home)/llms.txt/route";
+import { GET as markdownSitemap } from "./(home)/sitemap.md/route";
 
 // Agents fetch a page's `.md`; the sitemap is the list of pages they find.
-// The /elements and /design entries come from code registries, so this walks
-// them through the markdown routes. The /docs, /examples and /blog entries
-// come from the same content collections their markdown routes read.
+// The /elements entries come from the elements registry, so this walks each
+// of them through the markdown route. The /docs, /examples, /blog and
+// /design/components/* entries come from the same content collections their
+// markdown routes read, which the tests stub; the /design/components index
+// is checked below.
 const pathsUnder = (prefix: string) =>
   sitemap()
     .map((entry) => new URL(entry.url).pathname)
@@ -89,5 +93,17 @@ describe("/design/components", () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toMatch(/^# Design/);
+  });
+});
+
+describe("agent indexes list the pages built from the registry", () => {
+  it.each([
+    ["llms.txt", llmsTxt],
+    ["sitemap.md", markdownSitemap],
+  ] as const)("%s", async (_name, get) => {
+    const text = await (await get()).text();
+
+    expect(text).toContain("/elements/generative-cart.md");
+    expect(text).toContain("/elements/vocabulary.md");
   });
 });

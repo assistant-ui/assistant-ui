@@ -3,10 +3,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import "@/test/mock-content";
 import {
-  hasPageInAnyCase,
   kebabCaseSlug,
   missingMarkdownResponse,
   nearestPages,
+  pageInAnyCase,
+  sameIgnoringCase,
 } from "./docs-markdown";
 
 const CONTENT = path.resolve(__dirname, "../content/docs");
@@ -83,6 +84,7 @@ describe("missingMarkdownResponse", () => {
     expect(response.headers.get("Content-Type")).toBe(
       "text/markdown; charset=utf-8",
     );
+    expect(response.headers.get("ETag")).toMatch(/^"sha256-[a-f0-9]{64}"$/);
     expect(await response.text()).toBe(
       [
         "# Page not found",
@@ -123,10 +125,45 @@ describe("kebabCaseSlug", () => {
   });
 });
 
-describe("hasPageInAnyCase", () => {
-  it("matches a slug written in another case only", () => {
-    const pages = [{ slugs: ["guides", "attachments"] }];
-    expect(hasPageInAnyCase(pages, ["guides", "Attachments"])).toBe(true);
-    expect(hasPageInAnyCase(pages, ["guides", "attachment"])).toBe(false);
+describe("pageInAnyCase", () => {
+  const pages = [
+    { slugs: ["guides", "attachments"] },
+    { slugs: ["primitives", "thread-list"] },
+  ];
+
+  it("finds the page a slug names in another case", () => {
+    expect(pageInAnyCase(pages, ["guides", "Attachments"])).toBe(pages[0]);
+    expect(pageInAnyCase(pages, ["primitives", "ThreadList"])).toBe(pages[1]);
   });
+
+  it("finds nothing for a slug with no page", () => {
+    expect(pageInAnyCase(pages, ["guides", "attachment"])).toBeUndefined();
+  });
+});
+
+it("keeps the platform and view on the /docs links of a 404", async () => {
+  const response = missingMarkdownResponse(
+    "/docs/guides/keyboard-shortcuts",
+    [
+      { url: "/docs/guides/keyboard", data: { title: "Keyboard" } },
+      { url: "/elements/shortcuts", data: { title: "Shortcuts" } },
+    ],
+    "platform=vue",
+  );
+
+  const text = await response.text();
+  expect(text).toContain("(/docs/guides/keyboard.md?platform=vue)");
+  expect(text).toContain("(/elements/shortcuts.md)");
+});
+
+it("tells a case-only difference from a kebab-case one", () => {
+  expect(
+    sameIgnoringCase(["guides", "Attachments"], ["guides", "attachments"]),
+  ).toBe(true);
+  expect(
+    sameIgnoringCase(
+      ["primitives", "ThreadList"],
+      ["primitives", "thread-list"],
+    ),
+  ).toBe(false);
 });

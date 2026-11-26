@@ -4,9 +4,9 @@ import { docsMarkdownRedirect } from "@/lib/docs-fallback";
 import { isPlatform } from "@/lib/docs-platform";
 import {
   getDocsMarkdown,
-  hasPageInAnyCase,
-  kebabCaseSlug,
   missingMarkdownResponse,
+  pageInAnyCase,
+  sameIgnoringCase,
 } from "@/lib/docs-markdown";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { createMarkdownResponse } from "@/lib/markdown-response";
@@ -50,17 +50,22 @@ export async function GET(
     if (flavor === "radix") query.set("view", "radix-ui");
     const overview = docsMarkdownRedirect(source, slug, query.toString());
     if (overview) redirect(overview);
-    if (!hasPageInAnyCase(source.getPages(), slug)) {
-      const kebab = kebabCaseSlug(slug);
-      const page = kebab ? source.getPage(kebab) : undefined;
-      const search = query.toString();
-      if (page) redirect(`${page.url}.md${search ? `?${search}` : ""}`);
-      // Many old /docs/ui pages are elements now, so those are candidates.
-      return missingMarkdownResponse(`/docs/${slug.join("/")}`, [
-        ...source.getPages(),
-        ...elementsMarkdownPages(),
-      ]);
+    const search = query.toString();
+    const page = pageInAnyCase(source.getPages(), slug);
+    // A url that differs only in case is answered in place, so it can never
+    // redirect to itself where urls are matched without case.
+    if (page && sameIgnoringCase(page.slugs, slug)) {
+      return createMarkdownResponse(
+        await getMarkdown(page.slugs, platform, flavor),
+      );
     }
+    if (page) redirect(`${page.url}.md${search ? `?${search}` : ""}`);
+    // Many old /docs/ui pages are elements now, so those are candidates.
+    return missingMarkdownResponse(
+      `/docs/${slug.join("/")}`,
+      [...source.getPages(), ...elementsMarkdownPages()],
+      search,
+    );
   }
 
   return createMarkdownResponse(await getMarkdown(slug, platform, flavor));
