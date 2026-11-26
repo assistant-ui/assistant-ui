@@ -1,6 +1,6 @@
 ---
 title: Threads
-description: "A thread is one conversation. A thread list holds many, and you choose where they are kept: in memory, in Assistant Cloud, or in your own database."
+description: "A thread is one conversation. A thread list holds many, and you choose where they are kept: in memory, in the browser, in Assistant Cloud, or in your own database."
 ---
 
 A thread is one conversation: its [messages](/docs/concepts/messages), its composer and the run in progress. Until you give it somewhere to keep threads, a runtime holds a single thread in memory, so a reload starts a new conversation.
@@ -39,6 +39,7 @@ Each item in the list has an id and a status, and, once they are known, a title 
 | In memory (the default) | One thread that resets on reload | Nothing |
 | A [history adapter](/docs/concepts/adapters#history-adapter) | One thread that survives a reload | Load and append for messages |
 | [Assistant Cloud](/docs/cloud) | A full thread list with titles, stored in the cloud | Nothing beyond passing `cloud` |
+| [The browser](#the-browser) | A full thread list in `localStorage`, for prototypes and single-user apps | A small storage wrapper |
 | Your own database | A full thread list in tables you own | A `RemoteThreadListAdapter` |
 | Your own store | A thread list that lives next to your messages in Redux, Zustand or similar | An `ExternalStoreThreadListAdapter` |
 
@@ -79,6 +80,59 @@ Most framework runtimes take `cloud` the same way, for example `useChatRuntime({
 `useRemoteThreadListRuntime` wraps any runtime hook and asks a `RemoteThreadListAdapter` you write to list, create, rename, archive and delete threads. With runtimes that take a history adapter, the messages of each thread are saved through it; runtimes whose backend keeps the transcript load it from there. You keep every row in your own database, next to the rest of your app's data.
 
 [Thread list adapters](/docs/integrations/persistence/thread-list-adapters) describes the contract and the cases a production list has to handle, such as the first message racing thread creation, and [custom thread persistence](/docs/integrations/persistence/custom-adapter) builds one with Postgres.
+
+## The browser
+
+`createLocalStorageAdapter` from `@assistant-ui/core/react` is a ready-made `RemoteThreadListAdapter` that keeps the thread list and every thread's messages in a key-value store you hand it. Give it `localStorage` and `createSimpleTitleAdapter`, which titles each thread with its first message:
+
+```tsx title="app/assistant.tsx"
+"use client";
+
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import {
+  createLocalStorageAdapter,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/core/react";
+import {
+  AssistantRuntimeProvider,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+// Next.js also renders this component on the server, where there is no localStorage.
+const inBrowser = () => typeof window !== "undefined";
+
+const threads = createLocalStorageAdapter({
+  storage: {
+    getItem: async (key) => (inBrowser() ? localStorage.getItem(key) : null),
+    setItem: async (key, value) => {
+      if (inBrowser()) localStorage.setItem(key, value);
+    },
+    removeItem: async (key) => {
+      if (inBrowser()) localStorage.removeItem(key);
+    },
+  },
+  titleGenerator: createSimpleTitleAdapter(),
+});
+
+export function Assistant() {
+  const runtime = useRemoteThreadListRuntime({
+    adapter: threads,
+    runtimeHook: function useThreadRuntime() {
+      return useChatRuntime();
+    },
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadList />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Install `@assistant-ui/core` next to `@assistant-ui/react`. Writes are ordered within one tab only, so two tabs writing at once can lose a thread; move to your own database before more than one tab or device shares the list.
 
 <AnchorAlias id="externalstorethreadlistadapter" />
 

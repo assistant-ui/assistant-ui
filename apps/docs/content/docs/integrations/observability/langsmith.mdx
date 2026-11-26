@@ -70,11 +70,13 @@ export async function POST(req: Request) {
     messages: await ai.convertToModelMessages(messages),
   });
 
-  return result.toUIMessageStreamResponse();
+  return ai.createUIMessageStreamResponse({
+    stream: ai.toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
-`convertToModelMessages` is not part of the wrapper, so import it from `ai` directly.
+`convertToModelMessages` and the response helpers are not part of the wrapper, so call them from `ai` directly.
 
 </Step>
 <Step>

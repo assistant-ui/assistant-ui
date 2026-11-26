@@ -153,6 +153,35 @@ export async function POST(request: Request) {
 
 The request body includes `messages`, `tools`, `system` (if configured), and `threadId`.
 
+A Python backend can stream the same format with the [`assistant-stream`](https://pypi.org/project/assistant-stream/) package: `create_run` hands your callback a `RunController` (`append_text`, `append_reasoning`, `add_tool_call`), and `DataStreamResponse` encodes the run as a Starlette response for FastAPI. That response doesn't send the `x-vercel-ai-data-stream` header, so set `protocol: "data-stream"` on `useDataStreamRuntime`.
+
+```python title="main.py"
+from assistant_stream import RunController, create_run
+from assistant_stream.serialization import DataStreamResponse
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+
+class ChatRequest(BaseModel):
+    messages: list[dict]
+
+
+async def call_your_model(messages: list[dict]):
+    # Replace with your model's streaming call.
+    yield "Hello from Python"
+
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    async def run(controller: RunController):
+        async for text in call_your_model(request.messages):
+            controller.append_text(text)
+
+    return DataStreamResponse(create_run(run))
+```
+
 `createAssistantStreamResponse` returns a standard Web `Response`. It drops into any Fetch-style route (Next.js App Router, Hono, Bun.serve, Deno, Cloudflare Workers). On frameworks that use their own response object (Express, Fastify), copy `status` and `headers` over, then pipe `response.body` into the framework's writable stream. Avoid sending the `Response` body into a `res` object whose lifecycle is already controlled by the framework (that is the `ERR_INVALID_STATE: Controller is already closed` failure mode).
 
 </Step>

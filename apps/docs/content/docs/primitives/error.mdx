@@ -8,6 +8,8 @@ import { ErrorPrimitiveSample } from "@/components/pages/docs/samples/error-prim
 
 The Error primitive renders error states on messages using an accessible `role="alert"` container with automatic error text extraction. `Root` always renders its container; `Message` only renders when the message has an error. Wrap in `MessagePrimitive.Error` if you need the entire block to be conditional.
 
+To let people try again, put `ActionBarPrimitive.Reload` next to the message: it asks for the failed reply again. [Error state](/elements/error-state) is a ready-made banner with that retry button.
+
 <Tabs items={["Preview", "Code"]}>
   <Tab>
     <ErrorPrimitiveSample />
