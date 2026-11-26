@@ -1,0 +1,271 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": "q01",
+      "concept": "runtime",
+      "question": "What is a \"runtime\" in assistant-ui? What does it do, and what does it leave to my app?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q02",
+      "concept": "runtime-choice",
+      "question": "My Next.js app already calls the Vercel AI SDK's streamText in an API route. Which runtime should the client use, and what does the route have to return for it to work?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q03",
+      "concept": "runtime-cores",
+      "question": "What is the difference between LocalRuntime and ExternalStoreRuntime, and when would I pick each?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q04",
+      "concept": "custom-backend",
+      "question": "My agent is a Python service I wrote myself. What are my options for connecting assistant-ui to it, and how do I choose between them?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q05",
+      "concept": "langgraph",
+      "question": "How does assistant-ui connect to a LangGraph agent, and where does the conversation state live in that setup?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q06",
+      "concept": "thread-state",
+      "question": "With a basic useChatRuntime setup and nothing else configured, where do the messages of a conversation live, and what happens to them when the user reloads the page?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q07",
+      "concept": "persistence",
+      "question": "I want users to see their past conversations in a sidebar and come back to them later. What are my options for storing threads, and what do I have to build for each?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q08",
+      "concept": "thread-list-vs-history",
+      "question": "What is the difference between the thread list and a thread's message history? Which part of assistant-ui loads the messages of a thread when the user opens it?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q09",
+      "concept": "cloud",
+      "question": "What does Assistant Cloud do for an assistant-ui app, and is it required?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q10",
+      "concept": "message-parts",
+      "question": "What is an assistant-ui message made of? Name the kinds of content parts a message can contain.",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q11",
+      "concept": "message-status",
+      "question": "What statuses can an assistant message have, and what does each one mean?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q12",
+      "concept": "reasoning",
+      "question": "How does a model's reasoning (\"thinking\") reach the screen, and how is it shown differently from the answer text?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q13",
+      "concept": "part-rendering",
+      "question": "How do I control how each kind of message part (text, images, tool calls) is rendered in my message component?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q14",
+      "concept": "editing",
+      "question": "What happens, step by step, when a user edits one of their earlier messages?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q15",
+      "concept": "branching",
+      "question": "What is a branch in assistant-ui, and how does the user move between branches?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q16",
+      "concept": "regenerate",
+      "question": "What happens when the user asks to regenerate (reload) an assistant reply? Is the previous reply lost?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q17",
+      "concept": "external-store-edit",
+      "question": "I use ExternalStoreRuntime and the edit button on user messages doesn't appear. Why, and what do I have to provide?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q18",
+      "concept": "tool-location",
+      "question": "What is the difference between a frontend tool and a backend tool in assistant-ui? Where does each one run?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q19",
+      "concept": "tool-ui",
+      "question": "When the model calls a tool, how does that tool call end up on screen, and how do I show my own UI for it?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q20",
+      "concept": "tool-ui-only",
+      "question": "My backend already defines and runs a tool. I want a custom UI for its calls. Do I have to define the tool again on the frontend?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q21",
+      "concept": "approval",
+      "question": "How do I make the assistant pause and ask the user to approve a tool call before the tool runs?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q22",
+      "concept": "tool-result-from-ui",
+      "question": "How can a tool's UI send the user's choice back to the model as the tool's result?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q23",
+      "concept": "model-context",
+      "question": "How can my frontend give the model extra context, such as system instructions or tools that depend on the current page?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q24",
+      "concept": "primitives",
+      "question": "What is the difference between assistant-ui's primitives and ready-made components like Thread? When would I use each?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q25",
+      "concept": "styling",
+      "question": "How is assistant-ui styled, and how do I change the look? Do I need Tailwind or shadcn/ui?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q26",
+      "concept": "cli",
+      "question": "What does the assistant-ui CLI do to my project? Where does the component code end up, and can I edit it?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q27",
+      "concept": "read-state",
+      "question": "How do I read chat state in my own component, for example whether the assistant is currently responding?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q28",
+      "concept": "outside-thread",
+      "question": "How do I send a message or start a new thread from a button that lives outside the chat UI?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q29",
+      "concept": "scopes",
+      "question": "Inside a component that renders one message, how does a hook know which message it refers to?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q30",
+      "concept": "attachments",
+      "question": "How do file attachments work? What decides which files a user can attach, and how do they reach the model?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q31",
+      "concept": "adapters",
+      "question": "What are adapters in assistant-ui? Give examples of features that need one, and say what happens when it's missing.",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q32",
+      "concept": "suggestions",
+      "question": "How do suggestions (clickable prompts shown in an empty chat) work, and where do they come from?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q33",
+      "concept": "cancel",
+      "question": "What happens when the user presses Stop while the assistant is responding?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q34",
+      "concept": "errors",
+      "question": "When the backend fails during a reply, what does the user see, and how do I show the error in my UI?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q35",
+      "concept": "resume",
+      "question": "If the user reloads the page while a reply is still streaming, can the reply continue? What does that need?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q36",
+      "concept": "platforms",
+      "question": "Can I use assistant-ui outside React on the web, such as React Native, Vue or a terminal app? How much carries over?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q37",
+      "concept": "generative-ui",
+      "question": "What is the difference between tool UI and generative UI in assistant-ui?",
+      "reference": "",
+      "keyPoints": []
+    },
+    {
+      "id": "q38",
+      "concept": "mcp",
+      "question": "How can an assistant-ui app use tools from MCP servers?",
+      "reference": "",
+      "keyPoints": []
+    }
+  ]
+}
