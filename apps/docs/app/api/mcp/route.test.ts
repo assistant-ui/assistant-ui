@@ -866,6 +866,18 @@ describe("agent reads over MCP", () => {
     });
   });
 
+  it("counts a template tool outage as an error, not throttling", async () => {
+    mocks.checkTemplateRateLimit.mockResolvedValueOnce(
+      new Response("Public assistant temporarily unavailable", { status: 503 }),
+    );
+    await callTool("read_template", { templateId: "base-assistant-ui" });
+
+    expect(captured()[0]?.properties).toMatchObject({
+      tool: "read_template",
+      status: "error",
+    });
+  });
+
   it("records the client name a session reports, since many send a bare node user-agent", async () => {
     await postMcp(
       JSON.stringify({

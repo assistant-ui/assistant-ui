@@ -95,11 +95,7 @@ describe("docs Next config composition", () => {
       .filter((source) => !/\.mdx?$/.test(source))
       .filter((source) => !sources.has(`${source}.md`));
 
-    expect(pageOnly).toEqual([
-      "/docs/tools/interactables-legacy",
-      "/docs/standalone",
-      "/docs/standalone/:slug",
-    ]);
+    expect(pageOnly).toEqual(["/docs/standalone", "/docs/standalone/:slug"]);
   });
 
   it("caps the prerender workers and the Turbopack loader pool with DOCS_BUILD_CPUS", () => {

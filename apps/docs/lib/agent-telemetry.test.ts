@@ -127,6 +127,12 @@ describe("agentDocsRead", () => {
     expect(agentDocsRead(path, headers(accept))).toEqual({ path, ...expected });
   });
 
+  it("scrubs an identifier that the url encoded", () => {
+    expect(
+      agentDocsRead("/docs/jane.doe%40example.com.md", headers())?.path,
+    ).toBe("/docs/[email]");
+  });
+
   it("leaves a page opened in a browser alone", () => {
     expect(
       agentDocsRead("/docs/installation", headers("text/html,*/*;q=0.8")),

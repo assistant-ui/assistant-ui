@@ -18,6 +18,10 @@ export const MOVED_DOCS_PATHS: ReadonlyArray<readonly [string, string]> = [
   ["/docs/cloud/alerts", "/docs/cloud/settings/alerts"],
   ["/docs/integrations/observability/helicone", "/docs/integrations"],
   ["/docs/runtimes/ai-sdk/v6", "/docs/runtimes/ai-sdk/v6-legacy"],
+  [
+    "/docs/tools/interactables-legacy",
+    "/docs/tools/interactables#migrating-from-the-previous-api",
+  ],
   ["/docs/ui/scrollbar", "/docs/guides/scrollbar"],
   ["/docs/ui/streamdown", "/docs/guides/streamdown"],
   ["/docs/ui/part-grouping", "/docs/guides/part-grouping"],
