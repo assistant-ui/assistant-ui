@@ -247,6 +247,17 @@ export function resolveDocPage(slugs: string[]) {
   return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
 }
 
+// The catalog page's own Installation section, which an element's MDX guide does not repeat.
+function installSection(element: FlatElement): string {
+  return [
+    "## Installation",
+    "",
+    "```bash",
+    `npx shadcn@latest add "@assistant-ui/${elementRegistryName(element)}"`,
+    "```",
+  ].join("\n");
+}
+
 // What the element's catalog page shows: install command, usage, props, or the generative spec.
 function catalogElementText(element: FlatElement): string {
   const url = `/elements/${element.slug}`;
@@ -256,11 +267,7 @@ function catalogElementText(element: FlatElement): string {
     "",
     element.description,
     "",
-    "## Installation",
-    "",
-    "```bash",
-    `npx shadcn@latest add "@assistant-ui/${elementRegistryName(element)}"`,
-    "```",
+    installSection(element),
   ];
   const generative = element.generative
     ? getGenerativeElement(element.slug)
@@ -309,10 +316,15 @@ export async function readDoc(slugOrUrl: string, routeUrl: string) {
   const slugs = normalized.split("/").filter(Boolean);
   const page = resolveDocPage(slugs);
   if (page) {
+    const content = await getLLMText(page);
+    const guided =
+      slugs[0] === "elements" && slugs.length === 2
+        ? getElement(slugs[1] ?? "")
+        : undefined;
     return {
       title: page.data.title,
       url: page.url,
-      content: await getLLMText(page),
+      content: guided ? `${content}\n\n${installSection(guided)}` : content,
     };
   }
 

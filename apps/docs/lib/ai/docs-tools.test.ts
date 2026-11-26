@@ -249,7 +249,8 @@ describe("readDoc", () => {
       expect(await read(ref)).toEqual({
         title: "Thread",
         url: "/elements/thread",
-        content: "text of /elements/thread",
+        content:
+          'text of /elements/thread\n\n## Installation\n\n```bash\nnpx shadcn@latest add "@assistant-ui/elements-thread"\n```',
       });
     }
   });
