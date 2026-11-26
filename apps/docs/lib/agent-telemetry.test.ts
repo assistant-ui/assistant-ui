@@ -26,6 +26,7 @@ import {
 
 beforeEach(() => {
   captureImmediate.mockClear();
+  afterTasks.length = 0;
 });
 
 // Waits for the work scheduled with `after`, which runs once the response is sent.
@@ -82,9 +83,9 @@ describe("agentText", () => {
     expect(agentText("from 2001:db8::8a2e:370:7334 and fe80::1")).toBe(
       "from [ip] and [ip]",
     );
-    expect(agentText("on ::1, ::1234:5678 and ::ffff:a00:1")).toBe(
-      "on [ip], [ip] and [ip]",
-    );
+    expect(
+      agentText("on ::1, ::1234:5678, ::ffff:a00:1 and 2001:db8:: here"),
+    ).toBe("on [ip], [ip], [ip] and [ip] here");
     expect(agentText("std::vector at 10:30")).toBe("std::vector at 10:30");
     expect(agentText('mail "j doe"@example.com or josé@exämple.de')).toBe(
       "mail [email] or [email]",
@@ -138,9 +139,8 @@ describe("agentDocsRead", () => {
       agentDocsRead("/docs/jane.doe%40example.com.md", headers())?.path,
     ).toBe("/docs/[email]");
     expect(
-      agentDocsRead("/docs/%E0%A4%A/jane.doe%40example.com.md", headers())
-        ?.path,
-    ).toBe("/docs/%E0%A4%A/[email]");
+      agentDocsRead("/docs/%ZZ/jane.doe%40example.com.md", headers())?.path,
+    ).toBe("/docs/%ZZ/[email]");
   });
 
   it("leaves a page opened in a browser alone", () => {

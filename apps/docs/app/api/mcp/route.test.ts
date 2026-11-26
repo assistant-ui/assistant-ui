@@ -782,6 +782,7 @@ describe("agent reads over MCP", () => {
 
   async function postMcp(body: string, headers: Record<string, string> = {}) {
     mocks.captureImmediate.mockClear();
+    mocks.afterTasks.length = 0;
     const response = await POST(
       new Request(`${ORIGIN}/api/mcp`, {
         method: "POST",
@@ -966,6 +967,7 @@ describe("agent reads over MCP", () => {
 
   it("sends nothing from an opt-in region", async () => {
     mocks.captureImmediate.mockClear();
+    mocks.afterTasks.length = 0;
     await POST(
       new Request(`${ORIGIN}/api/mcp`, {
         method: "POST",

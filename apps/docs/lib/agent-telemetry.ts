@@ -45,7 +45,7 @@ export function agentClientFamily(userAgent: string | null): string {
 const EMAIL = /(?:[^\s@/"]+|"(?:[^"\\]|\\.)+")@[^\s@/]+\.[^\s@/]+/gu;
 const IPV4 = /\b\d{1,3}(?:\.\d{1,3}){3}\b/g;
 const IPV6 =
-  /\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4}\b|(?<![\w:])::(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4}\b/gi;
+  /\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,6}:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4}\b|(?<![\w:])::(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4}\b|\b(?:[0-9a-f]{1,4}:){1,7}:(?![\w:])/gi;
 // API keys, tokens and other long opaque strings that mix letters and digits.
 const TOKEN = /\b(?=[\w-]*\d)(?=[\w-]*[a-z])[\w-]{24,}\b/gi;
 
