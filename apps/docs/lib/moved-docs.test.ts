@@ -2,7 +2,11 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { compile, match } from "next/dist/compiled/path-to-regexp";
-import { MOVED_DOCS_PATHS, MOVED_DOCS_REDIRECTS } from "./moved-docs";
+import {
+  MOVED_DOCS_PATHS,
+  MOVED_DOCS_REDIRECTS,
+  rewriteMovedDocsPath,
+} from "./moved-docs";
 
 const CONTENT = path.resolve(__dirname, "../content/docs");
 
@@ -42,7 +46,7 @@ describe("moved docs", () => {
   const urls = pageUrls();
 
   it("points every old url at a page that exists", () => {
-    const missing = MOVED_DOCS_PATHS.map(([, to]) => to.split("#")[0]!).filter(
+    const missing = MOVED_DOCS_PATHS.map(([, to]) => to).filter(
       (to) => !urls.has(to),
     );
     expect(missing).toEqual([]);
@@ -67,5 +71,15 @@ describe("moved docs", () => {
     );
     expect(follow("/docs/concepts/threads")).toBeNull();
     expect(MOVED_DOCS_REDIRECTS.every((r) => r.permanent)).toBe(true);
+  });
+
+  it("maps an old page path for lookups that skip the redirects", () => {
+    expect(rewriteMovedDocsPath("docs/runtimes/concepts/threads")).toBe(
+      "/docs/concepts/threads",
+    );
+    expect(rewriteMovedDocsPath("/docs/guides/context-api")).toBe(
+      "/docs/concepts/context-api",
+    );
+    expect(rewriteMovedDocsPath("/docs/concepts/threads")).toBeNull();
   });
 });
