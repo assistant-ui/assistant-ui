@@ -5,7 +5,7 @@ description: Persist threads and messages to your own database with RemoteThread
 
 When [AssistantCloud](/docs/cloud) doesn't fit (self-hosting, compliance, threads alongside existing app data), back the multi-thread runtime with your own database. This page is the worked example: schema, route handlers, and adapter wiring with Postgres + Drizzle. The shape is identical for any SQL or document store.
 
-For the high-level adapter contract, see [threads](/docs/concepts/threads). This page focuses on the storage layer and how `withFormat` round-trips AI SDK messages.
+For the adapter contract, see [thread list adapters](/docs/integrations/persistence/thread-list-adapters). This page focuses on the storage layer and how `withFormat` round-trips AI SDK messages.
 
 ## Prerequisites
 
@@ -742,9 +742,9 @@ Send a message in a fresh thread. Check the database:
 
 <Cards>
   <Card
-    title="Threads (concepts)"
+    title="Thread list adapters"
     description="Adapter contract, custom metadata, and ExternalStoreThreadListAdapter."
-    href="/docs/concepts/threads"
+    href="/docs/integrations/persistence/thread-list-adapters"
   />
   <Card
     title="Adapters"

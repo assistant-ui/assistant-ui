@@ -91,7 +91,7 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
-Setting `remoteId === externalId` keeps the ids assistant-ui stores aligned with the LangGraph thread ids your `load` and `stream` callbacks receive. See [threads](/docs/concepts/threads) for the full adapter contract.
+Setting `remoteId === externalId` keeps the ids assistant-ui stores aligned with the LangGraph thread ids your `load` and `stream` callbacks receive. See [thread list adapters](/docs/integrations/persistence/thread-list-adapters) for the full adapter contract.
 
 <Callout type="info">
 When `unstable_threadListAdapter` is provided, the `cloud`, `create`, and `delete` options are ignored; the adapter owns the full thread-list lifecycle.

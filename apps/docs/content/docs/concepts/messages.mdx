@@ -65,7 +65,7 @@ function AssistantMessage() {
 }
 ```
 
-For a tool call, `part.toolUI` is the UI registered for that tool, already rendered, or `null` when there is none. Inside the function, a component reads its own part, so `MessagePartPrimitive.Text` shows the text of the part it was rendered for. The styled [Thread element](/elements/thread) does this for every part type, and the [Message primitive](/docs/primitives/message) page lists the rest of the options.
+For a tool call, `part.toolUI` is the UI registered for that tool, already rendered, or `null` when there is none. Inside the function, a component reads its own part, so `MessagePartPrimitive.Text` shows the text of the part it was rendered for. The styled [Thread element](/elements/thread) does this for text, reasoning, tool calls, data, files and images; render `source` and `generative-ui` parts yourself when your backend sends them. The [Message primitive](/docs/primitives/message) page lists the rest of the options.
 
 ## Status
 
