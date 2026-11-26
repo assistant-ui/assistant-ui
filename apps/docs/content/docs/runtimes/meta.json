@@ -1,20 +1,27 @@
 {
   "title": "Runtimes",
-  "description": "Runtime adapters and backend connection guides for wiring assistant-ui to AI backends, protocols, and framework-specific streaming APIs.",
+  "description": "Pick the runtime for your backend: a framework runtime, an agent framework wired through one, or a path for a backend of your own.",
   "icon": "Server",
   "root": true,
   "pages": [
     "pick-a-runtime",
-    "custom",
+    "---Framework runtimes---",
     "ai-sdk",
-    "eve",
     "langgraph",
     "langchain",
+    "eve",
     "google-adk",
     "a2a",
     "ag-ui",
     "opencode",
+    "---Agent frameworks---",
+    "openai-agents",
+    "pydantic-ai",
+    "cloudflare-agents",
+    "mastra",
     "claude-managed-agents",
+    "---Your own backend---",
+    "...custom",
     "..."
   ]
 }

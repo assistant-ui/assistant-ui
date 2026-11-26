@@ -1,6 +1,6 @@
 ---
 title: Custom thread persistence
-description: Persist threads and messages to your own database with RemoteThreadListAdapter and ThreadHistoryAdapter.
+description: "Save chat history to your own database and load it on reload: threads (create, rename, archive, delete) through RemoteThreadListAdapter, messages through ThreadHistoryAdapter."
 ---
 
 When [AssistantCloud](/docs/cloud) doesn't fit (self-hosting, compliance, threads alongside existing app data), back the multi-thread runtime with your own database. This page is the worked example: schema, route handlers, and adapter wiring with Postgres + Drizzle. The shape is identical for any SQL or document store.
@@ -730,6 +730,17 @@ Send a message in a fresh thread. Check the database:
 
 </Step>
 </Steps>
+
+## When messages are loaded and saved
+
+The runtime decides when your history adapter runs. With `useChatRuntime`, the calls below go to the adapter your `withFormat` returns, not to the top-level `load` and `append`:
+
+- **`load()`** runs once when a thread mounts with no messages: when the page opens on a saved thread, and when the user switches to a thread that is not loaded yet. `useChatRuntime` skips it for a new thread that has no `remoteId` yet, and the adapter above returns no messages in that case too.
+- **`append()` for the user's message** is called when the message is sent, as the reply starts; the reply does not wait for the write to finish.
+- **`append()` for the assistant's reply** runs once, when the reply ends: finished, stopped by the user, or failed. A reply that pauses for a tool result or an approval is stored at the pause only when the adapter implements `update()`. Nothing is written while it streams, so a reply cut off by a closed tab or a page reload is not stored. [Resumable streams](/docs/guides/resumable-streams) cover reconnecting to a reply that was still running.
+- **`update()`**, when you implement it, rewrites a message that changed after it was stored, such as a paused reply whose tool result or approval arrived later. See [Support in-place updates](#support-in-place-updates-optional).
+
+A failed `load()` or `append()` is logged to the browser console; the chat keeps working with what is in memory.
 
 ## Notes
 

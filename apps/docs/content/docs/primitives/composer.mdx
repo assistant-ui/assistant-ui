@@ -152,6 +152,183 @@ Composer includes stable **trigger popover** primitives and types for character-
 
 See the [Mentions guide](/docs/guides/mentions) and [Slash Commands guide](/docs/guides/slash-commands) for full documentation.
 
+## Patterns
+
+### With Attachments
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Attachments>
+    {({ attachment }) => {
+      if (attachment.type === "image") return <ImagePreview />;
+      if (attachment.type === "document") return <DocumentPreview />;
+      return <GenericPreview />;
+    }}
+  </ComposerPrimitive.Attachments>
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.AddAttachment>
+    Attach
+  </ComposerPrimitive.AddAttachment>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+### With Drag-and-Drop
+
+Wrap your composer with `AttachmentDropzone` to support dragging files directly onto the input area:
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Attachments>
+      {() => <MyAttachment />}
+    </ComposerPrimitive.Attachments>
+    <ComposerPrimitive.Input placeholder="Drop files or type..." />
+    <ComposerPrimitive.AddAttachment>Attach</ComposerPrimitive.AddAttachment>
+    <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS. It requires the runtime's attachments capability (an attachment adapter); without it the dropzone stays inert.
+
+### With Voice Input
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input placeholder="Ask or speak..." />
+  <AuiIf condition={(s) => s.composer.dictation != null}>
+    <ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
+  </AuiIf>
+  <AuiIf condition={(s) => s.composer.dictation == null}>
+    <ComposerPrimitive.Dictate>Mic</ComposerPrimitive.Dictate>
+  </AuiIf>
+  <AuiIf condition={(s) => s.composer.dictation != null}>
+    <ComposerPrimitive.StopDictation>Stop</ComposerPrimitive.StopDictation>
+  </AuiIf>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`DictationTranscript` renders a `<span>` showing the interim speech-to-text transcript while the user is speaking.
+
+<Callout type="info">
+Voice input requires a `DictationAdapter` configured in your runtime. See [Dictation](/docs/guides/dictation) for setup.
+</Callout>
+
+### Custom Submit Behavior
+
+Use `onSubmit` on `Root` to intercept submission:
+
+```tsx
+<ComposerPrimitive.Root
+  onSubmit={(e) => {
+    // Runs before the message is sent
+    // e.g., track analytics, transform input
+    // Call e.preventDefault() to cancel the send
+  }}
+>
+  <ComposerPrimitive.Input />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+### Gate Sending on External State
+
+Sometimes you want users to type while sending is temporarily blocked, for example while tool configuration, auth, or the first model context is still loading. Disabling the entire thread via `isDisabled` also blocks typing, attaching, direct `composer.send()` calls, and message editing.
+
+Use `isSendDisabled` on the runtime adapter to keep the input usable while blocking send:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  isSendDisabled: !toolsLoaded,
+  onNew,
+  messages,
+  // ...
+});
+```
+
+When `isSendDisabled` is `true`:
+
+- `composer.canSend` becomes `false`
+- `<ComposerPrimitive.Send>` is disabled
+- Enter and the `Cmd/Ctrl+Shift+Enter` steer hotkey become no-ops
+- `aui.composer.send()` short-circuits at the runtime, so direct calls cannot escape the gate
+
+Read the same flag from React with `<AuiIf>` to render hints alongside the input:
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <AuiIf condition={(s) => s.thread.isSendDisabled}>
+    <p className="text-sm text-muted-foreground">Loading tools, hang on...</p>
+  </AuiIf>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`canSend` reflects the composer's own willingness to send (editing mode, non-empty content, `isSendDisabled` not set). `<ComposerPrimitive.Send>` adds thread-level gating on top, such as an in-flight run without queue support.
+
+`isSendDisabled` only gates the thread composer. Saving an in-progress message edit is unaffected, since it is a per-message action rather than a new send.
+
+For the difference between `isDisabled` and `isSendDisabled`, see the [external store adapter reference](/docs/runtimes/custom/external-store).
+
+### Ctrl+Enter to Submit
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input submitMode="ctrlEnter" />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+With `submitMode="ctrlEnter"`, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
+
+### Mobile / touch devices
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input unstable_insertNewlineOnTouchEnter />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`unstable_insertNewlineOnTouchEnter` switches Enter to insert a newline on touch-primary devices (detected via `(pointer: coarse) and (not (any-pointer: fine))`), so the on-screen Return key never accidentally sends a half-finished message. Submission moves to the explicit Send button, matching WhatsApp, Slack, Discord, iMessage, ChatGPT, and Claude.ai.
+
+Desktop behavior is unchanged. A tablet paired with a hardware keyboard still gets `submitMode`'s usual semantics if you set `submitMode="ctrlEnter"` or `"none"`, because the flag only downgrades the default `"enter"` mode.
+
+### Floating Composer
+
+Primitives aren't bound to any layout. A floating composer uses the same `ComposerPrimitive.Root` and `ComposerPrimitive.Input`, positioned with CSS:
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+function FloatingComposer() {
+  return (
+    <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2">
+      <ComposerPrimitive.Root>
+        <div className="rounded-xl border bg-background/80 shadow-lg backdrop-blur-sm">
+          <ComposerPrimitive.Input
+            asChild
+            unstable_focusOnRunStart={false}
+            unstable_focusOnScrollToBottom={false}
+          >
+            <textarea
+              placeholder="Ask a question..."
+              className="w-full resize-none bg-transparent px-3 py-2.5 text-sm focus:outline-none"
+              rows={1}
+            />
+          </ComposerPrimitive.Input>
+        </div>
+      </ComposerPrimitive.Root>
+    </div>
+  );
+}
+```
+
+The primitive handles composing the message. Layout, animation, and visibility logic stay in your code.
+
 ## Parts
 
 ### Root
@@ -480,183 +657,6 @@ Back button used when drilling from categories into a specific item list.
   Back
 </ComposerPrimitive.TriggerPopoverBack>
 ```
-
-## Patterns
-
-### With Attachments
-
-```tsx
-<ComposerPrimitive.Root>
-  <ComposerPrimitive.Attachments>
-    {({ attachment }) => {
-      if (attachment.type === "image") return <ImagePreview />;
-      if (attachment.type === "document") return <DocumentPreview />;
-      return <GenericPreview />;
-    }}
-  </ComposerPrimitive.Attachments>
-  <ComposerPrimitive.Input placeholder="Ask anything..." />
-  <ComposerPrimitive.AddAttachment>
-    Attach
-  </ComposerPrimitive.AddAttachment>
-  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-</ComposerPrimitive.Root>
-```
-
-### With Drag-and-Drop
-
-Wrap your composer with `AttachmentDropzone` to support dragging files directly onto the input area:
-
-```tsx
-<ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
-  <ComposerPrimitive.Root>
-    <ComposerPrimitive.Attachments>
-      {() => <MyAttachment />}
-    </ComposerPrimitive.Attachments>
-    <ComposerPrimitive.Input placeholder="Drop files or type..." />
-    <ComposerPrimitive.AddAttachment>Attach</ComposerPrimitive.AddAttachment>
-    <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-  </ComposerPrimitive.Root>
-</ComposerPrimitive.AttachmentDropzone>
-```
-
-The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS. It requires the runtime's attachments capability (an attachment adapter); without it the dropzone stays inert.
-
-### With Voice Input
-
-```tsx
-<ComposerPrimitive.Root>
-  <ComposerPrimitive.Input placeholder="Ask or speak..." />
-  <AuiIf condition={(s) => s.composer.dictation != null}>
-    <ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
-  </AuiIf>
-  <AuiIf condition={(s) => s.composer.dictation == null}>
-    <ComposerPrimitive.Dictate>Mic</ComposerPrimitive.Dictate>
-  </AuiIf>
-  <AuiIf condition={(s) => s.composer.dictation != null}>
-    <ComposerPrimitive.StopDictation>Stop</ComposerPrimitive.StopDictation>
-  </AuiIf>
-  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-</ComposerPrimitive.Root>
-```
-
-`DictationTranscript` renders a `<span>` showing the interim speech-to-text transcript while the user is speaking.
-
-<Callout type="info">
-Voice input requires a `DictationAdapter` configured in your runtime. See [Dictation](/docs/guides/dictation) for setup.
-</Callout>
-
-### Custom Submit Behavior
-
-Use `onSubmit` on `Root` to intercept submission:
-
-```tsx
-<ComposerPrimitive.Root
-  onSubmit={(e) => {
-    // Runs before the message is sent
-    // e.g., track analytics, transform input
-    // Call e.preventDefault() to cancel the send
-  }}
->
-  <ComposerPrimitive.Input />
-  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-</ComposerPrimitive.Root>
-```
-
-### Gate Sending on External State
-
-Sometimes you want users to type while sending is temporarily blocked, for example while tool configuration, auth, or the first model context is still loading. Disabling the entire thread via `isDisabled` also blocks typing, attaching, direct `composer.send()` calls, and message editing.
-
-Use `isSendDisabled` on the runtime adapter to keep the input usable while blocking send:
-
-```tsx
-const runtime = useExternalStoreRuntime({
-  isSendDisabled: !toolsLoaded,
-  onNew,
-  messages,
-  // ...
-});
-```
-
-When `isSendDisabled` is `true`:
-
-- `composer.canSend` becomes `false`
-- `<ComposerPrimitive.Send>` is disabled
-- Enter and the `Cmd/Ctrl+Shift+Enter` steer hotkey become no-ops
-- `aui.composer.send()` short-circuits at the runtime, so direct calls cannot escape the gate
-
-Read the same flag from React with `<AuiIf>` to render hints alongside the input:
-
-```tsx
-<ComposerPrimitive.Root>
-  <ComposerPrimitive.Input placeholder="Ask anything..." />
-  <AuiIf condition={(s) => !s.composer.canSend}>
-    <p className="text-sm text-muted-foreground">Loading tools, hang on...</p>
-  </AuiIf>
-  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-</ComposerPrimitive.Root>
-```
-
-`canSend` reflects the composer's own willingness to send (editing mode, non-empty content, `isSendDisabled` not set). `<ComposerPrimitive.Send>` adds thread-level gating on top, such as an in-flight run without queue support.
-
-`isSendDisabled` only gates the thread composer. Saving an in-progress message edit is unaffected, since it is a per-message action rather than a new send.
-
-For the difference between `isDisabled` and `isSendDisabled`, see the [external store adapter reference](/docs/runtimes/custom/external-store).
-
-### Ctrl+Enter to Submit
-
-```tsx
-<ComposerPrimitive.Root>
-  <ComposerPrimitive.Input submitMode="ctrlEnter" />
-  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-</ComposerPrimitive.Root>
-```
-
-With `submitMode="ctrlEnter"`, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
-
-### Mobile / touch devices
-
-```tsx
-<ComposerPrimitive.Root>
-  <ComposerPrimitive.Input unstable_insertNewlineOnTouchEnter />
-  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
-</ComposerPrimitive.Root>
-```
-
-`unstable_insertNewlineOnTouchEnter` switches Enter to insert a newline on touch-primary devices (detected via `(pointer: coarse) and (not (any-pointer: fine))`), so the on-screen Return key never accidentally sends a half-finished message. Submission moves to the explicit Send button, matching WhatsApp, Slack, Discord, iMessage, ChatGPT, and Claude.ai.
-
-Desktop behavior is unchanged. A tablet paired with a hardware keyboard still gets `submitMode`'s usual semantics if you set `submitMode="ctrlEnter"` or `"none"`, because the flag only downgrades the default `"enter"` mode.
-
-### Floating Composer
-
-Primitives aren't bound to any layout. A floating composer uses the same `ComposerPrimitive.Root` and `ComposerPrimitive.Input`, positioned with CSS:
-
-```tsx
-import { ComposerPrimitive } from "@assistant-ui/react";
-
-function FloatingComposer() {
-  return (
-    <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2">
-      <ComposerPrimitive.Root>
-        <div className="rounded-xl border bg-background/80 shadow-lg backdrop-blur-sm">
-          <ComposerPrimitive.Input
-            asChild
-            unstable_focusOnRunStart={false}
-            unstable_focusOnScrollToBottom={false}
-          >
-            <textarea
-              placeholder="Ask a question..."
-              className="w-full resize-none bg-transparent px-3 py-2.5 text-sm focus:outline-none"
-              rows={1}
-            />
-          </ComposerPrimitive.Input>
-        </div>
-      </ComposerPrimitive.Root>
-    </div>
-  );
-}
-```
-
-The primitive handles composing the message. Layout, animation, and visibility logic stay in your code.
 
 ## Relationship to Components
 

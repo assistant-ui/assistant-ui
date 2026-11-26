@@ -91,6 +91,25 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 </MessagePrimitive.Error>
 ```
 
+## Patterns
+
+### Styled Error Alert
+
+```tsx
+<ErrorPrimitive.Root className="mt-2 flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+  <ErrorPrimitive.Message />
+</ErrorPrimitive.Root>
+```
+
+### Custom Error Content
+
+```tsx
+<ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
+  <p className="font-medium text-destructive text-sm">Error</p>
+  <ErrorPrimitive.Message className="text-destructive/80 text-sm" />
+</ErrorPrimitive.Root>
+```
+
 ## Parts
 
 ### Root
@@ -109,25 +128,6 @@ Renders the current error text for the active message.
 
 ```tsx
 <ErrorPrimitive.Message className="text-destructive text-sm" />
-```
-
-## Patterns
-
-### Styled Error Alert
-
-```tsx
-<ErrorPrimitive.Root className="mt-2 flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-  <ErrorPrimitive.Message />
-</ErrorPrimitive.Root>
-```
-
-### Custom Error Content
-
-```tsx
-<ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
-  <p className="font-medium text-destructive text-sm">Error</p>
-  <ErrorPrimitive.Message className="text-destructive/80 text-sm" />
-</ErrorPrimitive.Root>
 ```
 
 ## Relationship to Components

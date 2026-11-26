@@ -1,11 +1,10 @@
 {
   "title": "Integrations",
-  "description": "Guides for adding services and app infrastructure around a runtime, including frameworks, tools, gateways, observability, auth, persistence, and attachments.",
+  "description": "Guides for adding services and app infrastructure around a runtime, including gateways, observability, auth, persistence, and attachments.",
   "icon": "Plug",
   "root": true,
   "pages": [
     "index",
-    "frameworks",
     "gateways",
     "observability",
     "auth",

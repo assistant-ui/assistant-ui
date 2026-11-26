@@ -16,7 +16,7 @@ import { VercelIcon } from "@/components/icons/vercel";
 
 A runtime is the connection between assistant-ui's UI primitives and your AI backend. Pick one by the framework you use or by what you need.
 
-## Lens 1: by framework
+## By framework
 
 If you already use one of these frameworks, pick its runtime.
 
@@ -79,32 +79,32 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
 
 <PlatformOnly platforms={["react"]}>
 
-### Integration guides
+### Agent frameworks
 
-For frameworks without a dedicated adapter, these wiring guides route through an existing runtime: an adapter above, or one of the core runtimes.
+These frameworks have no runtime package of their own. Each guide wires one through a runtime above or a core runtime.
 
   <Cards>
     <Card
       title="OpenAI Agents SDK"
       description="Server-side agents connected through OpenAI's UI stream helpers and the AI SDK runtime."
-      href="/docs/integrations/frameworks/openai-agents"
+      href="/docs/runtimes/openai-agents"
     />
     <Card
       title="Pydantic AI"
       description="Python agents connected through Pydantic AI's AG-UI adapter and the AG-UI runtime."
-      href="/docs/integrations/frameworks/pydantic-ai"
+      href="/docs/runtimes/pydantic-ai"
     />
     <Card
       icon={<CloudflareIcon width={20} height={20} />}
       title="Cloudflare Agents"
       description="Stateful agents on Durable Objects with WebSocket streaming. Wired through the Vercel AI SDK runtime."
-      href="/docs/integrations/frameworks/cloudflare-agents"
+      href="/docs/runtimes/cloudflare-agents"
     />
     <Card
       icon={<MastraIcon width={20} height={20} />}
       title="Mastra"
       description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
-      href="/docs/integrations/frameworks/mastra/overview"
+      href="/docs/runtimes/mastra"
     />
     <Card
       icon={<ClaudeIcon width={20} height={20} className="text-[#D97757]" />}
@@ -129,18 +129,35 @@ Third parties publish and maintain these adapters. assistant-ui does not test th
 
 </PlatformOnly>
 
-## Lens 2: by needs
+## Your own backend
 
-If you do not know your framework yet, or your backend is custom, pick by what you need:
+Use one of these when your backend is not a framework with a runtime above, such as your own REST API or an agent that keeps its own state. The components and adapters work the same; what changes is how messages reach the runtime. [Runtime](/docs/concepts/runtime) explains the two core runtimes they build on.
 
-| You need | Use |
-| --- | --- |
-| Simple `fetch` call to your API, runtime owns state | [LocalRuntime](/docs/runtimes/custom/local-runtime) |
-| Keep messages in redux, zustand, tanstack-query, etc. | [ExternalStoreRuntime](/docs/runtimes/custom/external-store) |
-| Backend that already speaks the data stream protocol | [DataStream](/docs/runtimes/custom/data-stream) |
-| Stream full agent state snapshots (not just messages) | [AssistantTransport](/docs/runtimes/custom/assistant-transport) |
+| Path | Built on | You provide | Choose when |
+| --- | --- | --- | --- |
+| [`LocalRuntime`](/docs/runtimes/custom/local-runtime) | Core | A `ChatModelAdapter.run` function | You have a `fetch` call to make and want assistant-ui to keep the state |
+| [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store) | Core | Your messages and a handler per action | Your messages already live in Redux, Zustand, TanStack Query or similar |
+| [`DataStream`](/docs/runtimes/custom/data-stream) | `LocalRuntime` + protocol | A backend that streams the data stream protocol | You want a thin message-stream contract, or you are moving off AI SDK v4 |
+| [`AssistantTransport`](/docs/runtimes/custom/assistant-transport) | `ExternalStoreRuntime` + protocol | A backend that streams its agent state | Your agent has state worth showing, or you need commands of your own |
 
-If none of the framework adapters fits, start at [custom backend](/docs/runtimes/custom/overview).
+```text
+is your backend one of the frameworks above (AI SDK, LangGraph, LangChain, Eve,
+Google ADK, A2A, AG-UI, OpenCode, Mastra, OpenAI Agents, Pydantic AI, Cloudflare
+Agents, Claude Managed Agents)?
+└── yes → use its runtime or guide above
+└── no → continue
+    │
+    do you already have message state in redux / zustand / tanstack-query?
+    └── yes → ExternalStoreRuntime
+    └── no → continue
+        │
+        do you control the backend wire format?
+        └── yes, and i want simple fetch calls → LocalRuntime
+        └── yes, and i want to stream a structured agent state → AssistantTransport
+        └── yes, and i want a thin message-stream contract → DataStream
+        └── no, the backend already speaks data stream protocol → DataStream
+        └── no, it speaks another protocol → LocalRuntime, with a ChatModelAdapter that calls it
+```
 
 ## Concepts that apply to every runtime
 
