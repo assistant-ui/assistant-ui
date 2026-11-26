@@ -1594,73 +1594,6 @@
     "TS7006 async (input) => {"
   ],
   "apps/docs/content/docs/runtimes/langgraph/tutorial/part-3.mdx": [
-    "TS1003 </p>",
-    "TS1005 ${(quantity * maxPurchasePrice)?.toFixed(2)}",
-    "TS1005 <Card className=\"mx-auto w-full max-w-md\">",
-    "TS1005 <Card className=\"mx-auto w-full max-w-md\">",
-    "TS1005 <CardContent className=\"space-y-4\">",
-    "TS1005 <CardHeader className=\"text-center\">",
-    "TS1005 <CardHeader className=\"text-center\">",
-    "TS1005 <CardTitle className=\"text-2xl font-bold text-green-700\">",
-    "TS1005 <CardTitle className=\"text-2xl font-bold text-green-700\">",
-    "TS1005 <CheckCircle className=\"mx-auto mb-4 h-16 w-16 text-green-500\" />",
-    "TS1005 <CheckCircle className=\"mx-auto mb-4 h-16 w-16 text-green-500\" />",
-    "TS1005 <div className=\"grid grid-cols-2 gap-2 text-sm\">",
-    "TS1005 <div className=\"rounded-md border border-green-200 bg-green-50 p-4\">",
-    "TS1005 <div className=\"rounded-md border border-green-200 bg-green-50 p-4\">",
-    "TS1005 <div className=\"rounded-md border border-green-300 bg-green-100 p-4\">",
-    "TS1005 <h3 className=\"mb-2 text-lg font-semibold text-green-800\">",
-    "TS1005 <h3 className=\"mb-2 text-lg font-semibold text-green-800\">",
-    "TS1005 <p className=\"font-bold text-green-900\">{ticker}</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Company:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Company:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Price per Share:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Price per Share:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Quantity:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Quantity:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Ticker:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Ticker:</p>",
-    "TS1005 <p className=\"font-medium text-green-700\">Ticker:</p>",
-    "TS1005 <p className=\"text-2xl font-bold text-green-900\">",
-    "TS1005 <p className=\"text-center text-sm text-green-600\">",
-    "TS1005 <p className=\"text-green-900\">${maxPurchasePrice?.toFixed(2)}</p>",
-    "TS1005 <p className=\"text-green-900\">${maxPurchasePrice?.toFixed(2)}</p>",
-    "TS1005 <p className=\"text-green-900\">{companyName}</p>",
-    "TS1005 <p className=\"text-green-900\">{quantity} shares</p>",
-    "TS1005 <p className=\"text-green-900\">{quantity} shares</p>",
-    "TS1005 <p className=\"text-lg font-semibold text-green-800\">Total Cost:</p>",
-    "TS1005 <p className=\"text-lg font-semibold text-green-800\">Total Cost:</p>",
-    "TS1005 <p className=\"text-lg font-semibold text-green-800\">Total Cost:</p>",
-    "TS1005 Purchase Summary",
-    "TS1005 Transaction Confirmed",
-    "TS1005 Your purchase of {quantity} shares of {companyName} ({ticker}) has",
-    "TS1005 Your purchase of {quantity} shares of {companyName} ({ticker}) has",
-    "TS1109 <CheckCircle className=\"mx-auto mb-4 h-16 w-16 text-green-500\" />",
-    "TS1110 </p>",
-    "TS1110 <p className=\"font-medium text-green-700\">Company:</p>",
-    "TS1110 <p className=\"font-medium text-green-700\">Price per Share:</p>",
-    "TS1110 <p className=\"font-medium text-green-700\">Quantity:</p>",
-    "TS1110 <p className=\"font-medium text-green-700\">Ticker:</p>",
-    "TS1110 <p className=\"text-green-900\">${maxPurchasePrice?.toFixed(2)}</p>",
-    "TS1110 <p className=\"text-lg font-semibold text-green-800\">Total Cost:</p>",
-    "TS1128 );",
-    "TS1161 </Card>",
-    "TS1161 </CardContent>",
-    "TS1161 </CardHeader>",
-    "TS1161 </CardTitle>",
-    "TS1161 </div>",
-    "TS1161 </div>",
-    "TS1161 </div>",
-    "TS1161 </h3>",
-    "TS1161 </p>",
-    "TS1161 <p className=\"font-bold text-green-900\">{ticker}</p>",
-    "TS1161 <p className=\"text-green-900\">{companyName}</p>",
-    "TS1161 <p className=\"text-green-900\">{quantity} shares</p>",
-    "TS1434 Your purchase of {quantity} shares of {companyName} ({ticker}) has",
-    "TS1434 Your purchase of {quantity} shares of {companyName} ({ticker}) has",
-    "TS1434 Your purchase of {quantity} shares of {companyName} ({ticker}) has",
-    "TS1434 been successfully processed.",
-    "TS1434 been successfully processed.",
     "TS2304 .addConditionalEdges(\"agent\", shouldContinue, [",
     "TS2304 .addEdge(\"execute_purchase\", END)",
     "TS2304 .addEdge(START, \"agent\")",
@@ -1908,6 +1841,1121 @@
     "TS2304 const { messages, system } = await readBody<{",
     "TS2304 export default defineEventHandler(async (event) => {",
     "TS7006 export default defineEventHandler(async (event) => {"
+  ],
+  "apps/docs/content/elements/activity-graph.mdx": [
+    "TS2304 <ActivityGraph data={data} start={sixMonthsAgo} end={today} title=\"Agent runs\" total={total} />",
+    "TS2304 <ActivityGraph data={data} start={sixMonthsAgo} end={today} title=\"Agent runs\" total={total} />",
+    "TS2304 <ActivityGraph data={data} start={sixMonthsAgo} end={today} title=\"Agent runs\" total={total} />",
+    "TS2304 const data = useRunHistory(start, end);",
+    "TS2304 const start = daysAgo(days);",
+    "TS2304 execute: async ({ days }) => fetchRunActivity(days),"
+  ],
+  "apps/docs/content/elements/agent-card.mdx": [
+    "TS2304 <AgentCard className=\"max-w-md rounded-3xl\" {...rest} />",
+    "TS2304 <button>{connected ? \"Connected\" : \"Connect\"}</button>",
+    "TS2304 <p>{description}</p>",
+    "TS2304 <span>{endpoint}</span>",
+    "TS2304 <span>{name} <span>v{version}</span></span>",
+    "TS2304 <span>{provider}</span>",
+    "TS2304 onConnect={() => connectToAgent(\"weather-agent\")}",
+    "TS2304 {...rest}",
+    "TS2322 <span>{model}</span>",
+    "TS2322 <span>{name} <span>v{version}</span></span>",
+    "TS2552 const [agent, setAgent] = useState<AgentRecord | null>(null);",
+    "TS2552 return <AgentCard {...agent} onConnect={() => selectAgent(id)} />;"
+  ],
+  "apps/docs/content/elements/agent-handoff.mdx": [
+    "TS2304 <AgentHandoff className=\"max-w-md gap-3\" {...rest} />",
+    "TS2304 <p>{reason}</p>",
+    "TS2304 const unsubscribe = subscribeToAgentEvents((event) => {",
+    "TS2304 setSettled(true);",
+    "TS7006 const unsubscribe = subscribeToAgentEvents((event) => {"
+  ],
+  "apps/docs/content/elements/agent-plan.mdx": [
+    "TS1109 ),",
+    "TS2304 setActiveIndex((i) => i + 1);",
+    "TS2304 setActiveIndex(0);",
+    "TS7006 setActiveIndex((i) => i + 1);"
+  ],
+  "apps/docs/content/elements/agent-status.mdx": [
+    "TS2304 <AgentStatus className=\"gap-3\" state={state} label={label} elapsed={elapsed} />",
+    "TS2304 <AgentStatus className=\"gap-3\" state={state} label={label} elapsed={elapsed} />",
+    "TS2304 <AgentStatus className=\"gap-3\" state={state} label={label} elapsed={elapsed} />",
+    "TS2304 setLabel(\"Finished, 2 files changed\");",
+    "TS2304 setLabel(\"Waiting for approval\");",
+    "TS2304 setState(\"done\");",
+    "TS2304 setState(\"waiting\");"
+  ],
+  "apps/docs/content/elements/approval-card.mdx": [
+    "TS1005 onDeny={() =>",
+    "TS1005 onDeny={() => {",
+    "TS1128 }",
+    "TS1128 }}",
+    "TS1136 onDeny={() =>",
+    "TS1136 onDeny={() => {",
+    "TS2304 await runChecks();",
+    "TS2304 onAllowOnce={deleteConversations}",
+    "TS2304 onAlwaysAllow={alwaysDeleteConversations}",
+    "TS2304 onDeny={closeApproval}",
+    "TS2304 setState(\"done\");"
+  ],
+  "apps/docs/content/elements/artifact-card.mdx": [
+    "TS2304 const id = setInterval(() => setWords((w) => w + 4), 100);",
+    "TS2304 if (!generating) return;",
+    "TS2304 setGenerating(false);",
+    "TS2304 }, [generating]);",
+    "TS2552 onClick={() => openDocument(\"draft-persistence-rfc\")}",
+    "TS7006 const id = setInterval(() => setWords((w) => w + 4), 100);"
+  ],
+  "apps/docs/content/elements/assistant-modal.mdx": [
+    "TS2657 <div className=\"aui-modal-anchor fixed end-4 bottom-4 size-11\">"
+  ],
+  "apps/docs/content/elements/assistant-sidebar.mdx": [
+    "TS2304 </ResizablePanel>",
+    "TS2304 </ResizablePanel>",
+    "TS2304 </ResizablePanel>",
+    "TS2304 </ResizablePanelGroup>",
+    "TS2304 </ResizablePanelGroup>",
+    "TS2304 <ResizableHandle />",
+    "TS2304 <ResizableHandle />",
+    "TS2304 <ResizableHandle withHandle />",
+    "TS2304 <ResizablePanel defaultSize=\"30%\" minSize=\"20%\">",
+    "TS2304 <ResizablePanel defaultSize=\"70%\" minSize=\"30%\">",
+    "TS2304 <ResizablePanel>",
+    "TS2304 <ResizablePanel>{children}</ResizablePanel>",
+    "TS2304 <ResizablePanel>{children}</ResizablePanel>",
+    "TS2304 <ResizablePanel>{children}</ResizablePanel>",
+    "TS2304 <ResizablePanelGroup orientation=\"horizontal\">",
+    "TS2304 <ResizablePanelGroup orientation=\"horizontal\">",
+    "TS2304 {children}"
+  ],
+  "apps/docs/content/elements/attachment.mdx": [
+    "TS1005 <ComposerAttachments />       {/* ComposerPrimitive.Attachments, source: \"composer\" */}",
+    "TS1005 <UserMessageAttachments />    {/* MessagePrimitive.Attachments, source: \"message\" */}",
+    "TS18048 attachments.map((a) => ({",
+    "TS2304 : `${type} attachment ${filename}${uploadStateSuffix}`}",
+    "TS2304 : `${type} attachment ${filename}${uploadStateSuffix}`}",
+    "TS2304 <MessageAttachments attachments={attachments} onOpen={(id) => openViewer(id)} />",
+    "TS2304 <MessageAttachments attachments={items} onOpen={(id) => openViewer(id)} />",
+    "TS2304 ? `Preview ${filename}${uploadStateSuffix}`",
+    "TS2304 aria-label={hasPreview",
+    "TS2304 if (!src) return <FileIcon />;",
+    "TS2304 role={hasPreview ? \"button\" : \"group\"}",
+    "TS2304 size: formatFileSize(a),",
+    "TS2459 MessageAttachments,",
+    "TS2459 MessageAttachments,",
+    "TS2459 type MessageAttachmentItem,",
+    "TS2459 type MessageAttachmentItem,",
+    "TS2552 : `${type} attachment ${filename}${uploadStateSuffix}`}",
+    "TS2552 ? `Preview ${filename}${uploadStateSuffix}`",
+    "TS7006 <MessageAttachments attachments={attachments} onOpen={(id) => openViewer(id)} />",
+    "TS7006 <MessageAttachments attachments={items} onOpen={(id) => openViewer(id)} />"
+  ],
+  "apps/docs/content/elements/background-inbox.mdx": [
+    "TS1005 onCollect={(id) => aui.threads.item({ id }).switchTo({ unarchive: true })}",
+    "TS1128 onCollect={(id) => aui.threads.item({ id }).switchTo({ unarchive: true })}",
+    "TS1136 onCollect={(id) => aui.threads.item({ id }).switchTo({ unarchive: true })}",
+    "TS2304 <BackgroundInbox className=\"max-w-md rounded-3xl\" runs={runs} onCollect={onCollect} />",
+    "TS2304 <BackgroundInbox className=\"max-w-md rounded-3xl\" runs={runs} onCollect={onCollect} />",
+    "TS2304 return <BackgroundInbox runs={runs} onCollect={(id) => openRun(id)} />;",
+    "TS2304 setRuns((prev) =>",
+    "TS7006 onCollect={(id) => aui.threads.item({ id }).switchTo()}",
+    "TS7006 prev.map((run) =>",
+    "TS7006 return <BackgroundInbox runs={runs} onCollect={(id) => openRun(id)} />;",
+    "TS7006 setRuns((prev) =>"
+  ],
+  "apps/docs/content/elements/canvas-split.mdx": [
+    "TS2304 </CanvasSplit>",
+    "TS2304 </CanvasSplitMessage>",
+    "TS2304 </CanvasSplitThread>",
+    "TS2304 <CanvasSplit>",
+    "TS2304 <CanvasSplitBody writing={isGenerating}>",
+    "TS2304 <CanvasSplitMessage speaker={message.role === \"user\" ? \"user\" : \"assistant\"}>",
+    "TS2304 <CanvasSplitThread>",
+    "TS2304 onClose={() => setOpen(false)}",
+    "TS2304 {lines.map((line, i) => (",
+    "TS2552 onCopy={() => navigator.clipboard.writeText(text)}",
+    "TS7006 {lines.map((line, i) => (",
+    "TS7006 {lines.map((line, i) => ("
+  ],
+  "apps/docs/content/elements/chart.mdx": [
+    "TS2304 const id = setTimeout(() => setVisibleCount((n) => n + 1), 180);",
+    "TS2304 execute: async ({ label, points }) => summarize(label, points),",
+    "TS2304 if (visibleCount >= POINTS.length) return;",
+    "TS2304 }, [visibleCount]);",
+    "TS2657 <Chart label=\"p50 latency\" value=\"180ms\" delta=\"-12ms\" upIsGood={false} /* ... */ />",
+    "TS7006 const id = setTimeout(() => setVisibleCount((n) => n + 1), 180);"
+  ],
+  "apps/docs/content/elements/chat-panel.mdx": [
+    "TS2657 <AuiIf condition={(s) => s.thread.isRunning}>"
+  ],
+  "apps/docs/content/elements/checkpoint-history.mdx": [
+    "TS2304 <CheckpointHistory checkpoints={checkpoints} currentId=\"\" onRestore={onRestore} />",
+    "TS2304 <CheckpointHistory checkpoints={checkpoints} currentId=\"2\" onRestore={onRestore} />",
+    "TS2304 <CheckpointHistory className=\"max-w-md rounded-3xl\" {...rest} />",
+    "TS2304 <span>{label}</span>",
+    "TS2304 rollBackTo(id);",
+    "TS7006 onRestore={(id) => {"
+  ],
+  "apps/docs/content/elements/code-diff.mdx": [
+    "TS2304 const [lines, setLines] = useState<DiffLine[]>(INITIAL_LINES);",
+    "TS2304 const next = await fetchDiff(path);",
+    "TS2304 setCounts({ additions: next.additions, deletions: next.deletions });",
+    "TS2304 setCycle((c) => c + 1);",
+    "TS2304 setLines(next.lines);",
+    "TS7006 setCycle((c) => c + 1);"
+  ],
+  "apps/docs/content/elements/code-runner.mdx": [
+    "TS18004 const config = AuiConfig({ tools: Tools({ toolkit }) });",
+    "TS2304 addResult({ output: lines, durationMs: elapsedMs() });",
+    "TS2304 addResult({ output: lines, durationMs: elapsedMs() });",
+    "TS2304 const lines = await runInSandbox(args.code);",
+    "TS2304 const lines = await runInSandbox(code);",
+    "TS2304 for await (const line of runInSandboxStreaming(args.code)) {",
+    "TS2304 for await (const line of runInSandboxStreaming(args.code)) {",
+    "TS2304 return <CodeRunner language=\"js\" code={code} state={state} output={output} onRun={run} />;",
+    "TS2304 setOutput([...lines]);",
+    "TS2304 setOutput([err instanceof Error ? err.message : String(err)]);",
+    "TS2304 setOutput(lines);",
+    "TS2304 setState(\"error\");",
+    "TS2304 setState(\"ok\");",
+    "TS2304 setState(\"running\");",
+    "TS2304 setState(\"running\");"
+  ],
+  "apps/docs/content/elements/command-palette.mdx": [
+    "TS1005 { id: \"archive\", label: \"Archive this thread\", group: \"Thread\", keys: [\"⌘\", \"⇧\", \"A\"] }",
+    "TS1005 { id: \"archive\", label: \"Archive this thread\", group: \"Thread\", keys: [\"⌘\", \"⇧\", \"A\"] }",
+    "TS1005 { id: \"archive\", label: \"Archive this thread\", group: \"Thread\", keys: [\"⌘\", \"⇧\", \"A\"] }",
+    "TS2304 <CommandPalette className=\"max-w-lg\" commands={commands} query={query} activeId={activeId} onQueryChange={setQuery} onAc",
+    "TS2304 <CommandPalette className=\"max-w-lg\" commands={commands} query={query} activeId={activeId} onQueryChange={setQuery} onAc",
+    "TS2304 <CommandPalette className=\"max-w-lg\" commands={commands} query={query} activeId={activeId} onQueryChange={setQuery} onAc",
+    "TS2304 <CommandPalette className=\"max-w-lg\" commands={commands} query={query} activeId={activeId} onQueryChange={setQuery} onAc",
+    "TS2304 <CommandPalette className=\"max-w-lg\" commands={commands} query={query} activeId={activeId} onQueryChange={setQuery} onAc",
+    "TS7006 onRun={(id) => handlers[id]?.()}"
+  ],
+  "apps/docs/content/elements/comparison-card.mdx": [
+    "TS1109 }),",
+    "TS2304 const options = plans.map((plan) => ({",
+    "TS2304 const recommendedId = pickBestPlan(plans).id;",
+    "TS2304 const recommendedId = pickBestPlan(plans).id;",
+    "TS7006 const options = plans.map((plan) => ({"
+  ],
+  "apps/docs/content/elements/composer-attachments.mdx": [
+    "TS17000 <div data-slot=\"composer-attachment\" data-state={/* \"uploading\" | \"done\" | \"error\" */}>",
+    "TS2304 await uploadWithProgress(file, (progress) =>",
+    "TS2304 const runtime = useLocalRuntime(chatModel, {",
+    "TS2304 setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, state: \"done\", meta: formatSize(file.size) } : ",
+    "TS2552 setAttachments((prev) => [...prev, attachment]);",
+    "TS2552 setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, progress, meta: `${progress}%` } : a))),",
+    "TS2552 setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, state: \"done\", meta: formatSize(file.size) } : ",
+    "TS7006 await uploadWithProgress(file, (progress) =>",
+    "TS7006 setAttachments((prev) => [...prev, attachment]);",
+    "TS7006 setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, progress, meta: `${progress}%` } : a))),",
+    "TS7006 setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, progress, meta: `${progress}%` } : a))),",
+    "TS7006 setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, state: \"done\", meta: formatSize(file.size) } : ",
+    "TS7006 setAttachments((prev) => prev.map((a) => (a.name === file.name ? { ...a, state: \"done\", meta: formatSize(file.size) } : "
+  ],
+  "apps/docs/content/elements/composer-context.mdx": [
+    "TS2304 </ComposerActions>",
+    "TS2304 </ComposerActions>",
+    "TS2304 </ComposerToolbar>",
+    "TS2304 <ComposerActions>",
+    "TS2304 <ComposerActions>",
+    "TS2304 <ComposerAttachButton onClick={pick} />",
+    "TS2304 <ComposerAttachButton onClick={pick} />",
+    "TS2304 <ComposerContext className=\"[&_button]:size-9\" usage={usage} />",
+    "TS2304 <ComposerContext usage={usage} />",
+    "TS2304 <ComposerSend streaming={streaming} idle={!value} onClick={send} />",
+    "TS2304 <ComposerSend streaming={streaming} idle={!value} onClick={send} />",
+    "TS2304 <ComposerSend streaming={streaming} idle={!value} onClick={send} />",
+    "TS2304 <ComposerToolbar>",
+    "TS2552 <ComposerSend streaming={streaming} idle={!value} onClick={send} />"
+  ],
+  "apps/docs/content/elements/composer-mentions.mdx": [
+    "TS17000 <button data-slot=\"composer-menu-item\" data-active={/* the highlighted row */}>",
+    "TS17000 <div data-slot=\"composer-menu\" data-open={/* true while a trailing \"@query\" exists */}>",
+    "TS2304 mention.adapter.search(\"ada\"); // → [{ id: \"ada\", label: \"Ada Lovelace\", ... }]",
+    "TS7006 {matches.map((person) => ("
+  ],
+  "apps/docs/content/elements/composer-model-picker.mdx": [
+    "TS17000 <button aria-expanded={/* open */}>{/* model name */}<svg /* chevron */ /></button>",
+    "TS17000 <button data-slot=\"composer-menu-item\" data-active={/* selected */}>",
+    "TS17000 <div data-slot=\"composer-menu\" data-open={/* open */}>",
+    "TS2304 <ComposerModelTrigger model={selected.name} open={open} className=\"text-foreground/80\" />"
+  ],
+  "apps/docs/content/elements/composer-slash-commands.mdx": [
+    "TS17000 <button data-slot=\"composer-menu-item\" data-active={/* the highlighted row */}>",
+    "TS17000 <div data-slot=\"composer-menu\" data-open={/* true while a \"/query\" is being typed */}>",
+    "TS2304 slash.adapter.search(\"sum\"); // → [{ id: \"summarize\", ... }]",
+    "TS2304 { id: \"summarize\", description: \"Summarize this thread\", icon: \"FileText\", execute: () => runSummarize() },",
+    "TS2304 { id: \"translate\", description: \"Translate the last reply\", icon: \"Languages\", execute: () => runTranslate() },",
+    "TS2552 <ComposerCommandItem key={command.name} command={command} active={false} onClick={() => runCommand(command.name)} />",
+    "TS7006 {matches.map((command) => ("
+  ],
+  "apps/docs/content/elements/composer-trigger-popover.mdx": [
+    "TS2304 <ComposerTriggerPopover char=\"@\" matcher={matchMultiWord} {...mention} />;",
+    "TS2304 directive={{ onInserted: (item) => track(\"mention\", item.id) }}",
+    "TS2304 fetcher: (query) => searchUsers(query),",
+    "TS7006 directive={{ onInserted: (item) => track(\"mention\", item.id) }}"
+  ],
+  "apps/docs/content/elements/composer-voice.mdx": [
+    "TS17000 <div data-slot=\"composer-voice\" data-recording={/* true while capturing */}>",
+    "TS2304 <ComposerVoice recording={recording} seconds={seconds} className=\"gap-4\" />",
+    "TS2304 <ComposerVoice recording={recording} seconds={seconds} className=\"gap-4\" />",
+    "TS2304 <ComposerVoiceButton active={recording} onClick={stopBrowserRecognition} />",
+    "TS2304 commitTranscript(text).finally(() => setActive(false));",
+    "TS2304 const runtime = useLocalRuntime(chatModel, { adapters: { dictation } });",
+    "TS2304 startBrowserRecognition({",
+    "TS7006 onFinal: (text) => {"
+  ],
+  "apps/docs/content/elements/composer.mdx": [
+    "TS17000 <div data-slot=\"composer-bar\" data-drag-active={/* true while a file is dragged over */}>",
+    "TS2304 <ComposerAttachButton onClick={() => addAttachment()} />",
+    "TS2304 <ComposerSend streaming={isSending} idle={text.length === 0} onClick={isSending ? cancel : send} />",
+    "TS2304 <ComposerSend streaming={isSending} idle={text.length === 0} onClick={isSending ? cancel : send} />",
+    "TS2304 <ComposerSend streaming={isSending} idle={text.length === 0} onClick={isSending ? cancel : send} />",
+    "TS2304 submitMessage(text).finally(() => setSending(false));",
+    "TS2552 <ComposerSend streaming={isSending} idle={text.length === 0} onClick={isSending ? cancel : send} />",
+    "TS2552 <ComposerSend streaming={isSending} idle={text.length === 0} onClick={isSending ? cancel : send} />",
+    "TS7006 onChange={(e) => setText(e.target.value)}"
+  ],
+  "apps/docs/content/elements/computer-use.mdx": [
+    "TS1005 case \"group-computer\":",
+    "TS1128 case \"group-computer\":",
+    "TS2304 <ComputerUse url={url} steps={steps} activeIndex={activeIndex}>",
+    "TS2304 <iframe src={liveViewUrl} className=\"size-full\" />",
+    "TS2304 const id = setInterval(() => setActiveIndex((i) => i + 1), 1200);",
+    "TS2552 <ComputerUse url={url} steps={steps} activeIndex={activeIndex}>",
+    "TS2769 computer: {",
+    "TS7006 const id = setInterval(() => setActiveIndex((i) => i + 1), 1200);"
+  ],
+  "apps/docs/content/elements/confidence-marker.mdx": [
+    "TS2304 <ConfidenceMarker claims={claims.filter((c) => c.confidence === \"grounded\")} hoveredId={hoveredId} onHover={setHoveredId",
+    "TS2304 <ConfidenceMarker claims={claims.filter((c) => c.confidence === \"grounded\")} hoveredId={hoveredId} onHover={setHoveredId",
+    "TS2339 )?.result?.claims",
+    "TS2552 const claims: ConfidenceClaim[] = message.content",
+    "TS2677 (part): part is CiteClaims =>",
+    "TS7006 .filter((part): part is SourceMessagePart => part.type === \"source\")",
+    "TS7006 .map((part) => ({"
+  ],
+  "apps/docs/content/elements/connection-state.mdx": [
+    "TS2304 aui.thread.resumeRun({ parentId: resumeFromId, sourceId: null });",
+    "TS2304 const id = setTimeout(() => setPhase(\"online\"), 2000);",
+    "TS2304 if (phase !== \"resumed\") return;",
+    "TS2304 }, [phase]);",
+    "TS2657 <ConnectionState phase=\"dropped\" onRetry={() => {}} />"
+  ],
+  "apps/docs/content/elements/context-breakdown.mdx": [
+    "TS1005 { label: \"Conversation\", tokens: 42000, tint: \"bg-blue-500/70\" }",
+    "TS1005 { label: \"Conversation\", tokens: 42000, tint: \"bg-blue-500/70\" }",
+    "TS2304 <ContextBreakdown className=\"max-w-xs gap-2\" segments={segments} limit={limit} />"
+  ],
+  "apps/docs/content/elements/context-display.mdx": [
+    "TS2304 <MyCustomGauge />",
+    "TS2304 model: getModel(),",
+    "TS2657 <ContextDisplay.Ring modelContextWindow={128000} />",
+    "TS2657 <ContextDisplay.Ring modelContextWindow={128000} usage={usage} />",
+    "TS2657 <button data-slot=\"context-display-trigger\">"
+  ],
+  "apps/docs/content/elements/conversation-search.mdx": [
+    "TS2304 {onStep && (",
+    "TS7006 onQueryChange={(next) => {",
+    "TS7006 onQueryChange={(next) => {",
+    "TS7006 onStep={(delta) =>",
+    "TS7006 onStep={(delta) => {"
+  ],
+  "apps/docs/content/elements/data-table.mdx": [
+    "TS2304 <DataTable columns={columns} rows={rows} sort={sort} onSortChange={setSort} />",
+    "TS2304 <DataTable columns={columns} rows={rows} sort={sort} onSortChange={setSort} />",
+    "TS2304 rows={report.rows}",
+    "TS2769 compare_models: {"
+  ],
+  "apps/docs/content/elements/day-separator.mdx": [
+    "TS2552 <DaySeparator className=\"max-w-none gap-3\" messages={messages} />",
+    "TS2552 setMessages((prev) => [",
+    "TS2552 { id: crypto.randomUUID(), day: \"Today\", time: \"09:12\", role: \"user\", text },",
+    "TS7006 setMessages((prev) => ["
+  ],
+  "apps/docs/content/elements/diagram.mdx": [
+    "TS2304 <Diagram title=\"message flow\" zoom={zoom} onExpand={() => setOpen(true)} /* ... */>",
+    "TS2304 execute: async ({ prompt }) => renderDiagramImage(prompt),",
+    "TS2304 onZoomIn={() => setZoom((z) => clamp(z + 0.2))}",
+    "TS2304 onZoomOut={() => setZoom((z) => clamp(z - 0.2))}",
+    "TS2304 zoom={zoom}",
+    "TS7006 onZoomIn={() => setZoom((z) => clamp(z + 0.2))}",
+    "TS7006 onZoomOut={() => setZoom((z) => clamp(z - 0.2))}"
+  ],
+  "apps/docs/content/elements/directive-text.mdx": [
+    "TS2304 <Icon />",
+    "TS2304 <span data-slot=\"directive-text-chip\" data-directive-type={type} data-directive-id={id} aria-label={`${type}: ${label}`}",
+    "TS2304 <span data-slot=\"directive-text-chip\" data-directive-type={type} data-directive-id={id} aria-label={`${type}: ${label}`}",
+    "TS2304 <span data-slot=\"directive-text-chip\" data-directive-type={type} data-directive-id={id} aria-label={`${type}: ${label}`}",
+    "TS2304 <span data-slot=\"directive-text-chip\" data-directive-type={type} data-directive-id={id} aria-label={`${type}: ${label}`}",
+    "TS2304 <span>{textBetweenDirectives}</span>",
+    "TS2304 {label}",
+    "TS7006 parse(text) {"
+  ],
+  "apps/docs/content/elements/document-reference.mdx": [
+    "TS2304 <span>{title}</span>",
+    "TS2304 const doc = await fetchDocument(id);",
+    "TS2304 execute: async ({ query }) => lookupDocument(query),",
+    "TS2304 setActivePage(doc.anchors[0]?.page ?? 1);",
+    "TS2304 setAnchors(doc.anchors);",
+    "TS2304 setPages(doc.pages);",
+    "TS2304 setTitle(doc.title);"
+  ],
+  "apps/docs/content/elements/draft-restore.mdx": [
+    "TS2304 <DraftRestore className=\"max-w-md\" draft={draft} savedAt={savedAt} onRestore={restore} onDiscard={discard} />",
+    "TS2304 <DraftRestore className=\"max-w-md\" draft={draft} savedAt={savedAt} onRestore={restore} onDiscard={discard} />",
+    "TS2304 <DraftRestore className=\"max-w-md\" draft={draft} savedAt={savedAt} onRestore={restore} onDiscard={discard} />",
+    "TS2304 <DraftRestore className=\"max-w-md\" draft={draft} savedAt={savedAt} onRestore={restore} onDiscard={discard} />"
+  ],
+  "apps/docs/content/elements/edit-message.mdx": [
+    "TS2304 <EditComposer />",
+    "TS2304 await resend(value);",
+    "TS2305 import { EditMessage } from \"@/components/assistant-ui/elements/edit-message\";"
+  ],
+  "apps/docs/content/elements/elicitation-form.mdx": [
+    "TS1005 { name: \"repo\", label: \"Repository\", value: \"\", kind: \"text\", required: true }",
+    "TS1005 { name: \"repo\", label: \"Repository\", value: \"\", kind: \"text\", required: true }",
+    "TS1005 { name: \"repo\", label: \"Repository\", value: \"\", kind: \"text\", required: true }",
+    "TS1005 { name: \"repo\", label: \"Repository\", value: \"\", kind: \"text\", required: true }",
+    "TS2304 (elicitation.requestedSchema as { required?: string[] })?.required ?? [],",
+    "TS2304 <ElicitationForm onDecline={() => setState(\"declined\")} /* ... */ />",
+    "TS2304 {servers.map((server) => (",
+    "TS7006 onFieldChange={(name, value) =>",
+    "TS7006 onFieldChange={(name, value) =>",
+    "TS7006 {servers.map((server) => ("
+  ],
+  "apps/docs/content/elements/empty-state.mdx": [
+    "TS2304 {suggestions.map((suggestion, index) => (",
+    "TS7006 {suggestions.map((suggestion, index) => (",
+    "TS7006 {suggestions.map((suggestion, index) => ("
+  ],
+  "apps/docs/content/elements/error-state.mdx": [
+    "TS2304 const ok = await retry();",
+    "TS2305 import { ErrorState } from \"@/components/assistant-ui/elements/error-state\";"
+  ],
+  "apps/docs/content/elements/feedback-dialog.mdx": [
+    "TS2304 const runtime = useLocalRuntime(adapter, {",
+    "TS2304 onSubmit={() => sendFeedback({ selected, note })}",
+    "TS2304 setNote(\"\");",
+    "TS2304 setSelected([]);",
+    "TS2304 setSent(false);",
+    "TS2304 setSent(true);",
+    "TS2304 submit: ({ message, type, comment }) => api.rateMessage(message.id, type, comment),",
+    "TS2345 const runtime = useExternalStoreRuntime({",
+    "TS2552 if (!sent) return;",
+    "TS2552 }, [sent]);",
+    "TS7006 onToggleReason={(reason) =>",
+    "TS7006 onToggleReason={(reason) =>"
+  ],
+  "apps/docs/content/elements/file-tree.mdx": [
+    "TS1005 { path: \"changeset\", name: \".changeset/tidy-pans.md\", depth: 0, kind: \"file\", additions: 5 }",
+    "TS1005 { path: \"changeset\", name: \".changeset/tidy-pans.md\", depth: 0, kind: \"file\", additions: 5 }",
+    "TS1005 { path: \"changeset\", name: \".changeset/tidy-pans.md\", depth: 0, kind: \"file\", additions: 5 }",
+    "TS1005 { path: \"changeset\", name: \".changeset/tidy-pans.md\", depth: 0, kind: \"file\", additions: 5 }"
+  ],
+  "apps/docs/content/elements/file.mdx": [
+    "TS2304 <File.Icon mimeType={part.mimeType} />",
+    "TS2304 <File.Icon mimeType={part.mimeType} />",
+    "TS2304 <File.Name>{part.filename}</File.Name>",
+    "TS2304 <File.Name>{part.filename}</File.Name>",
+    "TS2304 data={part.data}",
+    "TS2304 data={part.data}",
+    "TS2304 filename={part.filename}",
+    "TS2304 filename={part.filename}",
+    "TS2304 mimeType={part.mimeType}",
+    "TS2304 mimeType={part.mimeType}",
+    "TS2304 sourceType={part.sourceType}",
+    "TS2304 sourceType={part.sourceType}"
+  ],
+  "apps/docs/content/elements/flow-graph.mdx": [
+    "TS1005 { id: \"patch\", label: \"patch\", column: 2, row: 2, state: \"active\" },",
+    "TS1005 { id: \"patch\", label: \"patch\", column: 2, row: 2, state: \"active\" },",
+    "TS1005 { id: \"patch\", label: \"patch\", column: 2, row: 2, state: \"active\" },",
+    "TS1005 { id: \"patch\", label: \"patch\", column: 2, row: 2, state: \"active\" },",
+    "TS1005 { id: \"search\", label: \"search\", column: 2, row: 0, state: \"done\" },",
+    "TS1005 { id: \"search\", label: \"search\", column: 2, row: 0, state: \"done\" },",
+    "TS1005 { id: \"search\", label: \"search\", column: 2, row: 0, state: \"done\" },",
+    "TS1005 { id: \"search\", label: \"search\", column: 2, row: 0, state: \"done\" },",
+    "TS1128 { id: \"patch\", label: \"patch\", column: 2, row: 2, state: \"active\" },",
+    "TS1128 { id: \"search\", label: \"search\", column: 2, row: 0, state: \"done\" },",
+    "TS2304 const id = setTimeout(() => setVisibleCount((n) => n + 1), 520);",
+    "TS2304 execute: async ({ steps }) => runPlan(steps),",
+    "TS2304 if (visibleCount >= NODES.length) return;",
+    "TS2304 }, [visibleCount]);",
+    "TS7006 const id = setTimeout(() => setVisibleCount((n) => n + 1), 520);"
+  ],
+  "apps/docs/content/elements/follow-up-suggestions.mdx": [
+    "TS18004 convertMessage,",
+    "TS2304 <Composer />",
+    "TS2304 send(suggestion);",
+    "TS2305 import { Suggestions } from \"@/components/assistant-ui/elements/suggestions\";",
+    "TS2552 messages,",
+    "TS7006 onSuggestion={(suggestion) => {"
+  ],
+  "apps/docs/content/elements/geo-map.mdx": [
+    "TS1108 return {",
+    "TS2304 const [selectedId, setSelectedId] = useState(places[0]?.id);",
+    "TS2304 places={places}",
+    "TS2304 places={places}",
+    "TS2304 places={places}",
+    "TS2304 routes={routes}",
+    "TS7031 export function Nearby({ places, routes }) {",
+    "TS7031 export function Nearby({ places, routes }) {"
+  ],
+  "apps/docs/content/elements/guardrail-notice.mdx": [
+    "TS2305 import { GuardrailNotice } from \"@/components/assistant-ui/elements/guardrail-notice\";",
+    "TS2305 import { GuardrailNotice } from \"@/components/assistant-ui/elements/guardrail-notice\";",
+    "TS2339 const policy = status.type === \"incomplete\" ? status.reason : undefined;",
+    "TS2339 const policy = status.type === \"incomplete\" ? status.reason : undefined;",
+    "TS2552 onPick={(alternative) => sendMessage(alternative)}",
+    "TS7006 onPick={(alternative) => aui.thread.append(alternative)}",
+    "TS7006 onPick={(alternative) => sendMessage(alternative)}"
+  ],
+  "apps/docs/content/elements/heat-graph.mdx": [
+    "TS2304 </HeatGraphPrimitive.Root>",
+    "TS2304 <HeatGraphPrimitive.Root data={data} weekStart=\"sunday\" classify={HeatGraphPrimitive.autoLevels(2)} colorScale={[\"#eee\",",
+    "TS2304 <HeatGraphPrimitive.Root data={data} weekStart=\"sunday\" classify={HeatGraphPrimitive.autoLevels(2)} colorScale={[\"#eee\","
+  ],
+  "apps/docs/content/elements/image-gallery.mdx": [
+    "TS2304 <ImageGallery images={result?.images ?? []} imageOrigins={[\"https://images.example.com\"]} />",
+    "TS7006 return <ImageGallery images={images} onOpen={(id) => console.log(id)} />;"
+  ],
+  "apps/docs/content/elements/image-generation.mdx": [
+    "TS1108 return imageUrl && !generating ? (",
+    "TS2304 <button aria-label=\"Regenerate image\" disabled={generating} />",
+    "TS2304 const url = await generateImage(prompt);",
+    "TS2304 generating={generating}",
+    "TS2304 setGenerating(false);",
+    "TS2304 setGenerating(true);",
+    "TS2304 {onRegenerate && ("
+  ],
+  "apps/docs/content/elements/image.mdx": [
+    "TS2304 <Image.Actions part={part} onRegenerate={() => refetchImage(part)} />",
+    "TS2304 <Image.Preview src={part.image} />",
+    "TS2304 <div data-slot=\"image-root\" data-variant={variant} data-size={size}>",
+    "TS2304 <div data-slot=\"image-root\" data-variant={variant} data-size={size}>"
+  ],
+  "apps/docs/content/elements/inline-citation.mdx": [
+    "TS2304 ...result.sources.map((source, index) => ({",
+    "TS2304 <Citation index={0} source={source} />.",
+    "TS7006 ...result.sources.map((source, index) => ({",
+    "TS7006 ...result.sources.map((source, index) => ({",
+    "TS7006 onOpenChange={(open) => setOpenIndex(open ? 0 : null)}"
+  ],
+  "apps/docs/content/elements/launcher-bubble.mdx": [
+    "TS2304 {onStart && <button>{/* \"Start a conversation\" */}</button>}",
+    "TS2552 {onToggle ? (",
+    "TS7006 onPick={(prompt) => console.log(\"picked\", prompt)}"
+  ],
+  "apps/docs/content/elements/loading-state.mdx": [
+    "TS2304 <GenerationLoader label=\"Generating\" tick={tick} variant=\"squares\" />",
+    "TS2304 tick={tick}",
+    "TS2305 import { GenerationLoader } from \"@/components/assistant-ui/elements/loading-state\";",
+    "TS2305 import { GenerationLoader } from \"@/components/assistant-ui/elements/loading-state\";"
+  ],
+  "apps/docs/content/elements/map-answer.mdx": [
+    "TS2304 <MapAnswer pins={pins} activeId={activeId} route onSelect={onSelect} />",
+    "TS2304 <MapAnswer pins={pins} activeId={activeId} route onSelect={onSelect} />",
+    "TS2304 const places = await fetchPlaces(query);",
+    "TS2304 execute: async ({ query }) => lookupPlaces(query),",
+    "TS2304 setActiveId(places[0]?.id ?? \"\");",
+    "TS2304 setPins(places);",
+    "TS2552 <MapAnswer pins={pins} activeId={activeId} route onSelect={onSelect} />"
+  ],
+  "apps/docs/content/elements/markdown-text.mdx": [
+    "TS2304 <button onClick={() => runSnippet(code)}>Run</button>",
+    "TS7031 a: ({ className, ...props }) => ("
+  ],
+  "apps/docs/content/elements/math-block.mdx": [
+    "TS1109 }),",
+    "TS2304 const { steps: nextSteps } = await askForWorkedAnswer(question);",
+    "TS2304 setVisibleSteps(0);",
+    "TS2552 setSteps(nextSteps);"
+  ],
+  "apps/docs/content/elements/mcp-config.mdx": [
+    "TS2304 </Dialog>",
+    "TS2304 </DialogContent>",
+    "TS2304 <Dialog>",
+    "TS2304 <DialogContent>",
+    "TS2304 <DialogTrigger>{/* plug icon + \"MCP servers\", or your own children */}</DialogTrigger>",
+    "TS2304 <DialogTrigger>{/* plug icon + \"MCP servers\", or your own children */}</DialogTrigger>",
+    "TS2304 <MyTokenField />"
+  ],
+  "apps/docs/content/elements/mcp-server-panel.mdx": [
+    "TS2304 onAuthorize={(id) => startOAuthFlow(id)}",
+    "TS7006 onAuthorize={(id) => startOAuthFlow(id)}",
+    "TS7006 onToggle={(id) => setExpandedId((current) => (current === id ? undefined : id))}"
+  ],
+  "apps/docs/content/elements/media-player.mdx": [
+    "TS1005 data: audioUrl,",
+    "TS1005 filename: \"briefing.mp3\",",
+    "TS1005 mimeType: \"audio/mpeg\",",
+    "TS1005 sourceType: \"url\",",
+    "TS1109 }",
+    "TS2304 <AudioPlayer",
+    "TS2304 <VideoPlayer",
+    "TS2304 <VideoPlayer src={clip.url} title={clip.title} ratio=\"9:16\" />",
+    "TS2304 <VideoPlayer src={clip.url} title={clip.title} ratio=\"9:16\" />",
+    "TS2304 <VideoPlayer src={clip.url} title={clip.title} ratio=\"9:16\" />",
+    "TS2304 artwork={episode.coverUrl}",
+    "TS2304 durationMs={episode.durationMs}",
+    "TS2304 poster={clip.posterUrl}",
+    "TS2304 src={clip.url}",
+    "TS2304 src={episode.url}",
+    "TS2304 title={episode.title}",
+    "TS2552 audioUrl: await createBriefingAudio(),",
+    "TS2657 <AudioPlayer",
+    "TS2657 <div data-slot=\"audio-player\">"
+  ],
+  "apps/docs/content/elements/memory-chips.mdx": [
+    "TS17000 <button aria-label={/* Forget \"...\" */} />",
+    "TS2304 await saveMemory({ text, change });",
+    "TS2304 const chips = [...existingMemories, ...freshChipsFromMessage];",
+    "TS2304 const chips = [...existingMemories, ...freshChipsFromMessage];",
+    "TS2304 return <MemoryChips chips={chips} onForget={forgetMemory} />;",
+    "TS2304 setChips((c) => [",
+    "TS7006 onForget={(id) => setChips((c) => c.filter((chip) => chip.id !== id))}",
+    "TS7006 setChips((c) => ["
+  ],
+  "apps/docs/content/elements/mermaid-diagram.mdx": [
+    "TS2304 <MarkdownTextPrimitive",
+    "TS2304 <MermaidDiagram className=\"rounded-none\" code={code} />",
+    "TS2304 <MermaidDiagram code={code} streaming={isStreaming} />;",
+    "TS2304 <MermaidDiagram code={code} streaming={isStreaming} />;",
+    "TS2304 <MermaidZoom svg={mySvgString}>",
+    "TS2304 <div dangerouslySetInnerHTML={{ __html: mySvgString }} />",
+    "TS2304 components={defaultComponents}",
+    "TS2304 remarkPlugins={[remarkGfm]}",
+    "TS2657 <div data-slot=\"mermaid-skeleton\" aria-label=\"Rendering diagram\" />"
+  ],
+  "apps/docs/content/elements/message-actions.mdx": [
+    "TS2304 <ActionBarMorePrimitive.Trigger aria-label=\"More response actions\" className={buttonClassName}>",
+    "TS2305 import { MessageActions, type Reaction } from \"@/components/assistant-ui/elements/message-actions\";",
+    "TS2322 <MessageActions className=\"gap-2\" /* ... */ />",
+    "TS2322 copied={isCopied}",
+    "TS2552 await regenerate();"
+  ],
+  "apps/docs/content/elements/message-branches.mdx": [
+    "TS2304 <Markdown>{variants[index]}</Markdown>",
+    "TS2304 <Markdown>{variants[index]}</Markdown>",
+    "TS2304 <Markdown>{variants[index]}</Markdown>",
+    "TS2304 <select value={index} onChange={(e) => setIndex(Number(e.target.value))}>",
+    "TS2304 <select value={index} onChange={(e) => setIndex(Number(e.target.value))}>",
+    "TS2304 const next = await fetchAnswer();",
+    "TS2304 index={index}",
+    "TS2304 onIndexChange={setIndex}",
+    "TS2304 setIndex(variants.length);",
+    "TS2552 setVariants((prev) => [...prev, next]);",
+    "TS7006 setVariants((prev) => [...prev, next]);"
+  ],
+  "apps/docs/content/elements/message-pair.mdx": [
+    "TS1005 >",
+    "TS17008 <div",
+    "TS2304 <AssistantReply />",
+    "TS2304 <MessagePair variant=\"flat\" userMessage=\"...\" words={words} visibleWords={n} streaming={false} />",
+    "TS2304 <MessagePair variant=\"flat\" userMessage=\"...\" words={words} visibleWords={n} streaming={false} />",
+    "TS2305 import { MessagePair } from \"@/components/assistant-ui/elements/message-pair\";"
+  ],
+  "apps/docs/content/elements/message-queue.mdx": [
+    "TS2304 const item = q.find((m) => m.id === id)!;",
+    "TS2304 return [item, ...q.filter((m) => m.id !== id)];",
+    "TS2304 setQueued((q) => {",
+    "TS2305 import { MessageQueue, type QueuedMessage } from \"@/components/assistant-ui/elements/message-queue\";",
+    "TS2322 <MessageQueue className=\"gap-3\" /* ... */ />",
+    "TS2322 running=\"Refactor the login form to use the new validation hook\"",
+    "TS7006 const item = q.find((m) => m.id === id)!;",
+    "TS7006 onCancel={(id) => setQueued((q) => q.filter((m) => m.id !== id))}",
+    "TS7006 return [item, ...q.filter((m) => m.id !== id)];",
+    "TS7006 setQueued((q) => {"
+  ],
+  "apps/docs/content/elements/message-timing.mdx": [
+    "TS2657 <button aria-label=\"Message timing\">{/* e.g. \"1.24s\" */}</button>"
+  ],
+  "apps/docs/content/elements/mobile-composer.mdx": [
+    "TS7006 onAction={(action) => setValue(action)}"
+  ],
+  "apps/docs/content/elements/model-selector.mdx": [
+    "TS1005 { id: \"claude-opus-5-5\", name: \"Claude Opus 5.5\", icon: <ClaudeLogo /> }",
+    "TS1005 { id: \"claude-opus-5-5\", name: \"Claude Opus 5.5\", icon: <ClaudeLogo /> }",
+    "TS2303 ModelPicker,",
+    "TS2303 type PickableModel,",
+    "TS2304 <ModelSelectorContent searchable />",
+    "TS2304 <ModelSelectorTrigger variant=\"ghost\" size=\"lg\" />",
+    "TS2304 const result = streamText({",
+    "TS2304 messages: await convertToModelMessages(messages),",
+    "TS2459 ModelPicker,",
+    "TS2459 ModelPicker,",
+    "TS2459 type PickableModel,",
+    "TS2459 type PickableModel,",
+    "TS2552 <ModelSelector models={models} searchable />",
+    "TS2552 model: openai(config?.modelName ?? \"gpt-6-luna\"),",
+    "TS2657 <button role=\"combobox\" aria-haspopup=\"listbox\" data-slot=\"model-selector-trigger\" />",
+    "TS7006 <DropdownMenuTrigger>{efforts.find((e) => e.id === effort)?.name ?? \"Select\"}</DropdownMenuTrigger>",
+    "TS7006 {efforts.map((option) => ("
+  ],
+  "apps/docs/content/elements/number-ticker.mdx": [
+    "TS2304 execute: async () => ({ total: currentTokenCount() }),",
+    "TS2304 setValue((v) => v + Math.round(Math.random() * 40));",
+    "TS7006 setValue((v) => v + Math.round(Math.random() * 40));"
+  ],
+  "apps/docs/content/elements/onboarding.mdx": [
+    "TS2304 <button type=\"button\" onClick={() => setIndex((i) => Math.max(0, i - 1))}>",
+    "TS7006 <button type=\"button\" onClick={() => setIndex((i) => Math.max(0, i - 1))}>"
+  ],
+  "apps/docs/content/elements/option-list.mdx": [
+    "TS2304 await saveAnswer(ids);",
+    "TS2304 choice={choice}",
+    "TS2304 onConfirm={setChoice}",
+    "TS2304 options={CHECKS}",
+    "TS2304 setChoice(ids);",
+    "TS7006 onConfirm={async (ids) => {",
+    "TS7006 waiting ? (ids) => addResult({ selected: ids }) : undefined"
+  ],
+  "apps/docs/content/elements/orb.mdx": [
+    "TS2304 <VoiceOrb state={state} volume={micLevel} />",
+    "TS2304 <VoiceOrb state={state} volume={micLevel} />",
+    "TS2304 state={isMuted ? \"muted\" : isSpeaking ? \"speaking\" : \"listening\"}",
+    "TS2304 state={isMuted ? \"muted\" : isSpeaking ? \"speaking\" : \"listening\"}",
+    "TS2304 voice: myVoiceAdapter,",
+    "TS2304 volume={micLevel}",
+    "TS2304 {isActive ? <PhoneOffIcon /> : <PhoneIcon />}",
+    "TS2304 {isActive ? <PhoneOffIcon /> : <PhoneIcon />}",
+    "TS2657 <canvas className=\"aui-voice-orb\" data-state={/* idle | connecting | listening | speaking | muted */} />"
+  ],
+  "apps/docs/content/elements/permission-grant.mdx": [
+    "TS1108 return (",
+    "TS2304 <button type=\"button\" onClick={() => void answer({ optionId: option.id })}>",
+    "TS2304 const confirming = approval.options?.find((o) => o.id === confirmingId);",
+    "TS2304 {(approval.options ?? []).map((option) => (",
+    "TS2657 <button type=\"button\" onClick={() => void answer({ approved: true })}>",
+    "TS7006 const confirming = approval.options?.find((o) => o.id === confirmingId);",
+    "TS7006 {(approval.options ?? []).map((option) => (",
+    "TS7006 {option.grants?.map((grant) => <span key={grant}>{grant}</span>)}"
+  ],
+  "apps/docs/content/elements/prompt-library.mdx": [
+    "TS2304 <PromptLibrary className=\"max-w-md\" prompts={prompts} query={query} selectedId={selectedId} onQueryChange={setQuery} onS",
+    "TS2304 <PromptLibrary className=\"max-w-md\" prompts={prompts} query={query} selectedId={selectedId} onQueryChange={setQuery} onS",
+    "TS2304 <PromptLibrary className=\"max-w-md\" prompts={prompts} query={query} selectedId={selectedId} onQueryChange={setQuery} onS",
+    "TS2304 <PromptLibrary className=\"max-w-md\" prompts={prompts} query={query} selectedId={selectedId} onQueryChange={setQuery} onS",
+    "TS2304 <PromptLibrary className=\"max-w-md\" prompts={prompts} query={query} selectedId={selectedId} onQueryChange={setQuery} onS",
+    "TS2322 <input role=\"combobox\" aria-expanded aria-controls placeholder=\"Search prompts\" />",
+    "TS2339 <span>{`${prompt.variables.length} ${prompt.variables.length === 1 ? \"var\" : \"vars\"}`}</span>",
+    "TS2339 <span>{`${prompt.variables.length} ${prompt.variables.length === 1 ? \"var\" : \"vars\"}`}</span>",
+    "TS2339 {prompt.variables.length > 0 && (",
+    "TS7006 onInsert={(id) => {",
+    "TS7006 onInsert={(id) => {"
+  ],
+  "apps/docs/content/elements/question-flow.mdx": [
+    "TS2304 await saveProjectUpdateAnswers(answers);",
+    "TS2304 onComplete={saveAnswers}",
+    "TS2304 onComplete={saveAnswers}",
+    "TS2304 setChoice(answers);",
+    "TS7006 onComplete={async (answers) => {",
+    "TS7006 waiting ? (answers) => addResult({ answers }) : undefined"
+  ],
+  "apps/docs/content/elements/quota-banner.mdx": [
+    "TS1108 if (!data) return null;",
+    "TS1108 return (",
+    "TS2304 const resetsIn = formatDistanceToNowStrict(resetAt);",
+    "TS2304 const resetsIn = formatDistanceToNowStrict(resetAt);",
+    "TS2304 const { data } = useSWR(\"/api/usage\", fetcher);",
+    "TS2552 const { data } = useSWR(\"/api/usage\", fetcher);"
+  ],
+  "apps/docs/content/elements/quote.mdx": [
+    "TS2304 <button onClick={() => explain(window.getSelection()?.toString())}>Explain</button>",
+    "TS2304 <p data-slot=\"quote-block-text\">{quote.text}</p>",
+    "TS2304 <span data-slot=\"composer-quote-text\">{quote.text}</span>",
+    "TS2552 model: myModel,",
+    "TS2657 <QuoteBlock.Root className=\"my-custom-class\">",
+    "TS7006 onAction={(key) => {"
+  ],
+  "apps/docs/content/elements/read-aloud.mdx": [
+    "TS2304 onRateChange={() => cycleRate()}"
+  ],
+  "apps/docs/content/elements/reasoning-effort.mdx": [
+    "TS2303 import { ReasoningEffort, type EffortLevel } from \"@/components/assistant-ui/elements/reasoning-effort\";",
+    "TS2303 import { ReasoningEffort, type EffortLevel } from \"@/components/assistant-ui/elements/reasoning-effort\";",
+    "TS2459 import { ReasoningEffort, type EffortLevel } from \"@/components/assistant-ui/elements/reasoning-effort\";",
+    "TS2459 import { ReasoningEffort, type EffortLevel } from \"@/components/assistant-ui/elements/reasoning-effort\";",
+    "TS2459 import { ReasoningEffort, type EffortLevel } from \"@/components/assistant-ui/elements/reasoning-effort\";",
+    "TS2459 import { ReasoningEffort, type EffortLevel } from \"@/components/assistant-ui/elements/reasoning-effort\";"
+  ],
+  "apps/docs/content/elements/reasoning.mdx": [
+    "TS1005 case \"reasoning\":",
+    "TS1128 case \"reasoning\":",
+    "TS2304 <BrainIcon />",
+    "TS2304 <ChevronDownIcon />",
+    "TS2304 const running = part.status.type === \"running\";",
+    "TS2304 const timing = part.timing;",
+    "TS2459 ReasoningPanel,",
+    "TS2459 ReasoningPanel,",
+    "TS2459 type ReasoningStep,",
+    "TS2459 type ReasoningStep,",
+    "TS2552 <ReasoningRoot open={open} onOpenChange={setOpen} streaming={streaming}>",
+    "TS2552 <ReasoningRoot variant=\"muted\" streaming={streaming}>",
+    "TS2552 <ReasoningTrigger active={streaming} duration={12} />"
+  ],
+  "apps/docs/content/elements/recommendation-card.mdx": [
+    "TS2304 <RecommendationCard onAccept={() => setState(\"accepted\")} /* ... */ />",
+    "TS2304 onAlternatives={() => showAlternatives()}",
+    "TS2304 setOptionsOpen(true);"
+  ],
+  "apps/docs/content/elements/regenerate-menu.mdx": [
+    "TS2304 onPick(currentId);",
+    "TS2304 onPick(currentId);",
+    "TS2304 regenerate(id);",
+    "TS2322 async run({ messages, runConfig, abortSignal }) {",
+    "TS2774 {open && (",
+    "TS7006 onPick={(id) => {",
+    "TS7006 onPick={(id) => {"
+  ],
+  "apps/docs/content/elements/research-report.mdx": [
+    "TS2304 <span>{title}</span>",
+    "TS2552 setSections((prev) => {",
+    "TS7006 const i = prev.findIndex((section) => section.id === id);",
+    "TS7006 return prev.map((section, j) => {",
+    "TS7006 return prev.map((section, j) => {",
+    "TS7006 setSections((prev) => {"
+  ],
+  "apps/docs/content/elements/retrieval-chunks.mdx": [
+    "TS2304 chunks={chunks.filter((c) => c.score >= 0.5)}",
+    "TS2304 fetchChunks(query).then((found) => {",
+    "TS2304 fetchChunks(query).then((found) => {",
+    "TS2304 query={query}",
+    "TS2304 searching={searching}",
+    "TS2304 setSearching(false);",
+    "TS2304 setTimeout(() => setVisibleCount((n) => Math.max(n, i + 1)), i * 250);",
+    "TS2304 visibleCount={chunks.length}",
+    "TS2304 }, [query]);",
+    "TS7006 chunks={chunks.filter((c) => c.score >= 0.5)}",
+    "TS7006 fetchChunks(query).then((found) => {",
+    "TS7006 found.forEach((_, i) => {",
+    "TS7006 found.forEach((_, i) => {",
+    "TS7006 setTimeout(() => setVisibleCount((n) => Math.max(n, i + 1)), i * 250);"
+  ],
+  "apps/docs/content/elements/reviewable-diff.mdx": [
+    "TS2304 onApply={() => applyPatch(hunks.filter((h) => h.decision === \"kept\"))}",
+    "TS2304 setDecisions(Object.fromEntries(hunks.map((h) => [h.id, \"discarded\"])));",
+    "TS2304 setDecisions(Object.fromEntries(hunks.map((h) => [h.id, \"discarded\"])));",
+    "TS2304 setDecisions({});",
+    "TS7006 onDiscard={(id) => setDecisions((d) => ({ ...d, [id]: \"discarded\" }))}",
+    "TS7006 onDiscard={(id) => setDecisions((d) => ({ ...d, [id]: \"discarded\" }))}",
+    "TS7006 onKeep={(id) => setDecisions((d) => ({ ...d, [id]: \"kept\" }))}",
+    "TS7006 onKeep={(id) => setDecisions((d) => ({ ...d, [id]: \"kept\" }))}",
+    "TS7006 setDecisions(Object.fromEntries(hunks.map((h) => [h.id, \"discarded\"])));"
+  ],
+  "apps/docs/content/elements/run-activity.mdx": [
+    "TS18004 isRunning,",
+    "TS2304 const runtime = useExternalStoreRuntime<ActivityMessage>({",
+    "TS2304 const transcript: readonly ActivityMessage[] = [",
+    "TS2304 convertMessage: convertActivityMessage,",
+    "TS2304 onAddToolResult: recordToolResult,",
+    "TS2304 onRespondToToolApproval: respondToApproval,",
+    "TS2304 onResumeToolCall: resumeToolCall,",
+    "TS2304 run,",
+    "TS2552 onNew: sendMessage,"
+  ],
+  "apps/docs/content/elements/schedule-card.mdx": [
+    "TS2304 <ScheduleCard className=\"max-w-md rounded-3xl\" {...rest} />",
+    "TS2304 <button role=\"switch\" aria-checked={enabled} />",
+    "TS2304 <span>{cadence}</span>",
+    "TS2304 <span>{run.at}</span>",
+    "TS2304 await setScheduleEnabled(\"nightly-report\", !enabled);",
+    "TS2304 {...rest}",
+    "TS2322 <span>{name}</span>"
+  ],
+  "apps/docs/content/elements/score-breakdown.mdx": [
+    "TS1109 }),",
+    "TS2304 const verdict = await gradeChange(target);",
+    "TS2304 setCriteria(verdict.criteria);",
+    "TS2304 setVisibleCount(0);"
+  ],
+  "apps/docs/content/elements/scroll-anchor.mdx": [
+    "TS2304 <ScrollAnchor messages={messages} paused={isMenuOpen} />"
+  ],
+  "apps/docs/content/elements/settings-panel.mdx": [
+    "TS2304 const result = streamText({",
+    "TS2304 messages: await convertToModelMessages(messages),",
+    "TS2304 return createUIMessageStreamResponse({",
+    "TS2304 stream: toUIMessageStream({ stream: result.stream }),",
+    "TS2552 model: openai(config?.modelName ?? \"gpt-5.6-luna\"),",
+    "TS7006 onToggle={(key) =>",
+    "TS7006 onToggle={(key) => key === \"web-search\" && setWebSearch((w) => !w)}"
+  ],
+  "apps/docs/content/elements/shared-conversation.mdx": [
+    "TS2304 <SharedConversation title=\"A very long conversation title that will truncate\" sharedBy=\"Jordan Alvarez\" sharedAt=\"Aug 12"
+  ],
+  "apps/docs/content/elements/shiki-highlighter.mdx": [
+    "TS1109 h1: /* ... */,",
+    "TS2304 <SyntaxHighlighter className=\"[&_pre]:rounded-none\" language=\"tsx\" code={code} />",
+    "TS2304 <SyntaxHighlighter language=\"tsx\" code={code} delay={0} />",
+    "TS2304 <SyntaxHighlighter language=\"tsx\" code={code} engine=\"oniguruma\" />",
+    "TS2304 <SyntaxHighlighter language=\"tsx\" code={code} streaming={isStreaming} />;",
+    "TS2304 <SyntaxHighlighter language=\"tsx\" code={code} streaming={isStreaming} />;",
+    "TS2304 <SyntaxHighlighter language=\"tsx\" code={code} theme=\"github-dark-default\" />",
+    "TS2304 code={code}"
+  ],
+  "apps/docs/content/elements/sources.mdx": [
+    "TS2304 <a data-slot=\"source\" href={safeHref(url)}>",
+    "TS2304 <a data-slot=\"source-card\" href={safeHref(source.url)}>",
+    "TS2304 <a data-slot=\"source-card\" href={safeHref(source.url)}>",
+    "TS2304 <span data-slot=\"source-icon-fallback\" aria-hidden>{domainInitial}</span>",
+    "TS2304 <span data-slot=\"source-title\">{title ?? domain}</span>",
+    "TS2304 <span data-slot=\"source-title\">{title ?? domain}</span>",
+    "TS2304 <span data-slot=\"source-title\">{title}</span>",
+    "TS2304 <span>{domain}</span>",
+    "TS2304 <span>{source.author} · {formatPublishedAt(source.publishedAt, locale)}</span>",
+    "TS2304 <span>{source.author} · {formatPublishedAt(source.publishedAt, locale)}</span>",
+    "TS2304 <span>{source.author} · {formatPublishedAt(source.publishedAt, locale)}</span>",
+    "TS2304 <span>{source.author} · {formatPublishedAt(source.publishedAt, locale)}</span>",
+    "TS2304 <span>{source.snippet}</span>",
+    "TS2304 <span>{source.title}</span>",
+    "TS2552 <a data-slot=\"source\" href={safeHref(url)}>",
+    "TS7006 faviconUrl={(domain) => `https://logo.clearbit.com/${domain}`}"
+  ],
+  "apps/docs/content/elements/speaker-identity.mdx": [
+    "TS2304 <SpeakerIdentity className=\"gap-4\" turns={turns} />",
+    "TS2304 <SpeakerIdentity turns={turns.filter((t) => t.kind === \"user\" || t.kind === \"agent\")} />",
+    "TS2304 setTurns((prev) => [...prev, { id: crypto.randomUUID(), kind: \"tool\", name: \"read_file\", text: path }]);",
+    "TS2304 setTurns((prev) => [...prev, { id: crypto.randomUUID(), kind: \"tool\", name: \"read_file\", text: path }]);",
+    "TS7006 <SpeakerIdentity turns={turns.filter((t) => t.kind === \"user\" || t.kind === \"agent\")} />",
+    "TS7006 setTurns((prev) => [...prev, { id: crypto.randomUUID(), kind: \"tool\", name: \"read_file\", text: path }]);"
+  ],
+  "apps/docs/content/elements/spec-sheet.mdx": [
+    "TS1109 }),",
+    "TS2304 const card = await fetchModelCard(modelId);",
+    "TS2304 setRows(card.rows);",
+    "TS2304 setVisibleCount(0);"
+  ],
+  "apps/docs/content/elements/stopped-run.mdx": [
+    "TS2304 <StoppedRun words={words} reason=\"connection lost\" />",
+    "TS2304 <StoppedRun words={words} reason={LABEL[status.reason] ?? \"stopped early\"} />",
+    "TS2304 const onDiscard = () => setDrafts((prev) => prev.filter((d) => d.id !== draftId));",
+    "TS2304 const onDiscard = () => setDrafts((prev) => prev.filter((d) => d.id !== draftId));",
+    "TS2304 controller.abort();",
+    "TS2304 onContinue={() => resume(words)}",
+    "TS2339 <StoppedRun words={words} reason={LABEL[status.reason] ?? \"stopped early\"} />",
+    "TS7006 const onDiscard = () => setDrafts((prev) => prev.filter((d) => d.id !== draftId));",
+    "TS7006 const onDiscard = () => setDrafts((prev) => prev.filter((d) => d.id !== draftId));"
+  ],
+  "apps/docs/content/elements/streaming-text.mdx": [
+    "TS2304 const id = setInterval(() => setCount((c) => Math.min(c + 1, 12)), 90);",
+    "TS2322 <MessagePrimitive.Parts components={{ Text: StreamingTextPart, Reasoning: StreamingTextPart }} />",
+    "TS7006 const id = setInterval(() => setCount((c) => Math.min(c + 1, 12)), 90);"
+  ],
+  "apps/docs/content/elements/subagent-list.mdx": [
+    "TS2304 await tick();",
+    "TS2304 setCompletedCount((count) => count + 1);",
+    "TS2304 setCompletedCount((count) => count + 1);",
+    "TS2304 setProgress((prev) => prev.with(index, pct));",
+    "TS2304 setProgress((prev) => prev.with(index, percent));",
+    "TS2339 ? { name: summaryCall.args.name, model: summaryCall.args.model }",
+    "TS2339 ? { name: summaryCall.args.name, model: summaryCall.args.model }",
+    "TS2339 agents={calls.map((c) => ({ name: c.args.name, model: c.args.model }))}",
+    "TS2339 agents={calls.map((c) => ({ name: c.args.name, model: c.args.model }))}",
+    "TS7006 setCompletedCount((count) => count + 1);",
+    "TS7006 setCompletedCount((count) => count + 1);",
+    "TS7006 setProgress((prev) => prev.with(index, pct));",
+    "TS7006 setProgress((prev) => prev.with(index, percent));"
+  ],
+  "apps/docs/content/elements/syntax-highlighter.mdx": [
+    "TS1109 h1: /* ... */,",
+    "TS2304 <Pre className=\"dark:hidden\">{/* Coldark Cold tokens */}</Pre>",
+    "TS2304 <Pre className=\"dark:hidden\">{/* Coldark Cold tokens */}</Pre>",
+    "TS2304 <Pre className=\"hidden dark:block\">{/* Coldark Dark tokens */}</Pre>",
+    "TS2304 <Pre className=\"hidden dark:block\">{/* Coldark Dark tokens */}</Pre>",
+    "TS2304 const LightSyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({",
+    "TS2304 customStyle: syntaxHighlighterCustomStyle,",
+    "TS2305 import { SyntaxHighlighter } from \"@/components/assistant-ui/elements/syntax-highlighter\";",
+    "TS7006 Code: (props) => <code {...props} />,",
+    "TS7006 Pre: (props) => <pre {...props} />,"
+  ],
+  "apps/docs/content/elements/task-card.mdx": [
+    "TS2657 <div data-slot=\"task-card\">"
+  ],
+  "apps/docs/content/elements/terminal-block.mdx": [
+    "TS2304 lines={allStdout}",
+    "TS2304 stderr={allStderr}",
+    "TS2304 visibleCount={allStdout.length + allStderr.length}",
+    "TS2304 visibleCount={allStdout.length + allStderr.length}"
+  ],
+  "apps/docs/content/elements/thinking-indicator.mdx": [
+    "TS2304 <ThinkingIndicator label={label} elapsed=\"12s\" />",
+    "TS2304 <ThinkingIndicator label={label} elapsed={elapsed} className=\"gap-1.5 text-xs\" />",
+    "TS2305 import { AssistantThinking } from \"@/components/assistant-ui/elements/assistant-thinking\";",
+    "TS2552 const pending = message.parts.find(",
+    "TS7006 (part) => part.type === \"tool-call\" && part.result === undefined,"
+  ],
+  "apps/docs/content/elements/thread-list-sidebar.mdx": [
+    "TS2304 </Sidebar>",
+    "TS2304 </SidebarContent>",
+    "TS2304 <Sidebar {...props}>",
+    "TS2304 <Sidebar {...props}>",
+    "TS2304 <SidebarContent>",
+    "TS2304 <SidebarFooter>{/* GitHub link */}</SidebarFooter>",
+    "TS2304 <SidebarFooter>{/* GitHub link */}</SidebarFooter>",
+    "TS2304 <SidebarHeader>{/* assistant-ui wordmark, links out */}</SidebarHeader>",
+    "TS2304 <SidebarHeader>{/* assistant-ui wordmark, links out */}</SidebarHeader>",
+    "TS2304 {props.collapsible !== \"none\" && <SidebarRail />}",
+    "TS2304 {props.collapsible !== \"none\" && <SidebarRail />}"
+  ],
+  "apps/docs/content/elements/thread-list.mdx": [
+    "TS2304 activeIndex={activeIndex}",
+    "TS2304 activeIndex={activeIndex}",
+    "TS2304 onActiveIndexChange={setActiveIndex}",
+    "TS2304 onActiveIndexChange={setActiveIndex}",
+    "TS2304 onRename={(index) => setRenamingIndex(index)}",
+    "TS2304 setActiveIndex((current) =>",
+    "TS2304 t.title.toLowerCase().includes(query.toLowerCase()),",
+    "TS2552 aui.threads.item({ id: threadId }).rename(\"Q3 planning\");",
+    "TS2552 setThreads((current) => current.filter((_, i) => i !== index));",
+    "TS7006 onDelete={(index) => {",
+    "TS7006 onRename={(index) => setRenamingIndex(index)}",
+    "TS7006 setActiveIndex((current) =>",
+    "TS7006 setThreads((current) => current.filter((_, i) => i !== index));",
+    "TS7006 setThreads((current) => current.filter((_, i) => i !== index));",
+    "TS7006 setThreads((current) => current.filter((_, i) => i !== index));"
+  ],
+  "apps/docs/content/elements/thread-search.mdx": [
+    "TS7006 onSelect={(id) => aui.threads.item({ id }).switchTo()}"
+  ],
+  "apps/docs/content/elements/thread.mdx": [
+    "TS1005 [\"--composer-radius\" as string]: \"0.75rem\",",
+    "TS1005 [\"--thread-max-width\" as string]: \"56rem\",",
+    "TS1109 }}",
+    "TS1128 }}",
+    "TS1136 style={{",
+    "TS2304 <Composer />",
+    "TS2304 <ThreadFollowupSuggestions />",
+    "TS2304 <ThreadHistorySkeleton />",
+    "TS2304 <Welcome />",
+    "TS2304 ToolGroup: MyToolGroup,",
+    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
+    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
+    "TS2304 {() => <SuggestionItem />}",
+    "TS2552 ToolFallback: MyToolFallback,"
+  ],
+  "apps/docs/content/elements/timeline.mdx": [
+    "TS1109 }),",
+    "TS2304 const { events: nextEvents } = await fetchIssueTimeline(issueId);",
+    "TS2304 setVisibleCount(0);",
+    "TS2552 setEvents(nextEvents);"
+  ],
+  "apps/docs/content/elements/todo-list.mdx": [
+    "TS2304 <TodoList className=\"max-w-md gap-2\" items={items} revision={3} />",
+    "TS2304 setItems((prev) =>",
+    "TS2304 setItems((prev) => [",
+    "TS7006 prev.map((item) =>",
+    "TS7006 setItems((prev) =>",
+    "TS7006 setItems((prev) => ["
+  ],
+  "apps/docs/content/elements/tool-call.mdx": [
+    "TS2304 setResult(`${res.count} matches, best hit ${res.bestPath}`);",
+    "TS2304 setRunning(false);",
+    "TS2304 setRunning(true);"
+  ],
+  "apps/docs/content/elements/tool-error.mdx": [
+    "TS1108 return <p>Cancelled before it finished.</p>;",
+    "TS2304 const result = await runSearch(query);",
+    "TS2304 execute: async ({ query }) => runSearch(query),",
+    "TS2304 onRetry={() => retry(query)}",
+    "TS2304 setAttempt((a) => a + 1);",
+    "TS2304 setRetrying(false);",
+    "TS2304 setRetrying(true);",
+    "TS2339 if (status?.type === \"incomplete\" && status.reason !== \"error\") {",
+    "TS2339 if (status?.type === \"incomplete\" && status.reason !== \"error\") {",
+    "TS2552 setMessage(err instanceof Error ? err.message : String(err));",
+    "TS7006 setAttempt((a) => a + 1);"
+  ],
+  "apps/docs/content/elements/tool-fallback.mdx": [
+    "TS1005 approved: true,",
+    "TS1005 case \"tool-call\":",
+    "TS1005 dismissible: true,",
+    "TS1005 display: \"questions\",",
+    "TS1005 display: \"text\",",
+    "TS1005 optionId: \"always\",",
+    "TS1005 options: [",
+    "TS1005 options: [{ id: \"always\", kind: \"allow-always\" }],",
+    "TS1005 prompt: \"Custom summarization instructions\",",
+    "TS1005 questions: [",
+    "TS1109 }",
+    "TS1109 }",
+    "TS1109 }",
+    "TS1109 }",
+    "TS1128 case \"tool-call\":",
+    "TS17000 <button aria-expanded={/* open */}>",
+    "TS2304 <ToolFallback {...part} />",
+    "TS2304 <ToolFallbackTrigger toolName={part.toolName} status={part.status} isError={part.isError} className=\"text-sm\" />",
+    "TS2304 <ToolFallbackTrigger toolName={part.toolName} status={part.status} isError={part.isError} className=\"text-sm\" />",
+    "TS2304 <ToolFallbackTrigger toolName={part.toolName} status={part.status} isError={part.isError} className=\"text-sm\" />",
+    "TS2304 const components = { ToolFallback: MyToolCard };"
+  ],
+  "apps/docs/content/elements/tool-group.mdx": [
+    "TS17000 <button data-slot=\"tool-group-trigger\" aria-expanded={/* open */}>",
+    "TS2304 </MyToolGroup>",
+    "TS2304 <MyToolGroup running={group.status.type === \"running\"} count={group.indices.length}>",
+    "TS2304 <ToolGroupRoot open={expanded} onOpenChange={setExpanded}>",
+    "TS2304 <ToolGroupRoot open={expanded} onOpenChange={setExpanded}>",
+    "TS2305 Thread,",
+    "TS2305 type ThreadComponents,",
+    "TS2339 : part.status.type === \"complete\"",
+    "TS2339 part.status.type === \"running\"",
+    "TS2657 <ToolGroupRoot variant=\"outline\">{/* ... */}</ToolGroupRoot>",
+    "TS7031 ToolGroup: ({ group, children }) => (",
+    "TS7031 ToolGroup: ({ group, children }) => ("
+  ],
+  "apps/docs/content/elements/tool-timeline.mdx": [
+    "TS2304 const steps = toolCalls.map((part) => ({",
+    "TS2345 const stats = toStats(toolCalls);",
+    "TS2345 const steps = toolCalls.map(toStep);",
+    "TS2677 (part): part is ToolCallMessagePart => part.type === \"tool-call\",",
+    "TS7006 const steps = toolCalls.map((part) => ({"
+  ],
+  "apps/docs/content/elements/tooltip-icon-button.mdx": [
+    "TS2304 <CopyIcon />",
+    "TS2304 <TrashIcon />",
+    "TS2304 await generate();"
+  ],
+  "apps/docs/content/elements/trace-waterfall.mdx": [
+    "TS1005 { id: \"search\", name: \"web_search\", depth: 1, startMs: 790, durationMs: 210, status: \"failed\" }",
+    "TS1005 { id: \"search\", name: \"web_search\", depth: 1, startMs: 790, durationMs: 210, status: \"failed\" }",
+    "TS1005 { id: \"search\", name: \"web_search\", depth: 1, startMs: 790, durationMs: 210, status: \"failed\" }",
+    "TS1005 { id: \"search\", name: \"web_search\", depth: 1, startMs: 790, durationMs: 210, status: \"failed\" }",
+    "TS1005 { id: \"search\", name: \"web_search\", depth: 1, startMs: 790, durationMs: 210, status: \"failed\" }",
+    "TS2304 <TraceWaterfall spans={spans.slice(-6)} totalMs={totalMs} visibleCount={6} />",
+    "TS2304 <TraceWaterfall spans={spans.slice(-6)} totalMs={totalMs} visibleCount={6} />",
+    "TS2304 const id = setTimeout(() => setVisibleCount((n) => n + 1), 700);",
+    "TS2304 if (visibleCount >= SPANS.length) return;",
+    "TS2304 }, [visibleCount]);",
+    "TS7006 const id = setTimeout(() => setVisibleCount((n) => n + 1), 700);"
+  ],
+  "apps/docs/content/elements/voice-conversation.mdx": [
+    "TS17000 <button aria-pressed={/* muted */}>{/* mic */}</button>",
+    "TS2657 <VoiceConversation mode=\"connecting\" amplitude={0} transcript={[]} />"
+  ],
+  "apps/docs/content/elements/web-preview.mdx": [
+    "TS2304 await frame.renderPdf(result.pdfBytes, containerRef.current);",
+    "TS2304 await frame.renderPdf(result.pdfBytes, containerRef.current);",
+    "TS2304 await frame.renderRaw(result.svg, \"image/svg+xml\", containerRef.current);",
+    "TS2304 await frame.renderRaw(result.svg, \"image/svg+xml\", containerRef.current);",
+    "TS2304 setKey((k) => k + 1);",
+    "TS2304 setLoading(true);",
+    "TS2552 }, [url]);",
+    "TS7006 setKey((k) => k + 1);"
+  ],
+  "apps/docs/content/elements/web-search.mdx": [
+    "TS2304 fetchResults(query).then((found) => {",
+    "TS2304 fetchResults(query).then((found) => {",
+    "TS2304 setSearching(false);",
+    "TS2304 setTimeout(() => setVisibleResults((n) => Math.max(n, i + 1)), i * 300);",
+    "TS2304 }, [query]);",
+    "TS7006 fetchResults(query).then((found) => {",
+    "TS7006 found.forEach((_, i) => {",
+    "TS7006 found.forEach((_, i) => {",
+    "TS7006 setTimeout(() => setVisibleResults((n) => Math.max(n, i + 1)), i * 300);"
   ],
   "apps/docs/content/examples/ai-sdk.mdx": [
     "TS2304 <Sidebar />",

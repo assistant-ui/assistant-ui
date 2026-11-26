@@ -14,7 +14,7 @@ const UNCHECKED = [
   /^apps\/docs\/content\/docs\/runtimes\/ai-sdk\/v\d-legacy\.mdx$/,
 ];
 
-const PAGES = ["docs", "examples"]
+const PAGES = ["docs", "elements", "examples"]
   .flatMap((section) =>
     readdirSync(path.join(ROOT, "apps/docs/content", section), {
       recursive: true,

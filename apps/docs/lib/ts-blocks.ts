@@ -73,7 +73,8 @@ export function extractTsBlocks(page: string, source: string): TsBlock[] {
       blocks.push({
         page,
         line: i + 2,
-        lang: kind,
+        // a block titled `x.tsx` parses as TSX, as the reader's file would
+        lang: title?.endsWith(".tsx") ? "tsx" : kind,
         ...(title ? { title } : {}),
         fragment: /(^|\s)fragment(\s|$)/.test(meta!),
         code: body.join("\n"),
@@ -536,6 +537,8 @@ export async function checkTsBlocks(
         ? block.title.replace(/^\/+/, "")
         : `__block${i}.${block.lang}`;
       if (!/\.(tsx?|mts|cts)$/.test(rel)) rel = `${rel}.__${i}.${block.lang}`;
+      // the fence's language decides how it parses, whatever the title says
+      if (block.lang === "tsx") rel = rel.replace(/\.(ts|mts|cts)$/, ".tsx");
       let file = path.join(pageDir, rel);
       if (used.has(file)) file = file.replace(/(\.\w+)$/, `.__${i}$1`);
       else if (block.title)
@@ -789,12 +792,11 @@ export async function checkTsBlocks(
         }
         // a signature shown on its own, as API references do
         if (match[4] === "TS2391") continue;
+        // a carried import repeats the error of the block it came from
         if (
           Number(match[2]) > prepared.get(file)!.block.code.split("\n").length
-        ) {
-          checkerErrors.push(line);
+        )
           continue;
-        }
         const list = errors.get(file) ?? [];
         list.push({
           line: Number(match[2]),
