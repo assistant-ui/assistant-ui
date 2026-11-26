@@ -308,7 +308,7 @@ const config: NextConfig = {
     },
     {
       source: "/docs/cloud/overview",
-      destination: "/docs/cloud/dashboard/overview",
+      destination: "/docs/cloud/dashboard#overview",
       permanent: true,
     },
     {
@@ -550,11 +550,6 @@ const config: NextConfig = {
     {
       source: "/docs/api-reference/integrations/react-ai-sdk",
       destination: "/docs/api-reference/integrations/ai-sdk",
-      permanent: true,
-    },
-    {
-      source: "/docs/integrations/frameworks/cloudflare-agents/overview",
-      destination: "/docs/runtimes/cloudflare-agents",
       permanent: true,
     },
   ],
