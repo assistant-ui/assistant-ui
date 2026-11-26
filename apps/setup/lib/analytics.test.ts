@@ -143,3 +143,58 @@ describe("events before PostHog loads", () => {
     ]);
   });
 });
+
+describe("claims across tabs", () => {
+  it("claims each milestone under one lock shared by this origin's tabs", async () => {
+    // A lock manager like the browser's: one holder at a time, the rest queue.
+    const requested: string[] = [];
+    let tail = Promise.resolve();
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      locks: {
+        request: (name: string, callback: () => void) => {
+          requested.push(name);
+          tail = tail.then(callback);
+          return tail;
+        },
+      },
+    });
+    const capture = vi.fn();
+    window.posthog = { capture };
+    const first = await freshTab();
+    const second = await freshTab();
+    first.analytics.setup.installFinished("setupH", {
+      agentKind: "claude",
+      steps: 1,
+      preview: false,
+    });
+    second.analytics.setup.installFinished("setupH", {
+      agentKind: "claude",
+      steps: 1,
+      preview: false,
+    });
+    await tail;
+    expect(requested).toEqual(["aui-setup-reported", "aui-setup-reported"]);
+    expect(
+      capture.mock.calls.filter(
+        ([event]) => event === "setup_install_finished",
+      ),
+    ).toHaveLength(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("still reports when the page may not take the lock", async () => {
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      locks: { request: () => Promise.reject(new Error("SecurityError")) },
+    });
+    const capture = vi.fn();
+    window.posthog = { capture };
+    const { analytics } = await freshTab();
+    analytics.setup.closed("setupI");
+    await vi.waitFor(() =>
+      expect(capture).toHaveBeenCalledWith("setup_closed", undefined),
+    );
+    vi.unstubAllGlobals();
+  });
+});

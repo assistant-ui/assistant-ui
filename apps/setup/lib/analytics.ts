@@ -81,11 +81,8 @@ const readReported = (): Reported => {
  * without storage here, so every tab and reload is a new visitor; remembering
  * what each setup already reported keeps a milestone at one event per setup,
  * however many tabs the agent opened or how often the page reconnected. The
- * record keeps the last `MAX_REMEMBERED_SETUPS` setups. Storage has no
- * cross-tab lock, so two tabs on one setup that claim the same milestone in
- * the same instant can both report it; the setup CLI opens one tab for
- * everything waiting and no second one within 30 seconds (setup-agent
- * README), so that takes a tab the user opened themselves.
+ * record keeps the last `MAX_REMEMBERED_SETUPS` setups. Reports go through
+ * `claimForSetup`, which holds a lock across this origin's tabs.
  */
 export const firstForSetup = (setup: string, key: string) => {
   if (typeof window === "undefined") return false;
@@ -107,13 +104,44 @@ export const firstForSetup = (setup: string, key: string) => {
   return true;
 };
 
+type Locks = {
+  request: (name: string, callback: () => void) => Promise<unknown>;
+};
+
+/**
+ * Calls `report` with whether this is the first time `key` happens for
+ * `setup`. Two tabs on one setup can see the same moment (the agent's `done`
+ * reaches both), so the read and write of the record run under a Web Lock
+ * shared by this origin's tabs. Without Web Locks it runs at once; then two
+ * tabs claiming in the same instant can both report.
+ */
+const claimForSetup = (
+  setup: string,
+  key: string,
+  report: (first: boolean) => void,
+) => {
+  if (typeof window === "undefined") return;
+  const locks = (navigator as { locks?: Locks }).locks;
+  if (locks === undefined) {
+    report(firstForSetup(setup, key));
+    return;
+  }
+  locks
+    .request(reportedKey, () => report(firstForSetup(setup, key)))
+    .catch(() => {
+      // A page without lock access still reports, unlocked.
+      report(firstForSetup(setup, key));
+    });
+};
+
 /** The setup's events, named as they were on the docs site so the funnels carry on. */
 export const analytics = {
   setup: {
     /** The page opened on an agent's link and asks the user to connect; the start of every setup the browser sees. */
-    linkShown: (setup: string) => {
-      if (firstForSetup(setup, "link_shown")) trackEvent("setup_link_shown");
-    },
+    linkShown: (setup: string) =>
+      claimForSetup(setup, "link_shown", (first) => {
+        if (first) trackEvent("setup_link_shown");
+      }),
 
     linkConfirmed: () => trackEvent("setup_link_confirmed"),
 
@@ -127,10 +155,9 @@ export const analytics = {
         ms_on_previous_step?: number;
       },
     ) =>
-      trackEvent("setup_step_viewed", {
-        ...props,
-        first_view: firstForSetup(setup, `view:${props.step}`),
-      }),
+      claimForSetup(setup, `view:${props.step}`, (first) =>
+        trackEvent("setup_step_viewed", { ...props, first_view: first }),
+      ),
 
     inputAnswered: (props: {
       kind: string;
@@ -174,12 +201,20 @@ export const analytics = {
       setup?: string;
       agentKind?: string | null;
     }) => {
-      if (
-        setup !== undefined &&
-        !firstForSetup(setup, `error:${props.reason}:${props.step ?? ""}`)
-      )
-        return;
-      trackEvent("setup_error", { ...props, ...agentKindProperty(agentKind) });
+      const send = () =>
+        trackEvent("setup_error", {
+          ...props,
+          ...agentKindProperty(agentKind),
+        });
+      if (setup === undefined) send();
+      else
+        claimForSetup(
+          setup,
+          `error:${props.reason}:${props.step ?? ""}`,
+          (first) => {
+            if (first) send();
+          },
+        );
     },
 
     /** `default_products` tells a setup the bare prompt started (`npx assistant-ui@latest setup`, assistant-ui alone) from one a product's prompt started with `--products`. */
@@ -190,12 +225,14 @@ export const analytics = {
         products: readonly string[];
       },
     ) => {
-      if (!firstForSetup(setup, "agent_connected")) return;
-      trackEvent("setup_agent_connected", {
-        product_count: props.products.length,
-        default_products:
-          props.products.length === 1 && props.products[0] === "assistant-ui",
-        ...agentKindProperty(props.agentKind),
+      claimForSetup(setup, "agent_connected", (first) => {
+        if (!first) return;
+        trackEvent("setup_agent_connected", {
+          product_count: props.products.length,
+          default_products:
+            props.products.length === 1 && props.products[0] === "assistant-ui",
+          ...agentKindProperty(props.agentKind),
+        });
       });
     },
 
@@ -208,18 +245,21 @@ export const analytics = {
         preview: boolean;
       },
     ) => {
-      if (!firstForSetup(setup, "install_finished")) return;
-      trackEvent("setup_install_finished", {
-        steps: props.steps,
-        preview: props.preview,
-        ...agentKindProperty(props.agentKind),
+      claimForSetup(setup, "install_finished", (first) => {
+        if (!first) return;
+        trackEvent("setup_install_finished", {
+          steps: props.steps,
+          preview: props.preview,
+          ...agentKindProperty(props.agentKind),
+        });
       });
     },
 
-    /** The setup closed as finished: the user pressed Finish (sent before the page lets go of the session), or the page saw it closed from elsewhere. */
-    closed: (setup: string) => {
-      if (firstForSetup(setup, "closed")) trackEvent("setup_closed");
-    },
+    /** The setup closed as finished: the user pressed Finish, or the page saw it closed from elsewhere. */
+    closed: (setup: string) =>
+      claimForSetup(setup, "closed", (first) => {
+        if (first) trackEvent("setup_closed");
+      }),
 
     cancelled: () => trackEvent("setup_cancelled"),
   },
