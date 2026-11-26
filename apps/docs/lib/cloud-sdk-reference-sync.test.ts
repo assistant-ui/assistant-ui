@@ -37,14 +37,24 @@ const isHidden = (symbol: Symbol) =>
             )),
     );
 
+const CLIENT_SOURCE = path.join(ROOT, "packages/cloud/src");
+
 // The property names a reader passes or gets back: the fields of object
-// parameters and of the resolved return value, one level deep.
+// parameters and of the resolved return value, one level deep. Only shapes
+// the client declares count; a returned stream or class is not a field list.
 const fieldsOf = (type: Type): string[] => {
   if (type.isUnion())
     return type.getUnionTypes().flatMap((member) => fieldsOf(member));
   if (!type.isObject() || type.isArray() || type.getCallSignatures().length)
     return [];
-  if (type.isClass() || type.getSymbol()?.getName() === "AssistantStream")
+  const declarations = (type.getAliasSymbol() ?? type.getSymbol())
+    ?.getDeclarations()
+    .map((node) => node.getSourceFile().getFilePath() as string);
+  if (
+    type.isClass() ||
+    !declarations?.length ||
+    !declarations.every((file) => file.startsWith(CLIENT_SOURCE))
+  )
     return [];
   return type.getProperties().map((property) => property.getName());
 };
