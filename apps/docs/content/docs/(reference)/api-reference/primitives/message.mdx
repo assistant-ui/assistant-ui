@@ -271,19 +271,8 @@ across the message).
 )}
 
 ```tsx
-// Group by parent ID
+// Group by parent ID (default behavior)
 <MessagePrimitive.Unstable_PartsGrouped
-  groupingFunction={(parts) => {
-    const groups = new Map<string | number, number[]>();
-    parts.forEach((part, i) => {
-      const key = part.parentId ?? i;
-      groups.set(key, [...(groups.get(key) ?? []), i]);
-    });
-    return [...groups].map(([key, indices]) => ({
-      groupKey: typeof key === "string" ? key : undefined,
-      indices,
-    }));
-  }}
   components={{
     Text: ({ text }) => <p className="message-text">{text}</p>,
     Image: ({ image }) => <img src={image} alt="Message image" />,
