@@ -27,7 +27,7 @@ Expo: init does not support it, and the web packages and registry above do not a
 
 Docs: /docs/runtimes/mastra.md
 
-Mastra has no runtime package of its own; the UI talks to it through the AI SDK runtime. Scaffold exactly as for the Vercel AI SDK above, then install \`@mastra/core\` and follow /docs/runtimes/mastra#full-stack.md: define the agent under mastra/, and replace the body of the chat route from that step with \`agent.stream(messages)\` returned as a UI message stream; the page's "Configure Next.js" step applies to Next.js only. If the user already runs a Mastra server, follow /docs/runtimes/mastra#separate-server.md instead and point the transport at it.
+Mastra has no runtime package of its own; the UI talks to it through the AI SDK runtime. Scaffold exactly as for the Vercel AI SDK above, then install \`@mastra/core\` and follow /docs/runtimes/mastra.md#full-stack: define the agent under mastra/, and replace the body of the chat route from that step with \`agent.stream(messages)\` returned as a UI message stream; the page's "Configure Next.js" step applies to Next.js only. If the user already runs a Mastra server, follow /docs/runtimes/mastra.md#separate-server instead and point the transport at it.
 
 ### LangGraph (langgraph:python or langgraph:typescript)
 

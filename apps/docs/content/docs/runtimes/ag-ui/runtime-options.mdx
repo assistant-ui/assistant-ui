@@ -5,7 +5,7 @@ description: useAgUiRuntime options, adapters, message conversion, thread list.
 
 import { AguiIcon } from "@/components/icons/agui";
 
-Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/ag-ui/overview) if you have not already.
+Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/ag-ui/overview#quickstart) if you have not already.
 
 A message created locally keeps its local `id` when the agent later names it, so its row stays mounted. In that case, the agent's id is stored at `metadata.custom.agui.messageId` and is used when sending history back to the agent. A message created directly under the agent's id keeps that value as `message.id` without a `metadata.custom.agui.messageId` override. In a run rejoined in flight through `connect()`, a message that has no content and has not been stored yet when the agent names it takes the agent's id as its `id`, so clients following that run store it under the same id.
 
@@ -388,7 +388,7 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
   <Card
     title="Quickstart"
     description="Minimal runtime + Thread setup."
-    href="/docs/runtimes/ag-ui/overview"
+    href="/docs/runtimes/ag-ui/overview#quickstart"
   />
   <Card
     title="Adapters"

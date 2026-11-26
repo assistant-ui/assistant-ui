@@ -40,6 +40,10 @@ export const MOVED_DOCS_PATHS: ReadonlyArray<readonly [string, string]> = [
     "/docs/runtimes/cloudflare-agents",
   ],
   ["/docs/integrations/frameworks/ai-sdk", "/docs/runtimes/ai-sdk/overview"],
+  [
+    "/docs/integrations/frameworks/cloudflare-agents/overview",
+    "/docs/runtimes/cloudflare-agents",
+  ],
   ["/docs/cloud/dashboard/overview", "/docs/cloud/dashboard#overview"],
   ["/docs/cloud/dashboard/threads", "/docs/cloud/dashboard#threads"],
   ["/docs/cloud/dashboard/runs", "/docs/cloud/dashboard#runs"],

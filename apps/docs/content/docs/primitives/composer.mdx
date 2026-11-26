@@ -260,7 +260,7 @@ Read the same flag from React with `<AuiIf>` to render hints alongside the input
 ```tsx
 <ComposerPrimitive.Root>
   <ComposerPrimitive.Input placeholder="Ask anything..." />
-  <AuiIf condition={(s) => !s.composer.canSend}>
+  <AuiIf condition={(s) => s.thread.isSendDisabled}>
     <p className="text-sm text-muted-foreground">Loading tools, hang on...</p>
   </AuiIf>
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>

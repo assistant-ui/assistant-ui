@@ -16,7 +16,7 @@ const docsProxySnippet = () => {
   return doc.slice(start + open.length, end);
 };
 
-describe("langgraph quickstart mirrors the example proxy route", () => {
+describe("the langgraph page mirrors the example proxy route", () => {
   it("shows the example's route.ts verbatim", () => {
     expect(docsProxySnippet()).toBe(
       read("examples/with-langgraph/app/api/[..._path]/route.ts").trimEnd(),

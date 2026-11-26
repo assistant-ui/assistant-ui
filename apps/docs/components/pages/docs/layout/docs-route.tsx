@@ -88,6 +88,10 @@ export async function DocsRoutePage({
   const markdownUrl = `${page.url}.md`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${contentDir}/${page.path}`;
 
+  // A page links to the pages of its own platform. A shared page is
+  // prerendered without knowing the reader's platform, so it follows the
+  // default platform's order; the whole tree would jump between the books of
+  // every platform.
   const neighbours = getDocsNeighbours(
     platformAware
       ? getPlatformTree(tree, getPagePlatform(tree, page.url))

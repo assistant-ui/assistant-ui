@@ -319,9 +319,11 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 
 <MessagePrimitive.Root>
   <MessagePrimitive.Parts />
-  <ErrorPrimitive.Root className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive" role="alert">
-    <ErrorPrimitive.Message />
-  </ErrorPrimitive.Root>
+  <MessagePrimitive.Error>
+    <ErrorPrimitive.Root className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive" role="alert">
+      <ErrorPrimitive.Message />
+    </ErrorPrimitive.Root>
+  </MessagePrimitive.Error>
 </MessagePrimitive.Root>
 ```
 
