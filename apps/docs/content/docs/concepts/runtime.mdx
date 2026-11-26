@@ -106,10 +106,6 @@ function StopButton() {
 
 <AnchorAlias id="the-three-layers" />
 <AnchorAlias id="core-runtimes" />
-<AnchorAlias id="protocol-layers" />
-<AnchorAlias id="framework-adapters" />
-<AnchorAlias id="how-features-flow" />
-<AnchorAlias id="choosing-a-layer" />
 
 ## Two cores: the runtime keeps the messages, or you do
 
@@ -125,6 +121,9 @@ Every runtime is built on one of two core runtimes. Which one sits under yours d
 | Setup | One `run` function | Messages plus a handler per action |
 | Editing and branching | Built in | Turned on by `onEdit` and `setMessages` |
 | Best fit | A new app with its own API | An app whose state already lives in a store |
+
+<AnchorAlias id="protocol-layers" />
+<AnchorAlias id="framework-adapters" />
 
 The runtimes for frameworks build on these. `useChatRuntime`, `useLangGraphRuntime` and the other framework runtimes sit on `ExternalStoreRuntime`, because the framework already keeps the messages. Two wire protocols sit in between for backends you write yourself: the [data stream](/docs/runtimes/custom/data-stream) protocol streams message parts on top of `LocalRuntime`, and [assistant transport](/docs/runtimes/custom/assistant-transport) streams your agent's whole state on top of `ExternalStoreRuntime`.
 
@@ -202,6 +201,9 @@ The runtimes for frameworks build on these. `useChatRuntime`, `useLangGraphRunti
     </Flow.Group>
   </Flow.Canvas>
 </Flow.Root>
+
+<AnchorAlias id="choosing-a-layer" />
+<AnchorAlias id="how-features-flow" />
 
 Start at the top and go down a layer only when the one above can't do what you need. Features such as attachments, speech and feedback plug in through [adapters](/docs/concepts/adapters), which work the same way in every runtime that supports them; the adapters page lists which runtime supports which.
 
