@@ -17,11 +17,11 @@
     {
       "id": "q02",
       "concept": "runtime-choice",
-      "question": "My Next.js app already calls the Vercel AI SDK's streamText in an API route. Which runtime should the client use, and what does the route have to return for it to work?",
-      "reference": "Use useChatRuntime from @assistant-ui/react-ai-sdk. Its default transport, AssistantChatTransport (an AI SDK chat transport), POSTs to /api/chat with the thread's UI messages, and also adds the system instructions and the JSON schemas of frontend tools registered in the app. The route converts the messages with convertToModelMessages, calls streamText, and must return result.toUIMessageStreamResponse(), the AI SDK UI message stream. To let the model call frontend tools, the route passes the incoming tools through frontendTools(tools).",
+      "question": "My Next.js app already calls the Vercel AI SDK v7's streamText in an API route. Which runtime should the client use, and what does the route have to return for it to work?",
+      "reference": "Use useChatRuntime from @assistant-ui/react-ai-sdk. Its default transport, AssistantChatTransport (an AI SDK chat transport), POSTs to /api/chat with the thread's UI messages, and also adds the system instructions and the JSON schemas of frontend tools registered in the app. The route converts the messages with convertToModelMessages, calls streamText, and returns the AI SDK UI message stream: result.toUIMessageStreamResponse(), or the equivalent createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) }) that the v7 guide shows. To let the model call frontend tools, the route passes the incoming tools through frontendTools(tools).",
       "keyPoints": [
-        "useChatRuntime from @assistant-ui/react-ai-sdk",
-        "The route returns result.toUIMessageStreamResponse() (the AI SDK UI message stream)",
+        "useChatRuntime (the AI SDK runtime)",
+        "The route returns the AI SDK UI message stream (toUIMessageStreamResponse, or createUIMessageStreamResponse with toUIMessageStream)",
         "The client POSTs the UI messages to /api/chat by default (AssistantChatTransport)"
       ]
     },

@@ -30,7 +30,7 @@ An adapter turns a capability on. The runtime reports it in `s.thread.capabiliti
 | `dictation` | Speaking into the composer with `ComposerPrimitive.Dictate` | `Dictate` is disabled, and the registry `Thread` hides it. |
 | `feedback` | Thumbs up and down that reach your backend | A click is only recorded on the message and goes nowhere; the registry `Thread` hides the buttons. |
 | `history` | Saving each thread's messages and loading them when the thread opens | Messages live in memory and are gone after a reload. |
-| `suggestion` | Follow-up prompts generated after each reply | Only the static `Suggestions(...)` you configure, if any. |
+| `suggestion` | Follow-up prompts generated after each reply | No generated follow-ups. The static `Suggestions(...)` you configure still show, and `ExternalStoreRuntime` and `useChatRuntime` still take a `suggestions` list from your state. |
 
 ## Support matrix
 

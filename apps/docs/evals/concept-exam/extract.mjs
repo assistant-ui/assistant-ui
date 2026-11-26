@@ -2,13 +2,17 @@
 // Extracts the human docs (apps/docs/content/docs) into plain Markdown files
 // plus an INDEX.md in sidebar order, which is all the exam's reader may see.
 //
-// Usage: node extract.mjs <out-dir>
+// Usage: node extract.mjs <out-dir> [content-dir]
+// content-dir defaults to this checkout's apps/docs/content/docs; pass another
+// one (say, main's, from `git archive`) to grade a before and an after.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const docsRoot = path.resolve(here, "../../content/docs");
+const docsRoot = path.resolve(
+  process.argv[3] ?? path.join(here, "../../content/docs"),
+);
 const outDir = path.resolve(process.argv[2] ?? path.join(here, ".docs-text"));
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
@@ -37,12 +41,16 @@ export function mdxToText(src) {
     /<Flow\.Root\s+llm=\{`([\s\S]*?)`\}\s*>[\s\S]*?<\/Flow\.Root>/g,
     (_, graph) => `\`\`\`mermaid\n${graph.trim()}\n\`\`\``,
   );
+  // Only real ESM statements, so a prose line that starts with "import the
+  // file" or "export your thread" stays.
+  const MDX_STATEMENT =
+    /^(import\s+(type\s+)?(\{|\*|[A-Za-z_$][\w$]*\s*(,|from\b))|import\s+["']|export\s+((const|let|function|async|default)\b|\{|\*))/;
   const lines = [];
   let inFence = false;
   let skipping = false;
   for (const line of text.split("\n")) {
     if (/^\s*(```|~~~)/.test(line)) inFence = !inFence;
-    if (!inFence && !skipping && /^(import|export)\s/.test(line)) {
+    if (!inFence && !skipping && MDX_STATEMENT.test(line)) {
       skipping = !/;\s*$|from\s+["'][^"']+["'];?\s*$/.test(line);
       continue;
     }
@@ -163,16 +171,38 @@ function allPages(dir, urlParts, out = []) {
   return out;
 }
 
-fs.rmSync(outDir, { recursive: true, force: true });
-fs.mkdirSync(outDir, { recursive: true });
-walk(docsRoot, [], 0);
-const orphans = allPages(docsRoot, []).filter(([file]) => !seen.has(file));
-if (orphans.length) {
-  indexLines.push("- **Pages not in the sidebar**");
-  for (const [file, parts] of orphans) emitPage(file, parts, 1);
+// The output folder is replaced, so only an empty folder or an earlier
+// extraction (it has INDEX.md) qualifies, and never a folder holding this exam.
+export function safeToReplace(dir) {
+  if (!path.relative(dir, here).startsWith("..")) return false;
+  if (!fs.existsSync(dir)) return true;
+  return (
+    fs.readdirSync(dir).length === 0 ||
+    fs.existsSync(path.join(dir, "INDEX.md"))
+  );
 }
-fs.writeFileSync(
-  path.join(outDir, "INDEX.md"),
-  `# assistant-ui documentation\n\nEvery page of the docs site in sidebar order, with its description. Paths are relative to this file.\n\n${indexLines.join("\n")}\n`,
-);
-console.log(`${seen.size} pages -> ${outDir}`);
+
+function main() {
+  if (!safeToReplace(outDir)) {
+    console.error(
+      `Refusing to replace ${outDir}: pass an empty folder or one an earlier extraction wrote.`,
+    );
+    process.exit(1);
+  }
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+  walk(docsRoot, [], 0);
+  const orphans = allPages(docsRoot, []).filter(([file]) => !seen.has(file));
+  if (orphans.length) {
+    indexLines.push("- **Pages not in the sidebar**");
+    for (const [file, parts] of orphans) emitPage(file, parts, 1);
+  }
+  fs.writeFileSync(
+    path.join(outDir, "INDEX.md"),
+    `# assistant-ui documentation\n\nEvery page of the docs site in sidebar order, with its description. Paths are relative to this file.\n\n${indexLines.join("\n")}\n`,
+  );
+  console.log(`${seen.size} pages -> ${outDir}`);
+}
+
+const invoked = process.argv[1] && fs.realpathSync(process.argv[1]);
+if (invoked === fileURLToPath(import.meta.url)) main();

@@ -11,7 +11,7 @@ That split is why you can change anything about how the chat looks without forki
 
 | | Where it lives | Who changes it |
 | --- | --- | --- |
-| Elements: `Thread`, `ThreadList`, `MarkdownText`, `ToolFallback` and the rest of the [catalog](/elements) | `components/assistant-ui/elements/`, copied by `npx assistant-ui add` (`init` adds the starter set) | You. They are your files from the moment they are copied. |
+| Elements: `Thread`, `ThreadList`, `MarkdownText`, `ToolFallback` and the rest of the [catalog](/elements) | `components/assistant-ui/elements/` by default, copied by `npx assistant-ui add` (`init` adds the starter set) | You. They are your files from the moment they are copied. |
 | The shadcn/ui parts the elements use, such as `Button` | `components/ui/`, added by shadcn | You |
 | Primitives, runtimes and adapters: `@assistant-ui/react`, `@assistant-ui/react-ai-sdk` and the other packages | `node_modules`, as npm dependencies | assistant-ui. `npx assistant-ui update` moves them to the latest versions. |
 
@@ -21,7 +21,7 @@ Because elements are copies, `update` never touches them. `add <name> --overwrit
 
 **Elements** are Tailwind classes on top of shadcn/ui theme variables (`bg-background`, `text-muted-foreground` and so on). Changing your theme's CSS variables, such as `--primary` or `--radius`, restyles them along with the rest of a shadcn app. Anything beyond that is an edit to the copied file. The `style` in `components.json` decides whether they are built on Radix UI or Base UI.
 
-**Primitives** take any styling. Each one accepts `className` and renders a plain element, `asChild` puts its behavior on your own component instead of a wrapper, and its state shows up as data attributes you can style, such as `data-copied` on `ActionBarPrimitive.Copy`.
+**Primitives** take any styling. On the web each one accepts `className` and renders a plain element, `asChild` puts its behavior on your own component instead of a wrapper, and its state shows up as data attributes you can style, such as `data-copied` on `ActionBarPrimitive.Copy`.
 
 ## Do you need Tailwind and shadcn/ui?
 

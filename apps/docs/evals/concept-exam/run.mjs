@@ -81,17 +81,24 @@ function ask(question) {
     const started = Date.now();
     let out = "";
     let err = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
     child.stdout.on("data", (d) => {
       out += d;
     });
     child.stderr.on("data", (d) => {
       err += d;
     });
+    // A missing `claude` or docs folder fails this question, not the run.
+    child.on("error", (e) => {
+      err += e.message;
+    });
     const timer = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
     child.on("close", (code) => {
       clearTimeout(timer);
       const pages = [];
       const searches = [];
+      const pendingReads = new Map();
       let answer = "";
       let cost = null;
       for (const line of out.split("\n")) {
@@ -107,14 +114,21 @@ function ask(question) {
             if (block.type !== "tool_use") continue;
             const input = block.input ?? {};
             if (block.name === "Read" && input.file_path) {
-              const rel = path.relative(
-                docsDir,
-                path.resolve(docsDir, input.file_path),
+              pendingReads.set(
+                block.id,
+                path.relative(docsDir, path.resolve(docsDir, input.file_path)),
               );
-              if (!pages.includes(rel)) pages.push(rel);
             } else if (block.name === "Grep" || block.name === "Glob") {
               searches.push(`${block.name}: ${input.pattern ?? ""}`);
             }
+          }
+        }
+        // A page counts as read only once its Read succeeded.
+        if (event.type === "user") {
+          for (const block of event.message?.content ?? []) {
+            if (block.type !== "tool_result" || block.is_error) continue;
+            const rel = pendingReads.get(block.tool_use_id);
+            if (rel !== undefined && !pages.includes(rel)) pages.push(rel);
           }
         }
         if (event.type === "result") {
@@ -122,6 +136,9 @@ function ask(question) {
           cost = event.total_cost_usd ?? null;
         }
       }
+      const docsPages = pages.filter(
+        (p) => p !== "INDEX.md" && !p.startsWith(".."),
+      );
       resolve({
         id: question.id,
         concept: question.concept,
@@ -129,7 +146,10 @@ function ask(question) {
         answer: answer.trim(),
         // Claude Code can also reread its own saved copy of a long tool result,
         // which lives outside the docs folder; only docs pages count.
-        pages: pages.filter((p) => p !== "INDEX.md" && !p.startsWith("..")),
+        pages: docsPages,
+        // The skim reader is told to open three pages at most; flag a run
+        // that didn't keep to it rather than trust the prompt.
+        overBudget: args.reader === "skim" && docsPages.length > 3,
         searches,
         seconds: Math.round((Date.now() - started) / 1000),
         exitCode: code,
@@ -148,11 +168,11 @@ async function worker() {
     const r = await ask(q);
     results.push(r);
     console.log(
-      `${r.id} ${r.exitCode === 0 ? "ok" : `exit ${r.exitCode}`} ${r.seconds}s pages=${r.pages.length}`,
+      `${r.id} ${r.exitCode === 0 ? "ok" : `exit ${r.exitCode}`} ${r.seconds}s pages=${r.pages.length}${r.overBudget ? " over-budget" : ""}`,
     );
     fs.writeFileSync(
       outFile,
-      JSON.stringify({ model, docsDir, results }, null, 2),
+      JSON.stringify({ model, reader: args.reader, results }, null, 2),
     );
   }
 }
