@@ -88,13 +88,14 @@ class CallLog {
 
 /** Adapters that do nothing but record each call, so the reader sees when the runtime makes it. */
 function createAdapters(log: CallLog, track: (a: DocsSampleAction) => void) {
+  let added = 0;
   const attachments: AttachmentAdapter = {
     accept: "*",
     async add({ file }) {
       track("attach_file");
       log.add(`attachments.add("${file.name}")`);
       return {
-        id: `${file.name}-${file.size}-${file.lastModified}`,
+        id: `${file.name}-${++added}`,
         type: file.type.startsWith("image/") ? "image" : "document",
         name: file.name,
         contentType: file.type,

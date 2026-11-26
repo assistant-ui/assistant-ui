@@ -34,7 +34,8 @@ function Composer() {
       className="border-foreground/10 bg-background flex w-full items-end gap-2 rounded-xl border p-2"
       onSubmit={() => track("send")}
       onKeyDownCapture={(event) => {
-        if (event.key === "ArrowUp")
+        // Holding ArrowUp repeats keydown; keep the draft from the first one.
+        if (event.key === "ArrowUp" && before.current === null)
           before.current = (event.target as HTMLTextAreaElement).value;
       }}
       onKeyUpCapture={(event) => {

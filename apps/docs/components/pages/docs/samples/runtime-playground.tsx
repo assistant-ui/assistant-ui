@@ -452,15 +452,18 @@ function CallLog({ log }: { log: readonly LogEntry[] }) {
   );
 }
 
+type Track = ReturnType<typeof useSampleAnalytics>;
+
 function Controls({
   backend,
   onReset,
+  track,
 }: {
   backend: ReaderBackend;
   onReset: () => void;
+  track: Track;
 }) {
   const aui = useAui();
-  const track = useSampleAnalytics("runtime-playground");
   const { log, waiting, streaming } = useSyncExternalStore(
     backend.subscribe,
     backend.getSnapshot,
@@ -575,7 +578,7 @@ function Controls({
   );
 }
 
-function Playground({ onReset }: { onReset: () => void }) {
+function Playground({ onReset, track }: { onReset: () => void; track: Track }) {
   const [backend] = useState(() => new ReaderBackend());
   const runtime = useLocalRuntime(backend.adapter);
   return (
@@ -586,7 +589,7 @@ function Playground({ onReset }: { onReset: () => void }) {
         <div className="h-112 min-w-0 md:h-auto">
           <Thread autoFocus={false} />
         </div>
-        <Controls backend={backend} onReset={onReset} />
+        <Controls backend={backend} onReset={onReset} track={track} />
       </div>
     </AssistantRuntimeProvider>
   );
@@ -595,10 +598,16 @@ function Playground({ onReset }: { onReset: () => void }) {
 /** The Runtime concept page's playground: a real `Thread` on `useLocalRuntime`, whose chat model adapter is the reader. */
 export function RuntimePlayground() {
   const [epoch, setEpoch] = useState(0);
+  // Above the keyed playground, so Reset does not report the same actions again.
+  const track = useSampleAnalytics("runtime-playground");
   return (
     <div className="not-prose border-foreground/10 rounded-document my-6 overflow-hidden border">
       <SampleScope>
-        <Playground key={epoch} onReset={() => setEpoch((n) => n + 1)} />
+        <Playground
+          key={epoch}
+          onReset={() => setEpoch((n) => n + 1)}
+          track={track}
+        />
       </SampleScope>
     </div>
   );
