@@ -229,7 +229,8 @@ function Sample() {
             <MessageTree />
           </div>
           <p className="text-muted-foreground mt-auto text-xs">
-            Dark rows are the path the thread shows. The blue dot is its head.
+            Faded rows are branches the thread is not showing. The blue dot
+            marks the head.
           </p>
         </aside>
       </div>
