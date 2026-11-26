@@ -186,7 +186,7 @@ aui.message.speak();
 aui.message.stopSpeaking();
 aui.message.submitFeedback({ type: "positive" });
 aui.message.submitFeedback({ type: "negative", comment: "Quoted the wrong date" });
-aui.message.switchToBranch({ position, branchId });
+aui.message.switchToBranch({ position: "next" }); // or "previous", or { branchId }
 aui.message.getState();
 aui.message.part({ index: idx });
 aui.message.part({ toolCallId });

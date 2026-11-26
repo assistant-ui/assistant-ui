@@ -11,6 +11,8 @@ The reader is `claude -p` with Sonnet. "Before" is main at a097902a8. "After" is
 | `before-skim` | 30/38 (79%) | 89% | 23 | 2.3 |
 | `after-skim` | 37/38 (97%) | 99% | 15 | 2.1 |
 
+`followup-deep.json` reruns q15, q16 and q28 after two more edits (where branches live, and that `append` of a user message starts a reply): the deep reader no longer hedges on either.
+
 ## What the reader got wrong before
 
 | Question | Deep | Skim | Why |
@@ -30,7 +32,7 @@ After the fixes, the only miss is q22 for the skim reader, which reads only the 
 
 From `node ../score.mjs gaps after-deep.json`; these are the next candidates.
 
-- Sequencing `switchToNewThread()` and `append()` from outside the thread.
+- Sequencing `switchToNewThread()` and `append()` in one click.
 - What sending an edit during a run does.
 - Whether unmounting a provider removes the tools it registered.
 - Which files `init` changes.
