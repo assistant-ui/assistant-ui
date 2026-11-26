@@ -20,10 +20,14 @@ the current page is searched too. Prose and code from other pages stay out of th
 browser index to keep its payload small. For eligible queries, after 200 ms
 `/api/search/suggest` adds new destinations under **Suggested pages**, below
 local matches so existing results stay in place: pages Jev selects by meaning,
-then up to five pages whose body text contains every word of the query (the
-server-only content index that also backs `search_docs`, ranked by
-`searchContent` without its any-word fallback). Body-text matches need no key and
-no rate limit, because they never leave the server. Short queries, exact titles/URLs, and queries
+then up to five pages with a body paragraph that contains every word of the
+query, stop words aside. These come from the server-only content index that
+also backs `search_docs` (`searchContent` without its any-word fallback) and
+leave out pages the browser index already lists from their title, description
+or headings. When nothing matches anywhere, the query is retried once with each
+misspelled word of five or more letters replaced by the most frequent docs word
+one edit away that starts with the same letter (`spelling.ts`). Body-text
+matches need no key, because they never leave the server. Short queries, exact titles/URLs, and queries
 containing common credential prefixes are skipped. The catalogue comes from `searchablePages()`,
 the same source as the ordinary index. No manually maintained semantic aliases
 or model-generated URLs are used.
@@ -34,8 +38,9 @@ body contains the query and public page metadata; the key is sent to TypeSafe as
 the bearer authorization credential and is never returned to the client.
 Production also uses the site's existing Upstash credentials for
 independent search limits: 60 requests/minute/IP, 1,000/day/IP, and 20,000/day
-across the deployment. A missing key, unavailable limiter, timeout, or upstream
-error leaves ordinary search and body-text matches available.
+across the deployment. A request over a limit gets a 429 and no suggestions. A
+missing key, unavailable limiter, timeout, or upstream error leaves ordinary
+search and body-text matches available.
 
 The server uses `jev-latest` at the [TypeSafe endpoint](https://docs.typesafe.ai/api).
 Choice questions contain at most 254 pages plus `none`; larger catalogues use

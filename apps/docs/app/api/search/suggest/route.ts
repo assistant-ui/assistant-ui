@@ -3,6 +3,7 @@ import { checkDocsSearchRateLimit } from "@/lib/rate-limit";
 import { buildContentIndex } from "@/lib/search/content-index";
 import { searchContent, type ContentRecord } from "@/lib/search/content-search";
 import { searchablePages } from "@/lib/search/corpus";
+import { scoreText, tokenize } from "@/lib/search/query";
 import {
   inSearchScope,
   SEARCH_SCOPES,
@@ -17,35 +18,54 @@ const input = z.object({
   scope: z.enum(SEARCH_SCOPES).default("All"),
 });
 
-// Pages whose body text has every word of the query. The browser index holds
-// only titles, descriptions and headings, so these are the matches it misses.
-// A query that matches nothing is retried once with misspelled words corrected
-// to the closest word in the docs.
+// Pages with a body paragraph that has every word of the query, leaving out
+// pages the browser index already lists from their title, description or
+// headings. A query that matches nothing anywhere is retried once with
+// misspelled words corrected to the closest word in the docs.
 const TEXT_MATCH_LIMIT = 5;
 
 let corrector:
   | { records: ContentRecord[]; correct: (query: string) => string | undefined }
   | undefined;
 
-async function textMatches(query: string, scope: SearchScope) {
+const listedLocally = (page: ContentRecord, tokens: string[]) =>
+  [
+    page.title,
+    page.description,
+    ...page.headings.map((heading) => heading.content),
+  ].some((text) => scoreText(text, tokens) > 0);
+
+async function findTextMatches(query: string, scope: SearchScope) {
   const index = await buildContentIndex();
   const records = index.filter((page) => inSearchScope(page.url, scope));
-  const find = (text: string) =>
-    searchContent(records, text, TEXT_MATCH_LIMIT, { anyToken: false });
+  const tokens = tokenize(query);
+  const unlisted = records.filter((page) => !listedLocally(page, tokens));
+  const find = (pages: ContentRecord[], text: string) =>
+    searchContent(pages, text, TEXT_MATCH_LIMIT, { anyToken: false });
 
-  let matches = find(query);
-  if (matches.length === 0) {
+  let matches = find(unlisted, query);
+  if (matches.length === 0 && unlisted.length === records.length) {
     if (corrector?.records !== index) {
       corrector = { records: index, correct: createSpellingCorrector(index) };
     }
     const corrected = corrector.correct(query);
-    if (corrected) matches = find(corrected);
+    if (corrected) matches = find(records, corrected);
   }
   return matches.map(({ url, title, description }) => ({
     url,
     title,
     description,
   }));
+}
+
+// A broken content index must not take Jev's picks down with it.
+async function textMatches(query: string, scope: SearchScope) {
+  try {
+    return await findTextMatches(query, scope);
+  } catch (error) {
+    console.error("docs search: body-text matches failed", error);
+    return [];
+  }
 }
 
 let search: ReturnType<typeof createDocsRouteSearch> | undefined;
@@ -67,11 +87,12 @@ export async function GET(request: Request) {
         },
       },
     );
-  const apiKey = process.env.JEV_KEY;
-  if (!apiKey) return json(await textMatches(query, scope));
-
+  // The search limits cover the whole route. A limiter that is unavailable
+  // (503) only skips the paid Jev call; body-text matches still run.
   const limited = await checkDocsSearchRateLimit(request);
-  if (limited) return limited;
+  if (limited?.status === 429) return limited;
+  const apiKey = process.env.JEV_KEY;
+  if (!apiKey || limited) return json(await textMatches(query, scope));
 
   search ??= createDocsRouteSearch({
     apiKey,

@@ -14,7 +14,10 @@ vi.mock("@/lib/search/corpus", () => ({
         title: "Assistant Cloud",
         description: "Persist chats",
         structuredData: () => ({
-          contents: [{ content: "Threads sync across devices." }],
+          contents: [
+            { content: "Threads sync across devices." },
+            { content: "Your functions can read the thread." },
+          ],
         }),
       },
     },
@@ -57,7 +60,7 @@ it("validates query length and the scope before doing paid work", async () => {
   expect(mocks.limit).not.toHaveBeenCalled();
 });
 
-it("serves body-text matches without a key or a rate limit", async () => {
+it("serves body-text matches without a key", async () => {
   vi.stubEnv("JEV_KEY", "");
   const fetcher = vi.fn();
   vi.stubGlobal("fetch", fetcher);
@@ -75,13 +78,29 @@ it("serves body-text matches without a key or a rate limit", async () => {
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(response.headers.get("x-robots-tag")).toBe("noindex");
   expect(fetcher).not.toHaveBeenCalled();
-  expect(mocks.limit).not.toHaveBeenCalled();
+  expect(mocks.limit).toHaveBeenCalledTimes(1);
 });
 
 it("matches body text only when every word is on the page", async () => {
   vi.stubEnv("JEV_KEY", "");
   const response = await GET(request("human sync"));
   expect(await response.json()).toEqual({ enabled: true, pages: [] });
+});
+
+it("leaves out pages the browser index already lists for the query", async () => {
+  vi.stubEnv("JEV_KEY", "");
+  // The Tools description says "functions", so the palette already lists it.
+  const response = await GET(request("functions"));
+  expect(await response.json()).toEqual({
+    enabled: true,
+    pages: [
+      {
+        url: "/docs/cloud",
+        title: "Assistant Cloud",
+        description: "Persist chats",
+      },
+    ],
+  });
 });
 
 it("respects the scope for body-text matches", async () => {
@@ -94,7 +113,26 @@ it("enforces rate limits before making a Jev request", async () => {
   const fetcher = vi.fn();
   vi.stubGlobal("fetch", fetcher);
   mocks.limit.mockResolvedValue(new Response("Limited", { status: 429 }));
-  expect((await GET(request("save history"))).status).toBe(429);
+  expect((await GET(request("human in the loop"))).status).toBe(429);
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("serves body-text matches without Jev when the limiter is unavailable", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  mocks.limit.mockResolvedValue(new Response("Unavailable", { status: 503 }));
+  const response = await GET(request("human in the loop"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    enabled: true,
+    pages: [
+      {
+        url: "/docs/tools",
+        title: "Tools",
+        description: "Let the model call functions",
+      },
+    ],
+  });
   expect(fetcher).not.toHaveBeenCalled();
 });
 
@@ -161,4 +199,41 @@ it("retries a misspelled query with the closest words in the docs", async () => 
   expect(pages.map((page: { url: string }) => page.url)).toEqual([
     "/docs/tools",
   ]);
+});
+
+it("keeps Jev's picks when the content index fails", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        answers: {
+          pages_0: {
+            type: "choice",
+            choice: "page_0",
+            confidence: 1,
+            probabilities: { page_0: 1 },
+          },
+        },
+      }),
+    ),
+  );
+  vi.resetModules();
+  vi.doMock("@/lib/search/content-index", () => ({
+    buildContentIndex: async () => {
+      throw new Error("index unavailable");
+    },
+  }));
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const { GET: fresh } = await import("./route");
+    const response = await fresh(request("save history"));
+    expect(response.status).toBe(200);
+    const pages = (await response.json()).pages;
+    expect(pages.map((page: { url: string }) => page.url)).toEqual([
+      "/docs/cloud",
+    ]);
+  } finally {
+    logged.mockRestore();
+    vi.doUnmock("@/lib/search/content-index");
+  }
 });

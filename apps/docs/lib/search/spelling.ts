@@ -60,7 +60,8 @@ export function createSpellingCorrector(records: readonly ContentRecord[]) {
   const words = [...counts.keys()];
 
   const correctWord = (token: string) => {
-    // A word typed in part, like "footno", is a prefix of a docs word.
+    // Search matches substrings, so a word typed in part ("footno") or found
+    // inside a longer docs word already matches and needs no correction.
     if (words.some((word) => word.includes(token))) return token;
     // One edit, keeping the first letter: replaying real searches, two edits
     // mostly turned real words into other ones ("marketing" into "marking").
@@ -83,13 +84,16 @@ export function createSpellingCorrector(records: readonly ContentRecord[]) {
 
   return (query: string): string | undefined => {
     const tokens = tokenize(query);
-    const corrected = tokens.map((token) =>
-      token.length >= MIN_LENGTH && /^[a-z]+$/.test(token)
-        ? correctWord(token)
-        : token,
-    );
-    return corrected.some((token, index) => token !== tokens[index])
-      ? corrected.join(" ")
-      : undefined;
+    const corrected = tokens
+      // `tokenize` keeps punctuation such as a trailing "?" on the word.
+      .map((token) => token.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ""))
+      .filter((token) => token.length > 0)
+      .map((token) =>
+        token.length >= MIN_LENGTH && /^[a-z]+$/.test(token)
+          ? correctWord(token)
+          : token,
+      )
+      .join(" ");
+    return corrected !== tokens.join(" ") ? corrected : undefined;
   };
 }

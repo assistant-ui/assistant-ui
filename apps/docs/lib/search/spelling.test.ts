@@ -37,6 +37,11 @@ describe("createSpellingCorrector", () => {
     expect(correct(query)).toBe(expected);
   });
 
+  it("drops punctuation around a word before correcting it", () => {
+    expect(correct("serach?")).toBe("search");
+    expect(correct("(thread)")).toBe("thread");
+  });
+
   it("leaves words that are in the docs, or typed in part, alone", () => {
     expect(correct("thread history")).toBeUndefined();
     expect(correct("attach")).toBeUndefined();
