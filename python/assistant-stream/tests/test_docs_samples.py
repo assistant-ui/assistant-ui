@@ -67,11 +67,14 @@ def run_page(file):
             unavailable |= defined
             continue
         except NameError as error:
-            if error.name in report["undefined"] or error.name in unavailable:
+            if error.name in unavailable:
+                skipped.append((line, f"needs {error.name} from a skipped block"))
+            elif error.name in report["undefined"]:
                 skipped.append((line, f"leaves {error.name} to the reader"))
-                unavailable |= defined
-                continue
-            raise
+            else:
+                raise
+            unavailable |= defined
+            continue
         ran.append(line)
     return namespace, ran, skipped
 
