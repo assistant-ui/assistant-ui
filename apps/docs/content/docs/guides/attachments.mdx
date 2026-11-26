@@ -22,13 +22,14 @@ An attachment adapter has three methods, and the composer calls each one at a fi
 
 ```mermaid
 flowchart LR
-    file["File picked,<br/>dropped or pasted"] -- "add({ file })" --> pending["PendingAttachment<br/>in the composer"]
-    pending -- "user sends: send(attachment)" --> complete["CompleteAttachment<br/>on the user message"]
-    pending -- "user removes: remove(attachment)" --> gone["Removed"]
+    file["File picked,<br/>dropped or pasted"] -- "add()" --> pending["PendingAttachment<br/>in the composer"]
+    pending -- "send()" --> complete["CompleteAttachment<br/>on the sent message"]
+    pending -- "remove()" --> gone["Removed by<br/>the user"]
 ```
 
-- `add()` runs as soon as a file arrives. It returns a `PendingAttachment` whose status is `requires-action` (reason `composer-send`), or, written as an async generator, yields `running` (reason `uploading`) with a `progress` value first.
-- `send()` runs when the user sends the message. It returns a `CompleteAttachment` with status `complete` and the `content` parts the model receives.
+- `add({ file })` runs as soon as a file arrives. It returns a `PendingAttachment` whose status is `requires-action` (reason `composer-send`), or, written as an async generator, yields `running` (reason `uploading`) with a `progress` value first.
+- `send(attachment)` runs when the user sends the message. It returns a `CompleteAttachment` with status `complete` and the `content` parts the model receives.
+- `remove(attachment)` runs when the user removes a pending attachment.
 - If `send()` throws, the message goes back to the composer and that attachment's status becomes `incomplete` (reason `error`), so the user can retry or remove it.
 
 <AnchorAlias id="getting-started" />
