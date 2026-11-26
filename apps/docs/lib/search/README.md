@@ -17,11 +17,17 @@ in both browse and search views; loading times out after ten seconds.
 
 Local title, description, and heading matches appear immediately, and prose on
 the current page is searched too. Prose and code from other pages stay out of the
-browser index to keep its payload small, so a term found only in another page's
-body may return no results. Ask AI reads page bodies through its own tools. For eligible
-queries, after 200 ms `/api/search/suggest` asks Jev to select pages by meaning
-and adds confident new destinations under **Suggested pages**, below local matches
-so existing results stay in place. Short queries, exact titles/URLs, and queries
+browser index to keep its payload small. For eligible queries, after 200 ms
+`/api/search/suggest` adds new destinations under **Suggested pages**, below
+local matches so existing results stay in place: pages Jev selects by meaning,
+then up to five pages with a body paragraph that contains every word of the
+query, stop words aside. These come from the server-only content index that
+also backs `search_docs` (`searchContent` without its any-word fallback) and
+leave out pages the browser index already lists from their title, description
+or headings. When nothing matches anywhere, the query is retried once with each
+misspelled word of five or more letters replaced by the most frequent docs word
+one edit away that starts with the same letter (`spelling.ts`). Body-text
+matches need no key, because they never leave the server. Short queries, exact titles/URLs, and queries
 containing common credential prefixes are skipped. The catalogue comes from `searchablePages()`,
 the same source as the ordinary index. No manually maintained semantic aliases
 or model-generated URLs are used.
@@ -30,11 +36,11 @@ Set the server-only `JEV_KEY` in `apps/docs/.env.local` locally or the docs
 project's environment on Vercel. Never prefix it with `NEXT_PUBLIC_`. The request
 body contains the query and public page metadata; the key is sent to TypeSafe as
 the bearer authorization credential and is never returned to the client.
-When the server reports that suggestions are disabled, the open palette stops
-requesting them for subsequent queries. Production also uses the site's existing Upstash credentials for
+Production also uses the site's existing Upstash credentials for
 independent search limits: 60 requests/minute/IP, 1,000/day/IP, and 20,000/day
-across the deployment. A missing key, unavailable limiter, timeout, or upstream
-error leaves ordinary search available.
+across the deployment. A request over a limit gets a 429 and no suggestions. A
+missing key, unavailable limiter, timeout, or upstream error leaves ordinary
+search and body-text matches available.
 
 The server uses `jev-latest` at the [TypeSafe endpoint](https://docs.typesafe.ai/api).
 Choice questions contain at most 254 pages plus `none`; larger catalogues use

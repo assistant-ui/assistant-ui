@@ -71,7 +71,7 @@ npm init -y
 For React Native and Ink, host this route in a separate backend project and
 point the client runtime at its absolute URL.
 
-For a local model or another OpenAI-compatible server, create the provider with its address, `createOpenAI({ baseURL })` from `@ai-sdk/openai`, and use `provider.chat("<model id>")` when the server only speaks Chat Completions.
+For a local model or another OpenAI-compatible server, create the provider with its address, `createOpenAI({ baseURL, apiKey })` from `@ai-sdk/openai`, and use `provider.chat("<model id>")` when the server only speaks Chat Completions. Pass any non-empty `apiKey` to a server that needs none, since the provider otherwise reads `OPENAI_API_KEY` and fails when it's unset.
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
 
 ### Set up the frontend
 
-The React example renders the `Thread` component from the assistant-ui registry. Add `"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"` under `registries` in your `components.json`, then run `npx shadcn@latest add @assistant-ui/thread`; [Manual Installation](/docs/manual-installation#manual-setup) walks through both.
+The React example renders the `Thread` component from the assistant-ui registry. In a project without a `components.json`, run `npx shadcn@latest init` first. Then add `"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"` under `registries` in `components.json` and run `npx shadcn@latest add @assistant-ui/thread`; [Manual Installation](/docs/manual-installation#manual-setup) walks through it.
 
 <PlatformTabs>
 <Tab value="React">
@@ -340,6 +340,8 @@ export async function POST(req: Request) {
       deploy: (input) =>
         input.target === "production" ? "user-approval" : "not-applicable",
     },
+    // Signs each approval request; see "Sign approval requests" below.
+    experimental_toolApprovalSecret: process.env.TOOL_APPROVAL_SECRET,
   });
 
   return createUIMessageStreamResponse({
@@ -443,6 +445,16 @@ export default function Page() {
 ```
 
 See the [tool UI guide](/docs/tools/tool-ui#server-side-approval-gates) for the full three-state semantics of `approval.approved` and the `isAutomatic` flag.
+
+### Sign approval requests
+
+The approval answer comes back inside the message history the client posts, and the server runs whatever approved call it finds there. Set `experimental_toolApprovalSecret` so it runs only calls it asked about:
+
+- **What it protects.** The server signs each approval request with the secret, over the tool name, call id and input. When the answer comes back, it checks the signature before running the tool. An approval whose input the client changed, or an approved call the server never requested, fails with `InvalidToolApprovalSignatureError` and the tool does not run.
+- **How to set it.** Use a random string of at least 32 characters, for example from `openssl rand -hex 32`, kept in a server-only environment variable such as `TOOL_APPROVAL_SECRET`. Every server instance needs the same value. Changing it invalidates approvals that are still pending.
+- **Without it.** The server trusts the posted history. A client can edit a pending call's input, or post an approval for a call the model never made, and the tool runs with any input that passes its `inputSchema` and your approval policy (`toolApproval`, or the tool's own `needsApproval`).
+- **What it does not cover.** The signature does not record that a call already ran. A client that posts the same approved call again without its result runs the tool again, so make tools with side effects idempotent, for example by keying them on the tool call id.
+- **Version.** Use `ai` 7.0.178 or later. Earlier releases also signed the requests that a `toolApproval` policy denied on its own, so a client could turn those into approvals.
 
 ## Quote context
 
@@ -846,7 +858,7 @@ When enabled (the default), sending a new message marks any pending interactive 
 | `ai` package | `ai@^5` | `ai@^7` |
 | `@ai-sdk/react` | `@ai-sdk/react@^2` | `@ai-sdk/react@^4` |
 | `convertToModelMessages` | Sync | Async (`await`) |
-| Response | `result.toUIMessageStreamResponse()` | `createUIMessageStreamResponse()` with `toUIMessageStream()` |
+| Response | `result.toUIMessageStreamResponse()` | `createUIMessageStreamResponse()` with `toUIMessageStream()` (used in this guide); the older `result.toUIMessageStreamResponse()` still runs on v7 but is deprecated |
 
 ## Example
 

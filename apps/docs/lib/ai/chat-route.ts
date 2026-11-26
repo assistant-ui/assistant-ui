@@ -67,7 +67,11 @@ function messageMetadata({ part }: { part: TextStreamPart<ToolSet> }) {
 export function streamDocsChat(
   req: Request,
   modelConfig: ReturnType<typeof resolveChatModel>,
-  telemetry: { spanName: string; source: string },
+  telemetry: {
+    spanName: string;
+    source: string;
+    properties?: Record<string, string>;
+  },
   options: ChatStreamOptions,
 ) {
   const result = streamText({

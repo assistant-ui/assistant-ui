@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { flushPendingEvents } from "@/lib/analytics";
 
 const apiKey = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
 
@@ -33,6 +34,7 @@ export function Analytics() {
         capture: (event, properties) => posthog.capture(event, properties),
         group: (type, key) => posthog.group(type, key),
       };
+      flushPendingEvents();
     });
     return () => {
       cancelled = true;

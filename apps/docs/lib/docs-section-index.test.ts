@@ -1,6 +1,23 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import {
+  GENERATED_SECTION_INDEXES,
+  SECTION_INDEX_END,
+  SECTION_INDEX_START,
+  sectionIndexFile,
+  sectionIndexGroups,
+  syncSectionIndex,
+} from "./section-index";
 
 const DOCS = path.resolve(__dirname, "../content/docs");
 
@@ -43,8 +60,15 @@ const navUrls = (dir: string, segments: string[]): string[] => {
 
 // Section landing pages that list the section's pages as cards. A page added
 // to the nav has to be added to its section's index too, or readers who start
-// from the index never find it.
-const SECTION_INDEXES = ["guides", "integrations", "migrations", "primitives"];
+// from the index never find it. The generated ones list every page by
+// construction; the rest are written by hand.
+const SECTION_INDEXES = [
+  "guides",
+  "integrations",
+  "migrations",
+  "primitives",
+  ...GENERATED_SECTION_INDEXES,
+];
 
 describe("section indexes", () => {
   it.each(SECTION_INDEXES)(
@@ -59,4 +83,50 @@ describe("section indexes", () => {
       expect(unlinked).toEqual([]);
     },
   );
+});
+
+describe("generated section indexes", () => {
+  it.each(GENERATED_SECTION_INDEXES)(
+    "%s/index.mdx lists the pages its meta.json files name, with their descriptions",
+    (section) => {
+      const source = readFileSync(sectionIndexFile(section), "utf8");
+      // On failure, run `pnpm -C apps/docs generate:section-indexes`.
+      expect(source).toBe(
+        syncSectionIndex(source, sectionIndexGroups(section)),
+      );
+    },
+  );
+});
+
+describe("section index generator", () => {
+  const docsWith = (meta: object, description: string) => {
+    const dir = mkdtempSync(path.join(tmpdir(), "section-index-"));
+    onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
+    mkdirSync(path.join(dir, "demo"));
+    writeFileSync(path.join(dir, "demo", "meta.json"), JSON.stringify(meta));
+    writeFileSync(
+      path.join(dir, "demo", "page.mdx"),
+      `---\ntitle: Page\ndescription: "${description}"\n---\n`,
+    );
+    return dir;
+  };
+
+  it("escapes MDX syntax in a description, but not inside code spans", () => {
+    const dir = docsWith(
+      { pages: ["page"] },
+      "Wraps `<Cards>` and ``<Card>`` in {braces}, with a stray ` left open",
+    );
+    const synced = syncSectionIndex(
+      `${SECTION_INDEX_START}\n${SECTION_INDEX_END}`,
+      sectionIndexGroups("demo", dir),
+    );
+    expect(synced).toContain(
+      '<Card title="Page" href="/docs/demo/page">Wraps `<Cards>` and ``<Card>`` in \\{braces\\}, with a stray ` left open</Card>',
+    );
+  });
+
+  it('refuses a "..." entry, whose pages it could not order', () => {
+    const dir = docsWith({ pages: ["page", "..."] }, "A page");
+    expect(() => sectionIndexGroups("demo", dir)).toThrow(/uses "\.\.\."/);
+  });
 });

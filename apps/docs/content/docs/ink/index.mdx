@@ -209,27 +209,23 @@ render(<App />);
   </Step>
 </Steps>
 
-## What's Next?
+## What's next
+
+The [terminal example app](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-react-ink) is a full terminal chat with markdown rendering and streaming. Every page of the Ink docs:
+
+{/* section-index:start. Generated from meta.json and each page's title and description by `pnpm generate:section-indexes`; edit those, not this list. */}
 
 <Cards>
-  <Card
-    title="Migration from Web"
-    description="Already using assistant-ui? Migrate your web app to the terminal."
-    href="/docs/ink/migration"
-  />
-  <Card
-    title="Custom Backend"
-    description="Connect to your own backend API or manage threads server-side."
-    href="/docs/ink/custom-backend"
-  />
-  <Card
-    title="Primitives"
-    description="Composable terminal UI components for building chat interfaces."
-    href="/docs/ink/primitives"
-  />
-  <Card
-    title="Example App"
-    description="Full terminal chat example with markdown rendering and streaming."
-    href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-react-ink"
-  />
+  <Card title="Migration from Web" href="/docs/ink/migration">Migrate an existing @assistant-ui/react app to the terminal with React Ink.</Card>
+  <Card title="Custom Backend" href="/docs/ink/custom-backend">Connect your terminal app to your own backend API.</Card>
 </Cards>
+
+### API Reference
+
+<Cards>
+  <Card title="Primitives" href="/docs/ink/primitives">Composable terminal components for building chat UIs with Ink.</Card>
+  <Card title="Hooks" href="/docs/ink/hooks">Reactive hooks for accessing runtime state in React Ink.</Card>
+  <Card title="Adapters" href="/docs/ink/adapters">Attachment, title generation, and storage adapters for React Ink.</Card>
+</Cards>
+
+{/* section-index:end */}
