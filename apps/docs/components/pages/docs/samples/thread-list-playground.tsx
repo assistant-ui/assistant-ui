@@ -177,7 +177,10 @@ class MemoryDatabase {
         `delete(${remoteId})`,
       );
     },
-    fetch: async (remoteId) => ({ ...this.row(remoteId) }),
+    fetch: async (remoteId) => {
+      this.commit({}, `fetch(${remoteId})`);
+      return { ...this.row(remoteId) };
+    },
     generateTitle: async (remoteId, messages) => {
       const first = messages.find((message) => message.role === "user");
       const title = clip(first ? textOf(first) : "New chat", 24);
@@ -284,7 +287,8 @@ function StoragePanel({ db }: { db: MemoryDatabase }) {
           Adapter calls, newest last
         </div>
         <ol
-          aria-live="polite"
+          role="log"
+          aria-relevant="additions"
           className="border-foreground/10 bg-background space-y-0.5 rounded-md border p-2 font-mono text-[11px] leading-snug"
         >
           {calls.map((call) => (
@@ -310,7 +314,14 @@ function Playground() {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="grid md:h-104 md:grid-cols-[13rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
-        <div className="border-foreground/10 max-h-56 overflow-y-auto border-b p-2 md:max-h-none md:border-r md:border-b-0">
+        <div
+          className="border-foreground/10 max-h-56 overflow-y-auto border-b p-2 md:max-h-none md:border-r md:border-b-0"
+          onClickCapture={(event) => {
+            const target = event.target as Element;
+            if (target.closest("[data-slot='aui_thread-list-new']"))
+              track("new_thread");
+          }}
+        >
           <ThreadList />
         </div>
         <div className="h-96 min-w-0 md:h-auto">

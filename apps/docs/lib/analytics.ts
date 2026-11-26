@@ -40,6 +40,7 @@ export type AnalyticsProperties = Record<string, string | number | boolean>;
 export type DocsSampleName =
   | "runtime-playground"
   | "thread-list-playground"
+  | "adapters-playground"
   | "parts-playground"
   | "branch-tree"
   | "input-history"
@@ -56,17 +57,18 @@ export type DocsSampleAction =
   | "finish"
   | "fail"
   | "stop"
-  | "regenerate"
-  | "edit"
-  | "switch_branch"
   | "new_thread"
-  | "switch_thread"
   | "rename_thread"
   | "archive_thread"
   | "unarchive_thread"
   | "delete_thread"
   | "recall_history"
   | "change_speed"
+  | "toggle_attachments"
+  | "toggle_feedback"
+  | "toggle_suggestion"
+  | "attach_file"
+  | "send_feedback"
   | "reset";
 
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {

@@ -14,12 +14,15 @@ import {
  * action, never what the reader typed or any thread or message id.
  */
 export function useSampleAnalytics(sample: DocsSampleName) {
-  const reported = useRef<Set<DocsSampleAction>>(null);
+  const reported = useRef<Set<string>>(null);
   return useCallback(
     (action: DocsSampleAction) => {
+      // A reader may accept analytics after their first try, so an action
+      // reported while PostHog was off is reported again once it is on.
+      const key = `${action}:${window.posthog?.capturing?.() === true}`;
       reported.current ??= new Set();
-      if (reported.current.has(action)) return;
-      reported.current.add(action);
+      if (reported.current.has(key)) return;
+      reported.current.add(key);
       analytics.docs.sampleInteracted(sample, action);
     },
     [sample],

@@ -294,16 +294,32 @@ function ModelContext() {
 
 /** Adds the runtime's own reaction to the log: each status the reply passes through. */
 function StatusTrace({ backend }: { backend: ReaderBackend }) {
-  const status = useAuiState((s) => {
-    const last = s.thread.messages.at(-1);
-    return last?.role === "assistant" ? statusLabel(last.status) : null;
+  // The id and status of the reply on screen, as one string so the selector stays stable.
+  const last = useAuiState((s) => {
+    const message = s.thread.messages.at(-1);
+    return message?.role === "assistant"
+      ? `${message.id}\n${statusLabel(message.status)}`
+      : null;
+  });
+  // Each run writes one reply: the first running reply after its call. Switching
+  // back to an older branch shows another reply, which this run did not produce.
+  const bound = useRef<{ run: number; id: string | null }>({
+    run: 0,
+    id: null,
   });
   const lastLogged = useRef<string | null>(null);
   useEffect(() => {
-    if (status === null || status === lastLogged.current) return;
-    lastLogged.current = status;
-    backend.record({ kind: "status", run: backend.currentRun, status });
-  }, [backend, status]);
+    if (last === null) return;
+    const [id, status] = last.split("\n") as [string, string];
+    const run = backend.currentRun;
+    if (bound.current.run !== run) {
+      if (status !== "running") return;
+      bound.current = { run, id };
+    }
+    if (id !== bound.current.id || last === lastLogged.current) return;
+    lastLogged.current = last;
+    backend.record({ kind: "status", run, status });
+  }, [backend, last]);
   return null;
 }
 
@@ -417,7 +433,8 @@ function CallLog({ log }: { log: readonly LogEntry[] }) {
     <div
       ref={scroller}
       aria-label="Calls the runtime made"
-      aria-live="polite"
+      role="log"
+      aria-relevant="additions"
       className="border-foreground/10 bg-background max-h-72 min-h-24 overflow-y-auto rounded-md border p-2 font-mono text-[11px] leading-snug md:max-h-none md:min-h-0 md:flex-1"
     >
       {log.length === 0 ? (

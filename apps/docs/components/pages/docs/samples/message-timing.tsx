@@ -70,6 +70,7 @@ function createModel(speed: { current: Speed }): ChatModelAdapter {
       };
       await wait(firstTokenMs, abortSignal);
       for (let i = 1; i <= words.length; i++) {
+        if (i > 1) await wait(chunkMs, abortSignal);
         if (abortSignal.aborted) return;
         chunks = i;
         firstTokenTime ??= Date.now() - streamStartTime;
@@ -77,7 +78,6 @@ function createModel(speed: { current: Speed }): ChatModelAdapter {
           content: [{ type: "text", text: words.slice(0, i).join(" ") }],
           metadata: { timing: timing(false) },
         };
-        await wait(chunkMs, abortSignal);
       }
       yield {
         content: [{ type: "text", text: ANSWER }],

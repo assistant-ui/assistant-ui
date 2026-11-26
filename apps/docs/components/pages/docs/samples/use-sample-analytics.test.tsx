@@ -32,3 +32,19 @@ it("reports each kind of action once per sample on the page", () => {
     ],
   ]);
 });
+
+it("reports an action again once PostHog starts capturing", () => {
+  const capture = vi.fn();
+  let capturing = false;
+  window.posthog = { capture, capturing: () => capturing };
+  const { result } = renderHook(() => useSampleAnalytics("runtime-playground"));
+
+  act(() => result.current("send"));
+  capturing = true;
+  act(() => {
+    result.current("send");
+    result.current("send");
+  });
+
+  expect(capture).toHaveBeenCalledTimes(2);
+});

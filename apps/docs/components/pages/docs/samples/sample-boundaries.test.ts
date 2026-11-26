@@ -52,12 +52,13 @@ function resolveLocal(specifier: string, from: string): string | undefined {
     return undefined;
   }
   for (const candidate of [
+    base,
     `${base}.tsx`,
     `${base}.ts`,
     join(base, "index.tsx"),
     join(base, "index.ts"),
   ]) {
-    if (existsSync(candidate)) return candidate;
+    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
   }
   return undefined;
 }

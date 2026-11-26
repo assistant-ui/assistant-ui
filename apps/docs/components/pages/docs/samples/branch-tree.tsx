@@ -215,7 +215,7 @@ const history: ThreadHistoryAdapter = {
 
 function Sample() {
   const track = useSampleAnalytics("branch-tree");
-  // Every run here is an edit or a regenerate, since the tree is seeded.
+  // A run is any turn the model takes here: a send, an edit or a regenerate.
   const adapter = useMemo(() => createAdapter(() => track("run")), [track]);
   const runtime = useLocalRuntime(adapter, { adapters: { history } });
   return (

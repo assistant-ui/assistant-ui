@@ -3,6 +3,8 @@ title: Adapters
 description: Reusable extension points for attachments, speech, feedback, history, and suggestions.
 ---
 
+import { AdaptersPlayground } from "@/components/pages/docs/samples/adapters-playground.lazy";
+
 Adapters are how assistant-ui adds capabilities like file uploads or message persistence to a runtime without coupling the runtime to a specific backend. You implement a small interface, plug it into the runtime's `adapters` option, and the matching UI surfaces (paperclip button, audio button, history reload) light up.
 
 Every adapter on this page works the same way in every runtime that supports it. You provide it via that runtime's `adapters` option:
@@ -32,6 +34,10 @@ const runtime = useChatRuntime({ adapters: { attachments, history } });
 | threadList | Yes (`RemoteThreadListAdapter`) | Yes (`ExternalStoreThreadListAdapter`) | Yes (`RemoteThreadListAdapter`) | Yes | Yes | Yes | Yes | Yes | Yes | Yes (experimental) | Built-in (sessions) | Yes |
 
 `(no)` means the adapter slot is not exposed by that runtime today. You would need to drop down a layer to use it.
+
+Try it below. The chat runs on `useLocalRuntime` with three adapters that only record their calls: attach a file to see `add`, then `send` when the message goes out; rate a reply to see `submit`; and watch `generate` run after each reply to make the follow-ups. Switch an adapter off and the runtime starts again without it: the capability it reports turns `false`, its calls stop, and the thumbs or the follow-ups go away.
+
+<AdaptersPlayground />
 
 ## Attachment adapter
 
