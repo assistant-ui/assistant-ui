@@ -25,7 +25,7 @@ They follow what people ask the docs assistant and search the docs for most, wri
 
 ## Running
 
-It needs the `claude` CLI signed in, Chrome (or `CHROME_PATH`), and macOS or Linux, where Claude Code's sandbox runs (Linux needs `bubblewrap` and `socat`). Each trial takes 10 to 30 minutes.
+It needs the `claude` CLI signed in, Chrome (or `CHROME_PATH`), and macOS or Linux, where Claude Code's sandbox runs (Linux needs `bubblewrap` and `socat`). A trial takes 4 to 10 minutes with Sonnet; each one installs packages and builds a Next.js app, so run at most two at a time on a laptop.
 
 ```bash
 cd evals
@@ -41,12 +41,15 @@ DOCS_URL=http://localhost:3000 DOCS_LABEL=my-branch TRIALS=1 pnpm eval agent-doc
 node src/suites/agent-docs/score.ts live my-branch
 ```
 
+`DOCS_MODE` compares where the docs live while keeping everything else the same; see the table below.
+
 To run a check again on an app an agent already built (after fixing a check, say): `node src/suites/agent-docs/recheck.ts <run-dir> <task>`.
 
 | Variable | Default | |
 | --- | --- | --- |
 | `DOCS_URL` | `https://www.assistant-ui.com` | Where to read `llms.txt` and the pages from |
 | `DOCS_LABEL` | `live` | The name trials are scored under |
+| `DOCS_MODE` | `local` | Where the agent finds the docs: `local` (a folder beside the project), `web` (the live site, with WebFetch) or `bundled` (inside the project, with an AGENTS.md index of about 7 KB) |
 | `AGENT_MODEL` | `sonnet` | The agent's model |
 | `AGENT_TIMEOUT_MIN` | `30` | When to stop an agent |
 | `AGENT_CONCURRENCY` | `1` | Trials of one task run at once |
