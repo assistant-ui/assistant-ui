@@ -19,7 +19,7 @@ Cloudflare Agents handles the server half: a Durable Object subclasses `AIChatAg
 
 assistant-ui handles the client half. `useAISDKRuntime` from [`@assistant-ui/ai-sdk`](/docs/runtimes/ai-sdk/v7) reads exactly those AI SDK methods off whatever you pass in, so feeding it `useAgentChat`'s return value yields a runtime with streaming, tool calling, edit, reload, history import and export, attachments, and suggestions.
 
-Shared adapters (attachments, speech, feedback, history) work the same way as described in [adapters](/docs/concepts/adapters). Multi-thread support needs a [custom thread list](/docs/concepts/threads) wired around `useAISDKRuntime`; [AssistantCloud](/docs/cloud) integrates via `useChatRuntime` (which constructs its own `useChat` internally) and is not compatible with the `useAgentChat` wiring shown here.
+Shared adapters (attachments, speech, feedback, history) work the same way as described in [adapters](/docs/concepts/adapters). Multi-thread support needs a [custom thread list](/docs/integrations/persistence/thread-list-adapters) wired around `useAISDKRuntime`; [AssistantCloud](/docs/cloud) integrates via `useChatRuntime` (which constructs its own `useChat` internally) and is not compatible with the `useAgentChat` wiring shown here.
 
 ## Requirements
 

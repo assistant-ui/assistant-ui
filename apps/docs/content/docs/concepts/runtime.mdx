@@ -75,6 +75,8 @@ Most apps use a runtime made for their backend instead, such as `useChatRuntime`
 3. Your backend streams its answer. The runtime turns each piece into a part of the assistant message: text, reasoning, a tool call. Components re-render as the parts grow.
 4. The run ends. The status becomes `complete`, `incomplete` with a reason such as `cancelled` or `error`, or `requires-action` when a tool call is waiting for a result or for the user.
 
+With `ExternalStoreRuntime`, and the framework runtimes built on it, your store or the framework does the adding and streaming, and the runtime renders the messages the store holds. The turn looks the same on screen.
+
 Editing a message or regenerating a reply starts a new run from that point. The earlier reply is kept as a branch, so the user can switch back to it.
 
 Your components see this through state. A stop button, for example, reads whether a run is in progress and calls `cancelRun`:
@@ -101,6 +103,13 @@ function StopButton() {
 | The run in progress, and cancelling it | Where threads are stored, through an [adapter](/docs/concepts/adapters) or [Assistant Cloud](/docs/cloud) |
 | Branches from edits and regenerations | The components, which you can restyle or replace |
 | The thread list, once you give it somewhere to keep [threads](/docs/concepts/threads) | |
+
+<AnchorAlias id="the-three-layers" />
+<AnchorAlias id="core-runtimes" />
+<AnchorAlias id="protocol-layers" />
+<AnchorAlias id="framework-adapters" />
+<AnchorAlias id="how-features-flow" />
+<AnchorAlias id="choosing-a-layer" />
 
 ## Two cores: the runtime keeps the messages, or you do
 
@@ -194,7 +203,7 @@ The runtimes for frameworks build on these. `useChatRuntime`, `useLangGraphRunti
   </Flow.Canvas>
 </Flow.Root>
 
-Start at the top and go down a layer only when the one above can't do what you need. Features such as attachments, speech and feedback plug into every layer the same way, through [adapters](/docs/concepts/adapters).
+Start at the top and go down a layer only when the one above can't do what you need. Features such as attachments, speech and feedback plug in through [adapters](/docs/concepts/adapters), which work the same way in every runtime that supports them; the adapters page lists which runtime supports which.
 
 ## Next
 
