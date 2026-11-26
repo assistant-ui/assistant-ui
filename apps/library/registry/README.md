@@ -75,6 +75,14 @@ The library's blocks page renders each block's component on the demo runtime,
 in `components/library/block-previews.tsx`. The viewer's Code tab shows the
 files listed in `registry.json` and what their assistant-ui dependencies add.
 
+## Styles
+
+`styles/<name>.css` holds each style's tokens: `assistant-ui` is the
+base, and `aiellie` is laid over it. registry.json carries each style's tokens as `cssVars` and `css`, written from these files (aiellie's from both) by `node registry/styles/sync.mjs`. Edit the CSS, then run it. A style's colors should match the preset in its `meta`, such as aiellie's indigo charts. Each
+item's `meta` names the shadcn preset the style sits on. The library's themes
+page lists these items under assistant-ui and reads the variables for its
+previews straight from the CSS files.
+
 ## Adding a block
 
 1. Make `blocks/<block-name>/` with `page.tsx` and `components/`.

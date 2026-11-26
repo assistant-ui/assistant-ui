@@ -1,0 +1,148 @@
+/* The aiellie style, laid over the assistant-ui style: Geist type, a violet
+   tint, indigo charts, rounder shapes, pill buttons, and a Nord-like code
+   theme. */
+
+:root {
+  --radius-document: 12px;
+  --radius-sm: 8px;
+  --radius-control: 12px;
+  --radius-surface: 14px;
+  --radius-xl: 18px;
+  --radius-thread: 22px;
+  --tint: 286;
+  --font-display: "Geist", ui-sans-serif, sans-serif;
+  --font-sans: "Geist", ui-sans-serif, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --tracking-hero: -0.035em;
+  --tracking-section: -0.022em;
+  --type-hero-weight: 400;
+  --type-hero-tracking: -0.035em;
+  --type-page-weight: 480;
+  --type-section-weight: 480;
+  --type-deck-weight: 380;
+  --type-deck-tracking: -0.005em;
+  --type-package-weight: 400;
+  /* Indigo charts, as the preset's chart color sets them. */
+  --chart-1: oklch(0.785 0.115 274.713);
+  --chart-2: oklch(0.585 0.233 277.117);
+  --chart-3: oklch(0.511 0.262 276.966);
+  --chart-4: oklch(0.457 0.24 277.023);
+  --chart-5: oklch(0.398 0.195 277.366);
+}
+
+[data-slot="button"], [data-slot="badge"] {
+  border-radius: 9999px !important;
+}
+
+.hero-glint {
+  background: linear-gradient(100deg, transparent 28%, oklch(0.623 0.214 259.815 / 85%) 44%, oklch(0.746 0.16 232.661 / 85%) 56%, transparent 72%);
+}
+
+:root:not(.dark) {
+  --ch-4: #2e3440;
+  --ch-1: #7b88a1;
+  --ch-7: #5e81ac;
+  --ch-8: #4f7a3a;
+  --ch-9: #4f7a3a;
+  --ch-5: #3b7d8c;
+  --ch-2: #8f5e86;
+  --ch-3: #2e3440;
+  --ch-6: #5e81ac;
+}
+
+:root.dark {
+  --ch-4: #d8dee9;
+  --ch-1: #616e88;
+  --ch-7: #81a1c1;
+  --ch-8: #a3be8c;
+  --ch-9: #a3be8c;
+  --ch-5: #88c0d0;
+  --ch-2: #b48ead;
+  --ch-3: #d8dee9;
+  --ch-6: #81a1c1;
+  --chart-1: oklch(0.785 0.115 274.713);
+  --chart-2: oklch(0.585 0.233 277.117);
+  --chart-3: oklch(0.511 0.262 276.966);
+  --chart-4: oklch(0.457 0.24 277.023);
+  --chart-5: oklch(0.398 0.195 277.366);
+}
+
+.shiki span[style*="--shiki-light:#24292E" i], .shiki span[style*="--shiki-light: #24292E" i] {
+  color: #2e3440 !important;
+  --shiki-light: #2e3440 !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#24292E" i], :root.dark .shiki span[style*="--shiki-light: #24292E" i] {
+  color: #d8dee9 !important;
+  --shiki-dark: #d8dee9 !important;
+}
+
+.shiki span[style*="--shiki-light:#6A737D" i], .shiki span[style*="--shiki-light: #6A737D" i] {
+  color: #7b88a1 !important;
+  --shiki-light: #7b88a1 !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#6A737D" i], :root.dark .shiki span[style*="--shiki-light: #6A737D" i] {
+  color: #616e88 !important;
+  --shiki-dark: #616e88 !important;
+}
+
+.shiki span[style*="--shiki-light:#D73A49" i], .shiki span[style*="--shiki-light: #D73A49" i] {
+  color: #5e81ac !important;
+  --shiki-light: #5e81ac !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#D73A49" i], :root.dark .shiki span[style*="--shiki-light: #D73A49" i] {
+  color: #81a1c1 !important;
+  --shiki-dark: #81a1c1 !important;
+}
+
+.shiki span[style*="--shiki-light:#032F62" i], .shiki span[style*="--shiki-light: #032F62" i] {
+  color: #4f7a3a !important;
+  --shiki-light: #4f7a3a !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#032F62" i], :root.dark .shiki span[style*="--shiki-light: #032F62" i] {
+  color: #a3be8c !important;
+  --shiki-dark: #a3be8c !important;
+}
+
+.shiki span[style*="--shiki-light:#6F42C1" i], .shiki span[style*="--shiki-light: #6F42C1" i] {
+  color: #3b7d8c !important;
+  --shiki-light: #3b7d8c !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#6F42C1" i], :root.dark .shiki span[style*="--shiki-light: #6F42C1" i] {
+  color: #88c0d0 !important;
+  --shiki-dark: #88c0d0 !important;
+}
+
+.shiki span[style*="--shiki-light:#005CC5" i], .shiki span[style*="--shiki-light: #005CC5" i] {
+  color: #8f5e86 !important;
+  --shiki-light: #8f5e86 !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#005CC5" i], :root.dark .shiki span[style*="--shiki-light: #005CC5" i] {
+  color: #b48ead !important;
+  --shiki-dark: #b48ead !important;
+}
+
+.shiki span[style*="--shiki-light:#E36209" i], .shiki span[style*="--shiki-light: #E36209" i] {
+  color: #2e3440 !important;
+  --shiki-light: #2e3440 !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#E36209" i], :root.dark .shiki span[style*="--shiki-light: #E36209" i] {
+  color: #d8dee9 !important;
+  --shiki-dark: #d8dee9 !important;
+}
+
+.shiki span[style*="--shiki-light:#22863A" i], .shiki span[style*="--shiki-light: #22863A" i] {
+  color: #5e81ac !important;
+  --shiki-light: #5e81ac !important;
+}
+:root.dark .shiki span[style*="--shiki-light:#22863A" i], :root.dark .shiki span[style*="--shiki-light: #22863A" i] {
+  color: #81a1c1 !important;
+  --shiki-dark: #81a1c1 !important;
+}
+
+:root:not(.dark) .shiki {
+  color: #2e3440 !important;
+}
+
+:root.dark .shiki {
+  color: #d8dee9 !important;
+}

@@ -234,6 +234,300 @@
           "target": "~/.env.example"
         }
       ]
+    },
+    {
+      "name": "assistant-ui",
+      "type": "registry:style",
+      "title": "assistant-ui",
+      "description": "The tokens assistant-ui.com is built on: Public Sans and JetBrains Mono, a warm neutral tint, and modest radii.",
+      "cssVars": {
+        "theme": {
+          "radius-page": "0px",
+          "radius-document": "6px",
+          "radius-sm": "6px",
+          "radius-control": "8px",
+          "radius-surface": "10px",
+          "radius-xl": "12px",
+          "radius-thread": "16px",
+          "radius-capsule": "9999px",
+          "font-display": "\"Public Sans\", ui-sans-serif, sans-serif",
+          "font-sans": "\"Public Sans\", ui-sans-serif, sans-serif",
+          "font-mono": "\"JetBrains Mono\", ui-monospace, monospace",
+          "tracking-hero": "-0.015em",
+          "tracking-section": "-0.01em"
+        },
+        "light": {
+          "tint": "106",
+          "type-hero-weight": "500",
+          "type-hero-tracking": "-0.015em",
+          "type-page-weight": "550",
+          "type-section-weight": "550",
+          "type-deck-weight": "400",
+          "type-deck-tracking": "0em",
+          "type-package-weight": "500",
+          "background": "oklch(0.992 0.002 var(--tint))",
+          "foreground": "oklch(0.145 0.006 var(--tint))",
+          "card": "oklch(0.992 0.002 var(--tint))",
+          "card-foreground": "oklch(0.145 0.006 var(--tint))",
+          "popover": "oklch(0.992 0.002 var(--tint))",
+          "popover-foreground": "oklch(0.145 0.006 var(--tint))",
+          "primary": "oklch(0.205 0.006 var(--tint))",
+          "primary-foreground": "oklch(0.985 0.003 var(--tint))",
+          "secondary": "oklch(0.97 0.004 var(--tint))",
+          "secondary-foreground": "oklch(0.205 0.006 var(--tint))",
+          "muted": "oklch(0.97 0.004 var(--tint))",
+          "muted-foreground": "oklch(0.556 0.007 var(--tint))",
+          "accent": "oklch(0.97 0.004 var(--tint))",
+          "accent-foreground": "oklch(0.205 0.006 var(--tint))",
+          "destructive": "oklch(0.577 0.245 27.325)",
+          "border": "oklch(0.145 0.006 var(--tint) / 10%)",
+          "input": "oklch(0.922 0.005 var(--tint))",
+          "ring": "oklch(0.708 0.006 var(--tint))",
+          "chart-1": "oklch(0.646 0.222 41.116)",
+          "chart-2": "oklch(0.6 0.118 184.704)",
+          "chart-3": "oklch(0.398 0.07 227.392)",
+          "chart-4": "oklch(0.828 0.189 84.429)",
+          "chart-5": "oklch(0.769 0.188 70.08)"
+        },
+        "dark": {
+          "background": "oklch(0.17 0.003 var(--tint))",
+          "foreground": "oklch(0.985 0.002 var(--tint))",
+          "card": "oklch(0.215 0.003 var(--tint))",
+          "card-foreground": "oklch(0.985 0.002 var(--tint))",
+          "popover": "oklch(0.215 0.003 var(--tint))",
+          "popover-foreground": "oklch(0.985 0.002 var(--tint))",
+          "primary": "oklch(0.922 0.002 var(--tint))",
+          "primary-foreground": "oklch(0.215 0.003 var(--tint))",
+          "secondary": "oklch(0.275 0.004 var(--tint))",
+          "secondary-foreground": "oklch(0.985 0.002 var(--tint))",
+          "muted": "oklch(0.275 0.004 var(--tint))",
+          "muted-foreground": "oklch(0.708 0.004 var(--tint))",
+          "accent": "oklch(0.275 0.004 var(--tint))",
+          "accent-foreground": "oklch(0.985 0.002 var(--tint))",
+          "destructive": "oklch(0.704 0.191 22.216)",
+          "border": "oklch(0.985 0.002 var(--tint) / 10%)",
+          "input": "oklch(0.985 0.002 var(--tint) / 15%)",
+          "ring": "oklch(0.556 0.004 var(--tint))",
+          "chart-1": "oklch(0.68 0.21 41.116)",
+          "chart-2": "oklch(0.64 0.118 184.704)",
+          "chart-3": "oklch(0.56 0.09 227.392)",
+          "chart-4": "oklch(0.828 0.189 84.429)",
+          "chart-5": "oklch(0.769 0.188 70.08)"
+        }
+      },
+      "css": {
+        "[data-slot=\"button\"], [data-slot=\"badge\"]": {
+          "border-radius": "8px !important"
+        },
+        ".hero-glint": {
+          "background": "linear-gradient(100deg, transparent 32%, oklch(0.82 0.14 82 / 85%) 50%, transparent 68%)"
+        }
+      },
+      "meta": {
+        "settings": {
+          "style": "nova",
+          "baseColor": "zinc",
+          "iconLibrary": "lucide",
+          "font": "public-sans"
+        },
+        "source": ["registry/styles/assistant-ui.css"]
+      }
+    },
+    {
+      "name": "aiellie",
+      "type": "registry:style",
+      "title": "aiellie",
+      "description": "The assistant-ui style with Geist type, a violet tint, rounder shapes, pill buttons, and a Nord-like code theme.",
+      "cssVars": {
+        "theme": {
+          "radius-page": "0px",
+          "radius-document": "12px",
+          "radius-sm": "8px",
+          "radius-control": "12px",
+          "radius-surface": "14px",
+          "radius-xl": "18px",
+          "radius-thread": "22px",
+          "radius-capsule": "9999px",
+          "font-display": "\"Geist\", ui-sans-serif, sans-serif",
+          "font-sans": "\"Geist\", ui-sans-serif, sans-serif",
+          "font-mono": "\"Geist Mono\", ui-monospace, monospace",
+          "tracking-hero": "-0.035em",
+          "tracking-section": "-0.022em"
+        },
+        "light": {
+          "tint": "286",
+          "type-hero-weight": "400",
+          "type-hero-tracking": "-0.035em",
+          "type-page-weight": "480",
+          "type-section-weight": "480",
+          "type-deck-weight": "380",
+          "type-deck-tracking": "-0.005em",
+          "type-package-weight": "400",
+          "background": "oklch(0.992 0.002 var(--tint))",
+          "foreground": "oklch(0.145 0.006 var(--tint))",
+          "card": "oklch(0.992 0.002 var(--tint))",
+          "card-foreground": "oklch(0.145 0.006 var(--tint))",
+          "popover": "oklch(0.992 0.002 var(--tint))",
+          "popover-foreground": "oklch(0.145 0.006 var(--tint))",
+          "primary": "oklch(0.205 0.006 var(--tint))",
+          "primary-foreground": "oklch(0.985 0.003 var(--tint))",
+          "secondary": "oklch(0.97 0.004 var(--tint))",
+          "secondary-foreground": "oklch(0.205 0.006 var(--tint))",
+          "muted": "oklch(0.97 0.004 var(--tint))",
+          "muted-foreground": "oklch(0.556 0.007 var(--tint))",
+          "accent": "oklch(0.97 0.004 var(--tint))",
+          "accent-foreground": "oklch(0.205 0.006 var(--tint))",
+          "destructive": "oklch(0.577 0.245 27.325)",
+          "border": "oklch(0.145 0.006 var(--tint) / 10%)",
+          "input": "oklch(0.922 0.005 var(--tint))",
+          "ring": "oklch(0.708 0.006 var(--tint))",
+          "chart-1": "oklch(0.785 0.115 274.713)",
+          "chart-2": "oklch(0.585 0.233 277.117)",
+          "chart-3": "oklch(0.511 0.262 276.966)",
+          "chart-4": "oklch(0.457 0.24 277.023)",
+          "chart-5": "oklch(0.398 0.195 277.366)"
+        },
+        "dark": {
+          "background": "oklch(0.17 0.003 var(--tint))",
+          "foreground": "oklch(0.985 0.002 var(--tint))",
+          "card": "oklch(0.215 0.003 var(--tint))",
+          "card-foreground": "oklch(0.985 0.002 var(--tint))",
+          "popover": "oklch(0.215 0.003 var(--tint))",
+          "popover-foreground": "oklch(0.985 0.002 var(--tint))",
+          "primary": "oklch(0.922 0.002 var(--tint))",
+          "primary-foreground": "oklch(0.215 0.003 var(--tint))",
+          "secondary": "oklch(0.275 0.004 var(--tint))",
+          "secondary-foreground": "oklch(0.985 0.002 var(--tint))",
+          "muted": "oklch(0.275 0.004 var(--tint))",
+          "muted-foreground": "oklch(0.708 0.004 var(--tint))",
+          "accent": "oklch(0.275 0.004 var(--tint))",
+          "accent-foreground": "oklch(0.985 0.002 var(--tint))",
+          "destructive": "oklch(0.704 0.191 22.216)",
+          "border": "oklch(0.985 0.002 var(--tint) / 10%)",
+          "input": "oklch(0.985 0.002 var(--tint) / 15%)",
+          "ring": "oklch(0.556 0.004 var(--tint))",
+          "chart-1": "oklch(0.785 0.115 274.713)",
+          "chart-2": "oklch(0.585 0.233 277.117)",
+          "chart-3": "oklch(0.511 0.262 276.966)",
+          "chart-4": "oklch(0.457 0.24 277.023)",
+          "chart-5": "oklch(0.398 0.195 277.366)",
+          "ch-4": "#d8dee9",
+          "ch-1": "#616e88",
+          "ch-7": "#81a1c1",
+          "ch-8": "#a3be8c",
+          "ch-9": "#a3be8c",
+          "ch-5": "#88c0d0",
+          "ch-2": "#b48ead",
+          "ch-3": "#d8dee9",
+          "ch-6": "#81a1c1"
+        }
+      },
+      "css": {
+        "[data-slot=\"button\"], [data-slot=\"badge\"]": {
+          "border-radius": "9999px !important"
+        },
+        ".hero-glint": {
+          "background": "linear-gradient(100deg, transparent 28%, oklch(0.623 0.214 259.815 / 85%) 44%, oklch(0.746 0.16 232.661 / 85%) 56%, transparent 72%)"
+        },
+        ":root:not(.dark)": {
+          "--ch-4": "#2e3440",
+          "--ch-1": "#7b88a1",
+          "--ch-7": "#5e81ac",
+          "--ch-8": "#4f7a3a",
+          "--ch-9": "#4f7a3a",
+          "--ch-5": "#3b7d8c",
+          "--ch-2": "#8f5e86",
+          "--ch-3": "#2e3440",
+          "--ch-6": "#5e81ac"
+        },
+        ".shiki span[style*=\"--shiki-light:#24292E\" i], .shiki span[style*=\"--shiki-light: #24292E\" i]": {
+          "color": "#2e3440 !important",
+          "--shiki-light": "#2e3440 !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#24292E\" i], :root.dark .shiki span[style*=\"--shiki-light: #24292E\" i]": {
+          "color": "#d8dee9 !important",
+          "--shiki-dark": "#d8dee9 !important"
+        },
+        ".shiki span[style*=\"--shiki-light:#6A737D\" i], .shiki span[style*=\"--shiki-light: #6A737D\" i]": {
+          "color": "#7b88a1 !important",
+          "--shiki-light": "#7b88a1 !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#6A737D\" i], :root.dark .shiki span[style*=\"--shiki-light: #6A737D\" i]": {
+          "color": "#616e88 !important",
+          "--shiki-dark": "#616e88 !important"
+        },
+        ".shiki span[style*=\"--shiki-light:#D73A49\" i], .shiki span[style*=\"--shiki-light: #D73A49\" i]": {
+          "color": "#5e81ac !important",
+          "--shiki-light": "#5e81ac !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#D73A49\" i], :root.dark .shiki span[style*=\"--shiki-light: #D73A49\" i]": {
+          "color": "#81a1c1 !important",
+          "--shiki-dark": "#81a1c1 !important"
+        },
+        ".shiki span[style*=\"--shiki-light:#032F62\" i], .shiki span[style*=\"--shiki-light: #032F62\" i]": {
+          "color": "#4f7a3a !important",
+          "--shiki-light": "#4f7a3a !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#032F62\" i], :root.dark .shiki span[style*=\"--shiki-light: #032F62\" i]": {
+          "color": "#a3be8c !important",
+          "--shiki-dark": "#a3be8c !important"
+        },
+        ".shiki span[style*=\"--shiki-light:#6F42C1\" i], .shiki span[style*=\"--shiki-light: #6F42C1\" i]": {
+          "color": "#3b7d8c !important",
+          "--shiki-light": "#3b7d8c !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#6F42C1\" i], :root.dark .shiki span[style*=\"--shiki-light: #6F42C1\" i]": {
+          "color": "#88c0d0 !important",
+          "--shiki-dark": "#88c0d0 !important"
+        },
+        ".shiki span[style*=\"--shiki-light:#005CC5\" i], .shiki span[style*=\"--shiki-light: #005CC5\" i]": {
+          "color": "#8f5e86 !important",
+          "--shiki-light": "#8f5e86 !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#005CC5\" i], :root.dark .shiki span[style*=\"--shiki-light: #005CC5\" i]": {
+          "color": "#b48ead !important",
+          "--shiki-dark": "#b48ead !important"
+        },
+        ".shiki span[style*=\"--shiki-light:#E36209\" i], .shiki span[style*=\"--shiki-light: #E36209\" i]": {
+          "color": "#2e3440 !important",
+          "--shiki-light": "#2e3440 !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#E36209\" i], :root.dark .shiki span[style*=\"--shiki-light: #E36209\" i]": {
+          "color": "#d8dee9 !important",
+          "--shiki-dark": "#d8dee9 !important"
+        },
+        ".shiki span[style*=\"--shiki-light:#22863A\" i], .shiki span[style*=\"--shiki-light: #22863A\" i]": {
+          "color": "#5e81ac !important",
+          "--shiki-light": "#5e81ac !important"
+        },
+        ":root.dark .shiki span[style*=\"--shiki-light:#22863A\" i], :root.dark .shiki span[style*=\"--shiki-light: #22863A\" i]": {
+          "color": "#81a1c1 !important",
+          "--shiki-dark": "#81a1c1 !important"
+        },
+        ":root:not(.dark) .shiki": {
+          "color": "#2e3440 !important"
+        },
+        ":root.dark .shiki": {
+          "color": "#d8dee9 !important"
+        }
+      },
+      "meta": {
+        "extends": "assistant-ui",
+        "preset": "b37aFvYpu",
+        "settings": {
+          "style": "nova",
+          "baseColor": "zinc",
+          "chartColor": "indigo",
+          "iconLibrary": "hugeicons",
+          "font": "geist",
+          "radius": "large",
+          "menuColor": "default-translucent"
+        },
+        "source": [
+          "registry/styles/assistant-ui.css",
+          "registry/styles/aiellie.css"
+        ]
+      }
     }
   ]
 }

@@ -1,3 +1,4 @@
+import blockRegistry from "@/registry/registry.json";
 import {
   THEME_ACCENT_COLORS,
   THEME_BASE_COLORS,
@@ -243,7 +244,47 @@ const product = (
   };
 };
 
-export const LIBRARY_THEMES: readonly LibraryTheme[] = [
+type RegistryCssVars = Partial<
+  Record<"theme" | "light" | "dark", Record<string, string>>
+>;
+
+/**
+ * The styles in the library registry, as themes: the preset each sits on, from
+ * its `meta`, with its `cssVars` laid over it. Their cards open in the
+ * library's builder.
+ */
+const registryStyles = (): LibraryTheme[] =>
+  blockRegistry.items.flatMap((item) => {
+    if (item.type !== "registry:style" || !("meta" in item)) return [];
+    // A style names a preset when one matches it, such as aiellie's code;
+    // otherwise the preset is built from its settings, so applying it
+    // installs what the style describes.
+    const meta = item.meta as {
+      preset?: string;
+      settings: Partial<ThemeSettings>;
+    };
+    const vars = ("cssVars" in item ? item.cssVars : {}) as RegistryCssVars;
+    const light = { ...vars.theme, ...vars.light };
+    const settings: ThemeSettings = {
+      ...DEFAULT_SETTINGS,
+      style: "nova",
+      iconLibrary: "lucide",
+      font: "geist",
+      ...meta.settings,
+    };
+    return [
+      {
+        slug: item.name,
+        name: item.title,
+        section: "assistant-ui" as const,
+        preset: meta.preset ?? themePresetUrl(settings),
+        settings,
+        overrides: { light, dark: { ...light, ...vars.dark } },
+      },
+    ];
+  });
+
+const PRODUCT_THEMES: readonly LibraryTheme[] = [
   // The surface, ink and accent are the ones Codex's own light theme names;
   // the greys between them, and the dark variant, are mixed from those.
   product(
@@ -407,38 +448,11 @@ export const LIBRARY_THEMES: readonly LibraryTheme[] = [
       surface: ["#f4f4f5", "#18181b"],
     },
   ),
-  {
-    // What templates/default pins, as `shadcn preset resolve` reads it there.
-    slug: "assistant-ui",
-    name: "assistant-ui",
-    section: "assistant-ui",
-    preset: "battZY",
-    code: "battZY",
-    settings: {
-      ...DEFAULT_SETTINGS,
-      style: "nova",
-      baseColor: "zinc",
-      iconLibrary: "lucide",
-      font: "geist",
-    },
-  },
-  {
-    slug: "ai-ellie",
-    name: "AI Ellie",
-    section: "assistant-ui",
-    preset: "b37aFvYpu",
-    code: "b37aFvYpu",
-    settings: {
-      ...DEFAULT_SETTINGS,
-      style: "nova",
-      baseColor: "zinc",
-      chartColor: "indigo",
-      iconLibrary: "hugeicons",
-      font: "geist",
-      radius: "large",
-      menuColor: "default-translucent",
-    },
-  },
+];
+
+export const LIBRARY_THEMES: readonly LibraryTheme[] = [
+  ...PRODUCT_THEMES,
+  ...registryStyles(),
 ];
 
 export const getLibraryTheme = (slug: string): LibraryTheme | undefined =>

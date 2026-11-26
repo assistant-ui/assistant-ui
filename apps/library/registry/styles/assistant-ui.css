@@ -1,0 +1,84 @@
+/* The assistant-ui style: the tokens assistant-ui.com is built on, as the
+   docs design page lists them. Other styles extend it. */
+
+:root {
+  --radius-page: 0px;
+  --radius-document: 6px;
+  --radius-sm: 6px;
+  --radius-control: 8px;
+  --radius-surface: 10px;
+  --radius-xl: 12px;
+  --radius-thread: 16px;
+  --radius-capsule: 9999px;
+  --tint: 106;
+  --font-display: "Public Sans", ui-sans-serif, sans-serif;
+  --font-sans: "Public Sans", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --tracking-hero: -0.015em;
+  --tracking-section: -0.01em;
+  --type-hero-weight: 500;
+  --type-hero-tracking: -0.015em;
+  --type-page-weight: 550;
+  --type-section-weight: 550;
+  --type-deck-weight: 400;
+  --type-deck-tracking: 0em;
+  --type-package-weight: 500;
+
+  --background: oklch(0.992 0.002 var(--tint));
+  --foreground: oklch(0.145 0.006 var(--tint));
+  --card: oklch(0.992 0.002 var(--tint));
+  --card-foreground: oklch(0.145 0.006 var(--tint));
+  --popover: oklch(0.992 0.002 var(--tint));
+  --popover-foreground: oklch(0.145 0.006 var(--tint));
+  --primary: oklch(0.205 0.006 var(--tint));
+  --primary-foreground: oklch(0.985 0.003 var(--tint));
+  --secondary: oklch(0.97 0.004 var(--tint));
+  --secondary-foreground: oklch(0.205 0.006 var(--tint));
+  --muted: oklch(0.97 0.004 var(--tint));
+  --muted-foreground: oklch(0.556 0.007 var(--tint));
+  --accent: oklch(0.97 0.004 var(--tint));
+  --accent-foreground: oklch(0.205 0.006 var(--tint));
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.145 0.006 var(--tint) / 10%);
+  --input: oklch(0.922 0.005 var(--tint));
+  --ring: oklch(0.708 0.006 var(--tint));
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+:root.dark {
+  --background: oklch(0.17 0.003 var(--tint));
+  --foreground: oklch(0.985 0.002 var(--tint));
+  --card: oklch(0.215 0.003 var(--tint));
+  --card-foreground: oklch(0.985 0.002 var(--tint));
+  --popover: oklch(0.215 0.003 var(--tint));
+  --popover-foreground: oklch(0.985 0.002 var(--tint));
+  --primary: oklch(0.922 0.002 var(--tint));
+  --primary-foreground: oklch(0.215 0.003 var(--tint));
+  --secondary: oklch(0.275 0.004 var(--tint));
+  --secondary-foreground: oklch(0.985 0.002 var(--tint));
+  --muted: oklch(0.275 0.004 var(--tint));
+  --muted-foreground: oklch(0.708 0.004 var(--tint));
+  --accent: oklch(0.275 0.004 var(--tint));
+  --accent-foreground: oklch(0.985 0.002 var(--tint));
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.985 0.002 var(--tint) / 10%);
+  --input: oklch(0.985 0.002 var(--tint) / 15%);
+  --ring: oklch(0.556 0.004 var(--tint));
+  --chart-1: oklch(0.68 0.21 41.116);
+  --chart-2: oklch(0.64 0.118 184.704);
+  --chart-3: oklch(0.56 0.09 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+}
+
+[data-slot="button"], [data-slot="badge"] {
+  border-radius: 8px !important;
+}
+
+.hero-glint {
+  background: linear-gradient(100deg, transparent 32%, oklch(0.82 0.14 82 / 85%) 50%, transparent 68%);
+}

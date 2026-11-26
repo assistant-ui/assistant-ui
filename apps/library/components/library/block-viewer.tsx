@@ -9,6 +9,7 @@ import {
   Folder,
   Maximize,
   Monitor,
+  Palette,
   RotateCw,
   Smartphone,
   Tablet,
@@ -25,18 +26,32 @@ import {
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { BlockElement, BlockFile } from "@/lib/library/catalog";
+import blockRegistry from "@/registry/registry.json";
 import { BlockPreview } from "./block-previews";
+import { RegistryStyleScope } from "./registry-style-scope";
 import {
   Menu,
   MenuContent,
   MenuGroup,
   MenuLabel,
   MenuLinkItem,
+  MenuRadioGroup,
+  MenuRadioItem,
   MenuTrigger,
 } from "./ui/menu";
 import { cn } from "@/lib/utils";
 
 type Tab = "preview" | "code";
+
+/** The block's own look, before any registry style is laid over it. */
+const NO_STYLE = "default";
+
+/** The registry's styles, which the preview can be drawn in. */
+const STYLES = blockRegistry.items.flatMap((item) =>
+  item.type === "registry:style"
+    ? [{ name: item.name, title: item.title }]
+    : [],
+);
 
 type TreeNode = {
   name: string;
@@ -291,6 +306,7 @@ export function BlockViewer({
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [reloads, setReloads] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [style, setStyle] = useState(NO_STYLE);
   const frameRef = useRef<HTMLDivElement>(null);
   const panelRef = usePanelRef();
 
@@ -338,7 +354,48 @@ export function BlockViewer({
             </MenuContent>
           </Menu>
         )}
-        <div className="border-foreground/10 ms-auto flex h-8 items-center gap-1 rounded-md border p-[3px]">
+        {STYLES.length > 0 && (
+          <div className="border-foreground/10 ms-auto flex h-8 items-center rounded-md border p-[3px]">
+            <Menu>
+              <MenuTrigger
+                aria-pressed={style !== NO_STYLE}
+                className={cn(
+                  control,
+                  "justify-center p-0",
+                  style !== NO_STYLE && "bg-foreground/[0.06] text-foreground",
+                )}
+                render={<TooltipIconButton tooltip="Theme" />}
+              >
+                <Palette aria-hidden />
+              </MenuTrigger>
+              <MenuContent align="end">
+                <MenuGroup>
+                  <MenuLabel>Preview in a theme</MenuLabel>
+                  <MenuRadioGroup
+                    value={style}
+                    onValueChange={(value) => {
+                      setTab("preview");
+                      setStyle(value as string);
+                    }}
+                  >
+                    <MenuRadioItem value={NO_STYLE}>Default</MenuRadioItem>
+                    {STYLES.map((item) => (
+                      <MenuRadioItem key={item.name} value={item.name}>
+                        {item.title}
+                      </MenuRadioItem>
+                    ))}
+                  </MenuRadioGroup>
+                </MenuGroup>
+              </MenuContent>
+            </Menu>
+          </div>
+        )}
+        <div
+          className={cn(
+            "border-foreground/10 flex h-8 items-center gap-1 rounded-md border p-[3px]",
+            STYLES.length === 0 && "ms-auto",
+          )}
+        >
           <div
             role="group"
             aria-label="Preview width"
@@ -433,7 +490,9 @@ export function BlockViewer({
                     refreshing && "opacity-0",
                   )}
                 >
-                  <BlockPreview slug={slug} />
+                  <RegistryStyleScope name={style} className="size-full">
+                    <BlockPreview slug={slug} />
+                  </RegistryStyleScope>
                 </div>
               </ResizablePanel>
               <ResizableHandle

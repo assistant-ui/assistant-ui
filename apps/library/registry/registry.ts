@@ -209,3 +209,43 @@ export const blocks: RegistryItem[] = [
     dependencies: ["@assistant-ui/react-native", "@assistant-ui/ai-sdk"],
   },
 ];
+
+/** The assistant-ui style, which other styles install first. */
+const ASSISTANT_UI_STYLE = {
+  type: "registry:file",
+  path: "styles/assistant-ui.css",
+  target: "~/styles/assistant-ui.css",
+  sourcePath: "../library/registry/styles/assistant-ui.css",
+} satisfies NonNullable<RegistryItem["files"]>[number];
+
+/**
+ * The library's styles: each is a stylesheet of tokens over a shadcn preset.
+ * registry.json carries the same tokens as `cssVars` and `css`, which shadcn
+ * writes into the project's stylesheet, and the preset in `meta`.
+ */
+export const styles: RegistryItem[] = [
+  {
+    name: "assistant-ui",
+    type: "registry:style",
+    title: "assistant-ui",
+    description:
+      "The tokens assistant-ui.com is built on: Public Sans and JetBrains Mono, a warm neutral tint, and modest radii.",
+    files: [ASSISTANT_UI_STYLE],
+  },
+  {
+    name: "aiellie",
+    type: "registry:style",
+    title: "aiellie",
+    description:
+      "The assistant-ui style with Geist type, a violet tint, rounder shapes, pill buttons, and a Nord-like code theme.",
+    files: [
+      ASSISTANT_UI_STYLE,
+      {
+        type: "registry:file",
+        path: "styles/aiellie.css",
+        target: "~/styles/aiellie.css",
+        sourcePath: "../library/registry/styles/aiellie.css",
+      },
+    ],
+  },
+];

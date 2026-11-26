@@ -184,7 +184,8 @@ const blocks: LibraryItem[] = blockRegistry.items
     // The Code tab shows each file where it lands in a project: a page at its
     // target, and a component at its path inside the block, under components/.
     const folder = `registry/blocks/${block.name}`;
-    const sources = block.files.map((file) => ({
+    const ownFiles = "files" in block ? block.files : [];
+    const sources = ownFiles.map((file) => ({
       path: file.path,
       code: readFileSync(join(process.cwd(), file.path), "utf8"),
     }));
@@ -198,7 +199,7 @@ const blocks: LibraryItem[] = blockRegistry.items
       title: titles.get(slug) ?? slug,
       href: docsUrl(`/elements/${slug}`),
     }));
-    const blockFiles = block.files.map((file, index) => ({
+    const blockFiles = ownFiles.map((file, index) => ({
       path:
         ("target" in file ? file.target?.replace(/^~\//, "") : undefined) ??
         (file.path.startsWith(`${folder}/`)
@@ -781,9 +782,25 @@ const skillAgents: LibraryItem[] = SKILL_AGENTS.map(
   },
 );
 
+/** A registry style's source stylesheets, in order, as one stylesheet. */
+const registryStyleCss = (slug: string): string | undefined => {
+  const item = blockRegistry.items.find(
+    (entry) => entry.type === "registry:style" && entry.name === slug,
+  );
+  if (!item || !("meta" in item)) return undefined;
+  // The style's own stylesheets, which its cssVars and css are written from.
+  const { source } = item.meta as { source?: readonly string[] };
+  return source
+    ?.map((path) => readFileSync(join(process.cwd(), path), "utf8"))
+    .join("\n");
+};
+
 const themes: LibraryItem[] = LIBRARY_THEMES.map((theme) => {
   const command = themeApplyCommand(theme.preset);
-  const css = theme.overrides && themeOverridesCss(theme.overrides);
+  // A registry style's own stylesheet, or what a product lays over its preset.
+  const styleCss = registryStyleCss(theme.slug);
+  const css =
+    styleCss ?? (theme.overrides && themeOverridesCss(theme.overrides));
   return {
     id: `themes/${theme.slug}`,
     category: "themes",
