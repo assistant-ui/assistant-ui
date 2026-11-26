@@ -307,6 +307,16 @@ def check(file):
             and not (name.startswith("__") and name.endswith("__"))
         )
         page_names |= defined
+        # A name this block defines other than by import no longer means the
+        # callable an earlier block imported.
+        imported = {
+            alias.asname or alias.name.partition(".")[0]
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.Import, ast.ImportFrom))
+            for alias in node.names
+        }
+        for name in defined - imported:
+            page_bound.pop(name, None)
         result["imports"], result["keywords"] = check_locals(tree, page_bound)
         yield result
 

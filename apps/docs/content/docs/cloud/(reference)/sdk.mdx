@@ -145,6 +145,7 @@ const { message_id, run } = await cloud.threads.messages.create(thread_id, {
 });
 if (run) {
   let ended = false;
+  let gone = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   // Schedule each beat from the interval the last response gave.
   const beat = (ms: number) => {
@@ -153,9 +154,10 @@ if (run) {
         const next = await cloud.threads.runs.heartbeat(thread_id, run.lease_id);
         if (!ended) beat(next.heartbeat_interval_ms);
       } catch (error) {
-        // 409 and 404 mean the run is over; retry anything else.
-        const over = error instanceof CloudAPIError && (error.status === 409 || error.status === 404);
-        if (!ended && !over) beat(ms);
+        const status = error instanceof CloudAPIError ? error.status : undefined;
+        // 409: the run already ended. 404: the server doesn't know the lease. Retry anything else.
+        if (status === 404) gone = true;
+        if (!ended && status !== 404 && status !== 409) beat(ms);
       }
     }, ms);
   };
@@ -171,7 +173,7 @@ if (run) {
   } finally {
     ended = true;
     clearTimeout(timer);
-    await cloud.threads.runs.end(thread_id, run.lease_id, { reason });
+    if (!gone) await cloud.threads.runs.end(thread_id, run.lease_id, { reason });
   }
 }
 ```
