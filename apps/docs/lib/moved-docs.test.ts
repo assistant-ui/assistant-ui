@@ -46,7 +46,7 @@ describe("moved docs", () => {
   const urls = pageUrls();
 
   it("points every old url at a page that exists", () => {
-    const missing = MOVED_DOCS_PATHS.map(([, to]) => to).filter(
+    const missing = MOVED_DOCS_PATHS.map(([, to]) => to.split("#")[0]!).filter(
       (to) => !urls.has(to),
     );
     expect(missing).toEqual([]);
@@ -69,6 +69,12 @@ describe("moved docs", () => {
     expect(follow("/docs/guides/context-api.mdx")).toBe(
       "/docs/concepts/context-api.md",
     );
+    expect(follow("/docs/runtimes/custom/overview")).toBe(
+      "/docs/runtimes/pick-a-runtime#your-own-backend",
+    );
+    expect(follow("/docs/runtimes/custom/overview.md")).toBe(
+      "/docs/runtimes/pick-a-runtime.md",
+    );
     expect(follow("/docs/concepts/threads")).toBeNull();
     expect(MOVED_DOCS_REDIRECTS.every((r) => r.permanent)).toBe(true);
   });
@@ -80,6 +86,9 @@ describe("moved docs", () => {
     expect(rewriteMovedDocsPath("/docs/guides/context-api")).toBe(
       "/docs/concepts/context-api",
     );
+    expect(
+      rewriteMovedDocsPath("/docs/integrations/frameworks/mastra/full-stack"),
+    ).toBe("/docs/runtimes/mastra");
     expect(rewriteMovedDocsPath("/docs/concepts/threads")).toBeNull();
   });
 });
