@@ -3,7 +3,7 @@
 // extracted docs (see extract.mjs), and records its answer and the pages it read.
 //
 // Usage: node run.mjs --docs <extracted-dir> --out <answers.json>
-//          [--model sonnet] [--concurrency 6] [--timeout 480] [--only q01,q02]
+//          [--reader deep|skim] [--model sonnet] [--concurrency 6] [--timeout 480] [--only q01,q02]
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,6 +19,7 @@ const { values: args } = parseArgs({
     concurrency: { type: "string", default: "6" },
     timeout: { type: "string", default: "480" },
     only: { type: "string" },
+    reader: { type: "string", default: "deep" },
   },
 });
 const docsDir = path.resolve(args.docs ?? path.join(here, ".docs-text"));
@@ -31,11 +32,16 @@ const only = args.only ? new Set(args.only.split(",")) : null;
 const exam = JSON.parse(
   fs.readFileSync(path.join(here, "questions.json"), "utf8"),
 );
+// "deep" reads as many pages as it likes; "skim" reads at most three, like a
+// developer who opens a few pages to get the idea before briefing an agent.
 const systemPrompt = fs.readFileSync(
-  path.join(here, "reader-prompt.md"),
+  path.join(here, `reader-${args.reader}.md`),
   "utf8",
 );
 const questions = exam.questions.filter((q) => !only || only.has(q.id));
+
+// The skim reader can only open pages it picks from INDEX.md; it can't search.
+const tools = args.reader === "skim" ? "Read" : "Read,Grep,Glob";
 
 // The reader inherits nothing from this shell's agent session.
 const env = Object.fromEntries(
@@ -56,9 +62,9 @@ function ask(question) {
         "--system-prompt",
         systemPrompt,
         "--tools",
-        "Read,Grep,Glob",
+        tools,
         "--allowedTools",
-        "Read,Grep,Glob",
+        tools,
         "--restricted",
         "--safe-mode",
         "--strict-mcp-config",
@@ -152,5 +158,8 @@ await Promise.all(
   Array.from({ length: Math.min(concurrency, questions.length) }, worker),
 );
 results.sort((a, b) => a.id.localeCompare(b.id));
-fs.writeFileSync(outFile, JSON.stringify({ model, results }, null, 2));
+fs.writeFileSync(
+  outFile,
+  JSON.stringify({ model, reader: args.reader, results }, null, 2),
+);
 console.log(`answers -> ${outFile}`);

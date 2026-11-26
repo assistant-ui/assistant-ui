@@ -43,6 +43,8 @@ Each part has a `type`. The types fall into three kinds:
 
 A `tool-call` part holds the tool's name, the arguments the model chose and, once the tool has run, its result. Showing a tool call as an interactive component is what [tool UI](/docs/tools/tool-ui) is for, and [Tools](/docs/tools) covers defining the tools themselves.
 
+A `reasoning` part holds the model's thinking, kept apart from the `text` parts of the answer so the UI can show it differently: the registry's [Reasoning element](/elements/reasoning) draws it as a collapsible block that opens while the reasoning streams and closes when the answer starts. It only appears when your backend sends it. An AI SDK route forwards reasoning by default (the `sendReasoning` option of `toUIMessageStreamResponse`), but many providers return it only when asked, such as OpenAI's `reasoningSummary` provider option. [Chain of thought](/docs/guides/chain-of-thought) groups reasoning with the tool calls around it.
+
 ## Rendering parts
 
 `MessagePrimitive.Parts` goes through a message's parts and calls your function once per part. Return the component for that part:
@@ -74,11 +76,13 @@ An assistant message is live while the run that writes it is in progress. Its `s
 | Status | Meaning |
 | --- | --- |
 | `running` | Parts are still arriving. |
-| `complete` | The model finished its answer. |
-| `incomplete` | The run stopped early. The `reason` says why: `cancelled`, `error`, `tool-calls`, `length`, `content-filter` or `other`. |
-| `requires-action` | A tool call is waiting, either for a result your app supplies or for the user to approve or answer. |
+| `complete` | The model finished its answer. The `reason` is `stop`, or `unknown` when a stored message didn't record how its run ended. |
+| `incomplete` | The run stopped early, and the `reason` says why. `cancelled` means the user stopped it and `error` means the backend failed, with the error on the status. `length`, `content-filter`, `tool-calls` and `other` pass on the model's own finish reason, such as `length` when it hit its output limit. Either way the parts that arrived stay in the message. |
+| `requires-action` | The run is waiting. The `reason` is `tool-calls` when a tool call needs a result from your app or the user's approval, and `interrupt` when the run paused to ask the user something, such as a frontend tool that stopped mid-run for input or an AG-UI interrupt. |
 
 While a message streams, each of its parts reports a status too, so the last text part can show a cursor while the parts before it are done.
+
+[When a turn doesn't finish on its own](/docs/concepts/runtime#when-a-turn-doesnt-finish-on-its-own) covers what stopping, a failure and a waiting tool call look like from the user's side.
 
 ## Attachments
 
