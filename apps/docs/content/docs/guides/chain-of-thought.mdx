@@ -4,11 +4,17 @@ description: Show AI reasoning steps and tool calls in a collapsible thinking ac
 platforms: ["react"]
 ---
 
+import { PartsPlayground } from "@/components/pages/docs/samples/parts-playground";
+
 LLMs often produce reasoning steps and tool calls in succession. Chain of Thought groups these consecutive parts into a single collapsible "thinking" accordion.
 
 ## Overview
 
 When a reasoning model responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. Use `MessagePrimitive.GroupedParts` to group those adjacent reasoning and tool-call parts into a single collapsible "thinking" section.
+
+Try it below. You play the backend: each button streams one part into the assistant message, and the panel shows the message's `status` and each part's group path. Adjacent parts that share the `group-chainOfThought` prefix fold into one section, and a text part closes it.
+
+<PartsPlayground />
 
 <Callout type="info">
 The older `components.ChainOfThought` prop on `MessagePrimitive.Parts` and `components` prop on `ChainOfThoughtPrimitive.Parts` are legacy APIs. They still work for existing code, but new code should use `MessagePrimitive.GroupedParts`.
