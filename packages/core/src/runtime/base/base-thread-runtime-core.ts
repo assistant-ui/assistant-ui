@@ -518,6 +518,15 @@ export abstract class BaseThreadRuntimeCore
     this._voiceController.unmuteVoice();
   }
 
+  /**
+   * Whether `initialize` was raised but is still waiting to be delivered. A
+   * subscriber that attaches meanwhile gets it from that delivery, not from
+   * the replay.
+   */
+  protected _isInitializeHeld(): boolean {
+    return false;
+  }
+
   protected ensureInitialized() {
     if (this._isInitialized) return false;
     this._isInitialized = true;
@@ -571,7 +580,11 @@ export abstract class BaseThreadRuntimeCore
 
     // `initialize` latches: replay it (deferred) to subscribers that attach
     // after the thread already initialized, mirroring a BehaviorSubject.
-    if (event === "initialize" && this._isInitialized) {
+    if (
+      event === "initialize" &&
+      this._isInitialized &&
+      !this._isInitializeHeld()
+    ) {
       queueMicrotask(() => {
         if (subscribers.has(wrapped)) {
           notifyEventListeners([wrapped], {}, `Thread runtime "${event}"`);

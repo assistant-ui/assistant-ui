@@ -1119,6 +1119,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   disconnectVoice(): void;
   muteVoice(): void;
   unmuteVoice(): void;
+  protected _isInitializeHeld(): boolean;
   protected ensureInitialized(): boolean;
   export(): ExportedMessageRepository;
   protected _beforeImportNotify(): void;
@@ -2197,6 +2198,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   constructor(contextProvider: ModelContextProvider, store: ExternalStoreAdapter<any>);
   __internal_setAdapter(store: ExternalStoreAdapter<any>): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
+  protected _isInitializeHeld(): boolean;
   __internal_setAdapterHoldingEvents(store: ExternalStoreAdapter<any>): () => void;
   switchToBranch(branchId: string): void;
   append(rawMessage: AppendMessage): Promise<void>;

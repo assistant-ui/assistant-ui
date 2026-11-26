@@ -188,4 +188,104 @@ describe("useExternalStoreRuntime adapter timing", () => {
       "2",
     );
   });
+
+  it("delivers initialize once when the provider mounts in the update that loads the thread", async () => {
+    const storeListener = vi.fn();
+    const runtimeListener = vi.fn();
+    const StoreListener: FC = () => {
+      useAuiEvent("thread.initialize", storeListener);
+      return null;
+    };
+    // Outside the provider, so it is the thread's first subscriber.
+    const RuntimeListener: FC<{ runtime: AssistantRuntime }> = ({
+      runtime,
+    }) => {
+      useEffect(
+        () => runtime.thread.unstable_on("initialize", runtimeListener),
+        [runtime],
+      );
+      return null;
+    };
+    let setState!: (state: {
+      loaded: boolean;
+      messages: ThreadMessageLike[];
+    }) => void;
+    const Host: FC = () => {
+      const [state, set] = useState({
+        loaded: false,
+        messages: [] as ThreadMessageLike[],
+      });
+      setState = set;
+      const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+        messages: state.messages,
+        convertMessage: (message) => message,
+        onNew: async () => {},
+      });
+      if (!state.loaded) return null;
+      return (
+        <>
+          <RuntimeListener runtime={runtime} />
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ThreadCount />
+            <StoreListener />
+          </AssistantRuntimeProvider>
+        </>
+      );
+    };
+    const view = render(<Host />);
+
+    leaveAct();
+    setTimeout(() => setState({ loaded: false, messages: [] }));
+    await nextTask();
+    setTimeout(
+      () => setState({ loaded: true, messages: [userMessage("u0")] }),
+      0,
+    );
+    await waitFor(() =>
+      expect(view.getByTestId("thread").textContent).toBe("1"),
+    );
+    await waitFor(() => {
+      expect(storeListener).toHaveBeenCalled();
+      expect(runtimeListener).toHaveBeenCalled();
+    });
+    // A replay to a late subscriber runs on a microtask; give it a task.
+    await nextTask();
+
+    expect(storeListener).toHaveBeenCalledOnce();
+    expect(runtimeListener).toHaveBeenCalledOnce();
+  });
+
+  it("delivers initialize once to the thread's first subscriber when it mounts in the update that loads the thread", async () => {
+    const listener = vi.fn();
+    const Listener: FC<{ runtime: AssistantRuntime }> = ({ runtime }) => {
+      useEffect(
+        () => runtime.thread.unstable_on("initialize", listener),
+        [runtime],
+      );
+      return null;
+    };
+    let setMessages!: (messages: ThreadMessageLike[]) => void;
+    const Host: FC = () => {
+      const [messages, set] = useState<ThreadMessageLike[]>([]);
+      setMessages = set;
+      const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+        messages,
+        convertMessage: (message) => message,
+        onNew: async () => {},
+      });
+      // No provider: nothing else subscribes to the thread's events.
+      return messages.length > 0 ? <Listener runtime={runtime} /> : null;
+    };
+    render(<Host />);
+
+    leaveAct();
+    setTimeout(() => setMessages([]));
+    await nextTask();
+    setTimeout(() => setMessages([userMessage("u0")]), 0);
+    await waitFor(() => expect(listener).toHaveBeenCalled());
+    // A replay to a late subscriber runs on a microtask; give it a task.
+    await nextTask();
+
+    expect(listener).toHaveBeenCalledOnce();
+  });
 });

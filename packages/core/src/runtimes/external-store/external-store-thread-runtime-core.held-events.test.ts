@@ -48,6 +48,29 @@ describe("ExternalStoreThreadRuntimeCore held events", () => {
     expect(events).toEqual(["initialize", "runStart"]);
   });
 
+  it("delivers initialize once to a subscriber that attaches while it is held", async () => {
+    const core = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      adapter([], false),
+    );
+    const deliver = core.__internal_setAdapterHoldingEvents(
+      adapter([u1], false),
+    );
+    const early = vi.fn();
+    core.unstable_on("initialize", early);
+
+    deliver();
+    await Promise.resolve();
+    expect(early).toHaveBeenCalledOnce();
+
+    // Once delivered, a late subscriber gets the replay.
+    const late = vi.fn();
+    core.unstable_on("initialize", late);
+    await Promise.resolve();
+    expect(late).toHaveBeenCalledOnce();
+    expect(early).toHaveBeenCalledOnce();
+  });
+
   it("delivers an event raised before the drain after the held ones", () => {
     const core = new ExternalStoreThreadRuntimeCore(
       contextProvider,

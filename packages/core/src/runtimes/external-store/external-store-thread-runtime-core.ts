@@ -544,18 +544,25 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   private _heldEvents: (() => void)[] | null = null;
+  private _initializeHeld = false;
 
   public override _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
     event: E,
     payload: ThreadRuntimeEventPayload[E],
   ) {
     if (this._heldEvents) {
-      this._heldEvents.push(() =>
-        super._notifyEventSubscribers(event, payload),
-      );
+      if (event === "initialize") this._initializeHeld = true;
+      this._heldEvents.push(() => {
+        if (event === "initialize") this._initializeHeld = false;
+        super._notifyEventSubscribers(event, payload);
+      });
       return;
     }
     super._notifyEventSubscribers(event, payload);
+  }
+
+  protected override _isInitializeHeld() {
+    return this._initializeHeld;
   }
 
   /**
