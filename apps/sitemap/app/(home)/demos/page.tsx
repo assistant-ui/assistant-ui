@@ -1,9 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cacheLife } from "next/cache";
-import { ArrowRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ChatGPT } from "@/components/demos/chatgpt";
 import { Claude } from "@/components/demos/claude";
@@ -13,9 +11,13 @@ import { Grok } from "@/components/demos/grok";
 import { Perplexity } from "@/components/demos/perplexity";
 import { StreamingTextPreview } from "@/components/demos/streaming-text.preview";
 import { ThreadPreview } from "@/components/demos/thread.preview";
-import { DemoWindow } from "@/components/pages/demos/demo-window";
+import {
+  CatalogBrowser,
+  type CatalogDemo,
+} from "@/components/pages/demos/catalog";
+import { LiveFrame } from "@/components/pages/platforms/live-frame";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage, typeSection } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { highlightElementSource } from "@/lib/element-source";
 import {
   CLONE_DEMOS,
@@ -86,63 +88,97 @@ async function load(demos: readonly ScriptedDemo[]): Promise<LoadedDemo[]> {
   );
 }
 
-const number = (index: number) => String(index + 1).padStart(2, "0");
+const DOCS_ORIGIN =
+  process.env["NEXT_PUBLIC_DOCS_ORIGIN"] ?? "http://localhost:3000";
+const EXPO_DEMO = "https://assistant-ui-expo.vercel.app/";
+const INK_DEMO =
+  process.env["NEXT_PUBLIC_INK_DEMO_URL"] ??
+  "https://assistant-ui-ink.vercel.app";
 
-function DemoRow({ demo, index }: { demo: LoadedDemo; index: number }) {
-  const link = demo.link ?? AI_SDK_SETUP;
+const FEATURE_TAGS: Record<string, readonly string[]> = {
+  thread: ["Markdown", "Suggestions", "Tools"],
+  streaming: ["Streaming", "Suggestions"],
+};
+const FEATURE_START: Record<string, string> = {
+  thread: "npx shadcn@latest add @assistant-ui/thread",
+  streaming: "npx shadcn@latest add @assistant-ui/elements-streaming-text",
+};
+const CLONE_TAGS = ["Thread list", "Attachments", "Editing"] as const;
 
+const frame = (src: string, title: string) => (
+  <LiveFrame
+    src={src}
+    title={title}
+    className="size-full rounded-none border-0"
+  />
+);
+
+/** The blocks the docs host, each running at its own page on the docs server. */
+const BLOCK_DEMOS: readonly CatalogDemo[] = [
+  {
+    id: "document-editor",
+    title: "Document editor",
+    description:
+      "A pages app with a floating assistant that edits the page you are on and waits for you to accept each change.",
+    tags: ["Tools", "Approval"],
+  },
+  {
+    id: "images",
+    title: "Images",
+    description:
+      "An image maker that turns a template or a message into a picture you edit beside the chat.",
+    tags: ["Tools", "Attachments"],
+  },
+  {
+    id: "chat-basic",
+    title: "Chat basic",
+    description:
+      "A whole chat written with every assistant-ui primitive, using only the shadcn/ui tooltip and resizable components.",
+    tags: ["Thread list", "Branching"],
+  },
+].map((block) => ({
+  ...block,
+  kind: "Block" as const,
+  preview: frame(`${DOCS_ORIGIN}/blocks/demos/${block.id}`, block.title),
+  docs: { href: `/blocks/${block.id}`, label: "About the block" },
+  full: `${DOCS_ORIGIN}/blocks/demos/${block.id}`,
+}));
+
+const PLATFORM_DEMOS: readonly CatalogDemo[] = [
+  {
+    id: "expo",
+    title: "React Native",
+    kind: "Platform",
+    tags: ["Mobile"],
+    description:
+      "A real Expo build of the assistant-ui chat, running on the web.",
+    preview: frame(EXPO_DEMO, "assistant-ui React Native demo"),
+    start: "npx assistant-ui@latest create --native my-app",
+    docs: { href: "/react-native", label: "About React Native" },
+    full: EXPO_DEMO,
+  },
+  {
+    id: "ink",
+    title: "Terminal",
+    kind: "Platform",
+    tags: ["Terminal"],
+    description: "A real Ink render loop of the assistant-ui chat, in ANSI.",
+    preview: frame(INK_DEMO, "assistant-ui Ink demo"),
+    start: "npx assistant-ui@latest create --ink my-app",
+    docs: { href: "/ink", label: "About Ink" },
+    full: INK_DEMO,
+  },
+];
+
+function CatalogHeader() {
   return (
-    <section
-      id={demo.id}
-      aria-labelledby={`${demo.id}-heading`}
-      className="border-foreground/10 grid scroll-mt-24 gap-6 border-t py-10 md:py-12 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] lg:gap-10"
-    >
-      <div className="flex flex-col gap-3">
-        <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-          {number(index)}
-        </span>
-        <h3 id={`${demo.id}-heading`} className="text-lg font-medium">
-          {demo.title}
-        </h3>
-        <p className="text-muted-foreground text-[15px] leading-relaxed">
-          {demo.description}
-        </p>
-        {demo.hooks.length > 0 ? (
-          <ul aria-label="Uses" className="flex flex-wrap gap-1.5 pt-1">
-            {demo.hooks.map((hook) => (
-              <li
-                key={hook}
-                className="bg-foreground/[0.04] rounded-sm px-1.5 py-0.5 font-mono text-xs [font-variant-ligatures:none]"
-              >
-                {hook}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {demo.file ? (
-          <Link
-            href={link.href}
-            className="group/link text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 text-[13px] transition-colors"
-          >
-            {link.label}
-            <ArrowRightIcon
-              aria-hidden
-              className="size-3.5 transition-transform group-hover/link:translate-x-0.5 motion-reduce:transition-none"
-            />
-          </Link>
-        ) : (
-          <p className="text-muted-foreground text-[13px]">Not built yet</p>
-        )}
-      </div>
-      {demo.file && demo.html ? (
-        <DemoWindow
-          name={demo.file.name}
-          html={demo.html}
-          preview={PREVIEWS[demo.id]}
-          parts={demo.parts ?? false}
-        />
-      ) : null}
-    </section>
+    <header className="mb-10 max-w-2xl md:mb-12">
+      <h1 className={typePage}>Every demo, in one place.</h1>
+      <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+        Feature demos, clones, blocks, and platforms that run on this site.
+        Filter by kind or feature, try one, read its code, and start from it.
+      </p>
+    </header>
   );
 }
 
@@ -152,66 +188,51 @@ export default async function DemosPage() {
     load(CLONE_DEMOS),
   ]);
 
+  const catalog: CatalogDemo[] = [
+    ...demos.flatMap((demo) =>
+      demo.file && demo.html
+        ? [
+            {
+              id: demo.id,
+              title: demo.title,
+              kind: "Feature" as const,
+              tags: FEATURE_TAGS[demo.id] ?? [],
+              description: demo.description,
+              preview: PREVIEWS[demo.id],
+              file: { name: demo.file.name, html: demo.html },
+              ...(FEATURE_START[demo.id]
+                ? { start: FEATURE_START[demo.id] }
+                : {}),
+              docs: demo.link ?? AI_SDK_SETUP,
+            },
+          ]
+        : [],
+    ),
+    ...clones.flatMap((demo) =>
+      demo.file && demo.html
+        ? [
+            {
+              id: demo.id,
+              title: demo.title,
+              kind: "Clone" as const,
+              tags: CLONE_TAGS,
+              description: demo.description,
+              preview: PREVIEWS[demo.id],
+              file: { name: demo.file.name, html: demo.html },
+              docs: AI_SDK_SETUP,
+              full: `/examples/${demo.id}`,
+            },
+          ]
+        : [],
+    ),
+    ...BLOCK_DEMOS,
+    ...PLATFORM_DEMOS,
+  ];
+
   return (
     <PageFrame pad="sub">
-      <header className="max-w-2xl">
-        <h1 className={typePage}>Demos by feature.</h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-          The Thread, then what the runtime handles, one file each: the runtime
-          and the whole chat UI, ready to copy. The preview runs that UI with
-          the replies from a script, so no model is called.
-        </p>
-      </header>
-      <nav aria-label="Demos on this page" className="mt-8">
-        <ol className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-          {demos.map((demo, index) => (
-            <li key={demo.id}>
-              <a
-                href={`#${demo.id}`}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <span className="me-1.5 font-mono text-[11px] tabular-nums">
-                  {number(index)}
-                </span>
-                {demo.title}
-              </a>
-            </li>
-          ))}
-          <li>
-            <a
-              href="#clones"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Clones
-            </a>
-          </li>
-        </ol>
-      </nav>
-      <div className="mt-10">
-        {demos.map((demo, index) => (
-          <DemoRow key={demo.id} demo={demo} index={index} />
-        ))}
-      </div>
-      <section
-        id="clones"
-        aria-labelledby="clones-heading"
-        className="border-foreground/10 mt-10 scroll-mt-24 border-t pt-16 md:pt-20"
-      >
-        <div className="flex max-w-2xl flex-col gap-3">
-          <h2 id="clones-heading" className={typeSection}>
-            Clones.
-          </h2>
-          <p className={cn(typeDeck, "max-w-[52ch]")}>
-            Familiar chat apps rebuilt on assistant-ui, each in one file with
-            its own sidebar. Here they answer from a script too.
-          </p>
-        </div>
-        <div className="mt-10">
-          {clones.map((demo, index) => (
-            <DemoRow key={demo.id} demo={demo} index={index} />
-          ))}
-        </div>
-      </section>
+      <CatalogHeader />
+      <CatalogBrowser demos={catalog} />
     </PageFrame>
   );
 }

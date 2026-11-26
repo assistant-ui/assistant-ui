@@ -7,9 +7,14 @@ description: Design or redesign a page in the sitemap app (apps/sitemap) - its h
 
 These are ellie's decisions for pages in this app. `apps/docs/content/design.md` still applies whole; where this file is more specific, follow this file, and say so in the page's `CHANGES.md` entry so it is settled when the page folds back into `apps/docs`.
 
+## Two kinds of page
+
+- A subject page is about one thing a reader can install or use: a platform (`/react`, `/ink`), a utility (`/heat-graph`), a block. Its hero's right column is the interactive demo, and the demo is the page's main focus.
+- An overview page collects many things: the home page, `/utilities`, `/platforms`, `/demos`. Its hero has no interactive demo; each thing's demo lives on its own subject page, or in the collection below the hero.
+
 ## The hero
 
-Every page opens with a hero built with `PageHero` (`components/shared/page-hero.tsx`): copy on the left, an interactive demo on the right. From `lg` they sit side by side, centered vertically; on a phone the demo goes under the buttons.
+Every page opens with a hero built with `PageHero` (`components/shared/page-hero.tsx`): copy on the left, and on a subject page the interactive demo on the right. From `lg` they sit side by side, centered vertically; on a phone the demo goes under the buttons.
 
 Left column, in this order and nothing else:
 
@@ -21,7 +26,7 @@ Left column, in this order and nothing else:
 
 References: `PageHero`, `InstallButton` (`components/shared/install-button.tsx`), and `HeroCta` in `components/pages/home/hero.tsx`.
 
-Right column: always an interactive demo of the page's subject, the real thing running (a live component, a hosted demo, a real API call), never a picture or a script presented as live. When nothing can run on the page (Vue has no hosted demo), show the real setup code with a way to switch files and copy, and say what it is in the caption. Frame it like the home demo, with `DemoFrame` (`components/shared/demo-frame.tsx`):
+Right column, on a subject page: a two-view panel, the live demo first and its setup second (segmented tabs above the frame: the demo, then the setup code with copy), so the reader can try it and then see what it takes. It is always an interactive demo of the page's subject, the real thing running (a live component, a hosted demo, a real API call), never a picture or a script presented as live. When nothing can run on the page (Vue has no hosted demo), show the real setup code with a way to switch files and copy, and say what it is in the caption. Frame it like the home demo, with `DemoFrame` (`components/shared/demo-frame.tsx`):
 
 - Segmented tabs above the frame when there is more than one view, with anything that belongs to the whole demo (an address, a copy button) on the same row.
 - One lifted frame: `rounded-document border border-foreground/10 bg-background` with the inline lift shadow from `components/pages/home/demo/index.tsx`.

@@ -6,6 +6,9 @@ Run it with `pnpm -C apps/sitemap dev` (port 3013) while the docs dev server run
 
 ## To do
 
+- Back to `/demos` (ellie, 2026-11-25: "we will come back to demos tmr"): add the runnable `/examples` (Modal, Form Filling Co-Pilot, AI SDK, Artifacts, Generative UI, Article Assistant), settle the tags, open a demo full screen when it is tapped on a phone, and add each feature demo as it is built.
+- Overview pages (`/utilities`, `/platforms`, `/demos`) lose their hero demo and subject pages get a Demo and Setup panel, per the design-pages skill. Not done yet: ellie has not decided what an overview hero shows instead ("idk something cant pick").
+- `/skills`: ellie's idea, not decided: MCP becomes its own section beside "What each skill covers" and "Works in N agents", each section with a small interactive demo.
 - Icons for Codemaker and Neovate in `components/library/agent-icons.tsx`; the Skills page shows their first letter until there is a source for them.
 - Link `/skills` from the site: the header's Library menu (Extend, beside Skills) or the Resources menu.
 - Link `/utilities` from the site the same way (the Library menu's Extend group has Utilities).
@@ -801,3 +804,26 @@ Files:
 - `.claude/skills/design-pages/SKILL.md`: the code rule says why it must be the GitHub themes.
 
 When folding back: the docs keep Catppuccin in `Highlight` unless the code theme setting moves to the docs too; `lib/tokens.ts` is a dev tool of this app.
+
+## Demos page: every demo in one list beside a viewer (2026-11-25)
+
+ellie wants every demo on one page with filters, and asked to see quick full variants. Of four (a list beside a viewer, a grid that opens a dialog, a long list with every demo live, and the old page), ellie kept the list beside a viewer "for now"; the variants and `@assistant-ui/variants` are gone again, and the lockfile matches what was committed before.
+
+`/demos` is now a header, then filters (search, kind with counts, feature tags) over a list of demos on the left, and the selected demo on the right, sticky: the demos page's window (Preview and Code, full screen) when the demo has a file, a live frame when it doesn't, then its start command, a full-screen link, and a docs link.
+
+The catalog has 12 demos: Thread and Streaming, the five clones, three blocks (Document editor, Images, Chat basic, each a frame of its page on the docs server), and the Expo and Ink demos. The old per-demo rows and the separate Clones section are gone.
+
+Files:
+
+- `components/pages/demos/catalog.tsx` (new): the catalog type, filters, viewer, and `CatalogBrowser`.
+- `app/(home)/demos/page.tsx`: the catalog data, the header, `CatalogBrowser`.
+
+When folding back: the blocks' frames point at the docs server through `NEXT_PUBLIC_DOCS_ORIGIN`; in `apps/docs` they can render the block pages' own routes.
+
+## Overview and subject pages (2026-11-25)
+
+ellie: a page that collects things (the home page, `/utilities`) should not open with an interactive demo; a page about one thing should, with its setup beside it in a two-view panel, the demo as the main focus. The design-pages skill now says so. The pages have not changed yet.
+
+Files:
+
+- `.claude/skills/design-pages/SKILL.md`: "Two kinds of page", and the subject page's Demo and Setup panel.
