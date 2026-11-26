@@ -156,15 +156,27 @@ export function sectionIndexGroups(
 const attribute = (value: string) =>
   /["&{}<>]/.test(value) ? `{${JSON.stringify(value)}}` : `"${value}"`;
 
+const escapePlain = (text: string) => text.replace(/[{}<>]/g, (c) => `\\${c}`);
+
 // Descriptions render as inline markdown, so backticks still mark code. MDX
-// reads braces and angle brackets as code only outside code spans.
-const escapeMdx = (text: string) =>
-  text
-    .split(/(`[^`]*`)/)
-    .map((part, index) =>
-      index % 2 ? part : part.replace(/[{}<>]/g, (c) => `\\${c}`),
-    )
-    .join("");
+// reads braces and angle brackets as code only outside code spans, and a
+// code span closes at the next run of exactly as many backticks.
+const escapeMdx = (text: string) => {
+  let out = "";
+  let at = 0;
+  while (at < text.length) {
+    const open = text.indexOf("`", at);
+    if (open === -1) return out + escapePlain(text.slice(at));
+    const run = /^`+/.exec(text.slice(open))![0];
+    const closing = new RegExp(`(?<!\`)\`{${run.length}}(?!\`)`, "g");
+    closing.lastIndex = open + run.length;
+    const close = closing.exec(text);
+    const end = close ? close.index + run.length : open + run.length;
+    out += escapePlain(text.slice(at, open)) + text.slice(open, end);
+    at = end;
+  }
+  return out;
+};
 
 const card = ({ title, description, href: url }: SectionIndexPage) =>
   description

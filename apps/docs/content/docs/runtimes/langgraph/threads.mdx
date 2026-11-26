@@ -91,7 +91,7 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
-The [production proxy](/docs/runtimes/langgraph/overview#production-proxy-backend) refuses `threads/search` and thread deletes, because a search with your API key returns every user's threads; it explains what to serve instead.
+This adapter calls LangGraph directly at the development URL. The [production proxy](/docs/runtimes/langgraph/overview#production-proxy-backend) refuses `threads/search` and thread deletes, because a search with your API key returns every user's threads. In production, point `list`, `initialize` and `delete` at a route of your own that creates and searches threads with the signed-in user in their `metadata`, as that section describes.
 
 Setting `remoteId === externalId` keeps the ids assistant-ui stores aligned with the LangGraph thread ids your `load` and `stream` callbacks receive. See [thread list adapters](/docs/integrations/persistence/thread-list-adapters) for the full adapter contract.
 

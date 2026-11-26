@@ -3,12 +3,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import {
   GENERATED_SECTION_INDEXES,
   SECTION_INDEX_END,
@@ -100,6 +101,7 @@ describe("generated section indexes", () => {
 describe("section index generator", () => {
   const docsWith = (meta: object, description: string) => {
     const dir = mkdtempSync(path.join(tmpdir(), "section-index-"));
+    onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
     mkdirSync(path.join(dir, "demo"));
     writeFileSync(path.join(dir, "demo", "meta.json"), JSON.stringify(meta));
     writeFileSync(
@@ -110,13 +112,16 @@ describe("section index generator", () => {
   };
 
   it("escapes MDX syntax in a description, but not inside code spans", () => {
-    const dir = docsWith({ pages: ["page"] }, "Wraps `<Cards>` in {braces}");
+    const dir = docsWith(
+      { pages: ["page"] },
+      "Wraps `<Cards>` and ``<Card>`` in {braces}, with a stray ` left open",
+    );
     const synced = syncSectionIndex(
       `${SECTION_INDEX_START}\n${SECTION_INDEX_END}`,
       sectionIndexGroups("demo", dir),
     );
     expect(synced).toContain(
-      '<Card title="Page" href="/docs/demo/page">Wraps `<Cards>` in \\{braces\\}</Card>',
+      '<Card title="Page" href="/docs/demo/page">Wraps `<Cards>` and ``<Card>`` in \\{braces\\}, with a stray ` left open</Card>',
     );
   });
 
