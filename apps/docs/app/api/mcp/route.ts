@@ -157,6 +157,16 @@ function allPages() {
       kind: "design" as const,
       page,
     })),
+    {
+      kind: "design" as const,
+      page: {
+        url: "/design/components",
+        data: {
+          title: "Design components",
+          description: "Every design system component, with its markdown url.",
+        },
+      },
+    },
     // The elements MDX pages and the gallery pages built from the registry.
     ...elementsMarkdownPages().map((page) => ({
       kind: "elements" as const,
@@ -410,12 +420,13 @@ async function readPage(path: string | undefined, requestUrl: string) {
   if (
     normalized.kind === "design" &&
     (normalized.slugs.length === 0 ||
-      normalized.slugs.join("/") === "components")
+      normalized.slugs.join("/").toLowerCase() === "components")
   ) {
+    const slugs = normalized.slugs.length === 0 ? [] : ["components"];
     return {
       title: "Design",
-      url: normalized.slugs.length === 0 ? "/design" : "/design/components",
-      content: (await getDesignMarkdown(normalized.slugs, "base")) ?? "",
+      url: slugs.length === 0 ? "/design" : "/design/components",
+      content: (await getDesignMarkdown(slugs, "base")) ?? "",
     };
   }
   const page =

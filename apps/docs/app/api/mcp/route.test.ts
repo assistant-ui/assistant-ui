@@ -1181,10 +1181,25 @@ describe("pages built from the registry over MCP", () => {
     );
   });
 
-  it("reads /design/components as the design index", async () => {
+  it("lists /design/components", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "list_pages",
+      arguments: { path: "/design" },
+    });
+
+    expect(
+      (
+        JSON.parse(getToolCallResult(response).content[0]!.text!) as {
+          url: string;
+        }[]
+      ).map((page) => page.url),
+    ).toContain("/design/components");
+  });
+
+  it("reads /design/components as the design index, in any case", async () => {
     const response = await requestMcp("tools/call", {
       name: "read_page",
-      arguments: { path: "/design/components" },
+      arguments: { path: "/design/Components" },
     });
 
     const result = getToolCallResult(response);

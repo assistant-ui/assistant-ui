@@ -93,6 +93,67 @@ describe("GET for a folder", () => {
   );
 });
 
+describe("GET for a name in another case", () => {
+  const pages = [
+    {
+      url: "/docs/guides/attachments",
+      slugs: ["guides", "attachments"],
+      data: { title: "Attachments" },
+    },
+    {
+      url: "/docs/primitives/thread-list",
+      slugs: ["primitives", "thread-list"],
+      data: { title: "ThreadList" },
+    },
+  ];
+
+  async function withPages<T>(run: () => Promise<T>) {
+    const { source } = await import("@/lib/source");
+    const getPages = vi
+      .spyOn(source, "getPages")
+      .mockReturnValue(pages as never);
+    try {
+      return await run();
+    } finally {
+      getPages.mockRestore();
+    }
+  }
+
+  const get = (slug: string[]) =>
+    withPages(() =>
+      GET(new Request("https://example.com/docs.md"), {
+        params: Promise.resolve({ platform: "vue", flavor: "radix", slug }),
+      }),
+    );
+
+  it("answers a case-only difference in place, for the same platform", async () => {
+    const response = await get(["guides", "Attachments"]);
+
+    expect(response.status).toBe(200);
+    expect(getDocsMarkdown).toHaveBeenCalledWith(["guides", "attachments"], {
+      flavor: "radix",
+      platform: "vue",
+    });
+  });
+
+  it("redirects an API name with the platform and view kept", async () => {
+    await expect(get(["primitives", "ThreadList"])).rejects.toMatchObject({
+      digest: expect.stringMatching(
+        /^NEXT_REDIRECT;replace;\/docs\/primitives\/thread-list\.md\?platform=vue&view=radix-ui;307;/,
+      ),
+    });
+  });
+
+  it("keeps the platform and view on the links of a 404", async () => {
+    const response = await get(["primitives", "thread-lists"]);
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toContain(
+      "(/docs/primitives/thread-list.md?platform=vue&view=radix-ui)",
+    );
+  });
+});
+
 describe("generateStaticParams", () => {
   it("prerenders one valid variant so the rest are cached after their first request", async () => {
     const params = generateStaticParams();

@@ -122,6 +122,13 @@ export function nearestPages<Page extends MarkdownPage>(
     .map(({ page }) => page);
 }
 
+// The path as the 404 quotes it: route params arrive decoded, so a crafted
+// url could carry a newline and markdown out of the code span.
+function displayPath(pathname: string) {
+  // oxlint-disable-next-line no-control-regex
+  return pathname.replace(/[\u0000-\u001f\u007f`]/g, "").slice(0, 200);
+}
+
 /**
  * A markdown 404: says there is no page at the path and lists the nearest
  * pages as markdown links, with the index to fall back on.
@@ -136,7 +143,7 @@ export function missingMarkdownResponse(
   const lines = [
     "# Page not found",
     "",
-    `There is no page at \`${pathname.replace(/`/g, "")}\`.`,
+    `There is no page at \`${displayPath(pathname)}\`.`,
   ];
   if (nearest.length > 0) {
     lines.push(

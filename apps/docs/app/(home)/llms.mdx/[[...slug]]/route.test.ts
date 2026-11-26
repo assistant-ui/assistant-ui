@@ -122,6 +122,14 @@ describe("GET for a name in another case", () => {
     );
 
     expect(response.status).toBe(404);
+    expect(response.headers.get("Content-Type")).toBe(
+      "text/markdown; charset=utf-8",
+    );
+    expect(response.headers.get("Cache-Control")).toBe(
+      "no-cache, must-revalidate",
+    );
+    expect(response.headers.get("ETag")).toMatch(/^"sha256-[a-f0-9]{64}"$/);
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
     expect(await response.text()).toContain(
       "[ThreadList](/docs/primitives/thread-list.md)",
     );

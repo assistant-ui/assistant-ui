@@ -76,6 +76,20 @@ describe("markdown for pages built from the registry", () => {
     expect(await response.text()).toContain("(/elements/generative-cart)");
   });
 
+  it("answers a name that differs only in case in place", async () => {
+    const response = await read(["Vocabulary"]);
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toMatch(/^# Component vocabulary/);
+  });
+
+  it("redirects an element named as in code to its kebab-case page", async () => {
+    const response = await read(["ThreadList"]);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("Location")).toBe("/elements/thread-list.md");
+  });
+
   it("answers a missing elements page with the nearest ones", async () => {
     const response = await read(["generative-carts"]);
 
@@ -96,14 +110,16 @@ describe("/design/components", () => {
   });
 });
 
-describe("agent indexes list the pages built from the registry", () => {
+describe("agent indexes list every sitemap page under /elements", () => {
+  const paths = pathsUnder("/elements").filter((path) => path !== "/elements");
+
   it.each([
     ["llms.txt", llmsTxt],
     ["sitemap.md", markdownSitemap],
   ] as const)("%s", async (_name, get) => {
     const text = await (await get()).text();
 
-    expect(text).toContain("/elements/generative-cart.md");
-    expect(text).toContain("/elements/vocabulary.md");
+    expect(paths).toContain("/elements/vocabulary");
+    for (const path of paths) expect(text).toContain(`${path}.md`);
   });
 });
