@@ -119,6 +119,12 @@ export function CheckoutView() {
   const session = useCheckoutSession();
   const checkout = useCheckout();
   const failed = useCheckoutFailed();
+  const asking = hydrated && pending !== null && session?.link !== pending.link;
+  useEffect(() => {
+    // Keyed by the id the session will take once the user connects, so the setup's later events count against the same setup.
+    if (asking && pending !== null)
+      analytics.setup.linkShown(pending.setup ?? `agent-${pending.link}`);
+  }, [asking, pending]);
 
   if (!hydrated) return null;
   if (pending !== null && session?.link !== pending.link)

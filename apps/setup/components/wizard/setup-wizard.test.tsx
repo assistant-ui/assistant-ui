@@ -69,6 +69,7 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   reducedMotion = false;
+  localStorage.clear();
 });
 
 const commands = {
@@ -985,6 +986,45 @@ describe("SetupWizard", () => {
     expect(commands["checkout/cancel"]).not.toHaveBeenCalled();
   });
 
+  it("lets a quiet agent run one long command before covering the page", () => {
+    vi.useFakeTimers({ now: 100_000 });
+    const state = connected({
+      status: "installing",
+      agent: {
+        ...connected({}).agent,
+        // Past the presence window, but well inside the grace.
+        lastSeenAt: 100_000 - 20_000,
+      },
+    });
+    render(<SetupWizard checkout={context(state, false)} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    act(() => vi.advanceTimersByTime(24_000));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(
+      screen.getByRole("dialog", { name: "Claude Code disconnected" }),
+    ).toBeDefined();
+  });
+
+  it("keeps Finish reachable when the agent leaves after proposing to finish", async () => {
+    const state = connected({
+      status: "installing",
+      completion: { proposedAt: 5 },
+      steps: [{ id: "s1", title: "Install", status: "done", createdAt: 4 }],
+    });
+    render(<SetupWizard checkout={context(state, false)} />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Claude Code finished",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      screen.getByText(/Claude Code is no longer connected/).textContent,
+    ).toContain("Finish does not need it");
+    fireEvent.click(footer().getByRole("button", { name: "Finish" }));
+    await waitFor(() => expect(commands["checkout/finish"]).toHaveBeenCalled());
+    await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
+  });
+
   it("puts a question's answer on the Next button and sends it from the footer", async () => {
     const state = connected({
       status: "planning",
@@ -1734,7 +1774,7 @@ describe("SetupWizard analytics", () => {
     const { rerender } = render(
       <SetupWizard checkout={context(initialCheckoutState(), false)} />,
     );
-    const waiting = { step: "connect", step_index: 0 };
+    const waiting = { step: "connect", step_index: 0, first_view: true };
     expect(events("setup_step_viewed")).toEqual([waiting]);
     rerender(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
     expect(events("setup_step_viewed")).toEqual([waiting]);
@@ -1744,12 +1784,29 @@ describe("SetupWizard analytics", () => {
     );
     expect(events("setup_step_viewed")).toEqual([
       waiting,
-      { step: "working", step_index: 0, ms_on_previous_step: 3_500 },
+      {
+        step: "working",
+        step_index: 0,
+        ms_on_previous_step: 3_500,
+        first_view: true,
+      },
     ]);
     now.mockRestore();
   });
 
-  it("tracks the connection dropping once per drop, with the step it happened on", () => {
+  it("marks a page the setup already showed in another tab or before a reload as not its first view", () => {
+    const events = captureEvents();
+    const state = connected({ status: "planning" });
+    render(<SetupWizard checkout={context(state)} />);
+    cleanup();
+    render(<SetupWizard checkout={context(state)} />);
+    expect(events("setup_step_viewed").map((view) => view.first_view)).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it("tracks the connection dropping once per setup and step, however often it drops, with the step it happened on", () => {
     const events = captureEvents();
     const state = connected({ status: "planning" });
     const { rerender } = render(<SetupWizard checkout={context(state)} />);
@@ -1765,8 +1822,11 @@ describe("SetupWizard analytics", () => {
     };
     rerender(<SetupWizard checkout={degraded} />);
     rerender(<SetupWizard checkout={degraded} />);
+    // A laptop that sleeps and wakes with the page open drops the connection every time.
+    rerender(<SetupWizard checkout={context(state)} />);
+    rerender(<SetupWizard checkout={degraded} />);
     expect(events("setup_error")).toEqual([
-      { reason: "connection_lost", step: "working" },
+      { reason: "connection_lost", step: "working", agent_kind: "claude" },
     ]);
   });
 
@@ -1784,7 +1844,31 @@ describe("SetupWizard analytics", () => {
     });
     rerender(<SetupWizard checkout={context(quiet, false)} />);
     expect(events("setup_error")).toEqual([
-      { reason: "agent_disconnected", step: "working" },
+      { reason: "agent_disconnected", step: "working", agent_kind: "claude" },
+    ]);
+  });
+
+  it("does not track an agent that left after proposing to finish as an error", () => {
+    const events = captureEvents();
+    const state = connected({
+      status: "installing",
+      completion: { proposedAt: 5 },
+    });
+    render(<SetupWizard checkout={context(state, false)} />);
+    expect(events("setup_error")).toEqual([]);
+  });
+
+  it("reports an agent kind it has no name for as other", () => {
+    const events = captureEvents();
+    const live = connected({ status: "planning" });
+    const { rerender } = render(<SetupWizard checkout={context(live)} />);
+    const quiet = connected({
+      status: "planning",
+      agent: { ...live.agent, kind: "some-new-agent" },
+    });
+    rerender(<SetupWizard checkout={context(quiet, false)} />);
+    expect(events("setup_error")).toEqual([
+      { reason: "agent_disconnected", step: "working", agent_kind: "other" },
     ]);
   });
 
@@ -1800,22 +1884,71 @@ describe("SetupWizard analytics", () => {
     rerender(
       <SetupWizard checkout={context(connected({ status: "planning" }))} />,
     );
-    expect(events("setup_agent_connected")).toEqual([undefined]);
+    expect(events("setup_agent_connected")).toEqual([{ agent_kind: "claude" }]);
   });
 
-  it("tracks the install finishing once the session is done", () => {
+  it("tracks the agent connecting once per setup, not again in a later tab", () => {
     const events = captureEvents();
     const { rerender } = render(
-      <SetupWizard checkout={context(connected({ status: "installing" }))} />,
+      <SetupWizard checkout={context(initialCheckoutState(), false)} />,
     );
+    rerender(
+      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+    );
+    cleanup();
+    const later = render(
+      <SetupWizard checkout={context(initialCheckoutState(), false)} />,
+    );
+    later.rerender(
+      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+    );
+    expect(events("setup_agent_connected")).toHaveLength(1);
+  });
+
+  it("tracks the install finishing once the agent proposes to finish, before anyone closes the setup", () => {
+    const events = captureEvents();
+    const installing = connected({
+      status: "installing",
+      steps: [
+        { id: "s1", title: "Install", status: "active", createdAt: 4 },
+        { id: "s2", title: "Add the route", status: "pending", createdAt: 5 },
+      ],
+    });
+    const { rerender } = render(<SetupWizard checkout={context(installing)} />);
     expect(events("setup_install_finished")).toEqual([]);
+    const proposed = connected({
+      ...installing,
+      steps: installing.steps.map((entry) => ({ ...entry, status: "done" })),
+      completion: { proposedAt: 6, preview: "http://localhost:3000/" },
+    });
+    rerender(<SetupWizard checkout={context(proposed)} />);
+    rerender(<SetupWizard checkout={context(proposed)} />);
     rerender(
-      <SetupWizard checkout={context(connected({ status: "done" }), false)} />,
+      <SetupWizard
+        checkout={context({ ...proposed, status: "done" }, false)}
+      />,
     );
-    rerender(
-      <SetupWizard checkout={context(connected({ status: "done" }), false)} />,
+    expect(events("setup_install_finished")).toEqual([
+      { steps: 2, preview: true, agent_kind: "claude" },
+    ]);
+  });
+
+  it("tracks Finish as the setup closing, before the page lets go of the session", async () => {
+    const events = captureEvents();
+    finishCheckout.mockImplementation(() => {
+      expect(events("setup_closed")).toEqual([undefined]);
+    });
+    render(
+      <SetupWizard
+        checkout={context(
+          connected({ status: "installing", completion: { proposedAt: 5 } }),
+        )}
+      />,
     );
-    expect(events("setup_install_finished")).toEqual([undefined]);
+    fireEvent.click(footer().getByRole("button", { name: "Finish" }));
+    await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
+    expect(events("setup_closed")).toEqual([undefined]);
+    finishCheckout.mockReset();
   });
 
   it("tracks a cancellation only once End setup is confirmed", async () => {
