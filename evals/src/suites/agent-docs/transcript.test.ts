@@ -1,0 +1,63 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test } from "node:test";
+import { summarizeTranscript } from "./transcript.ts";
+
+const tool = (name: string, input: object) => ({
+  type: "assistant",
+  message: { content: [{ type: "tool_use", name, input }] },
+});
+
+test("summarizeTranscript finds the docs pages, node_modules lookups and the closing note", () => {
+  const dir = mkdtempSync(join(tmpdir(), "agent-docs-transcript-"));
+  const docs = "/runs/docs/site";
+  try {
+    const file = join(dir, "transcript.jsonl");
+    const events = [
+      { type: "system", subtype: "init" },
+      tool("Read", { file_path: `${docs}/llms.txt` }),
+      tool("Bash", {
+        command: `cd ${docs}/docs; cat manual-installation.md runtimes/ai-sdk/v7.md`,
+      }),
+      tool("Bash", { command: `head -50 ${docs}/elements/thread.md` }),
+      tool("Grep", { pattern: "TooltipProvider", path: docs }),
+      tool("Bash", {
+        command:
+          "grep -r useChatRuntime node_modules/@assistant-ui/react-ai-sdk",
+      }),
+      tool("WebFetch", {
+        url: "https://www.assistant-ui.com/docs/installation.md",
+      }),
+      tool("Bash", { command: "curl -s https://example.com/x" }),
+      tool("Bash", { command: "curl -s http://127.0.0.1:3000/" }),
+      {
+        type: "result",
+        num_turns: 12,
+        total_cost_usd: 0.4,
+        result: "Built it. Docs: the route example is stale.",
+      },
+    ];
+    writeFileSync(file, events.map((e) => JSON.stringify(e)).join("\n"));
+    const summary = summarizeTranscript(file, docs);
+    assert.deepEqual(summary.docsRead, [
+      "/llms.txt",
+      "/docs/manual-installation.md",
+      "/docs/runtimes/ai-sdk/v7.md",
+      "/elements/thread.md",
+      "/docs/installation.md",
+    ]);
+    assert.deepEqual(summary.docsSearches, ["TooltipProvider"]);
+    assert.equal(summary.nodeModulesLookups, 1);
+    assert.deepEqual(summary.webFetches, ["curl -s https://example.com/x"]);
+    assert.equal(summary.turns, 12);
+    assert.equal(summary.costUsd, 0.4);
+    assert.equal(
+      summary.finalMessage,
+      "Built it. Docs: the route example is stale.",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
