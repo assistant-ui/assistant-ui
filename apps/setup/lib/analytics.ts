@@ -48,23 +48,29 @@ const agentKindProperty = (kind: string | null | undefined) => {
 };
 
 const reportedKey = "aui-setup-reported";
-type Reported = { setup: string; keys: string[] };
-let reportedInMemory: Reported | null = null;
+/** What each setup already reported, by setup id, oldest setup first. */
+type Reported = Record<string, string[]>;
+/** How many setups the record keeps; older ones drop off. */
+const MAX_REMEMBERED_SETUPS = 10;
+let reportedInMemory: Reported = {};
 /** False once a write to storage failed; the tab then trusts its own record. */
 let persisted = true;
 
-const readReported = (): Reported | null => {
+const readReported = (): Reported => {
   if (!persisted) return reportedInMemory;
   try {
     const raw = window.localStorage.getItem(reportedKey);
-    if (raw === null) return null;
-    const value = JSON.parse(raw) as Partial<Reported> | null;
-    return typeof value?.setup === "string" && Array.isArray(value.keys)
-      ? {
-          setup: value.setup,
-          keys: value.keys.filter((key) => typeof key === "string"),
-        }
-      : null;
+    if (raw === null) return {};
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null || Array.isArray(value))
+      return {};
+    return Object.fromEntries(
+      Object.entries(value).flatMap(([setup, keys]) =>
+        Array.isArray(keys)
+          ? [[setup, keys.filter((key) => typeof key === "string")]]
+          : [],
+      ),
+    );
   } catch {
     return reportedInMemory;
   }
@@ -73,18 +79,24 @@ const readReported = (): Reported | null => {
 /**
  * True the first time `key` happens for `setup` in this browser. PostHog runs
  * without storage here, so every tab and reload is a new visitor; remembering
- * what one setup already reported keeps a milestone at one event per setup,
- * however many tabs the agent opened or how often the page reconnected. Only
- * the latest setup is remembered. Storage has no cross-tab lock, so two tabs
- * on one setup that claim the same milestone in the same instant can both
- * report it; setup opens one tab at a time, so that stays rare.
+ * what each setup already reported keeps a milestone at one event per setup,
+ * however many tabs the agent opened or how often the page reconnected. The
+ * record keeps the last `MAX_REMEMBERED_SETUPS` setups. Storage has no
+ * cross-tab lock, so two tabs on one setup that claim the same milestone in
+ * the same instant can both report it; the setup CLI opens one tab for
+ * everything waiting and no second one within 30 seconds (setup-agent
+ * README), so that takes a tab the user opened themselves.
  */
 export const firstForSetup = (setup: string, key: string) => {
   if (typeof window === "undefined") return false;
   const stored = readReported();
-  const keys = stored?.setup === setup ? stored.keys : [];
+  const keys = stored[setup] ?? [];
   if (keys.includes(key)) return false;
-  reportedInMemory = { setup, keys: [...keys, key] };
+  const others = Object.entries(stored).filter(([id]) => id !== setup);
+  reportedInMemory = Object.fromEntries([
+    ...others.slice(-(MAX_REMEMBERED_SETUPS - 1)),
+    [setup, [...keys, key]],
+  ]);
   try {
     window.localStorage.setItem(reportedKey, JSON.stringify(reportedInMemory));
     persisted = true;

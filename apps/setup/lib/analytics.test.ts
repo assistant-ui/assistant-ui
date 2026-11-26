@@ -15,22 +15,31 @@ afterEach(() => {
 });
 
 describe("firstForSetup", () => {
-  it("is true once per setup and key, across reloads that share the browser's storage", async () => {
-    const { firstForSetup } = await freshTab();
-    expect(firstForSetup("setupA", "agent_connected")).toBe(true);
-    expect(firstForSetup("setupA", "agent_connected")).toBe(false);
-    expect(firstForSetup("setupA", "install_finished")).toBe(true);
-    expect(firstForSetup("setupA", "install_finished")).toBe(false);
+  it("is true once per setup and key, also after a reload that shares the browser's storage", async () => {
+    const tab = await freshTab();
+    expect(tab.firstForSetup("setupA", "agent_connected")).toBe(true);
+    expect(tab.firstForSetup("setupA", "agent_connected")).toBe(false);
+    const reloaded = await freshTab();
+    expect(reloaded.firstForSetup("setupA", "agent_connected")).toBe(false);
+    expect(reloaded.firstForSetup("setupA", "install_finished")).toBe(true);
   });
 
-  it("starts over for another setup and keeps only the latest one", async () => {
+  it("keeps each setup's record when another setup reports in between", async () => {
+    const tab = await freshTab();
+    tab.firstForSetup("setupA", "agent_connected");
+    expect(tab.firstForSetup("setupB", "agent_connected")).toBe(true);
+    const reloaded = await freshTab();
+    expect(reloaded.firstForSetup("setupA", "agent_connected")).toBe(false);
+    expect(reloaded.firstForSetup("setupB", "agent_connected")).toBe(false);
+  });
+
+  it("remembers the last ten setups and lets older ones drop off", async () => {
     const { firstForSetup } = await freshTab();
-    firstForSetup("setupA", "agent_connected");
-    expect(firstForSetup("setupB", "agent_connected")).toBe(true);
-    expect(JSON.parse(localStorage.getItem("aui-setup-reported")!)).toEqual({
-      setup: "setupB",
-      keys: ["agent_connected"],
-    });
+    for (let n = 0; n < 11; n++) firstForSetup(`setup${n}`, "closed");
+    expect(
+      Object.keys(JSON.parse(localStorage.getItem("aui-setup-reported")!)),
+    ).toEqual(Array.from({ length: 10 }, (_, n) => `setup${n + 1}`));
+    expect(firstForSetup("setup1", "closed")).toBe(false);
   });
 
   it("still reports each milestone once in this tab when storage is blocked", async () => {
@@ -59,8 +68,7 @@ describe("firstForSetup", () => {
     localStorage.setItem("aui-setup-reported", "{not json");
     expect(firstForSetup("setupD", "closed")).toBe(true);
     expect(JSON.parse(localStorage.getItem("aui-setup-reported")!)).toEqual({
-      setup: "setupD",
-      keys: ["closed"],
+      setupD: ["closed"],
     });
     expect(firstForSetup("setupD", "closed")).toBe(false);
   });
