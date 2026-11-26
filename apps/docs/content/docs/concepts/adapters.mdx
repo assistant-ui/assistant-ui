@@ -96,6 +96,7 @@ const attachmentAdapter: AttachmentAdapter = {
   },
   async send(attachment) {
     const url = uploadedUrls.get(attachment.id)!;
+    uploadedUrls.delete(attachment.id);
     return {
       ...attachment,
       status: { type: "complete" },

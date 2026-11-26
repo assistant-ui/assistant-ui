@@ -45,9 +45,11 @@ export const ChatGPT = () => (
     <AuiIf condition={(s) => !s.thread.isEmpty}>
       <ThreadPrimitive.Viewport>
         <ThreadPrimitive.Messages>
-          {({ message }) =>
-            message.role === "user" ? <UserMessage /> : <AssistantMessage />
-          }
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
+          }}
         </ThreadPrimitive.Messages>
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
           <Composer placeholder="Ask anything" />

@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { checkTsBlocks, type TsBlockResult } from "./ts-blocks";
@@ -84,7 +84,7 @@ describe("TypeScript blocks in the docs", () => {
   // it after fixing a block.
   it("fail only where the baseline says", () => {
     const { byPage: current, messages } = signatures(checked.results);
-    if (process.env.UPDATE_DOCS_TS_BASELINE) {
+    if (process.env.UPDATE_DOCS_TS_BASELINE === "1") {
       writeFileSync(BASELINE, `${JSON.stringify(current, null, 2)}\n`);
       return;
     }
@@ -112,4 +112,44 @@ describe("TypeScript blocks in the docs", () => {
       "fixed: remove these from docs-ts-blocks.baseline.json (UPDATE_DOCS_TS_BASELINE=1)",
     ).toEqual([]);
   });
+});
+
+describe("the TypeScript block checker", () => {
+  const page = "apps/docs/content/docs/__checker-fixture__.mdx";
+  const fence = "```";
+  const source = [
+    // a title can't place a file outside the checker's folder
+    `${fence}ts title="${"../".repeat(12)}escaped-docs-block.ts"`,
+    "export const escaped: number = 1;",
+    fence,
+    // a package nobody installs is `any`, also when imported whole
+    `${fence}ts`,
+    'import * as Picker from "a-package-nobody-installs";',
+    "Picker.pick({ any: 1 });",
+    fence,
+    // a later block sees an earlier block's names with their types
+    `${fence}ts`,
+    "const local = 1;",
+    "export const exported = 2;",
+    fence,
+    `${fence}ts`,
+    "const text: string = local;",
+    fence,
+  ].join("\n");
+
+  it("keeps files in its folder, stubs missing packages and carries names", async () => {
+    const { results, checkerErrors } = await checkTsBlocks(
+      [page],
+      () => source,
+    );
+    expect(checkerErrors).toEqual([]);
+    expect(
+      [ROOT, path.dirname(ROOT), path.join(ROOT, "apps/docs")].some((dir) =>
+        existsSync(path.join(dir, "escaped-docs-block.ts")),
+      ),
+    ).toBe(false);
+    expect(
+      results.map((result) => result.errors.map((e) => e.split(" ")[1])),
+    ).toEqual([[], [], [], ["TS2322"]]);
+  }, 120_000);
 });

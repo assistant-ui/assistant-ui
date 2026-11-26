@@ -98,7 +98,12 @@ type Names = {
   /** every identifier the block mentions */
   used: Set<string>;
   /** module specifiers with the names imported from each */
-  specifiers: { specifier: string; names: string[]; isDefault: boolean }[];
+  specifiers: {
+    specifier: string;
+    names: string[];
+    isDefault: boolean;
+    namespace: boolean;
+  }[];
 };
 
 /** API references show signatures (`const useX: () => T;`, `function f(): T;`).
@@ -160,12 +165,12 @@ function readNames(block: TsBlock): Names {
     used: new Set(),
     specifiers: [],
   };
-  const bind = (name: ts.BindingName) => {
-    if (ts.isIdentifier(name)) names.declared.add(name.text);
-    else
-      for (const element of name.elements)
-        if (!ts.isOmittedExpression(element)) bind(element.name);
-  };
+  const bound = (name: ts.BindingName): string[] =>
+    ts.isIdentifier(name)
+      ? [name.text]
+      : name.elements.flatMap((element) =>
+          ts.isOmittedExpression(element) ? [] : bound(element.name),
+        );
   const isExported = (node: ts.Node) =>
     ts.canHaveModifiers(node) &&
     (ts.getModifiers(node) ?? []).some(
@@ -189,6 +194,7 @@ function readNames(block: TsBlock): Names {
         isDefault = true;
       }
       const bindings = clause?.namedBindings;
+      const namespace = !!bindings && ts.isNamespaceImport(bindings);
       if (bindings && ts.isNamespaceImport(bindings))
         names.imported.set(bindings.name.text, {
           clause: `${typeOnly}* as ${bindings.name.text}`,
@@ -207,18 +213,20 @@ function readNames(block: TsBlock): Names {
             specifier,
           });
         }
-      names.specifiers.push({ specifier, names: imported, isDefault });
+      names.specifiers.push({
+        specifier,
+        names: imported,
+        isDefault,
+        namespace,
+      });
       continue;
     }
     if (ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations) {
-        bind(declaration.name);
-        if (isExported(statement)) {
-          const before = new Set(names.declared);
-          bind(declaration.name);
-          for (const name of before) names.exported.add(name);
+      for (const declaration of statement.declarationList.declarations)
+        for (const name of bound(declaration.name)) {
+          names.declared.add(name);
+          if (isExported(statement)) names.exported.add(name);
         }
-      }
       continue;
     }
     if (
@@ -352,6 +360,9 @@ const slug = (page: string) =>
     .replace(/^apps\/docs\/content\//, "")
     .replace(/\.mdx?$/, "")
     .replace(/[^\w/-]+/g, "_");
+
+/** The module name an import of a reader file no block shows turns into. */
+const READER_FILE = "reader-file:";
 
 const EXTENSIONS = [".tsx", ".ts", "/index.tsx", "/index.ts", ""];
 
@@ -488,12 +499,13 @@ export async function checkTsBlocks(
   // specifiers of packages nobody installs -> the names imported from each
   const missingModules = new Map<
     string,
-    { names: Set<string>; isDefault: boolean }
+    { names: Set<string>; isDefault: boolean; namespace: boolean }
   >();
   const all: TsBlock[] = [];
   const prepared = new Map<string, Prepared>();
   const syntaxErrors = new Map<TsBlock, string[]>();
-  const stubs = new Map<string, { names: Set<string>; isDefault: boolean }>();
+  // reader files no block shows, by their path from the page
+  const readerFiles = new Set<string>();
   const toImport = (from: string, to: string) => {
     const rel = path
       .relative(path.dirname(from), to)
@@ -534,8 +546,12 @@ export async function checkTsBlocks(
     const used = new Set<string>();
     const titles = new Map<string, string>(); // title without extension -> file
     const fileOf = checked.map((block, i) => {
+      // a title names a file inside the page's folder, never above it
       let rel = block.title
-        ? block.title.replace(/^\/+/, "")
+        ? block.title
+            .split("/")
+            .filter((part) => part && part !== "." && part !== "..")
+            .join("/")
         : `__block${i}.${block.lang}`;
       if (!/\.(tsx?|mts|cts)$/.test(rel)) rel = `${rel}.__${i}.${block.lang}`;
       // the fence's language decides how it parses, whatever the title says
@@ -571,9 +587,11 @@ export async function checkTsBlocks(
         if (provider.clause) {
           // a reader file resolves from the block that imported it
           const target = resolvedOf[provider.from]!.get(provider.specifier!);
-          const from = target
-            ? toImport(fileOf[i]!, target)
-            : provider.specifier!;
+          const from = !target
+            ? provider.specifier!
+            : target.startsWith(READER_FILE)
+              ? target
+              : toImport(fileOf[i]!, target);
           carried.push(
             `import ${provider.clause} from ${JSON.stringify(from)};`,
           );
@@ -586,7 +604,23 @@ export async function checkTsBlocks(
       }
       // point `./x` and `@/x` at the page block titled x, or at a stub
       let code = declareSignatures(block).code;
-      for (const { specifier, names: imported, isDefault } of own.specifiers) {
+      for (const {
+        specifier,
+        names: imported,
+        isDefault,
+        namespace,
+      } of own.specifiers) {
+        const missing = (module: string) => {
+          const stub = missingModules.get(module) ?? {
+            names: new Set<string>(),
+            isDefault: false,
+            namespace: false,
+          };
+          for (const n of imported) stub.names.add(n);
+          stub.isDefault ||= isDefault;
+          stub.namespace ||= namespace;
+          missingModules.set(module, stub);
+        };
         if (isBare(specifier)) {
           if (specifier.startsWith("node:")) continue;
           const name = packageName(specifier);
@@ -594,13 +628,7 @@ export async function checkTsBlocks(
             located.set(name, locatePackage(name, workspace, closure));
           if (!located.get(name)) {
             unresolvable.add(name);
-            const stub = missingModules.get(specifier) ?? {
-              names: new Set<string>(),
-              isDefault: false,
-            };
-            for (const n of imported) stub.names.add(n);
-            stub.isDefault ||= isDefault;
-            missingModules.set(specifier, stub);
+            missing(specifier);
           }
           continue;
         }
@@ -612,17 +640,11 @@ export async function checkTsBlocks(
         const titled = EXTENSIONS.map((ext) =>
           titles.get((relTarget + ext).replace(/\.(tsx?|mts|cts)$/, "")),
         ).find(Boolean);
-        const resolved =
-          titled ??
-          path.join(dir, "stubs", relTarget.replace(/\.\.\//g, "up/"));
+        // a reader file no block shows becomes a module of `any`s
+        const resolved = titled ?? `${READER_FILE}${relTarget}`;
         if (!titled) {
-          const stub = stubs.get(resolved) ?? {
-            names: new Set(),
-            isDefault: false,
-          };
-          for (const n of imported) stub.names.add(n);
-          stub.isDefault ||= isDefault;
-          stubs.set(resolved, stub);
+          missing(resolved);
+          readerFiles.add(relTarget);
         }
         resolvedOf[i]!.set(specifier, resolved);
         code = code.replace(
@@ -630,7 +652,7 @@ export async function checkTsBlocks(
             `(["'])${specifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\1`,
             "g",
           ),
-          JSON.stringify(toImport(fileOf[i]!, resolved)),
+          JSON.stringify(titled ? toImport(fileOf[i]!, titled) : resolved),
         );
       }
       return { code, carried };
@@ -656,18 +678,6 @@ export async function checkTsBlocks(
     });
   }
 
-  for (const [file, stub] of stubs) {
-    const lines = [...stub.names].map(
-      (n) =>
-        `export declare const ${n}: any;\nexport type ${n}<A = any, B = any, C = any> = any;`,
-    );
-    if (stub.isDefault)
-      lines.push("declare const _default: any;\nexport default _default;");
-    lines.push("export {};");
-    mkdirSync(path.dirname(file), { recursive: true });
-    writeFileSync(`${file}.ts`, lines.join("\n"));
-  }
-
   // packages the docs site doesn't install: link the workspace's copy
   const modules = path.join(dir, "node_modules");
   const paths: Record<string, string[]> = {};
@@ -685,22 +695,24 @@ export async function checkTsBlocks(
   }
   writeFileSync(path.join(dir, "reader-supplied.d.ts"), READER_SUPPLIED);
   // a file without imports, so these declare modules rather than augment
-  // them; each name is a value and a (generic) type, both `any`
+  // them; each name is a value and a (generic) type, both `any`, and a
+  // module imported whole is `any` throughout
   writeFileSync(
     path.join(dir, "unresolvable.d.ts"),
     [...missingModules]
-      .map(
-        ([specifier, { names, isDefault }]) =>
-          `declare module ${JSON.stringify(specifier)} {\n${[...names]
-            .map(
-              (n) =>
-                `  export const ${n}: any;\n  export type ${n}<A = any, B = any, C = any> = any;`,
-            )
-            .join("\n")}${
-            isDefault
-              ? "\n  const _default: any;\n  export default _default;"
-              : ""
-          }\n}`,
+      .map(([specifier, { names, isDefault, namespace }]) =>
+        namespace
+          ? `declare module ${JSON.stringify(specifier)};`
+          : `declare module ${JSON.stringify(specifier)} {\n${[...names]
+              .map(
+                (n) =>
+                  `  export const ${n}: any;\n  export type ${n}<A = any, B = any, C = any> = any;`,
+              )
+              .join("\n")}${
+              isDefault
+                ? "\n  const _default: any;\n  export default _default;"
+                : ""
+            }\n}`,
       )
       .join("\n"),
   );
@@ -746,8 +758,10 @@ export async function checkTsBlocks(
       }),
     );
 
+  // tsc exits 1 or 2 when it reports errors; anything else (no binary, a
+  // crash, a config error) must fail the check rather than pass it empty
   const runTsc = (program: string) =>
-    new Promise<string>((resolve) => {
+    new Promise<string>((resolve, reject) => {
       execFile(
         process.execPath,
         [
@@ -758,12 +772,21 @@ export async function checkTsBlocks(
           "false",
         ],
         { cwd: dir, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 },
-        (_error, stdout) => resolve(stdout),
+        (error, stdout, stderr) => {
+          const code = (error as { code?: unknown } | null)?.code;
+          if (error && !(code === 1 || code === 2))
+            reject(new Error(`tsc ${program} failed: ${error.message}`));
+          else if (error && !/error TS\d+/.test(stdout))
+            reject(new Error(`tsc ${program} exited ${code}: ${stderr}`));
+          else resolve(stdout);
+        },
       );
     });
 
   const tsc = async () => {
     for (const { file, text } of prepared.values()) {
+      if (!file.startsWith(`${dir}${path.sep}`))
+        throw new Error(`refusing to write outside ${dir}: ${file}`);
       mkdirSync(path.dirname(file), { recursive: true });
       writeFileSync(file, text);
     }
@@ -805,6 +828,10 @@ export async function checkTsBlocks(
         });
         errors.set(file, list);
         current = list;
+      } else if (/error TS\d+/.test(line)) {
+        // an error tied to no file (a config or a missing root file)
+        current = undefined;
+        checkerErrors.push(line);
       } else if (current && line.startsWith("  ")) {
         current[current.length - 1]!.text += `\n${line}`;
       }
@@ -828,7 +855,7 @@ export async function checkTsBlocks(
       ...(sectionPackage ? [sectionPackage] : []),
       "@assistant-ui/react",
       // the docs' default runtime
-      "@assistant-ui/react-ai-sdk",
+      "@assistant-ui/ai-sdk",
     ];
     const names = new Set(
       list.flatMap((e) => {
@@ -876,7 +903,7 @@ export async function checkTsBlocks(
     })),
     checkerErrors: second.checkerErrors,
     unresolvable: [...unresolvable].sort(),
-    stubs: [...stubs.keys()].map((f) => path.relative(dir, f)).sort(),
+    stubs: [...readerFiles].sort(),
     ms: Date.now() - started,
   };
 }

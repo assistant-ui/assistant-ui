@@ -1048,9 +1048,6 @@
     "TS2304 const runtime = useLocalRuntime(chatModel, { cloud });",
     "TS2740 const myAdapter: RemoteThreadListAdapter = {"
   ],
-  "apps/docs/content/docs/react-native/attachments.mdx": [
-    "TS2339 const result = await DocumentPicker.getDocumentAsync({"
-  ],
   "apps/docs/content/docs/react-native/custom-backend.mdx": [
     "TS2741 <AssistantRuntimeProvider runtime={runtime}>"
   ],
@@ -2966,8 +2963,9 @@
   "apps/docs/content/examples/chatgpt.mdx": [
     "TS2304 <EmptyState />",
     "TS2304 <PrimaryAction />",
-    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
-    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
+    "TS2304 if (message.role === \"user\") return <UserMessage />;",
+    "TS2304 return <AssistantMessage />;",
+    "TS2552 if (message.composer.isEditing) return <EditComposer />;",
     "TS2657 <AuiIf condition={(s) => s.thread.isRunning}>"
   ],
   "apps/docs/content/examples/claude.mdx": [
@@ -3074,11 +3072,10 @@
     "TS2304 <EmptyState />",
     "TS2304 <ModelPicker />",
     "TS2304 <SearchModePicker />",
-    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
-    "TS2304 message.role === \"user\" ? <UserMessage /> : <AssistantMessage />",
     "TS2304 { id: \"labs\", name: \"Labs\", description: \"Apps, slides, and dashboards\", Icon: Sparkles },",
     "TS2304 { id: \"research\", name: \"Research\", description: \"In-depth reports on complex topics\", Icon: Telescope },",
     "TS2304 { id: \"search\", name: \"Search\", description: \"Fast answers to everyday questions\", Icon: Search },",
+    "TS2304 {() => <ChatMessage />}",
     "TS2304 {m.id === mode ? <Check /> : <m.Icon />}",
     "TS2552 {m.id === mode ? <Check /> : <m.Icon />}",
     "TS2657 <AuiIf condition={(s) => s.thread.isRunning}>"

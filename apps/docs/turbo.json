@@ -80,6 +80,7 @@
         "$TURBO_ROOT$/python/*/README*.md",
         "$TURBO_ROOT$/python/*/src/**/*.py",
         "$TURBO_ROOT$/api-surface/*.ts",
+        "$TURBO_ROOT$/pnpm-lock.yaml",
         "$TURBO_ROOT$/packages/*/src/**",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
@@ -100,6 +101,7 @@
         "$TURBO_ROOT$/python/*/README*.md",
         "$TURBO_ROOT$/python/*/src/**/*.py",
         "$TURBO_ROOT$/api-surface/*.ts",
+        "$TURBO_ROOT$/pnpm-lock.yaml",
         "$TURBO_ROOT$/packages/*/src/**",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],

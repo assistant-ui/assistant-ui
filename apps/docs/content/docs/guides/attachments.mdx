@@ -500,9 +500,12 @@ class ValidatedImageAdapter extends SimpleImageAttachmentAdapter {
 }
 
 async function fitsDimensions(file: File) {
+  if (file.type === "image/svg+xml") return true; // vector: no pixel size
   try {
-    const { width, height } = await createImageBitmap(file);
-    return width <= MAX_SIDE && height <= MAX_SIDE;
+    const bitmap = await createImageBitmap(file);
+    const fits = bitmap.width <= MAX_SIDE && bitmap.height <= MAX_SIDE;
+    bitmap.close();
+    return fits;
   } catch {
     return false; // not a readable image
   }
