@@ -194,27 +194,38 @@ describe.each(flavors)("AssistantModal (%s)", (flavor, AssistantModal) => {
   };
 
   if (flavor === "base") {
-    it("opens inside the PortalContainerContext container in a shadow root and moves focus to the picked thread's title", async () => {
-      const { shadow, portalContainer } = renderInShadowRoot();
-      const inShadow = (name: string) =>
-        portalContainer.querySelector<HTMLElement>(`.aui-modal-${name}`);
+    it.each([
+      ["the popup", "content"],
+      ["the picked item", "item"],
+    ] as const)(
+      "opens inside the PortalContainerContext container in a shadow root and moves focus to the picked thread's title when %s had focus",
+      async (_, focused) => {
+        const { shadow, portalContainer } = renderInShadowRoot();
+        const inShadow = (name: string) =>
+          portalContainer.querySelector<HTMLElement>(`.aui-modal-${name}`);
 
-      await waitFor(() => expect(inShadow("content")).toBeTruthy());
-      expect(part("content")).toBeNull();
+        await waitFor(() => expect(inShadow("content")).toBeTruthy());
+        expect(part("content")).toBeNull();
 
-      const threads = inShadow("threads") as HTMLButtonElement;
-      await waitFor(() => expect(threads.disabled).toBe(false));
-      fireEvent.click(threads);
-      const itemSelector = '[data-slot="aui_thread-list-item-trigger"]';
-      await waitFor(() =>
-        expect(portalContainer.querySelector(itemSelector)).toBeTruthy(),
-      );
-      const item = portalContainer.querySelector<HTMLElement>(itemSelector)!;
-      inShadow("content")!.focus();
-      fireEvent.click(item);
+        const threads = inShadow("threads") as HTMLButtonElement;
+        await waitFor(() => expect(threads.disabled).toBe(false));
+        fireEvent.click(threads);
+        const itemSelector = '[data-slot="aui_thread-list-item-trigger"]';
+        await waitFor(() =>
+          expect(portalContainer.querySelector(itemSelector)).toBeTruthy(),
+        );
+        const item = portalContainer.querySelector<HTMLElement>(itemSelector)!;
+        const focusedElement = focused === "item" ? item : inShadow("content")!;
+        focusedElement.focus();
+        expect(shadow.activeElement).toBe(focusedElement);
+        fireEvent.click(item);
+        await waitFor(() => expect(item.isConnected).toBe(false));
 
-      await waitFor(() => expect(shadow.activeElement).toBe(inShadow("title")));
-    });
+        await waitFor(() =>
+          expect(shadow.activeElement).toBe(inShadow("title")),
+        );
+      },
+    );
   } else {
     it("ignores PortalContainerContext and opens in document.body, where Radix focus handling works", async () => {
       const { portalContainer } = renderInShadowRoot();
