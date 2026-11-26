@@ -6,8 +6,6 @@ platforms: ["react"]
 
 <Callout title="Prefer the guided setup?">
   Tell your coding agent to `install and set up assistant-ui`; see [Installation](/docs/installation). Agents already in a setup can follow these steps.
-
-  Coding agents: outside a setup session, `init`, `create` and `add` stop with exit code 2 and point you to `npx assistant-ui@latest setup` (add `--unattended` when nobody will answer). [Manual Setup](#manual-setup) below uses the shadcn CLI and runs anywhere.
 </Callout>
 
 ## Quick Start
@@ -22,6 +20,8 @@ platforms: ["react"]
 ```sh
 npx assistant-ui@latest init
 ```
+
+Coding agents: outside a setup session, `init`, `create` and `add` stop with exit code 2 and point you to `npx assistant-ui@latest setup` (add `--unattended` when nobody will answer). To install without them, skip to [Manual Setup](#manual-setup), which uses the shadcn CLI.
 
   </Step>
   <Step>
@@ -63,6 +63,8 @@ Add the assistant-ui registry to your `components.json` so the shadcn CLI resolv
 ```
 
 Existing Radix projects can keep the plain form `https://r.assistant-ui.com/{name}.json` as a fallback (for example `npx shadcn@latest add https://r.assistant-ui.com/thread.json`).
+
+Without the entry, a Base UI project gets the Radix components, which don't compile against its Base UI `components/ui` files. If that happened, add the entry, delete `components/assistant-ui`, and add the components again.
 
 <Steps>
   <Step>
