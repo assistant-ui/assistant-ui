@@ -498,27 +498,9 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
 
 ### Use it in your app
 
-The components show tooltips, so wrap your app once in `TooltipProvider`. `shadcn add` installed it with the components:
+`shadcn add` may tell you to wrap your layout in `TooltipProvider`. That only applies if you use shadcn's `Tooltip` directly: the assistant-ui components render their own provider, so you can skip it.
 
-```tsx title="/app/layout.tsx"
-import { TooltipProvider } from "@/components/ui/tooltip";
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <TooltipProvider>{children}</TooltipProvider>
-      </body>
-    </html>
-  );
-}
-```
-
-Then render a thread:
+Render a thread:
 
 <Tabs items={["Thread", "AssistantModal"]}>
 
