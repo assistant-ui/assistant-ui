@@ -4,7 +4,6 @@ import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
-  type ResolvedComponents,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
@@ -35,22 +34,103 @@ type InstallCommandProps =
       expo: string[];
     };
 
-function FileGroup({ title, group }: { title: string; group: ResolvedGroup }) {
-  if (group.files.length === 0) return null;
+const sameList = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((item, i) => item === b[i]);
 
+function FileGroupTitle({ title }: { title: string }) {
+  return (
+    <h4 className="text-muted-foreground mb-3 text-sm font-medium">{title}</h4>
+  );
+}
+
+function Dependencies({ packages }: { packages: string[] }) {
+  if (packages.length === 0) return null;
+  return (
+    <div className="mb-4">
+      <PackageManagerTabs packages={packages} />
+    </div>
+  );
+}
+
+function FlavorFileGroup({
+  title,
+  group,
+}: {
+  title: string;
+  group: ResolvedGroup;
+}) {
+  if (group.files.length === 0) return null;
   return (
     <div className="mt-6">
-      <h4 className="text-muted-foreground mb-3 text-sm font-medium">
-        {title}
-      </h4>
-      {group.dependencies.length > 0 && (
-        <div className="mb-4">
-          <PackageManagerTabs packages={group.dependencies} />
-        </div>
-      )}
+      <FileGroupTitle title={title} />
+      <Dependencies packages={group.dependencies} />
       {group.files.map((file, index) => (
         <ComponentSourceFromFile key={`${file.path}-${index}`} file={file} />
       ))}
+    </div>
+  );
+}
+
+/**
+ * One group of the Manual tab for both flavors. Most registry files are the
+ * same in Base UI and Radix UI; such a file renders once, outside the flavor
+ * switch, and only what differs renders per flavor. Rendering the whole group
+ * per flavor sent every shared file's source twice, about 260 KB on the
+ * manual installation page.
+ */
+function FileGroup({
+  title,
+  base,
+  radix,
+}: {
+  title: string;
+  base: ResolvedGroup;
+  radix: ResolvedGroup;
+}) {
+  if (base.files.length === 0 && radix.files.length === 0) return null;
+  if (base.files.length === 0 || radix.files.length === 0) {
+    return (
+      <Flavored
+        base={<FlavorFileGroup title={title} group={base} />}
+        radix={<FlavorFileGroup title={title} group={radix} />}
+      />
+    );
+  }
+
+  const radixByPath = new Map(radix.files.map((file) => [file.path, file]));
+  const basePaths = new Set(base.files.map((file) => file.path));
+  const source = (file: ResolvedFile | undefined) =>
+    file ? <ComponentSourceFromFile file={file} /> : null;
+
+  return (
+    <div className="mt-6">
+      <FileGroupTitle title={title} />
+      {sameList(base.dependencies, radix.dependencies) ? (
+        <Dependencies packages={base.dependencies} />
+      ) : (
+        <Flavored
+          base={<Dependencies packages={base.dependencies} />}
+          radix={<Dependencies packages={radix.dependencies} />}
+        />
+      )}
+      {base.files.map((file, index) => {
+        const twin = radixByPath.get(file.path);
+        const key = `${file.path}-${index}`;
+        return twin?.content === file.content ? (
+          <ComponentSourceFromFile key={key} file={file} />
+        ) : (
+          <Flavored key={key} base={source(file)} radix={source(twin)} />
+        );
+      })}
+      {radix.files
+        .filter((file) => !basePaths.has(file.path))
+        .map((file, index) => (
+          <Flavored
+            key={`radix:${file.path}-${index}`}
+            base={null}
+            radix={source(file)}
+          />
+        ))}
     </div>
   );
 }
@@ -77,15 +157,6 @@ export async function InstallCommand(props: InstallCommandProps) {
     resolveAllComponents(components, "base"),
   ]);
 
-  const manualFor = (resolved: ResolvedComponents) => (
-    <>
-      {props.manualSetupInstructions && <SetupInstructions />}
-      <FileGroup title="Main Component" group={resolved.main} />
-      <FileGroup title="assistant-ui dependencies" group={resolved.auiDeps} />
-      <FileGroup title="shadcn/ui dependencies" group={resolved.shadcn} />
-    </>
-  );
-
   const namespaced = components.map((c) => `@assistant-ui/${c}`);
 
   return (
@@ -107,9 +178,21 @@ export async function InstallCommand(props: InstallCommandProps) {
         />
       </Tab>
       <Tab>
-        <Flavored
-          radix={manualFor(radixResolved)}
-          base={manualFor(baseResolved)}
+        {props.manualSetupInstructions && <SetupInstructions />}
+        <FileGroup
+          title="Main Component"
+          base={baseResolved.main}
+          radix={radixResolved.main}
+        />
+        <FileGroup
+          title="assistant-ui dependencies"
+          base={baseResolved.auiDeps}
+          radix={radixResolved.auiDeps}
+        />
+        <FileGroup
+          title="shadcn/ui dependencies"
+          base={baseResolved.shadcn}
+          radix={radixResolved.shadcn}
         />
       </Tab>
     </Tabs>

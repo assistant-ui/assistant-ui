@@ -98,9 +98,9 @@ export const CHANGELOG_PAGE_LIMITS = {
   /** Days on one page. */
   days: 8,
   /**
-   * Rows on one page. A row costs about 1.5 KB of HTML and payload, so this
-   * keeps a page near 1 MB, well under the 2 MB at which site audits flag a
-   * page. A busy release week once put 1,400 changes on one 8-day page.
+   * Rows on one page. A row costs about 2 KB of HTML and payload, so a full
+   * page stays under 1 MB, well under the 2 MB at which site audits flag a
+   * page. Eight days alone once put 1,400 changes on one page (3.8 MB).
    */
   rows: 400,
 } as const;
