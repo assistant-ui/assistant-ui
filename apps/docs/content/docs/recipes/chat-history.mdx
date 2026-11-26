@@ -14,9 +14,9 @@ Follow https://www.assistant-ui.com/docs/recipes/chat-history.md to save my assi
 
 ## What it uses
 
-- **[Threads](/docs/runtimes/concepts/threads)**: a thread is one conversation, and the thread list holds them all. The runtime asks your adapter for the list and creates a thread row the first time a new thread gets a message.
+- **[Threads](/docs/concepts/threads)**: a thread is one conversation, and the thread list holds them all. The runtime asks your adapter for the list and creates a thread row the first time a new thread gets a message.
 - **`RemoteThreadListAdapter`** maps thread list actions (list, create, rename, archive, delete, title) to your API.
-- **`ThreadHistoryAdapter`** loads and saves the messages of the open thread. With `useChatRuntime` you implement its `withFormat` variant, which hands you the AI SDK message already encoded for storage. [Adapters](/docs/runtimes/concepts/adapters) lists the other adapter slots.
+- **`ThreadHistoryAdapter`** loads and saves the messages of the open thread. With `useChatRuntime` you implement its `withFormat` variant, which hands you the AI SDK message already encoded for storage. [Adapters](/docs/concepts/adapters) lists the other adapter slots.
 - **[`useChatRuntime`](/docs/runtimes/ai-sdk/v7)** talks to the chat route, as in a new app.
 
 ## The code

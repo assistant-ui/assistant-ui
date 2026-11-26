@@ -14,7 +14,7 @@ Follow https://www.assistant-ui.com/docs/recipes/tool-ui.md to render my tool ca
 
 ## What it uses
 
-- **[Tools](/docs/tools)**: a tool is a function the model can call. Here it runs on the server, defined with the AI SDK's `tool()`; see [Backend tools](/docs/tools/backend).
+- **[Tools](/docs/tools)**: a tool is a function the model can call. Each call arrives as a tool-call [part](/docs/concepts/messages) of the assistant message. Here it runs on the server, defined with the AI SDK's `tool()`; see [Backend tools](/docs/tools/backend).
 - **[Tool UI](/docs/tools/tool-ui)**: a component that renders a tool call. It gets the call's `args`, its `result` once there is one, and a `status`.
 - **Toolkit**: `defineToolkit` names the tools the client knows about. A `type: "backend"` entry has only a `render`, because the server owns the schema and runs the tool. `Tools({ toolkit })` and `AuiConfig` hand it to the runtime.
 

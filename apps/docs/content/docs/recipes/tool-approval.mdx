@@ -15,7 +15,7 @@ Follow https://www.assistant-ui.com/docs/recipes/tool-approval.md to make my ass
 ## What it uses
 
 - **[Tools](/docs/tools)** defined on the server with the AI SDK's `tool()`. `needsApproval: true` marks the ones that wait for the user; see [Backend tools](/docs/tools/backend).
-- **Approval gates**: the server pauses the call and streams an approval request. assistant-ui shows it on the tool part as `approval` and sends the answer back; see [Server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
+- **Approval gates**: the server pauses the call and streams an approval request. assistant-ui shows it on the tool-call [part](/docs/concepts/messages) as `approval` and sends the answer back; see [Server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 - **[`ToolFallback`](/elements/tool-fallback)**, the default tool card in [Thread](/elements/thread), renders the Allow and Deny buttons, so this recipe needs no UI code.
 
 ## The code

@@ -14,7 +14,7 @@ Follow https://www.assistant-ui.com/docs/recipes/own-backend.md to connect my as
 
 ## What it uses
 
-- **[LocalRuntime](/docs/runtimes/custom/local-runtime)** keeps the conversation in the browser and calls your adapter once per reply. [Pick a runtime](/docs/runtimes/pick-a-runtime) compares it with the other runtimes.
+- **[The runtime](/docs/concepts/runtime)** holds the conversation and is the only part of the chat that talks to your backend. [LocalRuntime](/docs/runtimes/custom/local-runtime) is the runtime for a backend of your own: it keeps the messages in the browser and calls your adapter once per reply. [Pick a runtime](/docs/runtimes/pick-a-runtime) compares it with the others.
 - **`ChatModelAdapter`** is the part you write. Its `run` function gets the conversation and an abort signal, and yields the reply as it streams.
 - **[Thread](/elements/thread)** is the chat UI that `npx assistant-ui@latest create` installs.
 
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
 ## How it works
 
 - `run` is an async generator. Each `yield` replaces the assistant message so far, so yield the whole text each time, never only the new chunk.
-- `messages` is the whole conversation as `ThreadMessage` objects, each with a `role` and a list of `content` parts. `toBackendMessages` maps them to the shape your backend reads; change it to match yours.
+- `messages` is the whole conversation as `ThreadMessage` objects, each with a `role` and a list of `content` [parts](/docs/concepts/messages). `toBackendMessages` maps them to the shape your backend reads; change it to match yours.
 - Pass `abortSignal` to `fetch`. The stop button aborts it, and the runtime marks the message as cancelled (`status.type` `"incomplete"`, reason `"cancelled"`).
 - Throw on a failed request. Any error other than an abort marks the message `"incomplete"` with reason `"error"`, and the user can retry.
 - The reply can come in any format `fetch` can read. For newline-delimited JSON, split the decoded text on newlines and parse each line before you yield.
