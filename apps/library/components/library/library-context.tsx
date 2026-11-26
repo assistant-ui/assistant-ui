@@ -9,13 +9,14 @@ import {
   type ReactNode,
 } from "react";
 import { createCartStore } from "@/lib/library/cart-store";
+import { MOVED_ITEM_IDS } from "@/lib/library/moved-items";
 import {
   matchesLibraryQuery,
   type LibraryCategoryId,
   type LibraryItem,
 } from "@/lib/library/catalog";
 
-export const libraryCart = createCartStore("aui-library-cart");
+export const libraryCart = createCartStore("aui-library-cart", MOVED_ITEM_IDS);
 
 export const LIBRARY_SHOWS = [
   { value: "all", label: "Everything" },
