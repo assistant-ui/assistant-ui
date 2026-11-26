@@ -17,19 +17,19 @@ export const GENERATED_SECTION_INDEXES = [
   "cloud",
 ] as const;
 
-export const SECTION_INDEX_START =
+const SECTION_INDEX_START =
   "{/* section-index:start. Generated from meta.json and each page's title and description by `pnpm generate:section-indexes`; edit those, not this list. */}";
-export const SECTION_INDEX_END = "{/* section-index:end */}";
+const SECTION_INDEX_END = "{/* section-index:end */}";
 
 type Meta = { title?: string; pages?: string[] };
 
-export type SectionIndexPage = {
+type SectionIndexPage = {
   title: string;
   description: string;
   href: string;
 };
 
-export type SectionIndexGroup = {
+type SectionIndexGroup = {
   title: string | null;
   pages: SectionIndexPage[];
 };
@@ -158,7 +158,7 @@ const card = ({ title, description, href: url }: SectionIndexPage) =>
     : `  <Card title=${attribute(title)} href="${url}" />`;
 
 /** The generated list, markers included, for one section's index page. */
-export function renderSectionIndex(groups: readonly SectionIndexGroup[]) {
+function renderSectionIndex(groups: readonly SectionIndexGroup[]) {
   const lines = [SECTION_INDEX_START, ""];
   for (const group of groups) {
     if (group.title) lines.push(`### ${group.title}`, "");
