@@ -257,7 +257,7 @@ function Playground({ groups }: { groups: boolean }) {
         </div>
         <aside
           aria-label="Backend controls"
-          className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] flex min-h-0 flex-col gap-4 border-t p-4 md:border-t-0 md:border-l"
+          className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] flex flex-col gap-4 border-t p-4 md:min-h-0 md:border-t-0 md:border-l"
         >
           <div>
             <div className="text-sm font-medium">You are the backend</div>
@@ -308,7 +308,7 @@ function Playground({ groups }: { groups: boolean }) {
               Fail
             </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
             <Readout groups={groups} />
           </div>
           <Button
