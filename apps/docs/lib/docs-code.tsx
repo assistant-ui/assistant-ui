@@ -10,13 +10,14 @@ import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import rehypeCode from "@farming-labs/next/mdx-plugins/rehype-code";
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerMetaHighlight } from "@shikijs/transformers";
+import { codeTokenClasses } from "./code-token-classes";
 
 const themes = { light: "catppuccin-latte", dark: "catppuccin-mocha" };
 
 // Bump `v` when the options below change. next.config.mts sets the package
 // versions, so an upgrade of the highlighting stack drops cached highlights.
 const CACHE_SALT = JSON.stringify({
-  v: 1,
+  v: 2,
   themes,
   versions: process.env.DOCS_CODE_VERSIONS,
 });
@@ -34,6 +35,7 @@ export const docsCodeOptions = {
       },
     },
     transformerMetaHighlight(),
+    codeTokenClasses(),
   ],
 } satisfies Parameters<typeof rehypeCode>[0];
 

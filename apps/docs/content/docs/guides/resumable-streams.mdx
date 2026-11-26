@@ -59,7 +59,7 @@ export const resumableContext = createResumableStreamContext({ store });
 In your chat route, wrap the response body in `ctx.run(streamId, makeStream)`. The first caller for `streamId` becomes the producer (your `makeStream` callback runs); later callers and reconnects become consumers that replay the persisted bytes.
 
 ```ts title="/app/api/chat/route.ts"
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 import { resumableContext } from "@/lib/resumable-context";
 
@@ -67,7 +67,10 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
   const streamId = crypto.randomUUID();
 
-  const result = streamText({ /* model, messages, tools, ... */ });
+  const result = streamText({
+    model,
+    messages: await convertToModelMessages(messages),
+  });
   const sourceBody = result.toUIMessageStreamResponse({
     generateMessageId: () => crypto.randomUUID(),
   }).body!;

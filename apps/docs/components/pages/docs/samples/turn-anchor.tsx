@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SampleScope } from "./sample-scope";
+import { useSampleAnalytics } from "./use-sample-analytics";
 
 const QUESTION = "How do I pick a runtime?";
 const ANSWER =
@@ -128,6 +129,7 @@ function AnchoredThread({
 }
 
 export function TurnAnchorSample() {
+  const track = useSampleAnalytics("turn-anchor");
   const [signal, setSignal] = useState(0);
   const [running, setRunning] = useState({ bottom: false, top: false });
   const onRunningChange = useMemo(
@@ -154,7 +156,10 @@ export function TurnAnchorSample() {
           size="sm"
           variant="outline"
           disabled={running.bottom || running.top}
-          onClick={() => setSignal((n) => n + 1)}
+          onClick={() => {
+            track("send");
+            setSignal((n) => n + 1);
+          }}
         >
           Send to both
         </Button>
