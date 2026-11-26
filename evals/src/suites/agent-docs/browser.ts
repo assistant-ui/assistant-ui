@@ -16,6 +16,7 @@ export class CheckFailure extends Error {
  * text on the screen. Nothing depends on assistant-ui's own class names.
  */
 const HELPERS = String.raw`
+const arg = (b64) => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))));
 const visible = (el) => {
   const r = el.getBoundingClientRect();
   const s = getComputedStyle(el);
@@ -60,6 +61,10 @@ const click = (el) => {
   el.click();
 };
 `;
+
+/** A value for the page-side code, base64-encoded so it can never break out of the string it sits in. */
+const lit = (value: unknown) =>
+  `arg("${Buffer.from(JSON.stringify(value)).toString("base64")}")`;
 
 export interface Driver {
   url: string;
@@ -109,7 +114,7 @@ export async function openDriver(url: string): Promise<Driver> {
     bodyText: () => run<string>("return document.body.innerText;"),
     async waitForText(text, ms = 20_000) {
       await waitUntil(
-        `return document.body.innerText.includes(${JSON.stringify(text)});`,
+        `return document.body.innerText.includes(${lit(text)});`,
         ms,
         `shows "${text}"`,
         `"${text}" never appeared on the page`,
@@ -124,7 +129,7 @@ export async function openDriver(url: string): Promise<Driver> {
       );
       const attempt = async () => {
         await run(
-          `const c = composer(); setValue(c, ${JSON.stringify(text)}); return true;`,
+          `const c = composer(); setValue(c, ${lit(text)}); return true;`,
         );
         await sleep(300);
         await run<string>(`
@@ -140,7 +145,7 @@ export async function openDriver(url: string): Promise<Driver> {
           return "enter";`);
       };
       // The sent message shows up in the thread; if it doesn't, the page wasn't ready yet, so try once more.
-      const shown = `return document.body.innerText.includes(${JSON.stringify(text)});`;
+      const shown = `return document.body.innerText.includes(${lit(text)});`;
       await attempt();
       try {
         await waitUntil(shown, 5_000, "sends", "");
@@ -151,32 +156,32 @@ export async function openDriver(url: string): Promise<Driver> {
     },
     async clickText(pattern, step, nth = 0) {
       await waitUntil(
-        `return findByText(${JSON.stringify(pattern)}).length > ${nth};`,
+        `return findByText(${lit(pattern)}).length > ${lit(nth)};`,
         20_000,
         step,
         `nothing matching /${pattern}/i to click`,
       );
       await run(
-        `click(findByText(${JSON.stringify(pattern)})[${nth}]); return true;`,
+        `click(findByText(${lit(pattern)})[${lit(nth)}]); return true;`,
       );
       await sleep(300);
     },
     async fill(pattern, value, step) {
-      const found = `fields().find((el) => new RegExp(${JSON.stringify(pattern)}, "i").test(labelOf(el)))`;
+      const found = `fields().find((el) => new RegExp(${lit(pattern)}, "i").test(labelOf(el)))`;
       await waitUntil(
         `return !!${found};`,
         20_000,
         step,
         `no text field labelled /${pattern}/i`,
       );
-      await run(`setValue(${found}, ${JSON.stringify(value)}); return true;`);
+      await run(`setValue(${found}, ${lit(value)}); return true;`);
       await sleep(300);
     },
     async choose(current, option, step) {
       const native = await run<boolean>(`
-        const select = [...document.querySelectorAll("select")].find((s) => visible(s) && [...s.options].some((o) => o.text.includes(${JSON.stringify(option)}) || o.value === ${JSON.stringify(option)}));
+        const select = [...document.querySelectorAll("select")].find((s) => visible(s) && [...s.options].some((o) => o.text.includes(${lit(option)}) || o.value === ${lit(option)}));
         if (!select) return false;
-        const opt = [...select.options].find((o) => o.text.includes(${JSON.stringify(option)}) || o.value === ${JSON.stringify(option)});
+        const opt = [...select.options].find((o) => o.text.includes(${lit(option)}) || o.value === ${lit(option)});
         Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, opt.value);
         select.dispatchEvent(new Event("input", { bubbles: true }));
         select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -187,13 +192,13 @@ export async function openDriver(url: string): Promise<Driver> {
       const pattern = option.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       // The open list may repeat the current value; pick the last match, which is usually the popup.
       await waitUntil(
-        `return findByText(${JSON.stringify(pattern)}).length > 0;`,
+        `return findByText(${lit(pattern)}).length > 0;`,
         10_000,
         step,
         `no "${option}" choice after opening the picker`,
       );
       await run(
-        `const hits = findByText(${JSON.stringify(pattern)}); click(hits.at(-1)); return true;`,
+        `const hits = findByText(${lit(pattern)}); click(hits.at(-1)); return true;`,
       );
       await sleep(500);
     },

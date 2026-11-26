@@ -13,7 +13,9 @@ const SITE = "https://www.assistant-ui.com";
 export async function snapshotDocs(base: string, dir: string) {
   const root = base.replace(/\/$/, "");
   const get = async (url: string) => {
-    const target = url.startsWith(SITE) ? root + url.slice(SITE.length) : url;
+    const parsed = new URL(url);
+    const target =
+      parsed.origin === SITE ? root + parsed.pathname + parsed.search : url;
     for (let attempt = 0; ; attempt++) {
       try {
         const res = await fetch(target, {
@@ -49,7 +51,13 @@ export async function snapshotDocs(base: string, dir: string) {
         skills?: { url?: string }[];
       };
       for (const skill of skills.skills ?? []) {
-        if (skill.url?.startsWith(SITE)) linked.add(skill.url);
+        if (
+          skill.url &&
+          URL.canParse(skill.url) &&
+          new URL(skill.url).origin === SITE
+        ) {
+          linked.add(skill.url);
+        }
       }
     } catch {
       // The index is optional; the pages still count.
