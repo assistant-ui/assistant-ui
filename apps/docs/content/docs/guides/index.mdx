@@ -24,7 +24,7 @@ Extend the message input with file attachments, mentions, slash commands, input 
     Recall earlier messages with ArrowUp and ArrowDown in an empty composer, like a shell prompt, with `unstable_useComposerInputHistory`.
   </Card>
   <Card title="Headless Composer Input" href="/docs/guides/headless-composer-input">
-    Bring your own editor or textarea and keep composer state, send gating, and trigger popovers through `unstable_useComposerInput`.
+    Bring your own editor or textarea and keep composer state and send gating through `unstable_useComposerInput`.
   </Card>
   <Card title="Quoting" href="/docs/guides/quoting">
     Selection toolbar, programmatic `setQuote`, and forwarding quote context to the LLM.
@@ -151,7 +151,7 @@ Run assistant-ui outside a conventional browser deployment.
 
 ## Resilience
 
-Keep a response streaming when the connection does not.
+Pick up an in-flight response after a reload or a dropped connection.
 
 <Cards>
   <Card title="Resumable Streams" href="/docs/guides/resumable-streams">

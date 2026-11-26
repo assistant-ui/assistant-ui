@@ -125,7 +125,7 @@ The endpoint returns a stream of state snapshots using the [`assistant-stream`](
 
 ### Handling commands
 
-`request.commands` holds every command the frontend queued since its last request, oldest first. Each has a `type`: `add-message` carries the user's `message` (its `role`, `id` and `text` or `image` parts), `add-tool-result` carries the `toolCallId`, `toolName`, `result` and `isError` of a tool the browser ran, and a [custom command](#custom-commands) carries the fields you declared for it. Apply them to the state before the agent runs:
+`request.commands` holds every command the frontend queued since its last request, oldest first. Each has a `type`: `add-message` carries the user's `message` (its `role`, `id` and `text` or `image` parts), `add-tool-result` carries the `toolCallId`, `toolName`, `result` and `isError` of a result the frontend added, such as a frontend tool's output, and a [custom command](#custom-commands) carries the fields you declared for it. Apply them to the state before the agent runs:
 
 ```python
 async def run_callback(controller: RunController):
