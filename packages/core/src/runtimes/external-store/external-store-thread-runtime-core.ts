@@ -1665,7 +1665,7 @@ export class ExternalStoreThreadRuntimeCore
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
       };
       if (this.composer.restoreDraft(draft)) {
-        this.repository.deleteMessage(trailingUserLeaf.id);
+        this._deleteMovedLeaf(trailingUserLeaf.id);
         movedLeaf = {
           id: trailingUserLeaf.id,
           draft,
@@ -1703,7 +1703,7 @@ export class ExternalStoreThreadRuntimeCore
           this.composer.text === movedLeaf.draft.text
         ) {
           // Unanswered tail: the removal has not reached the store yet.
-          this.repository.deleteMessage(movedLeaf.id);
+          this._deleteMovedLeaf(movedLeaf.id);
         }
       }
       this._publishRepositoryMessages();
@@ -1722,6 +1722,19 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingCancelResyncs.delete(resync);
       resync();
     }, 0);
+  }
+
+  // The moved message was sent directly after its parent, so the sibling the
+  // head falls back to was on screen only if it is an earlier version of the
+  // message; any other sibling, such as an answer a reload replaced, was not.
+  private _deleteMovedLeaf(messageId: string): void {
+    const { parentId } = this.repository.getMessage(messageId);
+    this.repository.deleteMessage(messageId);
+    if (parentId === null) return;
+    const { index } = this.repository.getMessage(parentId);
+    const fallback = this.repository.getMessages()[index + 1];
+    if (fallback && fallback.role !== "user")
+      this.repository.import({ headId: parentId, messages: [] });
   }
 
   private _settleCancelResyncs(): void {

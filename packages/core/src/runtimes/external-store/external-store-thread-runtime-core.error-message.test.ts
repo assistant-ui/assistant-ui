@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import { completeExternalMessageConversion } from "../../runtime/utils/external-message-conversion";
 import {
@@ -210,5 +210,36 @@ describe("external-store synthesized error messages", () => {
       "u2",
     ]);
     expect(runtime.messages.at(-1)!.metadata.isOptimistic).toBe(true);
+  });
+
+  it("does not bring back the answer a failed reload replaced when a new message is stopped", async () => {
+    const setMessages = vi.fn();
+    const store = (
+      messages: readonly ThreadMessage[],
+      options: { error?: string; isRunning?: boolean } = {},
+    ) =>
+      ({
+        ...adapter(messages, options),
+        onCancel: async () => {},
+        setMessages,
+      }) as ExternalStoreAdapter;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      store([u1, a1]),
+    );
+    runtime.__internal_setAdapter(store([u1], { isRunning: true }));
+    runtime.__internal_setAdapter(store([u1], { error: "502" }));
+    runtime.__internal_setAdapter(store([u1, u2], { isRunning: true }));
+
+    runtime.cancelRun();
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1"]);
+    expect(runtime.composer.text).toBe("second");
+    expect(setMessages).toHaveBeenCalledTimes(1);
+    expect(
+      setMessages.mock.calls[0]![0].map((m: ThreadMessage) => m.id),
+    ).toEqual(["u1"]);
   });
 });
