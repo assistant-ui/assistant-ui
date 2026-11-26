@@ -6,8 +6,22 @@ const mocks = vi.hoisted(() => {
     url: "/elements/thread",
     data: { title: "Thread", description: "The full chat thread." },
   };
+  const designPage = {
+    url: "/design/components/button",
+    data: { title: "Button" },
+  };
+  const elements = [
+    { slug: "thread", title: "Thread (catalog)", description: "Catalog text." },
+    {
+      slug: "conversation-map",
+      title: "Conversation map",
+      description: "A map of the conversation.",
+    },
+  ];
   return {
     elementPage,
+    designPage,
+    elements,
     resolveDocsUrl: vi.fn((path: string) =>
       path === "/docs/guides/attachments"
         ? { url: path, data: { title: "File Attachments" } }
@@ -37,6 +51,8 @@ const mocks = vi.hoisted(() => {
           name: "Runtimes",
           children: [
             page("Picking a runtime", "/docs/runtimes/pick-a-runtime"),
+            page("Custom backend", "/docs/runtimes/custom/overview"),
+            page("LocalRuntime", "/docs/runtimes/custom/local-runtime"),
             {
               type: "folder",
               name: "AI SDK by Vercel",
@@ -66,12 +82,25 @@ vi.mock("@/lib/source", () => ({
     getPage: (slugs: string[]) =>
       slugs.join("/") === "thread" ? mocks.elementPage : undefined,
   },
-  design: { getPage: vi.fn() },
+  design: {
+    getPage: (slugs: string[]) =>
+      slugs.join("/") === "components/button" ? mocks.designPage : undefined,
+  },
 }));
 
 vi.mock("@/lib/docs-pages", () => ({ resolveDocsUrl: mocks.resolveDocsUrl }));
 
-import { listDocs, normalizeDocPath, resolveDocPage } from "./docs-tools";
+vi.mock("@/lib/get-llm-text", () => ({
+  getLLMText: async (page: { url: string }) => `text of ${page.url}`,
+}));
+
+vi.mock("@/components/pages/elements/registry", () => ({
+  ELEMENTS: mocks.elements,
+  getElement: (slug: string) =>
+    mocks.elements.find((element) => element.slug === slug),
+}));
+
+import { listDocs, readDoc } from "./docs-tools";
 
 const urls = (listing: ReturnType<typeof listDocs>) =>
   "error" in listing ? listing : listing.map((entry) => entry.url);
@@ -122,7 +151,14 @@ describe("listDocs", () => {
     expect(listDocs("ui")).toEqual({ error: "Path not found" });
   });
 
-  it("lists the Elements catalog", () => {
+  it("lists an inlined folder by its URL path", () => {
+    expect(urls(listDocs("runtimes/custom"))).toEqual([
+      "/docs/runtimes/custom/overview",
+      "/docs/runtimes/custom/local-runtime",
+    ]);
+  });
+
+  it("lists every catalog element, with the guide's text when there is one", () => {
     expect(listDocs("elements")).toEqual([
       {
         type: "page",
@@ -130,30 +166,64 @@ describe("listDocs", () => {
         url: "/elements/thread",
         description: "The full chat thread.",
       },
+      {
+        type: "page",
+        title: "Conversation map",
+        url: "/elements/conversation-map",
+        description: "A map of the conversation.",
+      },
     ]);
   });
 });
 
-describe("resolveDocPage", () => {
-  const resolve = (slugOrUrl: string) =>
-    resolveDocPage(
-      normalizeDocPath(slugOrUrl, "https://www.assistant-ui.com/api/doc/chat")
-        .split("/")
-        .filter(Boolean),
-    );
+describe("readDoc", () => {
+  const read = (slugOrUrl: string) =>
+    readDoc(slugOrUrl, "https://www.assistant-ui.com/api/doc/chat");
 
-  it("reads an Elements page by slug or URL", () => {
-    expect(resolve("elements/thread")).toBe(mocks.elementPage);
-    expect(resolve("/elements/thread")).toBe(mocks.elementPage);
-    expect(resolve("https://www.assistant-ui.com/elements/thread#usage")).toBe(
-      mocks.elementPage,
+  it("reads an Elements guide by slug, path or URL", async () => {
+    for (const ref of [
+      "elements/thread",
+      "/elements/thread",
+      "elements/thread?next=/docs",
+      "https://www.assistant-ui.com/elements/thread#usage",
+    ]) {
+      expect(await read(ref)).toEqual({
+        title: "Thread",
+        url: "/elements/thread",
+        content: "text of /elements/thread",
+      });
+    }
+  });
+
+  it("describes a catalog element that has no guide", async () => {
+    const result = await read("elements/conversation-map");
+    expect(result).toMatchObject({
+      title: "Conversation map",
+      url: "/elements/conversation-map",
+    });
+    expect("content" in result && result.content).toContain(
+      "A map of the conversation.",
     );
   });
 
-  it("reads a docs page with or without the docs prefix", () => {
-    expect(resolve("guides/attachments")?.url).toBe("/docs/guides/attachments");
-    expect(resolve("/docs/guides/attachments")?.url).toBe(
+  it("reads Design and docs pages, with or without the docs prefix", async () => {
+    expect(await read("design/components/button")).toMatchObject({
+      url: "/design/components/button",
+    });
+    for (const ref of [
+      "guides/attachments",
       "/docs/guides/attachments",
-    );
+      "guides/attachments#upload",
+    ]) {
+      expect(await read(ref)).toMatchObject({
+        url: "/docs/guides/attachments",
+      });
+    }
+  });
+
+  it("reports a page that does not exist", async () => {
+    expect(await read("elements/nope")).toEqual({
+      error: "Page not found: elements/nope",
+    });
   });
 });

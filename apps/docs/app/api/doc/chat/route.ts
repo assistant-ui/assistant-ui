@@ -1,4 +1,3 @@
-import { getLLMText } from "@/lib/get-llm-text";
 import { prepareDocChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
@@ -6,11 +5,7 @@ import {
   validateDocChatInput,
   validateFrontendToolsInput,
 } from "@/lib/validate-input";
-import {
-  listDocs,
-  normalizeDocPath,
-  resolveDocPage,
-} from "@/lib/ai/docs-tools";
+import { listDocs, readDoc } from "@/lib/ai/docs-tools";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { getSession } from "@/lib/accounts-auth";
 import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
@@ -267,26 +262,7 @@ export async function POST(req: Request): Promise<Response> {
                   ),
               }),
             ),
-            execute: async ({ slugOrUrl }) => {
-              let normalized: string;
-              try {
-                normalized = normalizeDocPath(slugOrUrl, req.url);
-              } catch (error) {
-                return {
-                  error:
-                    error instanceof Error
-                      ? error.message
-                      : "Invalid docs path",
-                };
-              }
-
-              const slugs = normalized.split("/").filter(Boolean);
-              const page = resolveDocPage(slugs);
-              if (!page) return { error: `Page not found: ${slugOrUrl}` };
-
-              const content = await getLLMText(page);
-              return { title: page.data.title, url: page.url, content };
-            },
+            execute: async ({ slugOrUrl }) => readDoc(slugOrUrl, req.url),
           }),
         },
       },

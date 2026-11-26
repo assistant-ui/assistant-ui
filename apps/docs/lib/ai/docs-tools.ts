@@ -6,6 +6,8 @@ import {
   source,
 } from "@/lib/source";
 import { resolveDocsUrl } from "@/lib/docs-pages";
+import { getLLMText } from "@/lib/get-llm-text";
+import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
 
 type ListingEntry =
   | {
@@ -124,13 +126,27 @@ function listChildren(nodes: PageTree.Node[]): ListingEntry[] {
   });
 }
 
+// The catalog lists every element; only some have an MDX usage guide.
 function listElements(): ListingEntry[] {
-  return elementsDocs.getPages().map((page) => ({
-    type: "page" as const,
-    title: page.data.title,
-    url: page.url,
-    ...(page.data.description ? { description: page.data.description } : {}),
-  }));
+  return ELEMENTS.map((element) => {
+    const page = elementsDocs.getPage([element.slug]);
+    const description = page?.data.description ?? element.description;
+    return {
+      type: "page" as const,
+      title: page?.data.title ?? element.title,
+      url: `/elements/${element.slug}`,
+      ...(description ? { description } : {}),
+    };
+  });
+}
+
+function allPages(nodes: PageTree.Node[]): PageTree.Item[] {
+  return nodes.flatMap((node) => {
+    if (node.type === "page") return [node];
+    if (node.type === "folder")
+      return [...(node.index ? [node.index] : []), ...allPages(node.children)];
+    return [];
+  });
 }
 
 /** Lists docs folders and pages for the docs assistant's listDocs tool. */
@@ -167,8 +183,16 @@ export function listDocs(path: string | undefined): Listing {
   }
 
   const target = findFolderByPath(source.pageTree, cleaned, "/docs");
-  if (!target) return { error: "Path not found" };
-  return listChildren(target.children);
+  if (target) return listChildren(target.children);
+
+  // A meta.json "...folder" entry inlines a folder's pages into its parent, so
+  // the tree has no folder for it; list the pages under that URL instead.
+  const prefix = `/docs/${cleaned.toLowerCase()}`;
+  const pages = allPages(source.pageTree.children).filter((page) =>
+    page.url.startsWith(`${prefix}/`),
+  );
+  if (pages.length === 0) return { error: "Path not found" };
+  return listChildren(pages);
 }
 
 export const DOCS_PATH_ERROR = "Only local docs paths are supported";
@@ -184,7 +208,9 @@ export function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
   const isAbsoluteUrl = /^https?:\/\//i.test(raw);
 
   if (!isAbsoluteUrl) {
-    const cleaned = raw.replace(/^\/+/, "").replace(/^docs\//, "");
+    const cleaned = (raw.split(/[?#]/)[0] ?? "")
+      .replace(/^\/+/, "")
+      .replace(/^docs\//, "");
     if (!cleaned || cleaned.includes("..")) {
       throw new Error(DOCS_PATH_ERROR);
     }
@@ -206,10 +232,48 @@ export function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
 
 /** Finds the page a normalized readDoc path names: docs, examples, Elements or Design. */
 export function resolveDocPage(slugs: string[]) {
-  const [head, ...rest] = slugs.map((slug) => slug.split(/[?#]/)[0] ?? "");
+  const [head, ...rest] = slugs;
   if (head === "examples") return examplesSource.getPage(rest);
   if (head === "elements" && rest.length > 0) return elementsDocs.getPage(rest);
   if (head === "design") return design.getPage(rest);
-  const path = slugs.join("/").split(/[?#]/)[0] ?? "";
+  const path = slugs.join("/");
   return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
+}
+
+/** The readDoc tool's result for a slug or same-origin URL. */
+export async function readDoc(slugOrUrl: string, routeUrl: string) {
+  let normalized: string;
+  try {
+    normalized = normalizeDocPath(slugOrUrl, routeUrl);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Invalid docs path",
+    };
+  }
+
+  const slugs = normalized.split("/").filter(Boolean);
+  const page = resolveDocPage(slugs);
+  if (page) {
+    return {
+      title: page.data.title,
+      url: page.url,
+      content: await getLLMText(page),
+    };
+  }
+
+  // Catalog elements without an MDX guide still have a page on the site.
+  const element =
+    slugs[0] === "elements" && slugs.length === 2
+      ? getElement(slugs[1] ?? "")
+      : undefined;
+  if (element) {
+    const url = `/elements/${element.slug}`;
+    return {
+      title: element.title,
+      url,
+      content: `# ${element.title}\nURL: ${url}\n\n${element.description}\n\nThis element has no written guide yet. Its page shows a live preview, the install command and the source.`,
+    };
+  }
+
+  return { error: `Page not found: ${slugOrUrl}` };
 }
