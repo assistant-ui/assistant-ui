@@ -73,103 +73,119 @@ describe("useExternalStoreRuntime adapter timing", () => {
     });
 
     leaveAct();
-    for (let i = 1; i <= 3; i++) {
-      setTimeout(append, 0);
-      await waitFor(() =>
-        expect(view.getByTestId("thread").textContent).toBe(String(i)),
-      );
+    try {
+      for (let i = 1; i <= 3; i++) {
+        setTimeout(append, 0);
+        await waitFor(() =>
+          expect(view.getByTestId("thread").textContent).toBe(String(i)),
+        );
+      }
+    } finally {
+      observer.disconnect();
     }
-    observer.disconnect();
 
     expect(painted.length).toBeGreaterThan(0);
     expect(painted.filter(([host, thread]) => host !== thread)).toEqual([]);
   });
 
-  const renderLoadingHost = (
-    loaded: { isRunning: boolean; messages: ThreadMessageLike[] },
-    Listener: FC<{ runtime: AssistantRuntime }>,
+  type HostState = {
+    mounted: boolean;
+    threadId: string;
+    isRunning: boolean;
+    messages: ThreadMessageLike[];
+  };
+
+  // Renders a host whose `Listener` mounts in the same update that applies
+  // `next`. A first, unrelated host update runs before it: the first update
+  // after mount re-renders the provider synchronously, which would flush the
+  // passive effects early and hide the order under test.
+  const expectListenerCalledOnce = async (
+    event: "initialize" | "runStart",
+    next: Omit<HostState, "mounted">,
+    threadCount: string,
   ) => {
-    let load!: () => void;
+    const storeListener = vi.fn();
+    const runtimeListener = vi.fn();
+    const Listener: FC<{ runtime: AssistantRuntime }> = ({ runtime }) => {
+      useAuiEvent(`thread.${event}`, storeListener);
+      useEffect(
+        () => runtime.thread.unstable_on(event, runtimeListener),
+        [runtime],
+      );
+      return null;
+    };
+    let setState!: (state: HostState) => void;
     const Host: FC = () => {
-      const [state, setState] = useState({
-        loading: true,
+      const [state, set] = useState<HostState>({
+        mounted: false,
+        threadId: "first",
         isRunning: false,
-        messages: [] as ThreadMessageLike[],
+        messages: [],
       });
-      load = () => setState({ loading: false, ...loaded });
+      setState = set;
       const runtime = useExternalStoreRuntime<ThreadMessageLike>({
         messages: state.messages,
         isRunning: state.isRunning,
         convertMessage: (message) => message,
         onNew: async () => {},
+        adapters: { threadList: { threadId: state.threadId } },
       });
       return (
         <AssistantRuntimeProvider runtime={runtime}>
-          {state.loading ? null : (
-            <>
-              <ThreadCount />
-              <Listener runtime={runtime} />
-            </>
-          )}
+          <ThreadCount />
+          {state.mounted && <Listener runtime={runtime} />}
         </AssistantRuntimeProvider>
       );
     };
     const view = render(<Host />);
-    return { view, load: () => load() };
+
+    leaveAct();
+    setTimeout(() =>
+      setState({
+        mounted: false,
+        threadId: "first",
+        isRunning: false,
+        messages: [],
+      }),
+    );
+    await nextTask();
+    setTimeout(() => setState({ mounted: true, ...next }), 0);
+    await waitFor(() =>
+      expect(view.getByTestId("thread").textContent).toBe(threadCount),
+    );
+    await waitFor(() => {
+      expect(storeListener).toHaveBeenCalled();
+      expect(runtimeListener).toHaveBeenCalled();
+    });
+    // A duplicate delivery would land by the next task.
+    await nextTask();
+
+    expect(storeListener).toHaveBeenCalledOnce();
+    expect(runtimeListener).toHaveBeenCalledOnce();
   };
 
   it("delivers initialize to listeners mounted by the update that loads the thread", async () => {
-    const storeListener = vi.fn();
-    const runtimeListener = vi.fn();
-    const Listener: FC<{ runtime: AssistantRuntime }> = ({ runtime }) => {
-      useAuiEvent("thread.initialize", storeListener);
-      useEffect(
-        () => runtime.thread.unstable_on("initialize", runtimeListener),
-        [runtime],
-      );
-      return null;
-    };
-    const { view, load } = renderLoadingHost(
-      { isRunning: false, messages: [userMessage("u0")] },
-      Listener,
+    await expectListenerCalledOnce(
+      "initialize",
+      { threadId: "first", isRunning: false, messages: [userMessage("u0")] },
+      "1",
     );
+  });
 
-    leaveAct();
-    setTimeout(load, 0);
-    await waitFor(() =>
-      expect(view.getByTestId("thread").textContent).toBe("1"),
+  it("delivers initialize to listeners mounted by the update that switches threads", async () => {
+    await expectListenerCalledOnce(
+      "initialize",
+      { threadId: "second", isRunning: false, messages: [userMessage("u0")] },
+      "1",
     );
-    await nextTask();
-
-    expect(storeListener).toHaveBeenCalledOnce();
-    expect(runtimeListener).toHaveBeenCalledOnce();
   });
 
   it("delivers runStart to listeners mounted by the update that starts the run", async () => {
-    const storeListener = vi.fn();
-    const runtimeListener = vi.fn();
-    const Listener: FC<{ runtime: AssistantRuntime }> = ({ runtime }) => {
-      useAuiEvent("thread.runStart", storeListener);
-      useEffect(
-        () => runtime.thread.unstable_on("runStart", runtimeListener),
-        [runtime],
-      );
-      return null;
-    };
-    const { view, load } = renderLoadingHost(
-      { isRunning: true, messages: [userMessage("u0")] },
-      Listener,
-    );
-
-    leaveAct();
-    setTimeout(load, 0);
     // The user message and the running assistant placeholder.
-    await waitFor(() =>
-      expect(view.getByTestId("thread").textContent).toBe("2"),
+    await expectListenerCalledOnce(
+      "runStart",
+      { threadId: "first", isRunning: true, messages: [userMessage("u0")] },
+      "2",
     );
-    await nextTask();
-
-    expect(storeListener).toHaveBeenCalledOnce();
-    expect(runtimeListener).toHaveBeenCalledOnce();
   });
 });

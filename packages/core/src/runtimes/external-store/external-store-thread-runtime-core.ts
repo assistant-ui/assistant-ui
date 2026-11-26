@@ -562,22 +562,32 @@ export class ExternalStoreThreadRuntimeCore
    * Applies a host snapshot at once but holds the lifecycle events it raises
    * (`initialize`, `runStart`, `runEnd`). The returned function delivers
    * them, so a caller can publish the state before paint and still reach
-   * listeners that subscribe later in the same commit.
+   * listeners that subscribe later in the same commit. Until then, every
+   * event the thread raises queues behind the held ones, so listeners see
+   * them in order.
    */
   public __internal_setAdapterHoldingEvents(
     store: ExternalStoreAdapter<any>,
   ): () => void {
-    const held: (() => void)[] = [];
-    const outer = this._heldEvents;
-    this._heldEvents = held;
+    const held = (this._heldEvents ??= []);
+    const deliver = () => {
+      if (this._heldEvents !== held) return;
+      // An event a listener raises joins the queue and is delivered in turn.
+      try {
+        while (held.length > 0) held.shift()!();
+      } finally {
+        this._heldEvents = null;
+      }
+    };
     try {
       this.__internal_setAdapter(store);
-    } finally {
-      this._heldEvents = outer;
+    } catch (error) {
+      // Events raised before the failure reach listeners, as they did when
+      // the update delivered them as it went.
+      deliver();
+      throw error;
     }
-    return () => {
-      for (const deliver of held.splice(0)) deliver();
-    };
+    return deliver;
   }
 
   private _evictPlaceholder() {
