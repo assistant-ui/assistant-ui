@@ -162,36 +162,6 @@ The second case is not a fallback. A component that renders `thread.suggestions`
 
 The `autoSend` and `method` props are deprecated; prefer `send` and `clearComposer`.
 
-## Parts
-
-### Title
-
-Renders the suggestion title. Renders a `<span>` element unless `asChild` is set.
-
-```tsx
-<SuggestionPrimitive.Title />
-```
-
-### Description
-
-Renders the secondary suggestion description text. Renders a `<span>` element unless `asChild` is set.
-
-```tsx
-<SuggestionPrimitive.Description />
-```
-
-### Trigger
-
-Clickable button that sends or populates the suggestion. Renders a `<button>` element unless `asChild` is set.
-
-```tsx
-<SuggestionPrimitive.Trigger send className="rounded-lg border px-3 py-2 hover:bg-muted">
-  <SuggestionPrimitive.Title />
-</SuggestionPrimitive.Trigger>
-```
-
-<PrimitivesTypeTable type="SuggestionPrimitiveTriggerProps" parameters={SuggestionPrimitiveDocs.Trigger.props.filter(p => p.name !== "asChild")} />
-
 ## Patterns
 
 ### Welcome Screen Grid
@@ -248,6 +218,36 @@ function SuggestionCard() {
   <SuggestionPrimitive.Title />
 </SuggestionPrimitive.Trigger>
 ```
+
+## Parts
+
+### Title
+
+Renders the suggestion title. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<SuggestionPrimitive.Title />
+```
+
+### Description
+
+Renders the secondary suggestion description text. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<SuggestionPrimitive.Description />
+```
+
+### Trigger
+
+Clickable button that sends or populates the suggestion. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<SuggestionPrimitive.Trigger send className="rounded-lg border px-3 py-2 hover:bg-muted">
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+```
+
+<PrimitivesTypeTable type="SuggestionPrimitiveTriggerProps" parameters={SuggestionPrimitiveDocs.Trigger.props.filter(p => p.name !== "asChild")} />
 
 ## Relationship to Components
 

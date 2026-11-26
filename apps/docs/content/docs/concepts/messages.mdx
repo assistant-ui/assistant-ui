@@ -1,0 +1,114 @@
+---
+title: Messages and parts
+description: "A message is a role and a list of parts. Each part is one thing the user or the model produced: text, reasoning, a tool call, a file."
+---
+
+A thread is a list of messages, and every message has a role: `user`, `assistant` or `system`. Its content is a list of parts, in the order they arrived. A reply that thinks, calls a tool and then answers is one assistant message with three parts.
+
+Rendering a message means rendering its parts in order, with a component for each kind of part. That is the whole model behind the chat on screen: the [runtime](/docs/concepts/runtime) keeps the parts up to date as they stream in, and your components draw them.
+
+## A message as data
+
+This is the assistant reply from the example above, abridged:
+
+```json
+{
+  "role": "assistant",
+  "status": { "type": "complete", "reason": "stop" },
+  "content": [
+    { "type": "reasoning", "text": "The user wants today's weather in Paris." },
+    {
+      "type": "tool-call",
+      "toolCallId": "call_1",
+      "toolName": "get_weather",
+      "args": { "city": "Paris" },
+      "result": { "temperature": 18 }
+    },
+    { "type": "text", "text": "It's 18°C in Paris right now." }
+  ]
+}
+```
+
+The user's message before it is shaped the same way, with `role: "user"` and parts such as `text`, `image` and `file`.
+
+## Kinds of parts
+
+Each part has a `type`. The types fall into three kinds:
+
+| Kind | Types | What they carry |
+| --- | --- | --- |
+| Content | `text`, `image`, `file` | What a person or a model reads. A `file` carries any other media, such as audio or a PDF, through its `mimeType`. |
+| Model output | `reasoning`, `source`, `tool-call`, `generative-ui` | The channels a model already emits besides text: its thinking, the sources it cites, the tools it calls, and UI it composes. |
+| Your own data | `data` | Anything else your app needs to put in a message, told apart by a `name` you choose. |
+
+A `tool-call` part holds the tool's name, the arguments the model chose and, once the tool has run, its result. Showing a tool call as an interactive component is what [tool UI](/docs/tools/tool-ui) is for, and [Tools](/docs/tools) covers defining the tools themselves.
+
+## Rendering parts
+
+`MessagePrimitive.Parts` goes through a message's parts and calls your function once per part. Return the component for that part:
+
+```tsx
+import { MessagePrimitive, MessagePartPrimitive } from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "text") return <MessagePartPrimitive.Text />;
+          if (part.type === "tool-call") return part.toolUI ?? null;
+          return null;
+        }}
+      </MessagePrimitive.Parts>
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+For a tool call, `part.toolUI` is the UI registered for that tool, already rendered, or `null` when there is none. Inside the function, a component reads its own part, so `MessagePartPrimitive.Text` shows the text of the part it was rendered for. The styled [Thread element](/elements/thread) does this for text, reasoning, tool calls, data, files and images; render `source` and `generative-ui` parts yourself when your backend sends them. The [Message primitive](/docs/primitives/message) page lists the rest of the options.
+
+## Status
+
+An assistant message is live while the run that writes it is in progress. Its `status` says where it stands:
+
+| Status | Meaning |
+| --- | --- |
+| `running` | Parts are still arriving. |
+| `complete` | The model finished its answer. |
+| `incomplete` | The run stopped early. The `reason` says why: `cancelled`, `error`, `tool-calls`, `length`, `content-filter` or `other`. |
+| `requires-action` | A tool call is waiting, either for a result your app supplies or for the user to approve or answer. |
+
+While a message streams, each of its parts reports a status too, so the last text part can show a cursor while the parts before it are done.
+
+## Attachments
+
+A user message can carry attachments: the files the user added in the composer. An [attachment adapter](/docs/concepts/adapters#attachment-adapter) decides which files are accepted, uploads them if needed, and turns each one into parts the model can read, such as an `image` part or a `file` part. [Attachments](/docs/guides/attachments) walks through adding them to a chat.
+
+## The composer
+
+A message starts in the composer, which holds the draft: its text and its attachments. Sending turns the draft into a user message and clears it. The thread has one composer for new messages, and a message being edited gets a composer of its own, so editing doesn't disturb the draft at the bottom of the chat.
+
+## Branches
+
+Editing a message or regenerating a reply doesn't overwrite anything. The new version is added next to the old one, and the thread shows one version at a time. The messages form a tree, and the thread is the path through it that the user picked.
+
+The runtime tracks which version of a message is showing and how many there are, which is what a branch picker reads to show "2 / 3" and switch between them. [Branching](/docs/guides/branching) shows how to add one.
+
+## Metadata
+
+Besides its parts, a message has an `id`, a `createdAt` time and `metadata`. On an assistant message the metadata records how long the reply took to stream and any feedback the user gave. Every message has a `custom` object for data of your own: a runtime can fill it from what your backend sends, and your components can read it without adding a part to the message.
+
+## Next
+
+<Cards>
+  <Card
+    title="Threads"
+    description="One conversation, many conversations, and where they are stored."
+    href="/docs/concepts/threads"
+  />
+  <Card
+    title="Message primitive"
+    description="Build your own message layout from the parts."
+    href="/docs/primitives/message"
+  />
+</Cards>

@@ -14,6 +14,27 @@ export const DotWorldMapZoom = lazyComponent(() =>
   import("./examples/dot-world-map/zoom").then((mod) => mod.default),
 );
 
+// The static dot world map examples render on the client too, on their own
+// page only. That page loads diagrammatic/world for the two above anyway, and
+// a map rendered as a server component is printed twice: once as HTML and
+// again as its element tree in the RSC payload, which for this map is
+// thousands of path segments.
+export const DotWorldMapBasic = lazyComponent(() =>
+  import("./examples/dot-world-map/basic").then((mod) => mod.default),
+);
+
+export const DotWorldMapGroups = lazyComponent(() =>
+  import("./examples/dot-world-map/groups").then((mod) => mod.default),
+);
+
+export const DotWorldMapFlows = lazyComponent(() =>
+  import("./examples/dot-world-map/flows").then((mod) => mod.default),
+);
+
+export const DotWorldMapMotion = lazyComponent(() =>
+  import("./examples/dot-world-map/motion").then((mod) => mod.default),
+);
+
 export const LineFit = lazyComponent(() =>
   import("./examples/line/fit").then((mod) => mod.default),
 );

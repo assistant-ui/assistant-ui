@@ -13,18 +13,11 @@ Pick the Google ADK runtime when:
 - You want support for ADK's HITL (human-in-the-loop) primitives: tool confirmations, auth credential flow, workflow input requests.
 - You need multi-agent author and branch tracking, agent transfer events, and grounding / citation metadata.
 
-## Architecture
+## Quickstart
 
-`@assistant-ui/react-google-adk` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Features that ship as runtime adapters work the same way they do everywhere else; see [adapters](/docs/runtimes/concepts/adapters).
+You need a Google ADK agent running on a server (ADK JS or ADK Python) and React 18 or 19.
 
-No configuration is needed; connect to either ADK JS or ADK Python servers, both of which send camelCase JSON. A backend that sends snake_case field names instead, such as a custom server serializing with pydantic's default `model_dump()`, works too: the package normalizes them in events, message parts, and artifact responses (`function_call` → `functionCall`, `inline_data` → `inlineData`, `mime_type` → `mimeType`, `file_data` → `fileData`, `file_uri` → `fileUri`, `requested_tool_confirmations` → `requestedToolConfirmations`).
-
-## Requirements
-
-- A Google ADK agent running on a server (ADK JS or ADK Python).
-- React 18 or 19.
-
-## Install
+### Install
 
 <PlatformTabs>
 <Tab value="React">
@@ -48,14 +41,229 @@ No configuration is needed; connect to either ADK JS or ADK Python servers, both
 `@google/adk` is only needed on the server side. The client-side runtime has no dependency on it.
 </Callout>
 
+<Steps>
+<Step>
+
+### Create a backend API endpoint
+
+Use `createAdkApiRoute` to create an API route.
+For React Native and Ink, host this route in a separate backend project and
+point the client runtime at its absolute URL.
+
+```ts title="app/api/chat/route.ts"
+import { createAdkApiRoute } from "@assistant-ui/react-google-adk/server";
+import { InMemoryRunner, LlmAgent } from "@google/adk";
+
+const agent = new LlmAgent({
+  name: "my_agent",
+  model: "gemini-3.8-flash",
+  instruction: "You are a helpful assistant.",
+});
+
+const runner = new InMemoryRunner({ agent, appName: "my-app" });
+
+export const POST = createAdkApiRoute({
+  runner,
+  userId: "local-user",
+  sessionId: (_req, clientSessionId) => {
+    if (!clientSessionId) throw new Error("Missing ADK session ID");
+    return clientSessionId;
+  },
+});
+```
+
+`createAdkStream` sends the initialized assistant-ui thread ID as
+`clientSessionId`. When the runner exposes `appName` and `sessionService`, the
+route creates the corresponding ADK session before the first run. The static
+user above is suitable only for local, single-user development. Before
+deployment, resolve `userId` from your authentication system: the client-sent ID
+selects a conversation, but does not authorize access to it.
+
+</Step>
+<Step>
+
+### Set up the client runtime
+
+Use `createAdkStream` to connect to your API route. It parses the SSE stream for you:
+
+<PlatformTabs>
+<Tab value="React">
+
+```tsx title="components/MyAssistant.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  useAdkRuntime,
+  createAdkStream,
+} from "@assistant-ui/react-google-adk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export function MyAssistant() {
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({ api: "/api/chat" }),
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/MyAssistant.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import {
+  useAdkRuntime,
+  createAdkStream,
+} from "@assistant-ui/react-google-adk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+
+export function MyAssistant() {
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({ api: `${API_URL}/api/chat` }),
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="components/MyAssistant.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import {
+  useAdkRuntime,
+  createAdkStream,
+} from "@assistant-ui/react-google-adk";
+import { Thread } from "./thread.js";
+
+export function MyAssistant() {
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({ api: "http://localhost:3000/api/chat" }),
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
+</Step>
+<Step>
+
+### Use the component
+
+<PlatformTabs>
+<Tab value="React">
+
+```tsx title="app/page.tsx"
+import { MyAssistant } from "@/components/MyAssistant";
+
+export default function Home() {
+  return (
+    <main className="h-dvh">
+      <MyAssistant />
+    </main>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { View } from "react-native";
+import { MyAssistant } from "@/components/MyAssistant";
+
+export default function Home() {
+  return (
+    <View style={{ flex: 1 }}>
+      <MyAssistant />
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { Box } from "ink";
+import { MyAssistant } from "./components/MyAssistant.js";
+
+export function App() {
+  return (
+    <Box flexDirection="column">
+      <MyAssistant />
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
+</Step>
+<Step>
+
+### Set up UI components
+
+<PlatformTabs>
+<Tab value="React">
+
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Native">
+
+Follow the [React Native setup](/docs/react-native) to add a native Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Ink">
+
+Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and supporting primitives.
+
+</Tab>
+</PlatformTabs>
+
+</Step>
+</Steps>
+
+## Adding adapters
+
+Attachment, speech, dictation, voice, and feedback adapters go in the `adapters` option. See [adapters](/docs/concepts/adapters):
+
+```tsx
+const runtime = useAdkRuntime({
+  stream: createAdkStream({ api: "/api/chat" }),
+  adapters: { attachments, speech, feedback },
+});
+```
+
+For multi-thread, see [threads](/docs/concepts/threads).
+
+
+## ADK JS and Python servers
+
+No configuration is needed; connect to either ADK JS or ADK Python servers, both of which send camelCase JSON. A backend that sends snake_case field names instead, such as a custom server serializing with pydantic's default `model_dump()`, works too: the package normalizes them in events, message parts, and artifact responses (`function_call` → `functionCall`, `inline_data` → `inlineData`, `mime_type` → `mimeType`, `file_data` → `fileData`, `file_uri` → `fileUri`, `requested_tool_confirmations` → `requestedToolConfirmations`).
+
 ## Next
 
 <Cards>
-  <Card
-    title="Quickstart"
-    description="Minimal API route + client setup with createAdkApiRoute."
-    href="/docs/runtimes/google-adk/quickstart"
-  />
   <Card
     title="API reference"
     description="createAdkStream, server helpers, session adapter, threads, message editing."

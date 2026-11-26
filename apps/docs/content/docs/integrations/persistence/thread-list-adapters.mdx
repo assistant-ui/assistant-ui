@@ -1,56 +1,9 @@
 ---
-title: Threads
-description: Single-thread, cloud, and custom-database thread management.
+title: Thread list adapters
+description: "The contracts behind a thread list you store yourself: RemoteThreadListAdapter for your own database, ExternalStoreThreadListAdapter for your own store, and the cases a production list has to handle."
 ---
 
-Every assistant-ui runtime starts with a single in-memory thread. Multi-thread support is added through one of three mechanisms depending on which runtime you are using and where you want threads to live.
-
-## Single thread (default)
-
-With no thread configuration, the runtime renders one thread that resets when the page reloads. This is enough for prototypes, demos, and stateless interactions.
-
-If you only want session persistence (single thread, durable across reloads), provide a [history adapter](/docs/runtimes/concepts/adapters#history-adapter) instead of going to multi-thread.
-
-## Multi-thread paths
-
-Choose based on what you want to own.
-
-| Path | Runtime | Who owns thread metadata | Best for |
-| --- | --- | --- | --- |
-| AssistantCloud | LocalRuntime and runtime adapters that accept `cloud` | assistant-cloud | You want the thread list managed; auth and sync handled |
-| RemoteThreadListRuntime | Any runtime hook passed as `runtimeHook` | Your database | You have your own backend and want full control |
-| ExternalStoreThreadListAdapter | ExternalStoreRuntime only | Your store | You keep state in redux, zustand, etc. |
-
-## AssistantCloud
-
-`AssistantCloud` is the managed multi-thread service. Pass an instance to `useLocalRuntime` or a runtime adapter that accepts `cloud`, and the thread list, sync and titles are handled for you. Where messages are stored depends on the runtime: `useLocalRuntime` and the AI SDK runtime, plus AG-UI and A2A through `useCloudThreadListRuntime`, store and load them in the cloud, while LangGraph, LangChain, ADK and other runtimes whose backend keeps the transcript load it from that backend and store a copy in the cloud for the dashboard, as [Runtimes](/docs/cloud/runtimes) lists.
-
-```tsx
-import { useLocalRuntime } from "@assistant-ui/react";
-import { AssistantCloud } from "assistant-cloud";
-
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
-  anonymous: true,
-});
-
-const runtime = useLocalRuntime(modelAdapter, { cloud });
-```
-
-Framework adapters take `cloud` directly. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` hosts. With `cloud` it is a `RemoteThreadList` with background threads: every visited thread stays mounted with its own history, a run keeps streaming after a switch and stops on delete, and a freshly created thread titles itself. Without `cloud`, only the visible thread is mounted, and a switched-away chat keeps streaming into its stored state until it settles.
-
-```tsx
-const runtime = useChatRuntime({ cloud });
-const threads = AISDKThreads({ cloud });
-const runtime = useLangGraphRuntime({ cloud /* stream, load, ... */ });
-const runtime = useStreamRuntime({ cloud /* LangGraph server options */ });
-const runtime = useOpenCodeRuntime({ cloud /* OpenCode options */ });
-const runtime = usePiRuntime({ cloud /* Pi options */ });
-const runtime = useAssistantTransportRuntime({ cloud /* transport options */ });
-const runtime = useAdkRuntime({ cloud, stream });
-```
-
-See the [cloud documentation](/docs/cloud) for setup, auth, and self-host options.
+These adapters connect the thread list to storage you own. Read [Threads](/docs/concepts/threads) first for what a thread list is and when you need one; [custom thread persistence](/docs/integrations/persistence/custom-adapter) is a worked example with Postgres.
 
 ## RemoteThreadListRuntime (custom database)
 
@@ -499,31 +452,3 @@ Unlike `RemoteThreadListAdapter`, this adapter is synchronous and inline. You ke
 <Callout type="warn">
 The runtime's `currentThreadId` and your store's selected thread must stay in sync. Mismatched thread ids cause messages to appear in the wrong thread or vanish entirely. Centralize thread id state in a context, never in component-local state.
 </Callout>
-
-## Choosing
-
-Ask three questions in order:
-
-1. **Do you want it managed?** Use `AssistantCloud`. You do not write database code.
-2. **Do you have your own backend?** Use `RemoteThreadListRuntime` around your runtime hook. You implement the adapter and own the data.
-3. **Are you on `ExternalStoreRuntime`?** Use `ExternalStoreThreadListAdapter`. Threads live in your store next to messages.
-
-## Related
-
-<Cards>
-  <Card
-    title="Adapters"
-    description="The shared adapter contracts (attachments, history, speech, feedback)."
-    href="/docs/runtimes/concepts/adapters"
-  />
-  <Card
-    title="Architecture"
-    description="The three-layer runtime model and how threads flow through it."
-    href="/docs/runtimes/concepts/architecture"
-  />
-  <Card
-    title="AssistantCloud"
-    description="The managed multi-thread service."
-    href="/docs/cloud"
-  />
-</Cards>

@@ -57,7 +57,7 @@ Lifting `isRunning` into your own store from inside the thread and reading it ba
 
 ## One value per selector
 
-`useAuiState` compares the selector result by reference. Return one primitive per call, or select an array whole and derive from it in `useMemo`; the array reference only changes when its contents change. Fold a condition over several fields into a boolean with `AuiIf`, as the header above does. The [Context API guide](/docs/guides/context-api#troubleshooting) lists the failure modes of a selector that allocates.
+`useAuiState` compares the selector result by reference. Return one primitive per call, or select an array whole and derive from it in `useMemo`; the array reference only changes when its contents change. Fold a condition over several fields into a boolean with `AuiIf`, as the header above does. The [Context API guide](/docs/concepts/context-api#troubleshooting) lists the failure modes of a selector that allocates.
 
 ```tsx title="/components/thread-activity.tsx"
 import { useAuiState } from "@assistant-ui/react";

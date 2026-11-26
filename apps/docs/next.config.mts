@@ -19,6 +19,7 @@ import {
 import { isWebMcpEnabled } from "./lib/feature-flags.ts";
 import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer.ts";
 import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs.ts";
+import { MOVED_DOCS_REDIRECTS } from "./lib/moved-docs.ts";
 import { APEX_REDIRECTS, APPS_DOCUMENT_HEADERS } from "./lib/apex-redirect.ts";
 import {
   DOCS_SITE_REDIRECTS,
@@ -252,6 +253,7 @@ const config: NextConfig = {
   redirects: async () => [
     ...APEX_REDIRECTS,
     ...LEGACY_TAP_DOCS_REDIRECTS,
+    ...MOVED_DOCS_REDIRECTS,
     ...DOCS_SITE_REDIRECTS,
     // The setup wizard moved to its own app; the fragment an agent link carries survives the redirect.
     {
@@ -552,7 +554,7 @@ const config: NextConfig = {
     },
     {
       source: "/docs/integrations/frameworks/cloudflare-agents/overview",
-      destination: "/docs/integrations/frameworks/cloudflare-agents",
+      destination: "/docs/runtimes/cloudflare-agents",
       permanent: true,
     },
   ],

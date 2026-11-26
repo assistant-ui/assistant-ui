@@ -10,11 +10,9 @@ import { ChevronDownIcon } from "lucide-react";
  * opposite, so this owns the reveal rather than wrapping a primitive.
  */
 export function CodeCollapsible({
-  code: _code,
   children,
   className,
 }: {
-  code: string;
   children: React.ReactNode;
   className?: string;
 }) {

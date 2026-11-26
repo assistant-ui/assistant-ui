@@ -5,7 +5,7 @@ description: Persist threads and messages to your own database with RemoteThread
 
 When [AssistantCloud](/docs/cloud) doesn't fit (self-hosting, compliance, threads alongside existing app data), back the multi-thread runtime with your own database. This page is the worked example: schema, route handlers, and adapter wiring with Postgres + Drizzle. The shape is identical for any SQL or document store.
 
-For the high-level adapter contract, see [threads](/docs/runtimes/concepts/threads). This page focuses on the storage layer and how `withFormat` round-trips AI SDK messages.
+For the adapter contract, see [thread list adapters](/docs/integrations/persistence/thread-list-adapters). This page focuses on the storage layer and how `withFormat` round-trips AI SDK messages.
 
 ## Prerequisites
 
@@ -734,7 +734,7 @@ Send a message in a fresh thread. Check the database:
 ## Notes
 
 - **First-message race.** `append` may fire before the thread row exists. The example above always awaits `aui.threadListItem.initialize()` before writing; do the same in any custom implementation.
-- **Reload after async auth.** If `auth()` resolves after the initial `list()` call, threads won't appear until the user refreshes. Call `aui.threads.reload()` from a `useEffect` watching the session. See [threads](/docs/runtimes/concepts/threads#reloading-after-async-authentication).
+- **Reload after async auth.** If `auth()` resolves after the initial `list()` call, threads won't appear until the user refreshes. Call `aui.threads.reload()` from a `useEffect` watching the session. See [threads](/docs/integrations/persistence/thread-list-adapters#reloading-after-async-authentication).
 - **Format string.** The `format` column identifies the stored shape so multiple runtimes can coexist. Store it as written and pass it back unchanged; `useChatRuntime` sets and decodes it.
 - **Pending approvals need `update`.** Tool call approvals persist across reloads only when the formatted adapter implements `update`; omitting it keeps the pre-approval snapshot out of storage by design.
 
@@ -742,14 +742,14 @@ Send a message in a fresh thread. Check the database:
 
 <Cards>
   <Card
-    title="Threads (concepts)"
+    title="Thread list adapters"
     description="Adapter contract, custom metadata, and ExternalStoreThreadListAdapter."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/integrations/persistence/thread-list-adapters"
   />
   <Card
     title="Adapters"
     description="The other adapter slots (history, attachments, speech, feedback)."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
   <Card
     title="AssistantCloud"
