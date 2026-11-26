@@ -22,7 +22,6 @@ import type {
   LibraryItem,
   LibraryMark,
 } from "./catalog";
-import { docsItemId } from "./moved-items";
 import {
   LIBRARY_THEMES,
   themeApplyCommand,
@@ -471,7 +470,7 @@ const fromDocs = (
     const page = readDocsPage(entry.path);
     const path = `/docs/${entry.path}`;
     return {
-      id: docsItemId(category, entry.path),
+      id: `${category}/${entry.path.split("/").slice(1).join("-")}`,
       category,
       name: entry.name ?? page.title,
       description: page.description ? lead(page.description) : "",

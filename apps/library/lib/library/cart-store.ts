@@ -7,14 +7,8 @@ const EMPTY: readonly string[] = [];
 const getServerSnapshot = () => EMPTY;
 const getServerOpenSnapshot = () => false;
 
-/**
- * A cart of slugs kept in localStorage under `storageKey`, with its open state.
- * A stored slug found in `renamed` is read as the slug it maps to.
- */
-export function createCartStore(
-  storageKey: string,
-  renamed: ReadonlyMap<string, string> = new Map(),
-) {
+/** A cart of slugs kept in localStorage under `storageKey`, with its open state. */
+export function createCartStore(storageKey: string) {
   let slugs: readonly string[] = EMPTY;
   let loaded = false;
   let open = false;
@@ -30,9 +24,9 @@ export function createCartStore(
       return Array.isArray(parsed)
         ? [
             ...new Set(
-              parsed
-                .filter((value): value is string => typeof value === "string")
-                .map((slug) => renamed.get(slug) ?? slug),
+              parsed.filter(
+                (value): value is string => typeof value === "string",
+              ),
             ),
           ]
         : EMPTY;
