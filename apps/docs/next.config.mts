@@ -287,36 +287,6 @@ const config: NextConfig = {
       permanent: true,
     },
     {
-      source: "/docs/api-reference/integrations/cloud-ai-sdk",
-      destination: "/docs/cloud/migrate-cloud-ai-sdk",
-      permanent: true,
-    },
-    {
-      source: "/docs/cloud/ai-sdk-assistant-ui",
-      destination: "/docs/cloud/ai-sdk",
-      permanent: true,
-    },
-    {
-      source: "/docs/integrations/observability/helicone",
-      destination: "/docs/integrations",
-      permanent: true,
-    },
-    {
-      source: "/docs/cloud/telemetry",
-      destination: "/docs/cloud/run-reports",
-      permanent: true,
-    },
-    {
-      source: "/docs/cloud/overview",
-      destination: "/docs/cloud/dashboard#overview",
-      permanent: true,
-    },
-    {
-      source: "/docs/cloud/alerts",
-      destination: "/docs/cloud/settings/alerts",
-      permanent: true,
-    },
-    {
       source: "/elements/reasoning-panel",
       destination: "/elements/reasoning",
       permanent: true,
@@ -372,151 +342,6 @@ const config: NextConfig = {
       permanent: true,
     },
     {
-      source: "/docs/ui/scrollbar",
-      destination: "/docs/guides/scrollbar",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/streamdown",
-      destination: "/docs/guides/streamdown",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/part-grouping",
-      destination: "/docs/guides/part-grouping",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui",
-      destination: "/elements",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/thread",
-      destination: "/elements/thread",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/context-display",
-      destination: "/elements/context-display",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/voice",
-      destination: "/elements/orb",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/quote",
-      destination: "/elements/quote",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/model-selector",
-      destination: "/elements/model-selector",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/composer-trigger-popover",
-      destination: "/elements/composer-trigger-popover",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/follow-up-suggestions",
-      destination: "/elements/follow-up-suggestions",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/markdown",
-      destination: "/elements/markdown-text",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/mermaid",
-      destination: "/elements/mermaid-diagram",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/syntax-highlighting",
-      destination: "/elements/syntax-highlighter",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/attachment",
-      destination: "/elements/attachment",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/tool-fallback",
-      destination: "/elements/tool-fallback",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/tool-group",
-      destination: "/elements/tool-group",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/sources",
-      destination: "/elements/sources",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/reasoning",
-      destination: "/elements/reasoning",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/image",
-      destination: "/elements/image",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/file",
-      destination: "/elements/file",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/directive-text",
-      destination: "/elements/directive-text",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/assistant-modal",
-      destination: "/elements/assistant-modal",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/assistant-sidebar",
-      destination: "/elements/assistant-sidebar",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/message-timing",
-      destination: "/elements/message-timing",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/thread-list",
-      destination: "/elements/thread-list",
-      permanent: true,
-    },
-    {
-      source: "/docs/ui/mcp-config",
-      destination: "/elements/mcp-config",
-      permanent: true,
-    },
-    {
-      source: "/docs/runtimes/ai-sdk/v6",
-      destination: "/docs/runtimes/ai-sdk/v6-legacy",
-      permanent: true,
-    },
-    {
-      source: "/docs/tools/interactables-legacy",
-      destination: "/docs/tools/interactables#migrating-from-the-previous-api",
-      permanent: true,
-    },
-    {
       source: "/gallery",
       destination: "/elements",
       permanent: true,
@@ -532,12 +357,6 @@ const config: NextConfig = {
       permanent: true,
     },
     {
-      source:
-        "/docs/ui/:slug(accordion|badge|diff-viewer|dot-matrix|number-roll|select|tabs)",
-      destination: "/design/components/:slug",
-      permanent: true,
-    },
-    {
       source: "/docs/standalone",
       destination: "/design/components",
       permanent: true,
@@ -545,11 +364,6 @@ const config: NextConfig = {
     {
       source: "/docs/standalone/:slug",
       destination: "/design/components/:slug",
-      permanent: true,
-    },
-    {
-      source: "/docs/api-reference/integrations/react-ai-sdk",
-      destination: "/docs/api-reference/integrations/ai-sdk",
       permanent: true,
     },
   ],
@@ -582,6 +396,14 @@ const config: NextConfig = {
       {
         source: "/examples.mdx",
         destination: "/llms.mdx/examples",
+      },
+      {
+        source: "/elements.md",
+        destination: "/llms.mdx/elements",
+      },
+      {
+        source: "/elements.mdx",
+        destination: "/llms.mdx/elements",
       },
       {
         source: "/examples/:path*.md",

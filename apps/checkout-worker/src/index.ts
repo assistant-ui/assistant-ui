@@ -1,6 +1,12 @@
 import { CheckoutHost } from "setup-agent/host";
 import { isClosed, isValidModelAnswer, type Checkout } from "setup-agent";
 import { respondToGuideRequest } from "./guide";
+import {
+  ACTIVITY_WRITE_MS,
+  EMPTY_ROOM_IDLE_MS,
+  MAX_MESSAGE_BYTES,
+  ROOM_IDLE_MS,
+} from "./limits";
 import { resource, useResource } from "@assistant-ui/tap";
 import {
   StatewireDurableObject,
@@ -48,24 +54,7 @@ const SECRET_TTL_MS = 60 * 60 * 1000;
 const MAX_SECRET_BYTES = 16 * 1024;
 /** The link alphabet and length the setup page accepts (apps/setup). */
 const LINK_PATH = /^\/[A-Za-z0-9]{8,64}(?:\/|$)/;
-/** How stale the stored last-activity time may get before it is rewritten. */
-const ACTIVITY_WRITE_MS = 60 * 60 * 1000;
-/**
- * A setup is deleted this long after its stored last-activity time, with no
- * open socket. The stored time can lag the last request by up to
- * `ACTIVITY_WRITE_MS`, so the deadline adds that much: a setup always gets at
- * least 24 hours with no request and no open socket.
- */
-export const ROOM_IDLE_MS = 24 * 60 * 60 * 1000 + ACTIVITY_WRITE_MS;
-/**
- * A link that still holds no setup this long after its recorded activity is
- * deleted. The agent's CLI creates the setup the moment it opens a new link,
- * so only a link nobody set up stays empty.
- */
-export const EMPTY_ROOM_IDLE_MS = 10 * 60 * 1000;
 const ACTIVITY_KEY = "room:lastActiveAt";
-/** The largest statewire command a client may send, over HTTP or a socket. */
-export const MAX_MESSAGE_BYTES = 256 * 1024;
 
 /** The body's bytes, or `undefined` once it passes `max` bytes, without reading further. */
 const readCappedBytes = async (request: Request, max: number) => {

@@ -240,7 +240,7 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
     // Option 1: Extract text from PDF (requires pdf parsing library)
     // const text = await this.extractTextFromPDF(attachment.file);
 
-    // Option 2: Convert to base64 for API processing
+    // Option 2: Send the whole PDF as a file part for models that read PDFs
     const base64Data = await this.fileToBase64(attachment.file);
 
     return {
@@ -249,8 +249,10 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
       name: attachment.name,
       content: [
         {
-          type: "text",
-          text: `[PDF Document: ${attachment.name}]\nBase64 data: ${base64Data.substring(0, 50)}...`,
+          type: "file",
+          filename: attachment.name,
+          data: base64Data,
+          mimeType: "application/pdf",
         },
       ],
       status: { type: "complete" },

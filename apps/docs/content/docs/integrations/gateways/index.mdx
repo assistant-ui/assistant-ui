@@ -23,7 +23,12 @@ All three gateways below speak OpenAI's API. Wire them with `createOpenAI`:
 
 ```ts title="app/api/chat/route.ts"
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 import type { UIMessage } from "ai";
 
 const openai = createOpenAI({
@@ -38,7 +43,9 @@ export async function POST(req: Request) {
     model: openai("<model id>"),
     messages: await convertToModelMessages(messages),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -55,7 +62,12 @@ SITE_URL=https://your-app.example
 
 ```ts title="app/api/chat/route.ts"
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 import type { UIMessage } from "ai";
 
 const openrouter = createOpenAI({
@@ -74,7 +86,9 @@ export async function POST(req: Request) {
     model: openrouter("anthropic/claude-sonnet-5"),
     messages: await convertToModelMessages(messages),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 

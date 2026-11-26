@@ -1,0 +1,124 @@
+{
+  "q01": {
+    "grade": "correct"
+  },
+  "q02": {
+    "grade": "correct"
+  },
+  "q03": {
+    "grade": "correct"
+  },
+  "q04": {
+    "grade": "partly",
+    "note": "Doesn't learn that a Python service can emit the data stream."
+  },
+  "q05": {
+    "grade": "correct"
+  },
+  "q06": {
+    "grade": "correct"
+  },
+  "q07": {
+    "grade": "correct"
+  },
+  "q08": {
+    "grade": "correct"
+  },
+  "q09": {
+    "grade": "correct"
+  },
+  "q10": {
+    "grade": "correct"
+  },
+  "q11": {
+    "grade": "correct"
+  },
+  "q12": {
+    "grade": "partly",
+    "note": "Doesn't learn how reasoning gets from an AI SDK route to the client."
+  },
+  "q13": {
+    "grade": "correct"
+  },
+  "q14": {
+    "grade": "correct"
+  },
+  "q15": {
+    "grade": "correct"
+  },
+  "q16": {
+    "grade": "correct"
+  },
+  "q17": {
+    "grade": "correct"
+  },
+  "q18": {
+    "grade": "correct"
+  },
+  "q19": {
+    "grade": "correct"
+  },
+  "q20": {
+    "grade": "correct"
+  },
+  "q21": {
+    "grade": "correct"
+  },
+  "q22": {
+    "grade": "partly",
+    "note": "Reads only the Tool UI page, which says the assistant always continues after addResult; with useChatRuntime that needs sendAutomaticallyWhen."
+  },
+  "q23": {
+    "grade": "correct"
+  },
+  "q24": {
+    "grade": "correct"
+  },
+  "q25": {
+    "grade": "partly",
+    "note": "No page on editing or theming the elements, or whether Tailwind and shadcn are needed."
+  },
+  "q26": {
+    "grade": "partly",
+    "note": "Doesn't learn which code is copied and which stays a package, or where the files land."
+  },
+  "q27": {
+    "grade": "correct"
+  },
+  "q28": {
+    "grade": "correct"
+  },
+  "q29": {
+    "grade": "correct"
+  },
+  "q30": {
+    "grade": "correct"
+  },
+  "q31": {
+    "grade": "partly",
+    "note": "Only knows what a missing speech adapter does."
+  },
+  "q32": {
+    "grade": "correct"
+  },
+  "q33": {
+    "grade": "partly",
+    "note": "Doesn't learn that streamed text stays, how stop reaches other runtimes, or that ComposerPrimitive.Cancel is the stop button."
+  },
+  "q34": {
+    "grade": "partly",
+    "note": "Doesn't learn where the error text comes from or how failures reach the message outside LocalRuntime."
+  },
+  "q35": {
+    "grade": "correct"
+  },
+  "q36": {
+    "grade": "correct"
+  },
+  "q37": {
+    "grade": "correct"
+  },
+  "q38": {
+    "grade": "correct"
+  }
+}

@@ -10,10 +10,11 @@ import {
 
 const CONTENT = path.resolve(__dirname, "../content/docs");
 
-// Every /docs url a content file serves: group folders such as
-// "(getting-started)" add no segment, and index.mdx serves its folder.
+// Every url a content file serves under /docs, /elements and /design: group
+// folders such as "(getting-started)" add no segment, and index.mdx serves its
+// folder. The elements catalog root is a page of its own.
 const pageUrls = (): Set<string> => {
-  const urls = new Set<string>();
+  const urls = new Set<string>(["/elements"]);
   const walk = (dir: string, segments: string[]) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
@@ -25,11 +26,13 @@ const pageUrls = (): Set<string> => {
       } else if (entry.name.endsWith(".mdx")) {
         const name = entry.name.slice(0, -".mdx".length);
         const parts = name === "index" ? segments : [...segments, name];
-        urls.add(["/docs", ...parts].join("/"));
+        urls.add(["", ...parts].join("/"));
       }
     }
   };
-  walk(CONTENT, []);
+  for (const section of ["docs", "elements", "design"]) {
+    walk(path.join(CONTENT, "..", section), [section]);
+  }
   return urls;
 };
 

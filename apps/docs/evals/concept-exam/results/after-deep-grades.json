@@ -1,0 +1,124 @@
+{
+  "q01": {
+    "grade": "correct"
+  },
+  "q02": {
+    "grade": "correct",
+    "note": "Notes that the AI SDK overview shows result.toUIMessageStreamResponse() while the v7 page uses createUIMessageStreamResponse; both work in ai@7."
+  },
+  "q03": {
+    "grade": "correct"
+  },
+  "q04": {
+    "grade": "correct",
+    "note": "Finds the Python data stream path and the protocol setting."
+  },
+  "q05": {
+    "grade": "correct"
+  },
+  "q06": {
+    "grade": "correct"
+  },
+  "q07": {
+    "grade": "correct"
+  },
+  "q08": {
+    "grade": "correct"
+  },
+  "q09": {
+    "grade": "correct"
+  },
+  "q10": {
+    "grade": "correct"
+  },
+  "q11": {
+    "grade": "correct"
+  },
+  "q12": {
+    "grade": "correct"
+  },
+  "q13": {
+    "grade": "correct"
+  },
+  "q14": {
+    "grade": "correct"
+  },
+  "q15": {
+    "grade": "correct"
+  },
+  "q16": {
+    "grade": "correct"
+  },
+  "q17": {
+    "grade": "correct"
+  },
+  "q18": {
+    "grade": "correct"
+  },
+  "q19": {
+    "grade": "correct"
+  },
+  "q20": {
+    "grade": "correct"
+  },
+  "q21": {
+    "grade": "correct"
+  },
+  "q22": {
+    "grade": "correct",
+    "note": "Learns the AI SDK runtime needs sendAutomaticallyWhen."
+  },
+  "q23": {
+    "grade": "correct"
+  },
+  "q24": {
+    "grade": "correct"
+  },
+  "q25": {
+    "grade": "correct",
+    "note": "Learns that only the elements need Tailwind and shadcn, and how to theme them."
+  },
+  "q26": {
+    "grade": "correct",
+    "note": "Learns what is copied and what stays a package."
+  },
+  "q27": {
+    "grade": "correct"
+  },
+  "q28": {
+    "grade": "correct"
+  },
+  "q29": {
+    "grade": "correct"
+  },
+  "q30": {
+    "grade": "correct"
+  },
+  "q31": {
+    "grade": "correct",
+    "note": "Learns what each missing adapter does."
+  },
+  "q32": {
+    "grade": "correct"
+  },
+  "q33": {
+    "grade": "correct",
+    "note": "Learns that ComposerPrimitive.Cancel is the stop button and that streamed text stays."
+  },
+  "q34": {
+    "grade": "correct",
+    "note": "Learns where the error text comes from; unsure what shows when the request fails before any message exists."
+  },
+  "q35": {
+    "grade": "correct"
+  },
+  "q36": {
+    "grade": "correct"
+  },
+  "q37": {
+    "grade": "correct"
+  },
+  "q38": {
+    "grade": "correct"
+  }
+}
