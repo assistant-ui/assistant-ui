@@ -36,6 +36,39 @@ const getVercelTrack = () => {
 
 export type AnalyticsProperties = Record<string, string | number | boolean>;
 
+/** The live samples on docs pages that report use. */
+export type DocsSampleName =
+  | "runtime-playground"
+  | "thread-list-playground"
+  | "parts-playground"
+  | "branch-tree"
+  | "input-history"
+  | "turn-anchor"
+  | "message-timing";
+
+/** What the reader did in a sample. A fixed list, so an event can never carry the reader's own text. */
+export type DocsSampleAction =
+  | "send"
+  | "run"
+  | "stream_reasoning"
+  | "stream_text"
+  | "tool_call"
+  | "finish"
+  | "fail"
+  | "stop"
+  | "regenerate"
+  | "edit"
+  | "switch_branch"
+  | "new_thread"
+  | "switch_thread"
+  | "rename_thread"
+  | "archive_thread"
+  | "unarchive_thread"
+  | "delete_thread"
+  | "recall_history"
+  | "change_speed"
+  | "reset";
+
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
 
@@ -147,6 +180,12 @@ export const analytics = {
   toc: {
     actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
       trackEvent("toc_action_clicked", { action }),
+  },
+
+  docs: {
+    /** A reader used a live sample on a docs page. Carries the sample's name and the kind of action only, never the reader's text or any id. */
+    sampleInteracted: (sample: DocsSampleName, action: DocsSampleAction) =>
+      trackEvent("docs_sample_interacted", { sample, action }),
   },
 
   pageActions: {

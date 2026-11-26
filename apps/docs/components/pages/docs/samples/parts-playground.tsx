@@ -15,6 +15,7 @@ import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SampleScope } from "./sample-scope";
+import { useSampleAnalytics } from "./use-sample-analytics";
 
 /** The same grouping the Chain of Thought guide and the Thread element use. */
 const groupBy = groupPartByType({
@@ -240,12 +241,23 @@ function Readout({ groups }: { groups: boolean }) {
 
 function Playground({ groups }: { groups: boolean }) {
   const backend = useBackend();
+  const track = useSampleAnalytics("parts-playground");
+  const act = (action: Parameters<typeof track>[0], run: () => void) => () => {
+    track(action);
+    run();
+  };
   const runtime = useExternalStoreRuntime<Message>({
     messages: backend.messages,
     isRunning: backend.isRunning,
     convertMessage: (message) => message,
-    onNew: backend.onNew,
-    onCancel: async () => backend.cancel(),
+    onNew: async (message) => {
+      track("send");
+      return backend.onNew(message);
+    },
+    onCancel: async () => {
+      track("stop");
+      backend.cancel();
+    },
   });
   const canStream = backend.isRunning && !backend.streaming;
 
@@ -271,7 +283,7 @@ function Playground({ groups }: { groups: boolean }) {
               size="sm"
               variant="outline"
               disabled={!canStream}
-              onClick={backend.reasoning}
+              onClick={act("stream_reasoning", backend.reasoning)}
             >
               Reasoning
             </Button>
@@ -279,7 +291,7 @@ function Playground({ groups }: { groups: boolean }) {
               size="sm"
               variant="outline"
               disabled={!canStream}
-              onClick={backend.callTool}
+              onClick={act("tool_call", backend.callTool)}
             >
               Tool call
             </Button>
@@ -287,7 +299,7 @@ function Playground({ groups }: { groups: boolean }) {
               size="sm"
               variant="outline"
               disabled={!canStream}
-              onClick={backend.text}
+              onClick={act("stream_text", backend.text)}
             >
               Text
             </Button>
@@ -295,7 +307,7 @@ function Playground({ groups }: { groups: boolean }) {
               size="sm"
               variant="outline"
               disabled={!backend.isRunning}
-              onClick={backend.finish}
+              onClick={act("finish", backend.finish)}
             >
               Finish
             </Button>
@@ -303,7 +315,7 @@ function Playground({ groups }: { groups: boolean }) {
               size="sm"
               variant="outline"
               disabled={!backend.isRunning}
-              onClick={backend.fail}
+              onClick={act("fail", backend.fail)}
             >
               Fail
             </Button>
@@ -315,7 +327,7 @@ function Playground({ groups }: { groups: boolean }) {
             size="sm"
             variant="ghost"
             className="mt-auto self-start"
-            onClick={backend.reset}
+            onClick={act("reset", backend.reset)}
           >
             Reset
           </Button>

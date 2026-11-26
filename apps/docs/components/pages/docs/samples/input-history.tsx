@@ -10,6 +10,7 @@ import {
 import { ArrowUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SampleRuntimeProvider } from "./sample-runtime-provider";
+import { useSampleAnalytics } from "./use-sample-analytics";
 
 const MESSAGES = [
   { role: "user" as const, content: "Summarize this week's sales" },
@@ -25,8 +26,15 @@ const MESSAGES = [
 
 function Composer() {
   const history = unstable_useComposerInputHistory();
+  const track = useSampleAnalytics("input-history");
   return (
-    <ComposerPrimitive.Root className="border-foreground/10 bg-background flex w-full items-end gap-2 rounded-xl border p-2">
+    <ComposerPrimitive.Root
+      className="border-foreground/10 bg-background flex w-full items-end gap-2 rounded-xl border p-2"
+      onSubmit={() => track("send")}
+      onKeyDownCapture={(event) => {
+        if (event.key === "ArrowUp") track("recall_history");
+      }}
+    >
       <ComposerPrimitive.Input
         {...history}
         autoFocus={false}
