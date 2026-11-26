@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   DOCS_TOPIC_LABELS,
   captureDocsAssistantRefusal,
@@ -200,7 +200,8 @@ describe("captureDocsAssistantTurn", () => {
   });
 
   it("never throws when PostHog is down or not configured", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => quiet.mockRestore());
     const client = {
       captureImmediate: vi.fn(async () => {
         throw new Error("network");

@@ -175,6 +175,23 @@ describe("readDocChatRequest", () => {
       "Unsupported message part",
     ],
     [
+      "a user part that is not an object",
+      { messages: [user("u1", ["just a string"])] },
+      "Invalid message part",
+    ],
+    [
+      "a message with too many parts",
+      {
+        messages: [
+          user(
+            "u1",
+            Array.from({ length: 401 }, () => ({ type: "text", text: "x" })),
+          ),
+        ],
+      },
+      "Too many message parts",
+    ],
+    [
       "a data part in a user message",
       { messages: [user("u1", [{ type: "data-context", data: {} }])] },
       "Unsupported message part",
@@ -197,7 +214,37 @@ describe("readDocChatRequest", () => {
           ]),
         ],
       },
-      "Only image attachments are supported",
+      "Only PNG, JPEG, GIF and WebP images can be attached",
+    ],
+    [
+      "an image given as a link",
+      {
+        messages: [
+          user("u1", [
+            {
+              type: "file",
+              mediaType: "image/png",
+              url: "https://example.com/picture.png",
+            },
+          ]),
+        ],
+      },
+      "Images must be attached inline",
+    ],
+    [
+      "an image whose data does not match its media type",
+      {
+        messages: [
+          user("u1", [
+            {
+              type: "file",
+              mediaType: "image/png",
+              url: "data:text/html;base64,PGgxPg==",
+            },
+          ]),
+        ],
+      },
+      "Images must be attached inline",
     ],
     [
       "too many images",

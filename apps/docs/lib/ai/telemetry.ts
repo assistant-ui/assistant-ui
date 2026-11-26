@@ -1,6 +1,7 @@
 import { OpenTelemetry } from "@ai-sdk/otel";
 import type { TelemetryOptions } from "ai";
 import { posthogServer } from "@/lib/posthog-server";
+import type { DocChatRefusal } from "./docs-chat-request";
 
 const integration = new OpenTelemetry({ runtimeContext: true });
 
@@ -218,8 +219,10 @@ const isFailedRead = (output: unknown) =>
 
 /**
  * Where an assistant turn found its answer: in the docs pages only, in the
- * source, nowhere (answered from the prompt), or not at all because it used
- * every step, failed or was stopped.
+ * source, or nowhere (answered from the prompt). `step_cap` marks a turn that
+ * used every step: the route makes the last step answer without tools, so it
+ * still ends in an answer, but one cut short, which is the signal the
+ * dashboard watches. `error` and `aborted` mark turns that did not finish.
  */
 export function summarizeDocsTurn({
   steps,
@@ -314,7 +317,7 @@ export function captureDocsAssistantTurn(
  * away, with the fixed reason code only. Never throws.
  */
 export function captureDocsAssistantRefusal(
-  reason: string,
+  reason: DocChatRefusal,
   client: CaptureClient = posthogServer,
 ): Promise<void> {
   return captureDocsAssistantEvent(

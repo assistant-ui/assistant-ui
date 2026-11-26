@@ -63,11 +63,15 @@ const REFUSALS = {
   too_many_parts: "Too many message parts",
   invalid_part: "Invalid message part",
   unsupported_part: "Unsupported message part",
-  non_image_file: "Only image attachments are supported",
+  non_image_file: "Only PNG, JPEG, GIF and WebP images can be attached",
+  inline_images_only: "Images must be attached inline",
   too_many_images: "Too many images",
   too_many_turns: "Conversation too long",
   stacked_user_messages: "Invalid message sequence",
   ends_on_assistant: "The last message must be the reader's",
+  // Checked by the route on the pruned conversation (validateDocChatInput),
+  // which answers with its own message.
+  too_large: "Input too long",
 } as const;
 
 export type DocChatRefusal = keyof typeof REFUSALS;
@@ -109,6 +113,14 @@ function checkUserPart(part: unknown, counts: { images: number }) {
       !IMAGE_MEDIA_TYPE.test(part.mediaType)
     ) {
       throw new DocChatRequestError("non_image_file");
+    }
+    // The docs UI attaches images inline (toMediaWireUrl in
+    // @assistant-ui/core), so a link to fetch from elsewhere is refused.
+    if (
+      typeof part.url !== "string" ||
+      !part.url.startsWith(`data:${part.mediaType};base64,`)
+    ) {
+      throw new DocChatRequestError("inline_images_only");
     }
     counts.images += 1;
     if (counts.images > MAX_IMAGES) {

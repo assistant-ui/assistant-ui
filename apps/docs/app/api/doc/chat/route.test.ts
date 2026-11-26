@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -324,7 +324,9 @@ describe("POST /api/doc/chat access boundary", () => {
       ],
       totalUsage: { inputTokens: 900, outputTokens: 120 },
     });
-    options.onError({ error: new Error("late") });
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => quiet.mockRestore());
+    await options.onError({ error: new Error("late") });
 
     expect(mocks.captureTurn).toHaveBeenCalledOnce();
     expect(mocks.captureTurn).toHaveBeenCalledWith({

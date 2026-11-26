@@ -4,6 +4,10 @@ import {
   publicAssistantLimitMessage,
 } from "@/lib/public-assistant-errors";
 
+/** Shown as is in the docs assistant panel. */
+export const DOCS_CHAT_DAILY_LIMIT_MESSAGE =
+  "You have reached the docs assistant's daily limit. It resets within a day.";
+
 function positiveSafeInteger(
   value: string | undefined,
   fallback: number,
@@ -99,7 +103,7 @@ const getPublicAssistantRateLimits = async () => {
       limiter: Ratelimit.fixedWindow(
         positiveSafeInteger(
           process.env.AUI_DOCS_CHAT_REQUESTS_PER_IP_PER_DAY,
-          60,
+          100,
         ),
         "1d",
       ),
@@ -406,16 +410,15 @@ export async function checkDocsChatRateLimit(
   return runRateLimitChecks(request, "docs_chat", async (limits) => {
     const ip = getClientIp(request);
     if (!ip) return missingClientIpResponse(request, "docs_chat");
+    // The session is checked first, so a session past its own limit does
+    // not keep spending the budget other readers on its address share.
     for (const [limiter, key] of [
-      [limits.docsChatIpDaily, ip],
       [limits.docsChatSessionDaily, sessionId],
+      [limits.docsChatIpDaily, ip],
     ] as const) {
       const result = await limiter.limit(key);
       if (!result.success) {
-        return limitResponse(
-          publicAssistantLimitMessage("Daily docs assistant"),
-          result.reset,
-        );
+        return limitResponse(DOCS_CHAT_DAILY_LIMIT_MESSAGE, result.reset);
       }
     }
     return null;

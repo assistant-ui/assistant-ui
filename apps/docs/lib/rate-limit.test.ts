@@ -45,6 +45,7 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
 }));
 
 import {
+  DOCS_CHAT_DAILY_LIMIT_MESSAGE,
   checkAnonymousSessionIssuanceRateLimit,
   checkContactSalesRateLimit,
   checkMcpDocsToolRateLimit,
@@ -680,6 +681,20 @@ describe("docs search limits", () => {
 });
 
 describe("docs assistant limits", () => {
+  it("does not charge the address for a session already past its limit", async () => {
+    const { checkDocsChatRateLimit } = await import("./rate-limit");
+    mocks.results.set("aui:docs-chat:session:daily", false);
+    await checkDocsChatRateLimit(
+      new Request("https://www.assistant-ui.com/api/doc/chat", {
+        headers: { "x-vercel-forwarded-for": "203.0.113.10" },
+      }),
+      "session_1234567890",
+    );
+    expect(mocks.calls.map((call) => call.prefix)).toEqual([
+      "aui:docs-chat:session:daily",
+    ]);
+  });
+
   const request = () =>
     new Request("https://www.assistant-ui.com/api/doc/chat", {
       headers: { "x-vercel-forwarded-for": "203.0.113.10" },
@@ -691,11 +706,11 @@ describe("docs assistant limits", () => {
       await checkDocsChatRateLimit(request(), "session_1234567890"),
     ).toBeNull();
     expect(mocks.calls).toEqual([
-      { prefix: "aui:docs-chat:ip:daily", key: "203.0.113.10" },
       { prefix: "aui:docs-chat:session:daily", key: "session_1234567890" },
+      { prefix: "aui:docs-chat:ip:daily", key: "203.0.113.10" },
     ]);
     expect(mocks.configs.get("aui:docs-chat:ip:daily")).toEqual({
-      limit: 60,
+      limit: 100,
       window: "1d",
     });
     expect(mocks.configs.get("aui:docs-chat:session:daily")).toEqual({
@@ -716,7 +731,7 @@ describe("docs assistant limits", () => {
       expect(response?.status).toBe(429);
       expect(response?.headers.get("Retry-After")).toMatch(/^\d+$/);
       await expect(response?.text()).resolves.toBe(
-        "Daily docs assistant limit exceeded",
+        DOCS_CHAT_DAILY_LIMIT_MESSAGE,
       );
     },
   );
