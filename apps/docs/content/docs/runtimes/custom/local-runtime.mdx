@@ -682,7 +682,7 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 });
 ```
 
-With a history adapter, a `load()` that returns messages replaces them; the [`initialMessages` option](#localruntimeoptions) describes how they are written to history. To replace the messages of a thread that is already open, call `aui.thread.reset(messages)`; it changes only what is in memory, so update your stored history too if a reload should show the new messages.
+When the page is prerendered with Next.js `cacheComponents`, give each message a fixed `createdAt`. With a history adapter, a `load()` that returns messages replaces them; the [`initialMessages` option](#localruntimeoptions) describes how they are written to history. To replace the messages of a thread that is already open, call `aui.thread.reset(messages)`; it changes only what is in memory, so update your stored history too if a reload should show the new messages.
 
 ## Adapters
 

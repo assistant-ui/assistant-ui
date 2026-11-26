@@ -440,11 +440,12 @@ function PinButton() {
 const adapter: RemoteThreadListAdapter = {
   // ...list, initialize, rename, archive, unarchive, delete, fetch, generateTitle
   async updateCustom(remoteId, custom) {
-    await fetch(`/api/threads/${remoteId}`, {
+    const res = await fetch(`/api/threads/${remoteId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ custom }),
     });
+    if (!res.ok) throw new Error(`Could not update thread ${remoteId}`);
   },
 };
 ```
