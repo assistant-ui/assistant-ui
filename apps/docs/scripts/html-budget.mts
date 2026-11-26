@@ -129,9 +129,9 @@ export function formatHtmlBudgetReport(
   if (!ok && over.length > 0) {
     lines.push(
       "",
-      "A page is over its HTML budget. Build locally, open its file under",
-      ".next/server/app and find the largest self.__next_f.push rows and inline",
-      "<svg>/<style> blocks;",
+      "A page is over its HTML budget. Open its file, under .next/server/app",
+      "(or .next/server/route-cache/APP_PAGE/<hash>/$ in an adapter build), and",
+      "find the largest self.__next_f.push rows and inline <svg>/<style> blocks;",
       "then move that weight out of the document: a cached stylesheet or asset,",
       "a fetch when the reader asks for it, or a client-only render. Add an",
       "exception in scripts/html-budget.mts only with a reason and a follow-up.",

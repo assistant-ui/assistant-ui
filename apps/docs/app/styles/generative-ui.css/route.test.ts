@@ -24,6 +24,6 @@ describe("generative UI stylesheet", () => {
       "utf8",
     );
     expect(layout).toContain('href="/styles/generative-ui.css"');
-    expect(layout).not.toMatch(/<style>/);
+    expect(layout).not.toMatch(/<style[\s>]/);
   });
 });

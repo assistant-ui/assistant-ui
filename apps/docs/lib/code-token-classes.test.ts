@@ -23,6 +23,7 @@ const highlight = (transformers: ReturnType<typeof codeTokenClasses>[]) =>
 describe("code token classes", () => {
   it("keeps styles/code-tokens.css in sync with the palette", () => {
     const file = path.join(process.cwd(), "styles", "code-tokens.css");
+    // On a mismatch, run `pnpm exec tsx scripts/generate-code-tokens.mts`.
     expect(readFileSync(file, "utf8")).toBe(codeTokenCss());
   });
 

@@ -8,16 +8,26 @@ import { plateSurface } from "./figure";
 const TABS = ["Preview", "Code"] as const;
 
 const loadCode = () => import("./example-code");
-const ExampleCode = lazy(() =>
-  loadCode().then((mod) => ({ default: mod.ExampleCode })),
-);
 
-// Pointing at the Code tab starts loading its chunk and source.
-const preload = (file: string) => {
-  loadCode().then(
-    (mod) => mod.loadExampleSource(file).catch(() => {}),
-    () => {},
+// A lazy component keeps a failed import for good, so after a failure the
+// next open of the Code tab starts a fresh one.
+let codeChunkFailed = false;
+const lazyCode = () =>
+  lazy(() =>
+    loadCode().then(
+      (mod) => ({ default: mod.ExampleCode }),
+      (error: unknown) => {
+        codeChunkFailed = true;
+        throw error;
+      },
+    ),
   );
+let ExampleCode = lazyCode();
+
+// Pointing at the Code tab starts loading its chunk; the source itself loads
+// only when the tab opens.
+const preloadCode = () => {
+  loadCode().catch(() => {});
 };
 
 function CodeStatus({ children }: { children: ReactNode }) {
@@ -60,13 +70,17 @@ export function ExampleFrame({
             aria-selected={tab === entry}
             onClick={() => {
               if (entry === "Code" && tab !== "Code") {
+                if (codeChunkFailed) {
+                  codeChunkFailed = false;
+                  ExampleCode = lazyCode();
+                }
                 setCodeOpens((n) => n + 1);
               }
               setTab(entry);
             }}
             {...(entry === "Code" && {
-              onPointerEnter: () => preload(file),
-              onFocus: () => preload(file),
+              onPointerEnter: preloadCode,
+              onFocus: preloadCode,
             })}
             className={cn(
               "text-muted-foreground h-7 rounded-sm px-2.5 transition-colors motion-reduce:transition-none",

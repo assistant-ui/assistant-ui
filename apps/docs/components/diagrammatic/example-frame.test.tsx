@@ -63,16 +63,43 @@ describe("ExampleFrame", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("says so when the source fails to load, and retries", async () => {
-    const fetch = vi.fn(() => respond({ error: "Unknown example" }, 404));
+  it("says so when the source fails to load, and the next open retries", async () => {
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(() => respond({ error: "Unavailable" }, 503))
+      .mockImplementation(() =>
+        respond({
+          code: "export default 2;",
+          html: '<pre class="shiki"><code>export default 2;</code></pre>',
+        }),
+      );
     vi.stubGlobal("fetch", fetch);
 
     render(<ExampleFrame preview={<p>chart</p>} file="line/second" />);
     await open("Code");
     await screen.findByText(/Couldn't load the source/);
+    expect(fetch).toHaveBeenCalledTimes(1);
 
     await open("Preview");
     await open("Code");
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(document.querySelector("pre.shiki")?.textContent).toBe(
+        "export default 2;",
+      ),
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/Couldn't load the source/)).toBeNull();
+  });
+
+  it("only preloads the code chunk on hover, not the source", async () => {
+    const fetch = vi.fn(() => respond({ code: "", html: "" }));
+    vi.stubGlobal("fetch", fetch);
+
+    render(<ExampleFrame preview={<p>chart</p>} file="line/third" />);
+    await act(async () => {
+      fireEvent.pointerEnter(screen.getByRole("tab", { name: "Code" }));
+      fireEvent.focus(screen.getByRole("tab", { name: "Code" }));
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
