@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   results: new Map<string, boolean>(),
   errors: new Map<string, Error>(),
-  calls: [] as Array<{ prefix: string; key: string }>,
+  calls: [] as Array<{ prefix: string; key: string; rate?: number }>,
+  remaining: new Map<string, number>(),
   configs: new Map<string, { limit: number; window: string }>(),
 }));
 
@@ -32,8 +33,24 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
       mocks.configs.set(this.prefix, limiter);
     }
 
-    async limit(key: string) {
+    async getRemaining(key: string) {
       mocks.calls.push({ prefix: this.prefix, key });
+      const error = mocks.errors.get(this.prefix);
+      if (error) throw error;
+      const limit = mocks.configs.get(this.prefix)?.limit ?? 0;
+      return {
+        remaining: mocks.remaining.get(this.prefix) ?? limit,
+        reset: Date.now() + 30_000,
+        limit,
+      };
+    }
+
+    async limit(key: string, options?: { rate?: number }) {
+      mocks.calls.push({
+        prefix: this.prefix,
+        key,
+        ...(options?.rate !== undefined ? { rate: options.rate } : {}),
+      });
       const error = mocks.errors.get(this.prefix);
       if (error) throw error;
       return {
@@ -59,6 +76,7 @@ beforeEach(() => {
   mocks.calls.length = 0;
   mocks.results.clear();
   mocks.errors.clear();
+  mocks.remaining.clear();
 });
 
 afterEach(() => {
@@ -751,5 +769,134 @@ describe("docs assistant limits", () => {
         )
       )?.status,
     ).toBe(503);
+  });
+});
+
+describe("demo chat limits", () => {
+  const request = () =>
+    new Request("https://www.assistant-ui.com/api/chat", {
+      headers: { "x-vercel-forwarded-for": "203.0.113.10" },
+    });
+
+  it("caps requests per session and address and checks the token budgets", async () => {
+    const { checkChatRateLimit } = await import("./rate-limit");
+    expect(
+      await checkChatRateLimit(request(), "session_1234567890"),
+    ).toBeNull();
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:chat:session:daily", key: "session_1234567890" },
+      { prefix: "aui:chat:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:chat:ip:tokens:daily", key: "203.0.113.10" },
+      { prefix: "aui:chat:global:tokens:daily", key: "all" },
+    ]);
+    expect(mocks.configs.get("aui:chat:session:daily")).toEqual({
+      limit: 150,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:chat:ip:daily")).toEqual({
+      limit: 200,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:chat:ip:tokens:daily")).toEqual({
+      limit: 6_000_000,
+      window: "1d",
+    });
+    expect(mocks.configs.get("aui:chat:global:tokens:daily")).toEqual({
+      limit: 200_000_000,
+      window: "1d",
+    });
+  });
+
+  it("does not charge the address for a session already past its limit", async () => {
+    const { checkChatRateLimit } = await import("./rate-limit");
+    mocks.results.set("aui:chat:session:daily", false);
+    const response = await checkChatRateLimit(request(), "session_1234567890");
+    expect(response?.status).toBe(429);
+    await expect(response?.text()).resolves.toBe("Daily usage limit exceeded");
+    expect(mocks.calls.map((call) => call.prefix)).toEqual([
+      "aui:chat:session:daily",
+    ]);
+  });
+
+  it.each([
+    ["aui:chat:ip:daily", "results"],
+    ["aui:chat:ip:tokens:daily", "remaining"],
+    ["aui:chat:global:tokens:daily", "remaining"],
+  ] as const)(
+    "answers 429 with Retry-After when %s is spent",
+    async (prefix, kind) => {
+      const { checkChatRateLimit } = await import("./rate-limit");
+      if (kind === "results") mocks.results.set(prefix, false);
+      else mocks.remaining.set(prefix, 0);
+      const response = await checkChatRateLimit(
+        request(),
+        "session_1234567890",
+      );
+      expect(response?.status).toBe(429);
+      expect(response?.headers.get("Retry-After")).toMatch(/^\d+$/);
+    },
+  );
+
+  it("logs once when the site's token budget is spent", async () => {
+    const { checkChatRateLimit } = await import("./rate-limit");
+    mocks.remaining.set("aui:chat:global:tokens:daily", 0);
+    await checkChatRateLimit(request(), "session_1234567890");
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("chat_global_token_limit_exceeded"),
+    );
+  });
+
+  it("fails closed if the limiter is unavailable or the IP is missing", async () => {
+    const { checkChatRateLimit } = await import("./rate-limit");
+    mocks.errors.set("aui:chat:ip:tokens:daily", new Error("down"));
+    expect(
+      (await checkChatRateLimit(request(), "session_1234567890"))?.status,
+    ).toBe(503);
+    mocks.errors.clear();
+    expect(
+      (
+        await checkChatRateLimit(
+          new Request("https://www.assistant-ui.com/api/chat"),
+          "session_1234567890",
+        )
+      )?.status,
+    ).toBe(503);
+  });
+
+  it("charges a finished turn's tokens to the address and the site", async () => {
+    const { recordChatTokens } = await import("./rate-limit");
+    await recordChatTokens(request(), 1234.2);
+    await recordChatTokens(request(), 0);
+    await recordChatTokens(request(), undefined);
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:chat:ip:tokens:daily", key: "203.0.113.10", rate: 1235 },
+      { prefix: "aui:chat:global:tokens:daily", key: "all", rate: 1235 },
+    ]);
+  });
+
+  it("never throws when the budget store is unavailable", async () => {
+    const { recordChatTokens } = await import("./rate-limit");
+    mocks.errors.set("aui:chat:global:tokens:daily", new Error("down"));
+    await expect(recordChatTokens(request(), 10)).resolves.toBeUndefined();
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("chat_token_budget_unavailable"),
+    );
+  });
+
+  it("reads each cap from its env var", async () => {
+    vi.resetModules();
+    vi.stubEnv("AUI_CHAT_REQUESTS_PER_SESSION_PER_DAY", "7");
+    vi.stubEnv("AUI_CHAT_REQUESTS_PER_IP_PER_DAY", "8");
+    vi.stubEnv("AUI_CHAT_TOKENS_PER_IP_PER_DAY", "9000");
+    vi.stubEnv("AUI_CHAT_GLOBAL_TOKENS_PER_DAY", "not a number");
+    const { checkChatRateLimit } = await import("./rate-limit");
+    await checkChatRateLimit(request(), "session_1234567890");
+    expect(mocks.configs.get("aui:chat:session:daily")?.limit).toBe(7);
+    expect(mocks.configs.get("aui:chat:ip:daily")?.limit).toBe(8);
+    expect(mocks.configs.get("aui:chat:ip:tokens:daily")?.limit).toBe(9000);
+    // An unreadable value keeps the safe default.
+    expect(mocks.configs.get("aui:chat:global:tokens:daily")?.limit).toBe(
+      200_000_000,
+    );
   });
 });

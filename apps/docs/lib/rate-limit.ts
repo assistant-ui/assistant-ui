@@ -119,6 +119,59 @@ const getPublicAssistantRateLimits = async () => {
         "1d",
       ),
     }),
+    // The public demo chat (/api/chat) on top of the shared public assistant
+    // limits. The defaults sit above the busiest single address-day of the
+    // 30 days before Nov 26 2026, so a visitor never meets them, while one
+    // address or browser session can no longer run the demo as a general
+    // model. A turn's input and output tokens are charged once it ends
+    // (recordChatTokens), and the site-wide token ceiling bounds a day's
+    // spend.
+    chatSessionDaily: new Ratelimit({
+      redis,
+      prefix: "aui:chat:session:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_CHAT_REQUESTS_PER_SESSION_PER_DAY,
+          150,
+        ),
+        "1d",
+      ),
+    }),
+    chatIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:chat:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(process.env.AUI_CHAT_REQUESTS_PER_IP_PER_DAY, 200),
+        "1d",
+      ),
+    }),
+    chatIpTokensDaily: new Ratelimit({
+      redis,
+      prefix: "aui:chat:ip:tokens:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_CHAT_TOKENS_PER_IP_PER_DAY,
+          6_000_000,
+        ),
+        "1d",
+      ),
+    }),
+    chatGlobalTokensDaily: new Ratelimit({
+      redis,
+      prefix: "aui:chat:global:tokens:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(
+          process.env.AUI_CHAT_GLOBAL_TOKENS_PER_DAY,
+          200_000_000,
+        ),
+        "1d",
+      ),
+    }),
+    chatGlobalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:chat:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
     sessionIssuanceBurst: new Ratelimit({
       redis,
       prefix: "aui:public-assistant:session-issuance:burst",
@@ -423,6 +476,95 @@ export async function checkDocsChatRateLimit(
     }
     return null;
   });
+}
+
+/**
+ * The demo chat's own daily limits, checked after
+ * `checkPublicAssistantRateLimit`: requests per anonymous session and per
+ * address, then whether the address and the site have tokens left.
+ * Tokens are charged once a turn ends, with `recordChatTokens`.
+ */
+export async function checkChatRateLimit(
+  request: Request,
+  sessionId: string,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "chat", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "chat");
+    // The session is checked first, so a session past its own limit does
+    // not keep spending the budget other visitors on its address share.
+    for (const [limiter, key] of [
+      [limits.chatSessionDaily, sessionId],
+      [limits.chatIpDaily, ip],
+    ] as const) {
+      const result = await limiter.limit(key);
+      if (!result.success) {
+        return limitResponse(
+          publicAssistantLimitMessage("Daily usage"),
+          result.reset,
+        );
+      }
+    }
+
+    const ipTokens = await limits.chatIpTokensDaily.getRemaining(ip);
+    if (ipTokens.remaining <= 0) {
+      return limitResponse(
+        publicAssistantLimitMessage("Daily usage"),
+        ipTokens.reset,
+      );
+    }
+
+    const globalTokens = await limits.chatGlobalTokensDaily.getRemaining("all");
+    if (globalTokens.remaining <= 0) {
+      const alert = await limits.chatGlobalAlert.limit("all").catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "chat_global_token_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
+      return limitResponse(
+        publicAssistantLimitMessage("Public assistant usage"),
+        globalTokens.reset,
+      );
+    }
+    return null;
+  });
+}
+
+/**
+ * Charges a finished demo chat turn's tokens (input and output) to the
+ * address and to the
+ * site's daily budget. Never throws: a store that cannot be reached loses the
+ * charge, and the next request's check fails closed.
+ */
+export async function recordChatTokens(
+  request: Request,
+  tokens: number | undefined,
+): Promise<void> {
+  if (typeof tokens !== "number" || !(tokens > 0)) return;
+  try {
+    const limits = await publicAssistantRateLimitsPromise;
+    if (!limits) return;
+    const rate = Math.ceil(tokens);
+    const ip = getClientIp(request);
+    await Promise.all([
+      ip ? limits.chatIpTokensDaily.limit(ip, { rate }) : null,
+      limits.chatGlobalTokensDaily.limit("all", { rate }),
+    ]);
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "chat_token_budget_unavailable",
+        requestId: request.headers.get("x-vercel-id"),
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  }
 }
 
 export async function checkDocsSearchRateLimit(request: Request) {

@@ -8,7 +8,12 @@ import {
   unstable_injectInteractableContext as injectInteractableContext,
 } from "@assistant-ui/ai-sdk";
 import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
-import { checkPublicAssistantRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  checkChatRateLimit,
+  checkPublicAssistantRateLimit,
+  getClientIp,
+  recordChatTokens,
+} from "@/lib/rate-limit";
 import {
   PUBLIC_ASSISTANT_CROSS_ORIGINS,
   requirePublicAssistantSession,
@@ -17,9 +22,19 @@ import { claimConversation, resolveDemoIdentity } from "@/lib/demo-usage";
 import { PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE } from "@/lib/public-assistant-errors";
 import {
   validateDemoChatInput,
-  validateFrontendToolsInput,
   validateGeneralChatInput,
 } from "@/lib/validate-input";
+import {
+  ChatRequestError,
+  readChatRequest,
+  stepsUsedInTurn,
+} from "@/lib/ai/chat-request";
+import {
+  captureChatRefusal,
+  captureChatTurn,
+  classifyChatSurface,
+  summarizeChatTurn,
+} from "@/lib/ai/telemetry";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { getSession } from "@/lib/accounts-auth";
 import { toPublicStreamError } from "@/lib/ai/model-provider-errors";
@@ -34,6 +49,31 @@ import {
 } from "ai";
 
 export const maxDuration = 300;
+
+/** Model steps one request may run. The last one answers without tools. */
+const MAX_STEPS = 10;
+/**
+ * Model steps one user turn may run across the requests a browser tool
+ * starts (the client sends the conversation again with the tool's result).
+ * Once they are spent, a request gets one step, without tools, to answer.
+ */
+const MAX_TURN_STEPS = 20;
+
+const modelIdOf = (model: unknown): string =>
+  typeof model === "object" &&
+  model !== null &&
+  "modelId" in model &&
+  typeof model.modelId === "string"
+    ? model.modelId
+    : "unknown";
+
+type TokenUsage = {
+  inputTokens?: number | undefined;
+  outputTokens?: number | undefined;
+};
+
+const tokensOf = (usage: TokenUsage | undefined) =>
+  (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
 
 const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 
@@ -68,13 +108,32 @@ export async function POST(req: Request) {
     const session = requirePublicAssistantSession(req);
     if (session instanceof Response) return withCors(req, session);
 
-    const rateLimitResponse = await checkPublicAssistantRateLimit(
-      req,
-      session.id,
-    );
-    if (rateLimitResponse) return withCors(req, rateLimitResponse);
+    const rateLimitResponse =
+      (await checkPublicAssistantRateLimit(req, session.id)) ??
+      (await checkChatRateLimit(req, session.id));
+    if (rateLimitResponse) {
+      if (rateLimitResponse.status === 429) {
+        await captureChatRefusal("rate_limited", classifyChatSurface(req));
+      }
+      return withCors(req, rateLimitResponse);
+    }
 
-    const body = await req.json();
+    // A client's `system` text and tools stay (the demos define them in the
+    // browser), but only inside the request schema's bounds.
+    let request;
+    try {
+      request = readChatRequest(await req.json());
+    } catch (error) {
+      const refusal =
+        error instanceof ChatRequestError
+          ? error
+          : error instanceof SyntaxError
+            ? new ChatRequestError("invalid_request")
+            : null;
+      if (!refusal) throw error;
+      await captureChatRefusal(refusal.code, classifyChatSurface(req));
+      return withCors(req, new Response(refusal.message, { status: 400 }));
+    }
     const {
       messages,
       system: rawSystem,
@@ -82,14 +141,12 @@ export async function POST(req: Request) {
       config,
       searchDocs: searchDocsRequested,
       countConversations,
-      id: threadId,
-    } = body;
+      threadId,
+    } = request;
+    const surface = classifyChatSurface(req, { countConversations });
 
     const sameOrigin = req.headers.get("sec-fetch-site") === "same-origin";
-    const budgeted =
-      countConversations === true &&
-      typeof threadId === "string" &&
-      threadId !== "";
+    const budgeted = countConversations && !!threadId;
     // The landing page demo draws on the daily conversation budget, and its
     // requests carry the preloaded generative UI guidance and the specs it
     // renders, so only its own requests get a longer system prompt and larger
@@ -98,9 +155,9 @@ export async function POST(req: Request) {
 
     // Basic validation: only accept short system prompts to limit abuse surface
     const MAX_SYSTEM_LENGTH = demo ? 40_000 : 4000;
-    const groundInDocs = searchDocsRequested === true && sameOrigin;
+    const groundInDocs = searchDocsRequested && sameOrigin;
     const system = [
-      typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
+      rawSystem !== undefined && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem
         : undefined,
       groundInDocs ? SEARCH_DOCS_SYSTEM_INSTRUCTION : undefined,
@@ -112,11 +169,9 @@ export async function POST(req: Request) {
       ? validateDemoChatInput(messages)
       : validateGeneralChatInput(messages);
     if (inputError) {
+      await captureChatRefusal("too_large", surface);
       return withCors(req, inputError);
     }
-
-    const toolsError = validateFrontendToolsInput(tools);
-    if (toolsError) return withCors(req, toolsError);
 
     const signedIn = (await getSession().catch(() => null)) !== null;
     const modelConfig = resolveChatModel(config, { signedIn });
@@ -168,6 +223,39 @@ export async function POST(req: Request) {
       }
     }
 
+    // A turn's steps are counted across the requests its browser tools start,
+    // and the last step a request may run answers without tools, so a turn
+    // never ends on a tool call that would send it again.
+    const stepsUsed = stepsUsedInTurn(messages);
+    const stepBudget = Math.min(
+      MAX_STEPS,
+      Math.max(1, MAX_TURN_STEPS - stepsUsed),
+    );
+
+    let turnLogged = false;
+    const logTurn = (
+      ended: "finished" | "error" | "aborted",
+      steps: Parameters<typeof summarizeChatTurn>[0]["steps"],
+      usage?: {
+        inputTokens?: number | undefined;
+        outputTokens?: number | undefined;
+      },
+    ) => {
+      if (turnLogged) return;
+      turnLogged = true;
+      return captureChatTurn({
+        surface,
+        model: modelIdOf(modelConfig?.model),
+        ...summarizeChatTurn({ steps, stepBudget, ended }),
+        step_budget: stepBudget,
+        continuation: stepsUsed > 0 ? 1 : 0,
+        client_tools: Object.keys(tools).length,
+        client_system: system ? 1 : 0,
+        input_tokens: usage?.inputTokens,
+        output_tokens: usage?.outputTokens,
+      });
+    };
+
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         const { result, messageMetadata } = streamDocsChat(
@@ -176,12 +264,34 @@ export async function POST(req: Request) {
           {
             spanName: "general_chat",
             source: "general_chat",
+            properties: { surface },
           },
           {
             ...(system ? { system } : {}),
             messages: prunedMessages,
             maxOutputTokens: modelConfig.reasoning ? 16384 : 4096,
-            stopWhen: stepCountIs(10),
+            stopWhen: stepCountIs(stepBudget),
+            prepareStep: ({ stepNumber }) =>
+              stepNumber >= stepBudget - 1 ? { toolChoice: "none" } : undefined,
+            onEnd: async ({ steps, totalUsage }) => {
+              await Promise.all([
+                logTurn("finished", steps, totalUsage),
+                recordChatTokens(req, tokensOf(totalUsage)),
+              ]);
+            },
+            onAbort: async ({ steps }) => {
+              await Promise.all([
+                logTurn("aborted", steps),
+                recordChatTokens(
+                  req,
+                  steps.reduce((sum, step) => sum + tokensOf(step.usage), 0),
+                ),
+              ]);
+            },
+            onError: async ({ error }) => {
+              console.error(error);
+              await logTurn("error", []);
+            },
             tools: groundInDocs
               ? {
                   ...chatTools,

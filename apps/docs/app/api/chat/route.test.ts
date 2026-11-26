@@ -9,6 +9,10 @@ const mocks = vi.hoisted(() => ({
   claimConversation: vi.fn(),
   streamDocsChat: vi.fn(),
   getSession: vi.fn(async (): Promise<{ user: { id: string } } | null> => null),
+  checkChatRateLimit: vi.fn(async (): Promise<Response | null> => null),
+  recordChatTokens: vi.fn(async () => {}),
+  captureTurn: vi.fn(async () => {}),
+  captureRefusal: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/accounts-auth", () => ({ getSession: mocks.getSession }));
@@ -21,6 +25,14 @@ vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal()),
   checkPublicAssistantRateLimit: mocks.checkRateLimit,
+  checkChatRateLimit: mocks.checkChatRateLimit,
+  recordChatTokens: mocks.recordChatTokens,
+}));
+
+vi.mock("@/lib/ai/telemetry", async (importOriginal) => ({
+  ...(await importOriginal()),
+  captureChatTurn: mocks.captureTurn,
+  captureChatRefusal: mocks.captureRefusal,
 }));
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
@@ -523,5 +535,186 @@ describe("POST /api/chat model provider failures", () => {
     expect(body).toContain(JSON.stringify(MODEL_PROVIDER_LIMIT_MESSAGE));
     expect(body).not.toMatch(/plan limit|gateway\.example/i);
     expect(body).not.toContain("An error occurred.");
+  });
+});
+
+describe("POST /api/chat hardening", () => {
+  const streamed = () =>
+    mocks.streamDocsChat.mockReturnValue({
+      result: {
+        toUIMessageStream: () =>
+          new ReadableStream({ start: (controller) => controller.close() }),
+      },
+      messageMetadata: () => undefined,
+    });
+  type StepOptions = {
+    prepareStep: (step: { stepNumber: number }) => unknown;
+    tools: Record<string, Record<string, unknown>>;
+    onEnd: (event: {
+      steps: { finishReason: string }[];
+      totalUsage: { inputTokens?: number; outputTokens?: number };
+    }) => Promise<void>;
+  };
+  const options = (call = 0) =>
+    mocks.streamDocsChat.mock.calls[call]![3] as StepOptions;
+  const toolChoices = (call = 0, steps = 10) =>
+    Array.from(
+      { length: steps },
+      (_, stepNumber) =>
+        (options(call).prepareStep({ stepNumber }) as { toolChoice?: string })
+          ?.toolChoice,
+    );
+  const continuing = (steps: number) => [
+    message,
+    {
+      id: "a1",
+      role: "assistant",
+      parts: Array.from({ length: steps }, (_, i) => [
+        { type: "step-start" },
+        {
+          type: "tool-get_weather",
+          toolCallId: `c${i}`,
+          state: "output-available",
+          input: { location: "SF" },
+          output: { temperature: 18 },
+        },
+      ]).flat(),
+    },
+  ];
+
+  it("makes the last step of a request answer without tools", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: [message] })).text();
+
+    expect(toolChoices()).toEqual([...Array(9).fill(undefined), "none"]);
+  });
+
+  it("gives a continued turn only the steps it has left", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: continuing(17) })).text();
+    await (await send({ messages: continuing(25) })).text();
+
+    // 20 steps per turn: 3 left, the third answers.
+    expect(toolChoices(0, 3)).toEqual([undefined, undefined, "none"]);
+    // Spent: one step, which answers.
+    expect(toolChoices(1, 1)).toEqual(["none"]);
+  });
+
+  it("stops at the daily limits before reading the body or choosing a model", async () => {
+    allowed();
+    mocks.checkChatRateLimit.mockResolvedValueOnce(
+      new Response("Daily usage limit exceeded", { status: 429 }),
+    );
+
+    const response = await send({ messages: [message] });
+
+    expect(response.status).toBe(429);
+    expect(mocks.checkChatRateLimit).toHaveBeenCalledWith(
+      expect.any(Request),
+      "session_1234567890",
+    );
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "rate_limited",
+      "no_referrer",
+    );
+  });
+
+  it("charges the turn's tokens to the daily token budget", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: [message] })).text();
+    await options().onEnd({
+      steps: [{ finishReason: "stop" }],
+      totalUsage: { inputTokens: 1234, outputTokens: 56 },
+    });
+
+    expect(mocks.recordChatTokens).toHaveBeenCalledWith(
+      expect.any(Request),
+      1290,
+    );
+  });
+
+  it("refuses a body outside the schema before choosing a model", async () => {
+    allowed();
+
+    const response = await send({
+      messages: [{ id: "s1", role: "system", parts: [] }, message],
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Unsupported message role");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "unsupported_role",
+      "no_referrer",
+    );
+  });
+
+  it("keeps a page's own tools but not their provider options", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send({
+        messages: [message],
+        tools: {
+          get_weather: {
+            description: "Weather for a place.",
+            parameters: { type: "object", properties: {} },
+            providerOptions: { openai: { strict: false } },
+          },
+        },
+      })
+    ).text();
+
+    expect(options().tools).toHaveProperty("get_weather");
+    expect(options().tools.get_weather).not.toHaveProperty("providerOptions");
+  });
+
+  it("logs each turn with a surface label and counts, never the text", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send(
+        {
+          messages: [message],
+          system: "Remember: the user likes short answers.",
+          tools: {
+            get_weather: {
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        },
+        { referer: "https://www.assistant-ui.com/docs/guides/tools?q=secret" },
+      )
+    ).text();
+    await options().onEnd({
+      steps: [{ finishReason: "tool-calls" }],
+      totalUsage: { inputTokens: 900, outputTokens: 20 },
+    });
+
+    expect(mocks.captureTurn).toHaveBeenCalledWith({
+      surface: "docs",
+      model: "unknown",
+      outcome: "client_tool",
+      steps: 1,
+      step_budget: 10,
+      continuation: 0,
+      client_tools: 1,
+      client_system: 1,
+      input_tokens: 900,
+      output_tokens: 20,
+    });
+    const logged = JSON.stringify(mocks.captureTurn.mock.calls);
+    expect(logged).not.toContain("hello");
+    expect(logged).not.toContain("short answers");
+    expect(logged).not.toContain("secret");
   });
 });
