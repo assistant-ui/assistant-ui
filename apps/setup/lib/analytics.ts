@@ -148,9 +148,21 @@ export const analytics = {
       trackEvent("setup_error", { ...props, ...agentKindProperty(agentKind) });
     },
 
-    agentConnected: (setup: string, agentKind: string | null | undefined) => {
-      if (firstForSetup(setup, "agent_connected"))
-        trackEvent("setup_agent_connected", agentKindProperty(agentKind));
+    /** `default_products` tells a setup the bare prompt started (`npx assistant-ui@latest setup`, assistant-ui alone) from one a product's prompt started with `--products`. */
+    agentConnected: (
+      setup: string,
+      props: {
+        agentKind: string | null | undefined;
+        products: readonly string[];
+      },
+    ) => {
+      if (!firstForSetup(setup, "agent_connected")) return;
+      trackEvent("setup_agent_connected", {
+        product_count: props.products.length,
+        default_products:
+          props.products.length === 1 && props.products[0] === "assistant-ui",
+        ...agentKindProperty(props.agentKind),
+      });
     },
 
     /** The agent installed every step and proposed closing (`done`). The user closing the setup afterwards is `setup_closed`. */

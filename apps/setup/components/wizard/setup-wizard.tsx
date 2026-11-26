@@ -709,6 +709,7 @@ export function SetupWizard({
   const step = page.id;
   const setupId = checkout.session.id;
   const agentKind = state?.agent.kind ?? null;
+  const productSlugs = state?.products.map((product) => product.slug).join(",");
   const lastView = useRef<{ key: string; at: number } | undefined>(undefined);
   useEffect(() => {
     const previous = lastView.current;
@@ -729,8 +730,11 @@ export function SetupWizard({
       phase === "connected" &&
       (previous === "unconnected" || previous === "waiting")
     )
-      analytics.setup.agentConnected(setupId, agentKind);
-  }, [phase, setupId, agentKind]);
+      analytics.setup.agentConnected(setupId, {
+        agentKind,
+        products: productSlugs ? productSlugs.split(",") : [],
+      });
+  }, [phase, setupId, agentKind, productSlugs]);
   const agentAway = useAgentAway(
     phase === "quiet" && !checkout.degraded,
     state?.agent.lastSeenAt ?? null,

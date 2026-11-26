@@ -1884,7 +1884,39 @@ describe("SetupWizard analytics", () => {
     rerender(
       <SetupWizard checkout={context(connected({ status: "planning" }))} />,
     );
-    expect(events("setup_agent_connected")).toEqual([{ agent_kind: "claude" }]);
+    expect(events("setup_agent_connected")).toEqual([
+      { product_count: 0, default_products: false, agent_kind: "claude" },
+    ]);
+  });
+
+  it("tells a setup the bare prompt started from one a product's prompt started", () => {
+    const events = captureEvents();
+    for (const products of [["assistant-ui"], ["assistant-ui", "tool-ui"]]) {
+      const { rerender } = render(
+        <SetupWizard
+          checkout={context(initialCheckoutState(), false, {
+            id: products.join("+"),
+          })}
+        />,
+      );
+      rerender(
+        <SetupWizard
+          checkout={context(
+            connected({
+              status: "planning",
+              products: products.map((slug) => ({ slug, name: slug })),
+            }),
+            true,
+            { id: products.join("+") },
+          )}
+        />,
+      );
+      cleanup();
+    }
+    expect(events("setup_agent_connected")).toEqual([
+      { product_count: 1, default_products: true, agent_kind: "claude" },
+      { product_count: 2, default_products: false, agent_kind: "claude" },
+    ]);
   });
 
   it("tracks the agent connecting once per setup, not again in a later tab", () => {
