@@ -55,7 +55,7 @@ ${docsParagraph(mode, docsDir)}
 Every app must:
 - Use Next.js (App Router) with TypeScript and npm. \`npm run build\` must pass, \`npm run start\` must serve the app, and the chat is on the home page \`/\`.
 - Use the model server running at ${mockUrl}/v1. It is OpenAI-compatible (Chat Completions and Responses APIs), takes any API key (use "mock"), and serves the model id "mock-1". It is a scripted mock, not a real model: unless the task says otherwise it replies "Echo: <the user's last message>". Keep this exact address; don't use any other model provider.
-- Before you finish, build the app and check that the feature works. To try it, start it on port ${appPort}, and stop every server you started before you finish.
+- Before you finish, build the app and check that the feature works. To try it, start it on port ${appPort}. You don't need to stop the servers you start: everything you leave running is stopped when you finish.
 
 The task:
 ${task}
