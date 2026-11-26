@@ -80,10 +80,20 @@ export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
   h4: Heading("h4"),
   h5: Heading("h5"),
   h6: Heading("h6"),
-  pre: ({ children }: ComponentProps<"pre">, ctx?: LLMRenderContext) => (
-    <pre>
-      {rewritePlatformPackages(children, ctx?.platform ?? DEFAULT_PLATFORM)}
-    </pre>
+  // The highlighter moves a fence's `title="…"`, usually the file path, onto
+  // `pre`, and the markdown converter has no place for it, so it becomes the
+  // line before the block.
+  pre: ({ children, title }: ComponentProps<"pre">, ctx?: LLMRenderContext) => (
+    <>
+      {title ? (
+        <p>
+          <code>{title}</code>
+        </p>
+      ) : null}
+      <pre>
+        {rewritePlatformPackages(children, ctx?.platform ?? DEFAULT_PLATFORM)}
+      </pre>
+    </>
   ),
   // Static markdown images render via next/image (client), whose fallback drops
   // src and leaks alt. A host <img> survives as `![alt](src)`; src may be a

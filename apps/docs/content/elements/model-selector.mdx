@@ -83,6 +83,20 @@ export async function POST(req: Request) {
 }
 ```
 
+With `LocalRuntime` there is no request body to read: the same values reach your `ChatModelAdapter` on `context.config`.
+
+```tsx
+import type { ChatModelAdapter } from "@assistant-ui/react";
+
+const MyModelAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal, context }) {
+    const model = context.config?.modelName ?? "gpt-6-luna";
+    const reasoningEffort = context.config?.reasoningEffort;
+    // call your backend with model and reasoningEffort, then yield the reply
+  },
+};
+```
+
   </Step>
 </Steps>
 

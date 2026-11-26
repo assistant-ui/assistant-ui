@@ -1,6 +1,6 @@
 ---
 title: Reading State Outside the Thread
-description: Bind a header, a sidebar, a status tray, or code in another React root to thread state without lifting it into a second store.
+description: Show whether a reply is running (isRunning), send or stop messages programmatically, and rename, archive or delete threads from a header, a sidebar, or code in another React root, without lifting thread state into a second store.
 platforms: ["react"]
 ---
 
@@ -54,6 +54,65 @@ export function Header() {
 ```
 
 Lifting `isRunning` into your own store from inside the thread and reading it back in the header is not needed. Both components subscribe to the same client.
+
+## Send a message programmatically
+
+A button outside the composer sends through the same client. `aui.thread.append` adds a user message to the open thread and starts the reply, exactly as if the user had typed it.
+
+```tsx title="/components/ask-button.tsx"
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+export function AskButton({ question }: { question: string }) {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  return (
+    <button
+      type="button"
+      disabled={isRunning}
+      onClick={() => aui.thread.append(question)}
+    >
+      {question}
+    </button>
+  );
+}
+```
+
+`append` also takes an object, `{ content, attachments, metadata, runConfig }`, for parts other than plain text. When the user should review the text first, put it in the composer with `aui.composer.setText(text)` and let them send it, or call `aui.composer.send()` to send what the composer holds. `aui.thread.cancelRun()` stops the reply, as the Stop button above does. For prompts shown before the first message, [Suggestions](/docs/guides/suggestions) already render and send them for you.
+
+## Rename, archive or delete a thread from your own menu
+
+`aui.threadListItem` is the open thread's entry in the thread list, so a header menu can manage the conversation the user is looking at. Inside a thread list row, the same calls act on that row's thread.
+
+```tsx title="/components/thread-menu.tsx"
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+export function ThreadMenu() {
+  const aui = useAui();
+  const title = useAuiState((s) => s.threadListItem.title);
+
+  const rename = () => {
+    const next = window.prompt("Rename thread", title ?? "");
+    if (next) aui.threadListItem.rename(next);
+  };
+
+  return (
+    <div className="flex gap-2">
+      <button type="button" onClick={rename}>
+        Rename
+      </button>
+      <button type="button" onClick={() => aui.threadListItem.archive()}>
+        Archive
+      </button>
+      <button type="button" onClick={() => aui.threadListItem.delete()}>
+        Delete
+      </button>
+    </div>
+  );
+}
+```
+
+The item also has `unarchive()`, `generateTitle()` to ask your backend for a title, `switchTo()`, and `updateCustom(custom)` for your own fields, such as an unread flag or a pin. When the thread list is kept in your own database, these calls on a saved thread reach the `RemoteThreadListAdapter` method of the same name (`updateCustom` only when the adapter implements it). On a new thread that is not saved yet, `updateCustom` changes the item in memory and hands the value to `initialize()` when the thread is created. [Thread list adapters](/docs/integrations/persistence/thread-list-adapters#custom-metadata) covers storing them.
 
 ## One value per selector
 
