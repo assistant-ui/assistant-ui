@@ -44,9 +44,15 @@ function removeMatch(line: string, match: RegExpMatchArray): string {
 
 export function parseRelease(markdown: string): ParsedRelease {
   const cleaned = markdown
-    .replace(/^#{1,6}\s+(Patch|Minor|Major)\s+Changes\s*$/gim, "")
-    .replace(/^-\s+Updated dependencies[\s\S]*?(?=\n-\s|\n\n|$)/gm, "")
     .replace(/\r\n/g, "\n")
+    .replace(/^#{1,6}\s+(Patch|Minor|Major)\s+Changes\s*$/gim, "")
+    // The bullet runs to the next top-level bullet, a blank line or the end
+    // of the notes, so its indented list of bumped packages goes with it.
+    // (Under the `m` flag a bare `$` would stop at the first line's end.)
+    .replace(
+      /^[-*]\s+Updated dependencies[\s\S]*?(?=\n[-*]\s|\n\n|(?![\s\S]))/gm,
+      "",
+    )
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
