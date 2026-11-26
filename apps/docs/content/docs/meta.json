@@ -7,15 +7,16 @@
     "vue",
     "tap",
     "store",
+    "concepts",
+    "runtimes",
     "guides",
     "tools",
     "primitives",
-    "runtimes",
     "integrations",
     "cloud",
+    "copilots",
     "utilities",
     "migrations",
-    "copilots",
     "(reference)"
   ]
 }

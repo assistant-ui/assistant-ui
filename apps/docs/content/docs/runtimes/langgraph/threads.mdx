@@ -3,7 +3,7 @@ title: Threads
 description: Basic thread support, AssistantCloud, and custom thread list adapter.
 ---
 
-`useLangGraphRuntime` supports the same three-path thread model documented in [threads](/docs/runtimes/concepts/threads), tailored for LangGraph thread ids. This page covers the LangGraph-specific wiring.
+`useLangGraphRuntime` supports the same three-path thread model documented in [threads](/docs/concepts/threads), tailored for LangGraph thread ids. This page covers the LangGraph-specific wiring.
 
 ## Basic thread support
 
@@ -39,7 +39,7 @@ For managed multi-thread support, persistence, sync, and titles, pass an `Assist
 
 ```ts
 const runtime = useLangGraphRuntime({
-  cloud, // see "AssistantCloud" in /docs/runtimes/concepts/threads
+  cloud, // see "AssistantCloud" in /docs/concepts/threads
   // ... stream, create, load functions
 });
 ```
@@ -91,7 +91,7 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
-Setting `remoteId === externalId` keeps the ids assistant-ui stores aligned with the LangGraph thread ids your `load` and `stream` callbacks receive. See [threads](/docs/runtimes/concepts/threads) for the full adapter contract.
+Setting `remoteId === externalId` keeps the ids assistant-ui stores aligned with the LangGraph thread ids your `load` and `stream` callbacks receive. See [threads](/docs/concepts/threads) for the full adapter contract.
 
 <Callout type="info">
 When `unstable_threadListAdapter` is provided, the `cloud`, `create`, and `delete` options are ignored; the adapter owns the full thread-list lifecycle.
@@ -108,6 +108,6 @@ When `unstable_threadListAdapter` is provided, the `cloud`, `create`, and `delet
   <Card
     title="Threads (concept)"
     description="General multi-thread model across runtimes."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/concepts/threads"
   />
 </Cards>

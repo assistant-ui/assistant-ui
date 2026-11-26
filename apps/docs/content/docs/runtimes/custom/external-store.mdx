@@ -450,7 +450,7 @@ The runtime automatically matches tool results to their tool calls by `toolCallI
 
 ## Attachments
 
-Attachments use the standard adapter contract, see [adapters](/docs/runtimes/concepts/adapters#attachment-adapter):
+Attachments use the standard adapter contract, see [adapters](/docs/concepts/adapters#attachment-adapter):
 
 ```tsx
 const runtime = useExternalStoreRuntime({
@@ -568,7 +568,7 @@ The runtime surfaces them as `thread.hasEarlier`, `thread.isLoadingEarlier` and 
 
 ## Multi-thread
 
-`ExternalStoreRuntime` uses `ExternalStoreThreadListAdapter` (synchronous, inline). See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter) for the contract and best practices on keeping `currentThreadId` in sync with your store.
+`ExternalStoreRuntime` uses `ExternalStoreThreadListAdapter` (synchronous, inline). See [threads](/docs/integrations/persistence/thread-list-adapters#externalstorethreadlistadapter) for the contract and best practices on keeping `currentThreadId` in sync with your store.
 
 ## Integration examples
 
@@ -855,7 +855,7 @@ useExternalStoreRuntime({
 
 **State not updating.** Check for: array mutation instead of new arrays, missing `setMessages`, broken async handling, or invalid `convertMessage` output.
 
-**Messages going to the wrong thread.** The runtime's `currentThreadId` and your store's selected thread must stay in sync. Centralize thread id in a context, never in component-local state. See [threads](/docs/runtimes/concepts/threads#externalstorethreadlistadapter).
+**Messages going to the wrong thread.** The runtime's `currentThreadId` and your store's selected thread must stay in sync. Centralize thread id in a context, never in component-local state. See [threads](/docs/integrations/persistence/thread-list-adapters#externalstorethreadlistadapter).
 
 ## API reference
 
@@ -1028,7 +1028,7 @@ useExternalStoreRuntime({
       name: "adapters",
       type: "object",
       description:
-        "Capability adapters: attachments, speech, dictation, voice, feedback, threadList. See /docs/runtimes/concepts/adapters.",
+        "Capability adapters: attachments, speech, dictation, voice, feedback, threadList. See /docs/concepts/adapters.",
     },
     {
       name: "unstable_capabilities",
@@ -1111,11 +1111,11 @@ For AI SDK replay requirements, retry policy, and branch cleanup, see [Resumable
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, suggestions."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
   <Card
     title="Threads"
     description="ExternalStoreThreadListAdapter for multi-thread."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/concepts/threads"
   />
 </Cards>

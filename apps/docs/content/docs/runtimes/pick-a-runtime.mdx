@@ -142,14 +142,9 @@ If you do not know your framework yet, or your backend is custom, pick by what y
 
 If none of the framework adapters fits, start at [custom backend](/docs/runtimes/custom/overview).
 
-## Shared concepts
+## Concepts that apply to every runtime
 
-These apply to every runtime.
-
-- **Architecture**: framework adapters wrap one of two core runtimes (`LocalRuntime`, `ExternalStoreRuntime`). See [architecture](/docs/runtimes/concepts/architecture) for the full layering.
-- **Adapters** (attachments, speech, feedback, history, suggestions) work the same way across runtimes. See [adapters](/docs/runtimes/concepts/adapters).
-- **Threads** (single, cloud, custom database) follow the same model. See [threads](/docs/runtimes/concepts/threads).
-- **Stability** policy: APIs prefixed with `unstable_` may change in any release. See [stability](/docs/runtimes/concepts/stability).
+Whichever runtime you pick, the components see the same [runtime](/docs/concepts/runtime) state, the same [messages and parts](/docs/concepts/messages), the same [threads](/docs/concepts/threads) and the same [adapters](/docs/concepts/adapters). APIs prefixed with `unstable_` may change in any release; see [stability](/docs/migrations/stability).
 
 <Callout type="info">
 Need help? Join our [Discord community](https://discord.gg/S9dwgCNEFs) or check the [GitHub repo](https://github.com/assistant-ui/assistant-ui).

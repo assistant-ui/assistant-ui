@@ -1,0 +1,78 @@
+---
+title: Threads
+description: "A thread is one conversation. A thread list holds many, and you choose where they are kept: in memory, in Assistant Cloud, or in your own database."
+---
+
+A thread is one conversation: its [messages](/docs/concepts/messages), its composer and the run in progress. Every runtime starts with a single thread that lives in memory, so a reload starts a new conversation.
+
+A thread list is what lets a user come back. It holds many threads, switches between them, starts new ones, and renames, archives or deletes old ones. The runtime keeps the open thread and the list in step. What you choose is where the threads are kept.
+
+<Flow.Root
+  llm={`graph TD
+    L[Thread list] --> T1[Thread: Trip to Lisbon]
+    L --> T2[Thread: Quarterly report, open]
+    L --> T3[Thread: Archived]
+    T2 --> M[Messages, composer, run]`}
+>
+  <Flow.Column>
+    <Flow.Node tone="blue">Thread list</Flow.Node>
+    <Flow.Arrow direction="down" length={36} />
+    <Flow.Row>
+      <Flow.Node>Trip to Lisbon</Flow.Node>
+      <Flow.Node tone="pink">Quarterly report (open)</Flow.Node>
+      <Flow.Node>Archived</Flow.Node>
+    </Flow.Row>
+    <Flow.Arrow direction="down" length={36} />
+    <Flow.Node>Messages, composer, run</Flow.Node>
+  </Flow.Column>
+</Flow.Root>
+
+Each item in the list has an id, a title, the time of its last message, and a status: `regular`, `archived`, or `new` for a thread the user has opened but not yet sent anything in. When threads are stored, a new thread is written to storage when its first message is sent, so opening an empty chat and leaving it stores nothing.
+
+## Where threads are kept
+
+| Where | What you get | What you write |
+| --- | --- | --- |
+| In memory (the default) | One thread that resets on reload | Nothing |
+| A [history adapter](/docs/concepts/adapters#history-adapter) | One thread that survives a reload | Load and append for messages |
+| [Assistant Cloud](/docs/cloud) | A full thread list with titles, synced across devices | Nothing beyond passing `cloud` |
+| Your own database | A full thread list in tables you own | A `RemoteThreadListAdapter` |
+| Your own store | A thread list that lives next to your messages in Redux, Zustand or similar | An `ExternalStoreThreadListAdapter` |
+
+## Assistant Cloud
+
+Pass an `AssistantCloud` instance to your runtime and the thread list, titles and syncing are handled for you:
+
+```tsx
+import { useLocalRuntime } from "@assistant-ui/react";
+import { AssistantCloud } from "assistant-cloud";
+
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
+  anonymous: true,
+});
+
+const runtime = useLocalRuntime(modelAdapter, { cloud });
+```
+
+Framework runtimes take `cloud` the same way, for example `useChatRuntime({ cloud })`. Where the messages themselves are stored depends on the runtime: `useLocalRuntime` and the AI SDK runtime keep them in the cloud, while runtimes whose backend already keeps the transcript, such as LangGraph, load it from that backend and store a copy in the cloud for the dashboard. [Which runtime](/docs/cloud/runtimes) lists each one.
+
+## Your own database
+
+`useRemoteThreadListRuntime` wraps any runtime hook and asks a `RemoteThreadListAdapter` you write to list, create, rename, archive and delete threads. Messages are saved per thread through a history adapter. You keep every row in your own database, next to the rest of your app's data.
+
+[Thread list adapters](/docs/integrations/persistence/thread-list-adapters) describes the contract and the cases a production list has to handle, such as the first message racing thread creation, and [custom thread persistence](/docs/integrations/persistence/custom-adapter) builds one with Postgres.
+
+## Your own store
+
+If your app already keeps its messages in a store and uses `ExternalStoreRuntime`, the threads can live there too. An `ExternalStoreThreadListAdapter` hands the runtime the current thread id and the list, and your callbacks switch, rename, archive and delete. See [thread list adapters](/docs/integrations/persistence/thread-list-adapters#externalstorethreadlistadapter).
+
+## Choosing
+
+Ask three questions in order:
+
+1. **Do you want it managed?** Use Assistant Cloud. You write no database code.
+2. **Do you have your own backend?** Use `useRemoteThreadListRuntime` around your runtime hook. You implement the adapter and own the data.
+3. **Are you on `ExternalStoreRuntime`?** Use `ExternalStoreThreadListAdapter`. Threads live in your store next to the messages.
+
+To show the list on screen, use the [ThreadList element](/elements/thread-list) or build your own from the [ThreadList primitive](/docs/primitives/thread-list).

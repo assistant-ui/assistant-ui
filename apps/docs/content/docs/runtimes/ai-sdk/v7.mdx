@@ -530,7 +530,7 @@ const modelId = useAuiState(
 
 ## Attachments
 
-Attachments work through the standard [attachment adapter](/docs/runtimes/concepts/adapters#attachment-adapter). Pass it via `useChatRuntime`:
+Attachments work through the standard [attachment adapter](/docs/concepts/adapters#attachment-adapter). Pass it via `useChatRuntime`:
 
 ```tsx
 const runtime = useChatRuntime({
@@ -807,7 +807,7 @@ When enabled (the default), sending a new message marks any pending interactive 
 | Dictation | `adapters.dictation` |
 | Feedback | `adapters.feedback` |
 | History | `adapters.history` (must implement `withFormat`) |
-| threadList | Via `cloud` (managed) or [RemoteThreadListRuntime](/docs/runtimes/concepts/threads) (custom DB) |
+| threadList | Via `cloud` (managed) or [RemoteThreadListRuntime](/docs/concepts/threads) (custom DB) |
 
 ## Key changes from v5
 
@@ -830,12 +830,12 @@ For responses that should survive a page reload mid-stream, see [Resumable strea
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, and suggestions."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
   <Card
     title="Threads"
     description="Single-thread, AssistantCloud, custom thread list."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/concepts/threads"
   />
   <Card
     title="Resumable streams"

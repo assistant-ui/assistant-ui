@@ -247,7 +247,7 @@ Renders a single thread at a specific index.
 
 #### LoadMore
 
-Button that appends the next page of threads. Renders a `<button>` element unless `asChild` is set, and is automatically disabled when the runtime is loading or when the adapter's last `list()` did not return a `nextCursor`. See [Threads concepts](/docs/runtimes/concepts/threads#paginating-the-thread-list) for the adapter contract.
+Button that appends the next page of threads. Renders a `<button>` element unless `asChild` is set, and is automatically disabled when the runtime is loading or when the adapter's last `list()` did not return a `nextCursor`. See [Threads concepts](/docs/integrations/persistence/thread-list-adapters#paginating-the-thread-list) for the adapter contract.
 
 ```tsx
 <ThreadListPrimitive.LoadMore className="rounded-lg border px-3 py-2 text-sm">
