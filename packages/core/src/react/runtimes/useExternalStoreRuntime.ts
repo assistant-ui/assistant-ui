@@ -49,6 +49,14 @@ const useRuntimeLifetime = (
   }, [runtime]);
 };
 
+// Delivers the events the layout effect held. Its own scope keeps the effect
+// from sharing a closure context with the adapter and its messages.
+const useHeldEventDelivery = (heldEvents: { current: (() => void)[] }) => {
+  useEffect(() => {
+    for (const deliver of heldEvents.current.splice(0)) deliver();
+  });
+};
+
 // The host's snapshot reaches the thread in a layout effect, so the first
 // paint after a host update already shows it. The lifecycle events it raises
 // wait for the passive effect, which runs after listeners mounted by the same
@@ -63,9 +71,7 @@ const useAdapterSync = (
       runtime.__internal_setAdapterHoldingEvents(adaptedStore),
     );
   });
-  useEffect(() => {
-    for (const deliver of heldEvents.current.splice(0)) deliver();
-  });
+  useHeldEventDelivery(heldEvents);
 };
 
 const useHistoryCopy = (
