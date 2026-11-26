@@ -8,13 +8,15 @@ import {
 } from "../inert/InertThreadRuntimeCore";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 
-const READONLY_THREAD_ERROR = new Error(
-  "This is a readonly thread. You cannot perform mutations on readonly threads.",
-);
+// Created where it is thrown, so the stack shows the caller.
+const createReadonlyThreadError = () =>
+  new Error(
+    "This is a readonly thread. You cannot perform mutations on readonly threads.",
+  );
 
 export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
   protected get error() {
-    return READONLY_THREAD_ERROR;
+    return createReadonlyThreadError();
   }
 
   private _messages: readonly ThreadMessage[] = [];
@@ -55,7 +57,7 @@ export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
   }
 
   composer = {
-    ...createInertComposer(READONLY_THREAD_ERROR, false),
+    ...createInertComposer(createReadonlyThreadError, false),
     async addAttachment(_fileOrAttachment: File | CreateAttachment) {},
     setText(_value: string) {},
     send(_options?: SendOptions) {},
