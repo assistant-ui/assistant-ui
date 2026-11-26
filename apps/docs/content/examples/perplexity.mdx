@@ -46,7 +46,9 @@ export const Perplexity = () => (
     </AuiIf>
     <AuiIf condition={(s) => !s.thread.isEmpty}>
       <ThreadPrimitive.Viewport>
-        <ThreadPrimitive.Messages />
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
           <Composer placeholder="Ask a follow-up..." />
         </ThreadPrimitive.ViewportFooter>
@@ -55,7 +57,7 @@ export const Perplexity = () => (
   </ThreadPrimitive.Root>
 );
 
-const Composer = ({ placeholder }) => (
+const Composer = ({ placeholder }: { placeholder: string }) => (
   <ComposerPrimitive.Root className="rounded-3xl border border-[#d7d0c5] bg-[#fcfbf8] dark:border-[#4a433b] dark:bg-[#23211f]">
     <ComposerPrimitive.Input rows={2} placeholder={placeholder} />
     <div className="flex items-center justify-between">

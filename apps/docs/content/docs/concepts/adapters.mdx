@@ -79,6 +79,8 @@ Three lifecycle methods:
 Minimal upload-and-send example:
 
 ```ts
+const uploadedUrls = new Map<string, string>(); // attachment id -> URL
+
 const attachmentAdapter: AttachmentAdapter = {
   accept: "image/*,application/pdf",
   async add({ file }) {
@@ -88,28 +90,31 @@ const attachmentAdapter: AttachmentAdapter = {
       method: "POST",
       body: form,
     }).then((r) => r.json());
+    uploadedUrls.set(id, url);
     return {
       id,
       type: file.type.startsWith("image/") ? "image" : "document",
       name: file.name,
       contentType: file.type,
       file,
-      url,
       status: { type: "requires-action", reason: "composer-send" },
     };
   },
   async send(attachment) {
+    const url = uploadedUrls.get(attachment.id)!;
+    uploadedUrls.delete(attachment.id);
     return {
       ...attachment,
       status: { type: "complete" },
       content: [
         attachment.type === "image"
-          ? { type: "image", image: attachment.url! }
-          : { type: "text", text: `[${attachment.name}](${attachment.url})` },
+          ? { type: "image", image: url }
+          : { type: "text", text: `[${attachment.name}](${url})` },
       ],
     };
   },
-  async remove() {
+  async remove(attachment) {
+    uploadedUrls.delete(attachment.id);
     // Delete the uploaded file here if your backend keeps one.
   },
 };
@@ -143,6 +148,8 @@ type SpeechSynthesisAdapter = {
 `speak` returns an `Utterance` with `cancel()`, a `status` field, and `subscribe(callback)`. Browser-native example:
 
 ```ts
+import type { SpeechSynthesisAdapter } from "@assistant-ui/react";
+
 const speechAdapter: SpeechSynthesisAdapter = {
   speak(text) {
     const utterance = new SpeechSynthesisUtterance(text);

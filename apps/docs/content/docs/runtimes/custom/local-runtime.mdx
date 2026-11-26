@@ -352,12 +352,14 @@ const openai = new OpenAI();
 
 const MyModelAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, context }) {
-    const stream = await openai.chat.completions.create({
-      model: "gpt-6-luna",
-      messages: convertToOpenAIMessages(messages),
-      stream: true,
-      signal: abortSignal,
-    });
+    const stream = await openai.chat.completions.create(
+      {
+        model: "gpt-6-luna",
+        messages: convertToOpenAIMessages(messages),
+        stream: true,
+      },
+      { signal: abortSignal },
+    );
 
     let text = "";
     for await (const part of stream) {
@@ -730,8 +732,7 @@ const OpenAIAdapter: ChatModelAdapter = {
           .join("\n"),
       })),
       stream: true,
-      signal: abortSignal,
-    });
+    }, { signal: abortSignal });
 
     let fullText = "";
     for await (const chunk of stream) {
