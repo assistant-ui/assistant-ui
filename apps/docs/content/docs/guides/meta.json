@@ -33,7 +33,6 @@
     "gemini-live",
     "speech",
     "---Programmatic---",
-    "context-api",
     "state-outside-the-thread",
     "---Providers---",
     "chatgpt-subscription",

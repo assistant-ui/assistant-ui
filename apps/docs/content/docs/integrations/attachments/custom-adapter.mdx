@@ -5,7 +5,7 @@ description: Upload chat attachments to object storage with a presigned-URL Atta
 
 The bundled `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` inline file contents into the message: images as data URLs, text files as text. That works for small images and text files but breaks down for large files, persistent threads, and serverless body-size limits. This page shows the production pattern: an `AttachmentAdapter` that uploads to object storage via a presigned URL and sends only the URL to the model.
 
-For the adapter contract itself, see [adapters](/docs/runtimes/concepts/adapters#attachment-adapter). This page is the storage variant.
+For the adapter contract itself, see [adapters](/docs/concepts/adapters#attachment-adapter). This page is the storage variant.
 
 ## How it works
 
@@ -528,7 +528,7 @@ const content = [
 
 - **Persistence.** A URL the model sees on Monday must still resolve next week if the thread is reloaded. Either use storage with no expiry on the public URL, or have your [history adapter](/docs/integrations/persistence/custom-adapter) regenerate signed URLs on `load`. Don't store presigned URLs in the message row.
 - **Cleanup.** `remove` runs only if the user dismisses the attachment before sending. Files in sent messages are kept; deleting them later breaks message rendering.
-- **`accept` string.** Comma-separated MIME types or extensions, including wildcards (`image/*`). The composer file picker uses this directly. To handle multiple type families with different upload paths, use [`CompositeAttachmentAdapter`](/docs/runtimes/concepts/adapters#attachment-adapter).
+- **`accept` string.** Comma-separated MIME types or extensions, including wildcards (`image/*`). The composer file picker uses this directly. To handle multiple type families with different upload paths, use [`CompositeAttachmentAdapter`](/docs/concepts/adapters#attachment-adapter).
 - **Server-side validation.** Even with presigning, validate `contentType` and file size on the server, because the client controls what it sends.
 
 ## Related
@@ -537,7 +537,7 @@ const content = [
   <Card
     title="Adapter contract"
     description="The full AttachmentAdapter type and lifecycle states."
-    href="/docs/runtimes/concepts/adapters#attachment-adapter"
+    href="/docs/concepts/adapters#attachment-adapter"
   />
   <Card
     title="Custom thread persistence"

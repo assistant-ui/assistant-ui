@@ -3,7 +3,7 @@ title: Data Stream Protocol
 description: Standard message-streaming protocol on top of LocalRuntime.
 ---
 
-`@assistant-ui/react-data-stream` consumes the data stream protocol, a standardized format for streaming AI responses. It is layered on `LocalRuntime` (see [architecture](/docs/runtimes/concepts/architecture)), so all `LocalRuntime` features apply.
+`@assistant-ui/react-data-stream` consumes the data stream protocol, a standardized format for streaming AI responses. It is layered on `LocalRuntime` (see [architecture](/docs/concepts/runtime)), so all `LocalRuntime` features apply.
 
 The protocol supports streaming text, tool calls, conversation context, error handling, cancellation, and attachments.
 
@@ -290,7 +290,7 @@ const runtime = useDataStreamRuntime({
     { role: "assistant", content: [{ type: "text", text: "Hi!" }] },
   ],
   maxSteps: 5,
-  cloud, // see "AssistantCloud" in /docs/runtimes/concepts/threads
+  cloud, // see "AssistantCloud" in /docs/concepts/threads
   adapters: {
     attachments: myAttachmentAdapter,
     history: myHistoryAdapter,
@@ -301,7 +301,7 @@ const runtime = useDataStreamRuntime({
 });
 ```
 
-See [adapters](/docs/runtimes/concepts/adapters) for adapter contracts and [LocalRuntime](/docs/runtimes/custom/local-runtime) for inherited options.
+See [adapters](/docs/concepts/adapters) for adapter contracts and [LocalRuntime](/docs/runtimes/custom/local-runtime) for inherited options.
 
 ## Error handling
 
@@ -336,6 +336,6 @@ For the full hook reference, see [`@assistant-ui/react-data-stream` API](/docs/a
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, suggestions."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
 </Cards>

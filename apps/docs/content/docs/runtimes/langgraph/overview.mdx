@@ -23,9 +23,9 @@ If you are already using `@langchain/react`'s `useStream` hook, the alternative 
 
 ## Architecture
 
-`@assistant-ui/react-langgraph` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Graph state is the source of truth; the runtime renders messages from `state.values.messages` and submits user input back to the graph.
+`@assistant-ui/react-langgraph` is layered on `ExternalStoreRuntime` (see [architecture](/docs/concepts/runtime)). Graph state is the source of truth; the runtime renders messages from `state.values.messages` and submits user input back to the graph.
 
-Shared adapters (attachments, speech, dictation, voice, feedback) work the same way described in [adapters](/docs/runtimes/concepts/adapters).
+Shared adapters (attachments, speech, dictation, voice, feedback) work the same way described in [adapters](/docs/concepts/adapters).
 
 ## Requirements
 

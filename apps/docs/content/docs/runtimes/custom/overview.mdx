@@ -3,7 +3,7 @@ title: Custom backend
 description: Connect assistant-ui to a backend that has no framework adapter, using one of four runtime patterns for local state, external stores, and two wire protocols.
 ---
 
-Use this section when your backend is not one of the frameworks assistant-ui has an adapter for, such as your own REST API or an agent that keeps its own state. The components and adapters work the same as with a framework runtime. What changes is how messages reach the runtime: you write the call yourself, you hand over messages you already store, or your backend sends one of two protocols. All four paths build on the two core runtimes described in [runtime architecture](/docs/runtimes/concepts/architecture).
+Use this section when your backend is not one of the frameworks assistant-ui has an adapter for, such as your own REST API or an agent that keeps its own state. The components and adapters work the same as with a framework runtime. What changes is how messages reach the runtime: you write the call yourself, you hand over messages you already store, or your backend sends one of two protocols. All four paths build on the two core runtimes described in [runtime architecture](/docs/concepts/runtime).
 
 ## The four paths
 
@@ -33,7 +33,7 @@ is your backend AI SDK v5 or later, LangGraph, Google ADK, A2A, AG-UI, Eve or Op
 
 ## Common building blocks
 
-Regardless of which path you pick, the [adapter](/docs/runtimes/concepts/adapters) and [thread](/docs/runtimes/concepts/threads) interfaces work the same way. Wire attachments, history, speech, feedback, suggestions, and multi-thread support through those shared contracts.
+Regardless of which path you pick, the [adapter](/docs/concepts/adapters) and [thread](/docs/concepts/threads) interfaces work the same way. Wire attachments, history, speech, feedback, suggestions, and multi-thread support through those shared contracts.
 
 ## Next
 

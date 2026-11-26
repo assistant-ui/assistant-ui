@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { fetchReleases, type ReleaseGroup } from "@/lib/releases";
+import { paginateDays, summarizeDays } from "@/lib/changelog-pages";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,6 @@ import { ChangelogList } from "../changelog-list";
 
 const title = "Changelog";
 const description = "Release notes for all assistant-ui packages.";
-const PER_PAGE = 8;
 
 export const metadata: Metadata = {
   title,
@@ -59,12 +59,9 @@ function filterGroups(
     .filter((group) => group.releases.length > 0);
 }
 
-const pageCount = (groups: ReleaseGroup[]) =>
-  Math.max(1, Math.ceil(groups.length / PER_PAGE));
-
 export async function generateStaticParams(): Promise<Params[]> {
   const allGroups = await fetchReleases();
-  const total = pageCount(allGroups);
+  const total = Math.max(1, paginateDays(summarizeDays(allGroups)).length);
   return Array.from({ length: total }, (_, i) => ({
     slug: i === 0 ? [] : [String(i + 1)],
   }));
@@ -87,8 +84,8 @@ export default async function ChangelogPage({
   const allPackages = Array.from(
     new Set(allGroups.flatMap((g) => g.releases.map((r) => r.pkg))),
   ).sort();
-  const groups = filterGroups(allGroups, pkg);
-  const totalPages = pageCount(groups);
+  const pages = paginateDays(summarizeDays(filterGroups(allGroups, pkg)));
+  const totalPages = Math.max(1, pages.length);
   if (
     allGroups.length > 0 &&
     ((pkg !== undefined && !allPackages.includes(pkg)) || page > totalPages)
@@ -96,7 +93,7 @@ export default async function ChangelogPage({
     notFound();
   }
   const current = page;
-  const visible = groups.slice((current - 1) * PER_PAGE, current * PER_PAGE);
+  const visible = pages[current - 1] ?? [];
 
   return (
     <PageFrame pad="sub">
@@ -115,7 +112,7 @@ export default async function ChangelogPage({
 
       <div className="mt-16 md:mt-20">
         {visible.length > 0 ? (
-          <ChangelogList groups={visible} />
+          <ChangelogList days={visible} />
         ) : (
           <p className="text-muted-foreground text-sm">
             {allGroups.length === 0
