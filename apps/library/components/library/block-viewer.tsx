@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -39,9 +39,16 @@ import {
   MenuRadioItem,
   MenuTrigger,
 } from "./ui/menu";
+import {
+  oneOf,
+  readStored,
+  usePersistedState,
+  writeStored,
+} from "@/lib/library/persisted-state";
 import { cn } from "@/lib/utils";
 
-type Tab = "preview" | "code";
+const TABS = ["preview", "code"] as const;
+type Tab = (typeof TABS)[number];
 
 /** The block's own look, before any registry style is laid over it. */
 const NO_STYLE = "default";
@@ -302,13 +309,37 @@ export function BlockViewer({
   entry: string;
   elements: readonly BlockElement[];
 }) {
-  const [tab, setTab] = useState<Tab>("preview");
-  const [viewport, setViewport] = useState<Viewport>("desktop");
+  // Each block keeps its tab, preview width and theme across reloads.
+  const key = `aui-library-block:${slug}`;
+  const [tab, setTab] = usePersistedState<Tab>(`${key}:tab`, "preview", {
+    parse: oneOf(TABS),
+  });
+  const [viewport, setViewport] = usePersistedState<Viewport>(
+    `${key}:viewport`,
+    "desktop",
+    { parse: oneOf(VIEWPORTS.map((item) => item.id)) },
+  );
   const [reloads, setReloads] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [style, setStyle] = useState(NO_STYLE);
+  const [style, setStyle] = usePersistedState(`${key}:style`, NO_STYLE, {
+    parse: oneOf([NO_STYLE, ...STYLES.map((item) => item.name)]),
+  });
   const frameRef = useRef<HTMLDivElement>(null);
   const panelRef = usePanelRef();
+  // The width the preview was dragged to, which a viewport button replaces.
+  // Sizes reported before it is put back are the mount's, not the person's.
+  const widthKey = `${key}:width`;
+  const widthReadyRef = useRef(false);
+  useLayoutEffect(() => {
+    widthReadyRef.current = false;
+    const width = readStored(widthKey);
+    const frame = requestAnimationFrame(() => {
+      if (typeof width === "string" && /^\d+px$/.test(width))
+        panelRef.current?.resize(width);
+      widthReadyRef.current = true;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [widthKey, panelRef]);
 
   return (
     <Tabs
@@ -479,7 +510,13 @@ export function BlockViewer({
                 defaultSize="100%"
                 minSize="320px"
                 onResize={(size) => {
-                  if (size.asPercentage > 99) setViewport("desktop");
+                  if (!widthReadyRef.current) return;
+                  if (size.asPercentage > 99) {
+                    setViewport("desktop");
+                    writeStored(widthKey, null);
+                  } else if (size.inPixels > 0) {
+                    writeStored(widthKey, `${Math.round(size.inPixels)}px`);
+                  }
                 }}
                 className="border-foreground/10 bg-background relative overflow-hidden rounded-xl border [:fullscreen_&]:rounded-none [:fullscreen_&]:border-0"
               >

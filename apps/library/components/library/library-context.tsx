@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createCartStore } from "@/lib/library/cart-store";
+import { oneOf, usePersistedState } from "@/lib/library/persisted-state";
 import {
   matchesLibraryQuery,
   type LibraryCategoryId,
@@ -16,6 +17,8 @@ import {
 } from "@/lib/library/catalog";
 
 export const libraryCart = createCartStore("aui-library-cart");
+
+const EMPTY_SECTIONS: ReadonlySet<string> = new Set();
 
 export const LIBRARY_SHOWS = [
   { value: "all", label: "Everything" },
@@ -65,28 +68,51 @@ export function LibraryProvider({
   children: ReactNode;
 }) {
   const [query, setQuery] = useState("");
-  const [show, setShow] = useState<LibraryShow>("all");
-  const [sort, setSort] = useState<LibrarySort>("category");
-  const [hiddenSections, setHiddenSections] = useState<ReadonlySet<string>>(
-    () => new Set(),
+  // The filters last for the tab, so a reload keeps them and a new tab
+  // starts from everything.
+  const [show, setShow] = usePersistedState<LibraryShow>(
+    "aui-library-show",
+    "all",
+    { where: "session", parse: oneOf(LIBRARY_SHOWS.map((item) => item.value)) },
   );
-  const toggleSection = useCallback((section: string) => {
-    setHiddenSections((hidden) => {
-      const next = new Set(hidden);
-      if (!next.delete(section)) next.add(section);
-      return next;
-    });
-  }, []);
-  const showSections = useCallback((sections: readonly string[]) => {
-    setHiddenSections(
-      (hidden) => new Set([...hidden].filter((s) => !sections.includes(s))),
-    );
-  }, []);
+  const [sort, setSort] = usePersistedState<LibrarySort>(
+    "aui-library-sort",
+    "category",
+    { where: "session", parse: oneOf(LIBRARY_SORTS.map((item) => item.value)) },
+  );
+  const [hiddenSections, setHiddenSections] = usePersistedState<
+    ReadonlySet<string>
+  >("aui-library-hidden-sections", EMPTY_SECTIONS, {
+    where: "session",
+    parse: (stored) =>
+      Array.isArray(stored)
+        ? new Set(stored.filter((item) => typeof item === "string"))
+        : undefined,
+    serialize: (sections) => [...sections],
+  });
+  const toggleSection = useCallback(
+    (section: string) => {
+      setHiddenSections((hidden) => {
+        const next = new Set(hidden);
+        if (!next.delete(section)) next.add(section);
+        return next;
+      });
+    },
+    [setHiddenSections],
+  );
+  const showSections = useCallback(
+    (sections: readonly string[]) => {
+      setHiddenSections(
+        (hidden) => new Set([...hidden].filter((s) => !sections.includes(s))),
+      );
+    },
+    [setHiddenSections],
+  );
   const resetFilters = useCallback(() => {
     setShow("all");
     setSort("category");
     setHiddenSections(new Set());
-  }, []);
+  }, [setShow, setSort, setHiddenSections]);
   const value = useMemo(
     () => ({
       items,
@@ -105,7 +131,9 @@ export function LibraryProvider({
       items,
       query,
       show,
+      setShow,
       sort,
+      setSort,
       hiddenSections,
       toggleSection,
       showSections,

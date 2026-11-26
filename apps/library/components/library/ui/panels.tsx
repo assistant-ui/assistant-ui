@@ -34,6 +34,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { readStored, writeStored } from "@/lib/library/persisted-state";
 import { cn } from "@/lib/utils";
 
 /*
@@ -48,9 +49,34 @@ import { cn } from "@/lib/utils";
  * Tooltip with its shortcut in a Kbd. Header titles are 14px at 430. A glass
  * main header lets the content scroll under it. Opening and closing ease the
  * panel's size over 200ms with `ease-move`; reduced motion snaps. No rings.
+ *
+ * With a `storageKey`, which panels are open and how wide each was dragged
+ * are kept in localStorage, so a reload comes back to the same layout, and a
+ * reopened panel comes back at the size it was closed at.
  */
 
 type Side = "left" | "right" | "bottom";
+
+const SIDES: readonly Side[] = ["left", "right", "bottom"];
+
+/** What a `storageKey` keeps: each panel's open state and pixel size. */
+type StoredPanels = {
+  open: Partial<Record<Side, boolean>>;
+  size: Partial<Record<Side, string>>;
+};
+
+function parseStoredPanels(stored: unknown): StoredPanels | undefined {
+  if (!stored || typeof stored !== "object") return undefined;
+  const { open, size } = stored as Record<string, unknown>;
+  const result: StoredPanels = { open: {}, size: {} };
+  for (const side of SIDES) {
+    const isOpen = (open as Record<string, unknown> | undefined)?.[side];
+    if (typeof isOpen === "boolean") result.open[side] = isOpen;
+    const px = (size as Record<string, unknown> | undefined)?.[side];
+    if (typeof px === "string" && /^\d+px$/.test(px)) result.size[side] = px;
+  }
+  return result;
+}
 
 // `fill` is whether a panel's toggle takes a fill while the panel is open.
 const PANELS = {
@@ -186,26 +212,35 @@ function PanelHeader({
 function CollapsiblePanel({
   side,
   open,
+  sizes,
+  restored,
   children,
 }: {
   side: Side;
   open: boolean;
+  /** The last size each panel was open at, which opening goes back to. */
+  sizes: React.RefObject<Partial<Record<Side, string>>>;
+  /** Goes up when a stored layout is read, so an open panel takes its size. */
+  restored: number;
   children: React.ReactNode;
 }) {
   const panelRef = usePanelRef();
   const elementRef = React.useRef<HTMLDivElement>(null);
   const [defaultSize, minSize, maxSize] = PANELS[side].size;
 
-  // Only a change of `open` moves the panel, so a drag that closes it isn't
-  // echoed back as an expand.
+  // Only a change of `open`, or a stored layout, moves the panel, so a drag
+  // that closes it isn't echoed back as an expand.
   const syncedRef = React.useRef<boolean | null>(null);
+  const restoredRef = React.useRef(restored);
   React.useEffect(() => {
     const panel = panelRef.current;
-    if (!panel || syncedRef.current === open) return;
+    if (!panel) return;
+    if (syncedRef.current === open && restoredRef.current === restored) return;
     syncedRef.current = open;
-    if (open) panel.resize(defaultSize);
+    restoredRef.current = restored;
+    if (open) panel.resize(sizes.current[side] ?? defaultSize);
     else panel.collapse();
-  }, [open, panelRef, defaultSize]);
+  }, [open, restored, panelRef, sizes, side, defaultSize]);
 
   // A closed panel can't be reached by Tab. Set as an attribute so it works
   // the same in React 18 and 19.
@@ -371,6 +406,7 @@ function Panels({
   toggleAt = {},
   toggles = {},
   defaultOpen = { left: true, right: false, bottom: false },
+  storageKey,
   className,
   children,
 }: {
@@ -389,6 +425,8 @@ function Panels({
    */
   toggles?: Partial<Record<Side, boolean>>;
   defaultOpen?: Partial<Record<Side, boolean>>;
+  /** Where in localStorage to keep the layout across reloads. */
+  storageKey?: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -416,6 +454,48 @@ function Panels({
   React.useEffect(() => () => clearTimeout(timerRef.current), []);
   const rowSnap = useSnapAnimation(animatingRef);
   const columnSnap = useSnapAnimation(animatingRef);
+
+  // The stored layout is read after hydration, so the server's render and the
+  // first client render agree, and applied before the next paint.
+  const sizesRef = React.useRef<Partial<Record<Side, string>>>({});
+  const openRef = React.useRef(open);
+  openRef.current = open;
+  const loadedRef = React.useRef(false);
+  const [restored, setRestored] = React.useState(0);
+  const save = React.useCallback(() => {
+    if (!storageKey || !loadedRef.current) return;
+    writeStored(storageKey, {
+      open: openRef.current,
+      size: sizesRef.current,
+    } satisfies StoredPanels);
+  }, [storageKey]);
+
+  // Read once: Strict Mode runs this twice, after a save has already run.
+  const storedRef = React.useRef<StoredPanels | null | undefined>(undefined);
+  React.useLayoutEffect(() => {
+    if (!storageKey) return;
+    if (storedRef.current === undefined)
+      storedRef.current = parseStoredPanels(readStored(storageKey)) ?? null;
+    const stored = storedRef.current;
+    if (stored) {
+      sizesRef.current = { ...sizesRef.current, ...stored.size };
+      // Saves before the next render must already see the stored state.
+      openRef.current = { ...openRef.current, ...stored.open };
+      // Coming back isn't a toggle: no snap, no transition.
+      clearTimeout(timerRef.current);
+      animatingRef.current = true;
+      timerRef.current = setTimeout(() => {
+        animatingRef.current = false;
+      }, DURATION);
+      setOpen((current) => ({ ...current, ...stored.open }));
+      setRestored((count) => count + 1);
+    }
+    loadedRef.current = true;
+  }, [storageKey]);
+
+  React.useEffect(save, [open, save]);
+
+  const panelProps = { sizes: sizesRef, restored };
 
   const value = React.useMemo<PanelsContextValue>(
     () => ({
@@ -466,6 +546,22 @@ function Panels({
     (sides: Side[]) =>
     (layout: Layout, { isUserInteraction }: LayoutChangedMeta) => {
       if (!isUserInteraction) return;
+      // Keep each open panel's size in pixels, which is what it was dragged
+      // to. One dragged shut forgets it and reopens at its default.
+      const group = (sides.includes("bottom") ? columnSnap : rowSnap).elementRef
+        .current;
+      const axis = sides.includes("bottom")
+        ? group?.offsetHeight
+        : group?.offsetWidth;
+      const sizes = { ...sizesRef.current };
+      for (const side of sides) {
+        const share = layout[`panel-${side}`] ?? 0;
+        if (share > 0 && axis)
+          sizes[side] = `${Math.round((axis * share) / 100)}px`;
+        else delete sizes[side];
+      }
+      sizesRef.current = sizes;
+      save();
       setOpen((current) => {
         const next = { ...current };
         for (const side of sides) {
@@ -490,7 +586,7 @@ function Panels({
         className={cn("bg-background h-svh", ANIMATING, className)}
       >
         {has.left ? (
-          <CollapsiblePanel side="left" open={leftOpen}>
+          <CollapsiblePanel side="left" open={leftOpen} {...panelProps}>
             <PanelHeader
               title={"left" in headers ? headers.left : PANELS.left.title}
               {...{ [toggleAt.left ?? "end"]: <PanelToggle side="left" /> }}
@@ -532,7 +628,11 @@ function Panels({
               <PanelBody scroll={false}>{children}</PanelBody>
             </ResizablePanel>
             {has.bottom ? (
-              <CollapsiblePanel side="bottom" open={open.bottom}>
+              <CollapsiblePanel
+                side="bottom"
+                open={open.bottom}
+                {...panelProps}
+              >
                 <PanelHeader
                   title={headers.bottom ?? PANELS.bottom.title}
                   {...{
@@ -547,7 +647,7 @@ function Panels({
           </ResizablePanelGroup>
         </ResizablePanel>
         {has.right ? (
-          <CollapsiblePanel side="right" open={rightOpen}>
+          <CollapsiblePanel side="right" open={rightOpen} {...panelProps}>
             <PanelHeader
               title={headers.right ?? PANELS.right.title}
               start={

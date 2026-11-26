@@ -1,5 +1,5 @@
 # Library blocks registry
-
+Add a block to the registry
 Source for blocks authored in the library app, laid out as a
 [shadcn registry](https://ui.shadcn.com/docs/registry). Nothing here is built
 or published: it does not feed `apps/registry` or r.assistant-ui.com.

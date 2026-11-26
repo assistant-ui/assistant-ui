@@ -2,8 +2,8 @@
  * The scripted replies behind the demo runtimes, so a block can be tried
  * without a backend: each reply streams in, and the script it plays depends on
  * what was asked. Weather asks call a tool, code asks answer with a code
- * block, compare asks answer with a table, and anything else thinks first and
- * then answers. It imports nothing, so web and native blocks share it.
+ * block, compare asks answer with a table, error asks fail partway through,
+ * and anything else thinks first and then answers. It imports nothing, so web and native blocks share it.
  */
 
 /** A message part as the runtimes take it; each runtime casts it to its own type. */
@@ -21,6 +21,7 @@ type ScriptMessage = {
 type Step =
   | { kind: "reasoning"; text: string }
   | { kind: "text"; text: string }
+  | { kind: "error"; message: string }
   | {
       kind: "tool";
       name: string;
@@ -49,6 +50,11 @@ async function* play(
 ): AsyncGenerator<ScriptUpdate> {
   const done: Part[] = [];
   for (const step of steps) {
+    if (step.kind === "error") {
+      await sleep(TOOL_DELAY, signal);
+      if (signal.aborted) return;
+      throw new Error(step.message);
+    }
     if (step.kind === "tool") {
       const call = {
         type: "tool-call" as const,
@@ -81,6 +87,20 @@ const city = (prompt: string) =>
 
 function script(prompt: string): Step[] {
   const asked = prompt.toLowerCase();
+
+  if (asked.includes("error")) {
+    return [
+      {
+        kind: "text",
+        text: "Sure. I'll start answering, and then the connection drops partway through, so",
+      },
+      {
+        kind: "error",
+        message:
+          "The model stopped responding (demo error). Your message is saved, so you can try again.",
+      },
+    ];
+  }
 
   if (asked.includes("weather")) {
     const location = city(prompt);
@@ -166,6 +186,7 @@ function script(prompt: string): Step[] {
         "- the **weather** somewhere, to see a tool call",
         "- some **code**, to see a code block",
         "- a **comparison**, to see a table",
+        "- an **error**, to see a reply that fails",
       ].join("\n"),
     },
   ];

@@ -18,14 +18,13 @@
         "skeleton",
         "https://r.assistant-ui.com/base/ai-sdk-backend.json",
         "https://r.assistant-ui.com/base/attachment.json",
+        "https://r.assistant-ui.com/base/composer.json",
         "https://r.assistant-ui.com/base/file.json",
-        "https://r.assistant-ui.com/base/follow-up-suggestions.json",
         "https://r.assistant-ui.com/base/image.json",
         "https://r.assistant-ui.com/base/markdown-text.json",
+        "https://r.assistant-ui.com/base/message-timing.json",
         "https://r.assistant-ui.com/base/reasoning.json",
         "https://r.assistant-ui.com/base/tooltip-icon-button.json",
-        "https://r.assistant-ui.com/base/tool-fallback.json",
-        "https://r.assistant-ui.com/base/tool-group.json",
         "https://r.assistant-ui.com/base/utils.json"
       ],
       "files": [

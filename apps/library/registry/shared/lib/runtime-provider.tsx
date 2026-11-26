@@ -3,7 +3,13 @@
 import type { ReactNode } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
-import { DemoRuntimeProvider } from "@/registry/shared/lib/demo-runtime";
+import {
+  DemoRuntimeProvider,
+  feedbackAdapter,
+  followUpAdapter,
+  STARTER_CONFIG,
+  useBrowserSpeech,
+} from "@/registry/shared/lib/demo-runtime";
 
 /**
  * The runtime a block's page runs on: the AI SDK route at /api/chat, or the
@@ -25,11 +31,17 @@ export function RuntimeProvider({
 }
 
 function ChatRouteRuntimeProvider({ children }: { children: ReactNode }) {
+  const speech = useBrowserSpeech();
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({ api: "/api/chat" }),
+    adapters: {
+      ...speech,
+      feedback: feedbackAdapter,
+      suggestion: followUpAdapter,
+    },
   });
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={STARTER_CONFIG}>
       {children}
     </AssistantRuntimeProvider>
   );
