@@ -44,7 +44,7 @@ Set CSS variables once and every element follows:
 }
 ```
 
-The elements use shadcn/ui's variable names: `--background`, `--foreground`, `--primary`, `--secondary`, `--muted`, `--accent`, `--destructive`, `--popover`, each with a `-foreground` partner for the text on it, plus `--border`, `--input`, `--ring` and `--radius`. The composer and the message bubbles are the exception for rounding: they take it from the `Thread` file, as the next section shows. A theme from your design system or from the [shadcn/ui theming guide](https://ui.shadcn.com/docs/theming) restyles the chat with the rest of your app. Fonts come from `--font-sans` and `--font-mono`: set a font stack, as above, or point them at the variable your font loader sets, as the starter does with `next/font` and `--font-inter`.
+The elements use shadcn/ui's variable names: `--background` and `--foreground`, then `--primary`, `--secondary`, `--muted`, `--accent` and `--popover`, each with a `-foreground` partner for the text on it, plus `--destructive`, `--border`, `--input`, `--ring` and `--radius`. The composer and the message bubbles are the exception for rounding: they take it from the `Thread` file, as the next section shows. A theme from your design system or from the [shadcn/ui theming guide](https://ui.shadcn.com/docs/theming) restyles the chat with the rest of your app. Fonts come from `--font-sans` and `--font-mono`: set a font stack, as above, or point them at the variable your font loader sets, as the starter does with `next/font` and `--font-inter`.
 
 ## Restyle a component you own
 
@@ -109,7 +109,10 @@ export function AssistantMessage() {
     >
       <MessagePrimitive.Parts />
       <ActionBarPrimitive.Root>
-        <ActionBarPrimitive.Copy className="group data-copied:text-primary">
+        <ActionBarPrimitive.Copy
+          aria-label="Copy message"
+          className="group data-copied:text-primary"
+        >
           <CopyIcon className="size-4 group-data-copied:hidden" />
           <CheckIcon className="hidden size-4 group-data-copied:block" />
         </ActionBarPrimitive.Copy>
@@ -176,7 +179,7 @@ export function PlainChat() {
         </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
       <ComposerPrimitive.Root className={styles.composer}>
-        <ComposerPrimitive.Input className={styles.input} />
+        <ComposerPrimitive.Input aria-label="Message" className={styles.input} />
         <ComposerPrimitive.Send className={styles.send}>
           Send
         </ComposerPrimitive.Send>
