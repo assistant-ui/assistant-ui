@@ -79,7 +79,7 @@ Most apps use a runtime made for their backend instead, such as `useChatRuntime`
 
 Try it below. The chat is a real `Thread` on `useLocalRuntime`, and you are its model adapter: when you send, the runtime calls `run()` and waits for you. Stream parts into the reply, then return or throw. The log shows each call with its arguments, everything you yield and the status the runtime gives the message. Press Stop in the composer to see the abort signal fire, or regenerate a reply to see the runtime call `run()` again with the messages before it.
 
-<RuntimePlayground />
+<RuntimePlayground description="A real Thread on useLocalRuntime where you are the model adapter: send a message, stream parts into the reply, then return or throw, and watch the log of each run() call" />
 
 With `ExternalStoreRuntime`, and the framework runtimes built on it, your store or the framework does the adding and streaming, and the runtime renders the messages the store holds. The turn looks the same on screen.
 
