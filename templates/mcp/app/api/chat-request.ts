@@ -20,7 +20,7 @@ export async function readChatRequest(req: Request) {
       messages: validated.data,
       system,
       frontendTools: frontendTools(
-        (tools ?? {}) as Record<
+        (tools === undefined ? {} : tools) as Record<
           string,
           { description?: string; parameters: JSONSchema7 }
         >,
