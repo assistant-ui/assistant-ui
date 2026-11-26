@@ -50,7 +50,7 @@ it("gives the Mastra tab its own snippet and a real docs page", async () => {
     "api: process.env.NEXT_PUBLIC_MASTRA_URL!",
   );
 
-  const docs = mastra.getAttribute("data-docs")!;
+  const docs = mastra.getAttribute("data-docs")!.split("#")[0]!;
   expect(
     existsSync(path.join(repoRoot, "apps/docs/content", `${docs}.mdx`)),
   ).toBe(true);

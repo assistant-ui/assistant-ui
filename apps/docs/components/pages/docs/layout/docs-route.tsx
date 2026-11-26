@@ -11,7 +11,10 @@ import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
 import type { DocsSiteLoader, source } from "@/lib/source";
 import { DEFAULT_PLATFORM, PLATFORM_LABELS } from "@/lib/constants";
-import { getPagePlatform } from "@/components/pages/docs/platform/tree";
+import {
+  getPagePlatform,
+  getPlatformTree,
+} from "@/components/pages/docs/platform/tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
 import { TableOfContents } from "@/components/pages/docs/layout/table-of-contents";
@@ -85,7 +88,12 @@ export async function DocsRoutePage({
   const markdownUrl = `${page.url}.md`;
   const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${contentDir}/${page.path}`;
 
-  const neighbours = getDocsNeighbours(tree, page.url);
+  const neighbours = getDocsNeighbours(
+    platformAware
+      ? getPlatformTree(tree, getPagePlatform(tree, page.url))
+      : tree,
+    page.url,
+  );
   const footerPrevious = neighbours.previous;
   const footerNext = neighbours.next;
 
