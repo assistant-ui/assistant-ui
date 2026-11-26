@@ -246,8 +246,9 @@ export function searchEntries(
 /**
  * A question spreads its words over a page ("change the theme" finds a page
  * titled "Themes" with a heading "Change colors"). When no single field has
- * every word but the page as a whole does, it scores the weakest field each
- * word appears in, so these pages rank below every single-field match.
+ * every word but the page as a whole does, it scores at most 1, below the
+ * weakest single-field match of two or more words (two stem matches in a
+ * description score 2).
  */
 function spreadScore(page: SearchRecord, tokens: string[]): number {
   if (tokens.length < 2) return 0;
@@ -260,7 +261,7 @@ function spreadScore(page: SearchRecord, tokens: string[]): number {
   for (const token of tokens) {
     const best = Math.max(...fields.map((field) => scoreText(field, [token])));
     if (best === 0) return 0;
-    score += best / tokens.length;
+    score += best / (10 * tokens.length);
   }
   return score;
 }
