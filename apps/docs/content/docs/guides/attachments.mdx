@@ -481,56 +481,30 @@ A result that arrives after the signal aborts is discarded either way, so an ada
 Validate files in the adapter's `add()` method:
 
 ```tsx
-class ValidatedImageAdapter implements AttachmentAdapter {
-  accept = "image/*";
-  maxSizeBytes = 5 * 1024 * 1024; // 5MB
+import {
+  SimpleImageAttachmentAdapter,
+  type PendingAttachment,
+} from "@assistant-ui/react";
 
+const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_SIDE = 4096;
+
+class ValidatedImageAdapter extends SimpleImageAttachmentAdapter {
   async add({ file }: { file: File }): Promise<PendingAttachment> {
-    // Validate file size
-    if (file.size > this.maxSizeBytes) {
-      return {
-        id: generateId(),
-        type: "image",
-        name: file.name,
-        file,
-        status: {
-          type: "incomplete",
-          reason: "error",
-        },
-      };
+    const attachment = await super.add({ file });
+    if (file.size > MAX_BYTES || !(await fitsDimensions(file))) {
+      return { ...attachment, status: { type: "incomplete", reason: "error" } };
     }
-
-    // Validate image dimensions
-    try {
-      const dimensions = await this.getImageDimensions(file);
-      if (dimensions.width > 4096 || dimensions.height > 4096) {
-        throw new Error("Image dimensions exceed 4096x4096");
-      }
-    } catch (error) {
-      return {
-        id: generateId(),
-        type: "image",
-        name: file.name,
-        file,
-        status: {
-          type: "incomplete",
-          reason: "error",
-        },
-      };
-    }
-
-    // Return valid attachment
-    return {
-      id: generateId(),
-      type: "image",
-      name: file.name,
-      file,
-      status: { type: "requires-action", reason: "composer-send" },
-    };
+    return attachment;
   }
+}
 
-  private async getImageDimensions(file: File) {
-    // Implementation to check image dimensions
+async function fitsDimensions(file: File) {
+  try {
+    const { width, height } = await createImageBitmap(file);
+    return width <= MAX_SIDE && height <= MAX_SIDE;
+  } catch {
+    return false; // not a readable image
   }
 }
 ```

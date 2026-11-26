@@ -824,6 +824,8 @@ export async function checkTsBlocks(
       ...entry.pagePackages,
       ...(sectionPackage ? [sectionPackage] : []),
       "@assistant-ui/react",
+      // the docs' default runtime
+      "@assistant-ui/react-ai-sdk",
     ];
     const names = new Set(
       list.flatMap((e) => {

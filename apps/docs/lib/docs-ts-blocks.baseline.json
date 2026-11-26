@@ -159,7 +159,8 @@
     "TS2304 case \"indicator\":       return <LoadingDots />;",
     "TS2304 components={{ Card: MyCard, Button: MyButton }}",
     "TS2304 components={{ Card: MyCard, Button: MyButton }}",
-    "TS2304 const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) "
+    "TS2304 const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) ",
+    "TS2741 <MessagePrimitive.Unstable_PartsGrouped"
   ],
   "apps/docs/content/docs/(reference)/api-reference/primitives/selection-toolbar.mdx": [
     "TS2304 <QuoteIcon /> Quote"
@@ -318,19 +319,15 @@
     "TS18004 adapters: { attachments, history, speech, feedback, suggestion },",
     "TS18004 const runtime = useChatRuntime({ adapters: { attachments, history } });",
     "TS2304 attachments: myAttachmentAdapter,",
-    "TS2304 const runtime = useChatRuntime({ adapters: { attachments, history } });",
     "TS2304 const runtime = useLocalRuntime(modelAdapter, {",
     "TS2304 const runtime = useLocalRuntime(modelAdapter, {",
     "TS2304 feedback: myFeedbackAdapter,",
     "TS2304 history: myHistoryAdapter,",
     "TS2304 speak: (text: string) => Utterance;",
     "TS2304 speech: mySpeechAdapter,",
-    "TS2339 : { type: \"text\", text: `[${attachment.name}](${attachment.url})` },",
-    "TS2339 ? { type: \"image\", image: attachment.url! }",
-    "TS2702 const result: SpeechSynthesisAdapter.Utterance = {",
     "TS2702 listen: () => DictationAdapter.Session;",
     "TS2739 adapters: { attachments, history, speech, feedback, suggestion },",
-    "TS7006 subscribe(cb) {"
+    "TS2739 const runtime = useChatRuntime({ adapters: { attachments, history } });"
   ],
   "apps/docs/content/docs/concepts/context-api.mdx": [
     "TS18004 aui.message.part({ toolCallId });",
@@ -434,18 +431,12 @@
     "TS1005 });",
     "TS1005 };",
     "TS1109 options?: { signal?: AbortSignal },",
-    "TS1434 async send(",
-    "TS2339 if (dimensions.width > 4096 || dimensions.height > 4096) {",
-    "TS2339 if (dimensions.width > 4096 || dimensions.height > 4096) {",
-    "TS2420 class ValidatedImageAdapter implements AttachmentAdapter {"
+    "TS1434 async send("
   ],
   "apps/docs/content/docs/guides/devtools.mdx": [
     "TS1109 const runtime = /* your runtime setup */;"
   ],
   "apps/docs/content/docs/guides/dictation.mdx": [
-    "TS2304 const runtime = useChatRuntime({",
-    "TS2304 const runtime = useChatRuntime({",
-    "TS2304 const runtime = useChatRuntime({ adapters: { dictation } });",
     "TS2339 const audio = formData.get(\"audio\");",
     "TS2416 listen() {",
     "TS2440 import type { DictationAdapter } from \"@assistant-ui/react\";"
@@ -517,8 +508,7 @@
     "TS2552 if (part.type === \"group-reasoning\") return <ReasoningRoot>{children}</ReasoningRoot>;",
     "TS2769 ask_user: { type: \"human\", render: AskUI }, // standalone (forced)",
     "TS2769 checkout: {",
-    "TS2769 search_web: { type: \"frontend\", render: SearchUI }, // inline trace (default)",
-    "TS7053 className={`my-2 rounded-lg border-2 p-4 ${priorityStyles[priority] || \"\"}`}"
+    "TS2769 search_web: { type: \"frontend\", render: SearchUI }, // inline trace (default)"
   ],
   "apps/docs/content/docs/guides/quoting.mdx": [
     "TS2304 return { role: msg.role, content: extractText(msg) };",
@@ -555,8 +545,6 @@
     "TS2304 logCommandUsed(item.id);"
   ],
   "apps/docs/content/docs/guides/speech.mdx": [
-    "TS2304 const runtime = useChatRuntime({",
-    "TS2304 const runtime = useChatRuntime({",
     "TS2440 import type { SpeechSynthesisAdapter } from \"@assistant-ui/react\";"
   ],
   "apps/docs/content/docs/guides/streamdown.mdx": [
@@ -629,14 +617,6 @@
     "TS2741 <AssistantRuntimeProvider runtime={runtime}>"
   ],
   "apps/docs/content/docs/ink/primitives.mdx": [
-    "TS2304 </Box>",
-    "TS2304 </Box>",
-    "TS2304 </Box>",
-    "TS2304 </Box>",
-    "TS2304 <Box flexDirection=\"column\">",
-    "TS2304 <Box>",
-    "TS2304 <Box>",
-    "TS2304 <Box>",
     "TS2304 <ThreadEntry threadId={threadId} />",
     "TS2304 components={{ Attachment: MyAttachment }}",
     "TS2304 components={{ Attachment: MyAttachment }}",
@@ -656,66 +636,13 @@
     "TS2552 <DiffPrimitive.Root files={files}>",
     "TS2552 <DiffPrimitive.Root files={files}>",
     "TS2552 line={parsedLine}",
-    "TS2607 <Text color=\"cyan\">[Run Now]</Text>",
-    "TS2607 <Text color=\"cyan\">[Run Now]</Text>",
-    "TS2607 <Text color=\"green\">[New Chat]</Text>",
-    "TS2607 <Text color=\"green\">[Send]</Text>",
-    "TS2607 <Text color=\"red\">[Stop]</Text>",
-    "TS2607 <Text color=\"red\">[x]</Text>",
-    "TS2607 <Text color=\"red\">[x]</Text>",
-    "TS2607 <Text color=\"red\">[x]</Text>",
-    "TS2607 <Text color=\"red\">[x]</Text>",
-    "TS2607 <Text color=\"red\">[x]</Text>",
-    "TS2607 <Text color=\"red\">[x]</Text>",
-    "TS2607 <Text color=\"yellow\"> ...</Text>",
-    "TS2607 <Text dimColor>Quoting:</Text>",
-    "TS2607 <Text dimColor>Send a message to get started</Text>",
-    "TS2607 <Text dimColor>[Toggle reasoning]</Text>",
-    "TS2607 Image: () => <Text color=\"cyan\">image available</Text>,",
-    "TS2607 if (part.type === \"tool-call\") return <Text dimColor>[Tool: {part.toolName}]</Text>;",
-    "TS2607 renderToolCall={({ part }) => <Text dimColor>[Tool: {part.toolName}]</Text>}",
-    "TS2607 {({ part }) => part.type === \"reasoning\" ? <Text dimColor>{part.text}</Text> : null}",
-    "TS2607 {({ text }) => <Text dimColor>Replying to: {text}</Text>}",
     "TS2657 <ActionBarPrimitive.FeedbackPositive>",
     "TS2657 <AuiIf condition={(s) => s.message.role === \"user\"}>",
     "TS2657 <AuiIf condition={(s) => s.thread.isEmpty}>",
     "TS2657 <ComposerPrimitive.If editing>",
     "TS2657 <DiffView",
     "TS2657 <MessagePrimitive.If user>",
-    "TS2657 <ThreadPrimitive.If empty>",
-    "TS2786 <Text color=\"cyan\">[Run Now]</Text>",
-    "TS2786 <Text color=\"cyan\">[Run Now]</Text>",
-    "TS2786 <Text color=\"green\">[New Chat]</Text>",
-    "TS2786 <Text color=\"green\">[Send]</Text>",
-    "TS2786 <Text color=\"red\">[Stop]</Text>",
-    "TS2786 <Text color=\"red\">[x]</Text>",
-    "TS2786 <Text color=\"red\">[x]</Text>",
-    "TS2786 <Text color=\"red\">[x]</Text>",
-    "TS2786 <Text color=\"red\">[x]</Text>",
-    "TS2786 <Text color=\"red\">[x]</Text>",
-    "TS2786 <Text color=\"red\">[x]</Text>",
-    "TS2786 <Text color=\"yellow\"> ...</Text>",
-    "TS2786 <Text dimColor>Quoting:</Text>",
-    "TS2786 <Text dimColor>Send a message to get started</Text>",
-    "TS2786 <Text dimColor>[Toggle reasoning]</Text>",
-    "TS2786 <Text>/</Text>",
-    "TS2786 <Text>Currently editing</Text>",
-    "TS2786 <Text>What is the weather?</Text>",
-    "TS2786 <Text>[Attach]</Text>",
-    "TS2786 <Text>[Edit]</Text>",
-    "TS2786 <Text>[Retry]</Text>",
-    "TS2786 <Text>{\"<\"}</Text>",
-    "TS2786 <Text>{\">\"}</Text>",
-    "TS2786 Image: () => <Text color=\"cyan\">image available</Text>,",
-    "TS2786 if (part.type === \"text\") return <Text>{part.text}</Text>;",
-    "TS2786 if (part.type === \"tool-call\") return <Text dimColor>[Tool: {part.toolName}]</Text>;",
-    "TS2786 renderText={({ part }) => <Text>{part.text}</Text>}",
-    "TS2786 renderToolCall={({ part }) => <Text dimColor>[Tool: {part.toolName}]</Text>}",
-    "TS2786 weather_card: ({ data }) => <Text>{data.city}: {data.temperature}</Text>,",
-    "TS2786 {() => <Text>[attachment]</Text>}",
-    "TS2786 {({ isCopied }) => <Text>{isCopied ? \"[Copied!]\" : \"[Copy]\"}</Text>}",
-    "TS2786 {({ part }) => part.type === \"reasoning\" ? <Text dimColor>{part.text}</Text> : null}",
-    "TS2786 {({ text }) => <Text dimColor>Replying to: {text}</Text>}"
+    "TS2657 <ThreadPrimitive.If empty>"
   ],
   "apps/docs/content/docs/integrations/attachments/custom-adapter.mdx": [
     "TS2304 await fetch(`${API_URL}/upload/${encodeURIComponent((attachment as Pending).key)}`, {",
@@ -725,9 +652,7 @@
     "TS2304 mimeType: contentType ?? \"application/octet-stream\",",
     "TS2304 transport: new AssistantChatTransport({ api: `${API_URL}/chat` }),",
     "TS2304 transport: new AssistantChatTransport({ api: `${API_URL}/chat` }),",
-    "TS2552 data: fileId,",
-    "TS2709 const body = (await req.json()) as HandleUploadBody;",
-    "TS2709 } satisfies FileRouter;"
+    "TS2552 data: fileId,"
   ],
   "apps/docs/content/docs/integrations/auth/clerk.mdx": [
     "TS1108 if (!userId) return new Response(null, { status: 401 });"
@@ -1128,6 +1053,9 @@
     "TS2304 const runtime = useLocalRuntime(chatModel, { cloud });",
     "TS2740 const myAdapter: RemoteThreadListAdapter = {"
   ],
+  "apps/docs/content/docs/react-native/attachments.mdx": [
+    "TS2339 const result = await DocumentPicker.getDocumentAsync({"
+  ],
   "apps/docs/content/docs/react-native/custom-backend.mdx": [
     "TS2741 <AssistantRuntimeProvider runtime={runtime}>"
   ],
@@ -1225,21 +1153,13 @@
     "TS2304 {children}",
     "TS2304 {children}",
     "TS2552 <ThreadListEntry threadId={threadId} />",
-    "TS2607 <Image source={{ uri: part.image }} />",
-    "TS2607 if (part.type === \"image\") return <Image source={{ uri: part.image }} />;",
     "TS2657 <ActionBarPrimitive.FeedbackPositive>",
     "TS2657 <AuiIf condition={(s) => s.composer.isEditing}>",
     "TS2657 <AuiIf condition={(s) => s.message.role === \"user\"}>",
     "TS2657 <AuiIf condition={(s) => s.thread.isEmpty}>",
     "TS2657 <ThreadListItemPrimitive.Archive>",
     "TS2657 <ThreadPrimitive.Empty>",
-    "TS2657 <ThreadPrimitive.If empty>",
-    "TS2786 <Image source={{ uri: part.image }} />",
-    "TS2786 <Text>Send</Text>",
-    "TS2786 <Text>Send</Text>",
-    "TS2786 <Text>Stop</Text>",
-    "TS2786 <Text>What can you help me with?</Text>",
-    "TS2786 if (part.type === \"image\") return <Image source={{ uri: part.image }} />;"
+    "TS2657 <ThreadPrimitive.If empty>"
   ],
   "apps/docs/content/docs/react-native/testing.mdx": [
     "TS2304 vi.mock(\"react-native\", async (importOriginal) => {",
@@ -1318,8 +1238,7 @@
   ],
   "apps/docs/content/docs/runtimes/cloudflare-agents.mdx": [
     "TS2304 Chat: DurableObjectNamespace<Chat>;",
-    "TS2304 } satisfies ExportedHandler<Env>;",
-    "TS2709 options?: OnChatMessageOptions,"
+    "TS2304 } satisfies ExportedHandler<Env>;"
   ],
   "apps/docs/content/docs/runtimes/custom/assistant-transport.mdx": [
     "TS1005 api: string,",
@@ -1507,9 +1426,6 @@
     "TS2552 setMessages: (messages) => dispatch(setMessages(messages)),",
     "TS2552 wasRunning.current = isRunning;",
     "TS2552 }, [isRunning, queue]);",
-    "TS2709 addMessage: (state, action: PayloadAction<ThreadMessageLike>) => {",
-    "TS2709 setIsRunning: (state, action: PayloadAction<boolean>) => {",
-    "TS2709 setMessages: (state, action: PayloadAction<ThreadMessageLike[]>) => {",
     "TS7006 addMessage: (state, action: PayloadAction<ThreadMessageLike>) => {",
     "TS7006 const index = messages.findIndex((m) => m.id === message.parentId) + 1;",
     "TS7006 content: message.content.map((part) =>",
@@ -2043,13 +1959,11 @@
     "TS2304 ...defaultGenerativeUILibrary,",
     "TS2304 ...defineGenerativeComponents({",
     "TS2304 ...frontendTools(clientTools ?? {}),",
-    "TS2304 ...frontendTools(clientTools ?? {}),",
     "TS2304 <button onClick={() => addResult({ date: value })}>Confirm</button>",
     "TS2304 <input type=\"date\" onChange={(e) => setValue(e.target.value)} />",
     "TS2304 const generative = new JSONGenerativeUI({",
     "TS2304 const markdown = defaultGenerativeUILibrary.Markdown!;",
     "TS2304 const result = streamText({",
-    "TS2304 const runtime = useChatRuntime({",
     "TS2304 const { catalog, components } = toSpecCatalog(styledGenerativeUILibrary);",
     "TS2304 const { catalog, components } = toSpecCatalog(styledGenerativeUILibrary);",
     "TS2304 export const widgets = createWidgetToolkit({",
@@ -2068,7 +1982,6 @@
     "TS2304 specPrompt: { customRules: photoRules },",
     "TS2304 stopWhen: stepCountIs(10),",
     "TS2304 tools: Tools({ toolkit: widgets.toolkit }),",
-    "TS2304 transport: new AssistantChatTransport({ api: \"/api/present\" }),",
     "TS2304 useWidgetInstructions(widgets.tools);",
     "TS2552 messages: await convertToModelMessages(messages, { tools }),",
     "TS2552 useWidgetInstructions(widgets.tools);",

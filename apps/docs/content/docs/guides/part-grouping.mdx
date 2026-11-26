@@ -332,7 +332,7 @@ Adjacent `reasoning` parts still coalesce into one `group-thought`, while each t
 Message parts have no free-form metadata field. Carry custom values in a `data` part and group on its payload:
 
 ```tsx
-const priorityStyles = {
+const priorityStyles: Record<string, string> = {
   high: "border-red-500 bg-red-50",
   normal: "border-gray-300 bg-white",
   low: "border-gray-200 bg-gray-50",
