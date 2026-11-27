@@ -586,6 +586,23 @@ export class AssistantMessageAccumulator extends TransformStream<
     strict?: boolean | undefined;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
+    // The merge stream allocates part indices monotonically, so the count of
+    // delivered part-starts equals the index of the next part. A reset
+    // discards the current step's index range; live indices compact by the
+    // number of discarded parts before them.
+    let nextStreamPart = 0;
+    let stepStart = 0;
+    const discarded: { start: number; end: number }[] = [];
+    const initialOffset = message.parts.length;
+    const mapPartIndex = (streamIndex: number): number | undefined => {
+      let discardedBefore = 0;
+      for (const { start, end } of discarded) {
+        if (streamIndex < start) break;
+        if (streamIndex < end) return undefined;
+        discardedBefore += end - start;
+      }
+      return initialOffset + streamIndex - discardedBefore;
+    };
     let stateAccumulator: GorpStreamAccumulator | undefined;
     let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
@@ -612,9 +629,18 @@ export class AssistantMessageAccumulator extends TransformStream<
       },
       transform(chunk) {
         tracker.recordChunk();
+        if (chunk.path.length > 0 && chunk.type !== "part-start") {
+          const streamIndex = chunk.path[0]!;
+          const mappedIndex = mapPartIndex(streamIndex);
+          if (mappedIndex === undefined) return;
+          if (mappedIndex !== streamIndex) {
+            chunk = { ...chunk, path: [mappedIndex, ...chunk.path.slice(1)] };
+          }
+        }
         const type = chunk.type;
         switch (type) {
           case "part-start":
+            nextStreamPart++;
             message = handlePartStart(message, chunk, warnOnce);
             if (chunk.part.type === "tool-call") {
               tracker.recordToolCallStart(chunk.part.toolCallId);
@@ -658,11 +684,28 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleData(message, chunk);
             break;
           case "step-start":
+            stepStart = nextStreamPart;
             message = handleStepStart(message, chunk);
             break;
           case "step-finish":
             message = handleStepFinish(message, chunk);
             break;
+          case "step-reset": {
+            const keep = mapPartIndex(stepStart);
+            if (nextStreamPart > stepStart) {
+              const last = discarded.at(-1);
+              if (last !== undefined && last.end === stepStart) {
+                last.end = nextStreamPart;
+              } else {
+                discarded.push({ start: stepStart, end: nextStreamPart });
+              }
+            }
+            if (keep !== undefined && keep < message.parts.length) {
+              message = withParts(message, message.parts.slice(0, keep));
+            }
+            stepStart = nextStreamPart;
+            break;
+          }
           case "error":
             message = handleErrorChunk(message, chunk);
             onError?.(chunk.error);

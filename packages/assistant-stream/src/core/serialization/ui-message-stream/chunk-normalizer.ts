@@ -27,6 +27,10 @@ export const createChunkNormalizer = (): {
     }[];
   };
   const pendingTools = new Map<string, PendingTool>();
+  // Calls of the step a reset would roll back, and calls an earlier reset
+  // already rolled back, so a late output cannot reopen either of them.
+  const currentStepToolCallIds = new Set<string>();
+  const discardedToolCallIds = new Set<string>();
   const createPendingTool = (
     toolCallId: string,
     toolName: unknown,
@@ -83,6 +87,15 @@ export const createChunkNormalizer = (): {
         });
         return;
       }
+      if (chunk.type === "reset-step") {
+        for (const toolCallId of currentStepToolCallIds) {
+          discardedToolCallIds.add(toolCallId);
+        }
+        currentStepToolCallIds.clear();
+        pendingTools.clear();
+        controller.enqueue({ type: "reset-step" });
+        return;
+      }
       if (chunk.type === "text-delta" && chunk.textDelta === undefined) {
         const { delta, ...rest } = chunk;
         controller.enqueue({
@@ -93,11 +106,17 @@ export const createChunkNormalizer = (): {
         return;
       }
       if (chunk.type === "start") {
+        currentStepToolCallIds.clear();
         controller.enqueue({
           ...chunk,
           type: "start",
           messageId: chunk.messageId ?? generateId(),
         });
+        return;
+      }
+      if (chunk.type === "start-step") {
+        currentStepToolCallIds.clear();
+        controller.enqueue(chunk as UIMessageStreamChunk);
         return;
       }
       if (chunk.type === "source-url") {
@@ -142,6 +161,8 @@ export const createChunkNormalizer = (): {
       }
       if (chunk.type === "tool-input-start") {
         if (typeof chunk.toolCallId !== "string") return;
+        discardedToolCallIds.delete(chunk.toolCallId);
+        currentStepToolCallIds.add(chunk.toolCallId);
         if (pendingTools.has(chunk.toolCallId)) return;
         const tool = createPendingTool(chunk.toolCallId, chunk.toolName);
         markProviderExecuted(tool, chunk);
@@ -161,6 +182,11 @@ export const createChunkNormalizer = (): {
         chunk.type === "tool-input-error"
       ) {
         if (typeof chunk.toolCallId !== "string") return;
+        // Input-completing frames create the call when the current step lacks
+        // it, mirroring the AI SDK's create-on-miss input handling, so a frame
+        // for a discarded id reopens that id as a fresh attempt.
+        discardedToolCallIds.delete(chunk.toolCallId);
+        currentStepToolCallIds.add(chunk.toolCallId);
         let tool = pendingTools.get(chunk.toolCallId);
         if (!tool) {
           tool = createPendingTool(chunk.toolCallId, chunk.toolName);
@@ -196,6 +222,8 @@ export const createChunkNormalizer = (): {
           !Object.hasOwn(chunk, "output")
         )
           return;
+        if (discardedToolCallIds.has(chunk.toolCallId)) return;
+        currentStepToolCallIds.add(chunk.toolCallId);
         let tool = pendingTools.get(chunk.toolCallId);
         const opensCall = tool === undefined;
         if (!tool) {

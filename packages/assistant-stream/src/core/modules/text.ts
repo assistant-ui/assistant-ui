@@ -6,6 +6,8 @@ import { createControllerStreamPair } from "../utils/stream/createControllerStre
 export type TextStreamController = {
   append(textDelta: string, providerMetadata?: PartProviderMetadata): void;
   close(providerMetadata?: PartProviderMetadata): void; // TODO reason? error?
+  /** Discards the part without emitting `part-finish`; later appends are ignored. */
+  __internal_truncate(): void;
 };
 
 type TextStreamOptions = {

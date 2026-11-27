@@ -1230,3 +1230,161 @@ describe("AssistantMessageAccumulator tool-call approvals", () => {
     );
   });
 });
+
+describe("AssistantMessageAccumulator step-reset", () => {
+  it("truncates the current step, keeps earlier parts, and remaps late results", async () => {
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "A" },
+      {
+        type: "part-start",
+        path: [1],
+        part: { type: "tool-call", toolCallId: "probe", toolName: "probe" },
+      },
+      { type: "text-delta", path: [1], textDelta: '{"q":1}' },
+      { type: "step-start", path: [], messageId: "s2" },
+      { type: "part-start", path: [2], part: { type: "text" } },
+      { type: "text-delta", path: [2], textDelta: "BAD" },
+      { type: "step-reset", path: [] },
+      { type: "result", path: [1], result: { late: true }, isError: false },
+      { type: "result", path: [2], result: { stale: true }, isError: false },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({ type: "text", text: "A" }),
+      expect.objectContaining({ type: "tool-call", result: { late: true } }),
+    ]);
+  });
+
+  it("compacts post-reset parts behind preserved earlier steps", async () => {
+    const messages = await collectStream([
+      { type: "step-start", path: [], messageId: "s1" },
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "STEP1" },
+      {
+        type: "step-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+        isContinued: false,
+      },
+      { type: "step-start", path: [], messageId: "s2" },
+      { type: "part-start", path: [1], part: { type: "text" } },
+      { type: "text-delta", path: [1], textDelta: "BAD" },
+      { type: "step-reset", path: [] },
+      { type: "part-start", path: [2], part: { type: "text" } },
+      { type: "text-delta", path: [2], textDelta: "STEP2" },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ]);
+
+    expect(messages.at(-1)!.parts).toEqual([
+      expect.objectContaining({ type: "text", text: "STEP1" }),
+      expect.objectContaining({ type: "text", text: "STEP2" }),
+    ]);
+  });
+
+  it("preserves initialMessage parts and only drops streamed parts", async () => {
+    const initialMessage: AssistantMessage = {
+      role: "assistant",
+      status: { type: "running" },
+      parts: [
+        {
+          type: "text",
+          text: "SEED-1",
+          status: { type: "complete", reason: "stop" },
+        },
+        {
+          type: "text",
+          text: "SEED-2",
+          status: { type: "complete", reason: "stop" },
+        },
+      ],
+      content: [],
+      metadata: {
+        unstable_state: null,
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const messages: AssistantMessage[] = [];
+    const accumulator = new AssistantMessageAccumulator({ initialMessage });
+    await new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [0],
+          part: { type: "text" },
+        });
+        controller.enqueue({
+          type: "text-delta",
+          path: [0],
+          textDelta: "BAD",
+        });
+        controller.enqueue({ type: "step-reset", path: [] });
+        controller.enqueue({
+          type: "part-start",
+          path: [1],
+          part: { type: "text" },
+        });
+        controller.enqueue({
+          type: "text-delta",
+          path: [1],
+          textDelta: "OK",
+        });
+        controller.enqueue({
+          type: "message-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        });
+        controller.close();
+      },
+    })
+      .pipeThrough(accumulator)
+      .pipeTo(
+        new WritableStream({
+          write(message) {
+            messages.push(message);
+          },
+        }),
+      );
+
+    expect(
+      messages.at(-1)!.parts.map((part) => (part as { text?: string }).text),
+    ).toEqual(["SEED-1", "SEED-2", "OK"]);
+  });
+
+  it("retains the failed step's metadata entry after a reset", async () => {
+    const messages = await collectStream([
+      { type: "step-start", path: [], messageId: "s1" },
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "BAD" },
+      { type: "step-reset", path: [] },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ]);
+
+    const message = messages.at(-1)!;
+    expect(message.parts).toEqual([]);
+    expect(message.metadata.steps).toEqual([
+      expect.objectContaining({ state: "started", messageId: "s1" }),
+    ]);
+  });
+});

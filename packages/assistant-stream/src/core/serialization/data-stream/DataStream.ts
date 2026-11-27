@@ -467,6 +467,12 @@ export class DataStreamEncoder
               break;
             }
 
+            case "step-reset": {
+              // The data-stream wire format has no reset frame; the chunk only
+              // originates from the ui-message-stream decoder.
+              break;
+            }
+
             default: {
               const exhaustiveCheck: never = type;
               throw new Error(`Unsupported chunk type: ${exhaustiveCheck}`);

@@ -2090,3 +2090,286 @@ describe("disabled tools", () => {
     expect(result.parts[0]).toMatchObject({ state: "result", result: "ran" });
   });
 });
+
+describe("unstable_toolResultStream step-reset", () => {
+  const usage = { inputTokens: 0, outputTokens: 0 };
+
+  const drainStream = async (
+    output: ReadableStream<AssistantStreamChunk>,
+  ): Promise<AssistantStreamChunk[]> => {
+    const reader = output.getReader();
+    const chunks: AssistantStreamChunk[] = [];
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    return chunks;
+  };
+
+  it("drops the current step's pending execution and its held part-finish on reset", async () => {
+    const execute = vi.fn(() => "never");
+    const inputChunks: AssistantStreamChunk[] = [
+      { type: "step-start", path: [], messageId: "s1" },
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "c1", toolName: "danger" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"x":1}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "part-finish", path: [0] },
+      { type: "step-reset", path: [] },
+      { type: "message-finish", path: [], finishReason: "stop", usage },
+    ];
+    const chunks = await drainStream(
+      new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      }).pipeThrough(
+        unstable_toolResultStream(
+          {
+            danger: { parameters: { type: "object", properties: {} }, execute },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      ),
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(chunks.map((chunk) => chunk.type)).toEqual([
+      "step-start",
+      "part-start",
+      "text-delta",
+      "tool-call-args-text-finish",
+      "step-reset",
+      "message-finish",
+    ]);
+  });
+
+  it("suppresses a started execution's result after reset without un-running it", async () => {
+    const toolResult = promiseWithResolvers<string>();
+    const started = promiseWithResolvers<void>();
+    const execute = vi.fn(() => {
+      started.resolve();
+      return toolResult.promise;
+    });
+    let input!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        input = controller;
+      },
+    });
+    const reader = inputStream
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            danger: { parameters: { type: "object", properties: {} }, execute },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .getReader();
+
+    input.enqueue({
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "c1", toolName: "danger" },
+    });
+    input.enqueue({ type: "text-delta", path: [0], textDelta: '{"x":1}' });
+    input.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+
+    for (const expected of [
+      "part-start",
+      "text-delta",
+      "tool-call-args-text-finish",
+    ] as const) {
+      const chunk = await reader.read();
+      expect(chunk.done).toBe(false);
+      expect(chunk.value?.type).toBe(expected);
+    }
+    await started.promise;
+
+    input.enqueue({ type: "step-reset", path: [] });
+    const reset = await reader.read();
+    expect(reset.value?.type).toBe("step-reset");
+
+    toolResult.resolve("boom");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    input.enqueue({
+      type: "message-finish",
+      path: [],
+      finishReason: "stop",
+      usage,
+    });
+    input.close();
+
+    const chunks: AssistantStreamChunk[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(chunks.filter((chunk) => chunk.type === "result")).toEqual([]);
+    expect(chunks.some((chunk) => chunk.type === "message-finish")).toBe(true);
+  });
+
+  it("does not emit a discarded execution's part-finish after the reset", async () => {
+    const toolResult = promiseWithResolvers<string>();
+    const started = promiseWithResolvers<void>();
+    const execute = vi.fn(() => {
+      started.resolve();
+      return toolResult.promise;
+    });
+    let input!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        input = controller;
+      },
+    });
+    const reader = inputStream
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            slow: { parameters: { type: "object", properties: {} }, execute },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .getReader();
+
+    input.enqueue({ type: "step-start", path: [], messageId: "s1" });
+    input.enqueue({
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "c1", toolName: "slow" },
+    });
+    input.enqueue({ type: "text-delta", path: [0], textDelta: '{"x":1}' });
+    input.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+    // held until the execution settles
+    input.enqueue({ type: "part-finish", path: [0] });
+    input.enqueue({
+      type: "step-finish",
+      path: [],
+      finishReason: "tool-calls",
+      usage,
+      isContinued: false,
+    });
+
+    for (const expected of [
+      "step-start",
+      "part-start",
+      "text-delta",
+      "tool-call-args-text-finish",
+      "step-finish",
+    ] as const) {
+      const chunk = await reader.read();
+      expect(chunk.done).toBe(false);
+      expect(chunk.value?.type).toBe(expected);
+    }
+    await started.promise;
+
+    input.enqueue({ type: "step-reset", path: [] });
+    const reset = await reader.read();
+    expect(reset.value?.type).toBe("step-reset");
+
+    toolResult.resolve("late");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    input.enqueue({
+      type: "message-finish",
+      path: [],
+      finishReason: "stop",
+      usage,
+    });
+    input.close();
+
+    const chunks: AssistantStreamChunk[] = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(chunks.filter((chunk) => chunk.type === "part-finish")).toEqual([]);
+    expect(chunks.filter((chunk) => chunk.type === "result")).toEqual([]);
+    expect(chunks.some((chunk) => chunk.type === "message-finish")).toBe(true);
+  });
+
+  it("keeps earlier-step executions and only drops the current step's", async () => {
+    const weatherExecute = vi.fn(() => "sunny");
+    const dangerExecute = vi.fn(() => "never");
+    const inputChunks: AssistantStreamChunk[] = [
+      { type: "step-start", path: [], messageId: "s1" },
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "c0", toolName: "weather" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"city":"NYC"}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "part-finish", path: [0] },
+      {
+        type: "step-finish",
+        path: [],
+        finishReason: "tool-calls",
+        usage,
+        isContinued: false,
+      },
+      { type: "step-start", path: [], messageId: "s2" },
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "c1", toolName: "danger" },
+      },
+      { type: "text-delta", path: [1], textDelta: '{"x":1}' },
+      { type: "tool-call-args-text-finish", path: [1] },
+      { type: "part-finish", path: [1] },
+      { type: "step-reset", path: [] },
+      { type: "message-finish", path: [], finishReason: "stop", usage },
+    ];
+    const chunks = await drainStream(
+      new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      }).pipeThrough(
+        unstable_toolResultStream(
+          {
+            weather: {
+              parameters: { type: "object", properties: {} },
+              execute: weatherExecute,
+            },
+            danger: {
+              parameters: { type: "object", properties: {} },
+              execute: dangerExecute,
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      ),
+    );
+
+    expect(weatherExecute).toHaveBeenCalledTimes(1);
+    expect(dangerExecute).not.toHaveBeenCalled();
+    const results = chunks.filter((chunk) => chunk.type === "result");
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ result: "sunny" });
+    expect(chunks.filter((chunk) => chunk.type === "part-finish")).toHaveLength(
+      1,
+    );
+  });
+});

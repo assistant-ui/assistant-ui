@@ -45,6 +45,14 @@ export const createToolCallPartRegistry = () => {
     isArgsTextClosed: (toolCallController: ToolCallStreamController) => {
       return closedToolCallArgs.has(toolCallController);
     },
+    discard: (toolCallId: string) => {
+      const toolCallController = toolCallControllers.get(toolCallId);
+      if (toolCallController === undefined) return;
+      toolCallControllers.delete(toolCallId);
+      closedToolCallArgs.delete(toolCallController);
+      toolCallsWithArgsText.delete(toolCallController);
+      toolCallController.__internal_truncate();
+    },
     setResponse: (
       toolCallController: ToolCallStreamController,
       response: Parameters<ToolCallStreamController["setResponse"]>[0],

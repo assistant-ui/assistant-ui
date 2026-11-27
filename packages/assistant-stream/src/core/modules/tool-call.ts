@@ -21,6 +21,8 @@ export type ToolCallStreamController = {
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
   /** Sets the call's approval gate, replacing any earlier one. Ignored once the part is closed. */
   setApproval(approval: ToolCallApproval): void;
+  /** Discards the call, closing its part without `part-finish`; later writes are ignored. */
+  __internal_truncate(): void;
   close(): void;
 };
 

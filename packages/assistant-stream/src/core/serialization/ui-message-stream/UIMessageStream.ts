@@ -57,12 +57,25 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
           delete activeTextIds[kind];
         }
       };
+      const truncateTextParts = () => {
+        for (const kind of ["text", "reasoning"] as const) {
+          for (const part of textParts[kind].values())
+            part.__internal_truncate();
+          textParts[kind].clear();
+          delete activeTextIds[kind];
+        }
+      };
       let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
       // `start` opens the first step, and AI SDK streams follow it with a
       // `start-step` for that same step.
       let stepOpenedByStart = false;
       const approvalsByToolCallId = new Map<string, ToolCallApproval>();
+      // Calls of the step a reset would roll back, and calls an earlier reset
+      // already rolled back, so their late results are dropped instead of
+      // settling a part the reset removed.
+      const currentStepToolCallIds = new Set<string>();
+      const discardedToolCallIds = new Set<string>();
 
       const transformer = {
         transform(
@@ -100,6 +113,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
             case "start":
               currentMessageId = chunk.messageId;
               stepOpenedByStart = true;
+              currentStepToolCallIds.clear();
               controller.enqueue({
                 type: "step-start",
                 path: [],
@@ -199,6 +213,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 }),
               );
               activeToolCallId = chunk.toolCallId;
+              discardedToolCallIds.delete(chunk.toolCallId);
+              currentStepToolCallIds.add(chunk.toolCallId);
               break;
             }
 
@@ -228,6 +244,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 chunk.toolCallId,
               );
               if (!toolCallController) {
+                if (discardedToolCallIds.has(chunk.toolCallId)) break;
                 throw new Error(
                   `Encountered tool result with unknown id: ${chunk.toolCallId}`,
                 );
@@ -296,6 +313,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 stepOpenedByStart && messageId === currentMessageId;
               stepOpenedByStart = false;
               if (isOpenStep) break;
+              currentStepToolCallIds.clear();
               controller.enqueue({ type: "step-start", path: [], messageId });
               break;
             }
@@ -310,6 +328,18 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 usage: chunk.usage,
                 isContinued: chunk.isContinued,
               });
+              break;
+
+            case "reset-step":
+              truncateTextParts();
+              for (const toolCallId of currentStepToolCallIds) {
+                toolCallPartRegistry.discard(toolCallId);
+                approvalsByToolCallId.delete(toolCallId);
+                discardedToolCallIds.add(toolCallId);
+              }
+              currentStepToolCallIds.clear();
+              activeToolCallId = undefined;
+              controller.enqueue({ type: "step-reset", path: [] });
               break;
 
             case "finish":

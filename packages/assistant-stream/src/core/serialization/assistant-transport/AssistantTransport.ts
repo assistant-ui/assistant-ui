@@ -43,6 +43,7 @@ const KNOWN_CHUNK_TYPES: Record<AssistantStreamChunk["type"], ChunkRule> = {
   data: { kind: "message", valid: requiredArray("data") },
   "step-start": { kind: "message", valid: noFields },
   "step-finish": { kind: "message", valid: requiredString("finishReason") },
+  "step-reset": { kind: "message", valid: noFields },
   "message-finish": { kind: "message", valid: requiredString("finishReason") },
   result: { kind: "part-addressed", valid: optionalBoolean("isError") },
   error: { kind: "message", valid: noFields },

@@ -105,6 +105,12 @@ export class ToolExecutionStream extends PipeableTransformStream<
     >();
     let isStepOpen = false;
     let nextPartIndex = 0;
+    // Executions are tracked by the part index their call arrived at, so a
+    // reset deletes exactly the current step's executions and drops their
+    // late results instead of executing or settling a part the reset removed.
+    const executionPartIndex = new Map<symbol, number>();
+    const discardedExecutionIds = new Set<symbol>();
+    let currentStepPartIndex = 0;
 
     const finishPart = (
       chunk: AssistantMetaStreamChunk & { type: "part-finish" },
@@ -127,6 +133,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
         toolCallPromise.then(() => {
           cleanup();
 
+          // A reset removed the execution while it ran, so its part-finish
+          // must not reach the stream the reset left behind.
+          if (executionId && discardedExecutionIds.has(executionId)) return;
           enqueueIfOpen(controller, chunk);
         });
       } else {
@@ -165,7 +174,10 @@ export class ToolExecutionStream extends PipeableTransformStream<
         async transform(chunk, controller) {
           const executionId = executionIdsByPath.get(pathKey(chunk.path));
 
-          if (chunk.type === "step-start") isStepOpen = true;
+          if (chunk.type === "step-start") {
+            isStepOpen = true;
+            currentStepPartIndex = nextPartIndex;
+          }
           if (chunk.type === "step-finish" || chunk.type === "message-finish") {
             isStepOpen = false;
             runPendingExecutions(controller);
@@ -191,6 +203,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 >();
                 const executionId = Symbol();
                 executionIdsByPath.set(String(partIndex), executionId);
+                executionPartIndex.set(executionId, partIndex);
                 toolCallControllers.set(executionId, reader);
                 if (chunk.part.providerExecuted)
                   providerExecutedIds.add(executionId);
@@ -318,6 +331,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                       );
                     }
 
+                    if (discardedExecutionIds.has(executionId!)) return;
                     if (c === undefined) return;
 
                     const result = new ToolResponse({
@@ -351,6 +365,8 @@ export class ToolExecutionStream extends PipeableTransformStream<
                       );
                     }
 
+                    if (discardedExecutionIds.has(executionId!)) return;
+
                     const result = new ToolResponse({
                       result: String(e),
                       isError: true,
@@ -382,6 +398,32 @@ export class ToolExecutionStream extends PipeableTransformStream<
             case "tool-call-approval": {
               if (chunk.meta.type !== "tool-call" || !executionId) break;
               toolCallIdsWithApproval.add(executionId);
+              break;
+            }
+
+            case "step-reset": {
+              const discardedNow: symbol[] = [];
+              for (const [executionId, partIndex] of executionPartIndex) {
+                if (partIndex >= currentStepPartIndex)
+                  discardedNow.push(executionId);
+              }
+              for (const executionId of discardedNow) {
+                pendingExecutions.delete(executionId);
+                heldPartFinishes.delete(executionId);
+                toolCallPromises.delete(executionId);
+                toolCallControllers.delete(executionId);
+                toolCallIdsWithBackendResult.delete(executionId);
+                toolCallIdsWithApproval.delete(executionId);
+                providerExecutedIds.delete(executionId);
+                executionPartIndex.delete(executionId);
+                discardedExecutionIds.add(executionId);
+              }
+              for (const [key, executionId] of [...executionIdsByPath]) {
+                if (discardedExecutionIds.has(executionId)) {
+                  executionIdsByPath.delete(key);
+                }
+              }
+              currentStepPartIndex = nextPartIndex;
               break;
             }
 
