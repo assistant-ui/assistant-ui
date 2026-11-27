@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { appendFileSync, readFileSync, readdirSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBumpLine, readChangesetSource } from "./lib/changesets.mjs";
 import { hasIntendedCaretBreakMarker } from "./lib/changeset-markers.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { collectPackages } from "./lib/workspace.mjs";
+import { pendingChangesets } from "./pending-changesets.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -269,8 +270,7 @@ export function renderSummary({ bumps, violations, cascade, intended = [] }) {
 }
 
 function readChangesetFiles(root, changedFiles) {
-  return readdirSync(path.join(root, ".changeset"))
-    .filter((file) => file.endsWith(".md") && file !== "README.md")
+  return pendingChangesets(root)
     .filter((file) => changedFiles === null || changedFiles.has(file))
     .sort();
 }
@@ -343,18 +343,14 @@ function diffChangesetFiles(root, baseSha, headSha) {
         "-z",
         "--no-renames",
         "--diff-filter=ACM",
+        "--relative=.changeset",
         `${baseSha}...${headSha}`,
         "--",
         ".changeset/*.md",
       ],
       { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
     );
-    return new Set(
-      diff
-        .split("\0")
-        .filter(Boolean)
-        .map((file) => path.basename(file)),
-    );
+    return new Set(diff.split("\0").filter(Boolean));
   } catch (error) {
     const stderr = String(error.stderr ?? "").trim();
     return { error: stderr.split("\n").at(-1) || error.message };

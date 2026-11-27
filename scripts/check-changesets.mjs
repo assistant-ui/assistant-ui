@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
@@ -9,6 +9,7 @@ import { parseReleaseLine, readChangesetSource } from "./lib/changesets.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { hasOption } from "./lib/script-options.mjs";
 import { readJson, readWorkspaceManifestEntries } from "./lib/workspace.mjs";
+import { pendingChangesets } from "./pending-changesets.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -102,13 +103,11 @@ export function readWorkspacePackages(root) {
   return byName;
 }
 
-function readChangesetBumps(root, files = null) {
+function readChangesetBumps(root, files = pendingChangesets(root)) {
   const changesetDir = path.join(root, ".changeset");
   const bumps = [];
   const errors = [];
-  for (const file of readdirSync(changesetDir).sort()) {
-    if (!file.endsWith(".md") || file === "README.md") continue;
-    if (files && !files.has(file)) continue;
+  for (const file of files.sort()) {
     const changeset = readChangesetReleases(
       readFileSync(path.join(changesetDir, file), "utf8"),
     );
@@ -349,10 +348,9 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
   const sourceFiles = changedFiles.filter((file) =>
     releasable.some((pkg) => isReleaseRelevantPackageFile(file, pkg)),
   );
-  const changesetFiles = new Set(
-    changedFiles
-      .filter((file) => path.posix.dirname(file) === ".changeset")
-      .map((file) => path.posix.basename(file)),
+  const changedPaths = new Set(changedFiles);
+  const changesetFiles = pendingChangesets(root).filter((file) =>
+    changedPaths.has(`.changeset/${file}`),
   );
   const changesets = readChangesetBumps(root, changesetFiles);
   const bumpedNames = new Set(
