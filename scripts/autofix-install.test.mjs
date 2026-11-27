@@ -6,10 +6,35 @@ import { autofixInstallArgs } from "./autofix-install.mjs";
 const installArgs = ["install", "--frozen-lockfile", "--ignore-scripts"];
 
 test("shared API surface inputs keep the full install fallback", () => {
-  assert.deepEqual(
-    autofixInstallArgs(["pnpm-lock.yaml"], "origin/main"),
-    installArgs,
-  );
+  for (const file of [
+    "api-surface/unknown-package.ts",
+    "api-surface/tsconfig.json",
+    "pnpm-lock.yaml",
+  ]) {
+    assert.deepEqual(
+      autofixInstallArgs(["api-surface/assistant-ui__core.ts", file], "HEAD"),
+      installArgs,
+      file,
+    );
+  }
+});
+
+test("standalone snapshots install their owners and workspace dependencies", () => {
+  for (const owners of [["core"], ["core", "react"]]) {
+    const files = owners.map(
+      (owner) => `api-surface/assistant-ui__${owner}.ts`,
+    );
+    assert.deepEqual(autofixInstallArgs(files, "HEAD"), [
+      ...installArgs,
+      "--filter={.}...",
+      "--filter=@assistant-ui/x-buildutils...",
+      "--filter=...[HEAD]...",
+      ...owners.map((owner) => `--filter=@assistant-ui/${owner}...`),
+      "--filter=!./apps/*",
+      "--filter=!./examples/*",
+      "--filter=!./templates/*",
+    ]);
+  }
 });
 
 test("package changes install only the dependencies autofix executes", () => {

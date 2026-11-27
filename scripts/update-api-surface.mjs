@@ -43,7 +43,9 @@ export function requiresFullApiSurface(changedFiles, packageNames = []) {
 export function filtersForApiSurfaceChanges(
   changedFiles,
   base,
-  packageNames = [],
+  packageNames = collectPackages(process.cwd(), undefined, (a, b) =>
+    a.localeCompare(b),
+  ).map(({ pkg }) => pkg.name),
 ) {
   if (requiresFullApiSurface(changedFiles, packageNames)) return [];
 
@@ -90,13 +92,7 @@ export function resolveApiSurfaceFilters(args) {
 
   const base = bases[0];
   return base
-    ? filtersForApiSurfaceChanges(
-        changedFilesSince(base),
-        base,
-        collectPackages(process.cwd(), undefined, (a, b) =>
-          a.localeCompare(b),
-        ).map(({ pkg }) => pkg.name),
-      )
+    ? filtersForApiSurfaceChanges(changedFilesSince(base), base)
     : explicitFilters;
 }
 

@@ -14,7 +14,7 @@ import {
 
 test("shared generator and build inputs require every API surface", () => {
   for (const file of [
-    "api-surface/assistant-ui__react.ts",
+    "api-surface/unknown-package.ts",
     "packages/x-buildutils/src/index.ts",
     "scripts/generate-api-surface.mjs",
     "scripts/autofix-install.mjs",
