@@ -81,7 +81,11 @@ test("main pushes cover the manifest and source of every typechecked workspace",
   );
 });
 
-for (const file of [".oxlintrc.json", ".oxfmtrc.json"]) {
+for (const file of [
+  ".oxlintrc.json",
+  ".oxfmtrc.json",
+  ".github/workflows/autofix.yaml",
+]) {
   test(`a main push changing only ${file} runs Code Quality`, () => {
     assert.equal(triggers(file), true);
   });
