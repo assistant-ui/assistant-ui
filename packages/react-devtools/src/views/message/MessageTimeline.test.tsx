@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
@@ -31,9 +32,10 @@ describe("MessageTimeline", () => {
     ];
 
     const html = renderToStaticMarkup(<MessageTimeline parts={parts} />);
-    expect(html.indexOf("search")).toBeLessThan(html.indexOf("First chunk."));
-    expect(html.indexOf("First chunk.")).toBeLessThan(html.indexOf("lookup"));
-    expect(html.indexOf("lookup")).toBeLessThan(html.indexOf("Final reply."));
+    expect(html).toMatch(
+      />search<.*>First chunk\.<.*>lookup<.*>Final reply\.</s,
+    );
+    expect(html).not.toContain(">cot<");
     expect(html).not.toMatch(/>answer</);
   });
 
@@ -51,9 +53,14 @@ describe("MessageTimeline", () => {
     ];
 
     const html = renderToStaticMarkup(<MessageTimeline parts={parts} />);
-    expect(html).toContain("cot");
-    expect(html).toContain("getWeather");
-    expect(html).toContain("It is sunny.");
+    const timeline = new DOMParser().parseFromString(html, "text/html").body;
+    const group = timeline.querySelector("details");
+    expect(group?.querySelector("summary")?.textContent).toContain("cot");
+    expect(group?.textContent).toMatch(/thinking….*getWeather/s);
+    expect(group?.textContent).not.toContain("It is sunny.");
+    expect(
+      timeline.textContent.match(/thinking…|getWeather|It is sunny\./g),
+    ).toEqual(["thinking…", "getWeather", "It is sunny."]);
   });
 });
 
