@@ -1,12 +1,10 @@
 "use client";
 
-import { useRef } from "react";
-import { Dialog } from "@base-ui/react/dialog";
+import { useRef, type ReactNode } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   ArrowUpRightIcon,
   BotIcon,
-  CopyIcon,
   BookmarkCheckIcon,
   BookmarkIcon,
   TerminalIcon,
@@ -15,11 +13,21 @@ import {
   ComponentIcon,
   FileCodeIcon,
   PackageIcon,
+  AppWindowIcon,
+  CpuIcon,
+  PlugIcon,
+  ShapesIcon,
   type LucideIcon,
 } from "lucide-react";
+import type {
+  StarterFramework,
+  StarterIntegration,
+  StarterRuntime,
+} from "@/lib/library/starters-data";
 import {
   starterCommand,
   starterId,
+  starterOpen,
   starterPrompt,
   starterSourceHref,
   type Starter,
@@ -31,25 +39,19 @@ import {
   useLibrarySaved,
 } from "./saved-store";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
+import { FilterIcon } from "./filter-icons";
+import { LibraryCopyButton } from "./library-copy-button";
+import {
+  LibraryDrawer,
+  LibraryDrawerClose,
+  LibraryDrawerContent,
+  LibraryDrawerDescription,
+  LibraryDrawerTitle,
+} from "./library-drawer";
 import { StarterScreenshots } from "./starter-screenshots";
 
 const button =
   "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
-
-function Detail({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h3 className="text-muted-foreground text-xs">{title}</h3>
-      {children}
-    </section>
-  );
-}
 
 function CodeList({ items }: { items: readonly string[] }) {
   return (
@@ -66,9 +68,71 @@ function CodeList({ items }: { items: readonly string[] }) {
   );
 }
 
+/** A labelled group of rows in a bordered box, like a settings panel. */
+function RowGroup({
+  title,
+  aside,
+  children,
+}: {
+  title: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="text-muted-foreground flex items-baseline justify-between gap-4 text-sm">
+        <h3>{title}</h3>
+        {aside}
+      </div>
+      <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-2xl border px-4">
+        {children}
+      </ul>
+    </section>
+  );
+}
+
+/** One row: an icon, a label, an optional value on the right, and an optional action after it. */
+function GroupRow({
+  icon,
+  label,
+  value,
+  action,
+  mono = false,
+}: {
+  icon: ReactNode;
+  label: ReactNode;
+  value?: ReactNode;
+  action?: ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <li className="flex min-h-12 min-w-0 items-center gap-3 py-2.5">
+      <span className="text-muted-foreground flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+        {icon}
+      </span>
+      <span
+        className={cn(
+          "min-w-0 truncate",
+          value ? "shrink-0" : "flex-1",
+          mono
+            ? "font-mono text-[13px] [font-variant-ligatures:none]"
+            : "text-sm",
+        )}
+      >
+        {label}
+      </span>
+      {value ? (
+        <span className="text-muted-foreground flex min-w-0 flex-1 items-center justify-end gap-1.5 text-sm">
+          {value}
+        </span>
+      ) : null}
+      {action}
+    </li>
+  );
+}
+
 type Row = { label: string; value?: string };
 
-/** A labelled group of rows in a bordered box, each with an icon, its name, and an optional value on the right. */
 function DependencyList({
   title,
   icon: Icon,
@@ -79,39 +143,49 @@ function DependencyList({
   rows: readonly Row[];
 }) {
   return (
-    <section className="flex flex-col gap-2">
-      <div className="text-muted-foreground flex items-baseline justify-between gap-4 text-sm">
-        <h3>{title}</h3>
-        <span className="tabular-nums">{rows.length}</span>
-      </div>
+    <RowGroup
+      title={title}
+      aside={<span className="tabular-nums">{rows.length}</span>}
+    >
       {rows.length > 0 ? (
-        <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-2xl border px-4">
-          {rows.map((row) => (
-            <li
-              key={row.value ? `${row.value}/${row.label}` : row.label}
-              className="flex min-w-0 items-center gap-3 py-3"
-            >
-              <Icon
-                aria-hidden
-                className="text-muted-foreground size-4 shrink-0"
-              />
-              <span className="min-w-0 flex-1 truncate font-mono text-[13px] [font-variant-ligatures:none]">
-                {row.label}
-              </span>
-              {row.value ? (
-                <span className="text-muted-foreground max-w-[50%] shrink-0 truncate font-mono text-xs [font-variant-ligatures:none]">
+        rows.map((row) => (
+          <GroupRow
+            key={row.value ? `${row.value}/${row.label}` : row.label}
+            icon={<Icon aria-hidden />}
+            label={row.label}
+            mono
+            {...(row.value && {
+              value: (
+                <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
                   {row.value}
                 </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+              ),
+            })}
+          />
+        ))
       ) : (
-        <p className="border-foreground/10 text-muted-foreground rounded-2xl border px-4 py-3 text-sm">
-          None
-        </p>
+        <li className="text-muted-foreground py-3 text-sm">None</li>
       )}
-    </section>
+    </RowGroup>
+  );
+}
+
+/** Logos and names for one stack field, or "None". */
+function StackValue({
+  names,
+}: {
+  names: readonly (StarterFramework | StarterRuntime | StarterIntegration)[];
+}) {
+  if (names.length === 0) return <span>None</span>;
+  return (
+    <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+      {names.map((name) => (
+        <span key={name} className="flex items-center gap-1.5">
+          <FilterIcon name={name} />
+          <span className="text-foreground">{name}</span>
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -144,14 +218,7 @@ function CommandLine({ command }: { command: string }) {
       <code className="min-w-0 flex-1 overflow-x-auto font-mono text-xs whitespace-nowrap [font-variant-ligatures:none]">
         {command}
       </code>
-      <button
-        type="button"
-        aria-label="Copy command"
-        onClick={() => copyWithLibraryToast(command, "Command copied.")}
-        className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors outline-none focus-visible:ring-2"
-      >
-        <CopyIcon aria-hidden className="size-4" />
-      </button>
+      <LibraryCopyButton text={command} label="Copy command" />
     </div>
   );
 }
@@ -166,8 +233,12 @@ function Step({
   children: React.ReactNode;
 }) {
   return (
-    <li className="flex gap-3">
-      <span className="bg-foreground/[0.06] grid size-6 shrink-0 place-items-center rounded-full text-xs tabular-nums">
+    <li className="group/step relative flex gap-3 pb-6 last:pb-0">
+      <span
+        aria-hidden
+        className="bg-foreground/25 absolute top-6 bottom-0 left-[11.5px] w-px group-last/step:hidden"
+      />
+      <span className="bg-foreground/[0.06] ring-background relative grid size-6 shrink-0 place-items-center rounded-full text-xs tabular-nums ring-4">
         {number}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">
@@ -178,15 +249,38 @@ function Step({
   );
 }
 
+function OpenStep({ starter }: { starter: Starter }) {
+  const open = starterOpen(starter);
+  if ("text" in open) {
+    return <p className="text-muted-foreground text-sm">{open.text}</p>;
+  }
+  return (
+    <>
+      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] flex items-center gap-2 rounded-xl py-1 ps-3 pe-1">
+        <code className="min-w-0 flex-1 truncate font-mono text-xs [font-variant-ligatures:none]">
+          {open.url}
+        </code>
+        <a
+          href={open.url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Open ${open.url} (opens in a new tab)`}
+          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 place-items-center rounded-lg transition-colors outline-none focus-visible:ring-2"
+        >
+          <ArrowUpRightIcon aria-hidden className="size-4" />
+        </a>
+      </div>
+      <p className="text-muted-foreground text-sm">
+        Open it in your browser once the dev server is running.
+      </p>
+    </>
+  );
+}
+
 function StarterDetails({ starter }: { starter: Starter }) {
   const command = starterCommand(starter);
   const isSaved = useLibrarySaved().includes(starterId(starter));
-  const facts = [
-    ["Type", starter.kind === "template" ? "Template" : "Example"],
-    ["Framework", starter.framework],
-    ["Runtime", starter.runtime ?? "None"],
-    ["Integrations", starter.integrations?.join(", ") ?? "None"],
-  ] as const;
+  const prompt = starterPrompt(starter);
 
   const toggleSaved = () => {
     const added = toggleLibrarySavedItem(starterId(starter));
@@ -210,12 +304,12 @@ function StarterDetails({ starter }: { starter: Starter }) {
         <div className="flex flex-1 flex-col gap-6 p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-col gap-1.5">
-              <Dialog.Title className="text-xl font-medium">
+              <LibraryDrawerTitle className="text-xl font-medium">
                 {starter.label}
-              </Dialog.Title>
-              <Dialog.Description className="text-muted-foreground text-sm">
+              </LibraryDrawerTitle>
+              <LibraryDrawerDescription className="text-muted-foreground text-sm">
                 {starter.description}
-              </Dialog.Description>
+              </LibraryDrawerDescription>
             </div>
             <a
               href={starterSourceHref(starter)}
@@ -227,12 +321,12 @@ function StarterDetails({ starter }: { starter: Starter }) {
               <ArrowUpRightIcon aria-hidden className="size-3.5" />
               <span className="sr-only">on GitHub (opens in a new tab)</span>
             </a>
-            <Dialog.Close
+            <LibraryDrawerClose
               aria-label="Close"
               className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-2 -mt-0.5 grid size-8 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2"
             >
               <XIcon aria-hidden className="size-4" />
-            </Dialog.Close>
+            </LibraryDrawerClose>
           </div>
 
           <Tabs.Root
@@ -262,61 +356,99 @@ function StarterDetails({ starter }: { starter: Starter }) {
               value="overview"
               className="flex flex-col gap-6 outline-none"
             >
-              <Detail title="Create it">
-                <CommandLine command={command} />
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyWithLibraryToast(
-                        starterPrompt(starter),
-                        "Agent prompt copied.",
-                      )
-                    }
-                    className={cn(
-                      button,
-                      "bg-foreground text-background hover:bg-foreground/90",
-                    )}
-                  >
-                    <BotIcon aria-hidden />
-                    Copy agent prompt
-                  </button>
-                </div>
-              </Detail>
-              <dl className="grid grid-cols-2 gap-4 text-sm">
-                {facts.map(([label, value]) => (
-                  <div key={label} className="flex flex-col gap-1">
-                    <dt className="text-muted-foreground text-xs">{label}</dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
+              <RowGroup title="Install">
+                <GroupRow
+                  icon={<TerminalIcon aria-hidden />}
+                  label="Install command"
+                  value={
+                    <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
+                      {command}
+                    </span>
+                  }
+                  action={
+                    <LibraryCopyButton
+                      text={command}
+                      label="Copy install command"
+                      className="-me-1.5"
+                    />
+                  }
+                />
+                <GroupRow
+                  icon={<BotIcon aria-hidden />}
+                  label="Agent prompt"
+                  value={<span className="truncate">{prompt}</span>}
+                  action={
+                    <LibraryCopyButton
+                      text={prompt}
+                      label="Copy agent prompt"
+                      className="-me-1.5"
+                    />
+                  }
+                />
+              </RowGroup>
+              <RowGroup title="Stack">
+                <GroupRow
+                  icon={<ShapesIcon aria-hidden />}
+                  label="Type"
+                  value={
+                    <span className="text-foreground">
+                      {starter.kind === "template" ? "Template" : "Example"}
+                    </span>
+                  }
+                />
+                <GroupRow
+                  icon={<AppWindowIcon aria-hidden />}
+                  label="Framework"
+                  value={<StackValue names={[starter.framework]} />}
+                />
+                <GroupRow
+                  icon={<CpuIcon aria-hidden />}
+                  label="Runtime"
+                  value={
+                    <StackValue
+                      names={starter.runtime ? [starter.runtime] : []}
+                    />
+                  }
+                />
+                <GroupRow
+                  icon={<PlugIcon aria-hidden />}
+                  label="Integrations"
+                  value={<StackValue names={starter.integrations ?? []} />}
+                />
+              </RowGroup>
             </Tabs.Panel>
 
             <Tabs.Panel value="setup" className="outline-none">
-              <ol className="flex flex-col gap-5">
+              <ol className="flex flex-col">
                 <Step number={1} title="Create the project">
                   <CommandLine command={command} />
                 </Step>
                 <Step number={2} title="Set its environment variables">
                   {starter.env.length > 0 ? (
                     <>
+                      <CommandLine command="cd my-app && cp .env.example .env.local" />
                       <p className="text-muted-foreground text-sm">
-                        Start from the project&apos;s{" "}
-                        <span className="font-mono text-xs">.env.example</span>.
+                        Then set these in{" "}
+                        <span className="font-mono text-xs">.env.local</span>:
                       </p>
                       <CodeList items={starter.env} />
                     </>
                   ) : (
-                    <p className="text-muted-foreground text-sm">
-                      None to set.
-                    </p>
+                    <>
+                      <CommandLine command="cd my-app" />
+                      <p className="text-muted-foreground text-sm">
+                        It needs no environment variables.
+                      </p>
+                    </>
                   )}
                 </Step>
                 <Step number={3} title="Start it">
                   <CommandLine
-                    command={`cd my-app && npm run ${starter.devScript ?? "dev"}`}
+                    command={`npm run ${starter.devScript ?? "dev"}`}
                   />
+                </Step>
+                <Step number={4} title="Open it">
+                  <OpenStep starter={starter} />
                 </Step>
               </ol>
             </Tabs.Panel>
@@ -402,7 +534,7 @@ function StarterDetails({ starter }: { starter: Starter }) {
   );
 }
 
-/** `starter` stays set while the sheet closes, so its content holds through the exit animation. */
+/** `starter` stays set while the drawer closes, so its content holds through the exit animation. */
 export function StarterSheet({
   starter,
   open,
@@ -414,18 +546,15 @@ export function StarterSheet({
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
-        <Dialog.Popup
-          ref={popupRef}
-          tabIndex={-1}
-          initialFocus={popupRef}
-          className="bg-background ring-foreground/10 fixed inset-y-2 right-2 z-50 flex w-[min(36rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-xl shadow-xl ring-1 transition-transform duration-200 outline-none data-ending-style:translate-x-[calc(100%+1rem)] data-starting-style:translate-x-[calc(100%+1rem)] motion-reduce:transition-none"
-        >
-          {starter ? <StarterDetails starter={starter} /> : null}
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <LibraryDrawer open={open} onOpenChange={onOpenChange}>
+      <LibraryDrawerContent
+        ref={popupRef}
+        tabIndex={-1}
+        initialFocus={popupRef}
+        className="w-[30rem]"
+      >
+        {starter ? <StarterDetails starter={starter} /> : null}
+      </LibraryDrawerContent>
+    </LibraryDrawer>
   );
 }

@@ -2807,3 +2807,25 @@ export const starterId = ({ name, kind }: Starter): string =>
 
 export const starterPrompt = (starter: Starter): string =>
   agentSetupPrompt([], `Start from the \`${starter.name}\` ${starter.kind}`);
+
+/** Where to see a starter once it is running: a local address, or how to open it when it isn't a web page. */
+export const starterOpen = (
+  starter: Starter,
+): { url: string } | { text: string } => {
+  switch (starter.framework) {
+    case "Expo":
+      return {
+        text: "Press w in the terminal to open it in your browser, or scan the QR code with Expo Go.",
+      };
+    case "VS Code":
+      return {
+        text: "Open the folder in VS Code and press F5. An Extension Development Host window opens with the Assistant view.",
+      };
+    case "Ink":
+      return { text: "It runs in your terminal." };
+    case "React Router":
+      return { url: "http://localhost:5173" };
+    default:
+      return { url: "http://localhost:3000" };
+  }
+};
