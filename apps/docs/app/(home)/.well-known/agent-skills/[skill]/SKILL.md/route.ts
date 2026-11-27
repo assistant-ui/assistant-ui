@@ -11,11 +11,13 @@ type Context = { params: Promise<{ skill: string }> };
 
 const SKILLS_PATH = "/.well-known/agent-skills";
 
-// The known skills as markdown pages. missingMarkdownResponse links each as
-// `${url}.md`, so the url stops before `.md` and the link lands on SKILL.md.
+// The known skills as markdown pages. The url ends in the skill name, because
+// nearestPages matches the requested name against a url's last segment, and
+// href points the link at the skill's SKILL.md.
 function skillPages() {
   return listSkills().map((skill) => ({
-    url: `${SKILLS_PATH}/${skill.name}/SKILL`,
+    url: `${SKILLS_PATH}/${skill.name}`,
+    href: `${SKILLS_PATH}/${skill.name}/SKILL.md`,
     data: { title: skill.name, description: skill.description },
   }));
 }

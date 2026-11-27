@@ -15,6 +15,8 @@ export async function getDocsMarkdown(
 
 type MarkdownPage = {
   url: string;
+  // Where the markdown 404 links the page, when that isn't `${url}.md`.
+  href?: string;
   data: { title: string; description?: string | undefined };
 };
 
@@ -156,7 +158,8 @@ export function missingMarkdownResponse(
           : "";
         const query =
           search && page.url.startsWith("/docs") ? `?${search}` : "";
-        return `- [${page.data.title}](${page.url}.md${query})${description}`;
+        const href = page.href ?? `${page.url}.md${query}`;
+        return `- [${page.data.title}](${href})${description}`;
       }),
     );
   }
