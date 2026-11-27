@@ -324,4 +324,67 @@ describe("external-store synthesized error messages", () => {
     expect(runtime.composer.text).toBe("revised");
     expect(setMessages).toHaveBeenCalledExactlyOnceWith(original);
   });
+
+  it("keeps the old conversation out of Stop when a send arrives before the reset snapshot", async () => {
+    const { store, setMessages } = cancellableStore();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      store([u1, a1]),
+    );
+
+    runtime.reset();
+    runtime.__internal_setAdapter(store([u2], { isRunning: true }));
+    expect(runtime.messages.filter((m) => !m.metadata.isOptimistic)).toEqual([
+      u2,
+    ]);
+
+    runtime.cancelRun();
+    const stoppedMessages = runtime.messages;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect.soft(stoppedMessages.map((m) => m.id)).toEqual([]);
+    expect.soft(runtime.messages.map((m) => m.id)).toEqual([]);
+    expect(runtime.composer.text).toBe("second");
+    expect(
+      setMessages.mock.calls.map(([messages]) => messages.map((m) => m.id)),
+    ).toEqual([[], []]);
+  });
+
+  it.each([
+    { timing: "before", publishHistory: true },
+    { timing: "with", publishHistory: false },
+  ])(
+    "keeps the previous conversation out of Stop when the host switches $timing the send snapshot",
+    async ({ publishHistory }) => {
+      const { store, setMessages } = cancellableStore();
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        store([u1, a1]),
+      );
+      const current = [u2, a2];
+
+      if (publishHistory) {
+        runtime.__internal_setAdapter(store(current));
+        expect(runtime.messages).toEqual(current);
+      }
+      runtime.__internal_setAdapter(
+        store([...current, editedUser], { isRunning: true }),
+      );
+      expect(runtime.messages.filter((m) => !m.metadata.isOptimistic)).toEqual([
+        ...current,
+        editedUser,
+      ]);
+
+      runtime.cancelRun();
+      const stoppedMessages = runtime.messages;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect.soft(stoppedMessages.map((m) => m.id)).toEqual(["u2", "a2"]);
+      expect.soft(runtime.messages.map((m) => m.id)).toEqual(["u2", "a2"]);
+      expect(runtime.composer.text).toBe("revised");
+      expect(
+        setMessages.mock.calls.map(([messages]) => messages.map((m) => m.id)),
+      ).toEqual([["u2", "a2"]]);
+    },
+  );
 });
