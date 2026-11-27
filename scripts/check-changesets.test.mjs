@@ -978,6 +978,70 @@ test("deleting published source requires a changeset", () => {
   }
 });
 
+test("copied cloud harness starter files require an assistant-ui changeset", (t) => {
+  const root = createWorkspace('---\n"@fixture/held": patch\n---\n');
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const write = (file, content) => {
+    mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    writeFileSync(path.join(root, file), content);
+  };
+  write(
+    "packages/cli/package.json",
+    JSON.stringify({
+      name: "assistant-ui",
+      version: "1.0.0",
+      files: ["templates/cloud-harness"],
+    }),
+  );
+  const starter = "templates/cloud-harness";
+  const edited = `${starter}/app/page.tsx`;
+  const deleted = `${starter}/vendor/runtime.tgz`;
+  const added = `${starter}/.env.example`;
+  write(edited, "old page");
+  write(deleted, "old archive");
+  git(root, "init", "-q", "-b", "main");
+  const base = commitAll(root, "base");
+
+  write(added, "PUBLIC_KEY=");
+  write(edited, "new page");
+  rmSync(path.join(root, deleted));
+  for (const file of [
+    "nested/.next/cache.js",
+    "node_modules/mod/index.js",
+    ".turbo/log",
+    "dist/output",
+    "coverage/report",
+    "out/page.html",
+    "build/output",
+    ".vercel/project.json",
+    "nested/.DS_Store",
+    ".assistant-ui/cloud.json",
+    ".assistant-ui/provision.json",
+    "next-env.d.ts",
+    ".env",
+    ".env.local",
+    "nested/project.tsbuildinfo",
+  ])
+    write(`${starter}/${file}`, "local");
+  write("templates/other/app/page.tsx", "other starter");
+  git(root, "add", "-f", "templates");
+  const head = commitAll(root, "change starter");
+  assert.deepEqual(runChangedPackageCheck(root, base, head), {
+    changedSourceCount: 3,
+    parseErrors: [],
+    missingChangesets: [
+      { name: "assistant-ui", files: [added, edited, deleted], fields: [] },
+    ],
+  });
+  write(".changeset/starter.md", '---\n"assistant-ui": patch\n---\n');
+  const covered = commitAll(root, "cover starter");
+  assert.deepEqual(runChangedPackageCheck(root, base, covered), {
+    changedSourceCount: 3,
+    parseErrors: [],
+    missingChangesets: [],
+  });
+});
+
 test("published code outside src requires a changeset", () => {
   const root = createWorkspace(
     '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
