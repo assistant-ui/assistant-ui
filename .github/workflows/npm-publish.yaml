@@ -250,16 +250,27 @@ jobs:
             exit 1
           fi
 
+      - name: Checkout the changeset helper from the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .github/release-tools
+          sparse-checkout: /scripts/pending-changesets.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Validate no pending changesets
-        run: |
-          pending=$(find .changeset -name '*.md' ! -name 'README.md' | sort)
-          if [ -n "$pending" ]; then
-            echo "::error::Release SHA has pending changesets, so changesets/action would update the version PR instead of publishing."
-            echo "::error::Merge the version PR first, then dispatch with its merge commit as releaseSha."
-            echo "Pending changesets:"
-            echo "$pending"
-            exit 1
-          fi
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        with:
+          script: |
+            const { pendingChangesets } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/release-tools/scripts/pending-changesets.mjs`
+            );
+            const pending = pendingChangesets();
+            if (pending.length > 0) {
+              core.setFailed("Release SHA has pending changesets. Merge the version PR first, then dispatch with its merge commit as releaseSha.");
+              core.info(pending.join("\n"));
+            }
 
       - name: Resolve publish targets
         id: targets
