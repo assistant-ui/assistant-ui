@@ -150,12 +150,7 @@ export async function downloadProject(
     downloadStarted = true;
     await withStagedDownload(
       source,
-      {
-        dir: currentStagingDir,
-        force: true,
-        silent: true,
-      },
-      "Download timed out. The download can take longer on slow connections. Set ASSISTANT_UI_DOWNLOAD_TIMEOUT (ms) to override the limit or try again.",
+      { dir: currentStagingDir, force: true, silent: true },
       removeStagingDir,
       async (download) => {
         await download;

@@ -3,9 +3,7 @@ import { downloadTemplate } from "giget";
 // setTimeout clamps larger delays to 1 ms.
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
-export function resolveDownloadTimeoutMs(
-  override = process.env.ASSISTANT_UI_DOWNLOAD_TIMEOUT,
-): number {
+export function resolveDownloadTimeoutMs(override: string | undefined): number {
   if (override) {
     const parsed = Number(override);
     if (Number.isFinite(parsed) && parsed > 0 && parsed <= MAX_TIMER_DELAY_MS) {
@@ -15,7 +13,17 @@ export function resolveDownloadTimeoutMs(
   return 120_000;
 }
 
-export const DOWNLOAD_TIMEOUT_MS = resolveDownloadTimeoutMs();
+export const DOWNLOAD_TIMEOUT_MS = resolveDownloadTimeoutMs(
+  process.env.ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS,
+);
+
+export class DownloadTimeoutError extends Error {
+  constructor() {
+    super(
+      "Download timed out. The download can take longer on slow connections. Set ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS to override the limit in milliseconds, or try again.",
+    );
+  }
+}
 
 export function resolveGitHubAuthToken(): string | undefined {
   const token =
@@ -27,7 +35,6 @@ export function resolveGitHubAuthToken(): string | undefined {
 export async function withStagedDownload<T>(
   source: string,
   options: NonNullable<Parameters<typeof downloadTemplate>[1]>,
-  timeoutMessage: string,
   cleanup: () => void | Promise<void>,
   consumeDownload: (download: Promise<unknown>) => Promise<T>,
 ): Promise<T> {
@@ -49,7 +56,7 @@ export async function withStagedDownload<T>(
     let timer: ReturnType<typeof setTimeout>;
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
-        () => reject(new Error(timeoutMessage)),
+        () => reject(new DownloadTimeoutError()),
         DOWNLOAD_TIMEOUT_MS,
       );
     });

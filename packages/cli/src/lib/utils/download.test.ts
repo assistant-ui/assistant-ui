@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { resolveDownloadTimeoutMs } from "./download";
 
 describe("resolveDownloadTimeoutMs", () => {
@@ -21,4 +21,15 @@ describe("resolveDownloadTimeoutMs", () => {
     expect(resolveDownloadTimeoutMs("2147483647")).toBe(2_147_483_647);
     expect(resolveDownloadTimeoutMs("9999999999")).toBe(120_000);
   });
+});
+
+it("reads the timeout override from ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS", async () => {
+  vi.stubEnv("ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS", "45000");
+  try {
+    vi.resetModules();
+    const { DOWNLOAD_TIMEOUT_MS } = await import("./download");
+    expect(DOWNLOAD_TIMEOUT_MS).toBe(45_000);
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

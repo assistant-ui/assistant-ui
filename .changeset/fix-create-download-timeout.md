@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-Increase the `create` command download timeout from 30 s to 120 s and support an `ASSISTANT_UI_DOWNLOAD_TIMEOUT` environment variable (ms) for further tuning. Cold-cache runs on slower connections were failing because the full monorepo tarball (~58 MB) could not complete within the previous limit. The timeout error message is updated to describe the actual cause.
+Increase the download timeout for `create` and `agent` from 30 seconds to 120 seconds so downloads can finish on slow connections. Set `ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS` to override the timeout in milliseconds. Both commands show this setting when a download times out.

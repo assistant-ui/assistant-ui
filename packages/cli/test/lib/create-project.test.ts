@@ -221,9 +221,13 @@ describe("downloadProject", () => {
       timeout: 1_000,
     });
     try {
-      const rejection = expect(result).rejects.toThrow("Download timed out");
-      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
-      await rejection;
+      const rejection = expect(result).rejects.toThrow(
+        /Download timed out.*ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS\b/,
+      );
+      await Promise.all([
+        rejection,
+        vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS),
+      ]);
       fs.rmSync(destDir, { recursive: true, force: true });
     } finally {
       finishDownload();

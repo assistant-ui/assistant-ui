@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { withStagedDownload } from "./utils/download";
+import { DownloadTimeoutError, withStagedDownload } from "./utils/download";
 import { dlxCommand, type PackageManagerName } from "./utils/package-manager";
 
 export const SKILLS_PACKAGE = "assistant-ui/skills";
@@ -70,10 +70,10 @@ export async function ensureSkillsPlugin(): Promise<string> {
   await withStagedDownload(
     SKILLS_PLUGIN_SOURCE,
     { dir: staging, preferOffline: true, silent: true },
-    "Download timed out.",
     removeStaging,
     async (download) => {
       await download.catch((error: unknown) => {
+        if (error instanceof DownloadTimeoutError) throw error;
         throw new Error(
           "Could not fetch the assistant-ui skills from GitHub. Check your network, or set GITHUB_TOKEN if you are rate limited.",
           { cause: error },
