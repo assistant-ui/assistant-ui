@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AssistantRuntimeProvider, AuiConfig } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 const connectors = [
   defineConnector({
@@ -16,7 +17,9 @@ const connectors = [
 
 export function Providers({ children }: { children: ReactNode }) {
   const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}

@@ -1,0 +1,115 @@
+name: Docs Exam
+
+# A fresh reader that may open only the docs pages answers the docs-exam
+# questions, and an LLM judge grades each answer against a reference written
+# from the code (evals/src/suites/docs-exam). The job summary lists the
+# reader's "the docs conflict" sentences and the answers that missed a key
+# point, for a person to turn into cards.
+#
+# Runs the held-out skim exam every Sunday, and any exam by hand. One held-out
+# skim run makes about 200 model calls (a reader and a judge per question),
+# about $18 at API prices. Like claude-review, it runs on the project's Claude
+# plan through assistant-billing, which records that cost but bills nothing
+# (decision: #10926).
+on:
+  # Sunday 07:17 UTC, when PR reviews, which share the plan, are quietest.
+  schedule:
+    - cron: "17 7 * * 0"
+  workflow_dispatch:
+    inputs:
+      exam:
+        description: "heldout (100 questions sampled by reader volume) or concept (the 38 that drove the concept fixes)"
+        type: choice
+        options: [heldout, concept]
+        default: heldout
+      reader:
+        description: "skim (three pages from the sidebar, no search) or deep (reads and searches freely)"
+        type: choice
+        options: [skim, deep]
+        default: skim
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-exam
+  cancel-in-progress: false
+
+env:
+  BILLING_API: https://api.assistant-billing.dev
+  BILLING_PROJECT: proj_0ltyjcuaxpv1
+  BILLING_GATEWAY: https://gateway.assistant-billing.dev
+
+jobs:
+  exam:
+    name: Docs exam
+    # The job holds a billing key, so it runs only code from main, never from a dispatched branch.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    # A scheduled run has no inputs, so it takes the defaults.
+    env:
+      EXAM: ${{ inputs.exam || 'heldout' }}
+      READER: ${{ inputs.reader || 'skim' }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
+        with:
+          node-version-file: package.json
+
+      # The suite's runner uses only Node built-ins, so it needs no workspace install.
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.332
+
+      # Same short-lived key exchange as claude-review: the job trades its
+      # GitHub OIDC token at assistant-billing for a key that reaches only the
+      # messages endpoints and is served on the Claude plan. assistant-billing's
+      # docs-exam rule gives it an hour, the job's own timeout, and a $50 cap at
+      # API rates, above a held-out deep run (about $26).
+      - name: Get a short-lived model key
+        id: model-key
+        run: |
+          OIDC=$(curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$BILLING_API" | jq -r .value)
+          echo "::add-mask::$OIDC"
+          KEY=$(curl -fsS -X POST "$BILLING_API/oidc/github/token" \
+            -H "Authorization: Bearer $OIDC" -H "content-type: application/json" \
+            -d "{\"project_id\":\"$BILLING_PROJECT\"}" | jq -r .key)
+          echo "::add-mask::$KEY"
+          [[ "$KEY" == temp_ab_* ]] || { echo "::error::assistant-billing refused the key exchange"; exit 1; }
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Run the exam
+        env:
+          ANTHROPIC_API_KEY: ${{ steps.model-key.outputs.key }}
+          ANTHROPIC_BASE_URL: ${{ env.BILLING_GATEWAY }}
+          # A CI runner isn't a busy laptop; 8 at a time keeps a held-out run near 5 minutes, inside the key's lifetime.
+          EXAM_CONCURRENCY: "8"
+        # pipefail keeps tee from hiding a failed run; run-exam.ts exits 1 when no question was graded.
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/docs-exam"
+          node evals/src/suites/docs-exam/run-exam.ts --exam "$EXAM" --reader "$READER" \
+            --out "$RUNNER_TEMP/docs-exam/$EXAM-$READER.json" | tee "$RUNNER_TEMP/docs-exam/$EXAM-$READER.log"
+
+      - name: Write the findings to the job summary
+        if: always()
+        run: |
+          f="$RUNNER_TEMP/docs-exam/$EXAM-$READER.gaps.md"
+          [ -f "$f" ] && cat "$f" >> "$GITHUB_STEP_SUMMARY" || echo "No findings file was written." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the answers and findings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: docs-exam-${{ env.EXAM }}-${{ env.READER }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/docs-exam/
+          retention-days: 90

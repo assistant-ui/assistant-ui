@@ -13,10 +13,12 @@ import {
 } from "./agent-setup-prompt";
 
 describe("agent setup prompt", () => {
-  it("is the bare prompt for the default setup", () => {
+  it("names the setup command even for the default setup", () => {
     expect(AGENT_SETUP_PROMPT).toBe("install and set up assistant-ui");
-    expect(agentSetupPrompt()).toBe(AGENT_SETUP_PROMPT);
-    expect(agentSetupPrompt(["assistant-ui"])).toBe(AGENT_SETUP_PROMPT);
+    expect(agentSetupPrompt()).toBe(
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+    );
+    expect(agentSetupPrompt(["assistant-ui"])).toBe(agentSetupPrompt());
   });
 
   it("names the products of a product setup", () => {
@@ -27,7 +29,7 @@ describe("agent setup prompt", () => {
 
   it("adds notes after the prompt", () => {
     expect(agentSetupPrompt(["assistant-ui"], " Use spec mode. ")).toBe(
-      "install and set up assistant-ui. Use spec mode.",
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`. Use spec mode.",
     );
   });
 

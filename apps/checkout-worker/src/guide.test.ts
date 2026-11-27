@@ -136,9 +136,12 @@ describe("buildGuide", () => {
   it("asks contextual entry points before the plan", () => {
     const text = briefing({ started: "user", opened: true });
     expect(text).toContain("only 1–3 sensible alternatives");
-    expect(text.indexOf("--entry-points")).toBeLessThan(
-      text.indexOf("plan --file"),
+    const ask = text.search(
+      /^\s*\{\{cmd\}\} \{\{url\}\} ask "[^"\n]+" --entry-points /m,
     );
+    const plan = text.search(/^\s*\{\{cmd\}\} \{\{url\}\} plan --file /m);
+    expect(ask).toBeGreaterThanOrEqual(0);
+    expect(plan).toBeGreaterThan(ask);
   });
 });
 
@@ -155,6 +158,14 @@ describe("GET /<link>/guide", () => {
       },
       NEW_LINKS: {
         limit: () => {
+          throw new Error("the guide needs no durable object");
+        },
+      },
+      SETUP_STATS: {
+        idFromName: () => {
+          throw new Error("the guide needs no durable object");
+        },
+        get: () => {
           throw new Error("the guide needs no durable object");
         },
       },

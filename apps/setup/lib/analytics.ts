@@ -1,4 +1,5 @@
 import type { WizardPageId } from "@/components/wizard/setup-wizard-page";
+import { agentKindName } from "@/lib/agents";
 
 type Properties = Record<string, string | number | boolean>;
 
@@ -17,23 +18,146 @@ export type SetupErrorReason =
   | "session_unreadable"
   | "answer_failed";
 
+/** Events captured before PostHog finished loading; a page without PostHog (no key, Global Privacy Control) keeps at most this many and sends none. */
+const pendingEvents: [event: string, properties: Properties | undefined][] = [];
+const MAX_PENDING_EVENTS = 50;
+
 const trackEvent = (event: string, properties?: Properties) => {
   if (typeof window === "undefined") return;
-  window.posthog?.capture?.(event, properties);
+  const capture = window.posthog?.capture;
+  if (capture) capture(event, properties);
+  else if (pendingEvents.length < MAX_PENDING_EVENTS)
+    pendingEvents.push([event, properties]);
+};
+
+/** Sends what the page captured before PostHog loaded, such as the first page's view and the link shown; `Analytics` calls it once PostHog runs. */
+export const flushPendingEvents = () => {
+  const capture = window.posthog?.capture;
+  if (!capture) return;
+  for (const [event, properties] of pendingEvents.splice(0))
+    capture(event, properties);
+};
+
+/** The agent kind as analytics records it: one this page names, else `other`; nothing before the CLI reports one. */
+export const trackedAgentKind = (kind: string | null | undefined) =>
+  kind == null ? undefined : agentKindName(kind) ? kind : "other";
+
+const agentKindProperty = (kind: string | null | undefined) => {
+  const tracked = trackedAgentKind(kind);
+  return tracked === undefined ? {} : { agent_kind: tracked };
+};
+
+const reportedKey = "aui-setup-reported";
+/** What each setup already reported, by setup id, oldest setup first. */
+type Reported = Record<string, string[]>;
+/** How many setups the record keeps; older ones drop off. */
+const MAX_REMEMBERED_SETUPS = 10;
+let reportedInMemory: Reported = {};
+/** False once a write to storage failed; the tab then trusts its own record. */
+let persisted = true;
+
+const readReported = (): Reported => {
+  if (!persisted) return reportedInMemory;
+  try {
+    const raw = window.localStorage.getItem(reportedKey);
+    if (raw === null) return {};
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null || Array.isArray(value))
+      return {};
+    return Object.fromEntries(
+      Object.entries(value).flatMap(([setup, keys]) =>
+        Array.isArray(keys)
+          ? [[setup, keys.filter((key) => typeof key === "string")]]
+          : [],
+      ),
+    );
+  } catch {
+    return reportedInMemory;
+  }
+};
+
+/**
+ * True the first time `key` happens for `setup` in this browser. PostHog runs
+ * without storage here, so every tab and reload is a new visitor; remembering
+ * what each setup already reported keeps a milestone at one event per setup,
+ * however many tabs the agent opened or how often the page reconnected. The
+ * record keeps the last `MAX_REMEMBERED_SETUPS` setups. Reports go through
+ * `claimForSetup`, which holds a lock across this origin's tabs.
+ */
+export const firstForSetup = (setup: string, key: string) => {
+  if (typeof window === "undefined") return false;
+  const stored = readReported();
+  const keys = Object.hasOwn(stored, setup) ? stored[setup]! : [];
+  if (keys.includes(key)) return false;
+  const others = Object.entries(stored).filter(([id]) => id !== setup);
+  reportedInMemory = Object.fromEntries([
+    ...others.slice(-(MAX_REMEMBERED_SETUPS - 1)),
+    [setup, [...keys, key]],
+  ]);
+  try {
+    window.localStorage.setItem(reportedKey, JSON.stringify(reportedInMemory));
+    persisted = true;
+  } catch {
+    // Storage can be blocked or full; this tab still reports each milestone once.
+    persisted = false;
+  }
+  return true;
+};
+
+type Locks = {
+  request: (name: string, callback: () => void) => Promise<unknown>;
+};
+
+/**
+ * Calls `report` with whether this is the first time `key` happens for
+ * `setup`. Two tabs on one setup can see the same moment (the agent's `done`
+ * reaches both), so the read and write of the record run under a Web Lock
+ * shared by this origin's tabs. Without Web Locks it runs at once; then two
+ * tabs claiming in the same instant can both report.
+ */
+const claimForSetup = (
+  setup: string,
+  key: string,
+  report: (first: boolean) => void,
+) => {
+  if (typeof window === "undefined") return;
+  const locks = (navigator as { locks?: Locks }).locks;
+  if (locks === undefined) {
+    report(firstForSetup(setup, key));
+    return;
+  }
+  locks
+    .request(reportedKey, () => report(firstForSetup(setup, key)))
+    .catch(() => {
+      // A page without lock access still reports, unlocked.
+      report(firstForSetup(setup, key));
+    });
 };
 
 /** The setup's events, named as they were on the docs site so the funnels carry on. */
 export const analytics = {
   setup: {
+    /** The page opened on an agent's link and asks the user to connect; the start of every setup the browser sees. */
+    linkShown: (setup: string) =>
+      claimForSetup(setup, "link_shown", (first) => {
+        if (first) trackEvent("setup_link_shown");
+      }),
+
     linkConfirmed: () => trackEvent("setup_link_confirmed"),
 
     linkDeclined: () => trackEvent("setup_link_declined"),
 
-    stepViewed: (props: {
-      step: WizardPageId;
-      step_index: number;
-      ms_on_previous_step?: number;
-    }) => trackEvent("setup_step_viewed", props),
+    stepViewed: (
+      setup: string,
+      props: {
+        step: WizardPageId;
+        step_index: number;
+        ms_on_previous_step?: number;
+      },
+    ) =>
+      claimForSetup(setup, `view:${props.step}`, (first) =>
+        trackEvent("setup_step_viewed", { ...props, first_view: first }),
+      ),
 
     inputAnswered: (props: {
       kind: string;
@@ -66,12 +190,76 @@ export const analytics = {
         reason: "unknown_product",
       }),
 
-    error: (props: { reason: SetupErrorReason; step?: WizardPageId }) =>
-      trackEvent("setup_error", props),
+    /** With a `setup`, once per setup, reason and step: a page that reconnects after every sleep, or an agent that comes and goes, is one problem, not one per flap. */
+    error: ({
+      setup,
+      agentKind,
+      ...props
+    }: {
+      reason: SetupErrorReason;
+      step?: WizardPageId;
+      setup?: string;
+      agentKind?: string | null;
+    }) => {
+      const send = () =>
+        trackEvent("setup_error", {
+          ...props,
+          ...agentKindProperty(agentKind),
+        });
+      if (setup === undefined) send();
+      else
+        claimForSetup(
+          setup,
+          `error:${props.reason}:${props.step ?? ""}`,
+          (first) => {
+            if (first) send();
+          },
+        );
+    },
 
-    agentConnected: () => trackEvent("setup_agent_connected"),
+    /** `default_products` tells a setup the bare prompt started (`npx assistant-ui@latest setup`, assistant-ui alone) from one a product's prompt started with `--products`. */
+    agentConnected: (
+      setup: string,
+      props: {
+        agentKind: string | null | undefined;
+        products: readonly string[];
+      },
+    ) => {
+      claimForSetup(setup, "agent_connected", (first) => {
+        if (!first) return;
+        trackEvent("setup_agent_connected", {
+          product_count: props.products.length,
+          default_products:
+            props.products.length === 1 && props.products[0] === "assistant-ui",
+          ...agentKindProperty(props.agentKind),
+        });
+      });
+    },
 
-    installFinished: () => trackEvent("setup_install_finished"),
+    /** The agent installed every step and proposed closing (`done`). The user closing the setup afterwards is `setup_closed`. */
+    installFinished: (
+      setup: string,
+      props: {
+        agentKind: string | null | undefined;
+        steps: number;
+        preview: boolean;
+      },
+    ) => {
+      claimForSetup(setup, "install_finished", (first) => {
+        if (!first) return;
+        trackEvent("setup_install_finished", {
+          steps: props.steps,
+          preview: props.preview,
+          ...agentKindProperty(props.agentKind),
+        });
+      });
+    },
+
+    /** The setup closed as finished: the user pressed Finish, or the page saw it closed from elsewhere. */
+    closed: (setup: string) =>
+      claimForSetup(setup, "closed", (first) => {
+        if (first) trackEvent("setup_closed");
+      }),
 
     cancelled: () => trackEvent("setup_cancelled"),
   },

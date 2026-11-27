@@ -3,7 +3,7 @@ title: AI SDK v7
 description: Integrate Vercel AI SDK v7 with assistant-ui for streaming chat.
 ---
 
-This page covers the current integration, which requires `ai@^7` and `@ai-sdk/react@^4`. For older versions see the [overview](/docs/runtimes/ai-sdk/overview).
+This page covers the current integration, which requires `ai@^7.0.101` and `@ai-sdk/react@^4`. For older versions see the [overview](/docs/runtimes/ai-sdk/overview).
 
 ## Quickstart
 
@@ -48,17 +48,17 @@ npm init -y
 <PlatformTabs>
 <Tab value="React">
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk", "ai@^7", "@ai-sdk/react@^4", "@ai-sdk/openai", "zod"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk", "ai@^7.0.101", "@ai-sdk/react@^4", "@ai-sdk/openai", "zod"]} />
 
 </Tab>
 <Tab value="React Native">
 
-<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk", "ai@^7", "@ai-sdk/react@^4", "@ai-sdk/openai", "zod"]} />
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk", "ai@^7.0.101", "@ai-sdk/react@^4", "@ai-sdk/openai", "zod"]} />
 
 </Tab>
 <Tab value="React Ink">
 
-<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/ai-sdk", "ai@^7", "@ai-sdk/react@^4", "@ai-sdk/openai", "zod", "ink", "react"]} />
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/ai-sdk", "ai@^7.0.101", "@ai-sdk/react@^4", "@ai-sdk/openai", "zod", "ink", "react"]} />
 
 </Tab>
 </PlatformTabs>
@@ -70,6 +70,8 @@ npm init -y
 
 For React Native and Ink, host this route in a separate backend project and
 point the client runtime at its absolute URL.
+
+For a local model or another OpenAI-compatible server, create the provider with its address, `createOpenAI({ baseURL, apiKey })` from `@ai-sdk/openai`, and use `provider.chat("<model id>")` when the server only speaks Chat Completions. Pass any non-empty `apiKey` to a server that needs none, since the provider otherwise reads `OPENAI_API_KEY` and fails when it's unset.
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -117,6 +119,8 @@ export async function POST(req: Request) {
 
 ### Set up the frontend
 
+The React example renders the `Thread` component from the assistant-ui registry. In a project without a `components.json`, run `npx shadcn@latest init` first. Then add `"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"` under `registries` in `components.json` and run `npx shadcn@latest add @assistant-ui/thread`; [Manual Installation](/docs/manual-installation#manual-setup) walks through it.
+
 <PlatformTabs>
 <Tab value="React">
 
@@ -131,7 +135,7 @@ export default function Home() {
   const runtime = useChatRuntime();
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="h-full">
+      <div className="h-dvh">
         <Thread />
       </div>
     </AssistantRuntimeProvider>
@@ -228,7 +232,7 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 ## Frontend tools and system messages
 
-`AssistantChatTransport` (used by default) forwards system messages and frontend tools to your backend on every request. Consume them with `frontendTools`:
+`AssistantChatTransport` (used by default) forwards system messages and frontend tools to your backend on every request. The system message holds the instructions the page registers, for example with `useAssistantInstructions`, and arrives as the `system` field of the request body; pass it to `streamText` as `instructions`, v7's name for the deprecated `system` option. Consume frontend tools with `frontendTools`:
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -255,7 +259,7 @@ export async function POST(req: Request) {
   const result = streamText({
     abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
   });
@@ -336,6 +340,8 @@ export async function POST(req: Request) {
       deploy: (input) =>
         input.target === "production" ? "user-approval" : "not-applicable",
     },
+    // Signs each approval request; see "Sign approval requests" below.
+    experimental_toolApprovalSecret: process.env.TOOL_APPROVAL_SECRET,
   });
 
   return createUIMessageStreamResponse({
@@ -440,6 +446,16 @@ export default function Page() {
 
 See the [tool UI guide](/docs/tools/tool-ui#server-side-approval-gates) for the full three-state semantics of `approval.approved` and the `isAutomatic` flag.
 
+### Sign approval requests
+
+The approval answer comes back inside the message history the client posts, and the server runs whatever approved call it finds there. Set `experimental_toolApprovalSecret` so it runs only calls it asked about:
+
+- **What it protects.** The server signs each approval request with the secret, over the tool name, call id and input. When the answer comes back, it checks the signature before running the tool. An approval whose input the client changed, or an approved call the server never requested, fails with `InvalidToolApprovalSignatureError` and the tool does not run.
+- **How to set it.** Use a random string of at least 32 characters, for example from `openssl rand -hex 32`, kept in a server-only environment variable such as `TOOL_APPROVAL_SECRET`. Every server instance needs the same value. Changing it invalidates approvals that are still pending.
+- **Without it.** The server trusts the posted history. A client can edit a pending call's input, or post an approval for a call the model never made, and the tool runs with any input that passes its `inputSchema` and your approval policy (`toolApproval`, or the tool's own `needsApproval`).
+- **What it does not cover.** The signature does not record that a call already ran. A client that posts the same approved call again without its result runs the tool again, so make tools with side effects idempotent, for example by keying them on the tool call id.
+- **Version.** Use `ai` 7.0.178 or later. Earlier releases also signed the requests that a `toolApproval` policy denied on its own, so a client could turn those into approvals.
+
 ## Quote context
 
 assistant-ui's composer can attach quote metadata to user messages (e.g. when the user selects text and clicks "Quote"). On the server, `injectQuoteContext` flattens that metadata into a markdown blockquote prefix so the LLM sees the quoted text:
@@ -530,7 +546,7 @@ const modelId = useAuiState(
 
 ## Attachments
 
-Attachments work through the standard [attachment adapter](/docs/runtimes/concepts/adapters#attachment-adapter). Pass it via `useChatRuntime`:
+Attachments work through the standard [attachment adapter](/docs/concepts/adapters#attachment-adapter). Pass it via `useChatRuntime`:
 
 ```tsx
 const runtime = useChatRuntime({
@@ -538,7 +554,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-Your attachment adapter's `send` should return `content` parts in the AI SDK shape, e.g. for files:
+Your attachment adapter's `send` returns `content` parts in assistant-ui's message part shape, not the AI SDK's; the runtime converts each one to an AI SDK file part (`mediaType` and `url`) before the request reaches your route. For files:
 
 ```ts
 return {
@@ -555,7 +571,33 @@ return {
 };
 ```
 
-For images, use `{ type: "image", image: <data url or remote url> }`. AI SDK will pass these to providers that accept multimodal content.
+For images, use `{ type: "image", image: <data url or remote url> }`. `SimpleImageAttachmentAdapter` from `@assistant-ui/react` already returns this shape. The AI SDK passes both to providers that accept multimodal content.
+
+## Start a thread with initial messages
+
+`useChatRuntime` takes the AI SDK's `messages` option, the same one `useChat` takes. Pass `UIMessage` objects to open the chat on a greeting or a seeded conversation:
+
+```tsx
+"use client";
+
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import type { UIMessage } from "ai";
+
+const initialMessages: UIMessage[] = [
+  {
+    id: "welcome",
+    role: "assistant",
+    parts: [{ type: "text", text: "Hi! Ask me anything about your order." }],
+  },
+];
+
+function Chat() {
+  const runtime = useChatRuntime({ messages: initialMessages });
+  // ...
+}
+```
+
+The runtime passes its options to every thread it opens, so each new thread starts from these messages. To bring back a user's own conversation after a reload, persist it with a history adapter instead, as the next section shows; a thread that already holds messages skips the adapter's `load()`, so use one or the other. With `LocalRuntime` the same option is called [`initialMessages`](/docs/runtimes/custom/local-runtime#start-with-initial-messages).
 
 ## Persisting chat history
 
@@ -807,7 +849,7 @@ When enabled (the default), sending a new message marks any pending interactive 
 | Dictation | `adapters.dictation` |
 | Feedback | `adapters.feedback` |
 | History | `adapters.history` (must implement `withFormat`) |
-| threadList | Via `cloud` (managed) or [RemoteThreadListRuntime](/docs/runtimes/concepts/threads) (custom DB) |
+| threadList | Via `cloud` (managed) or [RemoteThreadListRuntime](/docs/integrations/persistence/thread-list-adapters#remotethreadlistruntime-custom-database) (custom DB) |
 
 ## Key changes from v5
 
@@ -816,7 +858,7 @@ When enabled (the default), sending a new message marks any pending interactive 
 | `ai` package | `ai@^5` | `ai@^7` |
 | `@ai-sdk/react` | `@ai-sdk/react@^2` | `@ai-sdk/react@^4` |
 | `convertToModelMessages` | Sync | Async (`await`) |
-| Response | `result.toUIMessageStreamResponse()` | `createUIMessageStreamResponse()` with `toUIMessageStream()` |
+| Response | `result.toUIMessageStreamResponse()` | `createUIMessageStreamResponse()` with `toUIMessageStream()` (used in this guide); the older `result.toUIMessageStreamResponse()` still runs on v7 but is deprecated |
 
 ## Example
 
@@ -830,12 +872,12 @@ For responses that should survive a page reload mid-stream, see [Resumable strea
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, and suggestions."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
   <Card
     title="Threads"
     description="Single-thread, AssistantCloud, custom thread list."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/concepts/threads"
   />
   <Card
     title="Resumable streams"

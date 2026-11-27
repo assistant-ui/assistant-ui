@@ -95,7 +95,7 @@ it("wires the docs assistant onto its own endpoint with no cloud", () => {
 
   expect(runtimeOptions().api).toBe("/api/doc/chat");
   expect(runtimeOptions().cloud).toBeUndefined();
-  expect(runtimeOptions().sendAutomatically).toBe(true);
+  expect(runtimeOptions().sendAutomatically).toBeUndefined();
   expect(runtimeOptions().adapters?.attachments).toBeInstanceOf(
     SimpleImageAttachmentAdapter,
   );

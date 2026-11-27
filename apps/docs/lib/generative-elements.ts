@@ -22,3 +22,9 @@ export function getGenerativeElement(
 ): GenerativeElement | undefined {
   return GENERATIVE_ELEMENTS.find((entry) => entry.slug === slug);
 }
+
+export const GENERATIVE_USAGE = `import { renderGenerativeUI } from "@assistant-ui/generative-ui/react";
+
+<div data-aui-theme="elements">
+  {renderGenerativeUI(spec, library, { status: "done" })}
+</div>`;

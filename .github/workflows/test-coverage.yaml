@@ -6,9 +6,11 @@ on:
     paths:
       - "packages/**"
       - "apps/**"
+      - "api-surface/*.ts"
       - "examples/**"
       - "templates/**"
       - "evals/**"
+      - "python/**"
       - "scripts/coverage-shards.mjs"
       - "scripts/coverage-shards.test.mjs"
       - "scripts/coverage-runtimes.mjs"
@@ -19,6 +21,7 @@ on:
       - "scripts/test-coverage-contract.test.mjs"
       - "scripts/vitest-waitfor-interval.mjs"
       - "scripts/lib/**"
+      - ".gitignore"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -68,9 +71,11 @@ jobs:
           if [ -n "$BASE" ] && git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null && git diff --quiet "$BASE" HEAD -- \
             packages \
             apps \
+            ':(glob)api-surface/*.ts' \
             examples \
             templates \
             evals \
+            python \
             scripts/coverage-shards.mjs \
             scripts/coverage-shards.test.mjs \
             scripts/coverage-runtimes.mjs \
@@ -81,6 +86,7 @@ jobs:
             scripts/test-coverage-contract.test.mjs \
             scripts/vitest-waitfor-interval.mjs \
             scripts/lib \
+            .gitignore \
             turbo.json \
             package.json \
             pnpm-lock.yaml \

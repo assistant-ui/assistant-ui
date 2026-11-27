@@ -121,7 +121,7 @@ const THREAD_COMPONENTS: ThreadComponents = {
 
 ### Restyle the shell
 
-`Thread` sets `--thread-max-width`, `--composer-bg`, `--composer-radius`, and `--composer-padding` as inline styles directly on `ThreadPrimitive.Root`. Because they are set there rather than inherited, overriding them means editing your copy of `thread.aui.tsx`, not layering a class from outside:
+Theme colors, radius, fonts and dark mode come from your CSS variables; [Styling, Themes and Dark Mode](/docs/guides/styling) covers those and the other ways to change the look. `Thread` sets `--thread-max-width`, `--composer-bg`, `--composer-radius`, and `--composer-padding` as inline styles directly on `ThreadPrimitive.Root`. Because they are set there rather than inherited, overriding them means editing your copy of `thread.aui.tsx`, not layering a class from outside:
 
 ```tsx
 style={{

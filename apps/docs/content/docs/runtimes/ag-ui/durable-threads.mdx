@@ -14,10 +14,10 @@ The Python `assistant-stream` package ships the server side for Pydantic AI as `
 ## Install
 
 ```sh
-pip install "assistant-stream[pydantic-ai]>=0.0.37" uvicorn
+pip install "assistant-stream[pydantic-ai]>=0.0.37" "pydantic-ai-slim[openai]" uvicorn
 ```
 
-Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs `assistant-stream` 0.0.37 or later and Python 3.11 or later.
+`pydantic-ai-slim[openai]` is for the OpenAI model below; install the extra for your own provider instead. Add the `redis` and `postgres` extras for production: `"assistant-stream[pydantic-ai,redis,postgres]"`. The adapter needs `assistant-stream` 0.0.37 or later and Python 3.11 or later.
 
 ## Server
 
@@ -27,7 +27,8 @@ from starlette.applications import Starlette
 from assistant_stream.pydantic_ai import DurableAGUI, SqliteThreadStore
 
 agent = Agent("openai:gpt-5.4-mini", instructions="You are a helpful assistant.")
-durable = DurableAGUI(agent, threads=SqliteThreadStore("threads.db"))
+threads = SqliteThreadStore("threads.db")
+durable = DurableAGUI(agent, threads=threads)
 
 app = Starlette(routes=durable.routes())
 ```
@@ -84,7 +85,7 @@ durable = DurableAGUI(
 )
 ```
 
-`run_context` opens a resource for exactly one run, such as an MCP session. It returns an async context manager. The run enters it when it starts and exits it when the run finishes or is cancelled, in the task that runs it, so it stays open after the browser disconnects. It can yield a dict of extra `run_stream` arguments, which override `run_options`.
+`run_context` opens a resource for exactly one run, such as an MCP session. It returns an async context manager. The run enters it when it starts and exits it when the run finishes or is cancelled, in the task that runs it, so it stays open after the browser disconnects. It can yield a dict of extra `run_stream` arguments, which override `run_options`. `MCPToolset` needs Pydantic AI's MCP extra: `pip install "pydantic-ai-slim[mcp]"`.
 
 ```python
 from contextlib import asynccontextmanager
@@ -264,6 +265,7 @@ The example runs this way when `NEXT_PUBLIC_ASSISTANT_BASE_URL` is set. It uses 
 | `streams` | every AG-UI frame of the active run | in memory (default) | Redis |
 
 ```python title="main.py"
+import os
 from contextlib import asynccontextmanager
 
 from redis.asyncio import Redis
@@ -277,8 +279,8 @@ from assistant_stream.resumable import (
 
 @asynccontextmanager
 async def lifespan(app):
-    threads = await PostgresThreadStore.connect(DATABASE_URL)  # creates aui_threads
-    redis = Redis.from_url(REDIS_URL)
+    threads = await PostgresThreadStore.connect(os.environ["DATABASE_URL"])  # creates aui_threads
+    redis = Redis.from_url(os.environ["REDIS_URL"])
     streams = create_resumable_stream_context(
         store=create_redis_resumable_stream_store(redis),
         ttl_ms=60 * 60 * 1000,

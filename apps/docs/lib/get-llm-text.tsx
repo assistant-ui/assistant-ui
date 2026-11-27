@@ -12,6 +12,7 @@ import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { LLM_COMPONENTS } from "@/lib/llm-components";
+import { describeDemo } from "@/lib/demo-description";
 import { DEFAULT_PLATFORM, type Platform } from "@/lib/constants";
 import type {
   design,
@@ -95,12 +96,114 @@ function getLLMVariant(type: unknown): StaticFunctionComponent | undefined {
 
 function componentDisplayName(type: unknown): string {
   if (type == null) return "";
-  const named = type as { displayName?: unknown; name?: unknown };
+  const named = type as {
+    displayName?: unknown;
+    name?: unknown;
+    $$id?: unknown;
+  };
   if (typeof named.displayName === "string" && named.displayName)
     return named.displayName;
   if (typeof named.name === "string" && named.name) return named.name;
+  // A client reference's id is `<module>#<export>`; lazy wrappers have no
+  // name of their own, but their export does.
+  if (typeof named.$$id === "string") {
+    const exportName = named.$$id.split("#").pop();
+    if (exportName && exportName !== "default" && exportName !== "*")
+      return exportName;
+  }
   return "";
 }
+
+const installCommand = (command: string, packages: unknown) =>
+  Array.isArray(packages) && packages.length > 0 ? (
+    <pre>
+      <code className="language-bash">{`${command} ${packages.join(" ")}`}</code>
+    </pre>
+  ) : null;
+
+// Client components that server components render directly, or that MDX
+// imports itself, never pass through the MDX component map. These are keyed by
+// export name; a variant returns undefined when the props are not the shape it
+// knows, and the generic fallback takes over.
+const CLIENT_LLM_VARIANTS: Record<
+  string,
+  (props: Record<string, unknown>, children: ReactNode) => ReactNode
+> = {
+  PackageManagerTabs: ({ packages }) => installCommand("npm install", packages),
+  ExpoInstallTabs: ({ packages }) =>
+    installCommand("npx expo install", packages),
+  // The API reference overview's context tree: one nested list item per
+  // component, with its link, props, tooltip and the contexts it provides.
+  Component: (
+    { name, docsLink, tooltip, props, providedContexts },
+    children,
+  ) => {
+    if (typeof name !== "string") return undefined;
+    const label = (
+      <code>{typeof props === "string" ? `<${name} ${props}>` : name}</code>
+    );
+    const provides = (
+      Array.isArray(providedContexts) ? providedContexts : []
+    ).flatMap((context: { name?: unknown; link?: unknown }) =>
+      typeof context.name !== "string"
+        ? []
+        : [
+            typeof context.link === "string" ? (
+              <a key={context.name} href={context.link}>
+                {context.name}
+              </a>
+            ) : (
+              context.name
+            ),
+          ],
+    );
+    return (
+      <ul>
+        <li>
+          {typeof docsLink === "string" ? (
+            <a href={docsLink}>{label}</a>
+          ) : (
+            label
+          )}
+          {typeof tooltip === "string" ? ` — ${tooltip}` : null}
+          {provides.length > 0 ? (
+            <>
+              {". Provides: "}
+              {provides.map((context, i) => (
+                <Fragment key={i}>
+                  {i > 0 ? ", " : null}
+                  {context}
+                </Fragment>
+              ))}
+            </>
+          ) : null}
+          {children}
+        </li>
+      </ul>
+    );
+  },
+  ContextLevel: ({ color }, children) =>
+    typeof color === "string" ? <>{children}</> : undefined,
+  // fumadocs file trees: one nested list, folders ending in `/`.
+  Files: (_props, children) =>
+    isEmptyNode(children) ? undefined : <ul>{children}</ul>,
+  Folder: ({ name }, children) =>
+    typeof name === "string" ? (
+      <li>
+        <code>{`${name}/`}</code>
+        {isEmptyNode(children) ? null : <ul>{children}</ul>}
+      </li>
+    ) : undefined,
+  File: ({ name }) =>
+    typeof name === "string" ? (
+      <li>
+        <code>{name}</code>
+      </li>
+    ) : undefined,
+};
+
+// Props a demo carries only to describe itself in agent markdown.
+const DEMO_DESCRIPTION_PROPS = new Set(["description", "title", "aria-label"]);
 
 // Safety net for server components that throw because of transitive
 // client-only API use. Stack frames are more durable than error messages.
@@ -142,6 +245,7 @@ function getStaticEntries(props: Record<string, unknown>) {
   return Object.entries(props).filter(
     ([key, value]) =>
       !OMITTED_STATIC_PROP_NAMES.has(key) &&
+      !key.endsWith("ClassName") &&
       !key.startsWith("on") &&
       value != null &&
       typeof value !== "boolean" &&
@@ -295,16 +399,35 @@ async function resolveStaticReactNode(
     if (typeof href === "string" && href) {
       return <a href={href}>{resolvedChildren}</a>;
     }
+    const clientName = componentDisplayName(element.type);
+    if (Object.hasOwn(CLIENT_LLM_VARIANTS, clientName)) {
+      const rendered = CLIENT_LLM_VARIANTS[clientName]!(
+        props,
+        resolvedChildren,
+      );
+      if (rendered !== undefined) return rendered;
+    }
+    // Client highlighters take their source as a `code` prop; keep it a fenced
+    // block instead of a flattened `code` entry.
+    const code = props.code;
+    const language = props.language ?? props.lang;
+    if (typeof code === "string" && code.trim() && typeof language === "string")
+      return (
+        <pre>
+          <code className={`language-${language}`}>{code}</code>
+        </pre>
+      );
+    // A live demo that only describes itself becomes that one line.
+    const staticEntries = getStaticEntries(props);
+    if (
+      isEmptyNode(resolvedChildren) &&
+      staticEntries.every(([key]) => DEMO_DESCRIPTION_PROPS.has(key))
+    ) {
+      return <p>{describeDemo(clientName, props)}</p>;
+    }
     const fallback = await renderClientFallback(props, resolvedChildren, ctx);
     if (!isEmptyNode(fallback)) return fallback;
-    const name = componentDisplayName(element.type);
-    return (
-      <p>
-        {name
-          ? `[interactive preview component ${name} omitted]`
-          : "[interactive preview omitted]"}
-      </p>
-    );
+    return <p>{describeDemo(clientName)}</p>;
   }
 
   if (typeof element.type === "function") {

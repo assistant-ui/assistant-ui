@@ -1,0 +1,519 @@
+{
+  "model": "sonnet",
+  "reader": "skim",
+  "docs": "5439bc338 plus this PR",
+  "results": [
+    {
+      "id": "q01",
+      "concept": "runtime",
+      "question": "What is a \"runtime\" in assistant-ui? What does it do, and what does it leave to my app?",
+      "answer": "A runtime holds your chat's state and moves the conversation forward. You create one with a hook, such as `useLocalRuntime` or `useChatRuntime` (Vercel AI SDK), and pass it to `AssistantRuntimeProvider`. Components never call your backend; they read runtime state and send actions like send, edit, regenerate and cancel.\n\nIt manages the open thread's messages and status, composer text and attachments, runs and cancellation, and edit/regeneration branches. It also manages the thread list once you give it somewhere to store threads.\n\nYou own the backend, model calls, API keys, server-side tools and their access, thread storage (via an adapter or Assistant Cloud), and the components. Pass abort signals to your model call so cancellation stops generation.\n\n`LocalRuntime` keeps messages itself. With `ExternalStoreRuntime`, which also underlies framework runtimes, your store or framework holds, adds and streams messages. With a direct external store, you supply handlers such as `onEdit` and `onCancel`.\n\nPages: docs/concepts/runtime.md",
+      "pages": ["docs/concepts/runtime.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 6,
+      "exitCode": 0,
+      "cost": 0.1320765
+    },
+    {
+      "id": "q02",
+      "concept": "runtime-choice",
+      "question": "My Next.js app already calls the Vercel AI SDK v7's streamText in an API route. Which runtime should the client use, and what does the route have to return for it to work?",
+      "answer": "Use `useChatRuntime` from `@assistant-ui/ai-sdk`, pass the runtime to `AssistantRuntimeProvider`, and render `<Thread />`. The page requires `ai@^7` and `@ai-sdk/react@^4`. Its default `AssistantChatTransport` takes an `api` option for a non-default endpoint.\n\nYour route should accept `messages` (`UIMessage[]`), pass `await convertToModelMessages(messages)` to `streamText`, and return:\n\n`createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })`\n\nThis replaces v5's `result.toUIMessageStreamResponse()`. The examples also pass `abortSignal: req.signal`.\n\nThe transport also sends `system` and frontend `tools`. To use them, pass `system` to `streamText` and spread `frontendTools(tools)` into its tools. Also give those tools to `convertToModelMessages`. For multi-step tool calls, set `stopWhen`, such as `stepCountIs(10)`.\n\nIf you need the `useChat` instance itself, use `useAISDKRuntime(chat)`. It lacks `cloud` and the higher-level adapter slots.\n\nPages: docs/runtimes/ai-sdk/v7.md",
+      "pages": ["docs/runtimes/ai-sdk/v7.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 7,
+      "exitCode": 0,
+      "cost": 0.1710029
+    },
+    {
+      "id": "q03",
+      "concept": "runtime-cores",
+      "question": "What is the difference between LocalRuntime and ExternalStoreRuntime, and when would I pick each?",
+      "answer": "LocalRuntime and ExternalStoreRuntime differ mainly in who owns the chat state.\n\n**LocalRuntime** keeps state inside assistant-ui by default. You pass `useLocalRuntime` a `ChatModelAdapter` with one `run` function that calls your backend; to stream, make it `async *` and yield the full content so far. The runtime handles messages, branching, editing, regeneration and cancellation. Persistence and multiple threads use adapters, `cloud` or a custom `RemoteThreadListAdapter`.\n\n**ExternalStoreRuntime** keeps state in your store. You pass `useExternalStoreRuntime` your `messages` and a required `onNew`, plus `convertMessage` for custom formats. You update messages yourself. Optional handlers enable features: `setMessages` (branch switching), `onEdit`, `onReload` and `onCancel`.\n\nPick LocalRuntime if you have no existing store and want the quickest setup. Pick ExternalStoreRuntime if messages already live in Redux, Zustand or TanStack Query, or you want full control of persistence and synchronization. For supported frameworks, the docs direct you to their runtime or guide.\n\nPages: docs/runtimes/pick-a-runtime.md, docs/runtimes/custom/local-runtime.md, docs/runtimes/custom/external-store.md",
+      "pages": [
+        "docs/runtimes/custom/local-runtime.md",
+        "docs/runtimes/custom/external-store.md",
+        "docs/runtimes/pick-a-runtime.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.2537571
+    },
+    {
+      "id": "q04",
+      "concept": "custom-backend",
+      "question": "My agent is a Python service I wrote myself. What are my options for connecting assistant-ui to it, and how do I choose between them?",
+      "answer": "If your service already speaks AG-UI or A2A, use that runtime; AG-UI explicitly covers custom servers. Otherwise:\n\n- **`LocalRuntime`:** you write a `ChatModelAdapter.run` function, typically around `fetch`, and assistant-ui keeps state.\n- **`ExternalStoreRuntime`:** choose this if messages already live in your frontend store, such as Redux or Zustand. You supply messages and action handlers.\n- **Data Stream:** simplest for streaming messages. Use `useDataStreamRuntime`; in Python, use `assistant-stream`'s `create_run` and `DataStreamResponse`, and set `protocol: \"data-stream\"`. It inherits `LocalRuntime` features, except its human-in-the-loop tools; use `LocalRuntime` directly for those.\n- **Assistant Transport:** use `useAssistantTransportRuntime` to stream agent state or handle custom commands. You write the endpoint and state `converter`. Editing is opt-in; speech, dictation and suggestions aren't exposed. With Cloud, reopened threads still need your backend to send their state.\n\nPages: docs/runtimes/pick-a-runtime.md, docs/runtimes/custom/data-stream.md, docs/runtimes/custom/assistant-transport.md",
+      "pages": [
+        "docs/runtimes/pick-a-runtime.md",
+        "docs/runtimes/custom/data-stream.md",
+        "docs/runtimes/custom/assistant-transport.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 11,
+      "exitCode": 0,
+      "cost": 0.20888030000000002
+    },
+    {
+      "id": "q05",
+      "concept": "langgraph",
+      "question": "How does assistant-ui connect to a LangGraph agent, and where does the conversation state live in that setup?",
+      "answer": "assistant-ui connects through `@assistant-ui/react-langgraph`, which works directly with `@langchain/langgraph-sdk`. In the manual setup, you create a `Client` and pass a stream from `unstable_createLangGraphStream({ client, assistantId })` to `useLangGraphRuntime`. You also supply `create` (makes a LangGraph thread) and `load` (reads its messages and interrupts with `client.threads.getState`). Pass the runtime to `AssistantRuntimeProvider`, around `<Thread />`. In production, proxy requests through your backend to protect the API key, and add authentication and thread-ownership checks. The React template instead uses `useStreamRuntime` from `@assistant-ui/react-langchain`.\n\nThe graph's state is the source of truth. The UI renders `state.values.messages` and submits user input to the graph. `useLangGraphState` mirrors that state, but live updates require adding `\"values\"` to `streamMode`. `useLangGraphSetState` changes are local until the next run. Custom `stream` callbacks must forward `config.state` themselves.\n\nPages: docs/runtimes/langgraph/overview.md, docs/runtimes/langgraph/agent-state.md",
+      "pages": [
+        "docs/runtimes/langgraph/overview.md",
+        "docs/runtimes/langgraph/threads.md",
+        "docs/runtimes/langgraph/agent-state.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.1728671
+    },
+    {
+      "id": "q06",
+      "concept": "thread-state",
+      "question": "With a basic useChatRuntime setup and nothing else configured, where do the messages of a conversation live, and what happens to them when the user reloads the page?",
+      "answer": "With a bare `useChatRuntime()`, messages live only in memory. The runtime holds a single thread (one conversation) until you give it somewhere to keep threads. When the user reloads, the messages reset and a new conversation starts. The pages describe no default saving to browser storage or to a server. The quickstart's chat route receives the messages and streams a response, and its sample code shows no saving.\n\nTo change this:\n- **One thread that survives reload:** pass a `ThreadHistoryAdapter` as `adapters.history`. It must implement `withFormat`, with `load` and `append` inside it, or it throws at runtime.\n- **A managed thread list:** pass `cloud` (`useChatRuntime({ cloud })`), which stores messages in Assistant Cloud.\n- **Your own database:** use `useRemoteThreadListRuntime` with a `RemoteThreadListAdapter`.\n\nFor a response still streaming during reload, the docs point to resumable streams. I didn't open that guide. The docs I read don't say what happens to an in-flight response under the basic setup.\n\nPages: docs/runtimes/ai-sdk/v7.md, docs/concepts/threads.md",
+      "pages": ["docs/runtimes/ai-sdk/v7.md", "docs/concepts/threads.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.1819099
+    },
+    {
+      "id": "q07",
+      "concept": "persistence",
+      "question": "I want users to see their past conversations in a sidebar and come back to them later. What are my options for storing threads, and what do I have to build for each?",
+      "answer": "For a sidebar of past conversations, you have three options. Memory only (the default) loses threads on reload, and a history adapter alone keeps just one.\n\n1. **Assistant Cloud:** pass `cloud`, e.g. `useChatRuntime({ cloud })`; AG-UI and A2A use `useCloudThreadListRuntime`. It handles the list, titles and syncing, with no database code. Message storage varies by runtime.\n2. **Your database:** wrap your runtime in `useRemoteThreadListRuntime`. Build a `RemoteThreadListAdapter` (`list`, `initialize`, `fetch`, `rename`, `archive`, `delete`, `generateTitle`; optional `unarchive`), endpoints, user authorization and tables. For messages, supply a `ThreadHistoryAdapter` through `unstable_useAdapters` (AI SDK needs `withFormat`), unless your backend already keeps transcripts. Await `initialize()` before appending; add `update` to preserve pending approvals.\n3. **Your store, with `ExternalStoreRuntime`:** supply `ExternalStoreThreadListAdapter`: current ID, thread lists, and switch/new/rename/archive/delete callbacks. You manage messages; these pages don't explain durable storage.\n\nFor the sidebar, use the ThreadList element or `ThreadListPrimitive`.\n\nPages: docs/concepts/threads.md, docs/integrations/persistence/thread-list-adapters.md, docs/integrations/persistence/custom-adapter.md",
+      "pages": [
+        "docs/concepts/threads.md",
+        "docs/integrations/persistence/thread-list-adapters.md",
+        "docs/integrations/persistence/custom-adapter.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 10,
+      "exitCode": 0,
+      "cost": 0.2147529
+    },
+    {
+      "id": "q08",
+      "concept": "thread-list-vs-history",
+      "question": "What is the difference between the thread list and a thread's message history? Which part of assistant-ui loads the messages of a thread when the user opens it?",
+      "answer": "The **thread list** holds many conversations and handles switching, creating, renaming, archiving and deleting them. Each item has an id and status, plus a title and last-message time once known. A **thread** is one conversation: its messages, composer and current run. With `RemoteThreadListAdapter`, `list()` and `fetch()` handle only metadata, not messages.\n\nLoading depends on your setup:\n\n- **Your database with a history adapter:** the per-thread `ThreadHistoryAdapter.load()` returns the messages. You supply it through the thread list adapter's `unstable_useAdapters`. It runs once per mount. With the `RemoteThreadList` store entry, use `withKey` so switching remounts the thread.\n- **Backend-owned transcripts**, such as LangGraph: the runtime loads them from that backend.\n- **Assistant Cloud:** `useLocalRuntime` and the AI SDK runtime keep messages there. These pages don't name the loading component.\n- **`ExternalStoreRuntime`:** your store holds the messages, and you pass them in; the runtime renders them.\n\nThe docs I read don't say which internal part calls `load()`.\n\nPages: docs/concepts/threads.md, docs/integrations/persistence/thread-list-adapters.md",
+      "pages": [
+        "docs/concepts/threads.md",
+        "docs/integrations/persistence/thread-list-adapters.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 10,
+      "exitCode": 0,
+      "cost": 0.1695238
+    },
+    {
+      "id": "q09",
+      "concept": "cloud",
+      "question": "What does Assistant Cloud do for an assistant-ui app, and is it required?",
+      "answer": "Assistant Cloud is the hosted backend for assistant-ui apps. It provides thread lists, conversation storage, titles from the first user message, engagement events, feedback, and a dashboard. It also offers analysis features such as topics and sentiment. Attachment support and reporting depend on your runtime.\n\nYou usually pass an `AssistantCloud` instance as `cloud`, for example `useChatRuntime({ cloud })`. AG-UI and A2A use `useCloudThreadListRuntime`. On Next.js, setting `NEXT_PUBLIC_ASSISTANT_BASE_URL` creates an anonymous client for you, although some runtimes, including OpenCode, Pi and Eve, need `cloud` passed explicitly.\n\nLangGraph, LangChain, ADK and some others keep the transcript on your backend. The cloud holds a copy, and run data requires exported traces.\n\nIt isn't required. By default, one in-memory thread resets on reload. A history adapter can persist that thread. For multiple threads in your own storage, use `useRemoteThreadListRuntime` with a `RemoteThreadListAdapter`, or `ExternalStoreThreadListAdapter` with `ExternalStoreRuntime`.\n\nPages: docs/cloud.md, docs/concepts/threads.md, docs/cloud/runtimes.md",
+      "pages": [
+        "docs/cloud.md",
+        "docs/concepts/threads.md",
+        "docs/cloud/runtimes.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.15356950000000003
+    },
+    {
+      "id": "q10",
+      "concept": "message-parts",
+      "question": "What is an assistant-ui message made of? Name the kinds of content parts a message can contain.",
+      "answer": "An assistant-ui message has a role (`user`, `assistant` or `system`) and a list of content parts, kept in the order they arrived. It also has an `id`, a `createdAt` time and `metadata`, including a `custom` object for your own data. Assistant messages have a `status`: `running`, `complete`, `incomplete` or `requires-action`. User messages can carry attachments, which an attachment adapter turns into parts such as `image` or `file`.\n\nEach part has a `type`:\n- **Content:** `text`, `image` and `file`. A `file` carries other media, such as audio or PDFs, identified by `mimeType`.\n- **Model output:** `reasoning`, `source`, `tool-call` (tool name, arguments and, after it runs, the result) and `generative-ui`.\n- **Your own data:** `data`, distinguished by a `name` you choose.\n\n`MessagePrimitive.Parts` renders parts one by one. The styled Thread element doesn't render `source` or `generative-ui`, so you render those yourself.\n\nPages: docs/concepts/messages.md",
+      "pages": ["docs/concepts/messages.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 6,
+      "exitCode": 0,
+      "cost": 0.1266201
+    },
+    {
+      "id": "q11",
+      "concept": "message-status",
+      "question": "What statuses can an assistant message have, and what does each one mean?",
+      "answer": "An assistant message's `status` has one of four types:\n\n- **`running`**: parts are still arriving.\n- **`complete`**: the model finished its answer. The `reason` is `stop`, or `unknown` if a stored message didn't record how its run ended.\n- **`incomplete`**: the run stopped early, and any parts that arrived are kept. The `reason` explains why:\n  - `cancelled`: the user stopped it.\n  - `error`: the backend failed; the error is on the status.\n  - `length`, `content-filter`, `tool-calls`, `other`: the model's own finish reason is passed on. For example, `length` means it hit its output limit.\n- **`requires-action`**: the run is waiting. With reason `tool-calls`, a tool call needs your app's result or the user's approval. With `interrupt`, the run paused to ask the user something, such as a frontend tool needing input mid-run or an AG-UI interrupt.\n\nWhile streaming, each message part also reports its own status. The page I read doesn't list those values.\n\nPages: docs/concepts/messages.md",
+      "pages": ["docs/concepts/messages.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 6,
+      "exitCode": 0,
+      "cost": 0.1271983
+    },
+    {
+      "id": "q12",
+      "concept": "reasoning",
+      "question": "How does a model's reasoning (\"thinking\") reach the screen, and how is it shown differently from the answer text?",
+      "answer": "Your backend has to send the reasoning. It arrives as a `reasoning` part in the assistant message, separate from the answer's `text` parts. Parts keep their arrival order, the runtime updates them as they stream, and your components draw them.\n\nWith an AI SDK route, `toUIMessageStreamResponse` forwards reasoning by default (`sendReasoning`). Many providers return it only when asked, for example through OpenAI's `reasoningSummary`. The guide's sample route doesn't set that option. LangGraph's runtime converts `thinking` and `reasoning` blocks into `reasoning` parts.\n\nThe styled Thread element handles reasoning. The registry's Reasoning element shows a collapsible block that opens during reasoning and closes when the answer starts.\n\nFor custom layouts, `MessagePrimitive.Parts` renders each part. `MessagePrimitive.GroupedParts` with `groupPartByType` can group adjacent reasoning and tool calls. The guide's example uses `ReasoningRoot`, `ReasoningTrigger`, `ReasoningContent` and `ReasoningText`, while answer text uses `MarkdownText`. `ChainOfThoughtPrimitive`-based approaches are legacy.\n\nPages: docs/concepts/messages.md, docs/guides/chain-of-thought.md",
+      "pages": ["docs/concepts/messages.md", "docs/guides/chain-of-thought.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.14197130000000002
+    },
+    {
+      "id": "q13",
+      "concept": "part-rendering",
+      "question": "How do I control how each kind of message part (text, images, tool calls) is rendered in my message component?",
+      "answer": "In your message component, pass a render function as the children of `<MessagePrimitive.Parts>`. It receives `{ part }`, and you branch on `part.type`:\n\n- **Text:** return your own component, using `MessagePartPrimitive.Text` inside it. `MessagePartPrimitive.InProgress` renders only while streaming.\n- **Images:** return your own component; `MessagePartPrimitive.Image` renders the image.\n- **Tool calls:** return `part.toolUI ?? <GenericToolUI {...part} />`.\n- **Data:** return `part.dataRendererUI ?? null`.\n\nRegister per-tool UIs with a `render` function on toolkit entries, using `Tools({ toolkit })` passed through `AuiConfig` to `AssistantRuntimeProvider`. For tools defined elsewhere, such as on your backend, the entry can be render-only.\n\nReturning `null` still lets registered tool and data UIs render; return `<></>` to suppress them. For adjacent grouping, use `MessagePrimitive.GroupedParts` with `groupBy`. The `components` prop is deprecated.\n\nPages: docs/primitives/message.md, docs/tools/tool-ui.md",
+      "pages": ["docs/primitives/message.md", "docs/tools/tool-ui.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.17251640000000001
+    },
+    {
+      "id": "q14",
+      "concept": "editing",
+      "question": "What happens, step by step, when a user edits one of their earlier messages?",
+      "answer": "1. **Open:** `ActionBarPrimitive.Edit` calls `aui.composer.beginEdit()`. An edit composer opens with the message's text; your render function shows it when `message.composer.isEditing` is true. Only one can be active. This doesn't cancel a running response; check `s.thread.isRunning` to prevent editing then.\n2. **Cancel:** `ComposerPrimitive.Cancel` exits and restores the original.\n3. **Send:** `ComposerPrimitive.Send` submits a new version, creating a branch. The original and later messages are preserved.\n4. **Respond:** The assistant generates a fresh response from that point. With `ExternalStoreRuntime`, you implement this in `onEdit`. The example keeps messages through `message.parentId`, adds the edit, calls `setMessages`, sets `isRunning`, calls the backend, appends the reply, then clears `isRunning`. If using a queue, clear it.\n5. **Switch:** `BranchPickerPrimitive` moves between versions; external stores need `setMessages`. `LocalRuntime` stores the whole tree.\n\nFor other runtimes' backend requests, and what happens to an in-progress run after sending, the docs don't say.\n\nPages: docs/guides/editing.md, docs/guides/branching.md, docs/runtimes/custom/external-store.md",
+      "pages": [
+        "docs/guides/editing.md",
+        "docs/guides/branching.md",
+        "docs/runtimes/custom/external-store.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 11,
+      "exitCode": 0,
+      "cost": 0.20850670000000002
+    },
+    {
+      "id": "q15",
+      "concept": "branching",
+      "question": "What is a branch in assistant-ui, and how does the user move between branches?",
+      "answer": "In assistant-ui, a branch is an alternative version of a message that you can switch back to. Editing a user message creates one, as does reloading (regenerating) an assistant reply, for example with `ActionBarPrimitive.Reload`. Each branch has its own content parts. `LocalRuntime` keeps the whole tree. With `ExternalStoreRuntime`, your store holds one path in `messages`. The runtime keeps replaced messages as branches and calls your `setMessages` when the user switches. You can supply an existing tree through `messageRepository`.\n\nUsers switch with `BranchPickerPrimitive`, placed inside `MessagePrimitive.Root`. It has `Root`, `Previous`, `Next`, `Number` and `Count`. `Previous` and `Next` disable at the first and last branch, and during runs unless the runtime supports `switchBranchDuringRun`. `hideWhenSingleBranch` hides an unnecessary picker. The shadcn Thread component includes one under both user and assistant messages. In code, call `aui.message.switchToBranch({ branchId })`, using `useAui`, within a message context.\n\nPages: docs/guides/branching.md, docs/primitives/branch-picker.md",
+      "pages": ["docs/guides/branching.md", "docs/primitives/branch-picker.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 7,
+      "exitCode": 0,
+      "cost": 0.1385829
+    },
+    {
+      "id": "q16",
+      "concept": "regenerate",
+      "question": "What happens when the user asks to regenerate (reload) an assistant reply? Is the previous reply lost?",
+      "answer": "Regenerating doesn't overwrite the old reply. Reloading creates a new branch on the same assistant message and re-runs from there, so you can switch between the old and new versions.\n\n- **Reload button:** `ActionBarPrimitive.Reload` is disabled while `thread.isRunning` or `thread.isDisabled` is true.\n- **Switching versions:** Put `BranchPickerPrimitive.Root` in your message component, with `Previous`, `Next`, `Number` and `Count`. `hideWhenSingleBranch` is also available. In code, call `aui.message.switchToBranch({ branchId })` inside a message context. The arrows are disabled during a run unless the runtime supports `switchBranchDuringRun`.\n- **Storage:** `LocalRuntime` keeps the whole tree. With `ExternalStoreRuntime`, your store holds one path in `messages`. When regeneration replaces its end, the runtime keeps the old messages as another branch and calls `setMessages` when the user switches. Use `messageRepository` to supply an existing tree.\n\nThe docs don't say whether branches survive a page refresh, or how other runtimes store them.\n\nPages: docs/guides/branching.md",
+      "pages": [
+        "docs/guides/branching.md",
+        "docs/guides/editing.md",
+        "docs/runtimes/pick-a-runtime.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.14625110000000002
+    },
+    {
+      "id": "q17",
+      "concept": "external-store-edit",
+      "question": "I use ExternalStoreRuntime and the edit button on user messages doesn't appear. Why, and what do I have to provide?",
+      "answer": "The button is most likely missing because your adapter has no `onEdit`. `ExternalStoreRuntime` turns UI features on according to which callbacks you pass. Pass `onEdit: (message: AppendMessage) => Promise<void>` to `useExternalStoreRuntime`, alongside `messages` and the required `onNew`.\n\nIn `onEdit`, following the docs' example:\n1. Keep messages up to and including the one whose ID is `message.parentId`.\n2. Append the edited user message using `message.content`.\n3. Save that array to your store.\n4. Set `isRunning`, call your backend, append the reply, then clear `isRunning`.\n\nTo switch between the original and edited branches, also provide `setMessages`.\n\nWith custom primitives, render `ActionBarPrimitive.Edit` inside `ActionBarPrimitive.Root` in your user message. When `message.composer.isEditing` is true, render an edit composer using `ComposerPrimitive.Input`, `.Cancel` and `.Send`.\n\nAlso check `isDisabled`: it disables message editing. The docs I read don't say whether it hides the button.\n\nPages: docs/runtimes/custom/external-store.md, docs/guides/editing.md",
+      "pages": [
+        "docs/runtimes/custom/external-store.md",
+        "docs/guides/editing.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 11,
+      "exitCode": 0,
+      "cost": 0.20139490000000002
+    },
+    {
+      "id": "q18",
+      "concept": "tool-location",
+      "question": "What is the difference between a frontend tool and a backend tool in assistant-ui? Where does each one run?",
+      "answer": "A **backend tool** runs on your server. A **frontend tool** runs in the browser.\n\nIn a `\"use generative\"` file using `defineToolkit`, `execute` determines the kind. A plain `execute` makes a backend tool. Starting it with `\"use client\"` makes a frontend tool, which also needs `render` or `renderText`. You don't write `type`.\n\nA build plugin, such as `withAui` for Next.js, splits the file. Both builds normally keep the schema. Backend `execute` stays in the server build, while the client keeps `render`. Frontend `execute` and rendering stay in the client build.\n\nThe model is configured on your server, so it needs both kinds' schemas. With the AI SDK, `AISDKToolkit.tools({ frontend: tools })` wires backend executors and merges uploaded frontend schemas. To let the model continue after a frontend result, set `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls` on `useChatRuntime`.\n\nTreat browser-sent schemas as untrusted.\n\nPages: docs/tools.md, docs/tools/defining-tools.md, docs/tools/backend.md",
+      "pages": [
+        "docs/tools.md",
+        "docs/tools/defining-tools.md",
+        "docs/tools/backend.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.1782669
+    },
+    {
+      "id": "q19",
+      "concept": "tool-ui",
+      "question": "When the model calls a tool, how does that tool call end up on screen, and how do I show my own UI for it?",
+      "answer": "A tool call becomes a `tool-call` part in the assistant message, holding the tool name, arguments and, after it runs, the result. The runtime updates parts as they stream. `MessagePrimitive.Parts` calls your function for each part in order; return `part.toolUI ?? null` for tool calls. `toolUI` is the registered UI, or `null`. The styled Thread element handles this.\n\nFor custom UI, add `render` to the tool's `defineToolkit` entry, then pass `AuiConfig({ tools: Tools({ toolkit }) })` as `config` to `AssistantRuntimeProvider`. For server-defined tools, use `type: \"backend\"` with `render`; in `\"use generative\"` files, use `execute: externalTool()`.\n\n`render` receives `args`, `result` and `status` (`running`, `requires-action`, `incomplete`, `complete`). For interaction, use `addResult` (human tools), `resume` (paused `execute`) or `respondToApproval` (server approvals; runtime support required). `display: \"standalone\"` keeps UI outside collapsed tool groups. For unregistered tools, add `ToolFallback`.\n\nPages: docs/tools/tool-ui.md, docs/concepts/messages.md",
+      "pages": ["docs/tools/tool-ui.md", "docs/concepts/messages.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.2026229
+    },
+    {
+      "id": "q20",
+      "concept": "tool-ui-only",
+      "question": "My backend already defines and runs a tool. I want a custom UI for its calls. Do I have to define the tool again on the frontend?",
+      "answer": "No, you don't need to define the tool's execution or model-facing contract again. You only register a render entry in a toolkit, under a key matching your backend's tool name.\n\n- **Plain toolkit** (such as a `\"use client\"` file): use `getWeather: { type: \"backend\", render: WeatherToolUI }`.\n- **`\"use generative\"` file** (needs the build plugin): use `execute: externalTool()` with `render` or `renderText`, and don't write `type`. The compiler leaves this entry out of the server build, so your backend still supplies the definition. The docs' example also lists `parameters`, but says the client build keeps only `type` and the renderer.\n\nRegister it with `AuiConfig({ tools: Tools({ toolkit }) })` and pass `config` to `AssistantRuntimeProvider`. Plain render-only entries upload no schema and run no browser code.\n\nYour renderer receives props including `args`, `result` and `status`. For TypeScript types, use `ToolCallMessagePartComponent<Args, Result>`.\n\nPages: docs/tools/tool-ui.md, docs/tools/defining-tools.md",
+      "pages": [
+        "docs/tools/tool-ui.md",
+        "docs/tools/backend.md",
+        "docs/tools/defining-tools.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.24823309999999998
+    },
+    {
+      "id": "q21",
+      "concept": "approval",
+      "question": "How do I make the assistant pause and ask the user to approve a tool call before the tool runs?",
+      "answer": "With AI SDK v7, gate the tool on the server:\n\n1. In `streamText`, set `toolApproval`, per tool as a status or function. For example, `deploy` can return `\"user-approval\"` for production and `\"not-applicable\"` otherwise.\n2. On the client, pass `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` to `useChat`, then pass the chat to `useAISDKRuntime`.\n3. Add a `defineToolkit` entry with `type: \"backend\"` and a `render`, registered through `AuiConfig({ tools: Tools({ toolkit }) })` on `AssistantRuntimeProvider`.\n4. While `approval?.approved === undefined`, show buttons that await `respondToApproval({ approved, reason? })`. Handle errors so users can retry. `true` means allowed; `false` means denied.\n\nThe default `ToolFallback` also has approval controls.\n\nFor browser-executed tools, call `await human(payload)` inside `execute`, before the sensitive action. Render `interrupt.payload`, call `resume(response)`, and check that response before proceeding.\n\n`LocalRuntime` also supports approval gates.\n\nPages: docs/tools/tool-ui.md, docs/runtimes/ai-sdk/v7.md",
+      "pages": ["docs/tools/tool-ui.md", "docs/runtimes/ai-sdk/v7.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.2515132
+    },
+    {
+      "id": "q22",
+      "concept": "tool-result-from-ui",
+      "question": "How can a tool's UI send the user's choice back to the model as the tool's result?",
+      "answer": "Define a tool with `type: \"human\"`, a `description` and `parameters`, and no executor. Its `render` collects the choice and passes it to `addResult`, for example `addResult({ size })`. Call it exactly once: it completes the tool call, and the assistant continues with that data. Once `result` exists, show a receipt instead of live controls. For options or rows, send back stable IDs from your data.\n\nRegister the toolkit with `AuiConfig({ tools: Tools({ toolkit }) })`, passed to `AssistantRuntimeProvider`. The model also needs the schema; for client-defined tools using the AI SDK, wrap the toolkit in `AISDKToolkit` in your route handler.\n\nCheck `s.thread.capabilities.answerToolCall` through `useAuiState`; if false, hide the controls.\n\nIf a frontend tool's `execute` instead pauses with `human()`, call `resume(value)`. That value returns to `execute`, whose return value can form the result. `respondToApproval` is for server-side approval gates.\n\nPages: docs/tools/tool-ui.md",
+      "pages": ["docs/tools/tool-ui.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.19082330000000003
+    },
+    {
+      "id": "q23",
+      "concept": "model-context",
+      "question": "How can my frontend give the model extra context, such as system instructions or tools that depend on the current page?",
+      "answer": "Your components add to the **model context**, which holds system instructions and tools.\n\n- **Instructions:** use `useAssistantInstructions` for static strings. For page state, use `useAssistantContext({ getContext })`, which is evaluated whenever the context is read. `makeAssistantVisible` supplies a component's HTML, and `clickable: true` adds a click tool.\n- **Tools:** define a toolkit with `defineToolkit`, then pass `Tools({ toolkit })` through `AuiConfig` to a provider. For custom registration, call `aui.modelContext.register({ getModelContext })` in `useEffect`, returning its result for cleanup. It can supply `system` and `tools`.\n- **Merging:** tools merge, and instructions concatenate by `priority`. `maxSystemLength` or `mergeSystem` (not both) controls the combined prompt.\n- **Backend:** with AI SDK v7, `AssistantChatTransport` (the default) sends `system` and `tools` on every request. Pass `system` to `streamText`, and wrap `tools` in `frontendTools()`. Other transports not inheriting from it require explicit forwarding.\n\nThe pages don't explicitly show switching toolkits by route.\n\nPages: docs/copilots/model-context.md, docs/runtimes/ai-sdk/v7.md",
+      "pages": ["docs/copilots/model-context.md", "docs/runtimes/ai-sdk/v7.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 10,
+      "exitCode": 0,
+      "cost": 0.1891603
+    },
+    {
+      "id": "q24",
+      "concept": "primitives",
+      "question": "What is the difference between assistant-ui's primitives and ready-made components like Thread? When would I use each?",
+      "answer": "assistant-ui has two UI layers.\n\n**Primitives**, such as `ThreadPrimitive.Viewport` and `ComposerPrimitive.Input`, ship in `@assistant-ui/react`. They're unstyled, accessible parts that handle behavior like state, keyboard shortcuts, scrolling and streaming. You compose and style them using `className`, `asChild` or data attributes.\n\n**Elements**, such as `Thread`, `ThreadList` and `AssistantModal`, are styled components built from primitives. `npx assistant-ui add` copies their source into your project, so you own and edit it. They use Tailwind and shadcn/ui; primitives require neither. Updating packages improves primitive behavior without touching your copies. `add --overwrite` replaces your edits, while `upgrade` runs codemods that include copied files.\n\nStart with elements if they're close to what you want. Use primitives for different layouts, such as a floating composer, or your own design system. You can mix them. On the web, place primitives inside `AssistantRuntimeProvider`.\n\nPages: docs/concepts/components.md, docs/primitives.md",
+      "pages": ["docs/concepts/components.md", "docs/primitives.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 7,
+      "exitCode": 0,
+      "cost": 0.1333489
+    },
+    {
+      "id": "q25",
+      "concept": "styling",
+      "question": "How is assistant-ui styled, and how do I change the look? Do I need Tailwind or shadcn/ui?",
+      "answer": "assistant-ui's web UI has two layers:\n\n- **Primitives** from `@assistant-ui/react`, such as `ThreadPrimitive.Viewport` and `ComposerPrimitive.Input`, are unstyled, accessible parts that handle behavior.\n- **Elements**, such as `Thread`, `ThreadList` and `AssistantModal`, are styled components whose source the CLI copies into `components/assistant-ui/elements/` by default.\n\nTo restyle elements, change shadcn theme variables such as `--primary` or `--radius`; for anything else, edit the copied files. `npx assistant-ui update` leaves them alone, but `add <name> --overwrite` discards your edits. `upgrade` codemods can also modify them. The `style` in `components.json` selects Radix UI or Base UI.\n\nYou need Tailwind and shadcn only for elements. Primitives work with CSS modules, plain CSS or another component library. They accept `className`, support `asChild`, and expose state through data attributes such as `data-copied`. You can mix both layers.\n\nThis covers web; Vue and React Native have their own primitives and elements.\n\nPages: docs/concepts/components.md, docs/manual-installation.md",
+      "pages": ["docs/concepts/components.md", "docs/manual-installation.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 7,
+      "exitCode": 0,
+      "cost": 0.1562277
+    },
+    {
+      "id": "q26",
+      "concept": "cli",
+      "question": "What does the assistant-ui CLI do to my project? Where does the component code end up, and can I edit it?",
+      "answer": "The CLI scaffolds and updates projects. `create` makes a new Next.js project by default. `init` adds assistant-ui to an existing project: it runs `shadcn init` and uses `shadcn add` to install the quick-start and default components. It exits if `components.json` already exists, and runs `create` if there's no `package.json`. `add` runs `shadcn add` against the assistant-ui registry, copying component source and installing dependencies.\n\nRun by a coding agent outside a setup session, `init`, `create` and `add` stop and point it to `npx assistant-ui@latest setup`; `--force` overrides this.\n\nStyled elements go in `components/assistant-ui/elements/` by default (`add --path` changes this); shadcn parts go in `components/ui/`. You can edit both. Primitives and runtimes remain npm packages. `update` leaves copied elements alone, but `upgrade` codemods can modify them. `add --overwrite` discards your edits, so commit first.\n\nPages: docs/cli.md, docs/concepts/components.md",
+      "pages": ["docs/cli.md", "docs/concepts/components.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 7,
+      "exitCode": 0,
+      "cost": 0.1739869
+    },
+    {
+      "id": "q27",
+      "concept": "read-state",
+      "question": "How do I read chat state in my own component, for example whether the assistant is currently responding?",
+      "answer": "Use `useAuiState` from `@assistant-ui/react` with a selector. Your component re-renders only when the selected value changes.\n\n```tsx\nconst isRunning = useAuiState((s) => s.thread.isRunning);\n```\n\n`isRunning` is a boolean. The runtime may set it explicitly instead of deriving it from the last message's status.\n\n- **Placement:** The component needs to be under `<AssistantRuntimeProvider>`. The scopes available (`thread`, `composer`, `message`) depend on where it renders. Use `s.optional.message?.role` if a scope may be missing.\n- **Selectors:** Return primitives or stable references. Creating new objects can cause infinite re-renders.\n- **Actions:** `useAui()` doesn't subscribe to state. Use it in handlers, such as `aui.thread.cancelRun()` or `aui.thread.getState()`.\n- **Side effects:** Use `useAuiEvent` with `thread.runStart` or `thread.runEnd`.\n\nFor components outside the provider, the page points to \"Reading State Outside the Thread\", which I didn't read.\n\nPages: docs/concepts/context-api.md",
+      "pages": ["docs/concepts/context-api.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 7,
+      "exitCode": 0,
+      "cost": 0.1605095
+    },
+    {
+      "id": "q28",
+      "concept": "outside-thread",
+      "question": "How do I send a message or start a new thread from a button that lives outside the chat UI?",
+      "answer": "**Under `AssistantRuntimeProvider`:** your button can be anywhere in the React tree, such as a header or sidebar, as long as it's inside the provider. In it, call `const aui = useAui()`, then use these in click handlers:\n\n- **Send a message:** `aui.thread.append(\"Hello\")`. A user message starts a reply unless it sets `startRun: false`.\n- **Send the composer's draft:** `aui.composer.send()`. To fill it first, there's `aui.composer.setText(text)`.\n- **Start a new thread:** `aui.threads.switchToNewThread()`.\n\nDon't save `aui.thread` for later, because it can keep pointing to the old thread after a switch. The docs don't say how to safely start a new thread and send to it in one click.\n\n**Outside the provider or in another React root:** `useAui` won't work. Mount a component under the provider that publishes the client to an external store, updating it when the client changes. The docs only demonstrate reading state this way. They don't show sending or switching threads through the published client.\n\nPages: docs/guides/state-outside-the-thread.md, docs/concepts/context-api.md",
+      "pages": [
+        "docs/guides/state-outside-the-thread.md",
+        "docs/concepts/context-api.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 10,
+      "exitCode": 0,
+      "cost": 0.1791358
+    },
+    {
+      "id": "q29",
+      "concept": "scopes",
+      "question": "Inside a component that renders one message, how does a hook know which message it refers to?",
+      "answer": "A hook finds its message from where the component renders, so you don't pass an ID. assistant-ui splits state into \"scopes\". `ThreadPrimitive.Messages` renders each message inside its own `message` scope. Within it, `useAuiState((s) => s.message.role)` reads that message, and `aui.message.reload()` from `useAui()` acts on it. The same component therefore works for every message. `MessagePrimitive.Parts` does the same with a `part` scope. Outside a message, reading `s.message` throws; `s.optional.message?.role` returns `undefined` instead.\n\nUnderneath, the Store docs show a general pattern with a todo list. A child scope is defined with `Derived` (`source`, `query`, `get`) and supplied to a subtree through `AuiProvider`. For messages, the API reference lists `MessageProvider` and `MessageByIndexProvider`, but the page shows only their names and parameter-table placeholders. The docs I read don't say whether `ThreadPrimitive.Messages` uses these or `Derived` internally.\n\nPages: docs/concepts/context-api.md, docs/store/child-scopes.md, docs/api-reference/context-providers/scoped-providers.md",
+      "pages": [
+        "docs/concepts/context-api.md",
+        "docs/api-reference/context-providers/scoped-providers.md",
+        "docs/store/child-scopes.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 10,
+      "exitCode": 0,
+      "cost": 0.1901537
+    },
+    {
+      "id": "q30",
+      "concept": "attachments",
+      "question": "How do file attachments work? What decides which files a user can attach, and how do they reach the model?",
+      "answer": "Attachments go through an attachment adapter. `add()` creates a pending attachment, `send()` turns it into complete `content` parts, and `remove()` handles removal.\n\n**What can be attached:** the adapter's `accept` string, matched against MIME type or filename extension. `add()` can also enforce limits such as size. `useChatRuntime` accepts all types by default, but your model may reject them. `useLocalRuntime` needs an adapter for file uploads. Options include `SimpleImageAttachmentAdapter`, `SimpleTextAttachmentAdapter` and `CompositeAttachmentAdapter`. Listen for rejections with `composer.attachmentAddError`. External-source attachments need no adapter, but a configured adapter's `accept` still applies.\n\n**Reaching the model:** nothing reaches the runtime until every attachment is complete. Parts can carry base64 data or uploaded URLs. The AI SDK sends file parts to your backend, whose route examples call `convertToModelMessages` before `streamText`. With `useLocalRuntime`, your `ChatModelAdapter` formats them. For large files, upload and send URLs.\n\nPages: docs/guides/attachments.md, docs/runtimes/ai-sdk/v7.md",
+      "pages": [
+        "docs/guides/attachments.md",
+        "docs/api-reference/adapters/attachments.md",
+        "docs/runtimes/ai-sdk/v7.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 10,
+      "exitCode": 0,
+      "cost": 0.2204633
+    },
+    {
+      "id": "q31",
+      "concept": "adapters",
+      "question": "What are adapters in assistant-ui? Give examples of features that need one, and say what happens when it's missing.",
+      "answer": "Adapters are small interfaces you implement and pass to a runtime's `adapters` option, such as with `useLocalRuntime` or `useChatRuntime`. They add capabilities without tying the runtime to a specific backend. Support varies by runtime.\n\nWhat happens without each:\n- **`attachments`:** adding files fails with `no-adapter`, and the drop zone ignores them. `useChatRuntime` includes a default accepting any file.\n- **`speech`:** `ActionBarPrimitive.Speak` is disabled.\n- **`dictation`:** `ComposerPrimitive.Dictate` is disabled; the registry `Thread` hides it.\n- **`feedback`:** clicks are only recorded on the message and reach no backend; the registry `Thread` hides the buttons.\n- **`history`:** messages disappear after reload. This describes runtimes using this adapter; `ExternalStoreRuntime`, for example, persists through your store.\n- **`suggestion`:** no generated follow-ups, though static suggestions still show.\n\nPrimitives and registry components read `s.thread.capabilities` for attachments, speech, dictation and feedback. Thread-list adapters are documented separately.\n\nPages: docs/concepts/adapters.md",
+      "pages": ["docs/concepts/adapters.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 7,
+      "exitCode": 0,
+      "cost": 0.1411151
+    },
+    {
+      "id": "q32",
+      "concept": "suggestions",
+      "question": "How do suggestions (clickable prompts shown in an empty chat) work, and where do they come from?",
+      "answer": "Suggestions are clickable starter prompts. For an empty chat, you define them in your provider with `AuiConfig({ suggestions: Suggestions([...]) })` and pass that `config` to `AssistantRuntimeProvider`. Entries are strings or `{ title, label, prompt }` objects.\n\nThe shadcn `Thread` already displays them. For custom UI, use `ThreadPrimitive.Suggestions` with `SuggestionPrimitive.Title`, `.Description` (shows `label`) and `.Trigger`, wrapped in `AuiIf` checking `s.thread.isEmpty`. By default, clicking fills the composer, replacing its text unless `clearComposer={false}`. `send` submits immediately, subject to runtime restrictions; during a run it queues if supported, otherwise it's disabled.\n\nDynamic suggestions land in `thread.suggestions`. They come from a `suggestion` adapter (local or AI SDK runtime; helper: `createSuggestionAdapter`) or a `suggestions` option (external store or AI SDK). The adapter overrides that option after runs. `ThreadPrimitive.Suggestions` shows dynamic suggestions only without static configuration, which takes precedence.\n\nPages: docs/guides/suggestions.md, docs/primitives/suggestion.md",
+      "pages": ["docs/guides/suggestions.md", "docs/primitives/suggestion.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.1643889
+    },
+    {
+      "id": "q33",
+      "concept": "cancel",
+      "question": "What happens when the user presses Stop while the assistant is responding?",
+      "answer": "When the user presses Stop, the active run is cancelled. In the registry's `Thread`, the button is `ComposerPrimitive.Cancel`. In the main composer, it calls `cancelRun`; it can also cancel a send that's still being prepared, and it's disabled when there's nothing to stop. In an edit composer, it instead ends the edit and restores the message. For a custom button, read `s.thread.isRunning` and call `aui.thread.cancelRun()`.\n\nHow the request stops depends on the runtime:\n- **`LocalRuntime`:** fires your adapter's `abortSignal`; pass it to `fetch`.\n- **AI SDK runtime:** stops its chat stream.\n- **`ExternalStoreRuntime`:** calls `onCancel`. Without it, nothing can be stopped: `Thread` hides the button, and a bare Cancel is disabled.\n\nStreamed content stays, and the message ends `incomplete` with reason `cancelled`. Your server sees the request close. Pass that signal to the model call (`abortSignal: req.signal`) so generation stops too.\n\nThe docs don't say what happens to running tools.\n\nPages: docs/concepts/runtime.md, docs/primitives/composer.md",
+      "pages": ["docs/concepts/runtime.md", "docs/primitives/composer.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.1821923
+    },
+    {
+      "id": "q34",
+      "concept": "errors",
+      "question": "When the backend fails during a reply, what does the user see, and how do I show the error in my UI?",
+      "answer": "By default, a custom message UI shows nothing about the error. Any parts that already arrived stay, and the assistant message ends with status `incomplete`, reason `error`, with the error attached. The registry's shadcn `Thread` already displays it.\n\nIn your own assistant message component, inside `MessagePrimitive.Root`:\n\n```tsx\n<MessagePrimitive.Parts />\n<MessagePrimitive.Error>\n  <ErrorPrimitive.Root>\n    <ErrorPrimitive.Message />\n  </ErrorPrimitive.Root>\n</MessagePrimitive.Error>\n```\n\n`MessagePrimitive.Error` renders only for failed messages. `ErrorPrimitive.Root` provides `role=\"alert\"` but otherwise always renders its container. `ErrorPrimitive.Message` prints the error text; pass children to replace it.\n\nWith the AI SDK, the default is \"An error occurred.\", protecting server details; customize it using `onError` in `toUIMessageStreamResponse`. With `LocalRuntime`, whatever your adapter throws becomes the error. Users retry by regenerating; these pages don't say which control does that.\n\nPages: docs/concepts/runtime.md, docs/primitives/error.md",
+      "pages": ["docs/primitives/error.md", "docs/concepts/runtime.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.14596009999999998
+    },
+    {
+      "id": "q35",
+      "concept": "resume",
+      "question": "If the user reloads the page while a reply is still streaming, can the reply continue? What does that need?",
+      "answer": "Yes. The server saves the stream while generating it, and after a reload the client replays the saved bytes and receives new ones. This isn't the standard `toUIMessageStreamResponse()` path alone. With the AI SDK, you need:\n\n- **Server:** one `ResumableStreamContext` from `assistant-stream/resumable`. The POST route wraps the response in `run(streamId, ...)` and returns the ID in the `RESUMABLE_STREAM_ID_HEADER` header. A GET route calls `resume(streamId)`.\n- **Client:** `useChatRuntime` with `AssistantChatTransport`'s `resumable` option (`storage: createResumableSessionStorage()`, `resumeApi`). Handle failures with `onResumeError`.\n- **Multiple threads:** create transport and storage per thread, keyed by `remoteId ?? id`.\n- **Production:** use Redis or a custom store (in-memory doesn't survive server restarts), check stream ownership, set TTLs, and on Vercel or Cloudflare pass `waitUntil`.\n\nManual Resume after Stop is separate: it requires `canResume: true`, full replay, and a stable message ID.\n\nPages: docs/guides/resumable-streams.md, docs/guides/resumable-stream-deployment.md",
+      "pages": [
+        "docs/guides/resumable-streams.md",
+        "docs/guides/resumable-stream-deployment.md"
+      ],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.1726848
+    },
+    {
+      "id": "q36",
+      "concept": "platforms",
+      "question": "Can I use assistant-ui outside React on the web, such as React Native, Vue or a terminal app? How much carries over?",
+      "answer": "Yes. The overview covers React, Vue, React Native and the terminal, and promises the \"same primitives on web, native, and the terminal.\"\n\n**React Native:** Most code transfers, through shared `@assistant-ui/core`. Runtime setup (`useChatRuntime`, `useLocalRuntime`), tool definitions, `useAui`/`useAuiState` and backend code carry over. Use `@assistant-ui/react-native`, rebuild the UI with native primitives or registry elements, and give the chat transport an absolute API URL.\n\n**Vue:** `@assistant-ui/vue` supports Vue 3.5 and Nuxt with the same runtime, `AuiProvider`, composables and unstyled primitives. Styled `thread` and `thread-list` come via shadcn-vue. React tool renderers don't work. Voice, dictation, speech, mentions, slash commands, quoting, assistant modal, selection toolbar and DevTools are React only. The CLI doesn't scaffold Vue. Render the provider client-side.\n\n**Terminal:** It's supported, but for how much carries over, the docs I read don't say. The index lists an unopened Ink migration page.\n\nPages: docs.md, docs/react-native/migration.md, docs/vue.md",
+      "pages": ["docs.md", "docs/react-native/migration.md", "docs/vue.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 9,
+      "exitCode": 0,
+      "cost": 0.1368761
+    },
+    {
+      "id": "q37",
+      "concept": "generative-ui",
+      "question": "What is the difference between tool UI and generative UI in assistant-ui?",
+      "answer": "**Tool UI** binds your own React component to one tool. You add `render` to its entry in a toolkit (`defineToolkit`, registered with `Tools({ toolkit })`). It gets props such as `args`, `status` and `result`, and can collect input with `addResult`, `resume` or `respondToApproval`. It suits known widgets like pickers, forms or charts.\n\n**Generative UI**, in the narrower sense, means you ship a component vocabulary and the model composes the layout at runtime. The docs recommend **spec mode** for new apps (`toSpecCatalog` with `createSpecToolkit`, plus `generative-frame`). The alternative, `present` from `JSONGenerativeUI`, takes a JSON tree and is the choice for A2UI, `promptUser()` and streaming text. `defaultGenerativeUILibrary` has 35 components.\n\nThe terms overlap: the docs also list Tool UI as a \"generative UI\" pattern. There are backend-driven options too: `MessagePrimitive.GenerativeUI`, and data-part renderers such as `makeAssistantDataUI`, where your backend decides what appears.\n\nPages: docs/tools/tool-ui.md, docs/tools/generative-ui.md",
+      "pages": ["docs/tools/tool-ui.md", "docs/tools/generative-ui.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.2450649
+    },
+    {
+      "id": "q38",
+      "concept": "mcp",
+      "question": "How can an assistant-ui app use tools from MCP servers?",
+      "answer": "An assistant-ui app can use MCP tools in two ways.\n\n**Servers you choose (server-side):** In a `\"use generative\"` toolkit, spread `defineMcpToolkit({...})` into `defineToolkit`. In your AI SDK route, use `new AISDKToolkit({ toolkit })`, pass `await aiToolkit.tools({ frontend: tools })` to `streamText`, and call `close()` on finish, abort or error. Or use `createMCPClient` from `@ai-sdk/mcp` and its `tools()`. Use HTTP for networked servers, SSE as a legacy option, and stdio only for local development. Gate risky calls with `toolApproval`; the client also needs `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses`.\n\n**User-added servers (browser):** With `@assistant-ui/react-mcp`, mount `McpManagerResource({ connectors })` and add `<McpConfigDialog />` or primitives. OAuth needs an `McpOAuthCallback` route. Connected tools register as frontend tools and require approval by default. Replace the default plain-text `McpLocalStorage` beyond prototyping.\n\n`ToolFallback` renders calls by default; custom renderers are supported.\n\nPages: docs/tools/mcp.md, docs/tools/user-managed-mcp.md",
+      "pages": ["docs/tools/mcp.md", "docs/tools/user-managed-mcp.md"],
+      "overBudget": false,
+      "searches": [],
+      "seconds": 8,
+      "exitCode": 0,
+      "cost": 0.1875763
+    }
+  ]
+}

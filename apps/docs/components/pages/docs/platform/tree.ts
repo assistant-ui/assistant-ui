@@ -176,6 +176,41 @@ export function buildPlatformSections(
     .filter((f) => hasVisibleContent(f, platform));
 }
 
+function pruneForPlatform<T extends PageTree.Node>(
+  node: T,
+  platform: Platform,
+): T {
+  if (node.type !== "folder") return node;
+  return {
+    ...node,
+    index:
+      node.index && isNodeVisible(node.index, platform)
+        ? node.index
+        : undefined,
+    children: node.children
+      .filter((child) => isNodeVisible(child, platform))
+      .map((child) => pruneForPlatform(child, platform)),
+  };
+}
+
+// The tree one platform's reader walks, in sidebar order: its sections with
+// the pages of other platforms left out. Page navigation follows this tree so
+// "next" never leaves the reader's platform.
+export function getPlatformTree(
+  tree: PageTree.Root,
+  platform: Platform,
+): PageTree.Root {
+  const folders = tree.children.filter(
+    (node): node is PageTree.Folder => node.type === "folder",
+  );
+  return {
+    ...tree,
+    children: buildPlatformSections(folders, platform).map((section) =>
+      pruneForPlatform(section, platform),
+    ),
+  };
+}
+
 function firstVisibleUrl(
   nodes: readonly PageTree.Node[],
   platform: Platform,

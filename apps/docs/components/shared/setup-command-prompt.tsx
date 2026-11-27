@@ -33,7 +33,7 @@ export function SetupCommandPrompt({
 }: {
   page: string;
   section: string;
-  /** Catalog slugs the setup starts with; the bare prompt when omitted. */
+  /** Catalog slugs the setup starts with; the default setup prompt when omitted. */
   products?: readonly string[];
   /** The exact prompt to show and copy, in place of the catalog prompt. */
   prompt?: string;

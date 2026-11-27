@@ -20,6 +20,9 @@ const externalSources = [
   "templates/nuxt/server/api/chat.post.ts",
   expoSource,
   "examples/with-react-ink/src/app.tsx",
+  // the TypeScript block check reads package sources and the API surface
+  "packages/react-ink/src/index.ts",
+  "api-surface/assistant-ui__react.ts",
   "README.md",
   "scripts/lib/experimental-annotations.mjs",
 ];

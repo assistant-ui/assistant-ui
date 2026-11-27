@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { docsAuth } from "@/lib/accounts-auth";
+import {
+  agentClientFamily,
+  agentDocsRead,
+  captureAgentEvent,
+} from "@/lib/agent-telemetry";
 
 /**
  * The routes that read the visitor's session. The proxy verifies the access
@@ -29,6 +34,18 @@ export const config = {
     "/ph/:path*",
     { source: "/changelog", has: [{ type: "query", key: "pkg" }] },
     { source: "/changelog", has: [{ type: "query", key: "page" }] },
+    // Agent reads (lib/agent-telemetry.ts). The CDN serves most of them from
+    // cache, so the proxy is the one place that sees every fetch. A page
+    // opened in a browser never matches: browsers don't ask for markdown.
+    "/llms.txt",
+    "/llms-full.txt",
+    "/:path*.md",
+    "/:path*.mdx",
+    "/.well-known/agent-skills/:path*",
+    {
+      source: "/:path*",
+      has: [{ type: "header", key: "accept", value: "(?:.*text/markdown.*)" }],
+    },
   ],
 };
 
@@ -104,7 +121,28 @@ function legacyChangelogUrl(request: NextRequest): URL {
   return url;
 }
 
+// Search crawlers and assistant-ui's own tooling read the markdown
+// too, but they are not agents at work.
+function countAgentRead(request: NextRequest) {
+  const read = agentDocsRead(request.nextUrl.pathname, request.headers);
+  if (!read) return;
+  const client = agentClientFamily(request.headers.get("user-agent"));
+  if (client === "crawler" || client === "internal") return;
+  captureAgentEvent(request.headers, "agent_docs_fetched", {
+    kind: read.kind,
+    path: read.path,
+    negotiated: read.negotiated,
+    method: request.method,
+    client,
+    // A browser tab opening a page's .md link; agent fetch tools that send a
+    // browser user-agent don't send this header, so it tells the two apart.
+    navigation: request.headers.get("sec-fetch-mode") === "navigate",
+  });
+}
+
 export async function proxy(request: NextRequest) {
+  countAgentRead(request);
+
   if (SESSION_PATHS.includes(request.nextUrl.pathname)) {
     const auth = docsAuth();
     return auth ? auth.proxy(request) : NextResponse.next();

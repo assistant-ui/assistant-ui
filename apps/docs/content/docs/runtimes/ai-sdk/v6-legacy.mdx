@@ -327,11 +327,15 @@ export async function POST(req: Request) {
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     tools: aiSDKTools,
+    // ai@6.0.221 and later: signs each approval request.
+    experimental_toolApprovalSecret: process.env.TOOL_APPROVAL_SECRET,
   });
 
   return result.toUIMessageStreamResponse();
 }
 ```
+
+Set `experimental_toolApprovalSecret` so the server runs only approved calls it asked about. Without it, a client can change a pending call's input or post an approval for a call the model never made. [Sign approval requests](/docs/runtimes/ai-sdk/v7#sign-approval-requests) in the v7 guide explains how it works and how to choose the secret. Use `ai` 6.0.221 or later on the server and the client: older releases either lack the option or drop the signature when the user answers.
 
 On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` so the response is sent back to the server when the user decides:
 
@@ -512,7 +516,7 @@ const modelId = useAuiState(
 
 ## Attachments
 
-Attachments work through the standard [attachment adapter](/docs/runtimes/concepts/adapters#attachment-adapter). Pass it via `useChatRuntime`:
+Attachments work through the standard [attachment adapter](/docs/concepts/adapters#attachment-adapter). Pass it via `useChatRuntime`:
 
 ```tsx
 const runtime = useChatRuntime({
@@ -632,7 +636,7 @@ const runtime = useAISDKRuntime(chat);
 | Dictation | `adapters.dictation` |
 | Feedback | `adapters.feedback` |
 | History | `adapters.history` (must implement `withFormat`) |
-| threadList | Via `cloud` (managed) or [RemoteThreadListRuntime](/docs/runtimes/concepts/threads) (custom DB) |
+| threadList | Via `cloud` (managed) or [RemoteThreadListRuntime](/docs/integrations/persistence/thread-list-adapters#remotethreadlistruntime-custom-database) (custom DB) |
 
 ## Key changes from v5
 
@@ -654,12 +658,12 @@ For responses that should survive a page reload mid-stream, see [Resumable strea
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, suggestions; one source of truth."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
   <Card
     title="Threads"
     description="Single-thread, AssistantCloud, custom thread list."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/concepts/threads"
   />
   <Card
     title="Resumable streams"

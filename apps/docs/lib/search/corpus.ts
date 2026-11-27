@@ -12,6 +12,7 @@ export type SearchablePage = {
     title: string;
     description?: string | undefined;
     structuredData: () => StructuredData | Promise<StructuredData>;
+    codeIdentifiers?: () => Promise<string[]>;
   };
 };
 

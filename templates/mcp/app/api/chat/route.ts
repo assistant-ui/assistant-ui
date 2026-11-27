@@ -1,12 +1,10 @@
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/ai-sdk";
+import { type ToolSet, streamText, convertToModelMessages } from "ai";
 import {
-  type JSONSchema7,
-  type ToolSet,
-  streamText,
-  convertToModelMessages,
-  type UIMessage,
-} from "ai";
+  answersToolApproval,
+  readChatRequest,
+  toolApprovalSecret,
+} from "../chat-request";
 import { getMcpTools } from "../mcp-client";
 import { isAllowedRequestContext } from "../request-context";
 
@@ -29,20 +27,25 @@ export async function POST(req: Request) {
     );
   }
 
-  const {
-    messages,
-    system,
-    tools,
-  }: {
-    messages: UIMessage[];
-    system?: string;
-    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
-  } = await req.json();
+  const request = await readChatRequest(req);
+  if ("error" in request) {
+    return Response.json({ error: request.error }, { status: 400 });
+  }
+  const { messages, system } = request;
+
+  // MCP tools run on this server, so an approval answer must be signed.
+  const approvalSecret = toolApprovalSecret();
+  if (approvalSecret === undefined && answersToolApproval(messages)) {
+    return Response.json(
+      { error: "Set TOOL_APPROVAL_SECRET to use tool approvals." },
+      { status: 500 },
+    );
+  }
 
   const mcpTools = await getMCPTools();
   const aiSDKTools = {
     ...mcpTools,
-    ...frontendTools(tools ?? {}),
+    ...request.frontendTools,
   };
 
   const result = streamText({
@@ -51,6 +54,7 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
     tools: aiSDKTools,
+    experimental_toolApprovalSecret: approvalSecret,
     providerOptions: {
       openai: {
         reasoningEffort: "low",

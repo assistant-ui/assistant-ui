@@ -5,6 +5,7 @@
   "pages": [
     "index",
     "deprecation-policy",
+    "stability",
     "toolkit-tools",
     "v0-11",
     "v0-12",

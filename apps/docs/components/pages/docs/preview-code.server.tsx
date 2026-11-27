@@ -11,6 +11,7 @@ import {
   resolveFunctionSource,
 } from "./preview-code-extract";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
+import { describeDemo } from "@/lib/demo-description";
 import { DEFAULT_PLATFORM } from "@/lib/constants";
 import { rewritePlatformPackages } from "./platform/rewrite";
 
@@ -22,6 +23,8 @@ type PreviewCodeProps = {
   children: React.ReactNode;
   /** Base UI flavored twin of children; enables the flavor switcher. */
   base?: React.ReactNode;
+  /** One line saying what the demo shows; agent markdown prints it in place of the live preview. */
+  description?: string;
   className?: string;
 };
 
@@ -86,7 +89,7 @@ export async function PreviewCode({
   PreviewCode as typeof PreviewCode & {
     llm: (props: PreviewCodeProps, ctx?: LLMRenderContext) => ReactNode;
   }
-).llm = ({ file, name }: PreviewCodeProps, ctx) => {
+).llm = ({ file, name, description }: PreviewCodeProps, ctx) => {
   const sourceFile =
     (ctx?.flavor ?? "base") === "radix" &&
     fs.existsSync(path.join(process.cwd(), `${file}.radix.tsx`))
@@ -95,8 +98,8 @@ export async function PreviewCode({
 
   return (
     <>
-      <p>{`[interactive preview component ${name} omitted]`}</p>
-      <p>{`Code for ${name} preview:`}</p>
+      <p>{describeDemo(name, { description })}</p>
+      <p>{`Code for the ${name} demo:`}</p>
       <pre>
         <code className="language-tsx">
           {rewritePlatformPackages(

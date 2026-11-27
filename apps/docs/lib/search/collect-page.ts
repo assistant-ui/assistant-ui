@@ -1,4 +1,4 @@
-import { excerptAround, tokenize } from "./query";
+import { excerptAround, searchTokens } from "./query";
 import type { SearchHit } from "./types";
 
 const SKIP_CLOSEST =
@@ -77,7 +77,7 @@ export function collectPageTextMatches(
   query: string,
 ): Omit<SearchHit, "score">[] {
   const root = pageRoot();
-  const tokens = tokenize(query);
+  const tokens = searchTokens(query);
   if (!root || tokens.length === 0) return [];
 
   const entries: Omit<SearchHit, "score">[] = [];

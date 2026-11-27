@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "@assistant-ui/ui#build",
+        "@assistant-ui/x-buildutils#build"
+      ],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/apps/docs/**",
+        "!$TURBO_ROOT$/apps/docs/{.docs,.next,.source,.turbo,generated,node_modules}/**",
+        "!$TURBO_ROOT$/apps/docs/public/{appos,rc}/**"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": [
+        "@assistant-ui/ui#build",
+        "@assistant-ui/x-buildutils#build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/docs/**",
+        "!$TURBO_ROOT$/apps/docs/{.docs,.next,.source,.turbo,generated,node_modules}/**",
+        "!$TURBO_ROOT$/apps/docs/public/{appos,rc}/**"
+      ]
+    }
+  }
+}

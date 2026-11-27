@@ -36,6 +36,41 @@ const getVercelTrack = () => {
 
 export type AnalyticsProperties = Record<string, string | number | boolean>;
 
+/** The live samples on docs pages that report use. */
+export type DocsSampleName =
+  | "runtime-playground"
+  | "thread-list-playground"
+  | "adapters-playground"
+  | "parts-playground"
+  | "branch-tree"
+  | "input-history"
+  | "turn-anchor"
+  | "message-timing";
+
+/** What the reader did in a sample. A fixed list, so an event can never carry the reader's own text. */
+export type DocsSampleAction =
+  | "send"
+  | "run"
+  | "stream_reasoning"
+  | "stream_text"
+  | "tool_call"
+  | "finish"
+  | "fail"
+  | "stop"
+  | "new_thread"
+  | "rename_thread"
+  | "archive_thread"
+  | "unarchive_thread"
+  | "delete_thread"
+  | "recall_history"
+  | "change_speed"
+  | "toggle_attachments"
+  | "toggle_feedback"
+  | "toggle_suggestion"
+  | "attach_file"
+  | "send_feedback"
+  | "reset";
+
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
 
@@ -109,10 +144,18 @@ export const analytics = {
     opened: (source: "header" | "sidebar" | "keyboard") =>
       trackEvent("search_opened", { source }),
 
-    querySubmitted: (query: string, resultsCount: number) =>
+    // `suggested_count` is how many results came from /api/search/suggest. A
+    // search the suggestions saved has results_count === suggested_count;
+    // search_no_results fires only when suggestions found nothing too.
+    querySubmitted: (
+      query: string,
+      resultsCount: number,
+      suggestedCount: number,
+    ) =>
       trackEvent("search_query_submitted", {
         query,
         results_count: resultsCount,
+        suggested_count: suggestedCount,
       }),
 
     resultClicked: (query: string, url: string, position: number) =>
@@ -147,6 +190,12 @@ export const analytics = {
   toc: {
     actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
       trackEvent("toc_action_clicked", { action }),
+  },
+
+  docs: {
+    /** A reader used a live sample on a docs page. Carries the sample's name and the kind of action only, never the reader's text or any id. */
+    sampleInteracted: (sample: DocsSampleName, action: DocsSampleAction) =>
+      trackEvent("docs_sample_interacted", { sample, action }),
   },
 
   pageActions: {

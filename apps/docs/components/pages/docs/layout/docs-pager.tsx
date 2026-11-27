@@ -24,6 +24,10 @@ import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import { analytics } from "@/lib/analytics";
 import { toast } from "sonner";
 import { usePlatformMarkdownUrl } from "@/hooks/use-platform-markdown-url";
+import {
+  usePlatformNeighbours,
+  type NeighboursByPlatform,
+} from "@/hooks/use-platform-neighbours";
 
 type PagerItem = {
   name: ReactNode;
@@ -31,8 +35,9 @@ type PagerItem = {
 };
 
 type DocsPagerProps = {
-  previous?: PagerItem;
-  next?: PagerItem;
+  previous?: PagerItem | undefined;
+  next?: PagerItem | undefined;
+  neighboursByPlatform?: NeighboursByPlatform | undefined;
   markdownUrl?: string;
   title: string;
   platformAwareMarkdown?: boolean;
@@ -66,10 +71,15 @@ async function copyText(value: string, successMessage: string) {
 export function DocsPager({
   previous,
   next,
+  neighboursByPlatform,
   markdownUrl,
   title,
   platformAwareMarkdown = false,
 }: DocsPagerProps) {
+  const neighbours = usePlatformNeighbours(
+    { previous, next },
+    neighboursByPlatform,
+  );
   const resolvedMarkdownUrl = usePlatformMarkdownUrl(
     markdownUrl,
     platformAwareMarkdown,
@@ -84,7 +94,7 @@ export function DocsPager({
   const buttonClass =
     "flex size-7 items-center justify-center rounded-md bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:size-8";
   return (
-    <DocsPagerNavigation previous={previous} next={next}>
+    <DocsPagerNavigation previous={neighbours.previous} next={neighbours.next}>
       {resolvedMarkdownUrl && (
         <DropdownMenu onOpenChange={(open) => open && prefetch()}>
           <DropdownMenuTrigger

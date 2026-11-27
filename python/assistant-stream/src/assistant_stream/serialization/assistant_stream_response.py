@@ -52,6 +52,7 @@ class AssistantStreamResponse(StreamingResponse):
         super().__init__(
             _close_on_exit(body, stream),
             media_type=stream_encoder.get_media_type(),
+            headers=stream_encoder.get_headers(),
         )
 
     async def stream_response(self, send: Send) -> None:

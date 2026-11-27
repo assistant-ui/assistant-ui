@@ -72,7 +72,7 @@ const Heading =
  * directly in MDX (it's a `node:fs` server component), so it bypasses this map
  * and carries its variant as a `.llm` marker the resolver picks up instead.
  */
-export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
+const components: MDXComponents = {
   ...getMDXComponents({}),
   h1: Heading("h1"),
   h2: Heading("h2"),
@@ -80,10 +80,20 @@ export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
   h4: Heading("h4"),
   h5: Heading("h5"),
   h6: Heading("h6"),
-  pre: ({ children }: ComponentProps<"pre">, ctx?: LLMRenderContext) => (
-    <pre>
-      {rewritePlatformPackages(children, ctx?.platform ?? DEFAULT_PLATFORM)}
-    </pre>
+  // The highlighter moves a fence's `title="…"`, usually the file path, onto
+  // `pre`, and the markdown converter has no place for it, so it becomes the
+  // line before the block.
+  pre: ({ children, title }: ComponentProps<"pre">, ctx?: LLMRenderContext) => (
+    <>
+      {title ? (
+        <p>
+          <code>{title}</code>
+        </p>
+      ) : null}
+      <pre>
+        {rewritePlatformPackages(children, ctx?.platform ?? DEFAULT_PLATFORM)}
+      </pre>
+    </>
   ),
   // Static markdown images render via next/image (client), whose fallback drops
   // src and leaks alt. A host <img> survives as `![alt](src)`; src may be a
@@ -123,5 +133,18 @@ export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
   ParametersTable: ParametersTableLLM,
   PrimitivesTypeTable: PrimitivesTypeTableLLM,
   Flow: FlowLLM,
+  // Agents read mermaid source; the SVG the page draws would reach them as
+  // nothing.
+  MermaidDiagram: ({ children }: { children?: ReactNode }) =>
+    typeof children === "string" && children.trim() ? (
+      <pre>
+        <code className="language-mermaid">{children.trim()}</code>
+      </pre>
+    ) : null,
   TapTutorialSlideshow: TapTutorialSlideshowLLM,
+};
+
+export const LLM_COMPONENTS = withDocsCodeBlock(components, {
+  // Highlighted fences only need the token text in Markdown.
+  span: ({ children }) => children,
 });

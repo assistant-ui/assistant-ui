@@ -58,7 +58,7 @@ export const RUNTIMES: { label: string; href: string; icon: ReactNode }[] = [
   },
   {
     label: "Your own server",
-    href: "/docs/runtimes/custom/overview",
+    href: "/docs/runtimes/pick-a-runtime#your-own-backend",
     icon: <Server className="size-5" />,
   },
   {

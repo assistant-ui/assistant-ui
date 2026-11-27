@@ -1,11 +1,10 @@
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/ai-sdk";
+import { streamText, convertToModelMessages } from "ai";
 import {
-  type JSONSchema7,
-  streamText,
-  convertToModelMessages,
-  type UIMessage,
-} from "ai";
+  answersToolApproval,
+  readChatRequest,
+  toolApprovalSecret,
+} from "../chat-request";
 import { isAllowedRequestContext } from "../request-context";
 
 export const maxDuration = 30;
@@ -18,23 +17,28 @@ export async function POST(req: Request) {
     );
   }
 
-  const {
-    messages,
-    system,
-    tools,
-  }: {
-    messages: UIMessage[];
-    system?: string;
-    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
-  } = await req.json();
+  const request = await readChatRequest(req);
+  if ("error" in request) {
+    return Response.json({ error: request.error }, { status: 400 });
+  }
+  const { messages, system } = request;
 
-  const aiSDKTools = { ...frontendTools(tools ?? {}) };
+  const approvalSecret = toolApprovalSecret();
+  if (approvalSecret === undefined && answersToolApproval(messages)) {
+    return Response.json(
+      { error: "Set TOOL_APPROVAL_SECRET to use tool approvals." },
+      { status: 500 },
+    );
+  }
+
+  const aiSDKTools = { ...request.frontendTools };
   const result = streamText({
     abortSignal: req.signal,
     model: openai.responses("gpt-6-luna"),
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
     tools: aiSDKTools,
+    experimental_toolApprovalSecret: approvalSecret,
     providerOptions: {
       openai: {
         reasoningEffort: "low",
