@@ -169,14 +169,38 @@ for (const file of [
 for (const [kind, entry, expectedUiLoc] of [
   ["static", 'export { chart } from "@/ui/chart";', 301],
   ["lazy alias", 'export const chart = () => import("@/ui/chart");', 301],
+  ["lazy alias after a comment", 'void import(/* chunk */ "@/ui/chart");', 301],
   ["relative lazy dependency reached twice", 'import "@/ui/barrel";', 302],
   [
-    "nonliteral imports and import-like text",
+    "lazy import after a regular expression containing a backtick",
     [
-      '// import("@/ui/chart")',
-      '/* import("@/ui/chart") */',
+      "const heading = /^[\\s#>*`-]+/;",
+      'const load = () => import("@/ui/chart");',
+      "const label = `chart`;",
+    ].join("\n"),
+    301,
+  ],
+  [
+    "static re-export after a regular expression containing a backtick",
+    'const fence = /`/; export { chart } from "@/ui/chart"; const label = `chart`;',
+    301,
+  ],
+  [
+    "import-like text in comments",
+    ['// import("@/ui/chart")', '/* import("@/ui/chart") */'].join("\n"),
+    301,
+  ],
+  [
+    "import-like text in strings",
+    [
       `const example = 'import("@/ui/chart")';`,
       'const docs = `Use import("@/ui/chart")`;',
+    ].join("\n"),
+    301,
+  ],
+  [
+    "nonliteral imports and property calls",
+    [
       'const path = "@/ui/chart";',
       "void import(path);",
       'void import("@/ui/chart" + suffix);',
@@ -219,13 +243,14 @@ for (const [kind, entry, expectedUiLoc] of [
       encoding: "utf8",
       env: { ...process.env, MAX_LOC_HARD_INCREASE: "300" },
     });
+    const expectedDelta = expectedUiLoc + entry.split("\n").length - 1;
     assert.equal(
       check.status,
-      expectedUiLoc ? 1 : 0,
+      expectedDelta > 300 ? 1 : 0,
       check.stdout + check.stderr,
     );
-    if (expectedUiLoc)
-      assert.ok(check.stderr.includes(`default: +${expectedUiLoc} LOC > 300`));
+    if (expectedDelta > 300)
+      assert.ok(check.stderr.includes(`default: +${expectedDelta} LOC > 300`));
   });
 }
 

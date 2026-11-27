@@ -164,27 +164,15 @@ function resolveModule(fromFile, spec, tplDir, aliases) {
 
 function importsOf(file) {
   const src = readFileSync(file, "utf8");
-  // Keep quoted text in one token so examples in strings cannot become imports.
-  const tokens =
-    src.match(
-      /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\\r\n])*"|'(?:\\[\s\S]|[^'\\\r\n])*'|`(?:\\[\s\S]|[^`\\])*`|[\w$]+|\S/g,
-    ) ?? [];
-  const code = tokens.filter(
-    (token) => !token.startsWith("//") && !token.startsWith("/*"),
+  const trivia = String.raw`(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/[^\r\n\u2028\u2029]*)*`;
+  const specifier = String.raw`("[^"\r\n]+"|'[^'\r\n]+')`;
+  const re = new RegExp(
+    String.raw`\b(?:from|import)(?=${trivia}${specifier})|(?:\.\.\.|(?<!\.))\bimport(?=${trivia}\(${trivia}${specifier}${trivia}[,)])`,
+    "g",
   );
-  const specs = [];
-  for (const [i, token] of code.entries()) {
-    if (token !== "from" && token !== "import") continue;
-    if (code[i - 1] === ".") continue;
-    let spec = code[i + 1];
-    if (token === "import" && spec === "(") {
-      if (code[i + 3] !== ")" && code[i + 3] !== ",") continue;
-      spec = code[i + 2];
-    }
-    if (spec?.startsWith('"') || spec?.startsWith("'"))
-      specs.push(spec.slice(1, -1));
-  }
-  return specs;
+  return Array.from(src.matchAll(re), ([, staticSpec, lazySpec]) =>
+    (staticSpec ?? lazySpec).slice(1, -1),
+  );
 }
 
 // Owned template files all ship; packages/ui files count only when reachable
