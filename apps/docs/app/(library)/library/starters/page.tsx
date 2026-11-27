@@ -4,6 +4,7 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { createOgMetadata } from "@/lib/og";
 import { StartersBrowser } from "@/components/pages/library/starters-browser";
+import { StartersHeroActions } from "@/components/pages/library/starters-hero-actions";
 import { EXAMPLES, TEMPLATES } from "@/lib/library/starters-data";
 
 const title = "Starters";
@@ -33,6 +34,7 @@ export default function StartersPage(): React.ReactElement {
           {TEMPLATES.length} templates and {EXAMPLES.length} example apps, each
           created with one command.
         </p>
+        <StartersHeroActions />
       </div>
       <StartersBrowser />
     </PageFrame>
