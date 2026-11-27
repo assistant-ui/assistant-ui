@@ -448,6 +448,10 @@ const config: NextConfig = {
         source: "/elements/:path+.mdx",
         destination: "/llms.mdx/elements/:path*",
       },
+      ...["/blocks", "/careers", "/changelog"].map((prefix) => ({
+        source: `${prefix}/:path(.*\\.mdx?)`,
+        destination: `/missing.md?path=${prefix}/:path`,
+      })),
       {
         source: "/",
         has: [
