@@ -608,6 +608,117 @@ function runExecutable(root, { args = [], env = {} } = {}) {
   );
 }
 
+function runSemver(root, env) {
+  return spawnSync(
+    process.execPath,
+    [path.join(repoRoot, "scripts/check-changeset-semver.mjs")],
+    {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CHANGESET_SEMVER_CHECK_ROOT: root,
+        GITHUB_STEP_SUMMARY: "",
+        ...env,
+      },
+    },
+  );
+}
+
+test("repository metadata is ignored when validating pending changesets", (t) => {
+  const root = createWorkspace("---\n---\n");
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const file of ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "ReadMe.md"]) {
+    writeFileSync(
+      path.join(root, ".changeset", file),
+      "Repository instructions.",
+    );
+  }
+  const result = runExecutable(root);
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("drafts and deleted changesets cannot cover a published source edit", (t) => {
+  const bump = '---\n"@fixture/published": patch\n---\n';
+  const root = createWorkspace(bump);
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, "init", "-q");
+  const base = commitAll(root, "pending release");
+
+  rmSync(path.join(root, ".changeset/entry.md"));
+  writeFileSync(path.join(root, ".changeset/.draft.md"), bump);
+  const src = path.join(root, "packages/published/src");
+  mkdirSync(src);
+  writeFileSync(path.join(src, "index.js"), "export const value = 1;");
+  const env = {
+    BASE_SHA: base,
+    HEAD_SHA: commitAll(root, "edit published source"),
+  };
+
+  const all = runExecutable(root);
+  assert.equal(all.status, 0, all.stderr);
+  const coverage = runExecutable(root, { args: ["--changed-packages"], env });
+  assert.equal(coverage.status, 1, coverage.stdout);
+  assert.match(
+    coverage.stderr,
+    /Changed published packages without a changeset:[\s\S]*"@fixture\/published"/,
+  );
+  const semver = runSemver(root, env);
+  assert.equal(semver.status, 0, semver.stderr);
+  assert.match(semver.stdout, /No changeset files changed/);
+});
+
+for (const mode of [undefined, "pre", "exit"]) {
+  test(`PR checks select pre/ changesets by full path in ${mode ?? "normal"} mode`, (t) => {
+    const root = createWorkspace('---\n"@fixture/held": major\n---\n');
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    if (mode)
+      writeFileSync(
+        path.join(root, ".changeset/pre.json"),
+        JSON.stringify({ mode }),
+      );
+    git(root, "init", "-q");
+    const base = commitAll(root, "root changeset");
+
+    mkdirSync(path.join(root, ".changeset/pre"));
+    writeFileSync(
+      path.join(root, ".changeset/pre/entry.md"),
+      '---\n"@fixture/published": major\n---\n',
+    );
+    writeFileSync(
+      path.join(root, ".changeset/pre/check-name.md"),
+      '---\n"@fixture/internal": patch\n---\n',
+    );
+    const src = path.join(root, "packages/published/src");
+    mkdirSync(src);
+    writeFileSync(path.join(src, "index.js"), "export const value = 1;");
+    const env = {
+      BASE_SHA: base,
+      HEAD_SHA: commitAll(root, "edit with prerelease changesets"),
+    };
+
+    const all = runExecutable(root);
+    const coverage = runExecutable(root, { args: ["--changed-packages"], env });
+    const semver = runSemver(root, env);
+    if (mode === "pre") {
+      assert.equal(all.status, 0, all.stderr);
+      assert.equal(coverage.status, 1);
+      assert.match(coverage.stderr, /"@fixture\/published"/);
+      assert.equal(semver.status, 0, semver.stdout);
+      assert.match(semver.stdout, /No changeset files changed/);
+    } else {
+      assert.equal(all.status, 1);
+      assert.match(
+        all.stderr,
+        /pre\/check-name\.md: "@fixture\/internal" is private/,
+      );
+      assert.equal(coverage.status, 0, coverage.stderr);
+      assert.equal(semver.status, 1);
+      assert.match(semver.stdout, /`pre\/entry\.md` \| `@fixture\/published`/);
+      assert.doesNotMatch(semver.stdout, /@fixture\/held/);
+    }
+  });
+}
+
 test("changed package validation reports a changeset the PR adds that changesets cannot parse", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n---\n\nfix: already on base\n',
