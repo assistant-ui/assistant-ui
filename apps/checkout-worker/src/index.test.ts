@@ -1048,6 +1048,36 @@ describe("stage counts", () => {
     ]);
   });
 
+  it("sends a count again with the next change when the counter fails", async () => {
+    const stats = createStats();
+    const counter = stats.binding.get();
+    let failures = 1;
+    const fixture = createInstance(modelState(), unlimited(), {
+      ...stats,
+      binding: {
+        idFromName: stats.binding.idFromName,
+        get: () => ({
+          fetch: async (request: Request) => {
+            if (failures-- > 0) throw new Error("counter unavailable");
+            return counter.fetch(request);
+          },
+        }),
+      },
+    });
+    const client = await connect(fixture);
+    await client.commands["agent/plan"]({ markdown: "Install" });
+    await client.commands["checkout/plan"]({ decision: "approve" });
+    await vi.waitFor(() => expect(client.state?.status).toBe("installing"));
+    await fixture.ready();
+    expect(stats.stored.size).toBe(0);
+    await client.commands["agent/heartbeat"]();
+    await fixture.ready();
+    expect([...stats.stored.keys()]).toEqual([
+      expect.stringMatching(/^count:\d{4}-\d{2}-\d{2}:installing:unknown$/),
+      expect.stringMatching(/^pending:/),
+    ]);
+  });
+
   it("asks the counter to send PostHog finished days on the worker's cron", async () => {
     const fetch = vi.fn(
       async (_request: Request) =>

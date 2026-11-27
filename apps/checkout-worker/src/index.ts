@@ -106,7 +106,7 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
   #state: Checkout.State | undefined;
   #cleanupScope = "";
   #lastActiveAt: number | undefined;
-  #stagesToCount = createStageTracker();
+  #stages = createStageTracker();
   #countStarted = false;
   #countQueued = false;
 
@@ -224,7 +224,7 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
     if (!this.#countStarted) {
       if (!this.#state) return;
       this.#countStarted = true;
-      this.#stagesToCount(this.#state);
+      this.#stages.track(this.#state);
       return;
     }
     this.#countQueued = true;
@@ -232,7 +232,7 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       this.#countQueued = false;
       const state = this.#state;
       if (!state) return;
-      const stages = this.#stagesToCount(state);
+      const stages = this.#stages.track(state);
       if (stages.length === 0) return;
       const body: StageCountRequest = {
         stages,
@@ -249,8 +249,13 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
               }),
             ),
           )
+          .then((response) => {
+            if (!response.ok) throw new Error(`count ${response.status}`);
+          })
           .catch(() => {
-            // A count that fails is dropped; the setup goes on.
+            // The next change (a heartbeat, every few seconds while the
+            // agent runs) sends these stages again.
+            this.#stages.release(stages);
           }),
       );
     });

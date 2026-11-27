@@ -13,7 +13,7 @@ const FUNNEL = ["created", "planning", "installing", "done"] as const;
 /** A stage a setup's count records; `cancelled` can follow any other. */
 type Stage = (typeof FUNNEL)[number] | "cancelled";
 
-const STAGES: readonly string[] = [...FUNNEL, "cancelled"];
+const STAGES: readonly Stage[] = [...FUNNEL, "cancelled"];
 
 /** The kinds the CLI detects (setup-agent's CODING_AGENTS); any other is `other`. */
 const AGENT_KINDS: readonly string[] = [
@@ -44,13 +44,13 @@ export const agentKindLabel = (kind: string | null) =>
   kind === null ? "unknown" : AGENT_KINDS.includes(kind) ? kind : "other";
 
 const isStage = (value: unknown): value is Stage =>
-  typeof value === "string" && STAGES.includes(value);
+  typeof value === "string" && (STAGES as readonly string[]).includes(value);
 
 const isAgentKindLabel = (value: unknown): value is string =>
   typeof value === "string" &&
   (value === "unknown" || value === "other" || AGENT_KINDS.includes(value));
 
-/** The stages `state` has reached. A cancelled setup was created, and its other stages were counted as it reached them. */
+/** The stages `state` shows it has reached. A cancelled setup shows only that it was created; the tracker remembers the rest. */
 const reached = (state: Checkout.State): Stage[] => {
   if (state.createdAt === null) return [];
   if (state.status === "cancelled") return ["created", "cancelled"];
@@ -65,23 +65,33 @@ const reached = (state: Checkout.State): Stage[] => {
  * the one the object restored, whose stages were counted before (or before
  * counting began), so only stages reached after that count, each once.
  * The CLI names its agent kind right after it creates the setup, so stages
- * wait for that, and a closed setup counts what it reached without one.
+ * it reaches before then wait for that, and a closed setup counts every
+ * stage it reached without one. `release` hands back stages whose count
+ * failed, so the next change sends them again.
  */
 export const createStageTracker = () => {
   let counted: Set<Stage> | undefined;
-  return (state: Checkout.State): Stage[] => {
+  const seen = new Set<Stage>();
+  const track = (state: Checkout.State): Stage[] => {
     if (counted === undefined) {
       counted = new Set(reached(state));
       return [];
     }
+    for (const stage of reached(state)) seen.add(stage);
     const introduced =
       state.agent.introducedAt !== null || state.agent.lastSeenAt !== null;
     if (!introduced && state.status !== "done" && state.status !== "cancelled")
       return [];
-    const fresh = reached(state).filter((stage) => !counted!.has(stage));
+    const fresh = STAGES.filter(
+      (stage) => seen.has(stage) && !counted!.has(stage),
+    );
     for (const stage of fresh) counted.add(stage);
     return fresh;
   };
+  const release = (stages: readonly Stage[]) => {
+    for (const stage of stages) counted?.delete(stage);
+  };
+  return { track, release };
 };
 
 /** The body the setup object sends the counter: the stages and the agent kind, nothing else. */
@@ -106,6 +116,31 @@ const PENDING_PREFIX = "pending:";
 
 /** The UTC day of `at`, as YYYY-MM-DD. */
 const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10);
+
+/** A UUID (version 8) derived from the count's day, stage and agent kind alone. */
+const countUuid = async (day: string, stage: string, agentKind: string) => {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(
+        `setup_stage_count:${day}:${stage}:${agentKind}`,
+      ),
+    ),
+  );
+  const bytes = digest.slice(0, 16);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x80;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0"));
+  return [
+    hex.slice(0, 4),
+    hex.slice(4, 6),
+    hex.slice(6, 8),
+    hex.slice(8, 10),
+    hex.slice(10, 16),
+  ]
+    .map((group) => group.join(""))
+    .join("-");
+};
 
 type Storage = Pick<
   DurableObjectState["storage"],
@@ -172,25 +207,30 @@ export class SetupStatsDO {
       const counts = await this.#storage.list<number>({
         prefix: `${COUNT_PREFIX}${day}:`,
       });
-      const batch = [...counts].map(([countKey, count]) => {
-        const [stage, agentKind] = countKey
-          .slice(`${COUNT_PREFIX}${day}:`.length)
-          .split(":");
-        return {
-          event: "setup_stage_count",
-          timestamp: `${day}T00:00:00.000Z`,
-          properties: {
-            distinct_id: POSTHOG_DISTINCT_ID,
-            app: "setup",
-            day,
-            stage,
-            agent_kind: agentKind,
-            count,
-            $process_person_profile: false,
-            $geoip_disable: true,
-          },
-        };
-      });
+      const batch = await Promise.all(
+        [...counts].map(async ([countKey, count]) => {
+          const [stage, agentKind] = countKey
+            .slice(`${COUNT_PREFIX}${day}:`.length)
+            .split(":");
+          return {
+            event: "setup_stage_count",
+            // The same for every send of this count, so PostHog keeps one
+            // copy if a day goes out twice (a restart before its mark is dropped).
+            uuid: await countUuid(day, stage!, agentKind!),
+            timestamp: `${day}T00:00:00.000Z`,
+            properties: {
+              distinct_id: POSTHOG_DISTINCT_ID,
+              app: "setup",
+              day,
+              stage,
+              agent_kind: agentKind,
+              count,
+              $process_person_profile: false,
+              $geoip_disable: true,
+            },
+          };
+        }),
+      );
       if (batch.length > 0) {
         const response = await fetch(POSTHOG_BATCH_URL, {
           method: "POST",

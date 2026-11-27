@@ -31,7 +31,7 @@ const introduced = { introducedAt: 2, kind: "claude" };
 
 describe("stage tracker", () => {
   it("counts each stage once, from the moment the agent introduces itself", () => {
-    const track = createStageTracker();
+    const { track } = createStageTracker();
     expect(track(initialCheckoutState())).toEqual([]);
     expect(track(setup("waiting"))).toEqual([]);
     expect(track(setup("planning"))).toEqual([]);
@@ -46,25 +46,51 @@ describe("stage tracker", () => {
   });
 
   it("counts only the stages reached after the state the object restored", () => {
-    const track = createStageTracker();
+    const { track } = createStageTracker();
     expect(track(setup("planning", introduced))).toEqual([]);
     expect(track(setup("installing", introduced))).toEqual(["installing"]);
   });
 
   it("counts a cancelled setup as created and cancelled, without its agent", () => {
-    const track = createStageTracker();
+    const { track } = createStageTracker();
     track(initialCheckoutState());
     expect(track(setup("cancelled"))).toEqual(["created", "cancelled"]);
   });
 
+  it("counts the stages a setup reached before it closed without an agent", () => {
+    const { track } = createStageTracker();
+    track(initialCheckoutState());
+    expect(track(setup("planning"))).toEqual([]);
+    expect(track(setup("cancelled"))).toEqual([
+      "created",
+      "planning",
+      "cancelled",
+    ]);
+  });
+
   it("counts a jump past a stage as reaching it", () => {
-    const track = createStageTracker();
+    const { track } = createStageTracker();
     track(initialCheckoutState());
     expect(track(setup("installing", introduced))).toEqual([
       "created",
       "planning",
       "installing",
     ]);
+  });
+
+  it("sends released stages again with the next change", () => {
+    const { track, release } = createStageTracker();
+    track(initialCheckoutState());
+    expect(track(setup("planning", introduced))).toEqual([
+      "created",
+      "planning",
+    ]);
+    release(["created", "planning"]);
+    expect(track(setup("planning", introduced))).toEqual([
+      "created",
+      "planning",
+    ]);
+    expect(track(setup("planning", introduced))).toEqual([]);
   });
 });
 
@@ -180,11 +206,15 @@ describe("SetupStatsDO", () => {
     const [url, init] = fetch.mock.calls[0]!;
     expect(url).toBe("https://us.i.posthog.com/batch/");
     const body = JSON.parse(init.body as string);
+    const uuid = expect.stringMatching(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(body).toEqual({
       api_key: "phc_test",
       batch: [
         {
           event: "setup_stage_count",
+          uuid,
           timestamp: "2026-11-26T00:00:00.000Z",
           properties: {
             distinct_id: "setup-worker",
@@ -199,6 +229,7 @@ describe("SetupStatsDO", () => {
         },
         {
           event: "setup_stage_count",
+          uuid,
           timestamp: "2026-11-26T00:00:00.000Z",
           properties: {
             distinct_id: "setup-worker",
@@ -233,5 +264,27 @@ describe("SetupStatsDO", () => {
     expect(stats.stored.has("pending:2026-11-26")).toBe(true);
     fetch.mockResolvedValue(new Response("{}"));
     expect(await stats.runExport()).toEqual({ exported: ["2026-11-26"] });
+  });
+
+  it("gives a count the same event id on every send, so PostHog keeps one copy of a day sent twice", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const fetch = vi.fn(
+      async (_url: string, _init: RequestInit) => new Response("{}"),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const ids = async () => {
+      const stats = createStats({ POSTHOG_API_KEY: "phc_test" });
+      vi.setSystemTime(new Date("2026-11-26T12:00:00Z"));
+      await stats.count({ stages: ["created", "done"], agentKind: "claude" });
+      vi.setSystemTime(new Date("2026-11-27T12:00:00Z"));
+      await stats.runExport();
+      const init = fetch.mock.calls.at(-1)![1];
+      return JSON.parse(init.body as string).batch.map(
+        (event: { uuid: string }) => event.uuid,
+      ) as string[];
+    };
+    const first = await ids();
+    expect(await ids()).toEqual(first);
+    expect(new Set(first).size).toBe(2);
   });
 });
