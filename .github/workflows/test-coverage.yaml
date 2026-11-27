@@ -231,7 +231,9 @@ jobs:
 
       - name: Write the coverage summary
         if: always()
-        run: pnpm coverage:summary --report "$GITHUB_STEP_SUMMARY"
+        run: >-
+          pnpm run coverage:summary --report "$GITHUB_STEP_SUMMARY"
+          --write-data shard-totals-${{ matrix.shard }}.json
 
       - name: Upload coverage reports
         if: always()
@@ -244,6 +246,14 @@ jobs:
             examples/*/coverage/
             templates/*/coverage/
           if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload shard totals
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
+        with:
+          name: shard-totals-${{ matrix.shard }}
+          path: shard-totals-${{ matrix.shard }}.json
+          if-no-files-found: error
           retention-days: 14
 
   coverage:
@@ -277,13 +287,15 @@ jobs:
           SHARDS: ${{ needs.plan.outputs.shards }}
         run: node scripts/coverage-shards.mjs --verify "$SHARDS"
 
-      - name: Download coverage reports
+      - name: Download shard totals
         if: needs.plan.outputs.run == 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8.0.2
         with:
-          pattern: coverage-*
+          pattern: shard-totals-*
           merge-multiple: true
 
       - name: Write combined coverage summary
         if: needs.plan.outputs.run == 'true'
-        run: node scripts/coverage-summary.mjs --report "$GITHUB_STEP_SUMMARY"
+        run: >-
+          node scripts/coverage-summary.mjs --report "$GITHUB_STEP_SUMMARY"
+          --from-data shard-totals-0.json --from-data shard-totals-1.json

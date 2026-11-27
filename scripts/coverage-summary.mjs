@@ -9,6 +9,8 @@ const METRICS = ["lines", "statements", "functions", "branches"];
 
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
 
+const byName = (a, b) => a.name.localeCompare(b.name);
+
 export function collectCoverageSummaries(root = repoRoot) {
   return WORKSPACE_ROOTS.flatMap((workspaceRoot) => {
     const dir = path.join(root, workspaceRoot);
@@ -27,7 +29,7 @@ export function collectCoverageSummaries(root = repoRoot) {
           path.join(workspaceDir, "coverage/coverage-summary.json"),
         ).total,
       }));
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  }).sort(byName);
 }
 
 function combine(summaries) {
@@ -71,10 +73,16 @@ export function renderCoverageMarkdown(summaries) {
 }
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
-  const [reportPath] = optionValues(process.argv.slice(2), "--report");
-  const markdown = renderCoverageMarkdown(
-    collectCoverageSummaries(process.env.COVERAGE_SUMMARY_ROOT),
-  );
+  const args = process.argv.slice(2);
+  const [reportPath] = optionValues(args, "--report");
+  const [dataPath] = optionValues(args, "--write-data");
+  const inputs = optionValues(args, "--from-data");
+  const summaries = inputs.length
+    ? inputs.flatMap(readJson).sort(byName)
+    : collectCoverageSummaries(process.env.COVERAGE_SUMMARY_ROOT);
+  if (dataPath !== undefined)
+    writeFileSync(dataPath, JSON.stringify(summaries));
+  const markdown = renderCoverageMarkdown(summaries);
   if (reportPath === undefined) {
     process.stdout.write(markdown);
   } else {

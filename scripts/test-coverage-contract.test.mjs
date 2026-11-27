@@ -637,3 +637,29 @@ test(
     assert.deepEqual(selected, baseline);
   },
 );
+
+test("the aggregate downloads only shard totals and reads both uploaded files", () => {
+  const shards = jobSteps("shards");
+  const aggregate = jobSteps("coverage");
+  const download = [...aggregate.values()].find((step) =>
+    step.includes("uses: actions/download-artifact@"),
+  );
+  const pattern = download.match(/^ {10}pattern: (.+)$/m)[1];
+  const report = aggregate.get("Write combined coverage summary");
+  for (const shard of [0, 1]) {
+    assert.equal(path.matchesGlob(`coverage-${shard}`, pattern), false);
+    const upload = shards
+      .get("Upload shard totals")
+      .replaceAll("${{ matrix.shard }}", String(shard));
+    const name = upload.match(/^ {10}name: (.+)$/m)[1];
+    const file = upload.match(/^ {10}path: (.+)$/m)[1];
+    assert(path.matchesGlob(name, pattern));
+    assert(report.includes(`--from-data ${file}`));
+    assert(
+      shards
+        .get("Write the coverage summary")
+        .replaceAll("${{ matrix.shard }}", String(shard))
+        .includes(`--write-data ${file}`),
+    );
+  }
+});

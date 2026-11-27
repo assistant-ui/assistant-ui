@@ -177,3 +177,47 @@ test("fails when --report has no path", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("combines compact shard totals into the same report and requires every input file", (t) => {
+  const first = { "templates/z": { name: "z", total: totals(3, 4) } };
+  const second = { "apps/a": { name: "a", total: totals(1, 1) } };
+  const fixture = (workspaces) => {
+    const root = createRepo(workspaces);
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    return root;
+  };
+  const aggregate = fixture({});
+  const inputs = [];
+  for (const [index, workspaces] of [first, second, {}].entries()) {
+    const root = fixture(workspaces);
+    const report = path.join(root, "summary.md");
+    const output = path.join(aggregate, `shard-${index}.json`);
+    const result = runScript(root, [
+      "--",
+      "--report",
+      report,
+      "--write-data",
+      output,
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(report, "utf8"), runScript(root, []).stdout);
+    assert.deepEqual(
+      JSON.parse(readFileSync(output, "utf8")),
+      Object.values(workspaces),
+    );
+    inputs.push("--from-data", output);
+  }
+  const combined = runScript(aggregate, inputs);
+  assert.equal(combined.status, 0, combined.stderr);
+  assert.equal(
+    combined.stdout,
+    runScript(fixture({ ...first, ...second }), []).stdout,
+  );
+  const missing = runScript(aggregate, [
+    ...inputs,
+    "--from-data",
+    path.join(aggregate, "missing.json"),
+  ]);
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /missing\.json/);
+});
