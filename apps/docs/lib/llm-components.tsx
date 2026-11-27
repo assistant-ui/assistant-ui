@@ -72,7 +72,7 @@ const Heading =
  * directly in MDX (it's a `node:fs` server component), so it bypasses this map
  * and carries its variant as a `.llm` marker the resolver picks up instead.
  */
-export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
+const components: MDXComponents = {
   ...getMDXComponents({}),
   h1: Heading("h1"),
   h2: Heading("h2"),
@@ -142,4 +142,9 @@ export const LLM_COMPONENTS: MDXComponents = withDocsCodeBlock({
       </pre>
     ) : null,
   TapTutorialSlideshow: TapTutorialSlideshowLLM,
+};
+
+export const LLM_COMPONENTS = withDocsCodeBlock(components, {
+  // Highlighted fences only need the token text in Markdown.
+  span: ({ children }) => children,
 });

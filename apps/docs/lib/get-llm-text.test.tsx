@@ -54,6 +54,26 @@ describe("agent markdown keeps what the page shows", () => {
     expect(markdown).toContain("```mermaid\nflowchart LR\n  a --> b\n```");
   });
 
+  it("keeps a highlighted fence's title, lines and selected platform package", async () => {
+    const page = pageOf(({ components = {} }) => {
+      const DocsCodeBlock = components.DocsCodeBlock!;
+      return (
+        <DocsCodeBlock
+          lang="tsx"
+          meta='title="app.tsx"'
+          code={
+            'import { Thread } from "@assistant-ui/react";\n\n<Thread />;\n'
+          }
+        />
+      );
+    });
+
+    const markdown = await getLLMText(page, { platform: "rn" });
+    expect(markdown).toContain(
+      '`app.tsx`\n\n```\nimport { Thread } from "@assistant-ui/react-native";\n\n<Thread />;\n```',
+    );
+  });
+
   it("describes a live demo with its description prop", async () => {
     const Demo = clientReference(
       "samples/turn-anchor.lazy.tsx#TurnAnchorSample",
