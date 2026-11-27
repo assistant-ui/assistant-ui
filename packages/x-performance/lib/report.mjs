@@ -27,7 +27,7 @@ const pct = (value) =>
 const floor = (value) => `${value.toFixed(1)}%`;
 const code = (value) => `\`${value}\``;
 
-// Rows carry `measured: false` when every dist they exercise is byte-identical
+// Rows carry `measured: false` when the runtime inputs of every package they exercise match
 // on both sides. Such controls cannot have moved for a real reason, so how far
 // the worst of them overshoots its own analytic floor calibrates the floors
 // for this run: a measured row counts as moved only when it clears its floor
@@ -148,18 +148,18 @@ const compareHeadline = (doc) => {
       : "so no bench ran";
     return [
       doc.changed.length
-        ? `- **No bench exercises the changed dists** (${doc.changed.map(code).join(", ")}), ${ran}. A bench under \`bench/\` that imports them would measure this class of change.`
-        : `- **Nothing to measure.** Every measured package dist is byte-identical between ${doc.base.label} and ${doc.head.label}, ${ran}`,
+        ? `- **No bench exercises the changed packages** (${doc.changed.map(code).join(", ")}), ${ran}. A bench under \`bench/\` that imports them would measure this class of change.`
+        : `- **Nothing to measure.** Runtime inputs match for every measured package between ${doc.base.label} and ${doc.head.label}, ${ran}`,
     ];
   }
   const changed = doc.changed.map(code).join(", ");
   return [
     moved
-      ? `- **${tally}** among ${s.measured} benches that exercise a changed dist (${changed}) · ${s.same} within noise`
-      : `- **No measured bench moved.** ${s.measured} benches exercise a changed dist (${changed}), all within noise`,
+      ? `- **${tally}** among ${s.measured} benches that exercise a changed package (${changed}) · ${s.same} within noise`
+      : `- **No measured bench moved.** ${s.measured} benches exercise a changed package (${changed}), all within noise`,
     s.controls
-      ? `- **Controls:** ${s.controls} benches on unchanged dists · ${controlsText(s)}`
-      : "- **Controls:** none, every bench exercises a changed dist, so verdicts rest on the analytic floors alone",
+      ? `- **Controls:** ${s.controls} benches on unchanged packages · ${controlsText(s)}`
+      : "- **Controls:** none, every bench exercises a changed package, so verdicts rest on the analytic floors alone",
   ];
 };
 
@@ -257,7 +257,7 @@ export const renderCompareMarkdown = (
     out.push(
       "",
       "<details>",
-      `<summary>${allControls.length} control ${rowsWord(allControls.length)} (unchanged dists, so every delta here is runner noise)${omitted ? `, the ${controls.length} largest moves shown` : ""}</summary>`,
+      `<summary>${allControls.length} control ${rowsWord(allControls.length)} (unchanged packages, so every delta here is runner noise)${omitted ? `, the ${controls.length} largest moves shown` : ""}</summary>`,
       "",
       mdTable(
         ["bench", "base", "head", "Δ", "floor"],
@@ -308,7 +308,7 @@ export const renderCompareTerminal = (doc) => {
   }
   if (controls.length) {
     console.log(
-      `controls (${controls.length} benches on unchanged dists; deltas are runner noise):`,
+      `controls (${controls.length} benches on unchanged packages; deltas are runner noise):`,
     );
     table(controls, false);
   }

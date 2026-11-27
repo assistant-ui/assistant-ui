@@ -194,7 +194,7 @@ describe("renderCompareMarkdown", () => {
       { changed: ["@assistant-ui/core"] },
     );
     expect(md).toContain(
-      "- **No measured bench moved.** 2 benches exercise a changed dist (`@assistant-ui/core`), all within noise",
+      "- **No measured bench moved.** 2 benches exercise a changed package (`@assistant-ui/core`), all within noise",
     );
     expect(md).not.toContain("| verdict |");
     expect(md).toContain(
@@ -233,10 +233,10 @@ describe("renderCompareMarkdown", () => {
       { changed: ["@assistant-ui/core"], footer: ["base `a`", "head `b`"] },
     );
     expect(md).toContain(
-      "- **1 slower · 0 faster** among 2 benches that exercise a changed dist (`@assistant-ui/core`) · 1 within noise",
+      "- **1 slower · 0 faster** among 2 benches that exercise a changed package (`@assistant-ui/core`) · 1 within noise",
     );
     expect(md).toContain(
-      "- **Controls:** 2 benches on unchanged dists · 1 crossed their analytic floor, the worst by 2.0× (c › g › ctl-loud)",
+      "- **Controls:** 2 benches on unchanged packages · 1 crossed their analytic floor, the worst by 2.0× (c › g › ctl-loud)",
     );
     expect(md).toContain("| bench | base | head | Δ | floor ×2.0 | verdict |");
     expect(md).toContain(
@@ -250,7 +250,7 @@ describe("renderCompareMarkdown", () => {
       "| m › g › still | 1.000ms | 1.010ms | +1.0% | 6.0% |",
     );
     expect(details).toContain(
-      "<summary>2 control rows (unchanged dists, so every delta here is runner noise)</summary>\n\n| bench | base | head | Δ | floor |",
+      "<summary>2 control rows (unchanged packages, so every delta here is runner noise)</summary>\n\n| bench | base | head | Δ | floor |",
     );
     expect(details).toContain(
       "| c › g › ctl-loud | 1.000ms | 1.060ms | +6.0% ⚠︎ | 3.0% |",
@@ -274,13 +274,13 @@ describe("renderCompareMarkdown", () => {
       { changed: [] },
     );
     expect(md).toContain(
-      "- **Nothing to measure.** Every measured package dist is byte-identical between base (aaaaaaa) and head (bbbbbbb), so all 2 rows ran as controls · 1 crossed their analytic floor, the worst by 1.3× (c › g › y)",
+      "- **Nothing to measure.** Runtime inputs match for every measured package between base (aaaaaaa) and head (bbbbbbb), so all 2 rows ran as controls · 1 crossed their analytic floor, the worst by 1.3× (c › g › y)",
     );
     expect(md).not.toContain("| verdict |");
     expect(md).toContain("<summary>2 control rows");
   });
 
-  it("says when changed dists have no bench instead of claiming they are identical", () => {
+  it("says when changed packages have no bench instead of claiming they are identical", () => {
     const md = markdown(
       [
         row("bench/c.bench.ts > g > x", 2, 3, false),
@@ -289,9 +289,9 @@ describe("renderCompareMarkdown", () => {
       { changed: ["@assistant-ui/tap"] },
     );
     expect(md).toContain(
-      "- **No bench exercises the changed dists** (`@assistant-ui/tap`), so all 2 rows ran as controls · none crossed their analytic floor.",
+      "- **No bench exercises the changed packages** (`@assistant-ui/tap`), so all 2 rows ran as controls · none crossed their analytic floor.",
     );
-    expect(md).not.toContain("byte-identical");
+    expect(md).not.toContain("Runtime inputs match");
   });
 
   it("says no bench ran when the comparison was skipped", () => {
@@ -300,13 +300,13 @@ describe("renderCompareMarkdown", () => {
       footer: ["base `a`", "head `b`"],
     });
     expect(identical).toContain(
-      "- **Nothing to measure.** Every measured package dist is byte-identical between base (aaaaaaa) and head (bbbbbbb), so no bench ran",
+      "- **Nothing to measure.** Runtime inputs match for every measured package between base (aaaaaaa) and head (bbbbbbb), so no bench ran",
     );
     expect(identical).not.toContain("<details>");
     expect(identical.trimEnd().endsWith("base `a` · head `b`")).toBe(true);
 
     expect(markdown([], { changed: ["@assistant-ui/react"] })).toContain(
-      "- **No bench exercises the changed dists** (`@assistant-ui/react`), so no bench ran. A bench under `bench/` that imports them would measure this class of change.",
+      "- **No bench exercises the changed packages** (`@assistant-ui/react`), so no bench ran. A bench under `bench/` that imports them would measure this class of change.",
     );
   });
 
@@ -315,7 +315,7 @@ describe("renderCompareMarkdown", () => {
       changed: ["@assistant-ui/tap"],
     });
     expect(md).toContain(
-      "- **Controls:** none, every bench exercises a changed dist, so verdicts rest on the analytic floors alone",
+      "- **Controls:** none, every bench exercises a changed package, so verdicts rest on the analytic floors alone",
     );
   });
 
@@ -452,7 +452,7 @@ describe("assembleReport", () => {
     const md = assembleReport({ out, bench });
     expect(md.length).toBeLessThan(65536);
     expect(md).toContain(
-      "<summary>900 control rows (unchanged dists, so every delta here is runner noise), the 40 largest moves shown</summary>",
+      "<summary>900 control rows (unchanged packages, so every delta here is runner noise), the 40 largest moves shown</summary>",
     );
     expect(md).toContain(
       "<summary>machine-readable (control rows omitted to stay under the comment size limit)</summary>",

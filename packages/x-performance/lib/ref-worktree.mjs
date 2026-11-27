@@ -96,8 +96,6 @@ const pinReactToCurrentTree = (wt) => {
   }
 };
 
-// Content hash of a built package. Sourcemaps are skipped because they embed
-// source paths that differ between worktrees without any runtime difference.
 export const distFingerprint = (dir) => {
   if (!existsSync(dir)) return null;
   const hash = createHash("sha256");
@@ -108,7 +106,7 @@ export const distFingerprint = (dir) => {
     for (const entry of entries) {
       const path = join(current, entry.name);
       if (entry.isDirectory()) walk(path);
-      else if (!entry.name.endsWith(".map")) {
+      else if (!/\.map$|\.d\.[cm]?ts$/.test(entry.name)) {
         hash.update(relative(dir, path));
         hash.update("\0");
         hash.update(readFileSync(path));
@@ -120,14 +118,54 @@ export const distFingerprint = (dir) => {
   return hash.digest("hex");
 };
 
-// Measured packages whose built output differs between the two trees. A
-// bench that only exercises packages outside this list cannot have moved for
-// a real reason, which is what turns it into a noise control.
+const isTypeCondition = (key) => key === "types" || key.startsWith("types@");
+
+const hasRuntimeTarget = (target) =>
+  target === null ||
+  typeof target !== "object" ||
+  Array.isArray(target) ||
+  Object.entries(target).some(
+    ([condition, value]) =>
+      !isTypeCondition(condition) && hasRuntimeTarget(value),
+  );
+
+const runtimeResolution = (key, value) => {
+  if (isTypeCondition(key)) return undefined;
+  if (key !== "exports" && key !== "imports") return value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+
+  // Subpaths match by specificity, while conditions and fallback arrays match in order.
+  const keys = Object.keys(value);
+  if (!keys.every((path) => path.startsWith(".") || path.startsWith("#")))
+    return value;
+
+  // An exact types-only entry can block a runtime wildcard.
+  const hasWildcard = keys.some((path) => path.includes("*"));
+  return Object.fromEntries(
+    keys
+      .sort()
+      .filter((path) => hasWildcard || hasRuntimeTarget(value[path]))
+      .map((path) => [path, value[path]]),
+  );
+};
+
+const packageFingerprint = (dir) => {
+  const dist = distFingerprint(join(dir, "dist"));
+  if (dist === null) return null;
+  const { type, main, module, exports, imports } = JSON.parse(
+    readFileSync(join(dir, "package.json"), "utf8"),
+  );
+  return JSON.stringify(
+    { dist, type, imports, exports, ...(exports == null && { main, module }) },
+    runtimeResolution,
+  );
+};
+
 export const changedPackages = (currentRoot, refRoot) =>
   Object.entries(REF_PACKAGE_DIRS)
     .filter(
       ([, dir]) =>
-        distFingerprint(join(currentRoot, dir, "dist")) !==
-        distFingerprint(join(refRoot, dir, "dist")),
+        packageFingerprint(join(currentRoot, dir)) !==
+        packageFingerprint(join(refRoot, dir)),
     )
     .map(([name]) => name);

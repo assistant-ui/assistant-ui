@@ -9,7 +9,7 @@ const usage = `usage:
   aui-perf record [name.json] [--runs N]        run benches N times (default 3), save best-of per benchmark to .perf/
   aui-perf compare <a> <b>                      diff two recordings (names in .perf/ or paths)
   aui-perf compare --ref <git-ref> [--runs N] [--all]
-                                                build <git-ref> in a temp worktree, interleave runs of the benches that exercise a changed dist plus a few controls, diff against the current tree; --all runs every bench
+                                                build <git-ref> in a temp worktree, interleave runs of the benches that exercise a changed package plus a few controls, diff against the current tree; --all runs every bench
   aui-perf trace <fixture.html...> [--seconds N] trace each page in headless Chrome (default 5s), report paint and thread cost
   aui-perf trace --ref <git-ref> <fixture.html...>
                                                 trace each fixture against <git-ref>'s package sources, both sides plus screenshots
