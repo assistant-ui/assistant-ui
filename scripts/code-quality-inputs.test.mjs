@@ -91,6 +91,33 @@ test("unrelated root Markdown stays outside the main push filter", () => {
   assert.equal(triggers("README.md"), false);
 });
 
+// A condition that compares the event name with `==` restricts the job or step
+// to those events. Any other use of the event name fails instead of guessing.
+const runsOn = (condition = "", event) => {
+  const events = [...condition.matchAll(/github\.event_name == '(\w+)'/g)].map(
+    ([, name]) => name,
+  );
+  assert.equal(
+    condition.split("github.event_name").length - 1,
+    events.length,
+    `unsupported event condition: ${condition}`,
+  );
+  return events.length === 0 || events.includes(event);
+};
+
+test("the shared helper guard reads only event equality conditions", () => {
+  assert.equal(runsOn(undefined, "pull_request"), true);
+  assert.equal(runsOn("${{ !cancelled() }}", "merge_group"), true);
+  const either =
+    "(github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.x.outputs.run == 'true'";
+  assert.equal(runsOn(either, "merge_group"), true);
+  assert.equal(runsOn("github.event_name == 'push'", "pull_request"), false);
+  assert.throws(
+    () => runsOn("github.event_name != 'pull_request'", "pull_request"),
+    /unsupported event condition/,
+  );
+});
+
 test("a required check runs every shared helper test on pull requests and in the merge queue", () => {
   const required = new Set(
     JSON.parse(read(".github/review-policy.json")).requiredChecks.map(
@@ -99,10 +126,6 @@ test("a required check runs every shared helper test on pull requests and in the
   );
   const jobs = workflow.split("\njobs:\n")[1]?.split(/\n {2}[\w-]+:\n/);
   assert.ok(jobs, "the workflow has jobs");
-  // A condition that names events restricts the job or step to those events.
-  const runsOn = (condition, event) =>
-    !condition?.includes("github.event_name") ||
-    condition.includes(`'${event}'`);
   const helpers = readdirSync(path.join(repoRoot, "scripts/lib"))
     .filter((file) => file.endsWith(".test.mjs"))
     .map((file) => `scripts/lib/${file}`);
