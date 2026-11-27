@@ -385,6 +385,10 @@ const RUNTIMES: readonly DocsEntry[] = [
     name: "OpenCode",
     packages: ["@assistant-ui/react-opencode"],
   },
+  { path: "runtimes/mastra", mark: "mastra", name: "Mastra" },
+  { path: "runtimes/openai-agents" },
+  { path: "runtimes/pydantic-ai" },
+  { path: "runtimes/cloudflare-agents", mark: "cloudflare" },
   { path: "runtimes/claude-managed-agents", mark: "claude" },
   { path: "runtimes/custom/local-runtime" },
   { path: "runtimes/custom/external-store" },
@@ -396,15 +400,6 @@ const RUNTIMES: readonly DocsEntry[] = [
 ];
 
 const INTEGRATIONS: readonly DocsEntry[] = [
-  { path: "integrations/frameworks/ai-sdk", mark: "vercel" },
-  {
-    path: "integrations/frameworks/mastra/overview",
-    mark: "mastra",
-    name: "Mastra",
-  },
-  { path: "integrations/frameworks/cloudflare-agents", mark: "cloudflare" },
-  { path: "integrations/frameworks/openai-agents" },
-  { path: "integrations/frameworks/pydantic-ai" },
   { path: "integrations/gateways", name: "LLM gateways" },
   { path: "integrations/observability/langfuse", mark: "langfuse" },
   { path: "integrations/observability/langsmith", mark: "langchain" },
@@ -522,23 +517,23 @@ const pi: LibraryItem = {
   ),
 };
 
-const DEVTOOLS_PATH = "/docs/devtools";
+const DEVTOOLS_PATH = "/docs/guides/devtools";
 
-const devtools: LibraryItem[] = [
-  readDocsPage("(getting-started)/devtools"),
-].map((page) => ({
-  id: "utilities/devtools",
-  category: "utilities" as const,
-  name: page.title,
-  description: page.description ? lead(page.description) : "",
-  href: docsUrl(DEVTOOLS_PATH),
-  external: true,
-  install: {
-    kind: "npm" as const,
-    names: ["@assistant-ui/react-devtools"],
-  },
-  prompt: agentSetupPrompt(["guides/devtools"]),
-}));
+const devtools: LibraryItem[] = [readDocsPage("guides/devtools")].map(
+  (page) => ({
+    id: "utilities/devtools",
+    category: "utilities" as const,
+    name: page.title,
+    description: page.description ? lead(page.description) : "",
+    href: docsUrl(DEVTOOLS_PATH),
+    external: true,
+    install: {
+      kind: "npm" as const,
+      names: ["@assistant-ui/react-devtools"],
+    },
+    prompt: agentSetupPrompt(["guides/devtools"]),
+  }),
+);
 
 const VARIANTS_PACKAGE = "@assistant-ui/variants";
 

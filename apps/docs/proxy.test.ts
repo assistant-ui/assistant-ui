@@ -1,7 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 
-import { proxy } from "./proxy";
+const { captureAgentEvent } = await vi.hoisted(async () => {
+  // Next's server runtime installs this global, and `after` reads it on import.
+  const { AsyncLocalStorage } = await import("node:async_hooks");
+  Object.assign(globalThis, { AsyncLocalStorage });
+  return { captureAgentEvent: vi.fn() };
+});
+
+vi.mock("@/lib/agent-telemetry", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/agent-telemetry")>()),
+  captureAgentEvent,
+}));
+
+import { config, proxy } from "./proxy";
 
 describe("proxy", () => {
   it("preserves the legacy changelog redirect", async () => {
@@ -106,5 +119,97 @@ describe("proxy", () => {
     );
     expect(response.status).toBe(404);
     expect(response.headers.has("x-middleware-rewrite")).toBe(false);
+  });
+});
+
+describe("agent reads", () => {
+  beforeEach(() => {
+    captureAgentEvent.mockClear();
+  });
+
+  const matches = (url: string, headers?: Record<string, string>) =>
+    unstable_doesMiddlewareMatch({
+      config,
+      url: `https://www.assistant-ui.com${url}`,
+      ...(headers ? { headers } : {}),
+    });
+
+  it.each([
+    "/llms.txt",
+    "/llms-full.txt",
+    "/skill.md",
+    "/docs/runtimes/ag-ui/overview.md",
+    "/docs/installation.mdx",
+    "/.well-known/agent-skills/index.json",
+  ])("runs before the CDN cache for %s", (url) => {
+    expect(matches(url)).toBe(true);
+  });
+
+  it("runs for a page fetched as markdown, but not for a page opened in a browser", () => {
+    expect(matches("/docs/installation", { accept: "text/markdown" })).toBe(
+      true,
+    );
+    expect(
+      matches("/docs/installation", {
+        accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+      }),
+    ).toBe(false);
+  });
+
+  it("counts a markdown fetch by path and client, with no identity", async () => {
+    const response = await proxy(
+      new NextRequest("https://www.assistant-ui.com/docs/installation.md", {
+        headers: {
+          "user-agent": "Claude-User (claude-code/2.1.332)",
+          "x-vercel-ip-country": "US",
+          "x-forwarded-for": "203.0.113.9",
+        },
+      }),
+    );
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(captureAgentEvent).toHaveBeenCalledWith(
+      expect.any(Headers),
+      "agent_docs_fetched",
+      {
+        kind: "markdown",
+        path: "/docs/installation.md",
+        negotiated: false,
+        method: "GET",
+        client: "claude-code",
+        navigation: false,
+      },
+    );
+  });
+
+  it("marks a .md link opened in a browser tab, so it can be told from an agent", async () => {
+    await proxy(
+      new NextRequest("https://www.assistant-ui.com/docs/installation.md", {
+        headers: {
+          "user-agent": "Mozilla/5.0 (Macintosh) Chrome/158.0",
+          "sec-fetch-mode": "navigate",
+        },
+      }),
+    );
+    expect(captureAgentEvent).toHaveBeenCalledWith(
+      expect.any(Headers),
+      "agent_docs_fetched",
+      expect.objectContaining({ client: "browser", navigation: true }),
+    );
+  });
+
+  it("leaves search crawlers out", async () => {
+    await proxy(
+      new NextRequest("https://www.assistant-ui.com/llms.txt", {
+        headers: { "user-agent": "Mozilla/5.0 (compatible; bingbot/2.0)" },
+      }),
+    );
+    expect(captureAgentEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not count the other requests it handles", async () => {
+    await proxy(
+      new NextRequest("https://www.assistant-ui.com/changelog?pkg=react"),
+    );
+    expect(captureAgentEvent).not.toHaveBeenCalled();
   });
 });

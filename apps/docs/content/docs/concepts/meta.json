@@ -1,0 +1,15 @@
+{
+  "title": "Concepts",
+  "description": "The ideas behind assistant-ui: the runtime, messages and their parts, threads, the components you own, adapters, and the state your components read.",
+  "icon": "Shapes",
+  "root": true,
+  "pages": [
+    "runtime",
+    "messages",
+    "threads",
+    "components",
+    "[Tools](/docs/tools)",
+    "adapters",
+    "context-api"
+  ]
+}

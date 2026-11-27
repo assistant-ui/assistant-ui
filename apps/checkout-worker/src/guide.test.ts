@@ -158,6 +158,14 @@ describe("GET /<link>/guide", () => {
           throw new Error("the guide needs no durable object");
         },
       },
+      SETUP_STATS: {
+        idFromName: () => {
+          throw new Error("the guide needs no durable object");
+        },
+        get: () => {
+          throw new Error("the guide needs no durable object");
+        },
+      },
     });
 
   it("serves the guide for the CLI's protocol without touching the setup", async () => {

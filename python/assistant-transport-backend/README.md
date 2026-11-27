@@ -14,7 +14,7 @@ A simple Python server that demonstrates the assistant-transport protocol using 
 
 ## Prerequisites
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - uv
 
 ## Quick Start
@@ -59,10 +59,7 @@ uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
 `HOST` applies to the first two commands. The uvicorn command ignores it and uses its own `--host`, so change that flag for remote access. Browser clients on another machine also need their frontend origin in `CORS_ORIGINS`.
 
-The server will be available at:
-- **API**: http://localhost:8000
-- **Health Check**: http://localhost:8000/health
-- **Assistant Endpoint**: http://localhost:8000/assistant
+The assistant endpoint is then at http://localhost:8000/assistant.
 
 ## API Endpoints
 
@@ -90,25 +87,11 @@ Main endpoint that implements the assistant-transport protocol.
 }
 ```
 
-**Response:** Streaming response using assistant-stream format with static responses.
+**Response:** An assistant-transport stream of state updates.
 
-### `GET /health`
+## Scripted Reply
 
-Health check endpoint that returns server status and current conversation state.
-
-### `POST /cancel`
-
-Cancel the current request (placeholder for request cancellation).
-
-## Static Response Patterns
-
-The backend recognizes these message patterns and returns appropriate static responses:
-
-- **Greetings** (`hello`, `hi`) → Welcome message
-- **Weather** (`weather`) → Sunny static response
-- **What/What is** → Explanation of what the backend does
-- **Help** → Available command information
-- **Other messages** → Acknowledgment with echo
+The backend calls no model. It applies every command in the request to the state, in order: messages are appended, a tool result lands on the tool call with its `toolCallId` (a result for an unknown id is ignored), and custom commands are accepted and skipped (`apply_commands` in `main.py` is where to handle yours). A request with only custom commands gets no reply. Otherwise the backend streams the same scripted assistant message every time: a short text part, then a `get_weather` tool call whose arguments arrive in two chunks, with a pause between steps so you can watch the stream.
 
 ## Integration with Frontend
 
@@ -132,32 +115,26 @@ python/assistant-transport-backend/
 
 ### Assistant-Stream Integration
 
-The backend uses `assistant_stream.create_run()` to create a streaming controller that:
-
-1. **Manages State**: Updates conversation state with messages
-2. **Streams Text**: Uses `controller.append_text()` for character-by-character streaming
-3. **Updates State**: Uses `controller.state` to update the object-stream state
-4. **Handles Protocol**: Automatically formats responses for assistant-transport
+The backend passes a run callback to `assistant_stream.create_run()`. The callback changes `controller.state`, and every change streams to the frontend as an object-stream operation. `AssistantTransportResponse` encodes the stream for assistant-transport.
 
 ### State Management
 
 ```python
-# Initialize state
-conversation_state = {
-    "messages": [],
-    "provider": "static"
-}
+from assistant_stream import RunController, create_run
+from assistant_stream.serialization import AssistantTransportResponse
 
-# Create run controller with state
-controller = create_run(conversation_state)
 
-# Update state during processing
-controller.state.provider = "processing"
-controller.state.messages.append(new_message)
+async def run_callback(controller: RunController):
+    # Each change streams to the frontend as it happens
+    controller.state["messages"].append(
+        {"role": "assistant", "parts": [{"type": "text", "text": "Hello"}]}
+    )
+    controller.state["messages"][-1]["parts"][0]["text"] += " world"
+    controller.state["provider"] = "completed"
 
-# Stream text responses
-for char in response_text:
-    controller.append_text(char)
+
+stream = create_run(run_callback, state={"messages": []})
+response = AssistantTransportResponse(stream)
 ```
 
 ## Development
@@ -169,22 +146,13 @@ for char in response_text:
 DEBUG=true python main.py
 ```
 
-### Adding Response Patterns
+### Changing the Reply
 
-Edit the static response logic in `main.py`:
-
-```python
-# Add new patterns
-if "goodbye" in user_message:
-    response_text = "Goodbye! Thanks for testing the assistant-transport backend!"
-```
+The scripted reply is built in `run_callback` in `main.py`. Replace its steps with your own, or call a model there and append what it streams.
 
 ### Testing
 
 ```bash
-# Test the health endpoint
-curl http://localhost:8000/health
-
 # Test the assistant endpoint
 curl -X POST http://localhost:8000/assistant \
   -H "Content-Type: application/json" \

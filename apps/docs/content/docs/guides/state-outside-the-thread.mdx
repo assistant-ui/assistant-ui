@@ -1,6 +1,6 @@
 ---
 title: Reading State Outside the Thread
-description: Bind a header, a sidebar, a status tray, or code in another React root to thread state without lifting it into a second store.
+description: Show whether a reply is running (isRunning), send or stop messages programmatically, and rename, archive or delete threads from a header, a sidebar, or code in another React root, without lifting thread state into a second store.
 platforms: ["react"]
 ---
 
@@ -55,9 +55,68 @@ export function Header() {
 
 Lifting `isRunning` into your own store from inside the thread and reading it back in the header is not needed. Both components subscribe to the same client.
 
+## Send a message programmatically
+
+A button outside the composer sends through the same client. `aui.thread.append` adds a user message to the open thread and starts the reply, exactly as if the user had typed it.
+
+```tsx title="/components/ask-button.tsx"
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+export function AskButton({ question }: { question: string }) {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  return (
+    <button
+      type="button"
+      disabled={isRunning}
+      onClick={() => aui.thread.append(question)}
+    >
+      {question}
+    </button>
+  );
+}
+```
+
+`append` also takes an object, `{ content, attachments, metadata, runConfig }`, for parts other than plain text. When the user should review the text first, put it in the composer with `aui.composer.setText(text)` and let them send it, or call `aui.composer.send()` to send what the composer holds. `aui.thread.cancelRun()` stops the reply, as the Stop button above does. For prompts shown before the first message, [Suggestions](/docs/guides/suggestions) already render and send them for you.
+
+## Rename, archive or delete a thread from your own menu
+
+`aui.threadListItem` is the open thread's entry in the thread list, so a header menu can manage the conversation the user is looking at. Inside a thread list row, the same calls act on that row's thread.
+
+```tsx title="/components/thread-menu.tsx"
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+export function ThreadMenu() {
+  const aui = useAui();
+  const title = useAuiState((s) => s.threadListItem.title);
+
+  const rename = () => {
+    const next = window.prompt("Rename thread", title ?? "");
+    if (next) aui.threadListItem.rename(next);
+  };
+
+  return (
+    <div className="flex gap-2">
+      <button type="button" onClick={rename}>
+        Rename
+      </button>
+      <button type="button" onClick={() => aui.threadListItem.archive()}>
+        Archive
+      </button>
+      <button type="button" onClick={() => aui.threadListItem.delete()}>
+        Delete
+      </button>
+    </div>
+  );
+}
+```
+
+The item also has `unarchive()`, `generateTitle()` to ask your backend for a title, `switchTo()`, and `updateCustom(custom)` for your own fields, such as an unread flag or a pin. When the thread list is kept in your own database, `rename`, `archive`, `delete` and `generateTitle` on a saved thread call the `RemoteThreadListAdapter` method of the same name, and `unarchive` and `updateCustom` do so when the adapter implements them. `switchTo` opens the thread, and on an archived one it first calls `unarchive` when the adapter has it, unless you pass `{ unarchive: false }`. On a new thread that is not saved yet, `updateCustom` changes the item in memory and hands the value to `initialize()` when the thread is created. [Thread list adapters](/docs/integrations/persistence/thread-list-adapters#custom-metadata) covers storing them.
+
 ## One value per selector
 
-`useAuiState` compares the selector result by reference. Return one primitive per call, or select an array whole and derive from it in `useMemo`; the array reference only changes when its contents change. Fold a condition over several fields into a boolean with `AuiIf`, as the header above does. The [Context API guide](/docs/guides/context-api#troubleshooting) lists the failure modes of a selector that allocates.
+`useAuiState` compares the selector result by reference. Return one primitive per call, or select an array whole and derive from it in `useMemo`; the array reference only changes when its contents change. Fold a condition over several fields into a boolean with `AuiIf`, as the header above does. The [Context API guide](/docs/concepts/context-api#troubleshooting) lists the failure modes of a selector that allocates.
 
 ```tsx title="/components/thread-activity.tsx"
 import { useAuiState } from "@assistant-ui/react";

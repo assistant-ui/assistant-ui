@@ -26,7 +26,7 @@ describe("agent setup banner", () => {
     );
   });
 
-  it("copies the bare prompt for assistant-ui itself", () => {
+  it("copies the default setup prompt for assistant-ui itself", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -41,7 +41,9 @@ describe("agent setup banner", () => {
         name: "Copy the setup prompt for your agent",
       }),
     );
-    expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
+    expect(writeText).toHaveBeenCalledWith(
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+    );
   });
 
   it("renders a guide's Setup section with the page URL as the prompt", () => {

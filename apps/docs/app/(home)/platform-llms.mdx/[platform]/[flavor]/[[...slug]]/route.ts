@@ -1,9 +1,17 @@
 import { cacheLife } from "next/cache";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { docsMarkdownRedirect } from "@/lib/docs-fallback";
 import { isPlatform } from "@/lib/docs-platform";
-import { getDocsMarkdown } from "@/lib/docs-markdown";
+import {
+  getDocsMarkdown,
+  missingMarkdownResponse,
+  pageInAnyCase,
+  sameIgnoringCase,
+} from "@/lib/docs-markdown";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { createMarkdownResponse } from "@/lib/markdown-response";
+import { elementsMarkdownPages } from "@/lib/elements-markdown";
+import { source } from "@/lib/source";
 
 async function getMarkdown(
   slug: string[] | undefined,
@@ -33,6 +41,31 @@ export async function GET(
     (flavor !== "base" && flavor !== "radix")
   ) {
     notFound();
+  }
+
+  if (slug?.length && !source.getPage(slug)) {
+    // The query that picked this platform and flavor (lib/markdown-rewrites.ts).
+    const query = new URLSearchParams();
+    if (platform !== "react") query.set("platform", platform);
+    if (flavor === "radix") query.set("view", "radix-ui");
+    const overview = docsMarkdownRedirect(source, slug, query.toString());
+    if (overview) redirect(overview);
+    const search = query.toString();
+    const page = pageInAnyCase(source.getPages(), slug);
+    // A url that differs only in case is answered in place, so it can never
+    // redirect to itself where urls are matched without case.
+    if (page && sameIgnoringCase(page.slugs, slug)) {
+      return createMarkdownResponse(
+        await getMarkdown(page.slugs, platform, flavor),
+      );
+    }
+    if (page) redirect(`${page.url}.md${search ? `?${search}` : ""}`);
+    // Many old /docs/ui pages are elements now, so those are candidates.
+    return missingMarkdownResponse(
+      `/docs/${slug.join("/")}`,
+      [...source.getPages(), ...elementsMarkdownPages()],
+      search,
+    );
   }
 
   return createMarkdownResponse(await getMarkdown(slug, platform, flavor));

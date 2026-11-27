@@ -1,7 +1,7 @@
 import type { BaseProps } from "../react/svg";
 import { type CSSProperties, forwardRef } from "react";
 import { round } from "../core/geometry";
-import { cat, ink } from "../core/theme";
+import { cat } from "../core/theme";
 import { ChartSvg, frame } from "../react/svg";
 import { WORLD_HEIGHT } from "./world-data";
 import { CENTROIDS, DOTS, DOT_ISOS } from "./world-dots";
@@ -46,6 +46,53 @@ const FLOW_CROSS = 1.6;
 const FLOW_SQUARE = 2.6;
 const FLOW_DOT = 1.5;
 
+const INK = "var(--dg-ink, currentColor)";
+
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** A path number to a hundredth, without the leading zero (`.4`, `-.79`). */
+const pathNumber = (n: number) => String(round(n)).replace(/^(-?)0\./, "$1.");
+
+/**
+ * A ring of radius `r` drawn from its leftmost point as two half-circle arcs.
+ * Only the starting point changes from ring to ring, so the arcs are built
+ * once per map.
+ */
+function ringPath(r: number): { r: number; arc: string } {
+  const radius = pathNumber(r);
+  const diameter = pathNumber(round(r) * 2);
+  return {
+    r: round(r),
+    arc: `a${radius} ${radius} 0 1 0 ${diameter} 0a${radius} ${radius} 0 1 0 -${diameter} 0`,
+  };
+}
+
+/**
+ * A country's halftone glyphs as three path strings, one per glyph kind, so
+ * each of a map's ~4,200 glyphs costs a few bytes of path data rather than
+ * an element with its own paint. A dot is a zero-length segment that the
+ * stroke's round cap draws, a square a segment as long as the stroke is wide
+ * (WebKit draws a zero-length segment's square cap round), and a ring a pair
+ * of arcs. The kind is picked from the dot's position, so the pattern is
+ * stable.
+ */
+function countryGlyphs(
+  dots: readonly (readonly [number, number])[],
+  ring: { r: number; arc: string },
+  side: number,
+): { dots: string; squares: string; rings: string } {
+  const glyphs = { dots: "", squares: "", rings: "" };
+  for (const [x, y] of dots) {
+    const kind = (Math.round(x * 10) * 7 + Math.round(y * 10) * 13) % 10;
+    if (kind < 7) glyphs.dots += `M${x} ${y}h0`;
+    else if (kind < 9)
+      glyphs.rings += `M${pathNumber(x - ring.r)} ${y}${ring.arc}`;
+    else
+      glyphs.squares += `M${pathNumber(x - side / 2)} ${y}h${pathNumber(side)}`;
+  }
+  return glyphs;
+}
+
 export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
   (
     {
@@ -84,6 +131,8 @@ export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
     const u = Math.min((right - left) / 200, (bottom - top) / WORLD_HEIGHT);
     const tx = left + (right - left - 200 * u) / 2;
     const ty = top + (bottom - top - WORLD_HEIGHT * u) / 2;
+    const ringArc = ringPath(RING / u);
+    const squareSide = round((RING * 2) / u);
     return (
       <ChartSvg
         ref={ref}
@@ -93,59 +142,50 @@ export const DotWorldMap = forwardRef<SVGSVGElement, DotWorldMapProps>(
         className={className}
       >
         <g transform={`translate(${tx} ${ty}) scale(${u})`}>
-          {[...byCountry.entries()].map(([isoIdx, dots]) => {
-            const iso = DOT_ISOS[isoIdx]!;
-            const group = groupOf.get(iso);
-            const fill = group === undefined ? undefined : cat(group);
-            return (
-              <g key={iso} data-part="mark" data-series={iso}>
-                {dots.map(([x, y], i) => {
-                  const kind =
-                    (Math.round(x * 10) * 7 + Math.round(y * 10) * 13) % 10;
-                  const color = fill ?? ink(0.22);
-                  const opacity = fill ? 0.9 : 1;
-                  if (kind < 7) {
-                    return (
-                      <circle
-                        key={i}
-                        cx={x}
-                        cy={y}
-                        r={DOT / u}
-                        fill={color}
-                        opacity={opacity}
-                      />
-                    );
-                  }
-                  if (kind < 9) {
-                    return (
-                      <circle
-                        key={i}
-                        cx={x}
-                        cy={y}
-                        r={RING / u}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={0.5}
-                        vectorEffect="non-scaling-stroke"
-                        opacity={opacity}
-                      />
-                    );
-                  }
-                  return (
-                    <rect
-                      key={i}
-                      x={x - RING / u}
-                      y={y - RING / u}
-                      width={(RING * 2) / u}
-                      height={(RING * 2) / u}
-                      fill={color}
+          {/* The stroke stays opaque and each path carries the alpha as
+              opacity: WebKit paints a zero-length segment's cap twice, which
+              doubles a translucent stroke color. */}
+          <g
+            fill="none"
+            stroke={INK}
+            strokeWidth={round3((DOT * 2) / u)}
+            strokeLinecap="round"
+          >
+            {[...byCountry.entries()].map(([isoIdx, dots]) => {
+              const iso = DOT_ISOS[isoIdx]!;
+              const group = groupOf.get(iso);
+              const opacity = group === undefined ? 0.22 : 0.9;
+              const glyphs = countryGlyphs(dots, ringArc, squareSide);
+              return (
+                <g
+                  key={iso}
+                  data-part="mark"
+                  data-series={iso}
+                  stroke={group === undefined ? undefined : cat(group)}
+                >
+                  {glyphs.dots ? (
+                    <path d={glyphs.dots} opacity={opacity} />
+                  ) : null}
+                  {glyphs.squares ? (
+                    <path
+                      d={glyphs.squares}
+                      strokeWidth={squareSide}
+                      strokeLinecap="butt"
                       opacity={opacity}
                     />
-                  );
-                })}
-              </g>
-            );
-          })}
+                  ) : null}
+                  {glyphs.rings ? (
+                    <path
+                      d={glyphs.rings}
+                      strokeWidth={0.5}
+                      vectorEffect="non-scaling-stroke"
+                      opacity={opacity}
+                    />
+                  ) : null}
+                </g>
+              );
+            })}
+          </g>
           {flows?.map((flow) => {
             const a = CENTROIDS[flow.from];
             const b = CENTROIDS[flow.to];

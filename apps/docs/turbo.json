@@ -48,7 +48,7 @@
     "check:links": {
       "dependsOn": ["build"],
       "cache": false,
-      "passThroughEnv": ["LINKINATOR_EXTERNAL"]
+      "passThroughEnv": ["LINKINATOR_EXTERNAL", "LINKINATOR_PORT"]
     },
     "check:lighthouse": {
       "dependsOn": ["build"],
@@ -70,12 +70,21 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/.gitignore",
         "$TURBO_ROOT$/packages/*/package.json",
+        "$TURBO_ROOT$/packages/cloud/src/**/*.ts",
         "$TURBO_ROOT$/examples/with-langgraph/app/api/**/*.ts",
         "$TURBO_ROOT$/examples/with-nuxt/server/api/**/*.ts",
         "$TURBO_ROOT$/templates/nuxt/server/api/**/*.ts",
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
+        "$TURBO_ROOT$/examples/recipe-*/app/**/*.{ts,tsx}",
+        "$TURBO_ROOT$/examples/recipe-*/lib/**/*.ts",
+        "$TURBO_ROOT$/examples/recipe-*/*.ts",
         "$TURBO_ROOT$/README.md",
+        "$TURBO_ROOT$/python/*/README*.md",
+        "$TURBO_ROOT$/python/*/src/**/*.py",
+        "$TURBO_ROOT$/api-surface/*.ts",
+        "$TURBO_ROOT$/pnpm-lock.yaml",
+        "$TURBO_ROOT$/packages/*/src/**",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
       "env": ["REDIS_*"]
@@ -85,12 +94,21 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/.gitignore",
         "$TURBO_ROOT$/packages/*/package.json",
+        "$TURBO_ROOT$/packages/cloud/src/**/*.ts",
         "$TURBO_ROOT$/examples/with-langgraph/app/api/**/*.ts",
         "$TURBO_ROOT$/examples/with-nuxt/server/api/**/*.ts",
         "$TURBO_ROOT$/templates/nuxt/server/api/**/*.ts",
         "$TURBO_ROOT$/examples/with-expo/app/showcase/*.tsx",
         "$TURBO_ROOT$/examples/with-react-ink/src/app.tsx",
+        "$TURBO_ROOT$/examples/recipe-*/app/**/*.{ts,tsx}",
+        "$TURBO_ROOT$/examples/recipe-*/lib/**/*.ts",
+        "$TURBO_ROOT$/examples/recipe-*/*.ts",
         "$TURBO_ROOT$/README.md",
+        "$TURBO_ROOT$/python/*/README*.md",
+        "$TURBO_ROOT$/python/*/src/**/*.py",
+        "$TURBO_ROOT$/api-surface/*.ts",
+        "$TURBO_ROOT$/pnpm-lock.yaml",
+        "$TURBO_ROOT$/packages/*/src/**",
         "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs"
       ],
       "env": ["REDIS_*"]

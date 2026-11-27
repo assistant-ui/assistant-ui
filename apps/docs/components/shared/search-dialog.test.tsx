@@ -201,6 +201,7 @@ it("reports a query only once the index has loaded", async () => {
   expect(analytics.search.querySubmitted).toHaveBeenCalledExactlyOnceWith(
     "conversation",
     2,
+    0,
   );
 });
 

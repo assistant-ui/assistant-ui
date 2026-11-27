@@ -57,7 +57,12 @@ Resolve the session server-side with `auth.api.getSession`. It accepts request h
 import { auth } from "@/auth";
 import { headers } from "next/headers";
 import { openai } from "@ai-sdk/openai";
-import { streamText, convertToModelMessages } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from "ai";
 import type { UIMessage } from "ai";
 
 export async function POST(req: Request) {
@@ -70,7 +75,9 @@ export async function POST(req: Request) {
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 
@@ -182,8 +189,8 @@ Sign in. Check:
     href="/docs/integrations/auth/next-auth"
   />
   <Card
-    title="Threads (concepts)"
+    title="Thread list adapters"
     description="The full RemoteThreadListAdapter contract and reload-on-auth pattern."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/integrations/persistence/thread-list-adapters#reloading-after-async-authentication"
   />
 </Cards>

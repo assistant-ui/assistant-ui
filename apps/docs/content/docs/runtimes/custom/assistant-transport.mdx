@@ -4,7 +4,7 @@ description: Stream agent state to the frontend and handle user commands for cus
 platforms: ["react"]
 ---
 
-`AssistantTransport` is a state-streaming protocol layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Instead of streaming message parts, your backend streams snapshots of its full agent state and the runtime converts them into UI messages.
+`AssistantTransport` is a state-streaming protocol layered on `ExternalStoreRuntime` (see [architecture](/docs/concepts/runtime)). Instead of streaming message parts, your backend streams snapshots of its full agent state and the runtime converts them into UI messages.
 
 It covers three things:
 
@@ -130,10 +130,13 @@ The endpoint returns a stream of state snapshots using the [`assistant-stream`](
 ```python
 from typing import Any, Literal
 
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 from assistant_stream import RunController, create_run
 from assistant_stream.serialization import DataStreamResponse
+
+app = FastAPI()
 
 
 class MessagePart(BaseModel):
@@ -223,6 +226,9 @@ State changes are automatically streamed using the operations described in [stre
 `create_run` exposes `controller.is_cancelled` and `controller.cancelled_event`. If the response stream closes early (user cancel, client disconnect), these are set so your loop can exit cleanly. `create_run` gives callbacks a ~50ms cooperative shutdown window before forced cancellation. Put critical cleanup in `finally` blocks.
 
 ```python
+import asyncio
+
+
 async def run_callback(controller: RunController):
     while not controller.is_cancelled:
         await asyncio.sleep(0.05)
@@ -251,7 +257,7 @@ async def chat_endpoint(request: ChatRequest):
 
         for command in request.commands:
             if command.type == "add-message":
-                controller.state["messages"].append(command.message)
+                controller.state["messages"].append(command.message.model_dump())
 
         async for message in your_agent.stream():
             controller.state["messages"].append(message)
@@ -264,6 +270,8 @@ async def chat_endpoint(request: ChatRequest):
 <Tab value="LangGraph">
 
 ```python
+from langchain_core.messages import HumanMessage
+
 from assistant_stream.serialization import DataStreamResponse
 from assistant_stream import RunController, create_run
 from assistant_stream.modules.langgraph import append_langgraph_event
@@ -573,19 +581,27 @@ const runtime = useAssistantTransportRuntime({
 
 When the backend receives `add-message` with a `parentId`:
 
-1. Truncate all messages after the parent.
+1. Truncate all messages after the parent. A `null` `parentId` means the new message has no parent: it starts an empty thread or replaces the first message (`sourceId` names the message it replaces), so drop them all.
 2. Append the new message.
 3. Stream the updated state back.
+
+In the `run_callback` from [Handling commands](#handling-commands), that becomes:
 
 ```python
 for command in request.commands:
     if command.type == "add-message":
-        if hasattr(command, "parentId") and command.parentId is not None:
+        messages = controller.state["messages"]
+        if command.parentId is None:
+            controller.state["messages"] = []
+        else:
             parent_idx = next(
-                i for i, m in enumerate(messages) if m.id == command.parentId
+                (i for i, m in enumerate(messages) if m.get("id") == command.parentId),
+                None,
             )
-            messages = messages[:parent_idx + 1]
-        messages.append(command.message)
+            if parent_idx is not None:
+                # Copy out of the state proxy; it does not slice.
+                controller.state["messages"] = list(messages)[: parent_idx + 1]
+        controller.state["messages"].append(command.message.model_dump())
 ```
 
 ## Resuming from a sync server
@@ -803,10 +819,12 @@ function MyComponent() {
 
 ### Handle on the backend
 
+Add a model for the command to the request's `commands` union, as `MyCustomCommand` in [Handling commands](#handling-commands) does; otherwise the request fails validation. Then handle it in `run_callback`:
+
 ```python
 for command in request.commands:
     if command.type == "my-custom-command":
-        data = command.data
+        controller.state["custom_data"] = command.data
 ```
 
 ### Optimistic updates
@@ -854,6 +872,6 @@ Speech, dictation and suggestions are not currently exposed by `AssistantTranspo
   <Card
     title="Adapters"
     description="Attachments, history, and the rest of the shared adapter contracts."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
 </Cards>

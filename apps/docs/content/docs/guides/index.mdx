@@ -1,10 +1,20 @@
 ---
 title: Guides
-description: "Practical recipes for building AI chat features in React with assistant-ui: attachments, branching, voice, slash commands, part grouping, resumable streams, and more."
+description: "Practical recipes for building AI chat features in React with assistant-ui: styling and themes, attachments, branching, voice, slash commands, part grouping, resumable streams, and more."
 platforms: ["react"]
 ---
 
 Guides are task-oriented walkthroughs for building specific features on top of assistant-ui. They sit between the [Primitives](/docs/primitives) (low-level building blocks) and [Components](/elements/thread) (pre-styled installs). Pick a guide when you know what you want to build and need the recommended pattern.
+
+## Look and feel
+
+Make the chat look like your product.
+
+<Cards>
+  <Card title="Styling, Themes and Dark Mode" href="/docs/guides/styling">
+    Theme colors, radius and fonts with CSS variables, edit the components you own, swap in your own, style by state, dark mode, and styling without Tailwind.
+  </Card>
+</Cards>
 
 ## Composer
 
@@ -28,9 +38,6 @@ Extend the message input with file attachments, mentions, slash commands, input 
   </Card>
   <Card title="Quoting" href="/docs/guides/quoting">
     Selection toolbar, programmatic `setQuote`, and forwarding quote context to the LLM.
-  </Card>
-  <Card title="Dictation" href="/docs/guides/dictation">
-    Speech-to-text into the composer using `DictationAdapter` and `ComposerPrimitive.Dictate`.
   </Card>
 </Cards>
 
@@ -91,7 +98,7 @@ Render specialized message content.
   </Card>
 </Cards>
 
-## Audio
+## Voice and speech
 
 Voice input and output.
 
@@ -108,6 +115,9 @@ Voice input and output.
   <Card title="Speech" href="/docs/guides/speech">
     Text-to-speech for assistant messages via `SpeechSynthesisAdapter`.
   </Card>
+  <Card title="Dictation" href="/docs/guides/dictation">
+    Speech-to-text into the composer using `DictationAdapter` and `ComposerPrimitive.Dictate`.
+  </Card>
 </Cards>
 
 ## Programmatic
@@ -115,7 +125,7 @@ Voice input and output.
 Read and drive runtime state from your own code.
 
 <Cards>
-  <Card title="Context API" href="/docs/guides/context-api">
+  <Card title="Context API" href="/docs/concepts/context-api">
     Access threads, messages, composer, and tool state via `useAui` and the runtime scope tree.
   </Card>
   <Card title="State Outside the Thread" href="/docs/guides/state-outside-the-thread">
@@ -162,5 +172,21 @@ Pick up an in-flight response after a reload or a dropped connection.
   </Card>
   <Card title="Resumable Stream Deployment" href="/docs/guides/resumable-stream-deployment">
     Authorization, serverless lifetimes, TTLs, and limits to set before resumable streams serve production traffic.
+  </Card>
+</Cards>
+
+## Setup and debugging
+
+Choose the component flavor, support right-to-left languages, and inspect the runtime while you build.
+
+<Cards>
+  <Card title="Radix UI and Base UI" href="/docs/guides/base-ui">
+    How the component registry serves Radix UI and Base UI flavored components for every shadcn style.
+  </Card>
+  <Card title="RTL Support" href="/docs/guides/rtl">
+    Use assistant-ui with right-to-left languages like Arabic, Hebrew, and Persian.
+  </Card>
+  <Card title="DevTools" href="/docs/guides/devtools">
+    Inspect runtime state, context, and events in the browser.
   </Card>
 </Cards>

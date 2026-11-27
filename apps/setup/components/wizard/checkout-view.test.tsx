@@ -131,6 +131,7 @@ afterEach(() => {
   connectAgentSetup.mockReset();
   window.history.replaceState(null, "", "/");
   sessionStorage.clear();
+  localStorage.clear();
 });
 
 describe("CheckoutView", () => {
@@ -151,6 +152,22 @@ describe("CheckoutView", () => {
       "zyxw9876ABCD",
     );
     expect(screen.queryByText("Confirm abcdEFGH1234")).toBeNull();
+  });
+
+  it("reports the agent's link as shown once per setup, however often the page reloads on it", () => {
+    const capture = vi.fn();
+    window.posthog = { capture };
+    for (let load = 0; load < 2; load++) {
+      window.history.replaceState(
+        null,
+        "",
+        "/#link=abcdEFGH1234&setup=zyxw9876ABCD",
+      );
+      render(<CheckoutView />);
+      cleanup();
+    }
+    expect(capture.mock.calls).toEqual([["setup_link_shown", undefined]]);
+    delete window.posthog;
   });
 
   it("drops a link the user cancels without joining it", () => {

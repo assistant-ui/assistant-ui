@@ -1,6 +1,20 @@
 import { CheckoutHost } from "setup-agent/host";
 import { isClosed, isValidModelAnswer, type Checkout } from "setup-agent";
 import { respondToGuideRequest } from "./guide";
+import {
+  ACTIVITY_WRITE_MS,
+  EMPTY_ROOM_IDLE_MS,
+  MAX_MESSAGE_BYTES,
+  ROOM_IDLE_MS,
+} from "./limits";
+import {
+  COUNT_URL,
+  EXPORT_URL,
+  STATS_OBJECT_NAME,
+  agentKindLabel,
+  createStageTracker,
+  type StageCountRequest,
+} from "./stage-counts";
 import { resource, useResource } from "@assistant-ui/tap";
 import {
   StatewireDurableObject,
@@ -12,7 +26,12 @@ type Env = {
   CHECKOUT: StatewireDurableObject.Namespace;
   /** Per-client-IP budget for requests to links that hold no setup yet (wrangler.jsonc). */
   NEW_LINKS: RateLimit;
+  /** The one object that keeps the anonymous stage counts (./stage-counts.ts). */
+  SETUP_STATS: StatewireDurableObject.Namespace;
 };
+
+const statsObject = (env: Env) =>
+  env.SETUP_STATS.get(env.SETUP_STATS.idFromName(STATS_OBJECT_NAME));
 
 type SecretDeposit = {
   setupId: string;
@@ -48,24 +67,7 @@ const SECRET_TTL_MS = 60 * 60 * 1000;
 const MAX_SECRET_BYTES = 16 * 1024;
 /** The link alphabet and length the setup page accepts (apps/setup). */
 const LINK_PATH = /^\/[A-Za-z0-9]{8,64}(?:\/|$)/;
-/** How stale the stored last-activity time may get before it is rewritten. */
-const ACTIVITY_WRITE_MS = 60 * 60 * 1000;
-/**
- * A setup is deleted this long after its stored last-activity time, with no
- * open socket. The stored time can lag the last request by up to
- * `ACTIVITY_WRITE_MS`, so the deadline adds that much: a setup always gets at
- * least 24 hours with no request and no open socket.
- */
-export const ROOM_IDLE_MS = 24 * 60 * 60 * 1000 + ACTIVITY_WRITE_MS;
-/**
- * A link that still holds no setup this long after its recorded activity is
- * deleted. The agent's CLI creates the setup the moment it opens a new link,
- * so only a link nobody set up stays empty.
- */
-export const EMPTY_ROOM_IDLE_MS = 10 * 60 * 1000;
 const ACTIVITY_KEY = "room:lastActiveAt";
-/** The largest statewire command a client may send, over HTTP or a socket. */
-export const MAX_MESSAGE_BYTES = 256 * 1024;
 
 /** The body's bytes, or `undefined` once it passes `max` bytes, without reading further. */
 const readCappedBytes = async (request: Request, max: number) => {
@@ -98,10 +100,15 @@ const readCapped = async (request: Request, max: number) => {
   return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
 };
 
+export { SetupStatsDO } from "./stage-counts";
+
 export class CheckoutDO extends StatewireDurableObject<Env>() {
   #state: Checkout.State | undefined;
   #cleanupScope = "";
   #lastActiveAt: number | undefined;
+  #stages = createStageTracker();
+  #countStarted = false;
+  #countQueued = false;
 
   /** Whether the link holds a setup; until it does, it gets `EMPTY_ROOM_IDLE_MS`. */
   #hasSetup() {
@@ -192,16 +199,67 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       const host = useResource(CheckoutHost(restored));
       instance.#state = host.state;
       instance.#scheduleCleanup();
+      instance.#countStages();
       return {
         ...host,
         subscribe: (listener: () => void) =>
           host.subscribe(() => {
             instance.#scheduleCleanup();
+            instance.#countStages();
             listener();
           }),
       };
     })();
   });
+
+  /**
+   * Adds the stages this setup just reached to the anonymous counts: only
+   * the stage names and the agent kind leave this object. The host reports
+   * each field a command sets, so the restored state is read at once and a
+   * change once the command has finished (`agent/intro` sets the intro time
+   * before the kind).
+   */
+  #countStages() {
+    if (this.#countQueued) return;
+    if (!this.#countStarted) {
+      if (!this.#state) return;
+      this.#countStarted = true;
+      this.#stages.track(this.#state);
+      return;
+    }
+    this.#countQueued = true;
+    queueMicrotask(() => {
+      this.#countQueued = false;
+      const state = this.#state;
+      if (!state) return;
+      const stages = this.#stages.track(state);
+      if (stages.length === 0) return;
+      const body: StageCountRequest = {
+        stages,
+        agentKind: agentKindLabel(state.agent.kind),
+      };
+      this.ctx.waitUntil(
+        Promise.resolve()
+          .then(() =>
+            statsObject(this.env).fetch(
+              new Request(COUNT_URL, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(body),
+              }),
+            ),
+          )
+          .then((response) => {
+            if (!response.ok) throw new Error(`count ${response.status}`);
+          })
+          .catch(() => {
+            // The next change (a heartbeat, every few seconds while the
+            // agent runs) sends these stages again.
+            this.#stages.release(stages);
+          }),
+      );
+    });
+  }
 
   #currentInput(setupId: string, inputId: string) {
     const state = this.#state;
@@ -414,9 +472,22 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
  * `EMPTY_ROOM_IDLE_MS`, and requests to such links are rate limited per
  * client IP (`NEW_LINKS`). A setup whose
  * agent stream has been silent for the host's `AGENT_ABANDON_MS`, while
- * its setup page stayed awake, ends as cancelled.
+ * its setup page stayed awake, ends as cancelled. Each setup adds the
+ * stages it reaches to anonymous per-day counts (`SetupStatsDO`), which
+ * the hourly cron sends PostHog once each day is over.
  */
 export default {
+  scheduled: (
+    _controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext,
+  ) => {
+    ctx.waitUntil(
+      Promise.resolve(
+        statsObject(env).fetch(new Request(EXPORT_URL, { method: "POST" })),
+      ),
+    );
+  },
   fetch: async (request: Request, env: Env) => {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });

@@ -135,10 +135,13 @@ Import the toolkit in your runtime provider and pass it to `config` via `Tools`:
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import toolkit from "./toolkit";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
     <AssistantRuntimeProvider
@@ -150,6 +153,8 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 ```
+
+`sendAutomaticallyWhen` sends a frontend or human tool's result back to the model so the assistant can continue. Without it, the turn stops after the tool call; see [Continuing the turn](/docs/tools/tool-ui#continuing-the-turn).
 
 `useChatRuntime()` targets `/api/chat` by default. To point at a different endpoint or customize requests, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 

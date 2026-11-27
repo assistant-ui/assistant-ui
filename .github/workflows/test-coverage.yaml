@@ -9,6 +9,7 @@ on:
       - "examples/**"
       - "templates/**"
       - "evals/**"
+      - "python/**"
       - "scripts/coverage-shards.mjs"
       - "scripts/coverage-shards.test.mjs"
       - "scripts/coverage-runtimes.mjs"
@@ -71,6 +72,7 @@ jobs:
             examples \
             templates \
             evals \
+            python \
             scripts/coverage-shards.mjs \
             scripts/coverage-shards.test.mjs \
             scripts/coverage-runtimes.mjs \

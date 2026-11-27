@@ -5,7 +5,7 @@ description: Quickest path to a working chat. Handles state while you handle the
 
 `LocalRuntime` is the simplest way to connect a custom backend. You implement a single `ChatModelAdapter` (one `run` function) and the runtime handles everything else: messages, threads, branching, editing, regeneration, cancellation.
 
-State lives inside the runtime by default. Multi-thread persistence and shared adapters are added via the standard interfaces, see [adapters](/docs/runtimes/concepts/adapters) and [threads](/docs/runtimes/concepts/threads).
+State lives inside the runtime by default. Multi-thread persistence and shared adapters are added via the standard interfaces, see [adapters](/docs/concepts/adapters) and [threads](/docs/concepts/threads).
 
 ## When to use it
 
@@ -352,12 +352,14 @@ const openai = new OpenAI();
 
 const MyModelAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, context }) {
-    const stream = await openai.chat.completions.create({
-      model: "gpt-6-luna",
-      messages: convertToOpenAIMessages(messages),
-      stream: true,
-      signal: abortSignal,
-    });
+    const stream = await openai.chat.completions.create(
+      {
+        model: "gpt-6-luna",
+        messages: convertToOpenAIMessages(messages),
+        stream: true,
+      },
+      { signal: abortSignal },
+    );
 
     let text = "";
     for await (const part of stream) {
@@ -572,7 +574,7 @@ const toolkit = defineToolkit({
 });
 ```
 
-`unstable_humanToolNames` is unstable; see [stability](/docs/runtimes/concepts/stability).
+`unstable_humanToolNames` is unstable; see [stability](/docs/migrations/stability).
 
 ### Approval gates
 
@@ -670,9 +672,23 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 
 Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
 
+## Start with initial messages
+
+`initialMessages` opens the thread with messages already in it, such as a greeting or a conversation you loaded yourself. Each one is a `ThreadMessageLike`: a `role` and its `content`, which can be a plain string.
+
+```tsx
+const runtime = useLocalRuntime(MyModelAdapter, {
+  initialMessages: [
+    { role: "assistant", content: "Hi! Ask me anything about your order." },
+  ],
+});
+```
+
+When the page is prerendered with Next.js `cacheComponents`, give each message a fixed `createdAt`. With a history adapter, a `load()` that returns messages replaces them; the [`initialMessages` option](#localruntimeoptions) describes how they are written to history. To replace the messages of a thread that is already open, call `aui.thread.reset(messages)`; it changes only what is in memory, so update your stored history too if a reload should show the new messages.
+
 ## Adapters
 
-Attachments, speech, feedback, history, and suggestions are wired through the standard adapter contracts, see [adapters](/docs/runtimes/concepts/adapters):
+Attachments, speech, feedback, history, and suggestions are wired through the standard adapter contracts, see [adapters](/docs/concepts/adapters):
 
 ```tsx
 const runtime = useLocalRuntime(MyModelAdapter, {
@@ -688,10 +704,10 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 
 ## Multi-thread
 
-`LocalRuntime` supports multi-thread either via [AssistantCloud](/docs/cloud) or via a custom `RemoteThreadListAdapter`. See [threads](/docs/runtimes/concepts/threads) for the contract and full examples.
+`LocalRuntime` supports multi-thread either via [AssistantCloud](/docs/cloud) or via a custom `RemoteThreadListAdapter`. See [thread list adapters](/docs/integrations/persistence/thread-list-adapters) for the contract and full examples.
 
 ```tsx
-// managed (see "AssistantCloud" in /docs/runtimes/concepts/threads for cloud setup)
+// managed (see "AssistantCloud" in /docs/concepts/threads for cloud setup)
 const runtime = useLocalRuntime(MyModelAdapter, { cloud });
 ```
 
@@ -716,8 +732,7 @@ const OpenAIAdapter: ChatModelAdapter = {
           .join("\n"),
       })),
       stream: true,
-      signal: abortSignal,
-    });
+    }, { signal: abortSignal });
 
     let fullText = "";
     for await (const chunk of stream) {
@@ -876,7 +891,7 @@ const CustomAPIAdapter: ChatModelAdapter = {
       name: "adapters",
       type: "LocalRuntimeAdapters",
       description:
-        "Capability adapters. UI features automatically enable based on which adapters are provided. See /docs/runtimes/concepts/adapters.",
+        "Capability adapters. UI features automatically enable based on which adapters are provided. See /docs/concepts/adapters.",
     },
     {
       name: "unstable_humanToolNames",
@@ -898,11 +913,11 @@ const CustomAPIAdapter: ChatModelAdapter = {
   <Card
     title="Adapters"
     description="Attachments, speech, feedback, history, suggestions."
-    href="/docs/runtimes/concepts/adapters"
+    href="/docs/concepts/adapters"
   />
   <Card
     title="Threads"
     description="Cloud, custom database, ExternalStore-based."
-    href="/docs/runtimes/concepts/threads"
+    href="/docs/concepts/threads"
   />
 </Cards>

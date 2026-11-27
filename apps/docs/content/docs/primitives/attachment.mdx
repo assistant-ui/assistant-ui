@@ -10,7 +10,7 @@ The Attachment primitive renders file and image attachments. It appears in two p
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
-    <AttachmentSample />
+    <AttachmentSample description="Attachment tiles for an image and a file, each with a remove button" />
   </Tab>
   <Tab>
 ```tsx
@@ -110,44 +110,6 @@ Each component receives its attachment context automatically, with no props to p
 </span>
 ```
 
-## Parts
-
-### Root
-
-Container for a single attachment item. Renders a `<div>` element unless `asChild` is set.
-
-```tsx
-<AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg border p-2">
-  <AttachmentPrimitive.Name />
-</AttachmentPrimitive.Root>
-```
-
-### unstable_Thumb
-
-Thumbnail slot for attachment previews. Renders a `<div>` element unless `asChild` is set. By default it shows the file extension with a leading dot (e.g., `.pdf`); if you pass `children`, they override the automatic text.
-
-```tsx
-<AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs" />
-```
-
-### Name
-
-Renders the attachment filename text.
-
-```tsx
-<AttachmentPrimitive.Name />
-```
-
-### Remove
-
-Button that removes the current attachment when used in a removable attachment context. Renders a `<button>` element unless `asChild` is set.
-
-```tsx
-<AttachmentPrimitive.Remove className="rounded-full p-1 hover:bg-muted">
-  <XIcon className="size-3" />
-</AttachmentPrimitive.Remove>
-```
-
 ## Patterns
 
 ### Composer Attachment with Remove
@@ -202,6 +164,44 @@ function MessageAttachment() {
     </span>
   </li>
 </AttachmentPrimitive.Root>
+```
+
+## Parts
+
+### Root
+
+Container for a single attachment item. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg border p-2">
+  <AttachmentPrimitive.Name />
+</AttachmentPrimitive.Root>
+```
+
+### unstable_Thumb
+
+Thumbnail slot for attachment previews. Renders a `<div>` element unless `asChild` is set. By default it shows the file extension with a leading dot (e.g., `.pdf`); if you pass `children`, they override the automatic text.
+
+```tsx
+<AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs" />
+```
+
+### Name
+
+Renders the attachment filename text.
+
+```tsx
+<AttachmentPrimitive.Name />
+```
+
+### Remove
+
+Button that removes the current attachment when used in a removable attachment context. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<AttachmentPrimitive.Remove className="rounded-full p-1 hover:bg-muted">
+  <XIcon className="size-3" />
+</AttachmentPrimitive.Remove>
 ```
 
 ## Relationship to Components

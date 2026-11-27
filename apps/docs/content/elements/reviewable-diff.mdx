@@ -109,10 +109,13 @@ export const toolkit = defineToolkit({
 ```tsx title="app/MyRuntimeProvider.tsx"
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { toolkit } from "./toolkit";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
@@ -122,7 +125,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [User Input Collection](/docs/tools/tool-ui#user-input-collection) for more on human tools and `addResult`.
+`sendAutomaticallyWhen` sends the kept hunks back to the model once the user applies them; without it, the turn stops at the review. See [User Input Collection](/docs/tools/tool-ui#user-input-collection) for more on human tools and `addResult`.
 
   </Step>
 </Steps>

@@ -71,12 +71,15 @@ export const toolkit = defineToolkit({
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { toolkit } from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
@@ -85,7 +88,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-A human tool has no executor on either side, so the model only sees its answer as the tool result `{ selected: [...] }`. See [Tool UI](/docs/tools/tool-ui#user-input-collection) for the human tool lifecycle.
+A human tool has no executor on either side, so the model only sees its answer as the tool result `{ selected: [...] }`. `sendAutomaticallyWhen` sends that result back once the user confirms; without it, the turn stops at the question. See [Tool UI](/docs/tools/tool-ui#user-input-collection) for the human tool lifecycle.
 
   </Step>
 </Steps>

@@ -24,7 +24,15 @@ describe("settled search query tracking", () => {
     expect(onSettled).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(SEARCH_QUERY_SETTLE_MS);
-    expect(onSettled).toHaveBeenCalledExactlyOnceWith("react", 3);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith("react", 3, 0);
+  });
+
+  it("reports how many results the server suggested", () => {
+    const onSettled = vi.fn();
+    const tracker = createSettledQueryTracker(onSettled);
+    tracker.update("message draft", 5, true, 2);
+    tracker.flush();
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith("message draft", 5, 2);
   });
 
   it("waits for the results before starting the settle window", () => {
@@ -37,7 +45,7 @@ describe("settled search query tracking", () => {
 
     tracker.update("runtime", 5, true);
     vi.advanceTimersByTime(SEARCH_QUERY_SETTLE_MS);
-    expect(onSettled).toHaveBeenCalledExactlyOnceWith("runtime", 5);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith("runtime", 5, 0);
   });
 
   it("flushes the pending query on close or result click", () => {
@@ -46,7 +54,7 @@ describe("settled search query tracking", () => {
 
     tracker.update("thread list", 0, true);
     tracker.flush();
-    expect(onSettled).toHaveBeenCalledExactlyOnceWith("thread list", 0);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith("thread list", 0, 0);
 
     vi.advanceTimersByTime(SEARCH_QUERY_SETTLE_MS);
     tracker.flush();
@@ -63,16 +71,16 @@ describe("settled search query tracking", () => {
     tracker.flush();
     tracker.update("t", 9, true);
     tracker.flush();
-    expect(onSettled).toHaveBeenCalledExactlyOnceWith("tools", 2);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith("tools", 2, 0);
 
     tracker.update("tool", 4, true);
     tracker.flush();
     tracker.update("tools", 2, true);
     tracker.flush();
     expect(onSettled.mock.calls).toEqual([
-      ["tools", 2],
-      ["tool", 4],
-      ["tools", 2],
+      ["tools", 2, 0],
+      ["tool", 4, 0],
+      ["tools", 2, 0],
     ]);
   });
 

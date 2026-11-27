@@ -14,6 +14,7 @@ import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { CurrentPageProvider } from "@/components/pages/docs/contexts/current-page";
 import { PlatformProvider } from "@/components/pages/docs/platform/context";
 import { PLATFORMS } from "@/lib/constants";
+import { toClientPageTree } from "@/components/pages/docs/layout/client-page-tree";
 
 // Platform-bound content rendered for a platform other than the one the
 // browser will hydrate to stays hidden until hydration replaces it.
@@ -40,10 +41,11 @@ export function DocsRootLayout({
   header,
   children,
 }: DocsRootLayoutProps) {
+  const clientTree = toClientPageTree(tree);
   return (
     <CurrentPageProvider>
       <DocsRuntimeProvider>
-        <PlatformProvider tree={tree}>
+        <PlatformProvider tree={clientTree}>
           <style>{PLATFORM_HINT_STYLE}</style>
           <DocsSidebarProvider>
             <DocsShell>
@@ -51,13 +53,13 @@ export function DocsRootLayout({
                 <DocsHeader
                   section={section}
                   sectionHref={sectionHref}
-                  tree={tree}
+                  tree={clientTree}
                 />
               )}
               <DocsContent>{children}</DocsContent>
               <DocsSidebar>
                 <SidebarContent
-                  tree={tree}
+                  tree={clientTree}
                   platformSwitcher={platformSwitcher}
                 />
               </DocsSidebar>

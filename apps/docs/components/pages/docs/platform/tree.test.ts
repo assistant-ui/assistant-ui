@@ -7,8 +7,10 @@ import {
   getPagePlatform,
   getPagePlatforms,
   getPlatformHomeUrl,
+  getPlatformTree,
   getVisibleUrlsByPlatform,
 } from "./tree";
+import { getDocsNeighbours } from "@/lib/docs-neighbours";
 
 type Platforms = { platforms?: readonly string[] };
 
@@ -231,5 +233,25 @@ describe("getVisibleUrlsByPlatform", () => {
     expect(urls.react.has("/docs/guides/keyboard")).toBe(false);
     expect(urls.tap.has("/docs")).toBe(false);
     expect(urls.tap.has("/docs/tap/quickstart")).toBe(true);
+  });
+});
+
+describe("getPlatformTree", () => {
+  it("keeps page navigation inside the reader's platform", () => {
+    const react = getPlatformTree(tree, "react");
+    expect(getDocsNeighbours(react, "/docs/cli").next?.url).toBe(
+      "/docs/guides/attachments",
+    );
+    expect(getDocsNeighbours(react, "/docs/guides/attachments").next).toBe(
+      undefined,
+    );
+
+    const rn = getPlatformTree(tree, "rn");
+    expect(getDocsNeighbours(rn, "/docs/llm").next?.url).toBe(
+      "/docs/react-native",
+    );
+    expect(getDocsNeighbours(tree, "/docs/cli").next?.url).toBe(
+      "/docs/react-native",
+    );
   });
 });

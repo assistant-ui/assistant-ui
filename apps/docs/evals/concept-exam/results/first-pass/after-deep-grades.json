@@ -1,0 +1,123 @@
+{
+  "q01": {
+    "grade": "correct"
+  },
+  "q02": {
+    "grade": "correct"
+  },
+  "q03": {
+    "grade": "correct"
+  },
+  "q04": {
+    "grade": "correct",
+    "note": "Now finds the Python data stream path and the protocol setting."
+  },
+  "q05": {
+    "grade": "correct"
+  },
+  "q06": {
+    "grade": "correct"
+  },
+  "q07": {
+    "grade": "correct"
+  },
+  "q08": {
+    "grade": "correct"
+  },
+  "q09": {
+    "grade": "correct"
+  },
+  "q10": {
+    "grade": "correct"
+  },
+  "q11": {
+    "grade": "correct"
+  },
+  "q12": {
+    "grade": "correct"
+  },
+  "q13": {
+    "grade": "correct"
+  },
+  "q14": {
+    "grade": "correct"
+  },
+  "q15": {
+    "grade": "correct"
+  },
+  "q16": {
+    "grade": "correct",
+    "note": "Still notes the branching guide and the external store page describe branch tracking differently (fixed after this run)."
+  },
+  "q17": {
+    "grade": "correct"
+  },
+  "q18": {
+    "grade": "correct"
+  },
+  "q19": {
+    "grade": "correct"
+  },
+  "q20": {
+    "grade": "correct"
+  },
+  "q21": {
+    "grade": "correct"
+  },
+  "q22": {
+    "grade": "correct",
+    "note": "Learns the AI SDK needs sendAutomaticallyWhen, from the runtime page."
+  },
+  "q23": {
+    "grade": "correct"
+  },
+  "q24": {
+    "grade": "correct"
+  },
+  "q25": {
+    "grade": "correct"
+  },
+  "q26": {
+    "grade": "correct"
+  },
+  "q27": {
+    "grade": "correct"
+  },
+  "q28": {
+    "grade": "correct",
+    "note": "Still unsure whether append starts a reply (noted in the context API after this run)."
+  },
+  "q29": {
+    "grade": "correct",
+    "note": "Notes the Message primitive page says MessagePrimitive.Root provides the message context."
+  },
+  "q30": {
+    "grade": "correct"
+  },
+  "q31": {
+    "grade": "correct"
+  },
+  "q32": {
+    "grade": "correct"
+  },
+  "q33": {
+    "grade": "correct",
+    "note": "Finds that ComposerPrimitive.Cancel is the stop button and that streamed text stays."
+  },
+  "q34": {
+    "grade": "correct",
+    "note": "Finds where the error text comes from; unsure what an HTTP error before any stream shows."
+  },
+  "q35": {
+    "grade": "correct"
+  },
+  "q36": {
+    "grade": "correct"
+  },
+  "q37": {
+    "grade": "correct"
+  },
+  "q38": {
+    "grade": "correct"
+  }
+}

@@ -42,9 +42,7 @@ describe("docs pages state the versions the manifests declare", () => {
   it("gives the ai range @assistant-ui/ai-sdk peers on", () => {
     const range = manifest("ai-sdk").peerDependencies?.ai;
     const { major } = caretLine(range);
-    const page = read(
-      "apps/docs/content/docs/integrations/frameworks/ai-sdk.mdx",
-    );
+    const page = read("apps/docs/content/docs/runtimes/ai-sdk/overview.mdx");
     expect(page).toContain(
       `\`@assistant-ui/ai-sdk\` targets AI SDK v${major} and needs \`ai@${range}\`.`,
     );
@@ -61,5 +59,14 @@ describe("guides/index.mdx", () => {
       .filter((page) => page !== "index" && !page.startsWith("---"))
       .filter((page) => !index.includes(`href="/docs/guides/${page}"`));
     expect(unlinked).toEqual([]);
+  });
+});
+
+describe("runtimes/ai-sdk/v7.mdx", () => {
+  it("states the ai floor @assistant-ui/react-ai-sdk peers on", () => {
+    const range = manifest("react-ai-sdk").peerDependencies?.ai;
+    caretLine(range);
+    const page = read("apps/docs/content/docs/runtimes/ai-sdk/v7.mdx");
+    expect(page).toContain(`requires \`ai@${range}\``);
   });
 });
