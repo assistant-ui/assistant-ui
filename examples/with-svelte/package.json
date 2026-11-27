@@ -15,7 +15,7 @@
     "@assistant-ui/svelte": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@lucide/svelte": "^1.61.0",
-    "svelte": "^5.57.2"
+    "svelte": "^5.59.2"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
