@@ -414,17 +414,8 @@ describe("dataVocabulary Chart multi-series", () => {
   });
 
   it("pads a shorter series with 0-valued points instead of throwing or misaligning", () => {
-    expect(() =>
-      render({
-        $type: "Chart",
-        variant: "bar",
-        series: [
-          { data: [{ value: 10 }, { value: 20 }, { value: 30 }] },
-          { data: [{ value: 5 }] },
-        ],
-      }),
-    ).not.toThrow();
-    const html = render({
+    const container = document.createElement("div");
+    container.innerHTML = render({
       $type: "Chart",
       variant: "bar",
       series: [
@@ -432,8 +423,24 @@ describe("dataVocabulary Chart multi-series", () => {
         { data: [{ value: 5 }] },
       ],
     });
-    expect((html.match(/<rect/g) ?? []).length).toBe(6);
-    expect(html).toContain('aria-label="bar chart with 3 data points"');
+    expect(container.querySelectorAll("rect")).toHaveLength(6);
+    expect(container.querySelector("svg")?.getAttribute("aria-label")).toBe(
+      "bar chart with 3 data points",
+    );
+
+    const longBars = container.querySelectorAll('[data-aui-series="0"] rect');
+    const shortBars = container.querySelectorAll('[data-aui-series="1"] rect');
+    expect(shortBars).toHaveLength(3);
+    for (const index of [1, 2]) {
+      const bar = shortBars.item(index);
+      const neighbor = longBars.item(index);
+      expect(bar.querySelector("title")?.textContent).toBe(`${index + 1}: 0`);
+      expect(bar.getAttribute("height")).toBe("0");
+      expect(Number(bar.getAttribute("x"))).toBeCloseTo(
+        Number(neighbor.getAttribute("x")) +
+          Number(neighbor.getAttribute("width")),
+      );
+    }
   });
 
   it("treats a missing series data array as empty rather than throwing", () => {
