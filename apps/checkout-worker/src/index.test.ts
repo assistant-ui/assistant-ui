@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import worker, { CheckoutDO } from "./index";
+import worker, { CheckoutDO, SetupStatsDO } from "./index";
 import { EMPTY_ROOM_IDLE_MS, MAX_MESSAGE_BYTES, ROOM_IDLE_MS } from "./limits";
 import { StatewireClient, StatewireHttp } from "statewire";
 import { initialCheckoutState, type Checkout } from "setup-agent";
@@ -18,9 +18,40 @@ afterEach(() => {
 /** A `NEW_LINKS` binding that admits every request. */
 const unlimited = () => ({ limit: vi.fn(async () => ({ success: true })) });
 
+/** A `SETUP_STATS` binding backed by a real `SetupStatsDO` on in-memory storage, keeping each request body it received. */
+const createStats = () => {
+  const stored = new Map<string, unknown>();
+  const object = new SetupStatsDO(
+    {
+      storage: {
+        get: async (key: string) => stored.get(key),
+        put: async (key: string, value: unknown) => {
+          stored.set(key, value);
+        },
+        delete: async (key: string) => stored.delete(key),
+        list: async ({ prefix = "" }: { prefix?: string } = {}) =>
+          new Map([...stored].filter(([key]) => key.startsWith(prefix)).sort()),
+      } as unknown as DurableObjectStorage,
+    },
+    {},
+  );
+  const bodies: unknown[] = [];
+  const binding = {
+    idFromName: (name: string) => name,
+    get: () => ({
+      fetch: async (request: Request) => {
+        bodies.push(await request.clone().json());
+        return object.fetch(request);
+      },
+    }),
+  };
+  return { binding, stored, bodies };
+};
+
 const createInstance = (
   snapshot?: Checkout.State,
   newLinks: { limit: RateLimit["limit"] } = unlimited(),
+  stats = createStats(),
 ) => {
   const stored = new Map<string, unknown>(
     snapshot === undefined ? [] : [["statewire:snapshot", snapshot]],
@@ -78,6 +109,7 @@ const createInstance = (
         get: () => ({ fetch: () => new Response(null, { status: 404 }) }),
       },
       NEW_LINKS: newLinks,
+      SETUP_STATS: stats.binding,
     },
   );
   instances.push(instance);
@@ -85,6 +117,7 @@ const createInstance = (
     instance,
     context,
     stored,
+    stats,
     alarm,
     sockets,
     ready: () => Promise.all(pending),
@@ -614,6 +647,7 @@ describe("worker routing", () => {
     const response = await worker.fetch(request("stream", "OPTIONS"), {
       CHECKOUT: { idFromName, get: vi.fn() },
       NEW_LINKS: unlimited(),
+      SETUP_STATS: createStats().binding,
     });
     expect(response.status).toBe(204);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
@@ -636,6 +670,7 @@ describe("worker routing", () => {
     const response = await worker.fetch(request("stream"), {
       CHECKOUT: { idFromName, get },
       NEW_LINKS: unlimited(),
+      SETUP_STATS: createStats().binding,
     });
     expect(idFromName).toHaveBeenCalledWith("session1");
     expect(get).toHaveBeenCalledWith("session1");
@@ -906,9 +941,133 @@ describe("limits", () => {
     const idFromName = vi.fn((name: string) => name);
     const response = await worker.fetch(
       new Request(`https://checkout.test${path}`),
-      { CHECKOUT: { idFromName, get: vi.fn() }, NEW_LINKS: unlimited() },
+      {
+        CHECKOUT: { idFromName, get: vi.fn() },
+        NEW_LINKS: unlimited(),
+        SETUP_STATS: createStats().binding,
+      },
     );
     expect(response.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
+  });
+});
+
+describe("stage counts", () => {
+  /** Everything a setup could be traced by, each placed in its state below. */
+  const IDENTIFYING = [
+    "setup-7f3a",
+    "session1",
+    "/Users/jane/acme-store",
+    "acme",
+    "jane@example.com",
+    "Use the brand colors",
+    "phc_",
+  ];
+
+  const runSetup = async (
+    fixture: ReturnType<typeof createInstance>,
+    kind: string,
+    end: "finish" | "cancel",
+  ) => {
+    const client = await connect(fixture);
+    await client.commands["checkout/create"]({
+      id: "setup-7f3a",
+      products: [{ slug: "assistant-ui", name: "assistant-ui" }],
+      instructions: "Use the brand colors",
+    });
+    await client.commands["checkout/begin-plan"]();
+    await client.commands["agent/intro"]({ kind });
+    await client.commands["agent/hello"]({
+      cwd: "/Users/jane/acme-store",
+      kind,
+    });
+    await client.commands["agent/plan"]({ markdown: "Install into acme" });
+    if (end === "cancel") {
+      await client.commands["checkout/cancel"]();
+    } else {
+      await client.commands["checkout/plan"]({ decision: "approve" });
+      await client.commands["agent/log"]({ text: "Mailing jane@example.com" });
+      await client.commands["agent/done"]();
+      await client.commands["checkout/finish"]();
+    }
+    await vi.waitFor(() =>
+      expect(["done", "cancelled"]).toContain(client.state?.status),
+    );
+    await fixture.ready();
+  };
+
+  it("counts each stage a setup reaches once, by agent kind, and writes nothing that identifies it", async () => {
+    const fixture = createInstance();
+    await runSetup(fixture, "claude", "finish");
+    const day = new Date().toISOString().slice(0, 10);
+    expect(Object.fromEntries(fixture.stats.stored)).toEqual({
+      [`count:${day}:created:claude`]: 1,
+      [`count:${day}:planning:claude`]: 1,
+      [`count:${day}:installing:claude`]: 1,
+      [`count:${day}:done:claude`]: 1,
+      [`pending:${day}`]: 1,
+    });
+    for (const body of fixture.stats.bodies)
+      expect(Object.keys(body as object).sort()).toEqual([
+        "agentKind",
+        "stages",
+      ]);
+    const written = JSON.stringify([
+      ...fixture.stats.stored,
+      ...fixture.stats.bodies,
+    ]);
+    for (const value of IDENTIFYING) expect(written).not.toContain(value);
+  });
+
+  it("counts a cancelled setup and folds an agent kind it does not know into other", async () => {
+    const fixture = createInstance();
+    await runSetup(fixture, "jane-laptop", "cancel");
+    const day = new Date().toISOString().slice(0, 10);
+    expect(Object.fromEntries(fixture.stats.stored)).toEqual({
+      [`count:${day}:created:other`]: 1,
+      [`count:${day}:planning:other`]: 1,
+      [`count:${day}:cancelled:other`]: 1,
+      [`pending:${day}`]: 1,
+    });
+    expect(JSON.stringify([...fixture.stats.stored])).not.toContain("jane");
+  });
+
+  it("does not count again the stages of a setup it restores", async () => {
+    const fixture = createInstance(modelState());
+    const client = await connect(fixture);
+    await client.commands["agent/hello"]({ cwd: "/app", kind: "codex" });
+    await fixture.ready();
+    expect(fixture.stats.stored.size).toBe(0);
+    await client.commands["agent/plan"]({ markdown: "Install" });
+    await client.commands["checkout/plan"]({ decision: "approve" });
+    await vi.waitFor(() => expect(client.state?.status).toBe("installing"));
+    await fixture.ready();
+    expect([...fixture.stats.stored.keys()]).toEqual([
+      expect.stringMatching(/^count:\d{4}-\d{2}-\d{2}:installing:codex$/),
+      expect.stringMatching(/^pending:/),
+    ]);
+  });
+
+  it("asks the counter to send PostHog finished days on the worker's cron", async () => {
+    const fetch = vi.fn(
+      async (_request: Request) =>
+        new Response(JSON.stringify({ exported: [] })),
+    );
+    const idFromName = vi.fn((name: string) => name);
+    const pending: Promise<unknown>[] = [];
+    worker.scheduled(
+      {} as ScheduledController,
+      {
+        CHECKOUT: { idFromName, get: vi.fn() },
+        NEW_LINKS: unlimited(),
+        SETUP_STATS: { idFromName, get: () => ({ fetch }) },
+      },
+      {
+        waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+      } as unknown as ExecutionContext,
+    );
+    await Promise.all(pending);
+    expect(idFromName).toHaveBeenCalledWith("all");
+    expect(fetch.mock.calls[0]?.[0]?.url).toBe("https://setup-stats/export");
   });
 });

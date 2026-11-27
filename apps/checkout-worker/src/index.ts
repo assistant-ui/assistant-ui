@@ -7,6 +7,14 @@ import {
   MAX_MESSAGE_BYTES,
   ROOM_IDLE_MS,
 } from "./limits";
+import {
+  COUNT_URL,
+  EXPORT_URL,
+  STATS_OBJECT_NAME,
+  agentKindLabel,
+  createStageTracker,
+  type StageCountRequest,
+} from "./stage-counts";
 import { resource, useResource } from "@assistant-ui/tap";
 import {
   StatewireDurableObject,
@@ -18,7 +26,12 @@ type Env = {
   CHECKOUT: StatewireDurableObject.Namespace;
   /** Per-client-IP budget for requests to links that hold no setup yet (wrangler.jsonc). */
   NEW_LINKS: RateLimit;
+  /** The one object that keeps the anonymous stage counts (./stage-counts.ts). */
+  SETUP_STATS: StatewireDurableObject.Namespace;
 };
+
+const statsObject = (env: Env) =>
+  env.SETUP_STATS.get(env.SETUP_STATS.idFromName(STATS_OBJECT_NAME));
 
 type SecretDeposit = {
   setupId: string;
@@ -87,10 +100,15 @@ const readCapped = async (request: Request, max: number) => {
   return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
 };
 
+export { SetupStatsDO } from "./stage-counts";
+
 export class CheckoutDO extends StatewireDurableObject<Env>() {
   #state: Checkout.State | undefined;
   #cleanupScope = "";
   #lastActiveAt: number | undefined;
+  #stagesToCount = createStageTracker();
+  #countStarted = false;
+  #countQueued = false;
 
   /** Whether the link holds a setup; until it does, it gets `EMPTY_ROOM_IDLE_MS`. */
   #hasSetup() {
@@ -181,16 +199,62 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
       const host = useResource(CheckoutHost(restored));
       instance.#state = host.state;
       instance.#scheduleCleanup();
+      instance.#countStages();
       return {
         ...host,
         subscribe: (listener: () => void) =>
           host.subscribe(() => {
             instance.#scheduleCleanup();
+            instance.#countStages();
             listener();
           }),
       };
     })();
   });
+
+  /**
+   * Adds the stages this setup just reached to the anonymous counts: only
+   * the stage names and the agent kind leave this object. The host reports
+   * each field a command sets, so the restored state is read at once and a
+   * change once the command has finished (`agent/intro` sets the intro time
+   * before the kind).
+   */
+  #countStages() {
+    if (this.#countQueued) return;
+    if (!this.#countStarted) {
+      if (!this.#state) return;
+      this.#countStarted = true;
+      this.#stagesToCount(this.#state);
+      return;
+    }
+    this.#countQueued = true;
+    queueMicrotask(() => {
+      this.#countQueued = false;
+      const state = this.#state;
+      if (!state) return;
+      const stages = this.#stagesToCount(state);
+      if (stages.length === 0) return;
+      const body: StageCountRequest = {
+        stages,
+        agentKind: agentKindLabel(state.agent.kind),
+      };
+      this.ctx.waitUntil(
+        Promise.resolve()
+          .then(() =>
+            statsObject(this.env).fetch(
+              new Request(COUNT_URL, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(body),
+              }),
+            ),
+          )
+          .catch(() => {
+            // A count that fails is dropped; the setup goes on.
+          }),
+      );
+    });
+  }
 
   #currentInput(setupId: string, inputId: string) {
     const state = this.#state;
@@ -403,9 +467,22 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
  * `EMPTY_ROOM_IDLE_MS`, and requests to such links are rate limited per
  * client IP (`NEW_LINKS`). A setup whose
  * agent stream has been silent for the host's `AGENT_ABANDON_MS`, while
- * its setup page stayed awake, ends as cancelled.
+ * its setup page stayed awake, ends as cancelled. Each setup adds the
+ * stages it reaches to anonymous per-day counts (`SetupStatsDO`), which
+ * the hourly cron sends PostHog once each day is over.
  */
 export default {
+  scheduled: (
+    _controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext,
+  ) => {
+    ctx.waitUntil(
+      Promise.resolve(
+        statsObject(env).fetch(new Request(EXPORT_URL, { method: "POST" })),
+      ),
+    );
+  },
   fetch: async (request: Request, env: Env) => {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
