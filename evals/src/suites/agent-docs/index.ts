@@ -4,9 +4,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  agentAuth,
   agentPrompt,
   BUNDLED_DOCS_DIR,
   runAgent,
+  type AgentAuth,
   type DocsMode,
 } from "./agent.ts";
 import { bundleDocs } from "./bundle.ts";
@@ -37,6 +39,8 @@ export interface Outcome extends TranscriptSummary {
   detail?: string | undefined;
   agentSeconds: number;
   agentTimedOut: boolean;
+  /** What Claude Code signed in with; `costUsd` is the API price either way. */
+  agentAuth: AgentAuth;
   runDir: string;
 }
 
@@ -153,6 +157,7 @@ async function runTrial(
     detail: failure?.message,
     agentSeconds: agent.seconds,
     agentTimedOut: agent.timedOut,
+    agentAuth: agent.auth,
     runDir,
   };
   mkdirSync(join(resultsDir, "trials"), { recursive: true });
@@ -204,7 +209,7 @@ export const agentDocs: Suite<AgentTask, DocsCandidate, Outcome> = {
     return [
       "# agent-docs",
       "",
-      `Model: ${model}. Each trial is a fresh agent with only the AI docs, building the task from an empty folder; the check builds, typechecks and drives the app in headless Chrome against a mock model.`,
+      `Model: ${model}, signed in with ${agentAuth().auth}. Each trial is a fresh agent with only the AI docs, building the task from an empty folder; the check builds, typechecks and drives the app in headless Chrome against a mock model.`,
       "",
       "| Task | Docs | Passed | First failed step |",
       "| --- | --- | --- | --- |",

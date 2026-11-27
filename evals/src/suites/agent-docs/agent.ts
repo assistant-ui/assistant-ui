@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -60,6 +60,32 @@ export interface AgentRun {
   timedOut: boolean;
   seconds: number;
   transcript: string;
+  auth: AgentAuth;
+}
+
+/** What Claude Code signs in with: a Claude plan token, an API key, or the machine's own `claude` login. */
+export type AgentAuth =
+  | "CLAUDE_CODE_OAUTH_TOKEN"
+  | "ANTHROPIC_API_KEY"
+  | "stored login";
+
+/**
+ * A plan token (`claude setup-token`) wins over an API key, and either over the machine's own login.
+ * Claude Code's own order is the other way round (`-p` takes `ANTHROPIC_API_KEY` first), so only the
+ * chosen variable is passed on.
+ */
+export function agentAuth(source: NodeJS.ProcessEnv = process.env): {
+  auth: AgentAuth;
+  env: Record<string, string>;
+} {
+  for (const name of [
+    "CLAUDE_CODE_OAUTH_TOKEN",
+    "ANTHROPIC_API_KEY",
+  ] as const) {
+    const value = source[name];
+    if (value) return { auth: name, env: { [name]: value } };
+  }
+  return { auth: "stored login", env: {} };
 }
 
 const which = (name: string) =>
@@ -149,6 +175,24 @@ const runningIn = (lsofBin: string, dir: string) => {
   return pids;
 };
 
+/**
+ * The folders the agent's shell may read so the tools on its PATH run, even from the home directory
+ * (an nvm or fnm install): node's own folder, and the npm package a script tool such as npm or
+ * corepack lives in. Never an install root, which can be `~/.local` with keyrings and history beside
+ * it, and never the home directory or one of its parents.
+ */
+export function toolchainReads(realPaths: string[], home: string) {
+  const folder = (path: string) => {
+    for (let dir = dirname(path); dir !== dirname(dir); dir = dirname(dir)) {
+      if (basename(dirname(dir)) === "node_modules") return dir;
+    }
+    return dirname(path);
+  };
+  const holdsHome = (dir: string) =>
+    home === dir || home.startsWith(dir.endsWith("/") ? dir : `${dir}/`);
+  return [...new Set(realPaths.map(folder))].filter((dir) => !holdsHome(dir));
+}
+
 const kill = (pid: number) => {
   try {
     process.kill(pid, "SIGKILL");
@@ -205,19 +249,16 @@ export async function runAgent(opts: {
 
   const home = homedir();
   const webHost = opts.webDocs ? new URL(opts.webDocs).hostname : undefined;
-  // Where node and npm really live (an nvm or fnm install sits in the home directory): the install root.
-  // Never the home directory itself or one of its parents, as a node at `~/bin/node` would give.
-  const toolchain = [
-    ...new Set(
-      ["node", "npm"].flatMap((tool) => {
-        try {
-          return [dirname(dirname(realpathSync(which(tool))))];
-        } catch {
-          return [];
-        }
-      }),
-    ),
-  ].filter((dir) => !`${home}/`.startsWith(`${dir}/`));
+  const toolchain = toolchainReads(
+    ["node", "npm", "npx", "corepack"].flatMap((tool) => {
+      try {
+        return [realpathSync(which(tool))];
+      } catch {
+        return [];
+      }
+    }),
+    home,
+  );
   // create-next-app, shadcn and the assistant-ui CLI keep a preferences file here.
   const cliPrefs = ["create-next-app", "shadcn", "assistant-ui"].map((cli) =>
     process.platform === "darwin"
@@ -297,6 +338,9 @@ export async function runAgent(opts: {
     TMPDIR: join(runDir, "tmp"),
     npm_config_cache: join(runDir, "npm-cache"),
     npm_config_userconfig: join(runDir, "npmrc"),
+    // The scrub below drops `npm_config_userconfig` from the shell, so its settings come this way too.
+    npm_config_fund: "false",
+    npm_config_audit: "false",
     NEXT_TELEMETRY_DISABLED: "1",
     // Its own temp folder, so trials running side by side never share scratch files.
     CLAUDE_CODE_TMPDIR: tmp,
@@ -304,10 +348,18 @@ export async function runAgent(opts: {
     SETUP_AGENT_BROWSER: "/usr/bin/true",
     ...opts.extraEnv,
     CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
+    // Claude Code keeps the credential for its own calls; the agent's shell and the servers it starts
+    // never see it. Set on every run, so each way of signing in runs the same agent.
+    CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1",
   };
   if (process.env.CLAUDE_CONFIG_DIR) {
     env.CLAUDE_CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR;
   }
+  // Only the chosen sign-in reaches Claude Code.
+  const signIn = agentAuth();
+  delete env.CLAUDE_CODE_OAUTH_TOKEN;
+  delete env.ANTHROPIC_API_KEY;
+  Object.assign(env, signIn.env);
 
   const transcript = join(runDir, "transcript.jsonl");
   const out = openSync(transcript, "w");
@@ -396,5 +448,6 @@ export async function runAgent(opts: {
     timedOut,
     seconds: Math.round((Date.now() - started) / 1000),
     transcript,
+    auth: signIn.auth,
   };
 }
