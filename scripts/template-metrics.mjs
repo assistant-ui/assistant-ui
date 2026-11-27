@@ -164,11 +164,15 @@ function resolveModule(fromFile, spec, tplDir, aliases) {
 
 function importsOf(file) {
   const src = readFileSync(file, "utf8");
-  const specs = [];
-  const re = /(?:from|import)\s+["']([^"']+)["']/g;
-  let m;
-  while ((m = re.exec(src))) specs.push(m[1]);
-  return specs;
+  const trivia = String.raw`(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/[^\r\n\u2028\u2029]*(?![^\r\n\u2028\u2029]))*`;
+  const specifier = String.raw`("[^"\r\n]+"|'[^'\r\n]+')`;
+  const re = new RegExp(
+    String.raw`\b(?:from|import)(?=${trivia}${specifier})|(?:\.\.\.|(?<!\.))\bimport(?=${trivia}\(${trivia}(${specifier}|\`(?:[^\`$\\\r\n]|\$(?!\{))+\`)${trivia}[,)])`,
+    "g",
+  );
+  return Array.from(src.matchAll(re), ([, staticSpec, lazySpec]) =>
+    (staticSpec ?? lazySpec).slice(1, -1),
+  );
 }
 
 // Owned template files all ship; packages/ui files count only when reachable
