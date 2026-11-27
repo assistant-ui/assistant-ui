@@ -48,6 +48,11 @@ export type Starter = {
   devScript?: string;
   /** A screenshot of the app running, from public/screenshot/examples. */
   image?: string;
+  /** Screenshots of the app in each color mode, in the order a card cycles through them. */
+  screenshots?: {
+    light: readonly string[];
+    dark: readonly string[];
+  };
 };
 
 // The CLI is not a dependency of the docs app, so this list mirrors
@@ -58,6 +63,16 @@ export const STARTERS: readonly Starter[] = [
     label: "Default",
     description: "A Next.js chat on the Vercel AI SDK.",
     kind: "template",
+    screenshots: {
+      light: [
+        "/screenshot/starters/default/empty-light.png",
+        "/screenshot/starters/default/conversation-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/default/empty-dark.png",
+        "/screenshot/starters/default/conversation-dark.png",
+      ],
+    },
     framework: "Next.js",
     backend: "AI SDK",
     env: ["OPENAI_API_KEY"],

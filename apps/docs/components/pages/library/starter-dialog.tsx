@@ -25,7 +25,7 @@ import {
   useLibraryCart,
 } from "./cart-store";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
-import { StarterPreview } from "./starter-card";
+import { StarterPreview, useShotIndex } from "./starter-card";
 
 const button =
   "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
@@ -96,6 +96,52 @@ function DependencyList({
   );
 }
 
+/** The dialog's preview: while hovered or focused it steps through the current mode's screenshots, and its dots pick one. */
+function DialogPreview({ starter }: { starter: Starter }) {
+  const shotCount = starter.screenshots?.light.length ?? 0;
+  const { index, select, handlers } = useShotIndex(shotCount);
+
+  return (
+    <div
+      className="bg-foreground/[0.03] dark:bg-foreground/[0.045] m-2 rounded-[22px] p-4"
+      {...handlers}
+    >
+      <div
+        className={cn(
+          "bg-background relative flex items-center justify-center overflow-hidden rounded-xl",
+          shotCount > 0 ? "aspect-[16/10]" : "aspect-[16/8]",
+        )}
+      >
+        <StarterPreview starter={starter} index={index} sizes="640px" />
+      </div>
+      {shotCount > 1 ? (
+        <div className="mt-3 flex justify-center gap-1">
+          {Array.from({ length: shotCount }, (_, i) => {
+            const current = i === index % shotCount;
+            return (
+              <button
+                key={i}
+                type="button"
+                aria-label={`Show screenshot ${i + 1} of ${shotCount}`}
+                aria-current={current}
+                onClick={() => select(i)}
+                className="focus-visible:ring-ring grid size-5 cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2"
+              >
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full transition-colors",
+                    current ? "bg-foreground/70" : "bg-foreground/20",
+                  )}
+                />
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const TABS = [
   { value: "overview", label: "Overview" },
   { value: "setup", label: "Setup" },
@@ -153,11 +199,7 @@ function StarterDetails({ starter }: { starter: Starter }) {
 
   return (
     <>
-      <div className="bg-foreground/[0.03] dark:bg-foreground/[0.045] m-2 rounded-[22px] p-4">
-        <div className="bg-background relative flex aspect-[16/8] items-center justify-center overflow-hidden rounded-xl">
-          <StarterPreview starter={starter} sizes="640px" />
-        </div>
-      </div>
+      <DialogPreview starter={starter} />
       <div className="flex flex-col gap-6 px-6 pt-3 pb-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1.5">

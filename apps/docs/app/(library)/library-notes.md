@@ -1,5 +1,9 @@
 # Library notes
 
+## Starters that need their own previews
+
+VS Code (`templates/vscode`, an editor extension), React Ink (`examples/with-react-ink`, a terminal app), and Expo (`examples/with-expo`, a phone app) don't run in a browser, so they were left out of the light and dark screenshot run and keep their glyphs on the cards. They need their own way to get previews later: for example, a capture of the extension's webview inside VS Code, a recorded terminal session for Ink, and Expo's web build or a simulator capture.
+
 ## Starter data is a hand-copied snapshot
 
 `lib/library/starters-data.ts` holds every starter on `/library/starters`. Most of it was copied by hand or by one-off scripts, so it goes stale when a starter, the CLI, or the registry changes. Nothing checks it today.
