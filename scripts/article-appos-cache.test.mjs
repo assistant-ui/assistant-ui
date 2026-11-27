@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 
-const repo = resolve(import.meta.dirname, "../..");
+const repo = resolve(import.meta.dirname, "..");
 const app = "examples/with-article-assistant";
 const name = "with-article-assistant";
 const taskName = "build:appos";
