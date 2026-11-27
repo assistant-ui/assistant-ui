@@ -54,6 +54,10 @@ test("detects app build inputs", () => {
     "scripts/ci-has-tasks.mjs",
     "scripts/ci-has-tasks.test.mjs",
     "scripts/article-appos-cache.test.mjs",
+    "apps/docs/styles/globals.css",
+    "apps/docs/styles/code-tokens.css",
+    "apps/docs/components/demo/elements/activity-graph.tsx",
+    "apps/docs/lib/blocks.ts",
     "apps/docs/content/docs/index.mdx",
     "scripts/lib/script-options.mjs",
     "scripts/lib/package-test-inputs.mjs",
@@ -65,6 +69,8 @@ test("detects app build inputs", () => {
 test("ignores changes outside app builds", () => {
   for (const file of [
     "apps/docs/package.json",
+    "apps/docs/next.config.mts",
+    "apps/docs/scripts/generate-code-tokens.mts",
     "api-surface/assistant-ui__react.ts",
     ".changeset/example.md",
     "README.md",
