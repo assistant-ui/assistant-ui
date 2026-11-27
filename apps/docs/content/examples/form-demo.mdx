@@ -33,11 +33,14 @@ The example uses `useAssistantForm` from `@assistant-ui/react-hook-form` to conn
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 
 export function MyRuntimeProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -46,6 +49,8 @@ export function MyRuntimeProvider({
   );
 }
 ```
+
+The form tools run in the browser, so `sendAutomaticallyWhen` sends each result back to the model. Without it, the assistant stops after filling a field or after the user answers the submit approval.
 
 ### Backend Route
 
