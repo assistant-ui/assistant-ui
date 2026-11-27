@@ -164,7 +164,7 @@ function resolveModule(fromFile, spec, tplDir, aliases) {
 
 function importsOf(file) {
   const src = readFileSync(file, "utf8");
-  const trivia = String.raw`(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/[^\r\n\u2028\u2029]*)*`;
+  const trivia = String.raw`(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/[^\r\n\u2028\u2029]*(?![^\r\n\u2028\u2029]))*`;
   const specifier = String.raw`("[^"\r\n]+"|'[^'\r\n]+')`;
   const re = new RegExp(
     String.raw`\b(?:from|import)(?=${trivia}${specifier})|(?:\.\.\.|(?<!\.))\bimport(?=${trivia}\(${trivia}(${specifier}|\`[^\`$\\\r\n]+\`)${trivia}[,)])`,

@@ -191,6 +191,14 @@ for (const [kind, entry, expectedUiLoc] of [
     301,
   ],
   [
+    "a long run of slashes before an import",
+    [
+      `import ${"/".repeat(5000)}`,
+      'const load = () => import("@/ui/chart");',
+    ].join("\n"),
+    301,
+  ],
+  [
     "import-like text in comments",
     ['// import("@/ui/chart")', '/* import("@/ui/chart") */'].join("\n"),
     301,
