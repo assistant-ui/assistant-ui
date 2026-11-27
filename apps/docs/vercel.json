@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "pnpm install --frozen-lockfile --filter @assistant-ui/docs-site... --filter with-article-assistant...",
+  "installCommand": "pnpm install --frozen-lockfile --filter @assistant-ui/monorepo... --filter @assistant-ui/docs-site... --filter with-article-assistant...",
   "ignoreCommand": "bash ../../scripts/vercel-ignore-changeset-release.sh"
 }
