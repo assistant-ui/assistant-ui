@@ -17,14 +17,9 @@ const workflow = readFileSync(
 );
 const selection = workflow
   .match(
-    /      - name: Select Python suite[\s\S]*?        run: \|\n([\s\S]*?)(?=\n      - name:)/,
+    /      - name: Select Python suites[\s\S]*?        run: \|\n((?:          .*\n)+)/,
   )[1]
   .replace(/^          /gm, "");
-const packages = workflow
-  .match(/        package:\n((?:          - .+\n)+)/)[1]
-  .trim()
-  .split("\n")
-  .map((line) => line.trim().slice(2));
 const pythonFiles = execFileSync("git", ["ls-files", "-z", "--", "python"], {
   cwd: new URL("..", import.meta.url),
   encoding: "utf8",
@@ -39,10 +34,6 @@ const testedPackages = pythonFiles
         /^(?:test_.*|.*_test)\.py$/.test(path.basename(file)),
     ),
   );
-
-test("every Python project with checked-in tests has a matrix job", () => {
-  assert.deepEqual(packages.toSorted(), testedPackages.toSorted());
-});
 
 function fixture(t) {
   const root = mkdtempSync(path.join(tmpdir(), "aui-python-selection-"));
@@ -68,16 +59,17 @@ function fixture(t) {
   git("init", "-q");
   for (const pkg of testedPackages) write(`python/${pkg}/module.py`);
   const base = commit();
-  const selected = (pkg, ref = base) => {
-    const output = path.join(root, "selection-output");
+  const selected = (ref = base) => {
+    const output = path.join(root, ".git", "selection-output");
     writeFileSync(output, "");
     const result = spawnSync("bash", ["-c", selection], {
       cwd: root,
       encoding: "utf8",
-      env: { ...env, PACKAGE: pkg, BASE_REF: ref, GITHUB_OUTPUT: output },
+      env: { ...env, BASE_REF: ref, GITHUB_OUTPUT: output },
     });
     assert.equal(result.status, 0, result.stderr);
-    return readFileSync(output, "utf8").trim() === "run=true";
+    const [, value] = /^packages=(.+)\n$/.exec(readFileSync(output, "utf8"));
+    return JSON.parse(value);
   };
   return { root, write, commit, selected };
 }
@@ -87,8 +79,7 @@ for (const pkg of testedPackages) {
     const f = fixture(t);
     f.write(`python/${pkg}/nested/file with\nspaces.py`);
     f.commit();
-    for (const candidate of packages)
-      assert.equal(f.selected(candidate), candidate === pkg);
+    assert.deepEqual(f.selected(), [pkg]);
   });
 }
 
@@ -102,7 +93,7 @@ for (const file of [
     const f = fixture(t);
     f.write(file);
     f.commit();
-    for (const pkg of packages) assert.equal(f.selected(pkg), true);
+    assert.deepEqual(f.selected().toSorted(), testedPackages.toSorted());
   });
 }
 
@@ -115,8 +106,7 @@ for (const [from, to] of [
     rmSync(path.join(f.root, `python/${from}/module.py`));
     f.write(`python/${to}/moved.py`);
     f.commit();
-    for (const pkg of packages)
-      assert.equal(f.selected(pkg), pkg === from || pkg === to);
+    assert.deepEqual(f.selected().toSorted(), [from, to].toSorted());
   });
 }
 
@@ -124,23 +114,22 @@ test("deleted files still select their package", (t) => {
   const f = fixture(t);
   rmSync(path.join(f.root, "python/assistant-stream/module.py"));
   f.commit();
-  for (const pkg of packages)
-    assert.equal(f.selected(pkg), pkg === "assistant-stream");
+  assert.deepEqual(f.selected(), ["assistant-stream"]);
 });
 
-test("missing or zero baselines conservatively run all suites", (t) => {
+test("unavailable baselines select every Python project with checked-in tests", (t) => {
   const f = fixture(t);
-  for (const base of ["missing-ref", "0".repeat(40)]) {
-    for (const pkg of packages) assert.equal(f.selected(pkg, base), true);
+  for (const base of ["", "missing-ref", "0".repeat(40)]) {
+    assert.deepEqual(f.selected(base).toSorted(), testedPackages.toSorted());
   }
 });
 
 test("unrelated files and an empty diff skip all suites", (t) => {
   const f = fixture(t);
-  for (const pkg of packages) assert.equal(f.selected(pkg), false);
+  assert.deepEqual(f.selected(), []);
   f.write("README.md");
   f.commit();
-  for (const pkg of packages) assert.equal(f.selected(pkg), false);
+  assert.deepEqual(f.selected(), []);
 });
 
 test("a large mixed diff still selects only the affected packages", (t) => {
@@ -149,11 +138,10 @@ test("a large mixed diff still selects only the affected packages", (t) => {
     f.write(`python/assistant-stream/generated/${i}.py`);
   f.write("python/assistant-ui-sync-server-api/last.py");
   f.commit();
-  for (const pkg of packages)
-    assert.equal(
-      f.selected(pkg),
-      pkg === "assistant-stream" || pkg === "assistant-ui-sync-server-api",
-    );
+  assert.deepEqual(f.selected().toSorted(), [
+    "assistant-stream",
+    "assistant-ui-sync-server-api",
+  ]);
 });
 
 const transportPage =
@@ -165,7 +153,7 @@ const sampleTest = "python/assistant-stream/tests/test_docs_samples.py";
 const unrelatedDocs = ["apps/docs/content/meta.json", "apps/docs/lib/notes.md"];
 
 for (const event of ["push", "pull_request"]) {
-  test(`${event} watches docs sample inputs`, () => {
+  test(`${event} watches routing controls and docs sample inputs`, () => {
     const block = workflow.match(
       new RegExp(`^  ${event}:\\n[\\s\\S]*?(?=^  \\w+:|^\\S)`, "m"),
     )[0];
@@ -180,6 +168,8 @@ for (const event of ["push", "pull_request"]) {
       checker,
       backendReadme,
       sampleTest,
+      ".github/workflows/python-tests.yaml",
+      "scripts/python-test-selection.test.mjs",
     ]) {
       assert.ok(matches(file), file);
     }
@@ -205,8 +195,7 @@ for (const [files, expected] of [
     const f = fixture(t);
     for (const file of files) f.write(file, "changed\n");
     f.commit();
-    for (const pkg of packages)
-      assert.equal(f.selected(pkg), expected.includes(pkg), pkg);
+    assert.deepEqual(f.selected().toSorted(), expected.toSorted());
   });
 }
 
@@ -218,14 +207,24 @@ test("moving or deleting a docs sample still selects assistant-stream", (t) => {
   rmSync(path.join(f.root, transportPage));
   f.write("apps/docs/archive/transport.mdx");
   const moved = f.commit();
-  for (const pkg of packages)
-    assert.equal(f.selected(pkg, base), pkg === "assistant-stream");
+  assert.deepEqual(f.selected(base), ["assistant-stream"]);
   rmSync(path.join(f.root, backendReadme));
   f.commit();
-  for (const pkg of packages) {
-    assert.equal(
-      f.selected(pkg, moved),
-      pkg === "assistant-stream" || pkg === backend,
-    );
-  }
+  assert.deepEqual(f.selected(moved).toSorted(), ["assistant-stream", backend]);
+});
+
+test("pytest allocates only the planner's packages across the three Python versions", () => {
+  const [plan, pytest] = workflow.split("\n  test:\n");
+  assert.ok(plan.includes("packages: ${{ steps.selection.outputs.packages }}"));
+  assert.match(pytest, /^    needs: plan$/m);
+  assert.match(pytest, /^    if: needs\.plan\.outputs\.packages != '\[\]'$/m);
+  assert.ok(
+    pytest.includes("package: ${{ fromJSON(needs.plan.outputs.packages) }}"),
+  );
+  assert.match(pytest, /python-version: \["3\.10", "3\.12", "3\.14"\]/);
+  assert.doesNotMatch(
+    pytest,
+    /^        if:/m,
+    "every allocated job must run pytest",
+  );
 });
