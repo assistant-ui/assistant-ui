@@ -49,14 +49,16 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/scripts/vitest-waitfor-interval.mjs"
+        "$TURBO_ROOT$/scripts/vitest-waitfor-interval.mjs",
+        "!README.md"
       ]
     },
     "test:coverage": {
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/scripts/vitest-waitfor-interval.mjs"
+        "$TURBO_ROOT$/scripts/vitest-waitfor-interval.mjs",
+        "!README.md"
       ],
       "outputs": ["coverage/**"]
     },

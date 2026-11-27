@@ -38,6 +38,7 @@ on:
       - "packages/x-generative-compiler/**"
       - "!packages/**/*.test.ts"
       - "!packages/**/*.test.tsx"
+      - "!packages/**/README.md"
   pull_request:
     branches: [main]
     paths:
@@ -75,6 +76,7 @@ on:
       - "packages/x-generative-compiler/**"
       - "!packages/**/*.test.ts"
       - "!packages/**/*.test.tsx"
+      - "!packages/**/README.md"
   workflow_dispatch:
 
 permissions:

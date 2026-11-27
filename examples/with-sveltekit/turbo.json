@@ -10,7 +10,8 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/turbo.json",
         "$TURBO_ROOT$/.gitignore",
-        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs"
+        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs",
+        "!README.md"
       ]
     },
     "test:coverage": {
@@ -18,7 +19,8 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/turbo.json",
         "$TURBO_ROOT$/.gitignore",
-        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs"
+        "$TURBO_ROOT$/scripts/lib/turbo-build-cache-fixture.mjs",
+        "!README.md"
       ]
     }
   }
