@@ -13,6 +13,7 @@
     "build": "tsx scripts/build.mts",
     "dev": "tsx scripts/build.mts --watch",
     "probes": "tsx scripts/build.mts && tsx test/run.mts",
+    "test": "node --test test/run.test.mts",
     "typecheck": "tsc --noEmit"
   },
   "contributes": {
