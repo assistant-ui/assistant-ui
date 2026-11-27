@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import { completeExternalMessageConversion } from "../../runtime/utils/external-message-conversion";
 import {
@@ -26,6 +26,12 @@ const [u1, a1, u2, a2] = ExportedMessageRepository.fromArray([
   ThreadMessage,
 ];
 
+const editedUser: ThreadMessage = {
+  ...u2,
+  id: "edit",
+  content: [{ type: "text", text: "revised" }],
+};
+
 const adapter = (
   messages: readonly ThreadMessage[],
   options: {
@@ -47,6 +53,19 @@ const errorIds = (runtime: ExternalStoreThreadRuntimeCore) =>
     .export()
     .messages.map(({ message }) => message.id)
     .filter(isErrorMessageId);
+
+const cancellableStore = () => {
+  const setMessages = vi.fn<(messages: readonly ThreadMessage[]) => void>();
+  const store = (
+    messages: readonly ThreadMessage[],
+    options?: Parameters<typeof adapter>[1],
+  ): ExternalStoreAdapter => ({
+    ...adapter(messages, options),
+    onCancel: async () => {},
+    setMessages,
+  });
+  return { store, setMessages };
+};
 
 describe("external-store synthesized error messages", () => {
   it("shows the error on a synthesized assistant message", () => {
@@ -210,5 +229,99 @@ describe("external-store synthesized error messages", () => {
       "u2",
     ]);
     expect(runtime.messages.at(-1)!.metadata.isOptimistic).toBe(true);
+  });
+
+  it("does not bring back the answer a failed reload replaced when a new message is stopped", async () => {
+    const { store, setMessages } = cancellableStore();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      store([u1, a1]),
+    );
+    runtime.__internal_setAdapter(store([u1], { isRunning: true }));
+    runtime.__internal_setAdapter(store([u1], { error: "502" }));
+    runtime.__internal_setAdapter(store([u1, u2], { isRunning: true }));
+
+    runtime.cancelRun();
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1"]);
+    runtime.__internal_setAdapter(store([u1, u2], { isRunning: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1"]);
+    expect(runtime.composer.text).toBe("second");
+    expect(setMessages).toHaveBeenCalledTimes(1);
+    expect(setMessages.mock.calls[0]![0].map((m) => m.id)).toEqual(["u1"]);
+  });
+
+  it.each([
+    {
+      position: "after an earlier turn",
+      prefix: [u1, a1],
+      user: u2,
+      answer: a2,
+    },
+    { position: "at the root", prefix: [], user: u1, answer: a1 },
+  ])(
+    "restores the original user message when an edit $position is stopped after a failed reload",
+    async ({ prefix, user, answer }) => {
+      const { store, setMessages } = cancellableStore();
+      const original = [...prefix, user];
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        store([...original, answer]),
+      );
+      runtime.__internal_setAdapter(store(original, { isRunning: true }));
+      runtime.__internal_setAdapter(store(original, { error: "502" }));
+      const running = [...prefix, editedUser];
+      runtime.__internal_setAdapter(store(running, { isRunning: true }));
+
+      runtime.cancelRun();
+      expect(runtime.messages).toEqual(original);
+      runtime.__internal_setAdapter(store(running, { isRunning: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(runtime.messages).toEqual(original);
+      expect(runtime.composer.text).toBe("revised");
+      expect(setMessages).toHaveBeenCalledExactlyOnceWith(original);
+    },
+  );
+
+  it("does not bring back an abandoned turn when a later message is stopped", async () => {
+    const { store, setMessages } = cancellableStore();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      store([u1, a1]),
+    );
+    runtime.__internal_setAdapter(store([u1, u2], { isRunning: true }));
+    runtime.__internal_setAdapter(store([u1], { error: "502" }));
+    const running = [u1, { ...u2, id: "new" }];
+    runtime.__internal_setAdapter(store(running, { isRunning: true }));
+
+    runtime.cancelRun();
+    expect(runtime.messages).toEqual([u1]);
+    runtime.__internal_setAdapter(store(running, { isRunning: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runtime.messages).toEqual([u1]);
+    expect(setMessages).toHaveBeenCalledExactlyOnceWith([u1]);
+  });
+
+  it("restores the original answer when an edit to an answered turn is stopped", async () => {
+    const { store, setMessages } = cancellableStore();
+    const original = [u1, a1, u2, a2];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      store(original),
+    );
+    const running = [u1, a1, editedUser];
+    runtime.__internal_setAdapter(store(running, { isRunning: true }));
+
+    runtime.cancelRun();
+    expect(runtime.messages).toEqual(original);
+    runtime.__internal_setAdapter(store(running, { isRunning: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runtime.messages).toEqual(original);
+    expect(runtime.composer.text).toBe("revised");
+    expect(setMessages).toHaveBeenCalledExactlyOnceWith(original);
   });
 });

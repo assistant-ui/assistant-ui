@@ -345,6 +345,9 @@ export class ExternalStoreThreadRuntimeCore
   } | null = null;
   private readonly _cancelledRunIds = new Set<string>();
   private readonly _pendingCancelResyncs = new Set<() => void>();
+  private _trailingUserRollback:
+    | { id: string; path: readonly ThreadMessage[] }
+    | undefined;
   private _movedLeaf:
     | {
         id: string;
@@ -632,6 +635,7 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingDeleteEvictions.clear();
       this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
+      this._trailingUserRollback = undefined;
       this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
@@ -915,6 +919,19 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Common logic for both paths
+    const tail = messages.findLast(
+      (message) => !message.metadata?.isOptimistic,
+    );
+    if (tail?.role !== "user") {
+      this._trailingUserRollback = undefined;
+    } else if (tail.id !== this._trailingUserRollback?.id) {
+      const previousPath = repositoryChanged ? undefined : this._messages;
+      this._trailingUserRollback =
+        previousPath && !previousPath.some((message) => message.id === tail.id)
+          ? { id: tail.id, path: previousPath }
+          : undefined;
+    }
+
     this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
 
@@ -1699,6 +1716,9 @@ export class ExternalStoreThreadRuntimeCore
     const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     const cancelledTailId = previousMessage?.id ?? null;
+    const rollback = this._trailingUserRollback;
+    const previousPath =
+      rollback?.id === cancelledTailId ? rollback.path : undefined;
     const runStartLease = this._runStartLeases.current();
     const trailingUserLeaf =
       isRunning &&
@@ -1721,7 +1741,7 @@ export class ExternalStoreThreadRuntimeCore
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
       };
       if (this.composer.restoreDraft(draft)) {
-        this.repository.deleteMessage(trailingUserLeaf.id);
+        this._deleteMovedLeaf(trailingUserLeaf.id, previousPath);
         movedLeaf = {
           id: trailingUserLeaf.id,
           draft,
@@ -1759,7 +1779,7 @@ export class ExternalStoreThreadRuntimeCore
           this.composer.text === movedLeaf.draft.text
         ) {
           // Unanswered tail: the removal has not reached the store yet.
-          this.repository.deleteMessage(movedLeaf.id);
+          this._deleteMovedLeaf(movedLeaf.id, previousPath);
         }
       }
       this._publishRepositoryMessages();
@@ -1778,6 +1798,27 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingCancelResyncs.delete(resync);
       resync();
     }, 0);
+  }
+
+  private _deleteMovedLeaf(
+    messageId: string,
+    previousPath: readonly ThreadMessage[] | undefined,
+  ): void {
+    const { parentId } = this.repository.getMessage(messageId);
+    this.repository.deleteMessage(messageId);
+    if (!previousPath) return;
+    const previousHead = previousPath.findLast((message) => {
+      if (message.metadata?.isOptimistic) return false;
+      try {
+        this.repository.getMessage(message.id);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    const headId = previousHead?.id ?? parentId;
+    if (headId !== this.repository.headId)
+      this.repository.import({ headId, messages: [] });
   }
 
   private _settleCancelResyncs(): void {
@@ -1875,6 +1916,7 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
     this._importedMessageIds = undefined;
+    this._trailingUserRollback = undefined;
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -1892,6 +1934,7 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
+    this._trailingUserRollback = undefined;
     super.import(data);
     this._clearPendingResume(pendingResume);
     const messages = this.repository.getMessages();
