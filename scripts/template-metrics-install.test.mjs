@@ -166,6 +166,69 @@ for (const file of [
   });
 }
 
+for (const [kind, entry, expectedUiLoc] of [
+  ["static", 'export { chart } from "@/ui/chart";', 301],
+  ["lazy alias", 'export const chart = () => import("@/ui/chart");', 301],
+  ["relative lazy dependency reached twice", 'import "@/ui/barrel";', 302],
+  [
+    "nonliteral imports and import-like text",
+    [
+      '// import("@/ui/chart")',
+      '/* import("@/ui/chart") */',
+      `const example = 'import("@/ui/chart")';`,
+      'const docs = `Use import("@/ui/chart")`;',
+      'const path = "@/ui/chart";',
+      "void import(path);",
+      'void import("@/ui/chart" + suffix);',
+      'loader.import("@/ui/chart");',
+    ].join("\n"),
+    0,
+  ],
+]) {
+  test(`template footprint measures ${expectedUiLoc} UI LOC for ${kind}`, (t) => {
+    const { root, write, commit } = fixture(t);
+    write(
+      "templates/default/tsconfig.json",
+      JSON.stringify({
+        compilerOptions: { paths: { "@/ui/*": ["../../packages/ui/*"] } },
+      }),
+    );
+    write(
+      "packages/ui/chart.ts",
+      "export const chart = 1;\n" + "// chart\n".repeat(300),
+    );
+    write(
+      "packages/ui/barrel.ts",
+      "export const load = () => Promise.all([import( /* chunk */ './chart' ), import('./chart')]);\n",
+    );
+    write("templates/default/app.ts", entry);
+    commit();
+
+    const script = "scripts/template-metrics.mjs";
+    execFileSync(process.execPath, [script, "measure", ".", "head.json"], {
+      cwd: root,
+    });
+    const rows = JSON.parse(readFileSync(path.join(root, "head.json"), "utf8"));
+    assert.equal(
+      rows.find(({ name }) => name === "default").uiLoc,
+      expectedUiLoc,
+    );
+
+    const check = spawnSync(process.execPath, [script, "check", "."], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, MAX_LOC_HARD_INCREASE: "300" },
+    });
+    assert.equal(
+      check.status,
+      expectedUiLoc ? 1 : 0,
+      check.stdout + check.stderr,
+    );
+    if (expectedUiLoc)
+      assert.ok(check.stderr.includes(`default: +${expectedUiLoc} LOC > 300`));
+  });
+}
+
 test("renaming a measured source into an unrelated template still builds bundles", (t) => {
   const { root, git, commit } = fixture(t);
   git("mv", "templates/default/app.ts", "templates/nuxt/moved app.ts");
