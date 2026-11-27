@@ -6,6 +6,7 @@ on:
     paths:
       - "packages/**"
       - "apps/**"
+      - "api-surface/*.ts"
       - "examples/**"
       - "templates/**"
       - "evals/**"
@@ -70,6 +71,7 @@ jobs:
           if [ -n "$BASE" ] && git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null && git diff --quiet "$BASE" HEAD -- \
             packages \
             apps \
+            ':(glob)api-surface/*.ts' \
             examples \
             templates \
             evals \

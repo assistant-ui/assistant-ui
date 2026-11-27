@@ -78,6 +78,7 @@ function coverageFixture(t) {
   return {
     base,
     commit,
+    git,
     run(event, mergeBase = base) {
       const output = path.join(cwd, "output");
       writeFileSync(output, "");
@@ -111,6 +112,45 @@ test("coverage skips root Markdown changes on main, PRs and merge groups", (t) =
     assert.equal(fixture.run(event), "run=false", event);
   }
 });
+
+const snapshot = "api-surface/assistant-ui__react.ts";
+
+for (const event of ["pull_request", "merge_group"]) {
+  test(`coverage runs for snapshot edits, renames and deletions in ${event}`, (t) => {
+    const fixture = coverageFixture(t);
+    fixture.commit("api-surface/assistant-ui__core.ts");
+    const added = fixture.commit(snapshot);
+    const edited = fixture.commit(snapshot);
+    assert.equal(fixture.run(event, added), "run=true");
+
+    fixture.git("mv", snapshot, "old-snapshot.txt");
+    fixture.git("commit", "-qm", "move snapshot out of api-surface");
+    assert.equal(fixture.run(event, edited), "run=true");
+
+    const restored = fixture.commit(snapshot);
+    fixture.git("rm", snapshot);
+    fixture.git("commit", "-qm", "delete snapshot");
+    assert.equal(fixture.run(event, restored), "run=true");
+  });
+}
+
+test("a snapshot change triggers coverage on main", () => {
+  assert.equal(matchesMainPush(snapshot), true);
+});
+
+for (const file of [
+  "api-surface/package.json",
+  "api-surface/nested/example.ts",
+]) {
+  test(`coverage skips ${file} on main, PRs and merge groups`, (t) => {
+    const fixture = coverageFixture(t);
+    fixture.commit(file);
+    assert.equal(matchesMainPush(file), false);
+    for (const event of ["pull_request", "merge_group"]) {
+      assert.equal(fixture.run(event), "run=false", event);
+    }
+  });
+}
 
 for (const file of [
   "packages/core/src/index.ts",
@@ -211,7 +251,7 @@ test("the push trigger watches the paths the detector compares", () => {
       .sort(),
     detectorPaths
       .split("\\\n")
-      .map((line) => line.trim())
+      .map((line) => line.trim().replace(/^':\(glob\)(.+)'$/, "$1"))
       .filter(Boolean)
       .sort(),
   );
