@@ -57,3 +57,16 @@ it("gives the Mastra tab its own snippet and a real docs page", async () => {
     existsSync(path.join(repoRoot, "apps/docs/content", `${docs}.mdx`)),
   ).toBe(true);
 });
+
+it("describes the organization that operates the site", async () => {
+  const { container } = render(await HomePage());
+  const schema = JSON.parse(
+    container.querySelector('script[type="application/ld+json"]')!.textContent!,
+  );
+  expect(schema).toMatchObject({
+    "@type": "Organization",
+    legalName: "AgentbaseAI Inc.",
+    address: { "@type": "PostalAddress" },
+    contactPoint: { "@type": "ContactPoint", contactType: "sales" },
+  });
+});

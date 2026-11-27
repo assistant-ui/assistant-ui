@@ -249,6 +249,18 @@ const config: NextConfig = {
           },
         ]
       : []),
+    ...[
+      "/",
+      "/pricing",
+      "/docs/:path*",
+      "/examples/:path*",
+      "/design/:path*",
+      "/elements/:path*",
+      ...docsSiteMarkdownAcceptRewrites().map(({ source }) => source),
+    ].map((source) => ({
+      source,
+      headers: [{ key: "Vary", value: "Accept" }],
+    })),
     ...apiCatalogDiscoveryPaths.map((source) => ({
       source,
       headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],
@@ -449,7 +461,7 @@ const config: NextConfig = {
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
-        destination: "/llms.txt",
+        destination: "/index.md",
       },
       {
         source: "/pricing",
@@ -506,6 +518,13 @@ const config: NextConfig = {
       {
         source: "/registry/:path*",
         destination: "https://ui.shadcn.com/registry/:path*",
+      },
+      {
+        source: "/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/missing.md",
       },
     ],
   }),

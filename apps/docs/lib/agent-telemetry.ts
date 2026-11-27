@@ -123,7 +123,7 @@ export function agentDocsRead(
     return { kind: "markdown", path, negotiated: false };
   }
   if (negotiated) {
-    return { kind: pathname === "/" ? "llms" : "markdown", path, negotiated };
+    return { kind: "markdown", path, negotiated };
   }
   return null;
 }

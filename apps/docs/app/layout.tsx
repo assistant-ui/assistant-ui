@@ -5,6 +5,7 @@ import { Provider } from "./provider";
 import { SiteAssistant } from "@/components/pages/docs/assistant/site-assistant";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
+import { HOME_DESCRIPTION, HOME_TITLE } from "@/lib/home-setup";
 import { umamiBootstrapScript } from "@/lib/umami-sampling";
 import { AnalyticsGate } from "@/components/analytics-gate";
 import { ConsentBanner } from "@/components/consent-banner";
@@ -45,14 +46,12 @@ export const metadata = {
   alternates: { canonical: "./" },
   title: {
     template: "%s · assistant-ui",
-    default: "assistant-ui · The frontend library for AI agents",
+    default: HOME_TITLE,
   },
-  description:
-    "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
+  description: HOME_DESCRIPTION,
   openGraph: {
     title: "assistant-ui",
-    description:
-      "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
+    description: HOME_DESCRIPTION,
     siteName: "assistant-ui",
     // Discord reads og:video only when og:type is video or video.*.
     type: "video.other",
@@ -77,8 +76,7 @@ export const metadata = {
   twitter: {
     card: "summary_large_image",
     title: "assistant-ui",
-    description:
-      "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
+    description: HOME_DESCRIPTION,
     images: ["/api/og?variant=home"],
   },
 };
