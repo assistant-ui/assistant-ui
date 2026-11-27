@@ -49,7 +49,7 @@ function ShotStrip({
   );
 }
 
-export function StarterPreview({
+function StarterPreview({
   starter,
   sizes,
   index = 0,

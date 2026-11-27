@@ -23,6 +23,7 @@ import {
   type StarterIntegration,
   type StarterRuntime,
 } from "@/lib/library/starters-data";
+import { FilterIcon } from "./filter-icons";
 import { LibraryTooltip } from "./library-tooltip";
 
 export type StarterSort = "default" | "name-asc" | "name-desc";
@@ -122,6 +123,7 @@ export function StartersViewMenu({
                     })
                   }
                 >
+                  <FilterIcon name={framework} />
                   {framework}
                 </LibraryMenuCheckboxItem>
               ))}
@@ -144,6 +146,7 @@ export function StartersViewMenu({
                     })
                   }
                 >
+                  <FilterIcon name={runtime} />
                   {runtime}
                 </LibraryMenuCheckboxItem>
               ))}
@@ -170,6 +173,7 @@ export function StartersViewMenu({
                     })
                   }
                 >
+                  <FilterIcon name={integration} />
                   {integration}
                 </LibraryMenuCheckboxItem>
               ))}
