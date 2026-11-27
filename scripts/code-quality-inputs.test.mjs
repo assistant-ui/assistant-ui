@@ -91,31 +91,66 @@ test("unrelated root Markdown stays outside the main push filter", () => {
   assert.equal(triggers("README.md"), false);
 });
 
-// A condition that compares the event name with `==` restricts the job or step
-// to those events. Any other use of the event name fails instead of guessing.
+// An event condition must lead the expression as one `github.event_name ==`
+// comparison or an `||` group of them, optionally followed by `&& <rest>`
+// where the rest never mentions the event name and has no top-level `||`.
+// Anything else (negation, `!=`, two event comparisons joined by `&&`) fails
+// instead of guessing.
+const eventEquality = "github\\.event_name == '\\w+'";
+const eventGroup = `${eventEquality}(?: \\|\\| ${eventEquality})*`;
+const eventCondition = new RegExp(
+  `^(?:(${eventGroup})|\\((${eventGroup})\\)(?: && (.+))?|(${eventEquality}) && (.+))$`,
+);
 const runsOn = (condition = "", event) => {
-  const events = [...condition.matchAll(/github\.event_name == '(\w+)'/g)].map(
-    ([, name]) => name,
-  );
-  assert.equal(
-    condition.split("github.event_name").length - 1,
-    events.length,
+  const expression = condition.replace(/^\$\{\{\s*|\s*\}\}$/g, "").trim();
+  if (!expression.includes("github.event_name")) return true;
+  const [, whole, grouped, groupRest, single, singleRest] =
+    expression.match(eventCondition) ?? [];
+  const rest = groupRest ?? singleRest ?? "";
+  assert.ok(
+    (whole ?? grouped ?? single) &&
+      !rest.includes("github.event_name") &&
+      !rest.includes("||"),
     `unsupported event condition: ${condition}`,
   );
-  return events.length === 0 || events.includes(event);
+  return [...(whole ?? grouped ?? single).matchAll(/'(\w+)'/g)]
+    .map(([, name]) => name)
+    .includes(event);
 };
 
-test("the shared helper guard reads only event equality conditions", () => {
+test("the shared helper guard reads only leading event equality conditions", () => {
   assert.equal(runsOn(undefined, "pull_request"), true);
   assert.equal(runsOn("${{ !cancelled() }}", "merge_group"), true);
   const either =
     "(github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.x.outputs.run == 'true'";
   assert.equal(runsOn(either, "merge_group"), true);
-  assert.equal(runsOn("github.event_name == 'push'", "pull_request"), false);
-  assert.throws(
-    () => runsOn("github.event_name != 'pull_request'", "pull_request"),
-    /unsupported event condition/,
+  assert.equal(runsOn(either, "push"), false);
+  assert.equal(
+    runsOn(
+      "github.event_name == 'pull_request' || github.event_name == 'merge_group'",
+      "merge_group",
+    ),
+    true,
   );
+  assert.equal(runsOn("github.event_name == 'push'", "pull_request"), false);
+  assert.equal(
+    runsOn(
+      "github.event_name == 'pull_request' && steps.x.outputs.run == 'true'",
+      "pull_request",
+    ),
+    true,
+  );
+  for (const unsupported of [
+    "github.event_name != 'pull_request'",
+    "${{ !(github.event_name == 'pull_request' || github.event_name == 'merge_group') }}",
+    "github.event_name == 'pull_request' && github.event_name == 'merge_group'",
+    "github.event_name == 'push' && steps.x.outputs.run == 'true' || always()",
+  ]) {
+    assert.throws(
+      () => runsOn(unsupported, "pull_request"),
+      /unsupported event condition/,
+    );
+  }
 });
 
 test("a required check runs every shared helper test on pull requests and in the merge queue", () => {
