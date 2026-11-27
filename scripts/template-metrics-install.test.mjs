@@ -103,7 +103,17 @@ function fixture(t) {
   git("init", "-q");
   commit();
   git("update-ref", "refs/remotes/origin/main", "HEAD");
-  return { root, write, git, commit };
+  const metrics = (...args) =>
+    spawnSync(process.execPath, ["scripts/template-metrics.mjs", ...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        MAX_LOC_INCREASE: "50",
+        MAX_LOC_HARD_INCREASE: "300",
+      },
+    });
+  return { root, write, git, commit, metrics };
 }
 
 function buildsBundles(root, templates = "default minimal") {
@@ -204,7 +214,7 @@ test("only dependency setup and bundle builds are conditional; LOC measurement a
 });
 
 test("an unmeasured template still contributes LOC, a report, and footprint failures", (t) => {
-  const { root, write, commit } = fixture(t);
+  const { root, write, commit, metrics } = fixture(t);
   write(
     "templates/nuxt/app.ts",
     Array.from(
@@ -214,16 +224,6 @@ test("an unmeasured template still contributes LOC, a report, and footprint fail
   );
   commit();
   assert.equal(buildsBundles(root), false);
-  const metrics = (...args) =>
-    spawnSync(process.execPath, ["scripts/template-metrics.mjs", ...args], {
-      cwd: root,
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        MAX_LOC_INCREASE: "50",
-        MAX_LOC_HARD_INCREASE: "300",
-      },
-    });
   for (const args of [
     ["measure", ".", "head.json"],
     ["measure-base", ".", "base.json"],
@@ -276,6 +276,32 @@ for (const extension of ["vue", "mts", "cts"]) {
       },
     );
     assert.equal(check.status, 1, check.stdout + check.stderr);
+    assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
+  });
+}
+
+for (const filename of ["cafe.ts", "café.ts"]) {
+  test(`template footprint counts 301 added lines in ${filename}`, (t) => {
+    const { root, write, git, commit, metrics } = fixture(t);
+    git("config", "--local", "core.quotePath", "true");
+    write(
+      `templates/nuxt/${filename}`,
+      Array.from(
+        { length: 301 },
+        (_, i) => `export const value${i} = ${i};\n`,
+      ).join(""),
+    );
+    commit();
+
+    const measure = metrics("measure", ".", "head.json");
+    assert.equal(measure.status, 0, measure.stderr);
+    const head = JSON.parse(readFileSync(path.join(root, "head.json"), "utf8"));
+    const { ownLoc } = head.find(({ name }) => name === "nuxt");
+    const check = metrics("check", ".");
+    assert.deepEqual(
+      { ownLoc, status: check.status },
+      { ownLoc: 302, status: 1 },
+    );
     assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
   });
 }

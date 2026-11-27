@@ -842,6 +842,10 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
   }, 15_000);
 
   it("(c) a stale reply the server can't account for is read again once, not in a loop", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      shouldAdvanceTime: true,
+    });
     useServers([userRow, partialRow(0)], null);
     const tab = await openTab("tab-b", 300);
     await openThread(tab);
@@ -853,7 +857,9 @@ describe("useAgUiRuntime with Assistant Cloud history and durable runs", () => {
       { timeout: 8_000 },
     );
     await waitFor(() => expect(durable.state.getThreads).toHaveLength(1));
-    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+    });
     expect(durable.state.getThreads).toHaveLength(1);
     expect(durable.state.connects).toEqual([]);
     expect(durable.state.starts).toEqual([]);

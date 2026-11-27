@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { committedRangeChangedFiles } from "./lib/changed-files.mjs";
 import { parseReleaseLine, readChangesetSource } from "./lib/changesets.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
@@ -289,7 +290,11 @@ export function findChangedManifestFields(base, head, workspacePackageNames) {
   const before = publishedManifestFields(base ?? {}, workspacePackageNames);
   const after = publishedManifestFields(head ?? {}, workspacePackageNames);
   return [...new Set([...Object.keys(before), ...Object.keys(after)])]
-    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+    .filter((key) =>
+      DEPENDENCY_KEYS.has(key)
+        ? !isDeepStrictEqual(before[key], after[key])
+        : JSON.stringify(before[key]) !== JSON.stringify(after[key]),
+    )
     .sort();
 }
 

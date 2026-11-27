@@ -51,9 +51,9 @@ describe("MessageItem rendering", () => {
     });
 
     const html = renderToStaticMarkup(<MessageItem message={message} />);
-    expect(html).toContain("getWeather");
-    expect(html).toContain("cot");
-    expect(html).toContain("It is 18 degrees.");
+    expect(html).toMatch(
+      />cot<.*>let me think<.*>getWeather<.*>It is 18 degrees\.</s,
+    );
     expect(html).toContain("branch 1/2");
     expect(html).toContain("TTFT");
   });
@@ -89,13 +89,10 @@ describe("MessageItem rendering", () => {
     });
 
     const html = renderToStaticMarkup(<MessageItem message={message} />);
-    expect(html.indexOf("search")).toBeLessThan(
-      html.indexOf("Partial update."),
+    expect(html).toMatch(
+      />search<.*>Partial update\.<.*>summarize<.*>Done\.</s,
     );
-    expect(html.indexOf("Partial update.")).toBeLessThan(
-      html.indexOf("summarize"),
-    );
-    expect(html.indexOf("summarize")).toBeLessThan(html.indexOf("Done."));
+    expect(html).not.toContain(">cot<");
   });
 
   it("renders a pending approval gate prominently", () => {
