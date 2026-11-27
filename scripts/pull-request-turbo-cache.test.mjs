@@ -98,11 +98,17 @@ for (const [file, job, turboStep, restoreGate] of jobs) {
       ).length,
       shards.length,
     );
+    const gateStepId = restoreGate.match(/steps\.(\w+)\.outputs/)?.[1];
     for (const shard of shards) {
       const index = names.indexOf(
         `Restore main's coverage Turbo cache, shard ${shard}`,
       );
       assert.notEqual(index, -1, `shard ${shard}`);
+      if (gateStepId) {
+        assert(
+          all.slice(0, index).some((step) => field(step, "id") === gateStepId),
+        );
+      }
       assert(index < turbo);
       const restore = all[index];
       assert.equal(field(restore, "if"), restoreGate);
