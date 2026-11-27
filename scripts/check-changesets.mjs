@@ -26,6 +26,7 @@ const DEPENDENCY_KEYS = new Set([
   "peerDependencies",
 ]);
 const CONSUMER_RUN_SCRIPTS = new Set(["install", "postinstall", "preinstall"]);
+const MAX_MANIFEST_BYTES = 1024 * 1024;
 const RELEASE_MANAGED_RANGE = "<release managed>";
 
 const visible = (text) =>
@@ -298,25 +299,50 @@ export function findChangedManifestFields(base, head, workspacePackageNames) {
     .sort();
 }
 
-function runGit(root, args) {
-  return execFileSync("git", args, {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-}
-
-function listTreeFiles(root, ref) {
-  return new Set(
-    runGit(root, ["ls-tree", "-r", "-z", "--name-only", ref])
-      .split("\0")
-      .filter(Boolean),
+function readManifestsAt(root, ref, packages) {
+  const tree = execFileSync(
+    "git",
+    ["ls-tree", "-r", "-z", "--name-only", ref],
+    {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    },
   );
-}
+  const treeFiles = new Set(tree.split("\0"));
+  const files = packages
+    .map((pkg) => pkg.manifest)
+    .filter((file) => treeFiles.has(file));
+  const manifests = new Map();
+  if (!files.length) return manifests;
 
-function readManifestAt(root, ref, file, treeFiles) {
-  if (!treeFiles.has(file)) return null;
-  return JSON.parse(runGit(root, ["show", `${ref}:${file}`]));
+  const batch = execFileSync(
+    "git",
+    ["cat-file", "-z", "--batch=%(objecttype) %(objectsize)"],
+    {
+      cwd: root,
+      input: files.map((file) => `${ref}:${file}\0`).join(""),
+      // Git frames each blob with a type/size line and a trailing newline.
+      maxBuffer: files.length * (MAX_MANIFEST_BYTES + 64),
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  let offset = 0;
+  for (const file of files) {
+    const newline = batch.indexOf(10, offset);
+    const header = batch.toString("utf8", offset, newline);
+    const match = /^blob (\d+)$/.exec(header);
+    if (!match) throw new Error(`Could not read manifest ${ref}:${file}.`);
+    const size = Number(match[1]);
+    if (size > MAX_MANIFEST_BYTES)
+      throw new Error(
+        `Manifest ${ref}:${file} exceeds ${MAX_MANIFEST_BYTES} bytes.`,
+      );
+    const end = newline + 1 + size;
+    manifests.set(file, JSON.parse(batch.toString("utf8", newline + 1, end)));
+    offset = end + 1;
+  }
+  return manifests;
 }
 
 function gitFailure(error) {
@@ -375,19 +401,24 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
   );
   if (unbumpedManifests.length > 0) {
     try {
-      const forkPointFiles = listTreeFiles(root, forkPoint);
-      const headFiles = listTreeFiles(root, headSha);
+      const headManifests = readManifestsAt(root, headSha, [
+        ...workspacePackages.values(),
+      ]);
       const workspacePackageNames = new Set();
-      for (const pkg of workspacePackages.values()) {
-        const manifest = readManifestAt(root, headSha, pkg.manifest, headFiles);
+      for (const manifest of headManifests.values()) {
         if (typeof manifest?.name === "string") {
           workspacePackageNames.add(manifest.name);
         }
       }
+      const baseManifests = readManifestsAt(
+        root,
+        forkPoint,
+        unbumpedManifests.map(([, pkg]) => pkg),
+      );
       for (const [name, pkg] of unbumpedManifests) {
         const fields = findChangedManifestFields(
-          readManifestAt(root, forkPoint, pkg.manifest, forkPointFiles),
-          readManifestAt(root, headSha, pkg.manifest, headFiles),
+          baseManifests.get(pkg.manifest),
+          headManifests.get(pkg.manifest),
           workspacePackageNames,
         );
         if (fields.length === 0) continue;

@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -709,6 +710,75 @@ test("changed package validation ignores non-release edits and requires a PR cha
   }
 });
 
+function manifestReadCommands(trace) {
+  return readFileSync(trace, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .filter(({ event }) => event === "start")
+    .map(({ argv }) => argv[1])
+    .filter((cmd) => ["cat-file", "ls-tree", "show"].includes(cmd));
+}
+
+test("historical manifest reads stay bounded across added, removed and moved paths", (t) => {
+  const root = createWorkspace("");
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const writeManifest = (name) => {
+    const folder = path.join(root, "packages", name);
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(
+      path.join(folder, "package.json"),
+      JSON.stringify(
+        {
+          name,
+          version: "1.0.0",
+          description: "雪".repeat(100_000),
+        },
+        null,
+        2,
+      ),
+    );
+  };
+  writeManifest("removed");
+  git(root, "init", "-q", "-b", "main");
+  const base = commitAll(root, "base");
+
+  const moved =
+    process.platform === "win32" ? "雪 moved" : "雪 moved\nwith\ttabs";
+  renameSync(
+    path.join(root, "packages/published"),
+    path.join(root, "packages", moved),
+  );
+  rmSync(path.join(root, "packages/removed"), { recursive: true });
+  for (const dir of ["one", "two", "three", "four"]) writeManifest(dir);
+  const head = commitAll(root, "add, remove and move packages");
+
+  writeManifest("removed");
+  writeFileSync(
+    path.join(root, "packages", moved, "package.json"),
+    JSON.stringify({
+      name: "@fixture/published",
+      version: "1.0.0",
+      sideEffects: false,
+    }),
+  );
+  const trace = path.join(root, "git-trace.jsonl");
+  const result = runExecutable(root, {
+    args: ["--changed-packages"],
+    env: { BASE_SHA: base, HEAD_SHA: head, GIT_TRACE2_EVENT: trace },
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /"@fixture\/published" \(package\.json: name\)/);
+  for (const name of ["one", "two", "three", "four", "removed"]) {
+    assert.ok(
+      result.stderr.includes(`"${name}" (package.json: description, name)`),
+      result.stderr,
+    );
+  }
+  const commands = manifestReadCommands(trace);
+  assert.ok(commands.length <= 4, commands.join(" "));
+});
+
 test("a covered manifest skips Git manifest reads while uncovered source still requires a changeset", (t) => {
   const root = createWorkspace("");
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -744,16 +814,7 @@ test("a covered manifest skips Git manifest reads while uncovered source still r
     result.stderr,
     /"@fixture\/published" \(packages\/published\/src\/index\.ts\)/,
   );
-  const commands = readFileSync(trace, "utf8")
-    .trim()
-    .split("\n")
-    .map((line) => JSON.parse(line))
-    .filter(({ event }) => event === "start")
-    .map(({ argv }) => argv[1]);
-  assert.deepEqual(
-    commands.filter((cmd) => cmd === "ls-tree" || cmd === "show"),
-    [],
-  );
+  assert.deepEqual(manifestReadCommands(trace), []);
 });
 
 test("a none release does not stand in for the changeset a changed package needs", () => {
@@ -1603,6 +1664,27 @@ test("workspace identity comes from the PR head, not the target branch", () => {
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("an unreadable historical manifest fails validation even after a local repair", (t) => {
+  const root = createWorkspace("");
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, "init", "-q", "-b", "main");
+  const base = commitAll(root, "base");
+  const manifest = path.join(root, "packages/published/package.json");
+  const valid = readFileSync(manifest, "utf8");
+  for (const content of ["{", valid + " ".repeat(1024 * 1024)]) {
+    writeFileSync(manifest, content);
+    const head = commitAll(root, "unreadable manifest");
+    writeFileSync(manifest, valid);
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Could not diff/);
+    assert.doesNotMatch(result.stderr, /without a changeset/);
   }
 });
 
