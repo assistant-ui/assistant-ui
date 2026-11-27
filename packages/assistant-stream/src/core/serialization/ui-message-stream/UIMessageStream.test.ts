@@ -2853,4 +2853,187 @@ describe("UIMessageStreamDecoder reset-step", () => {
       chunks.filter((c) => c.type === "text-delta" && c.textDelta === "{}"),
     ).toEqual([]);
   });
+
+  it("keeps an earlier step's call when a later step resets and its result arrives late", async () => {
+    const chunks = await decodeEvents([
+      { type: "start", messageId: "msg_1" },
+      { type: "start-step" },
+      { type: "tool-input-start", toolCallId: "c1", toolName: "weather" },
+      {
+        type: "tool-input-available",
+        toolCallId: "c1",
+        input: { city: "NYC" },
+      },
+      {
+        type: "finish-step",
+        finishReason: "tool-calls",
+        usage,
+        isContinued: false,
+      },
+      { type: "start-step" },
+      { type: "reset-step" },
+      { type: "tool-output-available", toolCallId: "c1", output: { temp: 72 } },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    expect(toolCallPartStarts(chunks)).toHaveLength(1);
+
+    const payloads = chunks
+      .filter(
+        (c): c is AssistantStreamChunk & { type: "result" } =>
+          c.type === "result",
+      )
+      .map((c) => c.result);
+    expect(payloads).toEqual([{ temp: 72 }]);
+  });
+
+  it("settles an earlier step's call when a preliminary output arrives in a step that resets", async () => {
+    const message = await decodeLastMessage([
+      { type: "start", messageId: "msg_1" },
+      { type: "start-step" },
+      { type: "tool-input-start", toolCallId: "c1", toolName: "weather" },
+      {
+        type: "tool-input-available",
+        toolCallId: "c1",
+        input: { city: "NYC" },
+      },
+      {
+        type: "finish-step",
+        finishReason: "tool-calls",
+        usage,
+        isContinued: false,
+      },
+      { type: "start-step" },
+      {
+        type: "tool-output-available",
+        toolCallId: "c1",
+        output: { partial: true },
+        preliminary: true,
+      },
+      { type: "reset-step" },
+      { type: "tool-output-available", toolCallId: "c1", output: { temp: 72 } },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    const toolCall = message.parts.find((part) => part.type === "tool-call");
+    expect(toolCall).toMatchObject({ result: { temp: 72 } });
+    expect(toolCall).not.toMatchObject({ isPreliminary: true });
+  });
+
+  it("drops late deltas for a discarded text id and keeps the fallback for unknown ids", async () => {
+    const message = await decodeLastMessage([
+      { type: "start", messageId: "msg_1" },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "FAILED" },
+      { type: "reset-step" },
+      { type: "text-delta", id: "t1", delta: "LATE" },
+      { type: "text-delta", id: "unknown", delta: "FALLBACK" },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    expect(message.parts).toEqual([
+      expect.objectContaining({ type: "text", text: "FALLBACK" }),
+    ]);
+  });
+
+  it("drops late deltas for a discarded reasoning id and keeps the fallback for unknown ids", async () => {
+    const message = await decodeLastMessage([
+      { type: "start", messageId: "msg_1" },
+      { type: "reasoning-start", id: "r1" },
+      { type: "reasoning-delta", id: "r1", delta: "THINK-BAD" },
+      { type: "reset-step" },
+      { type: "reasoning-delta", id: "r1", delta: "THINK-LATE" },
+      { type: "reasoning-delta", id: "unknown", delta: "THINK-FALLBACK" },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    expect(message.parts).toEqual([
+      expect.objectContaining({ type: "reasoning", text: "THINK-FALLBACK" }),
+    ]);
+  });
+
+  it("drops a pending tool input from an earlier step instead of flushing it as a call", async () => {
+    const message = await decodeLastMessage([
+      { type: "start", messageId: "msg_1" },
+      { type: "start-step" },
+      { type: "tool-input-start", toolCallId: "c1", toolName: "weather" },
+      {
+        type: "tool-input-delta",
+        toolCallId: "c1",
+        inputTextDelta: '{"city":',
+      },
+      {
+        type: "finish-step",
+        finishReason: "tool-calls",
+        usage,
+        isContinued: false,
+      },
+      { type: "start-step" },
+      { type: "reset-step" },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    expect(message.parts).toEqual([]);
+  });
+
+  it("drops a late delta for a text id the reset closed and keeps the fallback for unknown ids", async () => {
+    const message = await decodeLastMessage([
+      { type: "start", messageId: "msg_1" },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "BAD" },
+      { type: "text-end", id: "t1" },
+      { type: "reset-step" },
+      { type: "text-delta", id: "t1", delta: "LATE" },
+      { type: "text-delta", id: "unknown", delta: "FALLBACK" },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    expect(message.parts).toEqual([
+      expect.objectContaining({ type: "text", text: "FALLBACK" }),
+    ]);
+  });
+
+  it("drops a late delta for a reasoning id the reset closed and keeps the fallback for unknown ids", async () => {
+    const message = await decodeLastMessage([
+      { type: "start", messageId: "msg_1" },
+      { type: "reasoning-start", id: "r1" },
+      { type: "reasoning-delta", id: "r1", delta: "THINK-BAD" },
+      { type: "reasoning-end", id: "r1" },
+      { type: "reset-step" },
+      { type: "reasoning-delta", id: "r1", delta: "THINK-LATE" },
+      { type: "reasoning-delta", id: "unknown", delta: "THINK-FALLBACK" },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    expect(message.parts).toEqual([
+      expect.objectContaining({ type: "reasoning", text: "THINK-FALLBACK" }),
+    ]);
+  });
+
+  it("opens a same-id retry after a reset rolled the call back", async () => {
+    // The `start-step` repeats the message id of `start`, so it opens the same
+    // step: the reset below rolls back the call that step opened.
+    const message = await decodeLastMessage([
+      { type: "start", messageId: "msg_1" },
+      { type: "tool-input-start", toolCallId: "c1", toolName: "weather" },
+      {
+        type: "tool-input-available",
+        toolCallId: "c1",
+        input: { city: "NYC" },
+      },
+      { type: "start-step", messageId: "msg_1" },
+      { type: "reset-step" },
+      { type: "tool-input-start", toolCallId: "c1", toolName: "weather" },
+      {
+        type: "tool-input-available",
+        toolCallId: "c1",
+        input: { retry: true },
+      },
+      { type: "tool-output-available", toolCallId: "c1", output: { ok: true } },
+      { type: "finish", finishReason: "stop", usage },
+    ]);
+
+    const toolCall = message.parts.find((part) => part.type === "tool-call");
+    expect(toolCall).toMatchObject({ result: { ok: true } });
+  });
 });
