@@ -2,7 +2,6 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
-import type { UIElement } from "../ir";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { defaultGenerativeUILibrary } from "../vocabulary";
 import { convertSurfaceToUISpec } from "./convert";
@@ -90,7 +89,6 @@ describe("A2UI node budget", () => {
       ]),
       dataModel: {},
     });
-    const items = (spec as UIElement).children as UIElement[];
     const container = document.createElement("div");
     const root = createRoot(container);
     try {
@@ -103,7 +101,10 @@ describe("A2UI node budget", () => {
           </div>,
         ),
       );
-      expect(container.textContent).toContain(`item-${items.length - 1}`);
+      const rows = container.querySelectorAll("ul > li");
+      expect(Array.from(rows, (row) => row.textContent)).toEqual(
+        ids.slice(0, 2_499),
+      );
       expect(warnings).toEqual(["A2UI node budget of 5000 was reached."]);
     } finally {
       await act(async () => root.unmount());
