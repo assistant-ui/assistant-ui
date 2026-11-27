@@ -97,7 +97,7 @@ jobs:
 
       - name: Test probe report verdicts
         working-directory: examples/with-vscode
-        run: node --run test
+        run: node --test test/run.test.mts
 
       - name: Install VS Code system libraries
         run: |
