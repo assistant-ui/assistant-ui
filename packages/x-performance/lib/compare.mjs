@@ -155,7 +155,7 @@ export const compareRef = (
     );
   }
   console.error(
-    `benches: ${plan.measured.length} files exercise a changed dist, ${plan.controls.length} of ${plan.unchanged} on unchanged dists run as controls`,
+    `benches: ${plan.measured.length} files exercise a changed package, ${plan.controls.length} of ${plan.unchanged} on unchanged packages run as controls`,
   );
   const curRuns = [];
   const refRuns = [];
@@ -225,7 +225,7 @@ export const compareRef = (
         `base \`${refDoc.env.sha}\``,
         `head \`${stamp(curDoc.env)}\``,
         `${runs} interleaved runs per side after a discarded warm-up pair`,
-        `${plan.controls.length} of ${plan.unchanged} bench files on unchanged dists ran as controls`,
+        `${plan.controls.length} of ${plan.unchanged} bench files on unchanged packages ran as controls`,
         "floor = max(2×rme, 3%, 2×SE of the pair deltas)",
       ],
     },

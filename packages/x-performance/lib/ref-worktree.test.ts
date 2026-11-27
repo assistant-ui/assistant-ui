@@ -13,7 +13,11 @@ import {
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { delimiter, dirname, join } from "node:path";
-import { distFingerprint, ensureRefWorktree } from "./ref-worktree.mjs";
+import {
+  changedPackages,
+  distFingerprint,
+  ensureRefWorktree,
+} from "./ref-worktree.mjs";
 import { pkgRoot } from "./suite.mjs";
 import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
 
@@ -152,7 +156,19 @@ describe("distFingerprint", () => {
     expect(distFingerprint(a)).toBe(distFingerprint(b));
   });
 
-  it("changes with any file content or path", () => {
+  it.each(["d.ts", "d.mts", "d.cts"])("ignores .%s declarations", (suffix) => {
+    const runtime = { "index.js": "export const x = 1;" };
+    expect(
+      distFingerprint(
+        dist({
+          ...runtime,
+          [`nested/index.${suffix}`]: "export declare const x: number;",
+        }),
+      ),
+    ).toBe(distFingerprint(dist(runtime)));
+  });
+
+  it("changes with runtime file content or path", () => {
     const base = distFingerprint(dist({ "index.mjs": "export const x = 1;" }));
     expect(
       distFingerprint(dist({ "index.mjs": "export const x = 2;" })),
@@ -164,5 +180,132 @@ describe("distFingerprint", () => {
 
   it("is null for a missing dist", () => {
     expect(distFingerprint(join(tmpdir(), "aui-perf-fp-missing"))).toBeNull();
+  });
+});
+
+describe("changedPackages", () => {
+  const a = "./dist/a.js";
+  const b = "./dist/b.js";
+  const tree = (exports: unknown, manifest = {}) =>
+    dist({
+      "packages/tap/package.json": JSON.stringify({
+        name: "@assistant-ui/tap",
+        type: "module",
+        exports,
+        ...manifest,
+      }),
+      "packages/tap/dist/a.js": "export default () => 1;",
+      "packages/tap/dist/b.js": "export default () => 2;",
+    });
+
+  it("detects a redirected root export with byte-identical dist files", () => {
+    const base = tree({ ".": { default: a } });
+    const head = tree({ ".": { default: b } });
+    expect(changedPackages(head, base)).toEqual(["@assistant-ui/tap"]);
+  });
+
+  it("detects adding and removing a runtime subpath", () => {
+    const base = tree({ ".": a });
+    const head = tree({ ".": a, "./extra": a });
+    expect(changedPackages(head, base)).toEqual(["@assistant-ui/tap"]);
+    expect(changedPackages(base, head)).toEqual(["@assistant-ui/tap"]);
+  });
+
+  it("preserves nested condition targets and their priority", () => {
+    const base = tree({
+      "./extra": { node: { import: a, default: b }, default: a },
+    });
+    const redirected = tree({
+      "./extra": { node: { import: b, default: b }, default: a },
+    });
+    const reordered = tree({
+      "./extra": { node: { default: b, import: a }, default: a },
+    });
+    expect(changedPackages(redirected, base)).toEqual(["@assistant-ui/tap"]);
+    expect(changedPackages(reordered, base)).toEqual(["@assistant-ui/tap"]);
+  });
+
+  it("detects an internal import redirect in externalized dist code", () => {
+    const base = tree(
+      { ".": a },
+      { imports: { "#helper": { node: a, default: b } } },
+    );
+    const head = tree(
+      { ".": a },
+      { imports: { "#helper": { node: b, default: b } } },
+    );
+    expect(changedPackages(head, base)).toEqual(["@assistant-ui/tap"]);
+  });
+
+  it("detects a measured package appearing or disappearing", () => {
+    const base = dist({});
+    const head = tree(a);
+    expect(changedPackages(head, base)).toEqual(["@assistant-ui/tap"]);
+    expect(changedPackages(base, head)).toEqual(["@assistant-ui/tap"]);
+  });
+
+  it("tracks module format and the entry point for packages without exports", () => {
+    const base = tree(undefined, { main: a });
+    expect(changedPackages(tree(undefined, { main: b }), base)).toEqual([
+      "@assistant-ui/tap",
+    ]);
+    expect(
+      changedPackages(tree(undefined, { main: a, type: "commonjs" }), base),
+    ).toEqual(["@assistant-ui/tap"]);
+    expect(changedPackages(tree(a, { main: b }), tree(a, { main: a }))).toEqual(
+      [],
+    );
+  });
+
+  it("ignores a new types-only subpath when no runtime entry could match it", () => {
+    const base = tree({ ".": a });
+    const head = tree({
+      ".": a,
+      "./special": { types: "./dist/special.d.ts" },
+    });
+    expect(changedPackages(head, base)).toEqual([]);
+    expect(changedPackages(base, head)).toEqual([]);
+  });
+
+  it("detects a types-only subpath shadowing a wildcard at runtime", () => {
+    const base = tree({ ".": a, "./*": b });
+    const head = tree({
+      ".": a,
+      "./*": b,
+      "./special": { types: "./dist/special.d.ts" },
+    });
+    const resolveSpecial = (root: string) =>
+      createRequire(join(root, "packages/tap/package.json")).resolve(
+        "@assistant-ui/tap/special",
+      );
+    expect(resolveSpecial(base)).toBe(
+      realpathSync(join(base, "packages/tap/dist/b.js")),
+    );
+    expect(() => resolveSpecial(head)).toThrow(
+      expect.objectContaining({ code: "ERR_PACKAGE_PATH_NOT_EXPORTED" }),
+    );
+    expect(changedPackages(head, base)).toEqual(["@assistant-ui/tap"]);
+    expect(changedPackages(base, head)).toEqual(["@assistant-ui/tap"]);
+  });
+
+  it("ignores type conditions and subpath key order", () => {
+    const base = tree({
+      ".": { import: { types: "./dist/a.d.mts", default: a } },
+      "./extra": b,
+    });
+    const head = tree(
+      {
+        "./extra": b,
+        ".": {
+          import: {
+            "types@>=5": "./dist/b.d.mts",
+            types: "./dist/b.d.ts",
+            default: a,
+          },
+        },
+      },
+      { version: "2.0.0" },
+    );
+    expect(changedPackages(head, base)).toEqual([]);
   });
 });
