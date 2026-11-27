@@ -134,6 +134,7 @@ export const createThreadViewportAutoScroll = (input: {
   let frame: number | null = null;
   let firstMessage: MessageOffset | null = null;
   let prependAnchor: MessageOffset | null = null;
+  let prependFollowSuppressed = false;
   let heldScrollTop = 0;
   let atNativeBottom = true;
 
@@ -190,6 +191,7 @@ export const createThreadViewportAutoScroll = (input: {
     clearUpwardInput();
     intent = behavior;
     prependAnchor = null;
+    prependFollowSuppressed = false;
     element.scrollTo?.({ top: element.scrollHeight, behavior });
     lastScrollTop = element.scrollTop;
     lastScrollHeight = element.scrollHeight;
@@ -223,6 +225,7 @@ export const createThreadViewportAutoScroll = (input: {
 
     const { autoScroll, holdFollow } = input.getOptions();
     atNativeBottom = isViewportAtBottom(element);
+    if (atNativeBottom) prependFollowSuppressed = false;
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     const clientHeight = element.clientHeight;
     const clampTarget = Math.max(0, lastScrollHeight - clientHeight);
@@ -258,8 +261,7 @@ export const createThreadViewportAutoScroll = (input: {
           if (followPaused && scrolledSincePause) followPaused = false;
           scrolledSincePause = false;
         }
-        // Held rows inside the inset band stay held until the true bottom.
-        if (!prependAnchor || atNativeBottom) followBottom = true;
+        if (!prependFollowSuppressed) followBottom = true;
       } else if (scrolledAway) {
         intent = null;
         cancelFrame();
@@ -446,6 +448,7 @@ export const createThreadViewportAutoScroll = (input: {
       lastTouchY = null;
       firstMessage = null;
       prependAnchor = null;
+      prependFollowSuppressed = false;
       heldScrollTop = el.scrollTop;
       atNativeBottom = isViewportAtBottom(el);
       setAtBottom(true);
@@ -518,12 +521,14 @@ export const createThreadViewportAutoScroll = (input: {
       const anchor = firstMessage;
       if (anchor?.id === previousFirstMessageId && keepMessageAt(anchor)) {
         prependAnchor = measureReaderMessage(element) ?? anchor;
+        prependFollowSuppressed = true;
       } else {
         const top = element.scrollHeight - (lastScrollHeight - lastScrollTop);
         if (Math.abs(element.scrollTop - top) >= 1)
           element.scrollTo({ top, behavior: "instant" });
       }
       atNativeBottom = isViewportAtBottom(element);
+      if (atNativeBottom) prependFollowSuppressed = false;
       if (!input.getOptions().holdFollow || atNativeBottom)
         followBottom = atNativeBottom;
       lastScrollTop = element.scrollTop;
@@ -563,6 +568,7 @@ export const createThreadViewportAutoScroll = (input: {
     },
     threadSwitched: () => {
       prependAnchor = null;
+      prependFollowSuppressed = false;
       followPaused = false;
       scrolledSincePause = false;
       clearUpwardInput();

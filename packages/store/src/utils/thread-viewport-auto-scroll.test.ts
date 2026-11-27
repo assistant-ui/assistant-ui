@@ -2105,6 +2105,23 @@ describe("createThreadViewportAutoScroll", () => {
       view.controller.dispose();
     });
 
+    it("keeps the reader in place after scrolling within the footer inset following a prepend", () => {
+      const view = pagedViewport(30, true, 290);
+      view.controller.registerContentInset().setHeight(40);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -30 }));
+      view.setTop(0);
+      view.prepend();
+      expect(view.element.scrollTop).toBe(320);
+
+      view.setTop(315);
+      expect(view.controller.isAtBottom).toBe(true);
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(315);
+      view.controller.dispose();
+    });
+
     it("follows growth below once the held rows reach the bottom", () => {
       const view = pagedViewport(220, true);
       view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -220 }));
