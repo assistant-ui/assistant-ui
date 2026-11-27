@@ -1,9 +1,16 @@
 "use client";
 
 import { useDeferredValue, useState } from "react";
-import { StarterCard } from "./starter-card";
+import { StarterCard, StarterRow } from "./starter-card";
+import {
+  DEFAULT_VIEW_OPTIONS,
+  StartersViewMenu,
+  type StarterSort,
+} from "./starters-view-menu";
 import { LibraryCartButton, LibraryCartSheet } from "./cart-sheet";
 import { PillTabs, type PillTab } from "./pill-tabs";
+import { LibraryEmpty } from "./library-empty";
+import { LibraryToaster } from "./library-toast";
 import { SearchBar } from "./search-bar";
 import { EXAMPLES, TEMPLATES, type Starter } from "@/lib/library/starters-data";
 
@@ -30,13 +37,27 @@ const TABS: readonly PillTab<StarterTab>[] = [
 ];
 
 const matches = (starter: Starter, query: string) =>
-  [starter.label, starter.name, starter.description].some((text) =>
-    text.toLowerCase().includes(query),
-  );
+  [
+    starter.label,
+    starter.name,
+    starter.description,
+    starter.framework,
+    starter.backend ?? "",
+  ].some((text) => text.toLowerCase().includes(query));
+
+const sortStarters = (starters: readonly Starter[], sort: StarterSort) =>
+  sort === "default"
+    ? starters
+    : [...starters].sort((a, b) =>
+        sort === "name-asc"
+          ? a.label.localeCompare(b.label)
+          : b.label.localeCompare(a.label),
+      );
 
 export function StartersBrowser() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<StarterTab>("all");
+  const [options, setOptions] = useState(DEFAULT_VIEW_OPTIONS);
   const normalized = useDeferredValue(query).trim().toLowerCase();
 
   const sections = SECTIONS.filter(
@@ -44,11 +65,22 @@ export function StartersBrowser() {
   )
     .map((section) => ({
       ...section,
-      starters: normalized
-        ? section.starters.filter((starter) => matches(starter, normalized))
-        : section.starters,
+      starters: sortStarters(
+        section.starters.filter(
+          (starter) =>
+            (!normalized || matches(starter, normalized)) &&
+            (!options.withScreenshot || starter.image) &&
+            (options.frameworks.length === 0 ||
+              options.frameworks.includes(starter.framework)) &&
+            (options.backends.length === 0 ||
+              (starter.backend !== undefined &&
+                options.backends.includes(starter.backend))),
+        ),
+        options.sort,
+      ),
     }))
     .filter((section) => section.starters.length > 0);
+  const Item = options.view === "list" ? StarterRow : StarterCard;
 
   const resultCount = sections.reduce(
     (total, section) => total + section.starters.length,
@@ -57,29 +89,51 @@ export function StartersBrowser() {
 
   return (
     <>
-      <SearchBar
-        value={query}
-        onValueChange={setQuery}
-        label="Search starters"
-        className="mb-4"
-      />
-      <div className="mb-12 flex items-center justify-between gap-4">
+      <div className="mb-12 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <PillTabs
           tabs={TABS}
           value={tab}
           onValueChange={setTab}
           label="Show starters"
         />
-        <LibraryCartButton />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <SearchBar
+            value={query}
+            onValueChange={setQuery}
+            label="Search starters"
+            className="min-w-0 flex-1 sm:w-80 sm:flex-none"
+          />
+          <StartersViewMenu options={options} onOptionsChange={setOptions} />
+          <LibraryCartButton />
+        </div>
       </div>
       <LibraryCartSheet />
+      <LibraryToaster />
       <p role="status" className="sr-only">
         {normalized ? `${resultCount} starters found` : ""}
       </p>
       {sections.length === 0 ? (
-        <p className="text-muted-foreground pb-12">
-          No starters match “{query.trim()}”.
-        </p>
+        <LibraryEmpty
+          title={
+            query.trim()
+              ? `No starters match “${query.trim()}”`
+              : "No starters match these filters"
+          }
+          description={
+            tab === "all"
+              ? "Try a different word, like a framework or a provider."
+              : "Try a different word, or search all starters."
+          }
+          action={{
+            label: "Clear search and filters",
+            onClick: () => {
+              setQuery("");
+              setTab("all");
+              setOptions({ ...DEFAULT_VIEW_OPTIONS, view: options.view });
+            },
+          }}
+          className="mb-12"
+        />
       ) : (
         <div className="flex flex-col">
           {sections.map((section, index) => (
@@ -101,9 +155,15 @@ export function StartersBrowser() {
                   {section.starters.length}
                 </span>
               </div>
-              <ul className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+              <ul
+                className={
+                  options.view === "list"
+                    ? "flex flex-col gap-1"
+                    : "grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3"
+                }
+              >
                 {section.starters.map((starter) => (
-                  <StarterCard key={starter.name} starter={starter} />
+                  <Item key={starter.name} starter={starter} />
                 ))}
               </ul>
             </section>

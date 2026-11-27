@@ -2,8 +2,6 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { ShoppingCartIcon, XIcon } from "lucide-react";
-import { toast } from "sonner";
-import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import {
   getLibraryCartItems,
   libraryCartPrompt,
@@ -16,11 +14,7 @@ import {
   useLibraryCart,
   useLibraryCartOpen,
 } from "./cart-store";
-
-const copyWithToast = async (text: string, copied: string) => {
-  if (await copyTextToClipboard(text)) toast.success(copied);
-  else toast.error("The clipboard is not available.");
-};
+import { copyWithLibraryToast } from "./library-toast";
 
 const button =
   "focus-visible:ring-ring inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2";
@@ -112,7 +106,7 @@ export function LibraryCartSheet() {
                 <button
                   type="button"
                   onClick={() =>
-                    copyWithToast(
+                    copyWithLibraryToast(
                       commands,
                       items.length === 1
                         ? "Install command copied."
@@ -131,7 +125,7 @@ export function LibraryCartSheet() {
                 <button
                   type="button"
                   onClick={() =>
-                    copyWithToast(
+                    copyWithLibraryToast(
                       libraryCartPrompt(items),
                       "Agent prompt copied.",
                     )

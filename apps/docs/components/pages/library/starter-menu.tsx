@@ -7,38 +7,35 @@ import {
   ShoppingCartIcon,
   TerminalIcon,
 } from "lucide-react";
-import { toast } from "sonner";
-import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import {
   starterCommand,
   starterId,
   starterPrompt,
   type Starter,
 } from "@/lib/library/starters-data";
+import { cn } from "@/lib/utils";
 import {
   setLibraryCartOpen,
   toggleLibraryCartItem,
   useLibraryCart,
 } from "./cart-store";
-
-const CART_TOAST_ID = "aui-library-cart";
 import {
   LibraryMenu,
   LibraryMenuContent,
   LibraryMenuItem,
+  LibraryMenuSeparator,
   LibraryMenuTrigger,
 } from "./library-menu";
-
-const copyWithToast = async (text: string, copied: string) => {
-  if (await copyTextToClipboard(text)) toast.success(copied);
-  else toast.error("The clipboard is not available.");
-};
+import { copyWithLibraryToast, libraryToast } from "./library-toast";
+import { LibraryTooltip } from "./library-tooltip";
 
 export function StarterMenu({
   starter,
+  tooltipSide = "left",
   className,
 }: {
   starter: Starter;
+  tooltipSide?: "left" | "top";
   className?: string;
 }) {
   const id = starterId(starter);
@@ -46,38 +43,27 @@ export function StarterMenu({
 
   return (
     <LibraryMenu>
-      <LibraryMenuTrigger
-        aria-label={`Options for ${starter.label}${inCart ? ", in cart" : ""}`}
-        className={className}
-      >
-        {inCart ? <CheckIcon aria-hidden /> : <PlusIcon aria-hidden />}
-      </LibraryMenuTrigger>
-      <LibraryMenuContent>
-        <LibraryMenuItem
-          onClick={() =>
-            copyWithToast(starterCommand(starter), "Install command copied.")
-          }
+      <LibraryTooltip side={tooltipSide} label="Add or copy">
+        <LibraryMenuTrigger
+          aria-label={`Options for ${starter.label}${inCart ? ", in cart" : ""}`}
+          className={cn(
+            "bg-background/45 text-foreground ring-foreground/10 hover:bg-background/70 data-popup-open:bg-background/70 size-8 rounded-full ring-1 backdrop-blur-md",
+            className,
+          )}
         >
-          <TerminalIcon aria-hidden />
-          Copy install command
-        </LibraryMenuItem>
-        <LibraryMenuItem
-          onClick={() =>
-            copyWithToast(starterPrompt(starter), "Agent prompt copied.")
-          }
-        >
-          <BotIcon aria-hidden />
-          Copy agent prompt
-        </LibraryMenuItem>
+          {inCart ? <CheckIcon aria-hidden /> : <PlusIcon aria-hidden />}
+        </LibraryMenuTrigger>
+      </LibraryTooltip>
+      <LibraryMenuContent side="bottom" align="end">
         <LibraryMenuItem
           onClick={() => {
             const added = toggleLibraryCartItem(id);
-            toast.success(
+            libraryToast.success(
               added
                 ? `${starter.label} added to cart.`
                 : `${starter.label} removed from cart.`,
               {
-                id: CART_TOAST_ID,
+                group: "cart",
                 action: {
                   label: "View cart",
                   onClick: () => setLibraryCartOpen(true),
@@ -92,6 +78,26 @@ export function StarterMenu({
             <ShoppingCartIcon aria-hidden />
           )}
           {inCart ? "Remove from cart" : "Add to cart"}
+        </LibraryMenuItem>
+        <LibraryMenuSeparator />
+        <LibraryMenuItem
+          onClick={() =>
+            copyWithLibraryToast(
+              starterCommand(starter),
+              "Install command copied.",
+            )
+          }
+        >
+          <TerminalIcon aria-hidden />
+          Copy install command
+        </LibraryMenuItem>
+        <LibraryMenuItem
+          onClick={() =>
+            copyWithLibraryToast(starterPrompt(starter), "Agent prompt copied.")
+          }
+        >
+          <BotIcon aria-hidden />
+          Copy agent prompt
         </LibraryMenuItem>
       </LibraryMenuContent>
     </LibraryMenu>
