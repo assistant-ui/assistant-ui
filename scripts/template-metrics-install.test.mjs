@@ -191,6 +191,16 @@ for (const [kind, entry, expectedUiLoc] of [
     301,
   ],
   [
+    "lazy import with a literal dollar in a template literal",
+    "const load = () => import(`@/ui/$chart`);",
+    301,
+  ],
+  [
+    "lazy import with an interpolated template literal",
+    "const load = (name) => import(`@/ui/${name}`);",
+    0,
+  ],
+  [
     "a long run of slashes before an import",
     [
       `import ${"/".repeat(5000)}`,
@@ -232,6 +242,10 @@ for (const [kind, entry, expectedUiLoc] of [
     );
     write(
       "packages/ui/chart.ts",
+      "export const chart = 1;\n" + "// chart\n".repeat(300),
+    );
+    write(
+      "packages/ui/$chart.ts",
       "export const chart = 1;\n" + "// chart\n".repeat(300),
     );
     write(
