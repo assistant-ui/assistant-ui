@@ -174,6 +174,16 @@ export const STARTERS: readonly Starter[] = [
     label: "Minimal",
     description: "A bare-bones starting point.",
     kind: "template",
+    screenshots: {
+      light: [
+        "/screenshot/starters/minimal/empty-light.png",
+        "/screenshot/starters/minimal/conversation-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/minimal/empty-dark.png",
+        "/screenshot/starters/minimal/conversation-dark.png",
+      ],
+    },
     framework: "Next.js",
     backend: "AI SDK",
     env: ["OPENAI_API_KEY"],
@@ -228,6 +238,16 @@ export const STARTERS: readonly Starter[] = [
     label: "Cloud",
     description: "Threads saved to Assistant Cloud.",
     kind: "template",
+    screenshots: {
+      light: [
+        "/screenshot/starters/cloud/empty-light.png",
+        "/screenshot/starters/cloud/conversation-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/cloud/empty-dark.png",
+        "/screenshot/starters/cloud/conversation-dark.png",
+      ],
+    },
     framework: "Next.js",
     backend: "AI SDK",
     env: ["NEXT_PUBLIC_ASSISTANT_BASE_URL", "OPENAI_API_KEY"],
