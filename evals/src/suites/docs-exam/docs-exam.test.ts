@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import { agreement } from "./agreement.ts";
 import { runClaude } from "./claude.ts";
 import {
@@ -272,6 +272,13 @@ describe("pagesRead", () => {
 
 describe("runClaude with a fake CLI", () => {
   const dir = mkdtempSync(join(tmpdir(), "docs-exam-fake-cli-"));
+  const callerBin = process.env.CLAUDE_BIN;
+  // A hook, so a filtered or failed run still cleans up and restores CLAUDE_BIN.
+  after(() => {
+    if (callerBin === undefined) delete process.env.CLAUDE_BIN;
+    else process.env.CLAUDE_BIN = callerBin;
+    rmSync(dir, { recursive: true, force: true });
+  });
   const fake = (name: string, body: string) => {
     const file = join(dir, name);
     writeFileSync(file, `#!/bin/sh\n${body}\n`);
@@ -326,10 +333,5 @@ describe("runClaude with a fake CLI", () => {
       Date.now() - started < 4_000,
       "a reader that obeys SIGTERM stops at once",
     );
-  });
-
-  it("cleans up", () => {
-    delete process.env.CLAUDE_BIN;
-    rmSync(dir, { recursive: true, force: true });
   });
 });

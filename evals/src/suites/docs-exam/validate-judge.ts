@@ -40,7 +40,7 @@ const byId = new Map(exam.questions.map((q) => [q.id, q]));
 if (!["dev", "test", "all"].includes(args.set!)) {
   throw new Error(`--set must be dev, test or all, got "${args.set}"`);
 }
-const runs = {
+const sets = {
   dev: [
     "first-pass/before-deep",
     "first-pass/before-skim",
@@ -48,21 +48,19 @@ const runs = {
     "first-pass/after-skim",
   ],
   test: ["before-deep", "before-skim", "after-deep", "after-skim"],
-}[args.set === "test" ? "test" : "dev"]!;
-const selected =
-  args.only?.split(",") ??
-  (args.set === "all"
-    ? [
-        "first-pass/before-deep",
-        "first-pass/before-skim",
-        "first-pass/after-deep",
-        "first-pass/after-skim",
-        "before-deep",
-        "before-skim",
-        "after-deep",
-        "after-skim",
-      ]
-    : runs);
+};
+const runs =
+  args.set === "all"
+    ? [...sets.dev, ...sets.test]
+    : sets[args.set as "dev" | "test"];
+// --only picks from the recorded runs, so a name can't point outside results/.
+const selected = args.only?.split(",") ?? runs;
+const unknown = selected.filter((run) => !runs.includes(run));
+if (unknown.length || selected.length === 0) {
+  throw new Error(
+    `--only names no recorded run of --set ${args.set}: ${unknown.join(", ") || "(empty)"}`,
+  );
+}
 
 interface Item {
   run: string;
