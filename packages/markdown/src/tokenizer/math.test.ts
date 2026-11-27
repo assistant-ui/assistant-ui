@@ -22,12 +22,14 @@ test.each([
   ]);
 });
 
-test.each(["costs $5 to $10", "range $5-$10", "a $ b $ c", "\\$5 and \\$6"])(
-  "%s stays text",
-  (source) => {
-    expect(inline(source).every((node) => node.type === "text")).toBe(true);
-  },
-);
+test.each([
+  ["costs $5 to $10", "costs $5 to $10"],
+  ["range $5-$10", "range $5-$10"],
+  ["a $ b $ c", "a $ b $ c"],
+  ["\\$5 and \\$6", "$5 and $6"],
+])("%s stays text", (source, value) => {
+  expect(inline(source)).toEqual([{ type: "text", value }]);
+});
 
 test("dollars inside a code span stay code", () => {
   expect(inline("`$x$`")).toEqual([{ type: "codeSpan", value: "$x$" }]);
