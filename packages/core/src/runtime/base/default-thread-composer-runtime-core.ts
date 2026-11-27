@@ -60,10 +60,10 @@ export class DefaultThreadComposerRuntimeCore
     if (isCancelable(this.runtime)) super.cancel();
   }
 
-  protected override threadMessageIds(role: MessageRole) {
-    return this.runtime.messages
-      .filter((message) => message.role === role)
-      .map((message) => message.id);
+  protected override threadMessageIds(_role: MessageRole) {
+    return this.runtime.messages.map(
+      (message) => `${message.id}|${message.role}`,
+    );
   }
 
   private _queueCache:
