@@ -55,9 +55,13 @@ describe("setup command prompt", () => {
     const prompt = screen.getByRole("button", {
       name: "Copy the setup prompt for your agent",
     });
-    expect(prompt.textContent).toBe("install and set up assistant-ui");
+    expect(prompt.textContent).toBe(
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+    );
     fireEvent.click(prompt);
-    expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui");
+    expect(writeText).toHaveBeenCalledWith(
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+    );
     expect(copied).toHaveBeenCalledWith({ page: "home", section: "hero" });
   });
 
@@ -85,7 +89,9 @@ describe("setup command prompt", () => {
       }),
     );
     await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith("install and set up assistant-ui"),
+      expect(writeText).toHaveBeenCalledWith(
+        "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+      ),
     );
     await waitFor(() =>
       expect(copied).toHaveBeenCalledWith({

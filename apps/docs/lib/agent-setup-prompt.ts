@@ -13,11 +13,14 @@ export const agentSetupPrompt = (
   products: readonly string[] = [],
   notes?: string,
 ) => {
-  const prompt =
+  // The prompt names the command: an agent that only hears "install and set up
+  // assistant-ui" installs from what it already knows and never starts the setup.
+  const command =
     products.length === 0 ||
     (products.length === 1 && products[0] === "assistant-ui")
-      ? AGENT_SETUP_PROMPT
-      : `${AGENT_SETUP_PROMPT} with \`${AGENT_SETUP_COMMAND} --products ${products.join(",")}\``;
+      ? AGENT_SETUP_COMMAND
+      : `${AGENT_SETUP_COMMAND} --products ${products.join(",")}`;
+  const prompt = `${AGENT_SETUP_PROMPT} with \`${command}\``;
   return notes?.trim() ? `${prompt}. ${notes.trim()}` : prompt;
 };
 
