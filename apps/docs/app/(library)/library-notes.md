@@ -11,7 +11,7 @@ VS Code (`templates/vscode`, an editor extension), React Ink (`examples/with-rea
 What is copied, and from where:
 
 - The starter list, names, and descriptions mirror `PROJECT_METADATA` in `packages/cli/src/commands/create.ts`. The docs app cannot import the CLI, so a starter added or renamed there does not show up here.
-- `framework` and `backend` tags were read from each starter's `package.json` dependencies.
+- `framework` and `runtime` tags were read from each starter's `package.json` dependencies.
 - `env` comes from each starter's `.env.example` (or `.env.local.example`).
 - `components`, `uiComponents`, `files`, and `dependencies` are what `create` installs. They were worked out the way the CLI and shadcn do it: scan the starter's `@/components/assistant-ui/...` and `@/components/ui/...` imports, then follow every item's `registryDependencies` through the registry (assistant-ui items from `apps/registry/dist`, shadcn/ui items from ui.shadcn.com). `dependencies` drops `@assistant-ui/ui`, which `create` removes. Default checks out against a real `npx assistant-ui@latest create my-app`: 35 files.
 - `componentsIncluded` marks Minimal, Shared cloud chat, and React Ink, whose components ship inside the starter (`hasLocalComponents` in the CLI), so their files are listed from the starter folder instead of the registry.

@@ -43,7 +43,8 @@ const matches = (starter: Starter, query: string) =>
     starter.name,
     starter.description,
     starter.framework,
-    starter.backend ?? "",
+    starter.runtime ?? "",
+    ...(starter.integrations ?? []),
   ].some((text) => text.toLowerCase().includes(query));
 
 const sortStarters = (starters: readonly Starter[], sort: StarterSort) =>
@@ -76,12 +77,16 @@ export function StartersBrowser() {
         section.starters.filter(
           (starter) =>
             (!normalized || matches(starter, normalized)) &&
-            (!options.withScreenshot || starter.image) &&
+            (!options.withScreenshot || starter.image || starter.screenshots) &&
             (options.frameworks.length === 0 ||
               options.frameworks.includes(starter.framework)) &&
-            (options.backends.length === 0 ||
-              (starter.backend !== undefined &&
-                options.backends.includes(starter.backend))),
+            (options.runtimes.length === 0 ||
+              (starter.runtime !== undefined &&
+                options.runtimes.includes(starter.runtime))) &&
+            (options.integrations.length === 0 ||
+              (starter.integrations ?? []).some((integration) =>
+                options.integrations.includes(integration),
+              )),
         ),
         options.sort,
       ),

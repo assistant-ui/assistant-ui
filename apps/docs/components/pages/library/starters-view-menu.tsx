@@ -16,10 +16,12 @@ import {
   LibraryMenuTrigger,
 } from "./library-menu";
 import {
-  STARTER_BACKENDS,
   STARTER_FRAMEWORKS,
-  type StarterBackend,
+  STARTER_INTEGRATIONS,
+  STARTER_RUNTIMES,
   type StarterFramework,
+  type StarterIntegration,
+  type StarterRuntime,
 } from "@/lib/library/starters-data";
 import { LibraryTooltip } from "./library-tooltip";
 
@@ -28,7 +30,8 @@ export type StarterView = "grid" | "list";
 
 export type StartersViewOptions = {
   frameworks: readonly StarterFramework[];
-  backends: readonly StarterBackend[];
+  runtimes: readonly StarterRuntime[];
+  integrations: readonly StarterIntegration[];
   withScreenshot: boolean;
   sort: StarterSort;
   view: StarterView;
@@ -36,7 +39,8 @@ export type StartersViewOptions = {
 
 export const DEFAULT_VIEW_OPTIONS: StartersViewOptions = {
   frameworks: [],
-  backends: [],
+  runtimes: [],
+  integrations: [],
   withScreenshot: false,
   sort: "default",
   view: "grid",
@@ -73,7 +77,8 @@ export function StartersViewMenu({
 }) {
   const filtered =
     options.frameworks.length > 0 ||
-    options.backends.length > 0 ||
+    options.runtimes.length > 0 ||
+    options.integrations.length > 0 ||
     options.withScreenshot ||
     options.sort !== DEFAULT_VIEW_OPTIONS.sort;
 
@@ -124,22 +129,48 @@ export function StartersViewMenu({
           </LibraryMenuSub>
           <LibraryMenuSub>
             <LibraryMenuSubTrigger>
-              Backend
-              <SelectedCount count={options.backends.length} />
+              Runtime
+              <SelectedCount count={options.runtimes.length} />
             </LibraryMenuSubTrigger>
             <LibraryMenuContent side="right" align="start" sideOffset={4}>
-              {STARTER_BACKENDS.map((backend) => (
+              {STARTER_RUNTIMES.map((runtime) => (
                 <LibraryMenuCheckboxItem
-                  key={backend}
-                  checked={options.backends.includes(backend)}
+                  key={runtime}
+                  checked={options.runtimes.includes(runtime)}
                   onCheckedChange={(checked) =>
                     onOptionsChange({
                       ...options,
-                      backends: toggle(options.backends, backend, checked),
+                      runtimes: toggle(options.runtimes, runtime, checked),
                     })
                   }
                 >
-                  {backend}
+                  {runtime}
+                </LibraryMenuCheckboxItem>
+              ))}
+            </LibraryMenuContent>
+          </LibraryMenuSub>
+          <LibraryMenuSub>
+            <LibraryMenuSubTrigger>
+              Integrations
+              <SelectedCount count={options.integrations.length} />
+            </LibraryMenuSubTrigger>
+            <LibraryMenuContent side="right" align="start" sideOffset={4}>
+              {STARTER_INTEGRATIONS.map((integration) => (
+                <LibraryMenuCheckboxItem
+                  key={integration}
+                  checked={options.integrations.includes(integration)}
+                  onCheckedChange={(checked) =>
+                    onOptionsChange({
+                      ...options,
+                      integrations: toggle(
+                        options.integrations,
+                        integration,
+                        checked,
+                      ),
+                    })
+                  }
+                >
+                  {integration}
                 </LibraryMenuCheckboxItem>
               ))}
             </LibraryMenuContent>

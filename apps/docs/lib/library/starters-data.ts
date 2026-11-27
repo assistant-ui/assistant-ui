@@ -13,7 +13,7 @@ export const STARTER_FRAMEWORKS = [
 
 export type StarterFramework = (typeof STARTER_FRAMEWORKS)[number];
 
-export const STARTER_BACKENDS = [
+export const STARTER_RUNTIMES = [
   "AI SDK",
   "LangGraph",
   "AG-UI",
@@ -22,7 +22,18 @@ export const STARTER_BACKENDS = [
   "OpenAI SDK",
 ] as const;
 
-export type StarterBackend = (typeof STARTER_BACKENDS)[number];
+export type StarterRuntime = (typeof STARTER_RUNTIMES)[number];
+
+export const STARTER_INTEGRATIONS = [
+  "Assistant Cloud",
+  "Clerk",
+  "LangSmith",
+  "MCP",
+  "LiveKit",
+  "ElevenLabs",
+] as const;
+
+export type StarterIntegration = (typeof STARTER_INTEGRATIONS)[number];
 
 export type Starter = {
   name: string;
@@ -31,7 +42,9 @@ export type Starter = {
   kind: StarterKind;
   framework: StarterFramework;
   /** The library or protocol the app talks to its model through, when it has one. */
-  backend?: StarterBackend;
+  runtime?: StarterRuntime;
+  /** Third-party services it connects to beyond its runtime. */
+  integrations?: readonly StarterIntegration[];
   /** Variables its `.env.example` lists. */
   env: readonly string[];
   /** assistant-ui registry items `create` installs, following each item's registry dependencies. */
@@ -74,7 +87,7 @@ export const STARTERS: readonly Starter[] = [
       ],
     },
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -185,7 +198,7 @@ export const STARTERS: readonly Starter[] = [
       ],
     },
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -249,7 +262,8 @@ export const STARTERS: readonly Starter[] = [
       ],
     },
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["Assistant Cloud"],
     env: ["NEXT_PUBLIC_ASSISTANT_BASE_URL", "OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -350,7 +364,8 @@ export const STARTERS: readonly Starter[] = [
     description: "Threads saved to Assistant Cloud, with Clerk sign-in.",
     kind: "template",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["Assistant Cloud", "Clerk"],
     env: [
       "CLERK_SECRET_KEY",
       "NEXT_PUBLIC_ASSISTANT_BASE_URL",
@@ -458,7 +473,8 @@ export const STARTERS: readonly Starter[] = [
       "A hosted harness with one conversation shared across browsers.",
     kind: "template",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["Assistant Cloud"],
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -519,7 +535,8 @@ export const STARTERS: readonly Starter[] = [
     description: "A LangGraph agent through the react-langchain adapter.",
     kind: "template",
     framework: "Next.js",
-    backend: "LangGraph",
+    runtime: "LangGraph",
+    integrations: ["LangSmith"],
     env: [
       "ANTHROPIC_API_KEY",
       "ANTHROPIC_MODEL",
@@ -615,7 +632,8 @@ export const STARTERS: readonly Starter[] = [
     description: "MCP tools and an MCP Apps renderer.",
     kind: "template",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["MCP"],
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -717,7 +735,7 @@ export const STARTERS: readonly Starter[] = [
     description: "An Eve agent in a Next.js app.",
     kind: "template",
     framework: "Next.js",
-    backend: "Eve",
+    runtime: "Eve",
     env: ["AI_GATEWAY_API_KEY"],
     components: [
       "attachment",
@@ -799,7 +817,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A VS Code extension with a chat webview.",
     kind: "template",
     framework: "VS Code",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: [],
     components: [
       "attachment",
@@ -884,7 +902,7 @@ export const STARTERS: readonly Starter[] = [
     description: "An agent over the AG-UI protocol.",
     kind: "example",
     framework: "Next.js",
-    backend: "AG-UI",
+    runtime: "AG-UI",
     env: ["NEXT_PUBLIC_AGUI_AGENT_URL", "OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -966,7 +984,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A Google ADK agent.",
     kind: "example",
     framework: "Next.js",
-    backend: "Google ADK",
+    runtime: "Google ADK",
     env: ["GOOGLE_GENAI_API_KEY"],
     components: [
       "attachment",
@@ -1049,7 +1067,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A chat on version 7 of the Vercel AI SDK.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -1133,7 +1151,7 @@ export const STARTERS: readonly Starter[] = [
     description: "An Eve agent integration.",
     kind: "example",
     framework: "Next.js",
-    backend: "Eve",
+    runtime: "Eve",
     env: [],
     components: [
       "attachment",
@@ -1215,7 +1233,7 @@ export const STARTERS: readonly Starter[] = [
     description: "Artifact rendering.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -1300,7 +1318,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A backend on the assistant transport protocol.",
     kind: "example",
     framework: "Next.js",
-    backend: "LangGraph",
+    runtime: "LangGraph",
     env: ["NEXT_PUBLIC_API_URL"],
     components: [
       "attachment",
@@ -1382,7 +1400,7 @@ export const STARTERS: readonly Starter[] = [
     description: "Reasoning, tool calls, and source citations.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "badge",
@@ -1441,7 +1459,8 @@ export const STARTERS: readonly Starter[] = [
     description: "An Assistant Cloud integration.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["Assistant Cloud"],
     env: [
       "ASSISTANT_API_KEY",
       "NEXT_PUBLIC_ASSISTANT_BASE_URL",
@@ -1532,7 +1551,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A thread list with its own UI.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -1617,7 +1636,8 @@ export const STARTERS: readonly Starter[] = [
     description: "Realtime voice with ElevenLabs.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["ElevenLabs"],
     env: ["NEXT_PUBLIC_ELEVENLABS_AGENT_ID", "OPENAI_API_KEY"],
     components: [
       "elements-voice",
@@ -1666,7 +1686,8 @@ export const STARTERS: readonly Starter[] = [
     description: "Speech to text with ElevenLabs Scribe.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["ElevenLabs"],
     env: ["ELEVENLABS_API_KEY"],
     components: [
       "attachment",
@@ -1755,7 +1776,8 @@ export const STARTERS: readonly Starter[] = [
     description: "Realtime voice with LiveKit.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
+    integrations: ["LiveKit"],
     env: [
       "LIVEKIT_API_KEY",
       "LIVEKIT_API_SECRET",
@@ -1812,7 +1834,7 @@ export const STARTERS: readonly Starter[] = [
     kind: "example",
     devScript: "start",
     framework: "Expo",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["EXPO_PUBLIC_CHAT_ENDPOINT_URL", "OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -1913,7 +1935,7 @@ export const STARTERS: readonly Starter[] = [
     description: "Interactive components the model drives.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["EXPO_PUBLIC_CHAT_ENDPOINT_URL", "OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -2093,7 +2115,7 @@ export const STARTERS: readonly Starter[] = [
     description: "File processing with FFmpeg.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -2179,7 +2201,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A LangGraph integration.",
     kind: "example",
     framework: "Next.js",
-    backend: "LangGraph",
+    runtime: "LangGraph",
     env: [
       "LANGCHAIN_API_KEY",
       "LANGGRAPH_API_URL",
@@ -2273,7 +2295,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A React Hook Form integration.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY", "OPENAI_BASE_URL"],
     components: [
       "attachment",
@@ -2392,7 +2414,7 @@ export const STARTERS: readonly Starter[] = [
     description: "React Router 7 on Vite.",
     kind: "example",
     framework: "React Router",
-    backend: "OpenAI SDK",
+    runtime: "OpenAI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -2477,7 +2499,7 @@ export const STARTERS: readonly Starter[] = [
     description: "TanStack Router on Vite.",
     kind: "example",
     framework: "TanStack Start",
-    backend: "OpenAI SDK",
+    runtime: "OpenAI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",
@@ -2563,7 +2585,7 @@ export const STARTERS: readonly Starter[] = [
     description: "A response that keeps streaming after a reload.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY", "REDIS_URL"],
     components: [
       "attachment",
@@ -2652,7 +2674,7 @@ export const STARTERS: readonly Starter[] = [
     description: "Generative UI through OpenUI.",
     kind: "example",
     framework: "Next.js",
-    backend: "AI SDK",
+    runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
     components: [
       "attachment",

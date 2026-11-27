@@ -194,7 +194,8 @@ function StarterDetails({ starter }: { starter: Starter }) {
   const facts = [
     ["Type", starter.kind === "template" ? "Template" : "Example"],
     ["Framework", starter.framework],
-    ["Backend", starter.backend ?? "None"],
+    ["Runtime", starter.runtime ?? "None"],
+    ["Integrations", starter.integrations?.join(", ") ?? "None"],
   ] as const;
 
   return (
