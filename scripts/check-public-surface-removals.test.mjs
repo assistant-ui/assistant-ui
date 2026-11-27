@@ -279,7 +279,7 @@ test("a renamed changeset with a new marker acknowledges a removal", (t) => {
   assert.deepEqual(runCheck(dir, before, after), []);
 });
 
-test("reports the shipped surface when a public package is deleted", (t) => {
+test("reports the shipped surface when a deleted public package has a Git-quoted path", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-deleted-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const git = (...args) =>
@@ -290,14 +290,20 @@ test("reports the shipped surface when a public package is deleted", (t) => {
     writeFileSync(target, text);
   };
   git("init", "-q");
+  git("config", "core.quotePath", "true");
+  const packageManifest = "packages/非ascii/package.json";
   put(
-    "packages/core/package.json",
+    packageManifest,
     JSON.stringify({ name: "@assistant-ui/core", version: "1.0.0" }),
   );
   put("api-surface/assistant-ui__core.ts", base);
   git("add", "-A");
   const before = git("write-tree");
-  rmSync(path.join(dir, "packages/core/package.json"));
+  assert.match(
+    git("ls-tree", "-r", "--name-only", before, "--", "packages"),
+    /^"packages\/\\[0-7]{3}/,
+  );
+  rmSync(path.join(dir, packageManifest));
   git("add", "-A");
 
   const after = git("write-tree");
