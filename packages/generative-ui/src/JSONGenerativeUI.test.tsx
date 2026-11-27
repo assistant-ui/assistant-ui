@@ -179,10 +179,15 @@ describe("JSONGenerativeUI — client build", () => {
       { $type: "Card", title: "One" },
       { $type: "Card", title: "Two" },
     ]);
-    expect(html.match(/data-aui="root"/g)).toHaveLength(1);
-    expect(html.indexOf('data-title="One"')).toBeLessThan(
-      html.indexOf('data-title="Two"'),
-    );
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const roots = container.querySelectorAll('[data-aui="root"]');
+    expect(roots).toHaveLength(1);
+    expect(
+      Array.from(roots[0]!.children, (child) =>
+        child.getAttribute("data-title"),
+      ),
+    ).toEqual(["One", "Two"]);
   });
 
   it("leaves the surface childless until the stream produces a node", () => {
