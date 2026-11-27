@@ -25,7 +25,8 @@ Our goal at assistant-ui is to make it as easy as possible to build agent experi
 The fastest way to get started is with `npx` and the `assistant-ui` CLI template:
 
 ```bash
-npx assistant-ui create -t vscode
+npx assistant-ui@latest create my-extension -t vscode
+cd my-extension
 code .
 # Press F5 to run the extension in a new VS Code window
 ```
@@ -102,7 +103,7 @@ export function activate(context: vscode.ExtensionContext) {
         "aui.chat",
         "Assistant",
         vscode.ViewColumn.Beside,
-        { enableScripts: true },
+        { enableScripts: true, retainContextWhenHidden: true },
       );
 
       // Route the webview's fetch requests to POST above
@@ -261,7 +262,7 @@ panel.webview.html = renderWebviewHtml(panel.webview, {
 });
 ```
 
-Each of your chat requests will still route through `vscodeFetch` to your route handler in the extension host. Only thread storage talks to assistant-ui Cloud.
+Each of your chat requests still routes through `vscodeFetch` to your route handler in the extension host. The webview talks to assistant-ui Cloud only for thread storage and run telemetry, which you can turn off with `telemetry: false` on the `AssistantCloud` client. If you turn on attachments, also add the storage host from your project's upload URLs to `connectSrc`, since files upload straight to it.
 
 ## What's Next
 
