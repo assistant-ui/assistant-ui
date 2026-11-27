@@ -146,10 +146,14 @@ async function DocsCodeBlock({
  * to the final component map so the highlighted `pre` renders through that
  * map's `pre`, as it did when highlighting happened at compile time.
  */
-export function withDocsCodeBlock<T extends MDXComponents>(components: T): T {
+export function withDocsCodeBlock<T extends MDXComponents>(
+  components: T,
+  overrides?: MDXComponents,
+): T {
   const bound = components as MDXComponents;
+  const codeComponents = overrides ? { ...bound, ...overrides } : bound;
   bound.DocsCodeBlock = (props: DocsCodeBlockProps) => (
-    <DocsCodeBlock {...props} components={bound} />
+    <DocsCodeBlock {...props} components={codeComponents} />
   );
   return components;
 }

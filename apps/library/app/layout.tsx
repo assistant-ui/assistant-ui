@@ -5,6 +5,7 @@ import { JetBrains_Mono, Public_Sans } from "next/font/google";
 import { LibraryProvider } from "@/components/library/library-context";
 import { LibraryShell } from "@/components/library/library-shell";
 import { SkipLink } from "@/components/shared/skip-link";
+import { generativeUiStylesheet } from "@/lib/generative-ui-stylesheet";
 import { getLibraryItems } from "@/lib/library/items";
 import { Providers } from "./providers";
 
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="stylesheet" href="/styles/generative-ui.css" />
+        <style>{generativeUiStylesheet()}</style>
       </head>
       <body
         className={`${publicSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}

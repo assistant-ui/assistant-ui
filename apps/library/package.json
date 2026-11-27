@@ -27,6 +27,7 @@
     "sonner": "^2.0.8"
   },
   "devDependencies": {
+    "@assistant-ui/docs-site": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",

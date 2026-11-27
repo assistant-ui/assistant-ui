@@ -340,6 +340,7 @@ function diffChangesetFiles(root, baseSha, headSha) {
       [
         "diff",
         "--name-only",
+        "-z",
         "--no-renames",
         "--diff-filter=ACM",
         `${baseSha}...${headSha}`,
@@ -347,8 +348,13 @@ function diffChangesetFiles(root, baseSha, headSha) {
         ".changeset/*.md",
       ],
       { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-    ).trim();
-    return new Set(diff ? diff.split("\n").map((f) => path.basename(f)) : []);
+    );
+    return new Set(
+      diff
+        .split("\0")
+        .filter(Boolean)
+        .map((file) => path.basename(file)),
+    );
   } catch (error) {
     const stderr = String(error.stderr ?? "").trim();
     return { error: stderr.split("\n").at(-1) || error.message };
