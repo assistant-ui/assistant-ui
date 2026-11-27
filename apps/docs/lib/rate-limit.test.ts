@@ -844,6 +844,72 @@ describe("demo chat limits", () => {
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("chat_global_token_limit_exceeded"),
     );
+
+    // Within the alert's window, a second refusal does not log again.
+    vi.mocked(console.error).mockClear();
+    mocks.results.set("aui:chat:global:alert", false);
+    const response = await checkChatRateLimit(request(), "session_1234567890");
+    expect(response?.status).toBe(429);
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("reserves a request's prompt from the address's and the site's budgets", async () => {
+    const { reserveChatTokens } = await import("./rate-limit");
+    expect(await reserveChatTokens(request(), 1234.2)).toBeNull();
+    expect(await reserveChatTokens(request(), 0)).toBeNull();
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:chat:ip:tokens:daily", key: "203.0.113.10", rate: 1235 },
+      { prefix: "aui:chat:global:tokens:daily", key: "all", rate: 1235 },
+    ]);
+  });
+
+  it.each([
+    ["aui:chat:ip:tokens:daily", "Daily usage limit exceeded", 1],
+    [
+      "aui:chat:global:tokens:daily",
+      "Public assistant usage limit exceeded",
+      2,
+    ],
+  ] as const)(
+    "refuses a prompt %s cannot cover and gives back what it took",
+    async (prefix, message, takes) => {
+      const { reserveChatTokens } = await import("./rate-limit");
+      mocks.results.set(prefix, false);
+      const response = await reserveChatTokens(request(), 500);
+      expect(response?.status).toBe(429);
+      await expect(response?.text()).resolves.toBe(message);
+      expect(response?.headers.get("Retry-After")).toMatch(/^\d+$/);
+      const refunds = mocks.calls.filter((call) => call.rate === -500);
+      expect(refunds.map((call) => call.prefix)).toEqual(
+        ["aui:chat:ip:tokens:daily", "aui:chat:global:tokens:daily"].slice(
+          0,
+          takes,
+        ),
+      );
+      // Only the site's budget raises the site-wide alert.
+      expect(
+        vi
+          .mocked(console.error)
+          .mock.calls.some(([line]) =>
+            String(line).includes("chat_global_token_limit_exceeded"),
+          ),
+      ).toBe(takes === 2);
+    },
+  );
+
+  it("fails closed when a reservation cannot reach the store or has no IP", async () => {
+    const { reserveChatTokens } = await import("./rate-limit");
+    mocks.errors.set("aui:chat:ip:tokens:daily", new Error("down"));
+    expect((await reserveChatTokens(request(), 10))?.status).toBe(503);
+    mocks.errors.clear();
+    expect(
+      (
+        await reserveChatTokens(
+          new Request("https://www.assistant-ui.com/api/chat"),
+          10,
+        )
+      )?.status,
+    ).toBe(503);
   });
 
   it("fails closed if the limiter is unavailable or the IP is missing", async () => {

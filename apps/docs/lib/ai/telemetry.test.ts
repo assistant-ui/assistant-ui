@@ -254,6 +254,8 @@ describe("classifyChatSurface", () => {
     [{ referer: `${site}/playground` }, "playground"],
     [{ referer: `${site}/elements/thread` }, "elements"],
     [{ referer: `${site}/pricing` }, "site_other"],
+    [{ referer: `${site}/constructor` }, "site_other"],
+    [{ referer: `${site}/__proto__` }, "site_other"],
     [{ origin: "https://assistant-ui-expo.vercel.app" }, "expo"],
     [{ origin: "https://assistant-ui-ink.vercel.app" }, "ink"],
     [{ origin: "http://localhost:8081" }, "local_dev"],

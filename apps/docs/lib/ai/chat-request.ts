@@ -113,6 +113,8 @@ function readTools(value: unknown): Record<string, ClientTool> {
   for (const [name, tool] of entries) {
     if (
       !TOOL_NAME.test(name) ||
+      // Assigning it would set the record's prototype, not add a tool.
+      name === "__proto__" ||
       !isPlainObject(tool) ||
       !isPlainObject(tool.parameters) ||
       (tool.description !== undefined && typeof tool.description !== "string")
@@ -185,6 +187,15 @@ export function readChatRequest(body: unknown): ChatRequest {
     countConversations: readFlag(body.countConversations),
     threadId: typeof threadId === "string" ? threadId : undefined,
   };
+}
+
+/**
+ * A rough count of the tokens a prompt costs, from its serialized size at
+ * about four characters a token. The route reserves a request's first prompt
+ * with it before the model runs; the step's reported usage settles the rest.
+ */
+export function estimatePromptTokens(...parts: unknown[]): number {
+  return Math.ceil(JSON.stringify(parts).length / 4);
 }
 
 /**

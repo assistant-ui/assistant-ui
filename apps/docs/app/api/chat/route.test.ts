@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(async (): Promise<{ user: { id: string } } | null> => null),
   checkChatRateLimit: vi.fn(async (): Promise<Response | null> => null),
   recordChatTokens: vi.fn(async () => {}),
+  reserveChatTokens: vi.fn(async (): Promise<Response | null> => null),
   captureTurn: vi.fn(async () => {}),
   captureRefusal: vi.fn(async () => {}),
 }));
@@ -27,6 +28,7 @@ vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   checkPublicAssistantRateLimit: mocks.checkRateLimit,
   checkChatRateLimit: mocks.checkChatRateLimit,
   recordChatTokens: mocks.recordChatTokens,
+  reserveChatTokens: mocks.reserveChatTokens,
 }));
 
 vi.mock("@/lib/ai/telemetry", async (importOriginal) => ({
@@ -279,6 +281,10 @@ describe("POST /api/chat conversation budget", () => {
     expect(response.status).toBe(429);
     expect(await response.text()).toBe("Daily conversation limit reached");
     expect(response.headers.get("Retry-After")).toBeTruthy();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "rate_limited",
+      "home_demo",
+    );
   });
 });
 
@@ -547,13 +553,17 @@ describe("POST /api/chat hardening", () => {
       },
       messageMetadata: () => undefined,
     });
+  type Usage = { inputTokens?: number; outputTokens?: number };
+  type Step = { finishReason: string; usage: Usage };
   type StepOptions = {
     prepareStep: (step: { stepNumber: number }) => unknown;
+    system?: string;
     tools: Record<string, Record<string, unknown>>;
-    onEnd: (event: {
-      steps: { finishReason: string }[];
-      totalUsage: { inputTokens?: number; outputTokens?: number };
-    }) => Promise<void>;
+    onStepStart: (event: { steps: Step[] }) => Promise<void>;
+    onStepEnd: (step: Step) => Promise<void>;
+    onEnd: (event: { steps: Step[]; totalUsage: Usage }) => Promise<void>;
+    onAbort: (event: { steps: Step[] }) => Promise<void>;
+    onError: (event: { error: unknown }) => Promise<void>;
   };
   const options = (call = 0) =>
     mocks.streamDocsChat.mock.calls[call]![3] as StepOptions;
@@ -624,19 +634,118 @@ describe("POST /api/chat hardening", () => {
     );
   });
 
-  it("charges the turn's tokens to the daily token budget", async () => {
+  const charged = () =>
+    (mocks.recordChatTokens.mock.calls as unknown as [Request, number][]).map(
+      ([, tokens]) => tokens,
+    );
+  const reserved = () =>
+    (
+      mocks.reserveChatTokens.mock.calls as unknown as [Request, number][]
+    )[0]![1];
+
+  it("reserves the first prompt and refuses a request the budgets cannot cover", async () => {
+    allowed();
+    streamed();
+    mocks.reserveChatTokens.mockResolvedValueOnce(
+      new Response("Daily usage limit exceeded", { status: 429 }),
+    );
+
+    const response = await send({ messages: [message] });
+
+    expect(response.status).toBe(429);
+    expect(reserved()).toBeGreaterThan(0);
+    expect(mocks.streamDocsChat).not.toHaveBeenCalled();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "rate_limited",
+      "no_referrer",
+    );
+  });
+
+  it("charges each step as it runs, net of the reserved first prompt", async () => {
     allowed();
     streamed();
 
     await (await send({ messages: [message] })).text();
-    await options().onEnd({
-      steps: [{ finishReason: "stop" }],
-      totalUsage: { inputTokens: 1234, outputTokens: 56 },
+    const first = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 1234, outputTokens: 56 },
+    };
+    await options().onStepStart({ steps: [] });
+    await options().onStepEnd(first);
+    await options().onStepStart({ steps: [first] });
+    await options().onStepEnd({
+      finishReason: "stop",
+      usage: { inputTokens: 1300, outputTokens: 40 },
     });
 
-    expect(mocks.recordChatTokens).toHaveBeenCalledWith(
-      expect.any(Request),
-      1290,
+    // Step 1 less its reservation, step 2's prompt as it starts, then the rest.
+    expect(charged()).toEqual([1290 - reserved(), 1234, 1340 - 1234]);
+  });
+
+  it("still charges a step that an abort cuts off", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: [message] })).text();
+    const first = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 1000, outputTokens: 50 },
+    };
+    await options().onStepEnd(first);
+    await options().onStepStart({ steps: [first] });
+    await options().onAbort({ steps: [first] });
+
+    // The first step in full (with its reservation) and the second's prompt.
+    expect(reserved() + charged().reduce((sum, n) => sum + n, 0)).toBe(2050);
+    expect(mocks.captureTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "aborted",
+        input_tokens: 1000,
+        output_tokens: 50,
+      }),
+    );
+  });
+
+  it("charges the completed steps of a turn that ends in an error", async () => {
+    allowed();
+    streamed();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await (await send({ messages: [message] })).text();
+    const first = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 1000, outputTokens: 50 },
+    };
+    await options().onStepEnd(first);
+    await options().onError({ error: new Error("provider down") });
+    // A later step failing during setup still ends the stream with no usage.
+    await options().onEnd({ steps: [first], totalUsage: {} });
+
+    expect(reserved() + charged().reduce((sum, n) => sum + n, 0)).toBe(1050);
+    expect(mocks.captureTurn).toHaveBeenCalledTimes(1);
+    expect(mocks.captureTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "error", input_tokens: 1000 }),
+    );
+  });
+
+  it("logs a refusal of the reserved search_docs tool", async () => {
+    allowed();
+
+    const response = await send(
+      {
+        messages: [message],
+        searchDocs: true,
+        tools: {
+          search_docs: { parameters: { type: "object", properties: {} } },
+        },
+      },
+      sameOrigin,
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "invalid_tool",
+      "no_referrer",
     );
   });
 
@@ -695,10 +804,12 @@ describe("POST /api/chat hardening", () => {
         { referer: "https://www.assistant-ui.com/docs/guides/tools?q=secret" },
       )
     ).text();
-    await options().onEnd({
-      steps: [{ finishReason: "tool-calls" }],
-      totalUsage: { inputTokens: 900, outputTokens: 20 },
-    });
+    const step = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 900, outputTokens: 20 },
+    };
+    await options().onStepEnd(step);
+    await options().onEnd({ steps: [step], totalUsage: step.usage });
 
     expect(mocks.captureTurn).toHaveBeenCalledWith({
       surface: "docs",
@@ -716,5 +827,20 @@ describe("POST /api/chat hardening", () => {
     expect(logged).not.toContain("hello");
     expect(logged).not.toContain("short answers");
     expect(logged).not.toContain("secret");
+  });
+
+  it("counts only the client's own system text, not the docs instruction", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send({ messages: [message], searchDocs: true }, sameOrigin)
+    ).text();
+    expect(options().system).toContain("search_docs");
+    await options().onEnd({ steps: [], totalUsage: {} });
+
+    expect(mocks.captureTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ client_system: 0 }),
+    );
   });
 });

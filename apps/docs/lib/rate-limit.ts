@@ -123,9 +123,10 @@ const getPublicAssistantRateLimits = async () => {
     // limits. The defaults sit above the busiest single address-day of the
     // 30 days before Nov 26 2026, so a visitor never meets them, while one
     // address or browser session can no longer run the demo as a general
-    // model. A turn's input and output tokens are charged once it ends
-    // (recordChatTokens), and the site-wide token ceiling bounds a day's
-    // spend.
+    // model. A request's first prompt is reserved before the model runs
+    // (reserveChatTokens), each step's input and output tokens are charged as
+    // it runs (recordChatTokens), and the site-wide token ceiling bounds a
+    // day's spend.
     chatSessionDaily: new Ratelimit({
       redis,
       prefix: "aui:chat:session:daily",
@@ -478,11 +479,29 @@ export async function checkDocsChatRateLimit(
   });
 }
 
+/** Logs that the site's demo chat token budget is spent, once per 10 minutes. */
+async function alertChatGlobalTokens(
+  limits: PublicAssistantRateLimits,
+  request: Request,
+): Promise<void> {
+  const alert = await limits.chatGlobalAlert.limit("all").catch(() => null);
+  if (alert?.success) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "chat_global_token_limit_exceeded",
+        requestId: request.headers.get("x-vercel-id"),
+      }),
+    );
+  }
+}
+
 /**
  * The demo chat's own daily limits, checked after
  * `checkPublicAssistantRateLimit`: requests per anonymous session and per
  * address, then whether the address and the site have tokens left.
- * Tokens are charged once a turn ends, with `recordChatTokens`.
+ * A request's tokens are then reserved (`reserveChatTokens`) and charged as
+ * its steps run (`recordChatTokens`).
  */
 export async function checkChatRateLimit(
   request: Request,
@@ -516,16 +535,7 @@ export async function checkChatRateLimit(
 
     const globalTokens = await limits.chatGlobalTokensDaily.getRemaining("all");
     if (globalTokens.remaining <= 0) {
-      const alert = await limits.chatGlobalAlert.limit("all").catch(() => null);
-      if (alert?.success) {
-        console.error(
-          JSON.stringify({
-            level: "error",
-            message: "chat_global_token_limit_exceeded",
-            requestId: request.headers.get("x-vercel-id"),
-          }),
-        );
-      }
+      await alertChatGlobalTokens(limits, request);
       return limitResponse(
         publicAssistantLimitMessage("Public assistant usage"),
         globalTokens.reset,
@@ -536,9 +546,47 @@ export async function checkChatRateLimit(
 }
 
 /**
- * Charges a finished demo chat turn's tokens (input and output) to the
- * address and to the
- * site's daily budget. Never throws: a store that cannot be reached loses the
+ * Takes a demo chat request's estimated first prompt from the address's and
+ * the site's token budgets before the model is called, and refuses the
+ * request when either cannot cover it. Each take is one atomic increment, so
+ * concurrent requests cannot all start on the same remaining balance. A
+ * refused request's takes are given back.
+ */
+export async function reserveChatTokens(
+  request: Request,
+  tokens: number,
+): Promise<Response | null> {
+  return runRateLimitChecks(request, "chat", async (limits) => {
+    const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request, "chat");
+    const rate = Math.ceil(tokens);
+    if (!(rate > 0)) return null;
+    const takes = [
+      [limits.chatIpTokensDaily, ip, "Daily usage"],
+      [limits.chatGlobalTokensDaily, "all", "Public assistant usage"],
+    ] as const;
+    for (const [index, [limiter, key, scope]] of takes.entries()) {
+      const result = await limiter.limit(key, { rate });
+      if (!result.success) {
+        await Promise.all(
+          takes
+            .slice(0, index + 1)
+            .map(([taken, takenKey]) => taken.limit(takenKey, { rate: -rate })),
+        );
+        if (limiter === limits.chatGlobalTokensDaily) {
+          await alertChatGlobalTokens(limits, request);
+        }
+        return limitResponse(publicAssistantLimitMessage(scope), result.reset);
+      }
+    }
+    return null;
+  });
+}
+
+/**
+ * Charges demo chat tokens (input and output) to the address and to the
+ * site's daily budget: a step's prompt when it starts and the rest of its
+ * usage when it ends. Never throws: a store that cannot be reached loses the
  * charge, and the next request's check fails closed.
  */
 export async function recordChatTokens(

@@ -403,7 +403,10 @@ export function classifyChatSurface(
   }
   if (url.origin !== site) return "cross_origin_other";
   const section = url.pathname.split("/")[1] ?? "";
-  return SITE_SECTIONS[section] ?? "site_other";
+  // Own keys only, so /constructor or /__proto__ cannot pick an inherited member.
+  return Object.hasOwn(SITE_SECTIONS, section)
+    ? SITE_SECTIONS[section]!
+    : "site_other";
 }
 
 export type ChatTurnOutcome =

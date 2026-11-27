@@ -13,6 +13,7 @@ import {
   checkPublicAssistantRateLimit,
   getClientIp,
   recordChatTokens,
+  reserveChatTokens,
 } from "@/lib/rate-limit";
 import {
   PUBLIC_ASSISTANT_CROSS_ORIGINS,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/validate-input";
 import {
   ChatRequestError,
+  estimatePromptTokens,
   readChatRequest,
   stepsUsedInTurn,
 } from "@/lib/ai/chat-request";
@@ -179,6 +181,7 @@ export async function POST(req: Request) {
 
     const frontendTools = await aiToolkit.tools({ frontend: tools });
     if (groundInDocs && "search_docs" in frontendTools) {
+      await captureChatRefusal("invalid_tool", surface);
       return withCors(
         req,
         new Response("search_docs is reserved on this endpoint", {
@@ -209,6 +212,7 @@ export async function POST(req: Request) {
         getClientIp(req),
       );
       if (!allowed) {
+        await captureChatRefusal("rate_limited", surface);
         return withCors(
           req,
           new Response(PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE, {
@@ -232,6 +236,21 @@ export async function POST(req: Request) {
       Math.max(1, MAX_TURN_STEPS - stepsUsed),
     );
 
+    // Each step is charged its prompt when it starts and the rest of its
+    // usage when it ends, so a step an abort or an error cuts off still
+    // counts. The first prompt is reserved here, before the model is called;
+    // a later step's prompt is at least the one before it.
+    const firstPrompt = estimatePromptTokens(system, prunedMessages, tools);
+    const reserveResponse = await reserveChatTokens(req, firstPrompt);
+    if (reserveResponse) {
+      if (reserveResponse.status === 429) {
+        await captureChatRefusal("rate_limited", surface);
+      }
+      return withCors(req, reserveResponse);
+    }
+    let prepaid = firstPrompt;
+    const used = { inputTokens: 0, outputTokens: 0 };
+
     let turnLogged = false;
     const logTurn = (
       ended: "finished" | "error" | "aborted",
@@ -250,7 +269,7 @@ export async function POST(req: Request) {
         step_budget: stepBudget,
         continuation: stepsUsed > 0 ? 1 : 0,
         client_tools: Object.keys(tools).length,
-        client_system: system ? 1 : 0,
+        client_system: rawSystem ? 1 : 0,
         input_tokens: usage?.inputTokens,
         output_tokens: usage?.outputTokens,
       });
@@ -273,24 +292,24 @@ export async function POST(req: Request) {
             stopWhen: stepCountIs(stepBudget),
             prepareStep: ({ stepNumber }) =>
               stepNumber >= stepBudget - 1 ? { toolChoice: "none" } : undefined,
-            onEnd: async ({ steps, totalUsage }) => {
-              await Promise.all([
-                logTurn("finished", steps, totalUsage),
-                recordChatTokens(req, tokensOf(totalUsage)),
-              ]);
+            onStepStart: async ({ steps }) => {
+              const previous = steps.at(-1);
+              if (!previous) return;
+              prepaid = previous.usage.inputTokens ?? 0;
+              await recordChatTokens(req, prepaid);
             },
-            onAbort: async ({ steps }) => {
-              await Promise.all([
-                logTurn("aborted", steps),
-                recordChatTokens(
-                  req,
-                  steps.reduce((sum, step) => sum + tokensOf(step.usage), 0),
-                ),
-              ]);
+            onStepEnd: async ({ usage }) => {
+              used.inputTokens += usage.inputTokens ?? 0;
+              used.outputTokens += usage.outputTokens ?? 0;
+              const rest = tokensOf(usage) - prepaid;
+              prepaid = 0;
+              await recordChatTokens(req, rest);
             },
+            onEnd: ({ steps }) => logTurn("finished", steps, used),
+            onAbort: ({ steps }) => logTurn("aborted", steps, used),
             onError: async ({ error }) => {
               console.error(error);
-              await logTurn("error", []);
+              await logTurn("error", [], used);
             },
             tools: groundInDocs
               ? {

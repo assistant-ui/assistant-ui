@@ -6,6 +6,7 @@ import {
 import {
   ChatRequestError,
   MAX_CLIENT_TOOLS,
+  estimatePromptTokens,
   readChatRequest,
   stepsUsedInTurn,
 } from "./chat-request";
@@ -162,6 +163,14 @@ describe("readChatRequest", () => {
       "invalid_tool",
     ],
     [
+      "a tool named __proto__",
+      {
+        messages: [question],
+        tools: JSON.parse(`{"__proto__":${JSON.stringify(weatherTool)}}`),
+      },
+      "invalid_tool",
+    ],
+    [
       "a tool without an input schema",
       { messages: [question], tools: { get_weather: { description: "x" } } },
       "invalid_tool",
@@ -190,6 +199,17 @@ describe("readChatRequest", () => {
     expect(refusalOf({ messages: [question], tools: "search" })?.message).toBe(
       "Invalid tools format",
     );
+  });
+});
+
+describe("estimatePromptTokens", () => {
+  it("counts about four characters a token across the prompt's parts", () => {
+    const system = "s".repeat(4000);
+    const messages = [{ role: "user", content: "x".repeat(8000) }];
+    const tokens = estimatePromptTokens(system, messages, {});
+    expect(tokens).toBeGreaterThanOrEqual(3000);
+    expect(tokens).toBeLessThan(3100);
+    expect(estimatePromptTokens(undefined, [], {})).toBeLessThan(10);
   });
 });
 
