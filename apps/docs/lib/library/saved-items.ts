@@ -6,8 +6,9 @@ import {
   type Starter,
 } from "./starters-data";
 
-export type LibraryCartItem = {
+export type LibrarySavedItem = {
   id: string;
+  starter: Starter;
   name: string;
   /** What kind of item it is, shown under its name. */
   type: string;
@@ -16,8 +17,9 @@ export type LibraryCartItem = {
   promptName: string;
 };
 
-const fromStarter = (starter: Starter): LibraryCartItem => ({
+const fromStarter = (starter: Starter): LibrarySavedItem => ({
   id: starterId(starter),
+  starter,
   name: starter.label,
   type: starter.kind === "template" ? "Template" : "Example",
   command: starterCommand(starter),
@@ -31,16 +33,18 @@ const ITEMS = new Map(
   }),
 );
 
-/** The cart's items in the order they were added; ids no longer in the library are dropped. */
-export const getLibraryCartItems = (
+/** The saved items in the order they were added; ids no longer in the library are dropped. */
+export const getLibrarySavedItems = (
   ids: readonly string[],
-): LibraryCartItem[] =>
+): LibrarySavedItem[] =>
   ids.flatMap((id) => {
     const item = ITEMS.get(id);
     return item ? [item] : [];
   });
 
-export const libraryCartPrompt = (items: readonly LibraryCartItem[]): string =>
+export const librarySavedPrompt = (
+  items: readonly LibrarySavedItem[],
+): string =>
   items.length === 1
     ? agentSetupPrompt([], `Start from ${items[0]!.promptName}`)
     : agentSetupPrompt(

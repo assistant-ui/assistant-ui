@@ -4,7 +4,8 @@ import {
   BotIcon,
   CheckIcon,
   PlusIcon,
-  ShoppingCartIcon,
+  BookmarkCheckIcon,
+  BookmarkIcon,
   TerminalIcon,
 } from "lucide-react";
 import {
@@ -15,10 +16,10 @@ import {
 } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import {
-  setLibraryCartOpen,
-  toggleLibraryCartItem,
-  useLibraryCart,
-} from "./cart-store";
+  setLibrarySavedOpen,
+  toggleLibrarySavedItem,
+  useLibrarySaved,
+} from "./saved-store";
 import {
   LibraryMenu,
   LibraryMenuContent,
@@ -39,45 +40,45 @@ export function StarterMenu({
   className?: string;
 }) {
   const id = starterId(starter);
-  const inCart = useLibraryCart().includes(id);
+  const isSaved = useLibrarySaved().includes(id);
 
   return (
     <LibraryMenu>
       <LibraryTooltip side={tooltipSide} label="Add or copy">
         <LibraryMenuTrigger
-          aria-label={`Options for ${starter.label}${inCart ? ", in cart" : ""}`}
+          aria-label={`Options for ${starter.label}${isSaved ? ", saved" : ""}`}
           className={cn(
             "bg-background/45 text-foreground ring-foreground/10 hover:bg-background/70 data-popup-open:bg-background/70 size-8 rounded-full ring-1 backdrop-blur-md",
             className,
           )}
         >
-          {inCart ? <CheckIcon aria-hidden /> : <PlusIcon aria-hidden />}
+          {isSaved ? <CheckIcon aria-hidden /> : <PlusIcon aria-hidden />}
         </LibraryMenuTrigger>
       </LibraryTooltip>
       <LibraryMenuContent side="bottom" align="end">
         <LibraryMenuItem
           onClick={() => {
-            const added = toggleLibraryCartItem(id);
+            const added = toggleLibrarySavedItem(id);
             libraryToast.success(
               added
-                ? `${starter.label} added to cart.`
-                : `${starter.label} removed from cart.`,
+                ? `${starter.label} saved.`
+                : `${starter.label} removed from saved.`,
               {
-                group: "cart",
+                group: "saved",
                 action: {
-                  label: "View cart",
-                  onClick: () => setLibraryCartOpen(true),
+                  label: "View saved",
+                  onClick: () => setLibrarySavedOpen(true),
                 },
               },
             );
           }}
         >
-          {inCart ? (
-            <CheckIcon aria-hidden />
+          {isSaved ? (
+            <BookmarkCheckIcon aria-hidden />
           ) : (
-            <ShoppingCartIcon aria-hidden />
+            <BookmarkIcon aria-hidden />
           )}
-          {inCart ? "Remove from cart" : "Add to cart"}
+          {isSaved ? "Remove from saved" : "Save"}
         </LibraryMenuItem>
         <LibraryMenuSeparator />
         <LibraryMenuItem

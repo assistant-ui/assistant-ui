@@ -66,6 +66,11 @@ export type Starter = {
     light: readonly string[];
     dark: readonly string[];
   };
+  /** Phone-width (390 by 844) screenshots in each color mode, in the same order as `screenshots`. */
+  phoneScreenshots?: {
+    light: readonly string[];
+    dark: readonly string[];
+  };
 };
 
 // The CLI is not a dependency of the docs app, so this list mirrors
@@ -78,16 +83,22 @@ export const STARTERS: readonly Starter[] = [
     kind: "template",
     screenshots: {
       light: [
-        "/screenshot/starters/default/empty-light.png",
-        "/screenshot/starters/default/conversation-light.png",
-        "/screenshot/starters/default/reply-end-light.png",
-        "/screenshot/starters/default/mobile-light.png",
+        "/screenshot/starters/default/desktop-conversation-light.png",
+        "/screenshot/starters/default/desktop-empty-light.png",
       ],
       dark: [
-        "/screenshot/starters/default/empty-dark.png",
-        "/screenshot/starters/default/conversation-dark.png",
-        "/screenshot/starters/default/reply-end-dark.png",
-        "/screenshot/starters/default/mobile-dark.png",
+        "/screenshot/starters/default/desktop-conversation-dark.png",
+        "/screenshot/starters/default/desktop-empty-dark.png",
+      ],
+    },
+    phoneScreenshots: {
+      light: [
+        "/screenshot/starters/default/phone-conversation-light.png",
+        "/screenshot/starters/default/phone-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/default/phone-conversation-dark.png",
+        "/screenshot/starters/default/phone-empty-dark.png",
       ],
     },
     framework: "Next.js",

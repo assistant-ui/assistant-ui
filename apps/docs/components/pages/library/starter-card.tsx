@@ -217,17 +217,24 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
   );
 }
 
+/** A starter's small preview, as the list view and the saved panel show it. */
+export function StarterThumbnail({ starter }: { starter: Starter }) {
+  return (
+    <div className={cn(frame, "shrink-0 rounded-[18px] p-2")}>
+      <div className="bg-background relative flex aspect-[16/10] w-24 items-center justify-center overflow-hidden rounded-[10px]">
+        <StarterPreview starter={starter} sizes="96px" />
+      </div>
+    </div>
+  );
+}
+
 export function StarterRow({ starter, onSelect }: StarterItemProps) {
   return (
     <li
       data-nav-glyph-motion
       className="group/navlink relative flex min-w-0 items-center gap-4 py-2"
     >
-      <div className={cn(frame, "shrink-0 rounded-[18px] p-2")}>
-        <div className="bg-background relative flex aspect-[16/10] w-24 items-center justify-center overflow-hidden rounded-[10px]">
-          <StarterPreview starter={starter} sizes="96px" />
-        </div>
-      </div>
+      <StarterThumbnail starter={starter} />
       <div className="min-w-0 flex-1">
         <StarterTitle starter={starter} onSelect={onSelect} />
         <p className="text-muted-foreground mt-0.5 truncate text-[13px]">

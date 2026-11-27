@@ -8,7 +8,7 @@ import {
   StartersViewMenu,
   type StarterSort,
 } from "./starters-view-menu";
-import { LibraryCartButton, LibraryCartSheet } from "./cart-sheet";
+import { LibrarySavedButton, LibrarySavedSheet } from "./saved-sheet";
 import { PillTabs, type PillTab } from "./pill-tabs";
 import { LibraryEmpty } from "./library-empty";
 import { LibraryToaster } from "./library-toast";
@@ -116,10 +116,10 @@ export function StartersBrowser() {
             className="min-w-0 flex-1 sm:w-80 sm:flex-none"
           />
           <StartersViewMenu options={options} onOptionsChange={setOptions} />
-          <LibraryCartButton />
+          <LibrarySavedButton />
         </div>
       </div>
-      <LibraryCartSheet />
+      <LibrarySavedSheet />
       <LibraryToaster />
       <StarterSheet
         starter={selected}

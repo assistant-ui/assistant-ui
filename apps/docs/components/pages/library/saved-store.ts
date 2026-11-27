@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
-const STORAGE_KEY = "aui-library-cart";
+const STORAGE_KEY = "aui-library-saved";
 const EMPTY: readonly string[] = [];
 
 let ids: readonly string[] = EMPTY;
@@ -57,35 +57,35 @@ const commit = (next: readonly string[]) => {
   emit();
 };
 
-/** Adds the id when it is missing and removes it otherwise; returns whether it is now in the cart. */
-export const toggleLibraryCartItem = (id: string): boolean => {
+/** Adds the id when it is missing and removes it otherwise; returns whether it is now saved. */
+export const toggleLibrarySavedItem = (id: string): boolean => {
   const current = getSnapshot();
-  const inCart = current.includes(id);
-  commit(inCart ? current.filter((entry) => entry !== id) : [...current, id]);
-  return !inCart;
+  const isSaved = current.includes(id);
+  commit(isSaved ? current.filter((entry) => entry !== id) : [...current, id]);
+  return !isSaved;
 };
 
-export const removeLibraryCartItem = (id: string) => {
+export const removeLibrarySavedItem = (id: string) => {
   commit(getSnapshot().filter((entry) => entry !== id));
 };
 
-export const clearLibraryCart = () => {
+export const clearLibrarySaved = () => {
   commit(EMPTY);
 };
 
-export function useLibraryCart(): readonly string[] {
+export function useLibrarySaved(): readonly string[] {
   return useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
 }
 
 let open = false;
 
-export const setLibraryCartOpen = (next: boolean) => {
+export const setLibrarySavedOpen = (next: boolean) => {
   if (open === next) return;
   open = next;
   emit();
 };
 
-export function useLibraryCartOpen(): boolean {
+export function useLibrarySavedOpen(): boolean {
   return useSyncExternalStore(
     subscribe,
     () => open,

@@ -11,6 +11,8 @@ const SWIPE_THRESHOLD_PX = 40;
 const roundButton =
   "bg-background/70 text-foreground ring-foreground/10 hover:bg-background focus-visible:ring-ring grid size-10 cursor-pointer place-items-center rounded-full ring-1 backdrop-blur-md transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-0 [&_svg]:size-5";
 
+export type ViewerShot = { src: string; phone: boolean };
+
 /** One mode's screenshots side by side, slid so `index` is in view. */
 function Strip({
   shots,
@@ -18,7 +20,7 @@ function Strip({
   index,
   className,
 }: {
-  shots: readonly string[];
+  shots: readonly ViewerShot[];
   label: string;
   index: number;
   className: string;
@@ -31,19 +33,30 @@ function Strip({
       )}
       style={{ transform: `translateX(-${index * 100}%)` }}
     >
-      {shots.map((src, i) => (
+      {shots.map(({ src, phone }, i) => (
         <div
           key={src}
           aria-hidden={i !== index}
           className="[container-type:size] absolute inset-y-0 flex w-full items-center justify-center"
           style={{ left: `${i * 100}%` }}
         >
-          <div className="rounded-document relative aspect-[16/10] w-[min(100cqw,160cqh)] overflow-hidden">
+          <div
+            className={cn(
+              "rounded-document relative overflow-hidden",
+              phone
+                ? "aspect-[390/844] h-[min(100cqh,216.4cqw)]"
+                : "aspect-[16/10] w-[min(100cqw,160cqh)]",
+            )}
+          >
             <Image
               src={src}
-              alt={`${label}, screenshot ${i + 1} of ${shots.length}`}
+              alt={`${label}, ${phone ? "phone " : ""}screenshot ${i + 1} of ${shots.length}`}
               fill
-              sizes="(min-width: 1280px) 1200px, 100vw"
+              sizes={
+                phone
+                  ? "(min-width: 640px) 420px, 100vw"
+                  : "(min-width: 1280px) 1200px, 100vw"
+              }
               className="object-cover"
             />
           </div>
@@ -65,7 +78,7 @@ export function ScreenshotViewer({
   open,
   onOpenChange,
 }: {
-  screenshots: { light: readonly string[]; dark: readonly string[] };
+  screenshots: { light: readonly ViewerShot[]; dark: readonly ViewerShot[] };
   label: string;
   index: number;
   onIndexChange: (index: number) => void;

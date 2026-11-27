@@ -1,17 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Image from "next/image";
+import { useRef } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   ArrowUpRightIcon,
   BotIcon,
-  CheckIcon,
   CopyIcon,
-  ShoppingCartIcon,
+  BookmarkCheckIcon,
+  BookmarkIcon,
   TerminalIcon,
   XIcon,
+  BoxIcon,
+  ComponentIcon,
+  FileCodeIcon,
+  PackageIcon,
+  type LucideIcon,
 } from "lucide-react";
 import {
   starterCommand,
@@ -22,12 +26,12 @@ import {
 } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import {
-  setLibraryCartOpen,
-  toggleLibraryCartItem,
-  useLibraryCart,
-} from "./cart-store";
+  setLibrarySavedOpen,
+  toggleLibrarySavedItem,
+  useLibrarySaved,
+} from "./saved-store";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
-import { ScreenshotViewer } from "./screenshot-viewer";
+import { StarterScreenshots } from "./starter-screenshots";
 
 const button =
   "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
@@ -62,118 +66,66 @@ function CodeList({ items }: { items: readonly string[] }) {
   );
 }
 
+type Row = { label: string; value?: string };
+
+/** A labelled group of rows in a bordered box, each with an icon, its name, and an optional value on the right. */
 function DependencyList({
   title,
-  hint,
-  items,
-  layout = "chips",
+  icon: Icon,
+  rows,
 }: {
   title: string;
-  hint: string;
-  items: readonly string[];
-  layout?: "chips" | "lines";
+  icon: LucideIcon;
+  rows: readonly Row[];
 }) {
   return (
     <section className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-4">
-        <h3 className="text-sm font-medium">{title}</h3>
-        <span className="text-muted-foreground text-xs tabular-nums">
-          {items.length}
-        </span>
+      <div className="text-muted-foreground flex items-baseline justify-between gap-4 text-sm">
+        <h3>{title}</h3>
+        <span className="tabular-nums">{rows.length}</span>
       </div>
-      <p className="text-muted-foreground text-xs">{hint}</p>
-      {items.length === 0 ? null : layout === "lines" ? (
-        <ul className="bg-foreground/[0.025] dark:bg-foreground/[0.04] max-h-56 overflow-y-auto rounded-xl px-3 py-2 font-mono text-xs leading-6 [font-variant-ligatures:none]">
-          {items.map((item) => (
-            <li key={item} className="truncate">
-              {item}
+      {rows.length > 0 ? (
+        <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-2xl border px-4">
+          {rows.map((row) => (
+            <li
+              key={row.value ? `${row.value}/${row.label}` : row.label}
+              className="flex min-w-0 items-center gap-3 py-3"
+            >
+              <Icon
+                aria-hidden
+                className="text-muted-foreground size-4 shrink-0"
+              />
+              <span className="min-w-0 flex-1 truncate font-mono text-[13px] [font-variant-ligatures:none]">
+                {row.label}
+              </span>
+              {row.value ? (
+                <span className="text-muted-foreground max-w-[50%] shrink-0 truncate font-mono text-xs [font-variant-ligatures:none]">
+                  {row.value}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : (
-        <CodeList items={items} />
+        <p className="border-foreground/10 text-muted-foreground rounded-2xl border px-4 py-3 text-sm">
+          None
+        </p>
       )}
-      {items.length > 0 ? null : <p className="text-sm">None.</p>}
     </section>
   );
 }
 
-function ShotColumn({
-  shots,
-  label,
-  onOpen,
-  className,
-}: {
-  shots: readonly string[];
-  label: string;
-  onOpen: (index: number) => void;
-  className: string;
-}) {
-  return (
-    <ul className={className}>
-      {shots.map((src, i) => (
-        <li key={src} className="bg-background relative min-h-0">
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            aria-label={`Open ${label} screenshot ${i + 1} of ${shots.length}`}
-            onClick={() => onOpen(i)}
-            className="group/shot focus-visible:ring-ring absolute inset-0 cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset"
-          >
-            <Image
-              src={src}
-              alt=""
-              fill
-              sizes="(min-width: 640px) 280px, 50vw"
-              className="object-cover object-top transition-[filter] group-hover/shot:brightness-95 motion-reduce:transition-none dark:group-hover/shot:brightness-110"
-            />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
+const names = (items: readonly string[]): Row[] =>
+  items.map((label) => ({ label }));
 
-/** The current mode's screenshots in a two-by-two grid that fills its panel, each cropped from the top; a click opens it full size. */
-function Screenshots({
-  screenshots,
-  label,
-}: {
-  screenshots: NonNullable<Starter["screenshots"]>;
-  label: string;
-}) {
-  const [index, setIndex] = useState(0);
-  const [viewing, setViewing] = useState(false);
-  const open = (next: number) => {
-    setIndex(next);
-    setViewing(true);
-  };
-
-  return (
-    <>
-      <ShotColumn
-        shots={screenshots.light}
-        label={label}
-        onOpen={open}
-        className="grid flex-1 grid-cols-2 grid-rows-2 dark:hidden"
-      />
-      <ShotColumn
-        shots={screenshots.dark}
-        label={label}
-        onOpen={open}
-        className="hidden flex-1 grid-cols-2 grid-rows-2 dark:grid"
-      />
-      <ScreenshotViewer
-        screenshots={screenshots}
-        label={label}
-        index={index}
-        onIndexChange={setIndex}
-        open={viewing}
-        onOpenChange={setViewing}
-      />
-    </>
-  );
-}
+/** A file as its name, with the folder it is written to as the value. */
+const fileRows = (paths: readonly string[]): Row[] =>
+  paths.map((path) => {
+    const slash = path.lastIndexOf("/");
+    return slash === -1
+      ? { label: path }
+      : { label: path.slice(slash + 1), value: path.slice(0, slash) };
+  });
 
 const SCREENSHOTS_TAB = {
   value: "screenshots",
@@ -228,7 +180,7 @@ function Step({
 
 function StarterDetails({ starter }: { starter: Starter }) {
   const command = starterCommand(starter);
-  const inCart = useLibraryCart().includes(starterId(starter));
+  const isSaved = useLibrarySaved().includes(starterId(starter));
   const facts = [
     ["Type", starter.kind === "template" ? "Template" : "Example"],
     ["Framework", starter.framework],
@@ -236,15 +188,18 @@ function StarterDetails({ starter }: { starter: Starter }) {
     ["Integrations", starter.integrations?.join(", ") ?? "None"],
   ] as const;
 
-  const toggleCart = () => {
-    const added = toggleLibraryCartItem(starterId(starter));
+  const toggleSaved = () => {
+    const added = toggleLibrarySavedItem(starterId(starter));
     libraryToast.success(
       added
-        ? `${starter.label} added to cart.`
-        : `${starter.label} removed from cart.`,
+        ? `${starter.label} saved.`
+        : `${starter.label} removed from saved.`,
       {
-        group: "cart",
-        action: { label: "View cart", onClick: () => setLibraryCartOpen(true) },
+        group: "saved",
+        action: {
+          label: "View saved",
+          onClick: () => setLibrarySavedOpen(true),
+        },
       },
     );
   };
@@ -370,30 +325,20 @@ function StarterDetails({ starter }: { starter: Starter }) {
               value="dependencies"
               className="flex flex-col gap-6 outline-none"
             >
-              {starter.componentsIncluded ? (
-                <p className="text-muted-foreground text-sm">
-                  This {starter.kind}&apos;s components ship inside it, so
-                  create copies them with the project instead of installing them
-                  from the registry.
-                </p>
-              ) : null}
+              <p className="text-muted-foreground text-sm">
+                {starter.componentsIncluded
+                  ? `This ${starter.kind}'s components ship inside it, so create copies them with the project instead of installing them from the registry.`
+                  : "Everything create installs, including the items each component needs."}
+              </p>
               <DependencyList
                 title="Registry components"
-                hint={
-                  starter.componentsIncluded
-                    ? "assistant-ui components the project imports."
-                    : "Every assistant-ui item create installs, including the ones other items need."
-                }
-                items={starter.components}
+                icon={ComponentIcon}
+                rows={names(starter.components)}
               />
               <DependencyList
                 title="UI components"
-                hint={
-                  starter.componentsIncluded
-                    ? "shadcn/ui components the project imports."
-                    : "Every shadcn/ui item create installs, including the ones other items need."
-                }
-                items={starter.uiComponents}
+                icon={BoxIcon}
+                rows={names(starter.uiComponents)}
               />
               <DependencyList
                 title={
@@ -401,29 +346,21 @@ function StarterDetails({ starter }: { starter: Starter }) {
                     ? "Component files"
                     : "Files created"
                 }
-                hint={
-                  starter.componentsIncluded
-                    ? "The component, hook, and lib files in the starter."
-                    : "The files those items write into the project."
-                }
-                items={starter.files}
-                layout="lines"
+                icon={FileCodeIcon}
+                rows={fileRows(starter.files)}
               />
               <DependencyList
                 title="npm packages"
-                hint="The project's dependencies once the components are installed."
-                items={starter.dependencies}
+                icon={PackageIcon}
+                rows={names(starter.dependencies)}
               />
             </Tabs.Panel>
             {starter.screenshots ? (
               <Tabs.Panel
                 value="screenshots"
-                className="-mx-6 -mb-6 flex min-h-96 flex-1 flex-col outline-none"
+                className="flex min-h-0 flex-1 flex-col outline-none"
               >
-                <Screenshots
-                  screenshots={starter.screenshots}
-                  label={starter.label}
-                />
+                <StarterScreenshots starter={starter} />
               </Tabs.Panel>
             ) : null}
           </Tabs.Root>
@@ -446,19 +383,19 @@ function StarterDetails({ starter }: { starter: Starter }) {
         </button>
         <button
           type="button"
-          aria-pressed={inCart}
-          onClick={toggleCart}
+          aria-pressed={isSaved}
+          onClick={toggleSaved}
           className={cn(
             button,
             "bg-foreground/[0.06] hover:bg-foreground/[0.1] flex-1",
           )}
         >
-          {inCart ? (
-            <CheckIcon aria-hidden />
+          {isSaved ? (
+            <BookmarkCheckIcon aria-hidden />
           ) : (
-            <ShoppingCartIcon aria-hidden />
+            <BookmarkIcon aria-hidden />
           )}
-          {inCart ? "Remove from cart" : "Add to cart"}
+          {isSaved ? "Remove from saved" : "Save"}
         </button>
       </div>
     </div>
