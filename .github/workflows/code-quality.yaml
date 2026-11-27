@@ -411,7 +411,7 @@ jobs:
 
       - name: Test the experimental annotation checker
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: pnpm run experimental:test:ci
+        run: pnpm run experimental:test
 
       - name: Test the deploy examples planner
         if: steps.package_build_inputs.outputs.run == 'true'
@@ -423,7 +423,7 @@ jobs:
 
       - name: Test API surface generator
         if: steps.package_build_inputs.outputs.run == 'true'
-        run: pnpm run api-surface:test:ci
+        run: pnpm run api-surface:test
 
       - name: Test API reference input detector
         if: steps.package_build_inputs.outputs.run == 'true'

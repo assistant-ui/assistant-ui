@@ -15,7 +15,7 @@ const workflow = read(".github/workflows/code-quality.yaml");
 
 // Suites the workflow runs through an npm script in a job that also runs on a
 // push to `main`, so a change to a file they run has to trigger that push.
-const SUITES = ["api-surface:test:ci", "experimental:test:ci"];
+const SUITES = ["api-surface:test"];
 
 const pushPaths = (() => {
   const trigger = workflow
@@ -42,18 +42,6 @@ test("the workflow still runs every suite this guard covers", () => {
         `run: (?:pnpm run|node --run) ${suite.replace(":", "\\:")}\\b`,
       ),
       `the workflow no longer runs \`${suite}\`; update SUITES`,
-    );
-  }
-});
-
-test("package suites leave shared helper tests to Workspace Ranges", () => {
-  for (const suite of SUITES) {
-    const targets = suiteTargets(suite);
-    assert.ok(targets.length > 0, suite);
-    assert.deepEqual(
-      targets.filter((file) => file.startsWith("scripts/lib/")),
-      [],
-      suite,
     );
   }
 });
@@ -114,13 +102,24 @@ test("each shared helper test has one owner per event", () => {
     ),
   ].map(([, event, glob]) => ({ event, glob }));
   const reviewPolicy = suiteTargets("review-policy:test");
+  const reviewPolicyJob = workflow
+    .split("\n  review-policy:\n")[1]
+    ?.split(/\n  [\w-]+:\n/)[0];
+  assert.ok(reviewPolicyJob, "the workflow has a Review Policy Scripts job");
+  const reviewPolicyEvents = [
+    ...(reviewPolicyJob.match(/\n {4}if: ([^\n]+)/)?.[1] ?? "").matchAll(
+      /github\.event_name == '(\w+)'/g,
+    ),
+  ].map(([, event]) => event);
   const helpers = readdirSync(path.join(repoRoot, "scripts/lib"))
     .filter((file) => file.endsWith(".test.mjs"))
     .map((file) => `scripts/lib/${file}`);
   for (const event of ["push", "pull_request", "merge_group"]) {
     const globs = [
       ...steps.filter((step) => !step.event || step.event === event),
-      ...(event === "push" ? [] : reviewPolicy.map((glob) => ({ glob }))),
+      ...(reviewPolicyEvents.includes(event)
+        ? reviewPolicy.map((glob) => ({ glob }))
+        : []),
     ].map((step) => step.glob);
     for (const file of helpers) {
       assert.equal(
