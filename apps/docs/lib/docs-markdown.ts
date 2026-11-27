@@ -136,7 +136,6 @@ function displayPath(pathname: string) {
 export function missingMarkdownResponse(
   pathname: string,
   pages: readonly MarkdownPage[],
-  // The platform and view query of the request, kept on the /docs links.
   search = "",
 ): Response {
   const nearest = nearestPages(pathname, pages);
@@ -155,7 +154,10 @@ export function missingMarkdownResponse(
           ? `: ${page.data.description}`
           : "";
         const query =
-          search && page.url.startsWith("/docs") ? `?${search}` : "";
+          search &&
+          (page.url.startsWith("/docs") || page.url.startsWith("/design/"))
+            ? `?${search}`
+            : "";
         return `- [${page.data.title}](${page.url}.md${query})${description}`;
       }),
     );
@@ -169,6 +171,7 @@ export function missingMarkdownResponse(
       "Cache-Control": "no-cache, must-revalidate",
       ETag: `"sha256-${sha256(body)}"`,
       "Content-Type": "text/markdown; charset=utf-8",
+      Vary: "Accept",
       "X-Robots-Tag": "noindex, follow",
     },
   });

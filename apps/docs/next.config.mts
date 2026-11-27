@@ -256,6 +256,7 @@ const config: NextConfig = {
       "/examples/:path*",
       "/design/:path*",
       "/elements/:path*",
+      "/:path*",
       ...docsSiteMarkdownAcceptRewrites().map(({ source }) => source),
     ].map((source) => ({
       source,
@@ -520,11 +521,15 @@ const config: NextConfig = {
         destination: "https://ui.shadcn.com/registry/:path*",
       },
       {
+        source: "/:path(.*\\.mdx?)",
+        destination: "/missing.md?path=/:path",
+      },
+      {
         source: "/:path*",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
-        destination: "/missing.md",
+        destination: "/missing.md?path=/:path*",
       },
     ],
   }),

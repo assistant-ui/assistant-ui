@@ -20,3 +20,13 @@ it("returns cache validators and the homepage markdown", async () => {
   expect(body).toContain("process.env.NEXT_PUBLIC_MASTRA_URL");
   expect(body).toContain("(/docs/integrations/frameworks/mastra/separate-server)");
 });
+
+it.each(["LangGraph", "Custom"])(
+  "labels the %s setup code as an abridged excerpt",
+  async (label) => {
+    const body = await (await GET()).text();
+    const section = body.split(`### ${label}\n\n`)[1]?.split("\n\n### ")[0];
+
+    expect(section).toMatch(/\n\nAbridged excerpt\..*\n\n```tsx\n/);
+  },
+);

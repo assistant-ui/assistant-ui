@@ -12,4 +12,16 @@ it("returns a markdown 404 with the requested path and the documentation index",
   expect(await response.text()).toBe(
     "# Page not found\n\nThere is no page at `/unknown`.\n\nEvery page is listed in [llms.txt](/llms.txt).\n",
   );
+  expect(response.headers.get("Vary")).toBe("Accept");
+});
+
+it("quotes the original path from the rewrite query", async () => {
+  const response = GET(
+    new Request("https://example.com/missing.md?path=%2Fnested%2Funknown.mdx"),
+  );
+
+  expect(response.status).toBe(404);
+  expect(await response.text()).toContain(
+    "There is no page at `/nested/unknown.mdx`.",
+  );
 });
