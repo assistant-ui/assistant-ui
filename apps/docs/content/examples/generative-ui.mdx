@@ -150,7 +150,7 @@ const toolkit = defineToolkit({
 
 ### Frontend-Only Tools (Date Picker, Contact Form)
 
-These tools have no backend `execute`. The AI triggers the tool call, and the user completes it through interactive UI. The `addResult` callback sends the user's input back to the AI:
+These tools have no backend `execute`. The AI triggers the tool call, and the user completes it through interactive UI. `addResult` records the user's input as the tool result, and the page's `sendAutomaticallyWhen` sends it back to the AI:
 
 ```tsx
 const toolkit = defineToolkit({
@@ -182,9 +182,9 @@ const toolkit = defineToolkit({
 | `/tools/<name>/<n>` | `/` | Bind a spec prop to an earlier tool result |
 | `JSONGenerativeUI` | `/present` | Turn a component library into the model-facing schema for `present` |
 | `defineGenerativeComponents` | `/present` | Add your own component to the vocabulary |
-| `sendAutomaticallyWhen` | `/`, `/present` | Continue the run once a frontend tool has resolved |
+| `sendAutomaticallyWhen` | `/`, `/present`, `/tool-ui` | Continue the run once a frontend or human tool has resolved |
 | `Tools({ toolkit })` | `/tool-ui` | Register a React renderer for a specific tool call |
-| `addResult` | Date Picker, Contact Form | Send user input back to the AI as the tool result |
+| `addResult` | Date Picker, Contact Form | Record user input as the tool result |
 | `status.type` | Chart, Location | Show loading states while the AI streams tool arguments |
 
 ## Source
