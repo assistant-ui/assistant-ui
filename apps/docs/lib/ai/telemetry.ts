@@ -1,6 +1,7 @@
 import { OpenTelemetry } from "@ai-sdk/otel";
 import type { TelemetryOptions } from "ai";
 import { posthogServer } from "@/lib/posthog-server";
+import type { ChatRefusal } from "./chat-request";
 import type { DocChatRefusal } from "./docs-chat-request";
 
 const integration = new OpenTelemetry({ runtimeContext: true });
@@ -285,11 +286,12 @@ async function captureDocsAssistantEvent(
   event: string,
   properties: Record<string, string | number | undefined>,
   client: CaptureClient,
+  distinctId: string = DOCS_TURN_DISTINCT_ID,
 ): Promise<void> {
   if (!client) return;
   try {
     await client.captureImmediate({
-      distinctId: DOCS_TURN_DISTINCT_ID,
+      distinctId,
       event,
       disableGeoip: true,
       properties: {
@@ -324,5 +326,167 @@ export function captureDocsAssistantRefusal(
     "docs_assistant_refused",
     { reason },
     client,
+  );
+}
+
+/*
+ * Public demo chat (/api/chat) turns: which surface sent the request, how
+ * many steps and tokens it used and how it ended, for a weekly cost view.
+ * Only fixed labels and counts are logged: no text, visitor id, address or
+ * session, and the surface is a label picked from the request's Origin and
+ * Referer, never the URL itself.
+ */
+
+export const CHAT_SURFACES = [
+  "home_demo",
+  "home",
+  "docs",
+  "examples",
+  "demos",
+  "playground",
+  "elements",
+  "site_other",
+  "expo",
+  "ink",
+  "local_dev",
+  "cross_origin_other",
+  "no_referrer",
+] as const;
+
+export type ChatSurface = (typeof CHAT_SURFACES)[number];
+
+const CROSS_ORIGIN_SURFACES: Record<string, ChatSurface> = {
+  "https://assistant-ui-expo.vercel.app": "expo",
+  "https://assistant-ui-ink.vercel.app": "ink",
+};
+
+const SITE_SECTIONS: Record<string, ChatSurface> = {
+  "": "home",
+  docs: "docs",
+  examples: "examples",
+  demos: "demos",
+  playground: "playground",
+  elements: "elements",
+};
+
+const originOf = (value: string | null): string | null => {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+
+/** A fixed label for the surface that sent a demo chat request. */
+export function classifyChatSurface(
+  req: Request,
+  { countConversations = false }: { countConversations?: boolean } = {},
+): ChatSurface {
+  const site = new URL(req.url).origin;
+  const origin = originOf(req.headers.get("origin"));
+  if (origin && origin !== site) {
+    if (CROSS_ORIGIN_SURFACES[origin]) return CROSS_ORIGIN_SURFACES[origin];
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ? "local_dev"
+      : "cross_origin_other";
+  }
+  if (countConversations) return "home_demo";
+
+  const referer = req.headers.get("referer");
+  if (!referer) return "no_referrer";
+  let url: URL;
+  try {
+    url = new URL(referer);
+  } catch {
+    return "no_referrer";
+  }
+  if (url.origin !== site) return "cross_origin_other";
+  const section = url.pathname.split("/")[1] ?? "";
+  // Own keys only, so /constructor or /__proto__ cannot pick an inherited member.
+  return Object.hasOwn(SITE_SECTIONS, section)
+    ? SITE_SECTIONS[section]!
+    : "site_other";
+}
+
+export type ChatTurnOutcome =
+  | "answered"
+  | "client_tool"
+  | "step_cap"
+  | "error"
+  | "aborted";
+
+/**
+ * How a demo chat request ended. `client_tool` stops on a tool the browser
+ * runs (the client sends the conversation again with its result).
+ * `step_cap` used every step the turn had left: the route makes that last
+ * step answer without tools, so it still ends in an answer, and no
+ * automatic resend follows.
+ */
+export function summarizeChatTurn({
+  steps,
+  stepBudget,
+  ended,
+}: {
+  steps: readonly { finishReason?: string | undefined }[];
+  stepBudget: number;
+  ended: "finished" | "error" | "aborted";
+}): { outcome: ChatTurnOutcome; steps: number } {
+  const outcome: ChatTurnOutcome =
+    ended !== "finished"
+      ? ended
+      : steps.length >= stepBudget
+        ? "step_cap"
+        : steps.at(-1)?.finishReason === "tool-calls"
+          ? "client_tool"
+          : "answered";
+  return { outcome, steps: steps.length };
+}
+
+export type ChatTurnEvent = {
+  surface: ChatSurface;
+  model: string;
+  outcome: ChatTurnOutcome;
+  steps: number;
+  step_budget: number;
+  /** 1 when the request continues a turn after a browser tool ran. */
+  continuation: 0 | 1;
+  client_tools: number;
+  client_system: 0 | 1;
+  input_tokens?: number | undefined;
+  output_tokens?: number | undefined;
+};
+
+// One fixed id for every demo chat event, so no event carries a visitor
+// identity or creates a person profile.
+const CHAT_TURN_DISTINCT_ID = "public-chat";
+
+/** Sends one `chat_turn` event. Never throws. */
+export function captureChatTurn(
+  event: ChatTurnEvent,
+  client: CaptureClient = posthogServer,
+): Promise<void> {
+  return captureDocsAssistantEvent(
+    "chat_turn",
+    event,
+    client,
+    CHAT_TURN_DISTINCT_ID,
+  );
+}
+
+/**
+ * Sends one `chat_refused` event for a demo chat request the endpoint turned
+ * away, with its fixed reason code and surface label only. Never throws.
+ */
+export function captureChatRefusal(
+  reason: ChatRefusal | "rate_limited",
+  surface: ChatSurface,
+  client: CaptureClient = posthogServer,
+): Promise<void> {
+  return captureDocsAssistantEvent(
+    "chat_refused",
+    { reason, surface },
+    client,
+    CHAT_TURN_DISTINCT_ID,
   );
 }
