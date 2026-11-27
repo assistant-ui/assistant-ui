@@ -1,6 +1,7 @@
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { listSkills } from "@/lib/agent-skills";
+import { EXAMPLES, TEMPLATES } from "./starters/starters-data";
 
 export type LibraryGroup = {
   label: string;
@@ -15,46 +16,6 @@ export type LibrarySection = {
   href: string;
   groups: readonly LibraryGroup[];
 };
-
-// The CLI is not a dependency of the docs app, so these lists mirror the
-// templates and examples in packages/cli/src/commands/create.ts.
-const TEMPLATES = [
-  "Default",
-  "Minimal",
-  "Cloud",
-  "Cloud + Clerk",
-  "Shared cloud chat",
-  "LangChain",
-  "MCP",
-  "Eve",
-  "VS Code",
-];
-
-const EXAMPLES = [
-  "AG-UI",
-  "Google ADK",
-  "AI SDK v7",
-  "Eve",
-  "Artifacts",
-  "Assistant Transport",
-  "Chain of Thought",
-  "Cloud",
-  "Custom Thread List",
-  "ElevenLabs Conversational",
-  "ElevenLabs Scribe",
-  "LiveKit Voice",
-  "Expo",
-  "Interactables",
-  "External Store",
-  "FFmpeg",
-  "LangGraph",
-  "React Hook Form",
-  "React Ink",
-  "React Router",
-  "TanStack",
-  "Resumable Stream",
-  "OpenUI",
-];
 
 const MCP_CLIENTS = [
   "Cursor",
@@ -90,10 +51,10 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     title: "Starters",
     description: "Templates and example apps that create a new project.",
     command: "npx assistant-ui@latest create my-app",
-    href: "/docs/cli#create",
+    href: "/library/starters",
     groups: [
-      { label: "Templates", items: TEMPLATES },
-      { label: "Examples", items: EXAMPLES },
+      { label: "Templates", items: TEMPLATES.map((starter) => starter.label) },
+      { label: "Examples", items: EXAMPLES.map((starter) => starter.label) },
     ],
   },
   {
