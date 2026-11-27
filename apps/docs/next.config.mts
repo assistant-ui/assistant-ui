@@ -249,16 +249,7 @@ const config: NextConfig = {
           },
         ]
       : []),
-    ...[
-      "/",
-      "/pricing",
-      "/docs/:path*",
-      "/examples/:path*",
-      "/design/:path*",
-      "/elements/:path*",
-      "/:path*",
-      ...docsSiteMarkdownAcceptRewrites().map(({ source }) => source),
-    ].map((source) => ({
+    ...["/", "/:path((?!api(?:/|$)|_next(?:/|$)).*)"].map((source) => ({
       source,
       headers: [{ key: "Vary", value: "Accept" }],
     })),

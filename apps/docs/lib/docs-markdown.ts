@@ -125,8 +125,12 @@ export function nearestPages<Page extends MarkdownPage>(
 // The path as the 404 quotes it: route params arrive decoded, so a crafted
 // url could carry a newline and markdown out of the code span.
 function displayPath(pathname: string) {
-  // oxlint-disable-next-line no-control-regex
-  return pathname.replace(/[\u0000-\u001f\u007f`]/g, "").slice(0, 200);
+  return (
+    pathname
+      // oxlint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029`]/g, "")
+      .slice(0, 200)
+  );
 }
 
 /**
@@ -171,7 +175,6 @@ export function missingMarkdownResponse(
       "Cache-Control": "no-cache, must-revalidate",
       ETag: `"sha256-${sha256(body)}"`,
       "Content-Type": "text/markdown; charset=utf-8",
-      Vary: "Accept",
       "X-Robots-Tag": "noindex, follow",
     },
   });

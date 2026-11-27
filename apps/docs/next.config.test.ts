@@ -17,7 +17,6 @@ import {
   matchHas,
   prepareDestination,
 } from "next/dist/shared/lib/router/utils/prepare-destination";
-import { DOCS_SITES } from "./lib/docs-sites";
 
 const { rmSync } = vi.hoisted(() => ({ rmSync: vi.fn() }));
 vi.mock("node:fs", async (importOriginal) => ({
@@ -146,16 +145,7 @@ describe("docs Next config composition", () => {
       .map(({ source }) => source);
 
     expect(sources.sort()).toEqual(
-      [
-        "/",
-        "/pricing",
-        "/docs/:path*",
-        "/examples/:path*",
-        "/design/:path*",
-        "/elements/:path*",
-        "/:path*",
-        ...DOCS_SITES.map(({ id }) => `/${id}/docs/:path*`),
-      ].sort(),
+      ["/", "/:path((?!api(?:/|$)|_next(?:/|$)).*)"].sort(),
     );
   });
 
