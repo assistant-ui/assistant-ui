@@ -38,6 +38,13 @@ for (const [file, job] of [
   });
 }
 
+test("the app build installs the full workspace with the frozen lockfile", () => {
+  assert.match(
+    installStep("code-quality.yaml", "build-apps"),
+    /^        run: pnpm install --frozen-lockfile$/m,
+  );
+});
+
 test("the docs Vercel install selects the root with its workspace dependencies", () => {
   const readJson = (file) =>
     JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"));

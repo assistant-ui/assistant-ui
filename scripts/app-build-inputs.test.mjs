@@ -198,7 +198,6 @@ test("the workflow gates dependency-backed app build steps", () => {
   assert.match(detector, /else\n\s+run=true/);
 
   for (const name of [
-    "Setup pnpm and node.js",
     "Install dependencies",
     "Test article appOS cache",
     "Build apps",
@@ -209,14 +208,6 @@ test("the workflow gates dependency-backed app build steps", () => {
       name,
     );
   }
-  assert.doesNotMatch(
-    step("Setup pnpm for app build planning"),
-    /\n        if:/,
-  );
-  assert.ok(
-    buildAppsJob[0].indexOf("- name: Setup pnpm for app build planning") <
-      buildAppsJob[0].indexOf("- name: Detect app build inputs"),
-  );
   assert.doesNotMatch(
     step("Test app build input detector"),
     /steps\.app_build_inputs\.outputs\.run/,
@@ -236,8 +227,17 @@ test("the planner asks Turbo with the Build apps commands", () => {
   assert.deepEqual(planned, built);
 });
 
-test("the app build installs without the pnpm store cache", () => {
-  assert.match(step("Setup pnpm and node.js"), /cache: false/);
+test("the app build reuses the planner's pnpm setup", () => {
+  assert.equal(buildAppsJob[0].match(/uses: pnpm\/setup@/g)?.length, 1);
+  const setup = step("Setup pnpm for app build planning");
+  assert.match(setup, /uses: pnpm\/setup@/);
+  assert.match(setup, /^ +cache: false$/m);
+  assert.match(setup, /^ +install: false$/m);
+  assert.doesNotMatch(setup, /\n        if:/);
+  assert.ok(
+    buildAppsJob[0].indexOf(setup) <
+      buildAppsJob[0].indexOf(step("Detect app build inputs")),
+  );
 });
 
 test("the workflow plans package changes and keeps an unknown base enabled", (t) => {
