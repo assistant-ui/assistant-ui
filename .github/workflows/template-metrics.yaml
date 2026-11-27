@@ -6,6 +6,9 @@ on:
     paths:
       - "templates/**"
       - "packages/ui/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - "scripts/template-metrics.mjs"
       - "scripts/template-metrics-install.test.mjs"
       - ".github/workflows/template-metrics.yaml"

@@ -145,6 +145,29 @@ function buildsBundles(root, templates = "default minimal") {
   return run === "run=true";
 }
 
+for (const [file, runsWorkflow, runsBuild] of [
+  ["pnpm-lock.yaml", true, true],
+  ["pnpm-workspace.yaml", true, true],
+  ["package.json", true, true],
+  ["templates/default/app.ts", true, true],
+  ["templates/nuxt/app.ts", true, false],
+  ["apps/docs/content/index.mdx", false, false],
+]) {
+  test(`template metrics selection for a PR changing only ${file}`, (t) => {
+    const trigger = workflow.match(/^  pull_request:\n(?:    .*\n)*/m)[0];
+    const paths = trigger.match(/^    paths:\n((?:      - .*\n)+)/m)[1];
+    const included = [...paths.matchAll(/^      - "(.+)"$/gm)].some(
+      ([, pattern]) => path.posix.matchesGlob(file, pattern),
+    );
+    assert.equal(included, runsWorkflow);
+
+    const { root, write, commit } = fixture(t);
+    write(file, "{}\n");
+    commit();
+    assert.equal(included && buildsBundles(root), runsBuild);
+  });
+}
+
 test("unrelated template edits skip bundle builds while the selected subset still builds", (t) => {
   const { root, write, commit } = fixture(t);
   write("templates/nuxt/app.ts", "export const title = 'Nuxt chat';\n");
