@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { typeDeck, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
-import { LIBRARY_SECTIONS, sectionCount } from "./library-data";
+import { LIBRARY_SECTIONS, sectionCount } from "@/lib/library/library-data";
 
 const PREVIEW_SIZE = 6;
 

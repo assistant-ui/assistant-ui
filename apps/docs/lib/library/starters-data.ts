@@ -1,3 +1,5 @@
+import { agentSetupPrompt } from "@/lib/agent-setup-prompt";
+
 export type StarterKind = "template" | "example";
 
 export type Starter = {
@@ -5,6 +7,8 @@ export type Starter = {
   label: string;
   description: string;
   kind: StarterKind;
+  /** A screenshot of the app running, from public/screenshot/examples. */
+  image?: string;
 };
 
 // The CLI is not a dependency of the docs app, so this list mirrors
@@ -94,6 +98,7 @@ export const STARTERS: readonly Starter[] = [
     label: "Artifacts",
     description: "Artifact rendering.",
     kind: "example",
+    image: "/screenshot/examples/artifacts.png",
   },
   {
     name: "with-assistant-transport",
@@ -142,12 +147,14 @@ export const STARTERS: readonly Starter[] = [
     label: "Expo",
     description: "A React Native app on Expo.",
     kind: "example",
+    image: "/screenshot/examples/expo.png",
   },
   {
     name: "with-interactables",
     label: "Interactables",
     description: "Interactive components the model drives.",
     kind: "example",
+    image: "/screenshot/examples/interactables.png",
   },
   {
     name: "with-external-store",
@@ -172,6 +179,7 @@ export const STARTERS: readonly Starter[] = [
     label: "React Hook Form",
     description: "A React Hook Form integration.",
     kind: "example",
+    image: "/screenshot/examples/form-demo.png",
   },
   {
     name: "with-react-ink",
@@ -224,3 +232,10 @@ export const starterCommand = ({ name, kind }: Starter): string => {
 
 export const starterSourceHref = ({ name, kind }: Starter): string =>
   `https://github.com/assistant-ui/assistant-ui/tree/main/${kind}s/${name}`;
+
+/** Unique across templates and examples, which share some names. */
+export const starterId = ({ name, kind }: Starter): string =>
+  `${kind}s/${name}`;
+
+export const starterPrompt = (starter: Starter): string =>
+  agentSetupPrompt([], `Start from the \`${starter.name}\` ${starter.kind}`);

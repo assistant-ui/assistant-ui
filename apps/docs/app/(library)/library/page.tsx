@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { createOgMetadata } from "@/lib/og";
-import { LIBRARY_TOTAL } from "./library-data";
-import { LibraryCards } from "./library-cards";
+import { LIBRARY_TOTAL } from "@/lib/library/library-data";
+import { LibraryCards } from "@/components/pages/library/library-cards";
 
 const title = "Library";
 const description =

@@ -1,7 +1,7 @@
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { listSkills } from "@/lib/agent-skills";
-import { EXAMPLES, TEMPLATES } from "./starters/starters-data";
+import { EXAMPLES, TEMPLATES } from "./starters-data";
 
 export type LibraryGroup = {
   label: string;
