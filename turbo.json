@@ -44,6 +44,11 @@
         "AUIX_*"
       ]
     },
+    "with-article-assistant#build:appos": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next-appos/example.wbn"]
+    },
     "lint": {},
     "test": {
       "dependsOn": ["^build"],

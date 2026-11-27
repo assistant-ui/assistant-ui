@@ -37,6 +37,9 @@ test("detects app build inputs", () => {
     "apps/registry/src/registry.ts",
     "apps/future-app/src/index.ts",
     "examples/with-ai-sdk-v7/app/page.tsx",
+    "examples/with-article-assistant/next.config.ts",
+    "examples/with-article-assistant/scripts/pack-appos.mjs",
+    "examples/with-article-assistant/.gitignore",
     "apps/registry/src/registry.test.ts",
     "examples/with-ai-sdk-v7/app/page.test.tsx",
     "templates/minimal/app/page.test.tsx",
@@ -50,6 +53,7 @@ test("detects app build inputs", () => {
     "scripts/app-build-inputs.test.mjs",
     "scripts/ci-has-tasks.mjs",
     "scripts/ci-has-tasks.test.mjs",
+    "scripts/article-appos-cache.test.mjs",
     "apps/docs/content/docs/index.mdx",
     "scripts/lib/script-options.mjs",
     "scripts/lib/package-test-inputs.mjs",
@@ -161,6 +165,7 @@ test("the detector watches its own implementation", () => {
     "scripts/app-build-inputs.test.mjs",
     "scripts/ci-has-tasks.mjs",
     "scripts/ci-has-tasks.test.mjs",
+    "scripts/article-appos-cache.test.mjs",
   ]) {
     assert.ok(APP_BUILD_INPUTS.includes(file), file);
     assert.equal(workflow.split(`      - "${file}"`).length - 1, 1, file);
@@ -195,6 +200,7 @@ test("the workflow gates dependency-backed app build steps", () => {
   for (const name of [
     "Setup pnpm and node.js",
     "Install dependencies",
+    "Test article appOS cache",
     "Build apps",
   ]) {
     assert.match(

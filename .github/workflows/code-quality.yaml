@@ -58,6 +58,7 @@ on:
       - "scripts/api-reference-inputs.test.mjs"
       - "scripts/app-build-inputs.mjs"
       - "scripts/app-build-inputs.test.mjs"
+      - "scripts/article-appos-cache.test.mjs"
       - "scripts/vscode-test-bed.test.mjs"
       - ".github/workflows/vscode-test-bed.yaml"
       - "scripts/root-install-selection.test.mjs"
@@ -528,6 +529,10 @@ jobs:
       - name: Install dependencies
         if: steps.app_build_inputs.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
+
+      - name: Test article appOS cache
+        if: steps.app_build_inputs.outputs.run == 'true'
+        run: node --test scripts/article-appos-cache.test.mjs
 
       - name: Restore main's coverage Turbo cache, shard 0
         if: github.event_name == 'pull_request' && steps.app_build_inputs.outputs.run == 'true'

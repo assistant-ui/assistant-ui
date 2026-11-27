@@ -9,6 +9,7 @@ const SHARED_BUILD_INPUTS = [
   "pnpm-workspace.yaml",
   "scripts/app-build-inputs.mjs",
   "scripts/app-build-inputs.test.mjs",
+  "scripts/article-appos-cache.test.mjs",
   "scripts/ci-has-tasks.mjs",
   "scripts/ci-has-tasks.test.mjs",
   "turbo.json",
