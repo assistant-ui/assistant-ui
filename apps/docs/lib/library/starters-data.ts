@@ -80,10 +80,14 @@ export const STARTERS: readonly Starter[] = [
       light: [
         "/screenshot/starters/default/empty-light.png",
         "/screenshot/starters/default/conversation-light.png",
+        "/screenshot/starters/default/reply-end-light.png",
+        "/screenshot/starters/default/mobile-light.png",
       ],
       dark: [
         "/screenshot/starters/default/empty-dark.png",
         "/screenshot/starters/default/conversation-dark.png",
+        "/screenshot/starters/default/reply-end-dark.png",
+        "/screenshot/starters/default/mobile-dark.png",
       ],
     },
     framework: "Next.js",
@@ -191,10 +195,14 @@ export const STARTERS: readonly Starter[] = [
       light: [
         "/screenshot/starters/minimal/empty-light.png",
         "/screenshot/starters/minimal/conversation-light.png",
+        "/screenshot/starters/minimal/reply-end-light.png",
+        "/screenshot/starters/minimal/mobile-light.png",
       ],
       dark: [
         "/screenshot/starters/minimal/empty-dark.png",
         "/screenshot/starters/minimal/conversation-dark.png",
+        "/screenshot/starters/minimal/reply-end-dark.png",
+        "/screenshot/starters/minimal/mobile-dark.png",
       ],
     },
     framework: "Next.js",
@@ -255,10 +263,14 @@ export const STARTERS: readonly Starter[] = [
       light: [
         "/screenshot/starters/cloud/empty-light.png",
         "/screenshot/starters/cloud/conversation-light.png",
+        "/screenshot/starters/cloud/reply-end-light.png",
+        "/screenshot/starters/cloud/mobile-light.png",
       ],
       dark: [
         "/screenshot/starters/cloud/empty-dark.png",
         "/screenshot/starters/cloud/conversation-dark.png",
+        "/screenshot/starters/cloud/reply-end-dark.png",
+        "/screenshot/starters/cloud/mobile-dark.png",
       ],
     },
     framework: "Next.js",

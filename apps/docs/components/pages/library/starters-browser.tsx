@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useState } from "react";
 import { StarterCard, StarterRow } from "./starter-card";
-import { StarterDialog } from "./starter-dialog";
+import { StarterSheet } from "./starter-sheet";
 import {
   DEFAULT_VIEW_OPTIONS,
   StartersViewMenu,
@@ -121,7 +121,7 @@ export function StartersBrowser() {
       </div>
       <LibraryCartSheet />
       <LibraryToaster />
-      <StarterDialog
+      <StarterSheet
         starter={selected}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}

@@ -131,38 +131,32 @@ type StarterItemProps = {
   onSelect: (starter: Starter) => void;
 };
 
-/** While hovered or focused, steps through the screenshots and returns to the first after; a picked screenshot stays. */
-export function useShotIndex(count: number) {
+/** While the card is hovered or focused, steps through its screenshots; back to the first when it is not. */
+function useShotIndex(count: number) {
   const [active, setActive] = useState(false);
   const [index, setIndex] = useState(0);
-  const [pinned, setPinned] = useState(false);
 
   useEffect(() => {
-    if (!active || pinned || count < 2) return;
+    if (!active || count < 2) return;
     const timer = setInterval(
       () => setIndex((current) => (current + 1) % count),
       SWIPE_INTERVAL_MS,
     );
     return () => clearInterval(timer);
-  }, [active, pinned, count]);
+  }, [active, count]);
 
   const start = () => {
     if (active) return;
     setActive(true);
-    if (count > 1 && !pinned) setIndex(1);
+    if (count > 1) setIndex(1);
   };
   const stop = () => {
     setActive(false);
-    if (!pinned) setIndex(0);
+    setIndex(0);
   };
 
   return {
     index,
-    /** Shows one screenshot and keeps it, stopping the automatic steps. */
-    select: (next: number) => {
-      setPinned(true);
-      setIndex(next);
-    },
     handlers: {
       onPointerEnter: start,
       onPointerLeave: stop,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Image from "next/image";
 import { Dialog } from "@base-ui/react/dialog";
 import { Tabs } from "@base-ui/react/tabs";
 import {
@@ -25,7 +26,7 @@ import {
   useLibraryCart,
 } from "./cart-store";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
-import { StarterPreview, useShotIndex } from "./starter-card";
+import { StarterPreview } from "./starter-card";
 
 const button =
   "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
@@ -96,51 +97,78 @@ function DependencyList({
   );
 }
 
-/** The dialog's preview: while hovered or focused it steps through the current mode's screenshots, and its dots pick one. */
-function DialogPreview({ starter }: { starter: Starter }) {
-  const shotCount = starter.screenshots?.light.length ?? 0;
-  const { index, select, handlers } = useShotIndex(shotCount);
-
+function ShotColumn({
+  shots,
+  label,
+  className,
+}: {
+  shots: readonly string[];
+  label: string;
+  className: string;
+}) {
   return (
-    <div
-      className="bg-foreground/[0.03] dark:bg-foreground/[0.045] m-2 rounded-[22px] p-4"
-      {...handlers}
-    >
-      <div
-        className={cn(
-          "bg-background relative flex items-center justify-center overflow-hidden rounded-xl",
-          shotCount > 0 ? "aspect-[16/10]" : "aspect-[16/8]",
-        )}
-      >
-        <StarterPreview starter={starter} index={index} sizes="640px" />
-      </div>
-      {shotCount > 1 ? (
-        <div className="mt-3 flex justify-center gap-1">
-          {Array.from({ length: shotCount }, (_, i) => {
-            const current = i === index % shotCount;
-            return (
-              <button
-                key={i}
-                type="button"
-                aria-label={`Show screenshot ${i + 1} of ${shotCount}`}
-                aria-current={current}
-                onClick={() => select(i)}
-                className="focus-visible:ring-ring grid size-5 cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2"
-              >
-                <span
-                  className={cn(
-                    "size-1.5 rounded-full transition-colors",
-                    current ? "bg-foreground/70" : "bg-foreground/20",
-                  )}
-                />
-              </button>
-            );
-          })}
+    <ul className={cn("flex-col", className)}>
+      {shots.map((src, i) => (
+        <li key={src} className="bg-background relative aspect-[16/10]">
+          <Image
+            src={src}
+            alt={`${label}, screenshot ${i + 1} of ${shots.length}`}
+            fill
+            sizes="(min-width: 1024px) 480px, 100vw"
+            className="object-cover object-top"
+          />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The current mode's screenshots one after another. */
+function Screenshots({
+  screenshots,
+  label,
+}: {
+  screenshots: NonNullable<Starter["screenshots"]>;
+  label: string;
+}) {
+  return (
+    <>
+      <ShotColumn
+        shots={screenshots.light}
+        label={label}
+        className="flex dark:hidden"
+      />
+      <ShotColumn
+        shots={screenshots.dark}
+        label={label}
+        className="hidden dark:flex"
+      />
+    </>
+  );
+}
+
+/** The sheet's left panel on wide screens: the screenshots, or the glyph for a starter without any. Narrow screens get a Screenshots tab instead. */
+function ScreenshotPanel({ starter }: { starter: Starter }) {
+  return (
+    <div className="bg-foreground/[0.03] dark:bg-foreground/[0.045] hidden lg:block lg:min-h-0 lg:overflow-y-auto">
+      {starter.screenshots ? (
+        <Screenshots screenshots={starter.screenshots} label={starter.label} />
+      ) : (
+        <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden">
+          <StarterPreview
+            starter={starter}
+            sizes="(min-width: 1024px) 480px, 100vw"
+          />
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
+
+const SCREENSHOTS_TAB = {
+  value: "screenshots",
+  label: "Screenshots",
+} as const;
 
 const TABS = [
   { value: "overview", label: "Overview" },
@@ -199,9 +227,9 @@ function StarterDetails({ starter }: { starter: Starter }) {
   ] as const;
 
   return (
-    <>
-      <DialogPreview starter={starter} />
-      <div className="flex flex-col gap-6 px-6 pt-3 pb-6">
+    <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-2 lg:overflow-hidden">
+      <ScreenshotPanel starter={starter} />
+      <div className="flex flex-col gap-6 p-6 lg:min-h-0 lg:overflow-y-auto">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1.5">
             <Dialog.Title className="text-xl font-medium">
@@ -221,6 +249,12 @@ function StarterDetails({ starter }: { starter: Starter }) {
             <ArrowUpRightIcon aria-hidden className="size-3.5" />
             <span className="sr-only">on GitHub (opens in a new tab)</span>
           </a>
+          <Dialog.Close
+            aria-label="Close"
+            className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-2 -mt-0.5 grid size-8 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2"
+          >
+            <XIcon aria-hidden className="size-4" />
+          </Dialog.Close>
         </div>
 
         <Tabs.Root defaultValue="overview" className="flex flex-col gap-5">
@@ -228,15 +262,20 @@ function StarterDetails({ starter }: { starter: Starter }) {
             aria-label="Starter details"
             className="flex flex-wrap gap-1"
           >
-            {TABS.map((tab) => (
-              <Tabs.Tab
-                key={tab.value}
-                value={tab.value}
-                className="text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 cursor-pointer rounded-full px-3.5 text-sm transition-colors outline-none focus-visible:ring-2"
-              >
-                {tab.label}
-              </Tabs.Tab>
-            ))}
+            {(starter.screenshots ? [...TABS, SCREENSHOTS_TAB] : TABS).map(
+              (tab) => (
+                <Tabs.Tab
+                  key={tab.value}
+                  value={tab.value}
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 cursor-pointer rounded-full px-3.5 text-sm transition-colors outline-none focus-visible:ring-2",
+                    tab.value === "screenshots" && "lg:hidden",
+                  )}
+                >
+                  {tab.label}
+                </Tabs.Tab>
+              ),
+            )}
           </Tabs.List>
 
           <Tabs.Panel
@@ -294,7 +333,7 @@ function StarterDetails({ starter }: { starter: Starter }) {
                 </button>
               </div>
             </Detail>
-            <dl className="grid grid-cols-3 gap-4 text-sm">
+            <dl className="grid grid-cols-2 gap-4 text-sm">
               {facts.map(([label, value]) => (
                 <div key={label} className="flex flex-col gap-1">
                   <dt className="text-muted-foreground text-xs">{label}</dt>
@@ -377,14 +416,25 @@ function StarterDetails({ starter }: { starter: Starter }) {
               items={starter.dependencies}
             />
           </Tabs.Panel>
+          {starter.screenshots ? (
+            <Tabs.Panel
+              value="screenshots"
+              className="overflow-hidden rounded-xl outline-none lg:hidden"
+            >
+              <Screenshots
+                screenshots={starter.screenshots}
+                label={starter.label}
+              />
+            </Tabs.Panel>
+          ) : null}
         </Tabs.Root>
       </div>
-    </>
+    </div>
   );
 }
 
-/** `starter` stays set while the dialog closes, so its content holds through the exit animation. */
-export function StarterDialog({
+/** `starter` stays set while the sheet closes, so its content holds through the exit animation. */
+export function StarterSheet({
   starter,
   open,
   onOpenChange,
@@ -402,15 +452,9 @@ export function StarterDialog({
           ref={popupRef}
           tabIndex={-1}
           initialFocus={popupRef}
-          className="bg-background ring-foreground/10 fixed top-[max(1rem,6vh)] left-1/2 z-50 max-h-[calc(100dvh-max(2rem,12vh))] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto rounded-[30px] shadow-xl ring-1 transition-[opacity,scale] duration-150 outline-none data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none"
+          className="bg-background ring-foreground/10 fixed inset-y-2 right-2 z-50 flex w-[min(48rem,calc(100vw-1rem))] flex-col overflow-hidden rounded-xl shadow-xl ring-1 transition-transform duration-200 outline-none data-ending-style:translate-x-[calc(100%+1rem)] data-starting-style:translate-x-[calc(100%+1rem)] motion-reduce:transition-none"
         >
           {starter ? <StarterDetails starter={starter} /> : null}
-          <Dialog.Close
-            aria-label="Close"
-            className="bg-background/45 text-foreground ring-foreground/10 hover:bg-background/70 focus-visible:ring-ring absolute top-5 right-5 grid size-8 cursor-pointer place-items-center rounded-full ring-1 backdrop-blur-md transition-colors outline-none focus-visible:ring-2"
-          >
-            <XIcon aria-hidden className="size-4" />
-          </Dialog.Close>
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
