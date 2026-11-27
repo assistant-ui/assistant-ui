@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runTests } from "@vscode/test-electron";
+import { PROBES } from "../src/readiness/probes.ts";
 import type { TestbedReport } from "./suite.ts";
 
 const rootDir = path.resolve(import.meta.dirname, "..");
@@ -143,6 +144,29 @@ if (report.result) {
       ...lines.map((l) => `- ${escapeCell(l)}`),
       "",
     );
+  }
+
+  const expected = new Set<string>(PROBES.map((probe) => probe.id));
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  const unknown = new Set<string>();
+  for (const { id } of results) {
+    if (seen.has(id)) duplicates.add(id);
+    if (!expected.has(id)) unknown.add(id);
+    seen.add(id);
+  }
+
+  const missing = [...expected].filter((id) => !seen.has(id));
+  for (const [label, ids] of [
+    ["Missing probes", missing],
+    ["Duplicate probes", [...duplicates]],
+    ["Unknown probes", [...unknown]],
+  ] as const) {
+    if (ids.length === 0) continue;
+    const message = `${label}: ${ids.join(", ")}`;
+    console.error(`\n${message}`);
+    summary.push(`**${escapeCell(message)}**\n`);
+    failed = true;
   }
 
   const failures = results.filter((r) => r.state !== "pass");

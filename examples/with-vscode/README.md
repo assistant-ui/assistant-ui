@@ -35,7 +35,7 @@ The webview uses `vscodeFetch` from `@assistant-ui/vscode` to tunnel requests ov
 
 Changing a setting re-creates the webview. The Readiness view runs `bridge-roundtrip`, `abort`, `frontend-tool-hitl`, `csp-zero`, `theme-follows`, `external-link`, `threads-persist`, and `chat-fixtures`. Probe definitions live in `src/readiness/probes.ts`, host probes in `src/readiness/host-probes.ts`, and webview probes in `webview/probes.ts`.
 
-`pnpm probes` builds the extension and runs probes headless through `@vscode/test-electron`. Every probe must pass; a failed probe is retried once in the same VS Code session. Results go to `test-results/probe-report.json`, VS Code logs to `test-results/logs/`, and tables to `$GITHUB_STEP_SUMMARY` when set. On Linux, run under `xvfb-run -a`.
+`pnpm probes` builds the extension and runs probes headless through `@vscode/test-electron`. The report must contain exactly one final result for each defined probe. Missing, duplicate, and unknown IDs fail the run and appear in the console and step summary. A failed probe is retried once in the same VS Code session, and its final state must pass. Results go to `test-results/probe-report.json`, VS Code logs to `test-results/logs/`, and tables to `$GITHUB_STEP_SUMMARY` when set. On Linux, run under `xvfb-run -a`.
 
 `AUI_TESTBED_VSCODE_VERSION` selects the VS Code build. The local default is `stable`; CI pins its version in `.github/workflows/vscode-test-bed.yaml` and caches that download. To bump the CI version, update that workflow and run `AUI_TESTBED_VSCODE_VERSION=<version> pnpm probes` locally.
 

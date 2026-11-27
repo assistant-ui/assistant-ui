@@ -95,6 +95,10 @@ jobs:
           cache: false
           install: false
 
+      - name: Test probe report verdicts
+        working-directory: examples/with-vscode
+        run: node --test test/run.test.mts
+
       - name: Install VS Code system libraries
         run: |
           sudo apt-get update -qq
