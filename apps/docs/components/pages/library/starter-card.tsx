@@ -1,11 +1,11 @@
 import Image from "next/image";
-import { ArrowUpRightIcon } from "lucide-react";
-import { starterSourceHref, type Starter } from "@/lib/library/starters-data";
+import { ArrowRightIcon } from "lucide-react";
+import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { StarterGlyph } from "./starter-glyphs";
 import { StarterMenu } from "./starter-menu";
 
-function StarterPreview({
+export function StarterPreview({
   starter,
   sizes,
 }: {
@@ -31,25 +31,26 @@ function StarterPreview({
 
 function StarterTitle({
   starter,
+  onSelect,
   className,
 }: {
   starter: Starter;
+  onSelect: (starter: Starter) => void;
   className?: string;
 }) {
   return (
     <div className={cn("flex items-baseline gap-1.5", className)}>
       <h3 className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-        <a
-          href={starterSourceHref(starter)}
-          target="_blank"
-          rel="noreferrer"
-          className="underline-offset-4 group-hover/navlink:underline after:absolute after:inset-0"
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => onSelect(starter)}
+          className="cursor-pointer text-left underline-offset-4 outline-none group-hover/navlink:underline after:absolute after:inset-0"
         >
           {starter.label}
-          <span className="sr-only"> source (opens in a new tab)</span>
-        </a>
+        </button>
       </h3>
-      <ArrowUpRightIcon
+      <ArrowRightIcon
         aria-hidden
         className="text-muted-foreground size-3.5 shrink-0 self-center opacity-0 transition-opacity group-hover/navlink:opacity-100 motion-reduce:transition-none"
       />
@@ -58,9 +59,14 @@ function StarterTitle({
 }
 
 const frame =
-  "bg-foreground/[0.03] group-hover/navlink:bg-foreground/[0.05] dark:bg-foreground/[0.045] dark:group-hover/navlink:bg-foreground/[0.07] group-has-[a:focus-visible]/navlink:ring-ring transition-colors group-has-[a:focus-visible]/navlink:ring-2";
+  "bg-foreground/[0.03] group-hover/navlink:bg-foreground/[0.05] dark:bg-foreground/[0.045] dark:group-hover/navlink:bg-foreground/[0.07] group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-ring transition-colors group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-2";
 
-export function StarterCard({ starter }: { starter: Starter }) {
+type StarterItemProps = {
+  starter: Starter;
+  onSelect: (starter: Starter) => void;
+};
+
+export function StarterCard({ starter, onSelect }: StarterItemProps) {
   return (
     <li
       data-nav-glyph-motion
@@ -78,7 +84,7 @@ export function StarterCard({ starter }: { starter: Starter }) {
           />
         </div>
       </div>
-      <StarterTitle starter={starter} className="mt-3.5" />
+      <StarterTitle starter={starter} onSelect={onSelect} className="mt-3.5" />
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {starter.description}
       </p>
@@ -86,7 +92,7 @@ export function StarterCard({ starter }: { starter: Starter }) {
   );
 }
 
-export function StarterRow({ starter }: { starter: Starter }) {
+export function StarterRow({ starter, onSelect }: StarterItemProps) {
   return (
     <li
       data-nav-glyph-motion
@@ -98,7 +104,7 @@ export function StarterRow({ starter }: { starter: Starter }) {
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <StarterTitle starter={starter} />
+        <StarterTitle starter={starter} onSelect={onSelect} />
         <p className="text-muted-foreground mt-0.5 truncate text-[13px]">
           {starter.description}
         </p>

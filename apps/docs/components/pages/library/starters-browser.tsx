@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useState } from "react";
 import { StarterCard, StarterRow } from "./starter-card";
+import { StarterDialog } from "./starter-dialog";
 import {
   DEFAULT_VIEW_OPTIONS,
   StartersViewMenu,
@@ -58,6 +59,12 @@ export function StartersBrowser() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<StarterTab>("all");
   const [options, setOptions] = useState(DEFAULT_VIEW_OPTIONS);
+  const [selected, setSelected] = useState<Starter | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const openDetails = (starter: Starter) => {
+    setSelected(starter);
+    setDetailsOpen(true);
+  };
   const normalized = useDeferredValue(query).trim().toLowerCase();
 
   const sections = SECTIONS.filter(
@@ -109,6 +116,11 @@ export function StartersBrowser() {
       </div>
       <LibraryCartSheet />
       <LibraryToaster />
+      <StarterDialog
+        starter={selected}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
       <p role="status" className="sr-only">
         {normalized ? `${resultCount} starters found` : ""}
       </p>
@@ -163,7 +175,11 @@ export function StartersBrowser() {
                 }
               >
                 {section.starters.map((starter) => (
-                  <Item key={starter.name} starter={starter} />
+                  <Item
+                    key={starter.name}
+                    starter={starter}
+                    onSelect={openDetails}
+                  />
                 ))}
               </ul>
             </section>
