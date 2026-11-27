@@ -117,7 +117,7 @@ test("skips blob reads when only a changeset and a nested manifest change", (t) 
   assert.equal(runScript(dir, before, "missing-head").status, 1);
 });
 
-test("compares Git snapshots and accepts only an added marked changeset for the package", (t) => {
+test("compares Git snapshots for a package in a non-ASCII directory", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const git = (...args) =>
@@ -128,8 +128,9 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
     writeFileSync(target, text);
   };
   git("init", "-q");
+  git("config", "core.quotePath", "true");
   put(
-    "packages/core/package.json",
+    "packages/café/package.json",
     JSON.stringify({ name: "@assistant-ui/core", version: "1.0.0" }),
   );
   put(
