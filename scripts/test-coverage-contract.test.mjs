@@ -298,11 +298,22 @@ test(
         .filter((pkg) => pkg === name),
       [name],
     );
-    for (const task of ["test", "test:coverage"]) {
-      assert.ok(
-        executableTasks().some((entry) => entry.taskId === `${name}#${task}`),
-        `${name}#${task} must execute`,
-      );
+    assert.ok(
+      executableTasks().some((entry) => entry.taskId === `${name}#test`),
+    );
+    const coverage = executableTasks().find(
+      (entry) => entry.taskId === `${name}#test:coverage`,
+    );
+    assert.ok(coverage);
+    assert.equal(Object.hasOwn(coverage.inputs, "README.md"), false);
+    for (const file of [
+      "lib/durable-agent.ts",
+      "lib/cloud-durable.unit.test.ts",
+      ...sharedTestInputs.map((file) =>
+        path.posix.relative(coverage.directory, file),
+      ),
+    ]) {
+      assert.ok(Object.hasOwn(coverage.inputs, file), file);
     }
   },
 );
