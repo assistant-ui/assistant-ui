@@ -186,7 +186,9 @@ const config: NextConfig = {
     define: sdkVersion ? { __AUI_PACKAGE_VERSION__: sdkVersion } : {},
   },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
-  serverExternalPackages: ["just-bash"],
+  // @farming-labs/next/mdx-plugins/rehype-code imports shiki through runtime
+  // file URLs, which Turbopack cannot bundle.
+  serverExternalPackages: ["@farming-labs/next", "just-bash"],
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
     "/[site]/docs/[[...slug]]": ["./components/diagrammatic/examples/**/*.tsx"],
