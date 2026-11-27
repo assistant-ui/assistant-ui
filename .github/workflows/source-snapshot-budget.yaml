@@ -31,5 +31,5 @@ jobs:
           node-version-file: package.json
 
       - name: Verify the docs source snapshot fits its byte budget
-        run: node scripts/generate-source-snapshot.mts
+        run: node scripts/generate-source-snapshot.mts --check
         working-directory: apps/docs

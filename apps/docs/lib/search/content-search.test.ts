@@ -89,3 +89,65 @@ describe("searchContent", () => {
     expect(searchContent(records, "   ", 5)).toEqual([]);
   });
 });
+
+describe("searchContent code identifiers", () => {
+  const pages: ContentRecord[] = [
+    {
+      url: "/docs/guides/markdown",
+      title: "Markdown",
+      description: "Render markdown.",
+      headings: [],
+      contents: ["Render markdown in messages."],
+      identifiers: [
+        "@assistant-ui/react-markdown",
+        "componentsByLanguage",
+        "onClick",
+      ],
+    },
+    {
+      url: "/docs/runtimes/ai-sdk",
+      title: "AI SDK",
+      description: "Connect the AI SDK.",
+      headings: [],
+      contents: ["Use the chat transport."],
+      identifiers: ["AssistantChatTransport"],
+    },
+  ];
+  const urls = (query: string) =>
+    searchContent(pages, query, 5, { anyToken: false }).map((page) => page.url);
+
+  it("finds a symbol that appears only in code", () => {
+    expect(urls("componentsByLanguage")).toEqual(["/docs/guides/markdown"]);
+    expect(urls("componentsbylang")).toEqual(["/docs/guides/markdown"]);
+  });
+
+  it("finds a package name", () => {
+    expect(urls("@assistant-ui/react-markdown")).toEqual([
+      "/docs/guides/markdown",
+    ]);
+  });
+
+  it("finds the documented symbol a longer name extends", () => {
+    expect(urls("AssistantChatTransportInitOptions")).toEqual([
+      "/docs/runtimes/ai-sdk",
+    ]);
+  });
+
+  it("keeps stop words in a spaced symbol name", () => {
+    expect(urls("on click")).toEqual(["/docs/guides/markdown"]);
+  });
+
+  it("finds a symbol named in a question", () => {
+    expect(urls("what is componentsByLanguage")).toEqual([
+      "/docs/guides/markdown",
+    ]);
+  });
+
+  it("extends a symbol only for a single word", () => {
+    expect(urls("AssistantChatTransport kubernetes")).toEqual([]);
+  });
+
+  it("needs more than a short fragment", () => {
+    expect(urls("comp")).toEqual([]);
+  });
+});

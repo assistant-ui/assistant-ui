@@ -10,7 +10,7 @@ assistant-ui supports realtime bidirectional voice through the `RealtimeVoiceAda
 
 For a direct browser connection to OpenAI or Google, use the built-in [OpenAI Realtime](/docs/guides/openai-realtime) or [Gemini Live](/docs/guides/gemini-live) adapter. The [LiveKit example](#example-livekit) connects through a room and agent worker.
 
-<VoiceSample />
+<VoiceSample description="A blue voice orb that cycles through the idle, connecting, listening, speaking and muted states, labeled with the current state" />
 
 ## Three voice modes
 
@@ -181,9 +181,11 @@ export class MyVoiceAdapter implements RealtimeVoiceAdapter {
 Pass a `RealtimeVoiceAdapter` implementation on the runtime:
 
 ```tsx
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+
 const runtime = useChatRuntime({
   adapters: {
-    voice: new MyVoiceAdapter({ /* provider options */ }),
+    voice: new MyVoiceAdapter(),
   },
 });
 ```

@@ -249,19 +249,27 @@ describe("readonly thread mutations", () => {
     },
   );
 
-  it("empty core mutators throw one stable error object", () => {
+  it("empty core mutators throw a new error at each call, with the caller on its stack", () => {
     const core = EMPTY_THREAD_CORE as unknown as AnyCore;
-    const thrown = THREAD_MUTATION_METHODS.map((method) => {
+    function callTooEarly(method: string) {
       try {
         core[method]!();
         return undefined;
       } catch (e) {
-        return e;
+        return e as Error;
       }
-    });
+    }
+    const thrown = THREAD_MUTATION_METHODS.map(callTooEarly);
 
     expect(thrown[0]).toBeInstanceOf(Error);
-    expect(thrown.every((e) => e === thrown[0])).toBe(true);
+    expect(new Set(thrown).size).toBe(thrown.length);
+    expect(thrown[0]!.stack).toContain("callTooEarly");
+  });
+
+  it("the empty thread error says why and what to do instead", () => {
+    expect(() => EMPTY_THREAD_CORE.append({} as never)).toThrow(
+      /until a thread's runtime has mounted[^]*event handler[^]*s\.thread\.isLoading/,
+    );
   });
 
   it("an empty core mutator throws a receiver TypeError when detached", () => {

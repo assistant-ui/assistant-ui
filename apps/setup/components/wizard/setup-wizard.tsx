@@ -66,6 +66,7 @@ import { useSyntheticProgress } from "@/components/wizard/use-synthetic-progress
 import { useElapsed } from "@/components/wizard/use-elapsed";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import {
+  AGENT_PRESENCE_MS,
   finishProposed,
   inputPrompt,
   stepActivity,
@@ -76,6 +77,29 @@ import {
 import { cn } from "@/lib/utils";
 
 const ignoreNext = () => {};
+
+/**
+ * How much longer than its presence window a quiet agent gets before the
+ * disconnected notice covers the page. An agent whose stream is not running
+ * shows up only while a setup command runs, and the work between two
+ * commands (an install, a build) often takes longer than the window.
+ */
+const AGENT_AWAY_GRACE_MS = 30_000;
+
+/** True once a quiet agent was last seen longer ago than its presence window and the grace. */
+const useAgentAway = (quiet: boolean, lastSeenAt: number | null) => {
+  const [, rerender] = useState(0);
+  const remaining =
+    quiet && lastSeenAt !== null
+      ? lastSeenAt + AGENT_PRESENCE_MS + AGENT_AWAY_GRACE_MS - Date.now()
+      : 0;
+  useEffect(() => {
+    if (remaining <= 0) return;
+    const timer = setTimeout(() => rerender((n) => n + 1), remaining);
+    return () => clearTimeout(timer);
+  }, [remaining]);
+  return quiet && remaining <= 0;
+};
 
 const listProducts = (names: string[]) =>
   new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
@@ -683,18 +707,21 @@ export function SetupWizard({
   const index = viewingIndex === -1 ? liveIndex : viewingIndex;
   const page: WizardPage = trail[index]!;
   const step = page.id;
+  const setupId = checkout.session.id;
+  const agentKind = state?.agent.kind ?? null;
+  const productSlugs = state?.products.map((product) => product.slug).join(",");
   const lastView = useRef<{ key: string; at: number } | undefined>(undefined);
   useEffect(() => {
     const previous = lastView.current;
     if (previous?.key === shownKey) return;
     const at = Date.now();
     lastView.current = { key: shownKey, at };
-    analytics.setup.stepViewed({
+    analytics.setup.stepViewed(setupId, {
       step,
       step_index: index,
       ...(previous !== undefined && { ms_on_previous_step: at - previous.at }),
     });
-  }, [shownKey, step, index]);
+  }, [shownKey, step, index, setupId]);
   const previousPhase = useRef(phase);
   useEffect(() => {
     const previous = previousPhase.current;
@@ -703,47 +730,84 @@ export function SetupWizard({
       phase === "connected" &&
       (previous === "unconnected" || previous === "waiting")
     )
-      analytics.setup.agentConnected();
-  }, [phase]);
-  const disconnected =
-    phase === "quiet" && page.id !== "connect" && !checkout.degraded;
+      analytics.setup.agentConnected(setupId, {
+        agentKind,
+        products: productSlugs ? productSlugs.split(",") : [],
+      });
+  }, [phase, setupId, agentKind, productSlugs]);
+  const agentAway = useAgentAway(
+    phase === "quiet" && !checkout.degraded,
+    state?.agent.lastSeenAt ?? null,
+  );
+  // Once the agent has proposed finishing, closing the setup no longer needs it: on whichever page the user is looking at, Finish stays reachable and the proposal says the agent left.
+  const agentFinished = state !== undefined && finishProposed(state);
+  const disconnected = agentAway && page.id !== "connect" && !agentFinished;
   const wasDegraded = useRef(false);
   useEffect(() => {
     const was = wasDegraded.current;
     wasDegraded.current = checkout.degraded;
     if (checkout.degraded && !was)
-      analytics.setup.error({ reason: "connection_lost", step });
-  }, [checkout.degraded, step]);
+      analytics.setup.error({
+        reason: "connection_lost",
+        step,
+        setup: setupId,
+        agentKind,
+      });
+  }, [checkout.degraded, step, setupId, agentKind]);
   const wasDisconnected = useRef(false);
   useEffect(() => {
     const was = wasDisconnected.current;
     wasDisconnected.current = disconnected;
     if (disconnected && !was)
-      analytics.setup.error({ reason: "agent_disconnected", step });
-  }, [disconnected, step]);
+      analytics.setup.error({
+        reason: "agent_disconnected",
+        step,
+        setup: setupId,
+        agentKind,
+      });
+  }, [disconnected, step, setupId, agentKind]);
   const reviewing = index !== liveIndex;
   const products = state?.products.length
     ? state.products.map((product) => product.name)
     : checkout.session.products;
   const productList = listProducts([...products]);
   const done = state?.status === "done";
+  // The install is finished once the agent has run `done`; closing the setup is the user's separate step.
+  const installed =
+    state !== undefined && (state.completion !== undefined || done);
+  const installedSteps = state?.steps.length ?? 0;
+  const previewed = state?.completion?.preview !== undefined;
   useEffect(() => {
-    if (done) analytics.setup.installFinished();
-  }, [done]);
+    if (!installed) return;
+    analytics.setup.installFinished(setupId, {
+      agentKind,
+      steps: installedSteps,
+      preview: previewed,
+    });
+  }, [installed, setupId, agentKind, installedSteps, previewed]);
   const exit = (finished: boolean) => {
     if (getCheckoutSession()?.id !== checkout.session.id) return;
     onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
   };
+  // The setup can close from elsewhere too: the agent answering finish, or another tab.
+  useEffect(() => {
+    if (done) analytics.setup.closed(setupId);
+  }, [done, setupId]);
   const leave = () => exit(done);
+  const close = () => {
+    analytics.setup.closed(setupId);
+    exit(true);
+  };
 
   const proposal =
     !reviewing && state !== undefined && finishProposed(state) ? (
       <FinishProposal
         checkout={checkout}
         agentName={name}
-        onClosed={() => exit(true)}
+        onClosed={close}
+        agentAway={agentAway}
       />
     ) : null;
 
@@ -856,7 +920,8 @@ export function SetupWizard({
             <FinishProposal
               checkout={checkout}
               agentName={name}
-              onClosed={() => exit(true)}
+              onClosed={close}
+              agentAway={agentAway}
               summary
             />
           ),

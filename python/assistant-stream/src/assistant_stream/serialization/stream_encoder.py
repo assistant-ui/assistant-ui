@@ -27,6 +27,15 @@ class StreamEncoder(ABC):
             return SSE_HEARTBEAT_LINE
         return None
 
+    def get_headers(self) -> dict[str, str]:
+        """
+        Returns response headers that declare the stream's protocol to the
+        client. Returns no headers (an empty dict) by default;
+        DataStreamEncoder sends the data stream header the TypeScript
+        encoder sends.
+        """
+        return {}
+
     @abstractmethod
     async def encode_stream(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]

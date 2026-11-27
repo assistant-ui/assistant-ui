@@ -8,6 +8,7 @@ export default defineConfig({
   // Template routes must share SDK module identities with the test's mocks.
   resolve: {
     alias: {
+      "ai/test": require.resolve("ai/test"),
       ai: require.resolve("ai"),
       "@ai-sdk/openai": require.resolve("@ai-sdk/openai"),
       "@assistant-ui/ai-sdk": require.resolve("@assistant-ui/ai-sdk"),

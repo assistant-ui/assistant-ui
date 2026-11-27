@@ -1,85 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
-import type { ReleaseGroup, PackageRelease } from "@/lib/releases";
 import {
-  groupByType,
-  parseRelease,
   TYPE_LABELS,
   type ChangeType,
   type ParsedBullet,
 } from "@/lib/changelog-parse";
+import type { ChangelogDay, ChangelogRelease } from "@/lib/changelog-pages";
 import { cn } from "@/lib/utils";
 
-const QUIET_TYPES: ReadonlySet<ChangeType> = new Set([
-  "chore",
-  "ci",
-  "build",
-  "test",
-  "style",
-  "other",
-]);
-
+// Days are grouped by their UTC date, so they print in UTC too. Printed in
+// the reader's zone, a day would read as the one before it west of UTC, and
+// the client's text would differ from the server's (React error #418).
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
-}
-
-function extractChangeType(
-  markdown: string,
-): "major" | "minor" | "patch" | null {
-  const match = markdown.match(/^#{1,6}\s+(Major|Minor|Patch)\s+Changes/im);
-  if (!match) return null;
-  return match[1]!.toLowerCase() as "major" | "minor" | "patch";
-}
-
-function plainText(markdown: string): string {
-  return markdown.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[`*_]/g, "");
-}
-
-type ReleaseInfo = {
-  release: PackageRelease;
-  preamble: string | null;
-  groups: { type: ChangeType; items: ParsedBullet[] }[];
-  semver: "major" | "minor" | "patch" | null;
-  count: number;
-  quiet: boolean;
-  headline: string;
-};
-
-function buildInfo(release: PackageRelease): ReleaseInfo {
-  const parsed = parseRelease(release.body);
-  const groups = groupByType(parsed.bullets);
-  const semver = extractChangeType(release.body);
-  const count = parsed.bullets.length;
-  const notable = semver === "major" || semver === "minor";
-  const quiet =
-    !notable &&
-    (parsed.bullets.length === 0
-      ? true
-      : parsed.bullets.every((bullet) => QUIET_TYPES.has(bullet.type)));
-  const headlineBullet =
-    groups.find((group) => !QUIET_TYPES.has(group.type))?.items[0] ??
-    groups[0]?.items[0];
-  const headline = headlineBullet
-    ? plainText(headlineBullet.description)
-    : parsed.preamble
-      ? plainText(parsed.preamble.split("\n")[0] ?? "")
-      : "";
-  return {
-    release,
-    preamble: parsed.preamble,
-    groups,
-    semver,
-    count,
-    quiet,
-    headline,
-  };
 }
 
 const inlineMarkdownComponents: Components = {
@@ -257,8 +198,7 @@ function TypeGroup({
   );
 }
 
-function ReleaseEntry({ info }: { info: ReleaseInfo }) {
-  const { release } = info;
+function ReleaseEntry({ release }: { release: ChangelogRelease }) {
   return (
     <details className="group/release">
       <summary className="flex cursor-pointer list-none items-baseline gap-3 py-2 [&::-webkit-details-marker]:hidden">
@@ -269,34 +209,34 @@ function ReleaseEntry({ info }: { info: ReleaseInfo }) {
           <span className="text-foreground/70">{release.pkg}</span>
           <span className="font-medium">@{release.version}</span>
         </span>
-        {info.semver === "major" ? (
+        {release.semver === "major" ? (
           <span className="text-destructive shrink-0 text-xs font-medium">
             Major
           </span>
-        ) : info.semver === "minor" ? (
+        ) : release.semver === "minor" ? (
           <span className="shrink-0 text-xs font-medium">Minor</span>
         ) : null}
         <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm group-open/release:opacity-0">
-          {info.headline}
+          {release.headline}
         </span>
-        {info.count > 0 ? (
+        {release.count > 0 ? (
           <span className="text-muted-foreground/50 shrink-0 text-xs tabular-nums max-md:hidden">
-            {info.count} {info.count === 1 ? "change" : "changes"}
+            {release.count} {release.count === 1 ? "change" : "changes"}
           </span>
         ) : null}
       </summary>
       <div className="mt-3 mb-6 ml-6 flex flex-col gap-6">
-        {info.preamble ? (
+        {release.preamble ? (
           <div className="text-muted-foreground text-sm">
             <ReactMarkdown components={bodyMarkdownComponents}>
-              {info.preamble}
+              {release.preamble}
             </ReactMarkdown>
           </div>
         ) : null}
-        {info.groups.map(({ type, items }) => (
+        {release.groups.map(({ type, items }) => (
           <TypeGroup key={type} type={type} items={items} />
         ))}
-        {info.groups.length === 0 && !info.preamble ? (
+        {release.groups.length === 0 && !release.preamble ? (
           <p className="text-muted-foreground text-sm">No notes.</p>
         ) : null}
         <a
@@ -313,7 +253,7 @@ function ReleaseEntry({ info }: { info: ReleaseInfo }) {
   );
 }
 
-function QuietGroup({ infos }: { infos: ReleaseInfo[] }) {
+function QuietGroup({ releases }: { releases: ChangelogRelease[] }) {
   return (
     <details className="group/quiet">
       <summary className="flex cursor-pointer list-none items-baseline gap-3 py-2 [&::-webkit-details-marker]:hidden">
@@ -321,18 +261,18 @@ function QuietGroup({ infos }: { infos: ReleaseInfo[] }) {
           &gt;
         </span>
         <span className="text-muted-foreground/70 text-[13px]">
-          {infos.length} maintenance{" "}
-          {infos.length === 1 ? "release" : "releases"}
+          {releases.length} maintenance{" "}
+          {releases.length === 1 ? "release" : "releases"}
         </span>
         <span className="text-muted-foreground/50 min-w-0 flex-1 truncate text-sm">
           dependency updates and chores
         </span>
       </summary>
       <div className="mt-1 mb-4 ml-6 flex flex-col">
-        {infos.map((info) => (
+        {releases.map((release) => (
           <ReleaseEntry
-            key={`${info.release.pkg}@${info.release.version}`}
-            info={info}
+            key={`${release.pkg}@${release.version}`}
+            release={release}
           />
         ))}
       </div>
@@ -340,41 +280,40 @@ function QuietGroup({ infos }: { infos: ReleaseInfo[] }) {
   );
 }
 
-function DateSection({ group }: { group: ReleaseGroup }) {
-  const infos = useMemo(() => group.releases.map(buildInfo), [group.releases]);
-  const loud = infos.filter((info) => !info.quiet);
-  const quiet = infos.filter((info) => info.quiet);
+function DateSection({ day }: { day: ChangelogDay }) {
+  const loud = day.releases.filter((release) => !release.quiet);
+  const quiet = day.releases.filter((release) => release.quiet);
 
   return (
     <section className="border-foreground/10 border-b py-8 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-10">
       <div className="mb-5 md:sticky md:top-24 md:mb-0 md:self-start">
         <h2 className="text-[15px] font-medium tracking-tight">
-          {formatDate(group.date)}
+          {formatDate(day.date)}
         </h2>
         <p className="text-muted-foreground/70 mt-1.5 text-xs tabular-nums">
-          {group.releases.length}{" "}
-          {group.releases.length === 1 ? "release" : "releases"}
+          {day.releases.length}{" "}
+          {day.releases.length === 1 ? "release" : "releases"}
         </p>
       </div>
 
       <div className="-my-2 flex flex-col">
-        {loud.map((info) => (
+        {loud.map((release) => (
           <ReleaseEntry
-            key={`${info.release.pkg}@${info.release.version}`}
-            info={info}
+            key={`${release.pkg}@${release.version}`}
+            release={release}
           />
         ))}
-        {quiet.length > 0 ? <QuietGroup infos={quiet} /> : null}
+        {quiet.length > 0 ? <QuietGroup releases={quiet} /> : null}
       </div>
     </section>
   );
 }
 
-export function ChangelogList({ groups }: { groups: ReleaseGroup[] }) {
+export function ChangelogList({ days }: { days: ChangelogDay[] }) {
   return (
     <div className="border-foreground/10 border-t">
-      {groups.map((group) => (
-        <DateSection key={group.date} group={group} />
+      {days.map((day) => (
+        <DateSection key={day.date} day={day} />
       ))}
     </div>
   );

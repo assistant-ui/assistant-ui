@@ -2,20 +2,22 @@
   "pages": [
     "(before-you-start)",
     "(getting-started)",
+    "recipes",
     "react-native",
     "ink",
     "vue",
     "tap",
     "store",
+    "concepts",
+    "runtimes",
     "guides",
     "tools",
     "primitives",
-    "runtimes",
     "integrations",
     "cloud",
+    "copilots",
     "utilities",
     "migrations",
-    "copilots",
     "(reference)"
   ]
 }

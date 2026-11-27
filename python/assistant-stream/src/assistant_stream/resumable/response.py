@@ -32,7 +32,7 @@ async def create_resumable_assistant_stream_response(
     return StreamingResponse(
         body,
         media_type=resolved_encoder.get_media_type(),
-        headers=_merge_headers(headers, stream_id),
+        headers=_merge_headers(resolved_encoder, headers, stream_id),
     )
 
 
@@ -59,17 +59,27 @@ async def create_resume_assistant_stream_response(
     return StreamingResponse(
         body,
         media_type=resolved_encoder.get_media_type(),
-        headers=_merge_headers(headers, stream_id),
+        headers=_merge_headers(resolved_encoder, headers, stream_id),
     )
 
 
 def _merge_headers(
-    extra: Mapping[str, str] | None, stream_id: str
+    encoder: StreamEncoder, extra: Mapping[str, str] | None, stream_id: str
 ) -> dict[str, str]:
+    # Header names are case-insensitive: a caller's header replaces the
+    # encoder's of the same name in any case, and the stream id always wins.
     merged: dict[str, str] = {}
+
+    def put(key: str, value: str) -> None:
+        for existing in [k for k in merged if k.lower() == key.lower()]:
+            del merged[existing]
+        merged[key] = value
+
+    for key, value in encoder.get_headers().items():
+        put(key, value)
     if extra is not None:
         for key, value in extra.items():
             if key.lower() != RESUMABLE_STREAM_ID_HEADER:
-                merged[key] = value
-    merged[RESUMABLE_STREAM_ID_HEADER] = stream_id
+                put(key, value)
+    put(RESUMABLE_STREAM_ID_HEADER, stream_id)
     return merged

@@ -1,15 +1,8 @@
 {
   "title": "Getting Started",
-  "description": "Install assistant-ui in a React app, then the CLI, RTL, component flavors, and DevTools.",
+  "description": "Install assistant-ui in a React app, by asking your coding agent or by hand, and the CLI that manages it.",
   "icon": "Rocket",
   "root": true,
   "platforms": ["react"],
-  "pages": [
-    "installation",
-    "manual-installation",
-    "cli",
-    "rtl",
-    "base-ui",
-    "devtools"
-  ]
+  "pages": ["installation", "manual-installation", "cli"]
 }

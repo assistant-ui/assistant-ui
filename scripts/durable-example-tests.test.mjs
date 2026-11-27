@@ -35,6 +35,8 @@ for (const event of ["pull_request", "push"]) {
           ? !negative
           : included;
       }, false);
+    const readme = "examples/with-pydantic-ai-durable/README.md";
+    assert.equal(runsFor(readme), false, readme);
     for (const file of [
       "examples/with-pydantic-ai-durable/lib/durable-agent.ts",
       "examples/with-pydantic-ai-durable/lib/durable-agent.e2e.test.tsx",
@@ -63,6 +65,7 @@ for (const event of ["pull_request", "push"]) {
       "python/assistant-ui-sync-server-api/pyproject.toml",
       "packages/react/src/index.test.ts",
       "packages/react/src/index.test.tsx",
+      "packages/core/README.md",
     ]) {
       assert.equal(runsFor(file), false, file);
     }
@@ -77,7 +80,11 @@ for (const event of ["pull_request", "push"]) {
         .sort(),
       workspaceInputs(root, pkg).map(posixPath),
     );
-    const exclusions = ["!packages/**/*.test.ts", "!packages/**/*.test.tsx"];
+    const exclusions = [
+      "!packages/**/*.test.ts",
+      "!packages/**/*.test.tsx",
+      "!packages/**/README.md",
+    ];
     assert.deepEqual(
       paths.filter((pattern) => pattern.startsWith("!packages/")),
       exclusions,

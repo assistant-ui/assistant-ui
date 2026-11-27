@@ -103,7 +103,17 @@ function fixture(t) {
   git("init", "-q");
   commit();
   git("update-ref", "refs/remotes/origin/main", "HEAD");
-  return { root, write, git, commit };
+  const metrics = (...args) =>
+    spawnSync(process.execPath, ["scripts/template-metrics.mjs", ...args], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        MAX_LOC_INCREASE: "50",
+        MAX_LOC_HARD_INCREASE: "300",
+      },
+    });
+  return { root, write, git, commit, metrics };
 }
 
 function buildsBundles(root, templates = "default minimal") {
@@ -135,6 +145,29 @@ function buildsBundles(root, templates = "default minimal") {
   return run === "run=true";
 }
 
+for (const [file, runsWorkflow, runsBuild] of [
+  ["pnpm-lock.yaml", true, true],
+  ["pnpm-workspace.yaml", true, true],
+  ["package.json", true, true],
+  ["templates/default/app.ts", true, true],
+  ["templates/nuxt/app.ts", true, false],
+  ["apps/docs/content/index.mdx", false, false],
+]) {
+  test(`template metrics selection for a PR changing only ${file}`, (t) => {
+    const trigger = workflow.match(/^  pull_request:\n(?:    .*\n)*/m)[0];
+    const paths = trigger.match(/^    paths:\n((?:      - .*\n)+)/m)[1];
+    const included = [...paths.matchAll(/^      - "(.+)"$/gm)].some(
+      ([, pattern]) => path.posix.matchesGlob(file, pattern),
+    );
+    assert.equal(included, runsWorkflow);
+
+    const { root, write, commit } = fixture(t);
+    write(file, "{}\n");
+    commit();
+    assert.equal(included && buildsBundles(root), runsBuild);
+  });
+}
+
 test("unrelated template edits skip bundle builds while the selected subset still builds", (t) => {
   const { root, write, commit } = fixture(t);
   write("templates/nuxt/app.ts", "export const title = 'Nuxt chat';\n");
@@ -163,6 +196,121 @@ for (const file of [
     } else write(file, "export const changed = true;\n");
     commit();
     assert.equal(buildsBundles(root), true);
+  });
+}
+
+for (const [kind, entry, expectedUiLoc] of [
+  ["static", 'export { chart } from "@/ui/chart";', 301],
+  ["lazy alias", 'export const chart = () => import("@/ui/chart");', 301],
+  ["lazy alias after a comment", 'void import(/* chunk */ "@/ui/chart");', 301],
+  ["relative lazy dependency reached twice", 'import "@/ui/barrel";', 302],
+  [
+    "lazy import after a regular expression containing a backtick",
+    [
+      "const heading = /^[\\s#>*`-]+/;",
+      'const load = () => import("@/ui/chart");',
+      "const label = `chart`;",
+    ].join("\n"),
+    301,
+  ],
+  [
+    "static re-export after a regular expression containing a backtick",
+    'const fence = /`/; export { chart } from "@/ui/chart"; const label = `chart`;',
+    301,
+  ],
+  [
+    "lazy import with a plain template literal",
+    "const load = () => import(`@/ui/chart`);",
+    301,
+  ],
+  [
+    "lazy import with a literal dollar in a template literal",
+    "const load = () => import(`@/ui/$chart`);",
+    301,
+  ],
+  [
+    "lazy import with an interpolated template literal",
+    "const load = (name) => import(`@/ui/${name}`);",
+    0,
+  ],
+  [
+    "a long run of slashes before an import",
+    [
+      `import ${"/".repeat(5000)}`,
+      'const load = () => import("@/ui/chart");',
+    ].join("\n"),
+    301,
+  ],
+  [
+    "import-like text in comments",
+    ['// import("@/ui/chart")', '/* import("@/ui/chart") */'].join("\n"),
+    301,
+  ],
+  [
+    "import-like text in strings",
+    [
+      `const example = 'import("@/ui/chart")';`,
+      'const docs = `Use import("@/ui/chart")`;',
+    ].join("\n"),
+    301,
+  ],
+  [
+    "nonliteral imports and property calls",
+    [
+      'const path = "@/ui/chart";',
+      "void import(path);",
+      'void import("@/ui/chart" + suffix);',
+      'loader.import("@/ui/chart");',
+    ].join("\n"),
+    0,
+  ],
+]) {
+  test(`template footprint measures ${expectedUiLoc} UI LOC for ${kind}`, (t) => {
+    const { root, write, commit } = fixture(t);
+    write(
+      "templates/default/tsconfig.json",
+      JSON.stringify({
+        compilerOptions: { paths: { "@/ui/*": ["../../packages/ui/*"] } },
+      }),
+    );
+    write(
+      "packages/ui/chart.ts",
+      "export const chart = 1;\n" + "// chart\n".repeat(300),
+    );
+    write(
+      "packages/ui/$chart.ts",
+      "export const chart = 1;\n" + "// chart\n".repeat(300),
+    );
+    write(
+      "packages/ui/barrel.ts",
+      "export const load = () => Promise.all([import( /* chunk */ './chart' ), import('./chart')]);\n",
+    );
+    write("templates/default/app.ts", entry);
+    commit();
+
+    const script = "scripts/template-metrics.mjs";
+    execFileSync(process.execPath, [script, "measure", ".", "head.json"], {
+      cwd: root,
+    });
+    const rows = JSON.parse(readFileSync(path.join(root, "head.json"), "utf8"));
+    assert.equal(
+      rows.find(({ name }) => name === "default").uiLoc,
+      expectedUiLoc,
+    );
+
+    const check = spawnSync(process.execPath, [script, "check", "."], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, MAX_LOC_HARD_INCREASE: "300" },
+    });
+    const expectedDelta = expectedUiLoc + entry.split("\n").length - 1;
+    assert.equal(
+      check.status,
+      expectedDelta > 300 ? 1 : 0,
+      check.stdout + check.stderr,
+    );
+    if (expectedDelta > 300)
+      assert.ok(check.stderr.includes(`default: +${expectedDelta} LOC > 300`));
   });
 }
 
@@ -204,7 +352,7 @@ test("only dependency setup and bundle builds are conditional; LOC measurement a
 });
 
 test("an unmeasured template still contributes LOC, a report, and footprint failures", (t) => {
-  const { root, write, commit } = fixture(t);
+  const { root, write, commit, metrics } = fixture(t);
   write(
     "templates/nuxt/app.ts",
     Array.from(
@@ -214,16 +362,6 @@ test("an unmeasured template still contributes LOC, a report, and footprint fail
   );
   commit();
   assert.equal(buildsBundles(root), false);
-  const metrics = (...args) =>
-    spawnSync(process.execPath, ["scripts/template-metrics.mjs", ...args], {
-      cwd: root,
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        MAX_LOC_INCREASE: "50",
-        MAX_LOC_HARD_INCREASE: "300",
-      },
-    });
   for (const args of [
     ["measure", ".", "head.json"],
     ["measure-base", ".", "base.json"],
@@ -276,6 +414,32 @@ for (const extension of ["vue", "mts", "cts"]) {
       },
     );
     assert.equal(check.status, 1, check.stdout + check.stderr);
+    assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
+  });
+}
+
+for (const filename of ["cafe.ts", "café.ts"]) {
+  test(`template footprint counts 301 added lines in ${filename}`, (t) => {
+    const { root, write, git, commit, metrics } = fixture(t);
+    git("config", "--local", "core.quotePath", "true");
+    write(
+      `templates/nuxt/${filename}`,
+      Array.from(
+        { length: 301 },
+        (_, i) => `export const value${i} = ${i};\n`,
+      ).join(""),
+    );
+    commit();
+
+    const measure = metrics("measure", ".", "head.json");
+    assert.equal(measure.status, 0, measure.stderr);
+    const head = JSON.parse(readFileSync(path.join(root, "head.json"), "utf8"));
+    const { ownLoc } = head.find(({ name }) => name === "nuxt");
+    const check = metrics("check", ".");
+    assert.deepEqual(
+      { ownLoc, status: check.status },
+      { ownLoc: 302, status: 1 },
+    );
     assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
   });
 }

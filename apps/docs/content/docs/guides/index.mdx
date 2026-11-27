@@ -1,14 +1,24 @@
 ---
 title: Guides
-description: Practical recipes for building AI chat features in React with assistant-ui — attachments, branching, multi-agent, voice, slash commands, generative UI, and more.
+description: "Practical recipes for building AI chat features in React with assistant-ui: styling and themes, attachments, branching, voice, slash commands, part grouping, resumable streams, and more."
 platforms: ["react"]
 ---
 
 Guides are task-oriented walkthroughs for building specific features on top of assistant-ui. They sit between the [Primitives](/docs/primitives) (low-level building blocks) and [Components](/elements/thread) (pre-styled installs). Pick a guide when you know what you want to build and need the recommended pattern.
 
+## Look and feel
+
+Make the chat look like your product.
+
+<Cards>
+  <Card title="Styling, Themes and Dark Mode" href="/docs/guides/styling">
+    Theme colors, radius and fonts with CSS variables, edit the components you own, swap in your own, style by state, dark mode, and styling without Tailwind.
+  </Card>
+</Cards>
+
 ## Composer
 
-Extend the message input with file attachments, mentions, slash commands, voice, and quoting.
+Extend the message input with file attachments, mentions, slash commands, input history, quoting, and dictation, or bring your own input.
 
 <Cards>
   <Card title="Attachments" href="/docs/guides/attachments">
@@ -20,11 +30,14 @@ Extend the message input with file attachments, mentions, slash commands, voice,
   <Card title="Slash Commands" href="/docs/guides/slash-commands">
     `/`-style commands with arguments, async loading, and combining with mentions.
   </Card>
+  <Card title="Input History" href="/docs/guides/input-history">
+    Recall earlier messages with ArrowUp and ArrowDown in an empty composer, like a shell prompt, with `unstable_useComposerInputHistory`.
+  </Card>
+  <Card title="Headless Composer Input" href="/docs/guides/headless-composer-input">
+    Bring your own editor or textarea and keep composer state and send gating through `unstable_useComposerInput`.
+  </Card>
   <Card title="Quoting" href="/docs/guides/quoting">
     Selection toolbar, programmatic `setQuote`, and forwarding quote context to the LLM.
-  </Card>
-  <Card title="Dictation" href="/docs/guides/dictation">
-    Speech-to-text into the composer using `DictationAdapter` and `ComposerPrimitive.Dictate`.
   </Card>
 </Cards>
 
@@ -45,6 +58,9 @@ Customize how messages render, are edited, branched, and suggested.
   <Card title="Message Timing" href="/docs/guides/message-timing">
     Display response duration and stream timing with `useMessageTiming` (experimental).
   </Card>
+  <Card title="Part Grouping" href="/docs/guides/part-grouping">
+    Group adjacent parts, such as reasoning steps and tool calls, with `MessagePrimitive.GroupedParts` and `groupPartByType`.
+  </Card>
 </Cards>
 
 ## Tools & Generative UI
@@ -62,6 +78,9 @@ Tool calling and generative UI have their own [Tools](/docs/tools) section, whic
 Render specialized message content.
 
 <Cards>
+  <Card title="Image Generation" href="/docs/guides/image-generation">
+    Generate images in your backend, store each as an `ImageMessagePart`, and render it with the `Image` component.
+  </Card>
   <Card title="Chain of Thought" href="/docs/guides/chain-of-thought">
     Display the assistant's reasoning steps in a collapsible accordion.
   </Card>
@@ -71,9 +90,15 @@ Render specialized message content.
   <Card title="Thread Virtualization" href="/docs/guides/virtualization">
     Render very long threads with @tanstack/react-virtual and per-index message rendering.
   </Card>
+  <Card title="Custom Scrollbar" href="/docs/guides/scrollbar">
+    Replace the viewport's system scrollbar with the Radix UI Scroll Area.
+  </Card>
+  <Card title="Streamdown" href="/docs/guides/streamdown">
+    Render streaming markdown with Shiki highlighting, KaTeX math, and Mermaid diagrams through `@assistant-ui/react-streamdown`.
+  </Card>
 </Cards>
 
-## Audio
+## Voice and speech
 
 Voice input and output.
 
@@ -81,8 +106,17 @@ Voice input and output.
   <Card title="Voice" href="/docs/guides/voice">
     Realtime bidirectional audio with `RealtimeVoiceAdapter` and `createVoiceSession`.
   </Card>
+  <Card title="OpenAI Realtime" href="/docs/guides/openai-realtime">
+    Connect the microphone straight to OpenAI Realtime over WebRTC with `OpenAIRealtimeVoiceAdapter`.
+  </Card>
+  <Card title="Gemini Live" href="/docs/guides/gemini-live">
+    Connect the microphone straight to the Gemini Live API over a WebSocket with `GeminiLiveVoiceAdapter`.
+  </Card>
   <Card title="Speech" href="/docs/guides/speech">
     Text-to-speech for assistant messages via `SpeechSynthesisAdapter`.
+  </Card>
+  <Card title="Dictation" href="/docs/guides/dictation">
+    Speech-to-text into the composer using `DictationAdapter` and `ComposerPrimitive.Dictate`.
   </Card>
 </Cards>
 
@@ -91,7 +125,7 @@ Voice input and output.
 Read and drive runtime state from your own code.
 
 <Cards>
-  <Card title="Context API" href="/docs/guides/context-api">
+  <Card title="Context API" href="/docs/concepts/context-api">
     Access threads, messages, composer, and tool state via `useAui` and the runtime scope tree.
   </Card>
   <Card title="State Outside the Thread" href="/docs/guides/state-outside-the-thread">
@@ -122,5 +156,37 @@ Run assistant-ui outside a conventional browser deployment.
   </Card>
   <Card title="VS Code" href="/docs/guides/vscode">
     Run assistant-ui in a VS Code extension webview, with route handlers in the extension host.
+  </Card>
+</Cards>
+
+## Resilience
+
+Pick up an in-flight response after a reload or a dropped connection.
+
+<Cards>
+  <Card title="Resumable Streams" href="/docs/guides/resumable-streams">
+    Persist an in-flight response on the server so a reload, a dropped connection, or a new tab picks up the same stream.
+  </Card>
+  <Card title="Custom Resumable Stream Stores" href="/docs/guides/resumable-stream-stores">
+    Implement `ResumableStreamStore` to keep streams in Postgres, Durable Objects, or another backend you run.
+  </Card>
+  <Card title="Resumable Stream Deployment" href="/docs/guides/resumable-stream-deployment">
+    Authorization, serverless lifetimes, TTLs, and limits to set before resumable streams serve production traffic.
+  </Card>
+</Cards>
+
+## Setup and debugging
+
+Choose the component flavor, support right-to-left languages, and inspect the runtime while you build.
+
+<Cards>
+  <Card title="Radix UI and Base UI" href="/docs/guides/base-ui">
+    How the component registry serves Radix UI and Base UI flavored components for every shadcn style.
+  </Card>
+  <Card title="RTL Support" href="/docs/guides/rtl">
+    Use assistant-ui with right-to-left languages like Arabic, Hebrew, and Persian.
+  </Card>
+  <Card title="DevTools" href="/docs/guides/devtools">
+    Inspect runtime state, context, and events in the browser.
   </Card>
 </Cards>

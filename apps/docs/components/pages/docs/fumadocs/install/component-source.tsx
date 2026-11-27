@@ -285,6 +285,35 @@ export async function resolveAllComponents(
   return result;
 }
 
+/**
+ * The source travels to the client once, as the highlighter's input. The copy
+ * button reads the rendered code instead of taking its own copy, because these
+ * files run to tens of kilobytes and a page can list a dozen of them per
+ * flavor.
+ */
+function SourceBlock({
+  title,
+  path: filePath,
+  content,
+  collapsible,
+}: {
+  title: string;
+  path: string;
+  content: string;
+  collapsible: boolean;
+}) {
+  const code = content.replaceAll("export default", "export");
+  const lang = (filePath.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
+
+  const block = (
+    <CodeBlock title={title} viewportClassName="max-h-[450px]">
+      <Highlight language={lang} code={code} />
+    </CodeBlock>
+  );
+
+  return collapsible ? <CodeCollapsible>{block}</CodeCollapsible> : block;
+}
+
 export async function ComponentSource({
   name,
   title,
@@ -306,29 +335,15 @@ export async function ComponentSource({
     );
   }
 
-  let code = item.files[0].content;
   const filePath = item.files[0].target ?? item.files[0].path;
-
-  code = code.replaceAll("export default", "export");
-
-  const lang = (filePath.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
-  const displayTitle = title ?? filePath;
-
-  const content = (
-    <CodeBlock
-      title={displayTitle}
-      copyText={code}
-      viewportClassName="max-h-[450px]"
-    >
-      <Highlight language={lang} code={code} />
-    </CodeBlock>
+  return (
+    <SourceBlock
+      title={title ?? filePath}
+      path={filePath}
+      content={item.files[0].content}
+      collapsible={collapsible}
+    />
   );
-
-  if (!collapsible) {
-    return content;
-  }
-
-  return <CodeCollapsible code={code}>{content}</CodeCollapsible>;
 }
 
 export function ComponentSourceFromFile({
@@ -338,25 +353,12 @@ export function ComponentSourceFromFile({
   file: Pick<ResolvedFile, "name" | "path" | "content">;
   collapsible?: boolean;
 }) {
-  let code = file.content;
-
-  code = code.replaceAll("export default", "export");
-
-  const lang = (file.path.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
-
-  const content = (
-    <CodeBlock
+  return (
+    <SourceBlock
       title={file.path}
-      copyText={code}
-      viewportClassName="max-h-[450px]"
-    >
-      <Highlight language={lang} code={code} />
-    </CodeBlock>
+      path={file.path}
+      content={file.content}
+      collapsible={collapsible}
+    />
   );
-
-  if (!collapsible) {
-    return content;
-  }
-
-  return <CodeCollapsible code={code}>{content}</CodeCollapsible>;
 }

@@ -86,7 +86,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-Approval gates require a runtime that emits them; the AI SDK v7 runtime does for `toolApproval`-gated tools, and `LocalRuntime` does for gates your `ChatModelAdapter` emits.
+Approval gates require a runtime that emits them; the AI SDK v7 runtime does for `toolApproval`-gated tools, and `LocalRuntime` does for gates your `ChatModelAdapter` emits. With `useChatRuntime` and no `onRespondToToolApproval` handler, also set `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` from `ai`, or the run stays paused after the user answers; see [AI SDK v7 server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 
   </Step>
 </Steps>

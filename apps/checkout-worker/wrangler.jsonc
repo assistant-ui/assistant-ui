@@ -8,9 +8,19 @@
   // keeps checkout.assistant-ui.com, where the agent and the browser meet.
   "routes": [{ "pattern": "checkout.assistant-ui.com", "custom_domain": true }],
   "durable_objects": {
-    "bindings": [{ "name": "CHECKOUT", "class_name": "CheckoutDO" }],
+    "bindings": [
+      { "name": "CHECKOUT", "class_name": "CheckoutDO" },
+      // One object keeps the anonymous stage counts (src/stage-counts.ts).
+      { "name": "SETUP_STATS", "class_name": "SetupStatsDO" },
+    ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CheckoutDO"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["CheckoutDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["SetupStatsDO"] },
+  ],
+  // Sends PostHog each finished day's stage counts. The project key is the
+  // POSTHOG_API_KEY secret; without it the counts are kept and not sent.
+  "triggers": { "crons": ["17 * * * *"] },
   // Requests to links that hold no setup yet, per client IP. Opening a link
   // and creating its setup takes a few; the rest of a setup is not counted.
   "ratelimits": [

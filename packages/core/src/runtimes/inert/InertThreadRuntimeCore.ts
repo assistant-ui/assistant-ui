@@ -7,19 +7,23 @@ import type {
 import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import { BaseSubscribable } from "../../subscribable/subscribable";
 
+/**
+ * `createError` runs at each throw, so the error's stack includes the frame of
+ * the code that made the call, not only the module that defined the message.
+ */
 export const createInertComposer = <TIsEditing extends boolean>(
-  error: Error,
+  createError: () => Error,
   isEditing: TIsEditing,
 ) => ({
   attachments: [] as never[],
   attachmentAccept: "*",
 
   async addAttachment() {
-    throw error;
+    throw createError();
   },
 
   async removeAttachment() {
-    throw error;
+    throw createError();
   },
 
   isEditing,
@@ -29,19 +33,19 @@ export const createInertComposer = <TIsEditing extends boolean>(
   text: "",
 
   setText() {
-    throw error;
+    throw createError();
   },
 
   role: "user" as const,
 
   setRole() {
-    throw error;
+    throw createError();
   },
 
   runConfig: {},
 
   setRunConfig() {
-    throw error;
+    throw createError();
   },
 
   async reset() {},
@@ -49,7 +53,7 @@ export const createInertComposer = <TIsEditing extends boolean>(
   async clearAttachments() {},
 
   send() {
-    throw error;
+    throw createError();
   },
 
   cancel() {},
@@ -61,7 +65,7 @@ export const createInertComposer = <TIsEditing extends boolean>(
   dictation: undefined,
 
   startDictation() {
-    throw error;
+    throw createError();
   },
 
   stopDictation() {},
@@ -69,7 +73,7 @@ export const createInertComposer = <TIsEditing extends boolean>(
   quote: undefined,
 
   setQuote() {
-    throw error;
+    throw createError();
   },
 
   subscribe() {

@@ -1,0 +1,495 @@
+---
+title: Thread list adapters
+description: "The contracts behind a thread list you store yourself: RemoteThreadListAdapter for your own database, ExternalStoreThreadListAdapter for your own store, and the cases a production list has to handle."
+---
+
+These adapters connect the thread list to storage you own. Read [Threads](/docs/concepts/threads) first for what a thread list is and when you need one; [custom thread persistence](/docs/integrations/persistence/custom-adapter) is a worked example with Postgres.
+
+## RemoteThreadListRuntime (custom database)
+
+`useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads. Keep that adapter reference stable across renders (module scope or `useMemo`). Replacing it with a different backing store (or a new object without `storeKey`) reloads the list, drops cached threads that are not in the replacement page, and stops applying in-flight mutations from the previous adapter. On the `RemoteThreadList` client, set `storeKey` when you recreate the adapter for the same store so in-flight mutations keep their optimistic updates. Derive the key from everything that scopes the store, such as the account, workspace, and endpoint: a constant key carries the previous store's pending mutations into the new one. `storeKey` has no effect when `useRemoteThreadListRuntime` mounts with an adapter that has `unstable_Provider`, because that runtime runs on the deprecated class core.
+
+`runtimeHook` accepts any runtime hook, such as `useLocalRuntime`, `useDataStreamRuntime`, or `useChatRuntime`.
+
+```tsx title="app/MyProvider.tsx"
+"use client";
+
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  useRemoteThreadListRuntime,
+  type RemoteThreadListAdapter,
+} from "@assistant-ui/react";
+import { createAssistantStream } from "assistant-stream";
+import { modelAdapter } from "./model-adapter";
+
+const adapter: RemoteThreadListAdapter = {
+  async list() {
+    const threads = await fetch("/api/threads").then((r) => r.json());
+    return {
+      threads: threads.map((t: any) => ({
+        status: t.archived ? "archived" : "regular",
+        remoteId: t.id,
+        title: t.title,
+      })),
+    };
+  },
+  async initialize(localId, options) {
+    const t = await fetch("/api/threads", {
+      method: "POST",
+      body: JSON.stringify({ localId, custom: options?.custom }),
+    }).then((r) => r.json());
+    return { remoteId: t.id };
+  },
+  async rename(remoteId, title) {
+    await fetch(`/api/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+  },
+  async archive(remoteId) {
+    await fetch(`/api/threads/${remoteId}/archive`, { method: "POST" });
+  },
+  async unarchive(remoteId) {
+    await fetch(`/api/threads/${remoteId}/unarchive`, { method: "POST" });
+  },
+  async delete(remoteId) {
+    await fetch(`/api/threads/${remoteId}`, { method: "DELETE" });
+  },
+  async fetch(remoteId) {
+    const t = await fetch(`/api/threads/${remoteId}`).then((r) => r.json());
+    return {
+      status: t.archived ? "archived" : "regular",
+      remoteId: t.id,
+      title: t.title,
+    };
+  },
+  async generateTitle(remoteId, messages) {
+    return createAssistantStream(async (controller) => {
+      const { title } = await fetch(`/api/threads/${remoteId}/title`, {
+        method: "POST",
+        body: JSON.stringify({ messages }),
+      }).then((r) => r.json());
+      controller.appendText(title);
+    });
+  },
+};
+
+export function MyProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: () => useLocalRuntime(modelAdapter),
+    adapter,
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### Persisting messages
+
+`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments come from `unstable_useAdapters`. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host, and `useRemoteThreadListRuntime` calls it for each hosted thread unless it mounts with an adapter that has `unstable_Provider`, in which case it renders that provider instead.
+
+`unstable_Provider` is the deprecated React-component face for the same adapters and will be removed in a future minor release. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one, which also keeps that runtime on the deprecated class core, and a hook that mounts without it ignores it on later adapters. The store entry ignores it. Implement `unstable_useAdapters` instead: a provider that wraps `children` in `RuntimeAdapterProvider` becomes a hook that returns the same adapters object.
+
+On the store entry, wrap the thread factory with `withKey` so the thread remounts on a switch. History adapters load once per mount. An unkeyed factory keeps one instance, and the next thread's messages never appear.
+
+```tsx
+import { withKey } from "@assistant-ui/tap";
+import { RemoteThreadList } from "@assistant-ui/react";
+
+threads: RemoteThreadList({
+  adapter,
+  thread: (id) => withKey(id, MyThread({ threadId: id })),
+}),
+```
+
+Implement the hook:
+
+```tsx
+import {
+  useAui,
+  type RemoteThreadListAdapter,
+  type ThreadHistoryAdapter,
+} from "@assistant-ui/react";
+import { useMemo } from "react";
+
+function useThreadListAdapters() {
+  const aui = useAui();
+  const history = useMemo<ThreadHistoryAdapter>(
+    () => ({
+      async load() {
+        const { remoteId } = aui.threadListItem.getState();
+        if (!remoteId) return { messages: [] };
+        const rows = await fetch(
+          `/api/threads/${remoteId}/messages`,
+        ).then((r) => r.json());
+        return { messages: rows.map(toThreadMessage) };
+      },
+      async append({ message, parentId }) {
+        const { remoteId } = await aui.threadListItem.initialize();
+        await fetch(`/api/threads/${remoteId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ message, parentId }),
+        });
+      },
+    }),
+    [aui],
+  );
+  return useMemo(() => ({ history }), [history]);
+}
+
+const adapterWithHistory: RemoteThreadListAdapter = {
+  // ...metadata methods above...
+  unstable_useAdapters: useThreadListAdapters,
+};
+```
+
+### Avoiding the first-message race
+
+`append` may be called before the thread record exists in your backend. Always await `aui.threadListItem.initialize()` before writing:
+
+```ts
+async append({ message, parentId }) {
+  const { remoteId } = await aui.threadListItem.initialize();
+  await saveMessage(remoteId, parentId, message);
+}
+```
+
+`initialize()` is safe to call multiple times. It always resolves to the same `remoteId` for the active thread.
+
+The same rule applies to a custom external store's dispatch. The runtime does not hold `onNew` or `onEdit` until the thread record exists (that would keep the user's message off screen for the whole roundtrip), so a handler that talks to a backend keyed by the remote identity must await `initialize()` itself:
+
+```ts
+onNew: async (message) => {
+  const { remoteId } = await aui.threadListItem.initialize();
+  await sendToBackend(remoteId, message);
+},
+```
+
+### Reloading after async authentication
+
+If your adapter depends on a user that resolves asynchronously (oidc, `next-auth`, `better-auth`), the initial `list()` may run before the user is available. Call `aui.threads.reload()` after auth completes:
+
+```tsx
+function ReloadOnAuth() {
+  const aui = useAui();
+  const { isLoading, user } = useAuth();
+  useEffect(() => {
+    if (!isLoading && user) aui.threads.reload();
+  }, [isLoading, user?.id]);
+  return null;
+}
+```
+
+`reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition. On the `RemoteThreadList` store entry, a recreated adapter object is a no-op until you call `reload()`. `reload()` against the same store identity refreshes the list, keeps the open thread, and keeps in-flight mutations. `reload()` after the store identity changes (a different `storeKey`, or a different adapter object when no `storeKey` is set) resets selection and cached records, then loads the replacement store.
+
+### Handling a thread that fails to open
+
+When a switch cannot open its thread, for example because `fetch()` rejects for the thread a URL-controlled `threadId` names, the previous thread stays selected and the threads state reports the failure as `switchError`: the id the switch asked for and the error it threw. It clears when another switch starts or that thread opens.
+
+```tsx
+function ThreadOpenError({ threadId }: { threadId: string }) {
+  const aui = useAui();
+  const switchError = useAuiState((s) => s.threads.switchError);
+  if (switchError?.threadId !== threadId) return null;
+  return (
+    <div role="alert">
+      <p>This conversation could not be opened.</p>
+      <button
+        type="button"
+        onClick={() => aui.threads.switchToThread(threadId)}
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+```
+
+A switch driven by the controlled `threadId` option also retries on its own when the browser comes back online or the tab becomes visible, as a failed `list()` load does.
+
+### Refetching the open thread
+
+`reload()` against the same store identity re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:
+
+```tsx
+function RefetchOnInterrupt({ status }: { status: string }) {
+  const aui = useAui();
+  useEffect(() => {
+    if (status !== "interrupted") return;
+    aui.threads.reloadMainThread().catch(reportError);
+  }, [status]);
+  return null;
+}
+```
+
+What the promise means depends on the path. On the remount path, it resolves as soon as the replacement runtime attaches, which happens before that runtime's `load()` has started, so awaiting it does not mean the thread is fresh and a failed load cannot reach the caller. On the in-place path, it settles with the refetch itself and rejects when it fails, which is why the example above still handles the rejection.
+
+A thread that has not been sent yet is left alone because it holds no remote state.
+
+What happens to a run in progress depends on the path. The remount path drops the runtime that was rendering the run; whether the run itself stops is up to that hook's unmount cleanup, which core cannot enforce. On the in-place path the runtime that declared the capability decides, since core does not stop the run for it. Either way this belongs on an event rather than a short timer: drive it from a state change like the one above, or skip the call while `useAuiState((s) => s.thread.isRunning)` is true.
+
+How the refetch happens depends on the runtime, in one of three ways. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. A remote thread list without the capability remounts the runtime hook instead, which re-runs `load()` at the cost of discarding unsent composer input, and resolves once the new runtime attaches. The single and in-memory thread lists have no hook to remount: they take the in-place path when their tap `ExternalThread` was given `onRefetchThread`, and resolve without doing anything when it was not.
+
+`useAuiState((s) => s.thread.capabilities.refetchThread)` reports which of those you would get, in place or not. It is not a signal for whether to offer a refresh at all: it is false on the remount path, where the call still does the work, and false again where the call does nothing.
+
+Both the LangGraph and Google ADK adapters register the in-place refetch capability when their runtime hook receives a `load` function; without one they fall back to the remount path. The Eve adapter registers it when the installed `eve` exposes `resume()` (0.44.1 and later), with no option to pass; on older releases it falls back like any other adapter, which for the single and in-memory thread lists it is usually paired with means the call resolves without doing anything. A refetch that lands during a run also settles differently across the three: LangGraph and Google ADK issue the load right away, so the promise settles at fetch latency and each decides on arrival how much of the snapshot a racing run leaves standing, while Eve queues the replay behind the in-flight turn, so its promise settles only once that turn parks. Other remote adapters take the remount path unless they provide the capability themselves.
+
+For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message); the tap `ExternalThread` accepts the same prop:
+
+```ts
+useExternalStoreRuntime({
+  messages,
+  onNew,
+  onRefetchThread: async () => {
+    setMessages(await fetchMessages(threadId));
+  },
+});
+```
+
+### Paginating the thread list
+
+If your backend returns thread pages, return a `nextCursor` from `list()` and consume `aui.threads.hasMore` plus `aui.threads.loadMore()` in the UI. The runtime threads `params.after` back through `list()` on every `loadMore()`; the initial call passes no `params`, so treat a missing `after` as "first page". `reload()` resets the cursor so the next load starts from page 1 again.
+
+```ts title="threadListAdapter.ts (excerpt)"
+async list({ after } = {}) {
+  const url = new URL("/api/threads", location.origin);
+  if (after) url.searchParams.set("after", after);
+  const response = await fetch(url);
+  const { threads, next_cursor } = await response.json();
+  return {
+    threads: threads.map((thread) => ({
+      remoteId: thread.id,
+      status: thread.is_archived ? "archived" : "regular",
+      title: thread.title ?? undefined,
+    })),
+    nextCursor: next_cursor ?? undefined,
+  };
+},
+```
+
+For a button-driven UI, drop `<ThreadListPrimitive.LoadMore>` at the bottom of your list. It ships disabled while the runtime is loading or when no `nextCursor` is available. To trigger it on scroll instead, wrap the same primitive in an `IntersectionObserver` at the application layer; assistant-ui leaves visibility-driven loading to userland by design.
+
+```tsx title="ThreadList.tsx"
+import {
+  ThreadListPrimitive,
+  ThreadListItemPrimitive,
+} from "@assistant-ui/react";
+
+export function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.Items>
+        {() => (
+          <ThreadListItemPrimitive.Root>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      </ThreadListPrimitive.Items>
+      <ThreadListPrimitive.LoadMore>Load more</ThreadListPrimitive.LoadMore>
+    </ThreadListPrimitive.Root>
+  );
+}
+```
+
+`loadMore()` has these invariants:
+
+- **Empty-string cursors collapse to "no more pages".** `nextCursor: ""` is treated the same as `nextCursor: undefined`, so an off-by-one in your backend that returns an empty cursor will not loop forever.
+- **Concurrent `loadMore()` calls are deduped.** The runtime keeps a single in-flight promise per page, so calling `loadMore()` from a sentinel and a button at the same time issues only one network request.
+- **Page errors are swallowed.** If `list({ after })` rejects, the cursor is preserved and the next `loadMore()` retries with the same `after` value. The promise returned to the caller resolves regardless. Surface adapter errors yourself if you need user-visible feedback.
+
+### Adapter contract
+
+`generateTitle` is called automatically once the first message settles and, if the thread still has no title, again after its first run ends, including errors and cancellations. The second trigger also covers untitled threads opened with `switchToThread` and runs at most once per thread per thread-list instance. It waits for any title generation already in flight before checking the title, and a manual rename suppresses it. A backend that titles the thread asynchronously may keep the stream open until its title is ready.
+
+<ParametersTable
+  type="RemoteThreadListAdapter"
+  parameters={[
+    {
+      name: "list",
+      type: "(params?: { after?: string }) => Promise<{ threads: RemoteThreadMetadata[]; nextCursor?: string }>",
+      description:
+        "Hydrate threads on mount. Each thread must include status and remoteId; title, externalId, and custom are optional. Return a `nextCursor` to enable `aui.threads.loadMore()`; the runtime will pass it back as `params.after` on the next call.",
+      required: true,
+    },
+    {
+      name: "initialize",
+      type: "(localId: string, options?: { custom?: Record<string, unknown> }) => Promise<{ remoteId: string; externalId?: string }>",
+      description:
+        "Create a new remote record when the user starts a conversation, persisting `options.custom` from the draft. Return the canonical ids.",
+      required: true,
+    },
+    {
+      name: "rename",
+      type: "(remoteId: string, title: string) => Promise<void>",
+      description: "Persist title changes from the UI.",
+      required: true,
+    },
+    {
+      name: "updateCustom",
+      type: "(remoteId: string, custom: Record<string, unknown> | undefined) => Promise<void>",
+      description:
+        "Optional. Persist replacement custom metadata from `aui.threadListItem.updateCustom(custom)`.",
+    },
+    {
+      name: "archive",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Mark thread archived.",
+      required: true,
+    },
+    {
+      name: "unarchive",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Optional. Omit when the backend cannot unarchive; archived threads still open as archived, and explicit unarchive rejects.",
+    },
+    {
+      name: "delete",
+      type: "(remoteId: string) => Promise<void>",
+      description: "Permanently remove the thread.",
+      required: true,
+    },
+    {
+      name: "fetch",
+      type: "(threadId: string) => Promise<RemoteThreadMetadata>",
+      description: "Fetch metadata for a single thread when switching.",
+      required: true,
+    },
+    {
+      name: "generateTitle",
+      type: "(remoteId: string, messages: readonly ThreadMessage[]) => Promise<AssistantStream>",
+      description:
+        "Stream a title back. Use createAssistantStream and controller.appendText.",
+      required: true,
+    },
+    {
+      name: "unstable_Provider",
+      type: "RemoteThreadListProviderComponent",
+      description:
+        "Deprecated; will be removed in a future minor release. Older React-component face of unstable_useAdapters. useRemoteThreadListRuntime renders it around each active thread only when the adapter it mounts with has one, and a hook that mounts without it ignores it on later adapters. It must render children synchronously on first commit. Prefer unstable_useAdapters.",
+    },
+    {
+      name: "unstable_useAdapters",
+      type: "() => RuntimeAdapters | null | undefined",
+      description:
+        "Optional hook called by the RemoteThreadList store entry, and by useRemoteThreadListRuntime except while it renders unstable_Provider. Per-thread history requires the thread factory to be keyed with withKey.",
+    },
+  ]}
+/>
+
+### Custom metadata
+
+`RemoteThreadMetadata` includes an optional `custom?: Record<string, unknown>` slot for backend-specific fields (timestamps, owner ids, workspace ids, tags, model name). Whatever you return from `list()` and `fetch()` flows through to the thread list item state and is reachable from any UI primitive via `useAuiState`.
+
+```ts
+type MyThreadMetadata = RemoteThreadMetadata & {
+  readonly custom: {
+    readonly createdAt: string;
+    readonly ownerId: string;
+  };
+};
+```
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+function ThreadListItemMeta() {
+  const custom = useAuiState(
+    (s) => s.threadListItem.custom as MyThreadMetadata["custom"] | undefined,
+  );
+  return (
+    <span>
+      {custom?.ownerId} · {custom?.createdAt}
+    </span>
+  );
+}
+```
+
+`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem.updateCustom(custom)`. On a new draft, this updates the item immediately without calling the adapter; `initialize(threadId, options?)` receives the value as `options.custom` when it creates the thread, and an adapter that ignores it loses the draft's metadata on the next `list()`. Later updates call `updateCustom` on the adapter. The cloud adapter includes it in `cloud.threads.create({ metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads.reload()` to re-run `list()`.
+
+#### Example: pinned and unread threads
+
+Flags such as a pin or an unread marker are custom metadata. The row reads its flag from `custom` and writes it back with `updateCustom`; the adapter stores it, and `list()` returns it on the next load.
+
+```tsx
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+function PinButton() {
+  const aui = useAui();
+  const custom = useAuiState((s) => s.threadListItem.custom);
+  const pinned = custom?.["pinned"] === true;
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        aui.threadListItem.updateCustom({ ...custom, pinned: !pinned })
+      }
+    >
+      {pinned ? "Unpin" : "Pin"}
+    </button>
+  );
+}
+```
+
+```ts
+const adapter: RemoteThreadListAdapter = {
+  // ...list, initialize, rename, archive, unarchive, delete, fetch, generateTitle
+  async updateCustom(remoteId, custom) {
+    const res = await fetch(`/api/threads/${remoteId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ custom }),
+    });
+    if (!res.ok) throw new Error(`Could not update thread ${remoteId}`);
+  },
+};
+```
+
+An unread marker works the same way: your server sets it when a reply finishes in a thread the user is not looking at, and the row clears it with `updateCustom` when the user opens the thread.
+
+## ExternalStoreThreadListAdapter
+
+This adapter is for `ExternalStoreRuntime` only. It wires multi-thread support into an external state store.
+
+```tsx
+const threadListAdapter: ExternalStoreThreadListAdapter = {
+  threadId: currentThreadId,
+  threads: threadList.filter((t) => t.status === "regular"),
+  archivedThreads: threadList.filter((t) => t.status === "archived"),
+  onSwitchToNewThread: () => {
+    /* create + switch */
+  },
+  onSwitchToThread: (id) => setCurrentThreadId(id),
+  onRename: (id, title) => {
+    /* update */
+  },
+  onArchive: (id) => {
+    /* archive */
+  },
+  onUnarchive: (id) => {
+    /* unarchive */
+  },
+  onDelete: (id) => {
+    /* delete */
+  },
+};
+
+const runtime = useExternalStoreRuntime({
+  messages: threads.get(currentThreadId) ?? [],
+  setMessages: (messages) =>
+    setThreads((m) => new Map(m).set(currentThreadId, messages)),
+  onNew,
+  adapters: { threadList: threadListAdapter },
+});
+```
+
+Unlike `RemoteThreadListAdapter`, this adapter is synchronous and inline. You keep thread metadata and messages in your own store; the runtime renders what you provide.
+
+<Callout type="warn">
+The runtime's `currentThreadId` and your store's selected thread must stay in sync. Mismatched thread ids cause messages to appear in the wrong thread or vanish entirely. Centralize thread id state in a context, never in component-local state.
+</Callout>

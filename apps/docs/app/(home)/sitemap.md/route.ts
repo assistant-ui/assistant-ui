@@ -1,6 +1,7 @@
 import { cacheLife } from "next/cache";
 import { buildMarkdownSitemap, createDiscoveryResponse } from "@/lib/agent-discovery";
-import { design, elementsDocs, examples, source } from "@/lib/source";
+import { design, examples, source } from "@/lib/source";
+import { elementsMarkdownPages } from "@/lib/elements-markdown";
 import { docsSitePages } from "@/lib/docs-pages";
 
 async function sitemapDocument() {
@@ -11,7 +12,7 @@ async function sitemapDocument() {
     ...docsSitePages().map(({ site, pages }) => ({ title: site.title, pages })),
     { title: "Examples", pages: examples.getPages() },
     { title: "Design", pages: design.getPages() },
-    { title: "Elements", pages: elementsDocs.getPages() },
+    { title: "Elements", pages: elementsMarkdownPages() },
   ]);
 }
 

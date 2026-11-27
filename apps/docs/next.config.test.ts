@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import type { IncomingMessage } from "node:http";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { withAui } from "@assistant-ui/next";
 import { compile, evaluate } from "@mdx-js/mdx";
@@ -11,6 +12,11 @@ import type { TableOfContents } from "fumadocs-core/toc";
 import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
 import type { PluggableList } from "unified";
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
+import {
+  matchHas,
+  prepareDestination,
+} from "next/dist/shared/lib/router/utils/prepare-destination";
 
 const { rmSync } = vi.hoisted(() => ({ rmSync: vi.fn() }));
 vi.mock("node:fs", async (importOriginal) => ({
@@ -83,9 +89,89 @@ describe("docs Next config composition", () => {
     });
   });
 
+  it("rewrites requests for the homepage in markdown before checking the filesystem", async () => {
+    const rewrites = await config.rewrites!();
+    expect(rewrites).toMatchObject({
+      beforeFiles: expect.arrayContaining([
+        {
+          source: "/",
+          has: [
+            { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          ],
+          destination: "/index.md",
+        },
+      ]),
+    });
+  });
+
+  it.each([
+    ["/nested/unknown-page", "text/markdown"],
+    ["/unknown-page.md", "*/*"],
+    ["/nested/unknown-page.mdx", "*/*"],
+  ])(
+    "rewrites unmatched %s with Accept %s and preserves the original path",
+    async (pathname, accept) => {
+      const rewrites = await config.rewrites!();
+      const fallback = Array.isArray(rewrites) ? [] : (rewrites.fallback ?? []);
+      const request = { headers: { accept } } as IncomingMessage;
+      const query = { path: "incoming-query" };
+      const [destination] = fallback.flatMap((rule) => {
+        const params = getPathMatch(rule.source, { strict: true })(pathname);
+        const headerParams = matchHas(request, query, rule.has, rule.missing);
+        if (!params || !headerParams) return [];
+        return [
+          prepareDestination({
+            appendParamsToQuery: true,
+            destination: rule.destination,
+            params: { ...params, ...headerParams },
+            query,
+          }).parsedDestination,
+        ];
+      });
+
+      expect(destination).toMatchObject({
+        pathname: "/missing.md",
+        query: { path: pathname },
+      });
+    },
+  );
+
+  it("varies responses on Accept at markdown-negotiating sources", async () => {
+    const headers = await config.headers!();
+    const sources = headers
+      .filter(({ headers }) =>
+        headers.some(({ key, value }) => key === "Vary" && value === "Accept"),
+      )
+      .map(({ source }) => source);
+
+    expect(sources.sort()).toEqual(
+      ["/", "/:path((?!api(?:/|$)|_next(?:/|$)).*)"].sort(),
+    );
+  });
+
+  // A /docs redirect written here by hand moves the page for browsers only:
+  // its .md url 404s for agents and the MCP server can't follow it, so moves
+  // go in lib/moved-docs.ts. The list holds the hand-written ones left.
+  it("moves /docs pages through lib/moved-docs.ts so agents follow them too", async () => {
+    const redirects = await config.redirects!();
+    const sources = new Set(redirects.map((redirect) => redirect.source));
+    const pageOnly = redirects
+      .map((redirect) => redirect.source)
+      .filter((source) => source.startsWith("/docs/"))
+      .filter((source) => !/\.mdx?$/.test(source))
+      .filter((source) => !sources.has(`${source}.md`));
+
+    expect(pageOnly).toEqual(["/docs/standalone", "/docs/standalone/:slug"]);
+  });
+
   it("caps the prerender workers and the Turbopack loader pool with DOCS_BUILD_CPUS", () => {
     expect(config.experimental?.cpus).toBe(3);
     expect(process.env.TURBO_TASKS_AVAILABLE_PARALLELISM).toBe("3");
+  });
+
+  it("loads Farming Labs rehype-code outside the server bundle", () => {
+    expect(config.serverExternalPackages).toContain("@farming-labs/next");
+    expect(config.transpilePackages ?? []).not.toContain("@farming-labs/next");
   });
 
   it("keeps a TURBO_TASKS_AVAILABLE_PARALLELISM that is already set", async () => {

@@ -20,7 +20,9 @@ const externalSources = [
   "templates/nuxt/server/api/chat.post.ts",
   expoSource,
   "examples/with-react-ink/src/app.tsx",
-  "README.md",
+  // the TypeScript block check reads package sources and the API surface
+  "packages/react-ink/src/index.ts",
+  "api-surface/assistant-ui__react.ts",
   "scripts/lib/experimental-annotations.mjs",
 ];
 
@@ -41,6 +43,7 @@ it("invalidates docs test caches for external contract sources without building 
     "pnpm-workspace.yaml",
     "turbo.json",
     ".gitignore",
+    "README.md",
     "api-surface/package.json",
     ...globSync("{apps,examples,packages,templates}/*/{package,turbo}.json", {
       cwd: repo,
@@ -126,6 +129,7 @@ it("invalidates docs test caches for external contract sources without building 
     "examples/with-expo/node_modules/dependency/index.ts",
     "examples/with-langgraph/app/page.tsx",
     "apps/docs/generated/.repo-source/output.ts",
+    "README.md",
   ]) {
     write(file, "unrelated source or generated output");
   }

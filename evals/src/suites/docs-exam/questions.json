@@ -1,0 +1,1942 @@
+{
+  "version": 1,
+  "about": "Held-out questions for the docs exam. Topics and counts follow what readers asked the docs assistant over 30 days (Oct 27 - Nov 26 2026, 1,413 turns with a usable topic), one question per ~14 turns with at least one per topic; the wording is ours. None repeats the concept exam's 38 questions in apps/docs/evals/concept-exam. Each reference answer comes from the source code: every source names a file, the line it was read from, and an anchor string on that line, so the runner can flag a reference whose code moved or changed.",
+  "questions": [
+    {
+      "id": "h001",
+      "cluster": "setup",
+      "question": "I already have a Next.js project. Which CLI command adds assistant-ui to it, and what does that command do if I run it in a folder with no project yet?",
+      "reference": "`npx assistant-ui init` initializes assistant-ui in an existing project: it runs the shadcn init and installs the quick-start components from the assistant-ui registry. When the folder has no package.json (or a preset URL is given), init says no existing project was found and runs `create` instead. If the project already has a components.json, it tells you to use `assistant-ui add` for more components.",
+      "keyPoints": [
+        "`assistant-ui init` sets assistant-ui up in an existing project (shadcn init plus the starter components)",
+        "With no package.json it runs `create` and scaffolds a new project instead"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/init.ts",
+          "line": 51,
+          "anchor": "initialize assistant-ui in an existing project"
+        },
+        {
+          "file": "packages/cli/src/commands/init.ts",
+          "line": 91,
+          "anchor": "No existing project found. Running 'create' instead"
+        }
+      ]
+    },
+    {
+      "id": "h002",
+      "cluster": "setup",
+      "question": "Which starter templates can the `assistant-ui create` command scaffold, and what does the default one use?",
+      "reference": "`create` takes `-t/--template`; the templates are default (\"Default template with Vercel AI SDK\"), minimal (bare-bones), cloud, cloud-clerk, cloud-harness, langchain, mcp, eve and vscode. It can also start from an example with `-e/--example` (for example with-langgraph, with-external-store, with-tanstack, with-react-router) or a preset with `-p/--preset`.",
+      "keyPoints": [
+        "Templates include default, minimal, cloud (and cloud variants), langchain and mcp",
+        "The default template uses the Vercel AI SDK",
+        "Examples can be scaffolded with --example"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 50,
+          "anchor": "Default template with Vercel AI SDK"
+        },
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 574,
+          "anchor": "\"-e, --example <example>\""
+        }
+      ]
+    },
+    {
+      "id": "h003",
+      "cluster": "setup",
+      "question": "When I run `npx assistant-ui add thread`, where does the code come from, where does it end up in my project, and what else gets installed with it?",
+      "reference": "`add` runs the shadcn CLI (`shadcn add`) against the assistant-ui registry. The thread item writes its source into your project at components/assistant-ui/elements/thread.aui.tsx, installs the npm packages @assistant-ui/react and lucide-react, and pulls the registry items it depends on (markdown-text, tool-fallback, attachment, reasoning, follow-up-suggestions, tool-group and others, plus shadcn's button and skeleton). The copied file is yours to edit.",
+      "keyPoints": [
+        "`add` uses the shadcn CLI with the assistant-ui registry",
+        "The component source is copied into the project (components/assistant-ui/...)",
+        "Its registry dependencies (e.g. markdown-text, tool-fallback) and npm packages (@assistant-ui/react) come with it"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/add.ts",
+          "line": 40,
+          "anchor": "SHADCN_PACKAGE, \"add\""
+        },
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1235,
+          "anchor": "path: \"components/assistant-ui/elements/thread.aui.tsx\""
+        }
+      ]
+    },
+    {
+      "id": "h004",
+      "cluster": "setup",
+      "question": "How do I bring the assistant-ui packages in my project up to date, and is there help when an upgrade has breaking changes?",
+      "reference": "`npx assistant-ui update` updates every @assistant-ui/* and assistant-* package in package.json to the latest version through your package manager (`--dry` prints the command). `npx assistant-ui upgrade` upgrades the dependencies and applies codemods for breaking changes. `npx assistant-ui doctor` diagnoses mismatched or outdated assistant-ui packages, including transitive ones.",
+      "keyPoints": [
+        "`assistant-ui update` bumps all assistant-ui packages to latest",
+        "`assistant-ui upgrade` runs codemods for breaking changes"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/update.ts",
+          "line": 12,
+          "anchor": "Update all '@assistant-ui/*' and 'assistant-*' packages"
+        },
+        {
+          "file": "packages/cli/src/commands/upgrade.ts",
+          "line": 52,
+          "anchor": "Upgrade ai package dependencies and apply codemods"
+        }
+      ]
+    },
+    {
+      "id": "h005",
+      "cluster": "setup",
+      "question": "Which React versions does @assistant-ui/react work with?",
+      "reference": "@assistant-ui/react declares react and react-dom ^18 || ^19 as peer dependencies, so both React 18 and React 19 are supported.",
+      "keyPoints": ["React 18 and React 19 are both supported"],
+      "sources": [
+        {
+          "file": "packages/react/package.json",
+          "line": 83,
+          "anchor": "\"react\": \"^18 || ^19\""
+        }
+      ]
+    },
+    {
+      "id": "h006",
+      "cluster": "setup",
+      "question": "Can the CLI set up my coding agent with assistant-ui knowledge when I create a project? What are the options?",
+      "reference": "`assistant-ui create` asks whether to add assistant-ui agent skills for AI coding assistants; `--skills` adds them and `--no-skills` skips them. Separately, `npx assistant-ui mcp` connects an IDE or agent (Cursor, Windsurf, VS Code, Zed, Claude Code, Claude Desktop) to the assistant-ui docs MCP server at https://www.assistant-ui.com/mcp.",
+      "keyPoints": [
+        "`create` can add agent skills (`--skills` / `--no-skills`)",
+        "`assistant-ui mcp` installs the docs MCP server for an IDE or agent"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 588,
+          "anchor": "add assistant-ui agent skills for AI coding assistants"
+        },
+        {
+          "file": "packages/cli/src/commands/mcp.ts",
+          "line": 426,
+          "anchor": "connect your IDE to the assistant-ui MCP server"
+        }
+      ]
+    },
+    {
+      "id": "h007",
+      "cluster": "setup",
+      "question": "Which model provider does the default template's chat route call, and what does the route do with the tools the page registers?",
+      "reference": "The default template's route (app/api/chat/route.ts) uses `openai` from @ai-sdk/openai with `streamText`. It reads `messages`, `system` and `tools` from the request body; the tools are the frontend tools' JSON schemas the client sends, and the route passes them to the model through `frontendTools(tools)` from @assistant-ui/ai-sdk.",
+      "keyPoints": [
+        "It calls OpenAI through @ai-sdk/openai",
+        "It passes the client-sent tools to the model with frontendTools()"
+      ],
+      "sources": [
+        {
+          "file": "templates/default/app/api/chat/route.ts",
+          "line": 1,
+          "anchor": "import { openai } from \"@ai-sdk/openai\""
+        },
+        {
+          "file": "templates/default/app/api/chat/route.ts",
+          "line": 2,
+          "anchor": "import { frontendTools } from \"@assistant-ui/ai-sdk\""
+        }
+      ]
+    },
+    {
+      "id": "h008",
+      "cluster": "setup",
+      "question": "In the Assistant Cloud template, how does the browser know which Cloud project to talk to, and does a user have to sign in?",
+      "reference": "The cloud template creates `new AssistantCloud({ baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL, anonymous: true })`. The base URL from NEXT_PUBLIC_ASSISTANT_BASE_URL (in .env) points at the Cloud project, and `anonymous: true` lets visitors use it without signing in; the cloud-clerk template adds real sign-in.",
+      "keyPoints": [
+        "The client is configured with the project's base URL (NEXT_PUBLIC_ASSISTANT_BASE_URL)",
+        "The template runs in anonymous mode, so no sign-in is needed"
+      ],
+      "sources": [
+        {
+          "file": "templates/cloud/app/assistant.tsx",
+          "line": 23,
+          "anchor": "const cloud = new AssistantCloud({"
+        },
+        {
+          "file": "templates/cloud/app/assistant.tsx",
+          "line": 25,
+          "anchor": "anonymous: true"
+        }
+      ]
+    },
+    {
+      "id": "h009",
+      "cluster": "setup",
+      "question": "Something is off with my assistant-ui install. Which CLI commands help me diagnose it or report it?",
+      "reference": "`npx assistant-ui doctor` diagnoses mismatched or outdated assistant-ui packages, including transitive ones, and checks npm for the latest versions unless `--no-network` is passed; it tells you to run `npx assistant-ui update` to upgrade. `npx assistant-ui info` prints environment and package information for bug reports.",
+      "keyPoints": [
+        "`doctor` finds mismatched or outdated assistant-ui packages",
+        "`info` prints environment and package information for a bug report"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/doctor.ts",
+          "line": 367,
+          "anchor": "Diagnose mismatched or outdated assistant-ui packages"
+        },
+        {
+          "file": "packages/cli/src/commands/info.ts",
+          "line": 438,
+          "anchor": "Print environment and package information for bug reports."
+        }
+      ]
+    },
+    {
+      "id": "h010",
+      "cluster": "setup",
+      "question": "Can the CLI start a React Native app or a terminal app instead of a web app?",
+      "reference": "Yes. `assistant-ui create --native` creates an Expo / React Native project and `assistant-ui create --ink` creates a React Ink terminal project.",
+      "keyPoints": [
+        "`create --native` makes an Expo / React Native project",
+        "`create --ink` makes an Ink terminal project"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 585,
+          "anchor": "create an Expo / React Native project"
+        },
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 586,
+          "anchor": "create a React Ink terminal project"
+        }
+      ]
+    },
+    {
+      "id": "h011",
+      "cluster": "setup",
+      "question": "What component do I wrap around the chat UI so it can find the runtime, and what do I pass to it?",
+      "reference": "`AssistantRuntimeProvider`, with the runtime from a runtime hook (`useChatRuntime`, `useLocalRuntime`, ...) passed as its `runtime` prop. Every assistant-ui component and hook inside it reads that runtime.",
+      "keyPoints": [
+        "AssistantRuntimeProvider",
+        "It takes the runtime from a runtime hook as its `runtime` prop"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/AssistantRuntimeProvider.tsx",
+          "line": 21,
+          "anchor": "<AssistantRuntimeProvider runtime={runtime}>"
+        }
+      ]
+    },
+    {
+      "id": "h012",
+      "cluster": "setup",
+      "question": "What license is assistant-ui released under?",
+      "reference": "MIT: the packages declare \"license\": \"MIT\".",
+      "keyPoints": ["MIT"],
+      "sources": [
+        {
+          "file": "packages/react/package.json",
+          "line": 40,
+          "anchor": "\"license\": \"MIT\""
+        }
+      ]
+    },
+    {
+      "id": "h013",
+      "cluster": "setup",
+      "question": "Which package connects assistant-ui to the Vercel AI SDK, and which AI SDK version does it expect?",
+      "reference": "@assistant-ui/ai-sdk (also available as @assistant-ui/react-ai-sdk) provides `useChatRuntime` and `AssistantChatTransport`. It declares a peer dependency on `ai` ^7.0.101 (AI SDK v7) and depends on @ai-sdk/react ^4.",
+      "keyPoints": [
+        "@assistant-ui/ai-sdk (or @assistant-ui/react-ai-sdk)",
+        "It targets AI SDK v7 (`ai@^7`)"
+      ],
+      "sources": [
+        {
+          "file": "packages/ai-sdk/package.json",
+          "line": 70,
+          "anchor": "\"ai\": \"^7.0.101\""
+        },
+        {
+          "file": "packages/ai-sdk/src/runtime/useChatRuntime.ts",
+          "line": 55,
+          "anchor": "export const useChatRuntime"
+        }
+      ]
+    },
+    {
+      "id": "h014",
+      "cluster": "setup",
+      "question": "Can I start a new project from a ready-made look, such as a ChatGPT-style layout, instead of the default UI?",
+      "reference": "Yes: `assistant-ui create --preset <name-or-url>` takes a preset name (for example `chatgpt`) or a playground URL (https://www.assistant-ui.com/playground/init?preset=...).",
+      "keyPoints": [
+        "`create --preset` with a preset name such as chatgpt or a playground URL"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 579,
+          "anchor": "preset name or URL (e.g., chatgpt"
+        }
+      ]
+    },
+    {
+      "id": "h015",
+      "cluster": "setup",
+      "question": "I want my coding agent to install assistant-ui while I watch. Is there a guided flow for that, and what starts it?",
+      "reference": "`npx assistant-ui setup` sets assistant-ui up with your coding agent, guided in your browser: the browser shows the steps while the agent runs them. `npx assistant-ui agent <prompt>` instead launches Claude Code with the assistant-ui skills (`--dry` prints the command).",
+      "keyPoints": [
+        "`assistant-ui setup` runs a browser-guided setup together with your coding agent"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/setup.ts",
+          "line": 237,
+          "anchor": "set up assistant-ui with your coding agent, guided in your browser"
+        },
+        {
+          "file": "packages/cli/src/commands/agent.ts",
+          "line": 18,
+          "anchor": "launch Claude Code with assistant-ui skills"
+        }
+      ]
+    },
+    {
+      "id": "h016",
+      "cluster": "setup",
+      "question": "If I edited a component that `assistant-ui add` installed and then run `add` for it again, will my changes be overwritten?",
+      "reference": "Not by default: `add` has `-o, --overwrite` (default false) to overwrite existing files; without it, existing files are kept. `-y/--yes` (default true) only skips the confirmation prompt, and `-p/--path` sets where the component goes.",
+      "keyPoints": [
+        "Existing files are not overwritten unless you pass --overwrite"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/add.ts",
+          "line": 56,
+          "anchor": "\"-o, --overwrite\", \"overwrite existing files.\", false"
+        }
+      ]
+    },
+    {
+      "id": "h017",
+      "cluster": "setup",
+      "question": "My server owns the agent's state and I want the browser to show that state as it changes, not just chat messages. Which runtime is built for that?",
+      "reference": "`useAssistantTransportRuntime` (AssistantTransport). The client sends commands (add-message, add-tool-result) to your endpoint together with the current state, system prompt and tools, and the backend streams back state updates; a `converter` you write turns that state into messages for the UI, and `initialState` seeds it.",
+      "keyPoints": [
+        "useAssistantTransportRuntime / AssistantTransport",
+        "The backend streams state, and a converter turns the state into messages",
+        "The client sends commands such as add-message and add-tool-result"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/runtimes/assistant-transport/useAssistantTransportRuntime.ts",
+          "line": 518,
+          "anchor": "export const useAssistantTransportRuntime"
+        },
+        {
+          "file": "packages/core/src/react/runtimes/assistant-transport/types.ts",
+          "line": 47,
+          "anchor": "readonly type: \"add-tool-result\";"
+        }
+      ]
+    },
+    {
+      "id": "h018",
+      "cluster": "setup",
+      "question": "My backend already streams in the AI SDK data stream format, but my frontend doesn't use the AI SDK. Which runtime reads that stream?",
+      "reference": "`useDataStreamRuntime` from @assistant-ui/react-data-stream. You point it at your endpoint (`api`) and it reads the data stream protocol (or the UI message stream) without the AI SDK on the client.",
+      "keyPoints": [
+        "useDataStreamRuntime from @assistant-ui/react-data-stream",
+        "It takes your endpoint URL (`api`)"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-data-stream/src/useDataStreamRuntime.ts",
+          "line": 49,
+          "anchor": "export const useDataStreamRuntime"
+        }
+      ]
+    },
+    {
+      "id": "h019",
+      "cluster": "setup",
+      "question": "Is assistant-ui tied to Next.js? Which other React setups have ready examples?",
+      "reference": "No. The packages are plain React. Besides the Next.js templates, `create --example` can scaffold with-react-router, with-tanstack (TanStack Start) and with-expo (React Native), and there are separate Vue, React Native and Ink packages.",
+      "keyPoints": [
+        "It is not tied to Next.js",
+        "There are examples for React Router and TanStack (and Expo)"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 273,
+          "anchor": "name: \"with-react-router\""
+        },
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 281,
+          "anchor": "name: \"with-tanstack\""
+        }
+      ]
+    },
+    {
+      "id": "h020",
+      "cluster": "setup",
+      "question": "Can I build a chat panel inside a VS Code extension with assistant-ui?",
+      "reference": "Yes. The CLI has a `vscode` template (templates/vscode) for a VS Code extension, and the repo has a vscode package for running assistant-ui inside the extension's webview.",
+      "keyPoints": ["Yes; there is a vscode template for a VS Code extension"],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 112,
+          "anchor": "name: \"vscode\""
+        }
+      ]
+    },
+    {
+      "id": "h021",
+      "cluster": "setup",
+      "question": "Is there a CLI command to manage Assistant Cloud from the terminal, for example to sign in?",
+      "reference": "Yes: `npx assistant-ui cloud` manages Assistant Cloud; `cloud login` signs in through the browser, `cloud logout` revokes the CLI login, and it can create a shared chat project with its cloud harness.",
+      "keyPoints": ["`assistant-ui cloud` with subcommands such as login"],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/cloud.ts",
+          "line": 411,
+          "anchor": "manage Assistant Cloud (run `assistant-ui cloud help`)"
+        },
+        {
+          "file": "packages/cli/src/commands/cloud.ts",
+          "line": 446,
+          "anchor": "sign in to Assistant Cloud using your browser"
+        }
+      ]
+    },
+    {
+      "id": "h022",
+      "cluster": "setup",
+      "question": "Which package holds the hooks and primitives every assistant-ui React app imports, and is it the same one the ready-made components import?",
+      "reference": "@assistant-ui/react: it exports the primitives (ThreadPrimitive, MessagePrimitive, ComposerPrimitive, ...), the runtime hooks and AssistantRuntimeProvider. The registry components (thread, markdown-text, ...) list @assistant-ui/react as their npm dependency and are built from those primitives.",
+      "keyPoints": [
+        "@assistant-ui/react",
+        "The registry components depend on it and are built from its primitives"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1240,
+          "anchor": "dependencies: [\"@assistant-ui/react\", \"lucide-react\"],"
+        }
+      ]
+    },
+    {
+      "id": "h023",
+      "cluster": "elements",
+      "question": "Is there a ready-made component that renders the assistant's markdown, and what does it install?",
+      "reference": "Yes, the markdown-text element. It writes components/assistant-ui/elements/markdown-text.tsx and installs @assistant-ui/react, @assistant-ui/react-markdown, remark-gfm (GitHub-flavored markdown) and lucide-react. It renders headings, lists, links and code blocks.",
+      "keyPoints": [
+        "The markdown-text element",
+        "It is built on @assistant-ui/react-markdown (with remark-gfm)"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1421,
+          "anchor": "name: \"markdown-text\""
+        },
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1441,
+          "anchor": "\"@assistant-ui/react-markdown\","
+        }
+      ]
+    },
+    {
+      "id": "h024",
+      "cluster": "elements",
+      "question": "Is there a ready-made sidebar that lists the user's conversations?",
+      "reference": "Yes: the thread-list element is a sidebar or dropdown for switching conversations, with search and active selection, and threadlist-sidebar is a sidebar shell that hosts the thread list beside a thread.",
+      "keyPoints": [
+        "The thread-list element (and threadlist-sidebar for the layout)"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1551,
+          "anchor": "name: \"thread-list\""
+        },
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1927,
+          "anchor": "name: \"threadlist-sidebar\""
+        }
+      ]
+    },
+    {
+      "id": "h025",
+      "cluster": "elements",
+      "question": "What shows up for a tool call that has no custom UI, and can I change it?",
+      "reference": "The tool-fallback element, \"default renderer for tool calls that have no dedicated UI\". The thread element passes it as the tool fallback (`ToolFallback`), and since its source is copied into your project you can edit it or pass your own fallback through `MessagePrimitive.Parts`' `tools.Fallback`.",
+      "keyPoints": [
+        "The tool-fallback element renders tool calls without their own UI",
+        "You can edit it or pass your own fallback (tools.Fallback)"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1781,
+          "anchor": "Default renderer for tool calls that have no dedicated UI."
+        },
+        {
+          "file": "packages/core/src/react/primitives/message/MessageParts.tsx",
+          "line": 248,
+          "anchor": "/** Fallback component for unregistered tools */"
+        }
+      ]
+    },
+    {
+      "id": "h026",
+      "cluster": "elements",
+      "question": "Can assistant messages render Mermaid diagrams?",
+      "reference": "Yes, with the mermaid-diagram element: it renders Mermaid diagrams in messages, including while they stream. It builds on @assistant-ui/react-markdown.",
+      "keyPoints": [
+        "Yes, the mermaid-diagram element",
+        "It renders while the message streams"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1872,
+          "anchor": "Render Mermaid diagrams in messages, including while they stream."
+        }
+      ]
+    },
+    {
+      "id": "h027",
+      "cluster": "elements",
+      "question": "How can I show the web sources a model cited under its answer?",
+      "reference": "The sources element displays URL sources (source parts in the message) with a domain initial or an opt-in favicon, a title and an external link.",
+      "keyPoints": [
+        "The sources element renders the message's source parts as links"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1972,
+          "anchor": "Display URL sources with a domain initial or an opt-in favicon"
+        }
+      ]
+    },
+    {
+      "id": "h028",
+      "cluster": "elements",
+      "question": "I added the model-selector element. How does the model the user picks reach my backend?",
+      "reference": "The model selector registers model context with `config: { modelName, reasoningEffort }` through `aui.modelContext.register`. That config goes out with each run: AssistantChatTransport puts `config` in the request body for the AI SDK route, and a LocalRuntime ChatModelAdapter reads it as `context.config`. The backend picks the model from `modelName`.",
+      "keyPoints": [
+        "It registers model context with config.modelName (and reasoningEffort)",
+        "The config is sent with every request (request body `config`, or `context.config` in LocalRuntime)"
+      ],
+      "sources": [
+        {
+          "file": "packages/ui/src/components/react/assistant-ui/elements/model-selector.aui.tsx",
+          "line": 68,
+          "anchor": "modelName: value,"
+        },
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 84,
+          "anchor": "config: context?.config,"
+        }
+      ]
+    },
+    {
+      "id": "h029",
+      "cluster": "elements",
+      "question": "Is there syntax highlighting for code blocks in messages, and which libraries can it use?",
+      "reference": "Yes. The syntax-highlighter element uses react-syntax-highlighter, and the shiki-highlighter element uses react-shiki. Either plugs into markdown-text's code blocks.",
+      "keyPoints": [
+        "Yes, there are highlighter elements",
+        "One uses react-syntax-highlighter, the other Shiki (react-shiki)"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1704,
+          "anchor": "Code block highlighting powered by react-syntax-highlighter."
+        },
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1832,
+          "anchor": "Code block highlighting powered by react-shiki."
+        }
+      ]
+    },
+    {
+      "id": "h030",
+      "cluster": "elements",
+      "question": "How do I show clickable follow-up prompts after the assistant answers?",
+      "reference": "Use the follow-up-suggestions element: it renders prompt chips from the suggestions the runtime generates after a run (with LocalRuntime, from a SuggestionAdapter's `generate`). The default thread element already includes it as ThreadFollowupSuggestions.",
+      "keyPoints": [
+        "The follow-up-suggestions element",
+        "It shows suggestions the runtime generates (e.g. a suggestion adapter)"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1671,
+          "anchor": "Prompt chips rendered from runtime generated follow up suggestions."
+        },
+        {
+          "file": "packages/core/src/adapters/suggestion.ts",
+          "line": 10,
+          "anchor": "export type SuggestionAdapter = {"
+        }
+      ]
+    },
+    {
+      "id": "h031",
+      "cluster": "elements",
+      "question": "Is there a component for showing a code diff in a message?",
+      "reference": "Yes. The code-diff element (on the Elements page \"Code diff\") shows one file's unified diff with tinted additions and removals, sized for chat, from an edit tool's result or data you pass. The registry also has a diff-viewer item that renders code diffs with highlighted additions and deletions.",
+      "keyPoints": [
+        "Yes, a ready-made diff element (code-diff or diff-viewer)"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 314,
+          "anchor": "slug: \"code-diff\","
+        },
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1906,
+          "anchor": "Render code diffs with highlighted additions and deletions."
+        }
+      ]
+    },
+    {
+      "id": "h032",
+      "cluster": "elements",
+      "question": "Which other elements come along when I install the thread element?",
+      "reference": "The thread item's registry dependencies: attachment, file, follow-up-suggestions, image, markdown-text, reasoning, tooltip-icon-button, tool-fallback and tool-group, plus shadcn's button and skeleton.",
+      "keyPoints": [
+        "markdown-text, tool-fallback and reasoning are among them",
+        "attachment, image/file and follow-up-suggestions too"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1252,
+          "anchor": "\"https://r.assistant-ui.com/tool-group.json\","
+        }
+      ]
+    },
+    {
+      "id": "h033",
+      "cluster": "styling",
+      "question": "How do I make the chat column in the default Thread wider?",
+      "reference": "The thread element sets a CSS variable, `--thread-max-width: 44rem`, as an inline style on its own root, and the message list and composer use `max-w-(--thread-max-width)`. Change that value in your copy of thread.aui.tsx (the file is yours). Setting the variable on a parent element has no effect, because the root's own value wins.",
+      "keyPoints": [
+        "Through the --thread-max-width CSS variable (44rem by default)",
+        "Change it in your own copy of the thread component"
+      ],
+      "sources": [
+        {
+          "file": "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+          "line": 233,
+          "anchor": "[\"--thread-max-width\" as string]: \"44rem\""
+        }
+      ]
+    },
+    {
+      "id": "h034",
+      "cluster": "styling",
+      "question": "Do assistant-ui's primitives come with any styling of their own? How do I style them?",
+      "reference": "No. Primitives (ThreadPrimitive, MessagePrimitive, ComposerPrimitive, ...) render unstyled DOM elements; you style them with `className` (the registry elements use Tailwind classes) or render your own element with `asChild`. The look comes from the components you copy in, which you edit.",
+      "keyPoints": [
+        "Primitives are unstyled",
+        "You style them with className, or render your own element via asChild"
+      ],
+      "sources": [
+        {
+          "file": "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+          "line": 231,
+          "anchor": "className=\"aui-root aui-thread-root bg-background @container flex h-full flex-col\""
+        }
+      ]
+    },
+    {
+      "id": "h035",
+      "cluster": "styling",
+      "question": "How do I render a primitive as my own Button component instead of the element it renders by default?",
+      "reference": "Pass `asChild` and put your component inside: the primitive merges its props and behavior into its single child, as in `<ThreadPrimitive.ScrollToBottom asChild><TooltipIconButton .../></ThreadPrimitive.ScrollToBottom>` or `<ActionBarPrimitive.Copy asChild>`.",
+      "keyPoints": [
+        "Use the asChild prop with your component as the only child"
+      ],
+      "sources": [
+        {
+          "file": "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+          "line": 473,
+          "anchor": "<ThreadPrimitive.ScrollToBottom asChild>"
+        }
+      ]
+    },
+    {
+      "id": "h036",
+      "cluster": "styling",
+      "question": "How do I show one icon while a message is copied and another otherwise, or hide a part of the UI based on chat state?",
+      "reference": "Use `AuiIf` with a `condition` that reads state: the thread element renders `<AuiIf condition={(s) => s.message.isCopied}>` with a check icon and `<AuiIf condition={(s) => !s.message.isCopied}>` with a copy icon. The condition gets the same state as `useAuiState`.",
+      "keyPoints": [
+        "AuiIf with a condition function over the state",
+        "e.g. s.message.isCopied"
+      ],
+      "sources": [
+        {
+          "file": "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+          "line": 391,
+          "anchor": "<AuiIf condition={(s) => s.message.isCopied}>"
+        }
+      ]
+    },
+    {
+      "id": "h037",
+      "cluster": "styling",
+      "question": "Which CSS framework and colors do the ready-made elements use, and how does dark mode work with them?",
+      "reference": "They are written with Tailwind CSS classes and shadcn/ui theme tokens (for example `bg-background`, `text-foreground`), the same CSS variables shadcn uses. Colors, including dark mode, follow whatever values your theme gives those variables.",
+      "keyPoints": [
+        "Tailwind classes",
+        "shadcn theme tokens such as bg-background, so colors and dark mode follow your theme's CSS variables"
+      ],
+      "sources": [
+        {
+          "file": "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+          "line": 231,
+          "anchor": "bg-background @container"
+        }
+      ]
+    },
+    {
+      "id": "h038",
+      "cluster": "styling",
+      "question": "How do I make a message's action bar (copy, reload) appear only when the user hovers the message?",
+      "reference": "Set `autohide` on `ActionBarPrimitive.Root`: \"always\" hides it unless the message is hovered, \"not-last\" hides it except on the last message, and \"never\" (the default) always shows it. `hideWhenRunning` also hides it while a run is in progress.",
+      "keyPoints": [
+        "ActionBarPrimitive.Root autohide",
+        "\"always\" shows it only on hover; \"not-last\" keeps it on the last message"
+      ],
+      "sources": [
+        {
+          "file": "packages/react/src/primitives/actionBar/ActionBarRoot.tsx",
+          "line": 36,
+          "anchor": "autohide?: \"always\" | \"not-last\" | \"never\" | undefined;"
+        }
+      ]
+    },
+    {
+      "id": "h039",
+      "cluster": "styling",
+      "question": "Can the chat UI handle a right-to-left language?",
+      "reference": "Yes. The registry has a direction element, a direction provider and hook for right-to-left layouts, which the elements read.",
+      "keyPoints": [
+        "Yes, through the direction element (a provider and hook for RTL)"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 2126,
+          "anchor": "Direction provider and hook for right to left layouts."
+        }
+      ]
+    },
+    {
+      "id": "h040",
+      "cluster": "styling",
+      "question": "In the default thread, how do I replace how each message in the list is rendered?",
+      "reference": "The thread element renders `<ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>`; the render function returns the component for each message, and `ThreadMessage` picks the user, assistant or edit-composer layout. Change those components in your copy of thread.aui.tsx.",
+      "keyPoints": [
+        "ThreadPrimitive.Messages renders each message through the component you give it",
+        "Edit the message components in your own thread file"
+      ],
+      "sources": [
+        {
+          "file": "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+          "line": 264,
+          "anchor": "<ThreadPrimitive.Messages>"
+        }
+      ]
+    },
+    {
+      "id": "h041",
+      "cluster": "styling",
+      "question": "The ready-made components use Base UI in some places and Radix in others. Can I choose?",
+      "reference": "Yes. The registry has a Base UI tree and a Radix tree of the elements. The CLI picks the tree from the `style` in your components.json: a `base-...` style, or no style, gets Base UI, and other styles get Radix. In a project that isn't initialized, `add` defaults to the Base UI components.",
+      "keyPoints": [
+        "Elements exist in Base UI and Radix versions",
+        "The CLI picks by the components.json style; Base UI is the default"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/lib/utils/registry.ts",
+          "line": 51,
+          "anchor": "if (style === undefined || style.startsWith(\"base-\")) {"
+        },
+        {
+          "file": "packages/cli/src/commands/add.ts",
+          "line": 73,
+          "anchor": "Base UI flavored components"
+        }
+      ]
+    },
+    {
+      "id": "h042",
+      "cluster": "tool-ui",
+      "question": "What does a tool-call UI component receive as props?",
+      "reference": "A tool-call part's fields and actions: `toolName`, `toolCallId`, `args` (parsed so far), `argsText` (the raw argument text), `result`, `isError`, `artifact` and `status`, plus `addResult` (set the result from the UI), `resume` (answer a `human()` request) and `respondToApproval` (answer a server-side approval).",
+      "keyPoints": [
+        "args (and argsText) and result",
+        "status",
+        "addResult (and resume / respondToApproval) to act from the UI"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/types/MessagePartComponentTypes.ts",
+          "line": 67,
+          "anchor": "export type ToolCallMessagePartProps<"
+        },
+        {
+          "file": "packages/core/src/types/message.ts",
+          "line": 362,
+          "anchor": "readonly argsText: string;"
+        }
+      ]
+    },
+    {
+      "id": "h043",
+      "cluster": "tool-ui",
+      "question": "makeAssistantToolUI and useAssistantTool are marked deprecated. What is the current way to give a tool its UI?",
+      "reference": "Put `render` (or `renderText`) on the tool's entry in a toolkit and register the toolkit with `Tools({ toolkit })` (via `AuiConfig` on the provider's `config` prop), or override the UI for one message through `MessagePrimitive.Parts`' tool render overrides.",
+      "keyPoints": [
+        "Put render/renderText on the toolkit entry",
+        "Register the toolkit with Tools({ toolkit })"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/model-context/makeAssistantToolUI.ts",
+          "line": 13,
+          "anchor": "@deprecated Put `render`/`renderText` on the matching toolkit entry"
+        },
+        {
+          "file": "packages/core/src/react/model-context/useAssistantTool.ts",
+          "line": 14,
+          "anchor": "@deprecated Use a toolkit with `Tools({ toolkit })`"
+        }
+      ]
+    },
+    {
+      "id": "h044",
+      "cluster": "tool-ui",
+      "question": "What states can a tool call be in, and which one means it waits for the user?",
+      "reference": "A tool-call part's status is `running`, `requires-action` (reason `tool-calls` or `interrupt`: it waits for UI or human input), `incomplete` (cancelled, error, ...) or `complete`.",
+      "keyPoints": [
+        "running, requires-action, incomplete, complete",
+        "requires-action means it waits for the user or the UI"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/types/message.ts",
+          "line": 486,
+          "anchor": "/** The tool call is waiting for UI or human input before continuing. */"
+        }
+      ]
+    },
+    {
+      "id": "h045",
+      "cluster": "tool-ui",
+      "question": "Can my tool UI show the arguments while the model is still writing them?",
+      "reference": "Yes. While the call streams, the part's `args` holds the arguments parsed so far and `argsText` the raw argument text, with status `running`; the UI re-renders as they grow, so it can show partial input before the result arrives.",
+      "keyPoints": [
+        "Yes: args/argsText update while the call streams (status running)"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/types/message.ts",
+          "line": 352,
+          "anchor": "readonly args: TArgs;"
+        }
+      ]
+    },
+    {
+      "id": "h046",
+      "cluster": "tool-ui",
+      "question": "My backend streams custom data parts (not tool calls). How do I render them with my own component?",
+      "reference": "Register a data UI by name: `makeAssistantDataUI({ name, render })` (or `useAssistantDataUI`), or pass `components={{ data: { by_name: { myEvent: MyComponent }, Fallback } }}` to `MessagePrimitive.Parts`. The component receives the data part's `name` and `data`.",
+      "keyPoints": [
+        "Map the data part's name to a component (data.by_name or makeAssistantDataUI)",
+        "data.Fallback catches unmatched names"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/model-context/makeAssistantDataUI.ts",
+          "line": 28,
+          "anchor": "export const makeAssistantDataUI"
+        },
+        {
+          "file": "packages/core/src/react/primitives/message/MessageParts.tsx",
+          "line": 194,
+          "anchor": "/** Map data event names to specific components */"
+        }
+      ]
+    },
+    {
+      "id": "h047",
+      "cluster": "tool-ui",
+      "question": "How do I give specific tools their own UI just inside one message component, without registering them globally?",
+      "reference": "Pass `components={{ tools: { by_name: { get_weather: WeatherCard }, Fallback: MyFallback } }}` to `MessagePrimitive.Parts`: `by_name` maps tool names to components and `Fallback` renders tools without one.",
+      "keyPoints": [
+        "MessagePrimitive.Parts components.tools.by_name maps tool names to components",
+        "tools.Fallback for the rest"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/primitives/message/MessageParts.tsx",
+          "line": 244,
+          "anchor": "/** Map of tool names to their specific components */"
+        }
+      ]
+    },
+    {
+      "id": "h048",
+      "cluster": "tool-ui",
+      "question": "What kinds of tools can I define, and which of them must come with a UI?",
+      "reference": "A toolkit entry has a `type`: `frontend` tools run in the browser and need `render` or `renderText` to show progress and the result; `human` tools collect input from the user and need `render`; `backend` tools run on the server and may omit a renderer.",
+      "keyPoints": [
+        "frontend, human and backend tools",
+        "frontend tools need render or renderText; human tools need render; backend tools don't need one"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/model-context/toolbox.ts",
+          "line": 87,
+          "anchor": "Extends the core tool contract with tool-call display options."
+        },
+        {
+          "file": "packages/core/src/react/model-context/toolbox.ts",
+          "line": 92,
+          "anchor": "export type ToolDefinition<"
+        }
+      ]
+    },
+    {
+      "id": "h049",
+      "cluster": "tool-ui",
+      "question": "Does a tool's UI appear inside the collapsed chain-of-thought group, or on its own?",
+      "reference": "It depends on the tool's `display`: an explicit `display: \"standalone\"` shows it on its own and `\"inline\"` inside the trace. Without it, `human` tools default to standalone (they prompt the user) and every other tool to inline.",
+      "keyPoints": [
+        "The tool's display option decides (standalone vs inline)",
+        "Default: human tools standalone, others inline"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/model-context/toolbox.ts",
+          "line": 31,
+          "anchor": "export const isStandaloneToolDisplay"
+        }
+      ]
+    },
+    {
+      "id": "h050",
+      "cluster": "tool-ui",
+      "question": "How do I group a run of consecutive tool calls under one collapsible heading?",
+      "reference": "Use `MessagePrimitive.GroupedParts` with a `groupBy`; the older `ToolGroup` and `ReasoningGroup` components on `MessagePrimitive.Parts` are deprecated in its favor. The registry's tool-group element is a collapsible wrapper around consecutive tool calls.",
+      "keyPoints": [
+        "MessagePrimitive.GroupedParts with groupBy",
+        "ToolGroup is deprecated (the tool-group element wraps consecutive calls)"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/primitives/message/MessageParts.tsx",
+          "line": 275,
+          "anchor": "@deprecated Use `<MessagePrimitive.GroupedParts>` with a custom `groupBy` instead."
+        },
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1805,
+          "anchor": "Collapsible wrapper around consecutive tool calls."
+        }
+      ]
+    },
+    {
+      "id": "h051",
+      "cluster": "local-runtime",
+      "question": "In a LocalRuntime ChatModelAdapter, how do I stream the reply to the screen as it arrives?",
+      "reference": "Make `run` an async generator and `yield { content: [...] }` as the reply grows. Each yield carries the message content so far (it replaces the previous content rather than appending a delta); returning a Promise instead shows the reply only when it is done.",
+      "keyPoints": [
+        "run is an async generator that yields { content }",
+        "Each yield is the whole content so far, not a delta"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtime/utils/chat-model-adapter.ts",
+          "line": 69,
+          "anchor": "): Promise<ChatModelRunResult> | AsyncGenerator<ChatModelRunResult, void>;"
+        },
+        {
+          "file": "packages/core/src/runtimes/local/local-thread-runtime-core.ts",
+          "line": 1604,
+          "anchor": "updateMessage(r);"
+        }
+      ]
+    },
+    {
+      "id": "h052",
+      "cluster": "local-runtime",
+      "question": "What does my ChatModelAdapter's run function receive?",
+      "reference": "One options object: `messages` (the thread so far), `runConfig`, an `abortSignal` that fires when the user stops the run, and `context` (the model context: system instructions, the registered tools, `config` and call settings), plus some unstable fields.",
+      "keyPoints": [
+        "messages",
+        "abortSignal",
+        "context with system, tools and config (and runConfig)"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtime/utils/chat-model-adapter.ts",
+          "line": 50,
+          "anchor": "export type ChatModelRunOptions = {"
+        }
+      ]
+    },
+    {
+      "id": "h053",
+      "cluster": "local-runtime",
+      "question": "When my LocalRuntime model calls tools, how many model round trips does the runtime make on its own, and how do I change that?",
+      "reference": "`maxSteps` limits it and defaults to 2. When the message already has that many steps, the run ends with status incomplete, reason `tool-calls`, instead of calling the model again. Set `maxSteps` in the useLocalRuntime options.",
+      "keyPoints": [
+        "maxSteps, default 2",
+        "Reaching it ends the message incomplete (reason tool-calls)"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/local/local-thread-runtime-core.ts",
+          "line": 1529,
+          "anchor": "const maxSteps = this._options.maxSteps ?? 2;"
+        }
+      ]
+    },
+    {
+      "id": "h054",
+      "cluster": "local-runtime",
+      "question": "How do I open a LocalRuntime thread that already contains some messages, such as a greeting?",
+      "reference": "Pass `initialMessages` (ThreadMessageLike objects with `role` and `content`) in the useLocalRuntime options; the thread starts with them.",
+      "keyPoints": ["useLocalRuntime's initialMessages option"],
+      "sources": [
+        {
+          "file": "packages/core/src/react/runtimes/useLocalRuntime.ts",
+          "line": 37,
+          "anchor": "initialMessages?: readonly ThreadMessageLike[] | undefined;"
+        }
+      ]
+    },
+    {
+      "id": "h055",
+      "cluster": "local-runtime",
+      "question": "Which features can I add to a LocalRuntime besides the model adapter?",
+      "reference": "useLocalRuntime takes `adapters` next to the chat model: `history` (load and save messages), `attachments`, `speech` (read aloud), `dictation`, `voice` (realtime voice), `feedback` and `suggestion`.",
+      "keyPoints": [
+        "history, attachments, feedback, suggestion",
+        "speech, dictation and voice"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/local/local-runtime-options.ts",
+          "line": 16,
+          "anchor": "history?: ThreadHistoryAdapter | undefined;"
+        }
+      ]
+    },
+    {
+      "id": "h056",
+      "cluster": "drive",
+      "question": "How do I put text into the composer from my own button without sending it?",
+      "reference": "Call `setText` on the composer: `useAui().composer().setText(\"...\")`. The user can then edit and send it.",
+      "keyPoints": ["composer().setText from useAui()"],
+      "sources": [
+        {
+          "file": "packages/core/src/store/scopes/composer.ts",
+          "line": 98,
+          "anchor": "setText(text: string, options?: ComposerSetTextOptions): void;"
+        }
+      ]
+    },
+    {
+      "id": "h057",
+      "cluster": "drive",
+      "question": "How do I stop the running reply from my own code?",
+      "reference": "Call `useAui().thread().cancelRun()`; it cancels the current run, the same as the composer's Cancel button.",
+      "keyPoints": ["thread().cancelRun()"],
+      "sources": [
+        {
+          "file": "packages/core/src/store/scopes/thread.ts",
+          "line": 130,
+          "anchor": "cancelRun(): void;"
+        }
+      ]
+    },
+    {
+      "id": "h058",
+      "cluster": "drive",
+      "question": "How do I run my own code whenever the assistant finishes a reply?",
+      "reference": "Subscribe to the `thread.runEnd` event with `useAuiEvent(\"thread.runEnd\", handler)`; `thread.runStart` fires when a run begins.",
+      "keyPoints": ["useAuiEvent with the thread.runEnd event"],
+      "sources": [
+        {
+          "file": "packages/core/src/store/scopes/thread.ts",
+          "line": 201,
+          "anchor": "\"thread.runEnd\": { threadId: string };"
+        },
+        {
+          "file": "packages/store/src/useAuiEvent.ts",
+          "line": 51,
+          "anchor": "export const useAuiEvent"
+        }
+      ]
+    },
+    {
+      "id": "h059",
+      "cluster": "drive",
+      "question": "I read chat state with useAuiState. How do I keep my component from re-rendering on every streamed token, and what can't I return?",
+      "reference": "Return only the slice you need from the selector, e.g. `useAuiState((s) => s.thread.isRunning)`; the component re-renders when that value changes. Use several selectors rather than an inline object literal, which is a new reference every render. Returning the whole state is not supported and throws.",
+      "keyPoints": [
+        "Select a small slice; it re-renders only when that slice changes",
+        "Don't return an object literal or the whole state (the whole state throws)"
+      ],
+      "sources": [
+        {
+          "file": "packages/store/src/useAuiState.ts",
+          "line": 38,
+          "anchor": "// Prefer multiple selectors over an inline object literal"
+        },
+        {
+          "file": "packages/store/src/useAuiState.ts",
+          "line": 59,
+          "anchor": "You tried to return the entire AssistantState."
+        }
+      ]
+    },
+    {
+      "id": "h060",
+      "cluster": "drive",
+      "question": "How do I send a message from code with extra data attached, so I can read it back later on that message?",
+      "reference": "Call `useAui().thread().append({ role: \"user\", content: [...], metadata: { custom: { ... } } })`. The message keeps `metadata.custom`, so a message component can read it with `useAuiState((s) => s.message.metadata.custom)`.",
+      "keyPoints": [
+        "thread().append with metadata.custom",
+        "Read it back from the message's metadata.custom"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/store/scopes/thread.ts",
+          "line": 118,
+          "anchor": "append(message: CreateAppendMessage): void;"
+        },
+        {
+          "file": "packages/core/src/runtime/utils/chat-model-adapter.ts",
+          "line": 36,
+          "anchor": "readonly custom?: Record<string, unknown> | undefined;"
+        }
+      ]
+    },
+    {
+      "id": "h061",
+      "cluster": "frameworks",
+      "question": "My agent speaks the AG-UI protocol. Which package and hook connect assistant-ui to it, and what do I give the hook?",
+      "reference": "@assistant-ui/react-ag-ui's `useAgUiRuntime`. You pass it an AG-UI `agent` (an AbstractAgent instance, such as an HttpAgent pointed at your endpoint); it returns the runtime for AssistantRuntimeProvider.",
+      "keyPoints": [
+        "useAgUiRuntime from @assistant-ui/react-ag-ui",
+        "It takes an AG-UI agent instance"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-ag-ui/src/useAgUiRuntime.ts",
+          "line": 61,
+          "anchor": "export function useAgUiRuntime("
+        },
+        {
+          "file": "packages/react-ag-ui/src/runtime/types.ts",
+          "line": 107,
+          "anchor": "export type UseAgUiRuntimeOptions"
+        }
+      ]
+    },
+    {
+      "id": "h062",
+      "cluster": "frameworks",
+      "question": "How do I connect assistant-ui to an agent that implements the A2A protocol?",
+      "reference": "Use `useA2ARuntime` from @assistant-ui/react-a2a with either a `baseUrl` of the A2A server (optionally `basePath` and `tenant`) or a pre-built `client` (A2AClient).",
+      "keyPoints": [
+        "useA2ARuntime from @assistant-ui/react-a2a",
+        "Give it the server's baseUrl or a ready client"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-a2a/src/types.ts",
+          "line": 315,
+          "anchor": "/** Base URL of the A2A server. Used to create a client if `client` is not provided. */"
+        }
+      ]
+    },
+    {
+      "id": "h063",
+      "cluster": "frameworks",
+      "question": "Is there a runtime for agents built with Google's Agent Development Kit (ADK)?",
+      "reference": "Yes: `useAdkRuntime` from @assistant-ui/react-google-adk. Besides the connection it takes options for sessions, such as a `sessionAdapter`, `create`/`delete` callbacks or Assistant Cloud (`cloud`) for the thread list.",
+      "keyPoints": ["useAdkRuntime from @assistant-ui/react-google-adk"],
+      "sources": [
+        {
+          "file": "packages/react-google-adk/src/useAdkRuntime.ts",
+          "line": 874,
+          "anchor": "export const useAdkRuntime = ({"
+        }
+      ]
+    },
+    {
+      "id": "h064",
+      "cluster": "frameworks",
+      "question": "How do I put an assistant-ui chat in front of an OpenCode server, and where does it connect by default?",
+      "reference": "Use `useOpenCodeRuntime` from @assistant-ui/react-opencode. It connects to `baseUrl`, which defaults to http://localhost:4096 (OpenCode's local server), or to a `client` you pass.",
+      "keyPoints": [
+        "useOpenCodeRuntime from @assistant-ui/react-opencode",
+        "Default baseUrl http://localhost:4096"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-opencode/src/useOpenCodeRuntime.ts",
+          "line": 418,
+          "anchor": "const baseUrl = options.baseUrl ?? \"http://localhost:4096\";"
+        }
+      ]
+    },
+    {
+      "id": "h065",
+      "cluster": "frameworks",
+      "question": "With the LangGraph runtime, how do I read the per-message metadata LangGraph sends, or send raw LangChain messages myself?",
+      "reference": "@assistant-ui/react-langgraph has hooks for it: `useLangGraphMessageMetadata()` returns the per-message LangGraph tuple metadata keyed by message id, and `useLangGraphSend()` submits raw LangChain-shaped messages to the active thread (`useLangGraphSendCommand()` sends a command).",
+      "keyPoints": [
+        "useLangGraphMessageMetadata for per-message metadata",
+        "useLangGraphSend to submit raw LangChain messages"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-langgraph/src/hooks.ts",
+          "line": 58,
+          "anchor": "/** Read the per-message LangGraph tuple metadata, keyed by message ID. */"
+        },
+        {
+          "file": "packages/react-langgraph/src/hooks.ts",
+          "line": 45,
+          "anchor": "/** Submit raw LangChain-shaped messages to the active LangGraph thread. */"
+        }
+      ]
+    },
+    {
+      "id": "h066",
+      "cluster": "persistence",
+      "question": "What do I implement to save and restore a LocalRuntime conversation in my own database?",
+      "reference": "A `ThreadHistoryAdapter` passed as `adapters.history`. `load()` returns the stored messages as a repository (`messages`, each with its `parentId`, plus `headId`), and `append({ parentId, message })` is called to store each new message. Optional methods include `update` and `delete`.",
+      "keyPoints": [
+        "A ThreadHistoryAdapter in the history adapter slot",
+        "load() returns the messages (with parentIds); append() stores each new message"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/adapters/thread-history.ts",
+          "line": 82,
+          "anchor": "export type ThreadHistoryAdapter = {"
+        },
+        {
+          "file": "packages/core/src/adapters/thread-history.ts",
+          "line": 61,
+          "anchor": "append(item: MessageFormatItem<TMessage>): Promise<void>;"
+        }
+      ]
+    },
+    {
+      "id": "h067",
+      "cluster": "persistence",
+      "question": "I want to store messages in the AI SDK's own UIMessage format rather than assistant-ui's. Is there a hook for that in the history adapter?",
+      "reference": "Yes: a ThreadHistoryAdapter can implement `withFormat(formatAdapter)`. The runtime calls it with a `MessageFormatAdapter` that has `format`, `encode`, `decode` and `getId`, and the adapter stores each `MessageStorageEntry` (`id`, `parent_id`, `format`, `content`) in that format.",
+      "keyPoints": [
+        "The history adapter's withFormat",
+        "A format adapter encodes/decodes messages (format, encode, decode, getId)"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/adapters/thread-history.ts",
+          "line": 127,
+          "anchor": "withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>("
+        },
+        {
+          "file": "packages/core/src/adapters/thread-history.ts",
+          "line": 37,
+          "anchor": "export interface MessageFormatAdapter<"
+        }
+      ]
+    },
+    {
+      "id": "h068",
+      "cluster": "persistence",
+      "question": "Is there a built-in way to keep threads and messages in the browser's localStorage?",
+      "reference": "Yes: `createLocalStorageAdapter({ storage, prefix, titleGenerator })` returns a thread list adapter (with unarchive) that persists threads and messages in the given storage under keys starting with `@assistant-ui:` by default. Writes are serialized only within one tab, so two writers on the same storage can conflict.",
+      "keyPoints": [
+        "createLocalStorageAdapter persists threads and messages in storage",
+        "One tab at a time: writes aren't coordinated across tabs"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/adapters/LocalStorageThreadListAdapter.tsx",
+          "line": 347,
+          "anchor": "export const createLocalStorageAdapter = ("
+        },
+        {
+          "file": "packages/core/src/react/adapters/LocalStorageThreadListAdapter.tsx",
+          "line": 351,
+          "anchor": "const { storage, prefix = \"@assistant-ui:\", titleGenerator } = options;"
+        }
+      ]
+    },
+    {
+      "id": "h069",
+      "cluster": "persistence",
+      "question": "What is a history adapter's scopeId for, and when should I change it?",
+      "reference": "`scopeId` is the identity of the storage scope LocalRuntime reads (a thread, an account, a workspace). Keep it the same when you recreate the adapter for the same scope, and change it before loading a different scope; adapters that omit it are treated as sharing one scope.",
+      "keyPoints": [
+        "It identifies the storage scope (thread, account, workspace)",
+        "Keep it stable for the same scope; change it before loading a different one"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/adapters/thread-history.ts",
+          "line": 84,
+          "anchor": "Stable identity for the storage scope read by LocalRuntime."
+        }
+      ]
+    },
+    {
+      "id": "h070",
+      "cluster": "persistence",
+      "question": "When I save threads through a thread list adapter, how does custom data I attach to a new thread reach my backend?",
+      "reference": "Through `initialize(threadId, { custom })`: draft metadata reaches the backend only through that call, so an adapter that ignores `options.custom` loses it on the next `list()`. Later changes go through `updateCustom(remoteId, custom)`.",
+      "keyPoints": [
+        "initialize receives the draft custom metadata",
+        "If initialize ignores options.custom it is lost on the next list()"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/remote-thread-list/types.ts",
+          "line": 64,
+          "anchor": "Creates a thread with draft metadata passed in `options.custom`"
+        }
+      ]
+    },
+    {
+      "id": "h071",
+      "cluster": "thread-list",
+      "question": "Which methods does a RemoteThreadListAdapter for my own backend need?",
+      "reference": "`list` (threads, with an optional cursor for paging), `initialize` (create the thread and return its `remoteId`), `rename`, `archive`, `delete`, `generateTitle` and `fetch`; `unarchive` and `updateCustom` are optional.",
+      "keyPoints": [
+        "list, initialize, rename, archive, delete, generateTitle and fetch",
+        "unarchive and updateCustom are optional"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/remote-thread-list/types.ts",
+          "line": 47,
+          "anchor": "export type RemoteThreadListAdapter = {"
+        }
+      ]
+    },
+    {
+      "id": "h072",
+      "cluster": "thread-list",
+      "question": "When is a thread's title generated, and how does my backend supply it?",
+      "reference": "The thread list adapter's `generateTitle(remoteId, messages)` returns an AssistantStream with the title. It is called once the first message settles and, if the thread still has no title, again after its first run ends. If the backend saves the title itself, the stream must not complete before that write lands.",
+      "keyPoints": [
+        "generateTitle on the thread list adapter streams the title",
+        "It runs after the first message (and again after the first run if still untitled)"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/remote-thread-list/types.ts",
+          "line": 75,
+          "anchor": "Called automatically once the first message settles"
+        }
+      ]
+    },
+    {
+      "id": "h073",
+      "cluster": "thread-list",
+      "question": "What is the difference between a thread's id and its remoteId?",
+      "reference": "The id is the client-side thread id. The remoteId is the backend's id, returned by the adapter's `initialize(threadId)` (`{ remoteId, externalId? }`) when the thread is first saved; every later adapter call (rename, archive, delete, fetch messages) uses the remoteId.",
+      "keyPoints": [
+        "id is local; remoteId is the backend's id",
+        "initialize returns the remoteId, which later calls use"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/remote-thread-list/types.ts",
+          "line": 17,
+          "anchor": "export type RemoteThreadInitializeResponse = {"
+        }
+      ]
+    },
+    {
+      "id": "h074",
+      "cluster": "thread-list",
+      "question": "Can I store extra flags on a thread, like pinned or unread?",
+      "reference": "Yes, in the thread's `custom` metadata: `RemoteThreadMetadata.custom` comes back from `list()`, and the adapter's `updateCustom(remoteId, custom)` saves changes (initialize receives the draft's custom data).",
+      "keyPoints": [
+        "Thread custom metadata",
+        "updateCustom saves it; list() returns it"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/remote-thread-list/types.ts",
+          "line": 28,
+          "anchor": "readonly custom?: Record<string, unknown> | undefined;"
+        },
+        {
+          "file": "packages/core/src/runtimes/remote-thread-list/types.ts",
+          "line": 51,
+          "anchor": "updateCustom?("
+        }
+      ]
+    },
+    {
+      "id": "h075",
+      "cluster": "thread-list",
+      "question": "My backend can archive threads but cannot unarchive them. What happens if I leave unarchive out of my adapter?",
+      "reference": "That's allowed: `unarchive` is optional. Switching to an archived thread then opens it as archived, and an explicit unarchive rejects.",
+      "keyPoints": [
+        "unarchive is optional",
+        "Archived threads open as archived and unarchiving rejects"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/remote-thread-list/types.ts",
+          "line": 57,
+          "anchor": "Restores an archived thread. Omit it when the backend cannot unarchive"
+        }
+      ]
+    },
+    {
+      "id": "h076",
+      "cluster": "composer",
+      "question": "In ComposerPrimitive.Input, does Enter send the message? How do I make Ctrl/Cmd+Enter send instead?",
+      "reference": "By default Enter sends and Shift+Enter adds a newline (`submitMode` \"enter\"). Set `submitMode=\"ctrlEnter\"` so Ctrl/Cmd+Enter sends and plain Enter adds a newline, or \"none\" to turn off keyboard sending. `submitOnEnter` is deprecated.",
+      "keyPoints": [
+        "Default: Enter sends, Shift+Enter is a newline",
+        "submitMode=\"ctrlEnter\" (or \"none\")"
+      ],
+      "sources": [
+        {
+          "file": "packages/react/src/primitives/composer/ComposerInput.tsx",
+          "line": 114,
+          "anchor": "submitMode?: \"enter\" | \"ctrlEnter\" | \"none\" | undefined;"
+        }
+      ]
+    },
+    {
+      "id": "h077",
+      "cluster": "composer",
+      "question": "Can a user type and send a new message while the assistant is still answering?",
+      "reference": "With LocalRuntime you can opt in with `unstable_enableMessageQueue`: a message sent during a run is held in `composer.queue` and sent once the run settles, and steering runs a queued message next. `ComposerPrimitive.Queue` renders the queue.",
+      "keyPoints": [
+        "Opt in with unstable_enableMessageQueue (LocalRuntime)",
+        "Messages wait in composer.queue and send when the run settles"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/local/local-runtime-options.ts",
+          "line": 33,
+          "anchor": "Opt in to message queuing: a message sent during a run is held in"
+        }
+      ]
+    },
+    {
+      "id": "h078",
+      "cluster": "composer",
+      "question": "How do I add @-mentions or slash commands to the composer?",
+      "reference": "Use `ComposerPrimitive.TriggerPopover` (with `TriggerPopoverRoot`): it watches the input for a trigger character such as `@` or `/` and shows a popover of items (with categories and actions) to insert. The older `Unstable_TriggerPopover` names are deprecated.",
+      "keyPoints": [
+        "ComposerPrimitive.TriggerPopover",
+        "It opens on a trigger character like @ or /"
+      ],
+      "sources": [
+        {
+          "file": "packages/react/src/primitives/composer.ts",
+          "line": 21,
+          "anchor": "export { ComposerPrimitiveTriggerPopover as TriggerPopover }"
+        }
+      ]
+    },
+    {
+      "id": "h079",
+      "cluster": "attachments",
+      "question": "How do I let users attach both images and text files, and how does each kind reach the model?",
+      "reference": "Combine adapters: `new CompositeAttachmentAdapter([new SimpleImageAttachmentAdapter(), new SimpleTextAttachmentAdapter()])`. Each file goes to the first adapter whose `accept` matches. The image adapter (`image/*`) sends an image part with the file as a data URL; the text adapter (plain text, HTML, markdown, CSV, XML, JSON, CSS) sends a text part with the file's text wrapped in an `<attachment name=...>` tag.",
+      "keyPoints": [
+        "CompositeAttachmentAdapter combining the image and text adapters",
+        "Images go as image parts (data URL), text files as text parts"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/adapters/attachment.ts",
+          "line": 282,
+          "anchor": "export class CompositeAttachmentAdapter"
+        },
+        {
+          "file": "packages/core/src/adapters/attachment.ts",
+          "line": 46,
+          "anchor": "image: await getFileDataURL(attachment.file, options),"
+        }
+      ]
+    },
+    {
+      "id": "h080",
+      "cluster": "attachments",
+      "question": "When are attachment files actually processed: when the user picks them or when the message is sent?",
+      "reference": "In two steps. `add` runs when the file is picked and returns a pending attachment with status `requires-action` (reason `composer-send`); `send` runs when the message is sent and returns the complete attachment with its content parts. Uploading belongs in `send` (or in `add`, for adapters that upload early).",
+      "keyPoints": [
+        "add() runs on pick and returns a pending attachment",
+        "send() runs when the message is sent and produces the content"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/adapters/attachment.ts",
+          "line": 32,
+          "anchor": "status: { type: \"requires-action\", reason: \"composer-send\" },"
+        }
+      ]
+    },
+    {
+      "id": "h081",
+      "cluster": "platforms",
+      "question": "I'm on Vue. Do I get the same state hooks as in React?",
+      "reference": "Yes: @assistant-ui/vue has `useAui`, `useAuiState` and `useAuiEvent` composables, an `AuiProvider` and `AuiIf`, and Vue primitives, on the same state model as React.",
+      "keyPoints": [
+        "@assistant-ui/vue",
+        "useAui and useAuiState exist there too"
+      ],
+      "sources": [
+        {
+          "file": "packages/vue/src/useAuiState.ts",
+          "line": 27,
+          "anchor": "export const useAuiState"
+        },
+        {
+          "file": "packages/vue/src/useAui.ts",
+          "line": 16,
+          "anchor": "export const useAui"
+        }
+      ]
+    },
+    {
+      "id": "h082",
+      "cluster": "platforms",
+      "question": "How do I build a chat that runs in the terminal?",
+      "reference": "With @assistant-ui/react-ink, which renders assistant-ui primitives with Ink; `npx assistant-ui create --ink` scaffolds a project. It uses the same runtimes (it re-exports core types and adapters such as InMemoryThreadListAdapter).",
+      "keyPoints": [
+        "@assistant-ui/react-ink (Ink)",
+        "create --ink scaffolds it"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-ink/src/index.ts",
+          "line": 75,
+          "anchor": "export { InMemoryThreadListAdapter } from \"@assistant-ui/core\";"
+        },
+        {
+          "file": "packages/cli/src/commands/create.ts",
+          "line": 586,
+          "anchor": "create a React Ink terminal project"
+        }
+      ]
+    },
+    {
+      "id": "h083",
+      "cluster": "markdown",
+      "question": "The assistant's text appears with a typing effect. Where does that come from and how do I turn it off?",
+      "reference": "`MarkdownTextPrimitive` smooths streaming text by default (`smooth = true`) through `useSmooth`. Pass `smooth={false}` to show text as it arrives, or smooth options to tune it.",
+      "keyPoints": [
+        "MarkdownTextPrimitive's smooth prop, on by default",
+        "smooth={false} turns it off"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-markdown/src/primitives/MarkdownText.tsx",
+          "line": 212,
+          "anchor": "smooth = true,"
+        }
+      ]
+    },
+    {
+      "id": "h084",
+      "cluster": "markdown",
+      "question": "Can I render messages with Streamdown instead of react-markdown?",
+      "reference": "Yes: @assistant-ui/react-streamdown exports `StreamdownTextPrimitive`, which you use as the Text component in place of MarkdownTextPrimitive; it highlights code with Shiki (DEFAULT_SHIKI_THEME).",
+      "keyPoints": ["@assistant-ui/react-streamdown's StreamdownTextPrimitive"],
+      "sources": [
+        {
+          "file": "packages/react-streamdown/src/index.ts",
+          "line": 1,
+          "anchor": "export { StreamdownTextPrimitive }"
+        }
+      ]
+    },
+    {
+      "id": "h085",
+      "cluster": "approvals",
+      "question": "My backend tool asks for approval before it runs. How does the tool UI answer, and does the run continue while it waits?",
+      "reference": "The tool call part carries `approval`; the UI calls `respondToApproval(...)` with a boolean, an option id or a free-form answer, and it resolves once the runtime accepted the response. While an approval is pending the run doesn't continue on its own.",
+      "keyPoints": [
+        "The UI answers with respondToApproval",
+        "The run waits while the approval is pending"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/types/MessagePartComponentTypes.ts",
+          "line": 94,
+          "anchor": "respondToApproval: (response: ToolApprovalResponse) => Promise<void>;"
+        },
+        {
+          "file": "packages/core/src/runtimes/local/should-continue.ts",
+          "line": 21,
+          "anchor": "if (hasPendingApproval) return false;"
+        }
+      ]
+    },
+    {
+      "id": "h086",
+      "cluster": "approvals",
+      "question": "My LangGraph graph stopped on an interrupt to ask the user something. How does the UI read it and resume the graph?",
+      "reference": "`useLangGraphInterruptState()` returns the current interrupt, and `useLangGraphSendCommand()` returns a function that sends a LangGraph command such as `{ resume: value }`; the command reuses the interrupted run's runConfig.",
+      "keyPoints": [
+        "useLangGraphInterruptState reads the interrupt",
+        "useLangGraphSendCommand sends a resume command"
+      ],
+      "sources": [
+        {
+          "file": "packages/react-langgraph/src/hooks.ts",
+          "line": 42,
+          "anchor": "export const useLangGraphInterruptState"
+        },
+        {
+          "file": "packages/react-langgraph/src/hooks.ts",
+          "line": 52,
+          "anchor": "/** Submit a LangGraph command (for example an interrupt resume)."
+        }
+      ]
+    },
+    {
+      "id": "h087",
+      "cluster": "defining-tools",
+      "question": "How do I define tools for the assistant and register them with my app today?",
+      "reference": "Write a toolkit: an object whose keys are the tool names the model sees and whose values are tool definitions (`type`, `description`, `parameters`, `execute` for frontend tools, `render`/`renderText`). Register it with `Tools({ toolkit })` through `AuiConfig` on the provider's `config` prop. `useAssistantTool` and `makeAssistantTool` are deprecated.",
+      "keyPoints": [
+        "A toolkit object keyed by tool name",
+        "Registered with Tools({ toolkit })"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/model-context/toolbox.ts",
+          "line": 115,
+          "anchor": "export type Toolkit = Record<string, ToolDefinition<any, any>>;"
+        },
+        {
+          "file": "packages/core/src/react/client/Tools.ts",
+          "line": 174,
+          "anchor": "export const Tools = resource(useTools);"
+        }
+      ]
+    },
+    {
+      "id": "h088",
+      "cluster": "defining-tools",
+      "question": "How do the frontend tools I register reach a model that I call from my AI SDK route?",
+      "reference": "AssistantChatTransport adds them to every request body as JSON schemas (`tools`, next to `system`, `config` and `callSettings`). The route passes them to `streamText` with `frontendTools(tools)`; when the model calls one, the browser runs `execute` and the result goes back to the model.",
+      "keyPoints": [
+        "The transport sends their JSON schemas in the request body (tools)",
+        "The route hands them to the model with frontendTools()"
+      ],
+      "sources": [
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 85,
+          "anchor": "tools: toToolsJSONSchema(context?.tools ?? {}),"
+        },
+        {
+          "file": "packages/assistant-stream/src/ai-sdk/frontendTools.ts",
+          "line": 95,
+          "anchor": "export const frontendTools"
+        }
+      ]
+    },
+    {
+      "id": "h089",
+      "cluster": "protocols",
+      "question": "Without the AI SDK, how can my TypeScript backend stream text and tool calls in a format assistant-ui reads?",
+      "reference": "Use assistant-stream: `createAssistantStream(async (controller) => { ... })` with `controller.appendText(...)`, `appendReasoning(...)` and `addToolCallPart(...)`, and return it with `createAssistantStreamResponse(...)`.",
+      "keyPoints": [
+        "assistant-stream's createAssistantStream with a controller",
+        "appendText / addToolCallPart, returned via createAssistantStreamResponse"
+      ],
+      "sources": [
+        {
+          "file": "packages/assistant-stream/src/core/modules/assistant-stream.ts",
+          "line": 58,
+          "anchor": "appendText(textDelta: string): void;"
+        },
+        {
+          "file": "packages/assistant-stream/src/core/modules/assistant-stream.ts",
+          "line": 463,
+          "anchor": "export function createAssistantStream("
+        }
+      ]
+    },
+    {
+      "id": "h090",
+      "cluster": "protocols",
+      "question": "With AssistantTransport, what does my backend receive on each request?",
+      "reference": "A JSON body with the queued `commands` (such as add-message and add-tool-result), the current `state`, the model context (`system`, `tools`, `callSettings`, `config`) and the `threadId` and `parentId`.",
+      "keyPoints": [
+        "The commands (add-message, add-tool-result)",
+        "The current state, plus system/tools/config"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/runtimes/assistant-transport/types.ts",
+          "line": 96,
+          "anchor": "commands: QueuedCommand[];"
+        }
+      ]
+    },
+    {
+      "id": "h091",
+      "cluster": "ai-sdk",
+      "question": "How do I send extra fields, such as a user id, with every request useChatRuntime makes?",
+      "reference": "Give useChatRuntime a `transport: new AssistantChatTransport({ api, body, headers })`. The transport builds each request body from the model context (`callSettings`, `system`, `config`, `tools`) and then your `body` fields, and sends your headers.",
+      "keyPoints": [
+        "Pass body (and headers) to AssistantChatTransport",
+        "Your body fields are merged into the request next to system, tools and config"
+      ],
+      "sources": [
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 86,
+          "anchor": "...options?.body,"
+        }
+      ]
+    },
+    {
+      "id": "h092",
+      "cluster": "ai-sdk",
+      "question": "How does useChatRuntime let a resumable-stream server know which thread a stream belongs to?",
+      "reference": "The chat request's body carries the thread as `id` (its remoteId once the thread is saved), so the server can tie the stream it starts to that thread. The server then creates a stream id for the reply and returns it in the `x-resumable-stream-id` response header, and resuming goes by that stream id, not the thread. AssistantChatTransport's resumable fetch stores the stream id on the client per thread (it passes the thread to itself in an internal header that it strips before the request goes out), reconnects with it after a reload, and clears it when the finish event arrives.",
+      "keyPoints": [
+        "The request body's id is the thread's id (its remoteId once saved)",
+        "The server returns a stream id in the x-resumable-stream-id header; resuming uses that id, which the client stores per thread"
+      ],
+      "sources": [
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 76,
+          "anchor": "const id = (await threadListItem?.initialize())?.remoteId ?? options.id;"
+        },
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 147,
+          "anchor": "const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);"
+        },
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 144,
+          "anchor": "headers.delete(RESUMABLE_THREAD_ID_HEADER);"
+        },
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 151,
+          "anchor": "resumable.storage.setStreamId(id, threadId);"
+        },
+        {
+          "file": "packages/ai-sdk/src/transport/AssistantChatTransport.ts",
+          "line": 216,
+          "anchor": "const streamId = resumable.storage.getStreamId(options.id);"
+        },
+        {
+          "file": "packages/assistant-stream/src/resumable/createResumableAssistantStreamResponse.ts",
+          "line": 9,
+          "anchor": "export const RESUMABLE_STREAM_ID_HEADER = \"x-resumable-stream-id\";"
+        }
+      ]
+    },
+    {
+      "id": "h093",
+      "cluster": "resume",
+      "question": "With the message queue turned on, what happens to queued messages when the user presses Stop?",
+      "reference": "By default cancelling clears the queue (`unstable_queueClearOnCancel` defaults to true). Set it to false and cancel pauses the queue instead, keeping the pending items; the next send drains them. That option is deprecated because cancel will always pause and keep the items.",
+      "keyPoints": [
+        "By default, cancel clears the queue",
+        "unstable_queueClearOnCancel: false pauses and keeps the queued items"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/local/local-runtime-options.ts",
+          "line": 48,
+          "anchor": "Auto-clear the message queue when the user cancels the run."
+        }
+      ]
+    },
+    {
+      "id": "h094",
+      "cluster": "resume",
+      "question": "When the user stops a reply in LocalRuntime, what status does the message end with, and does my backend find out?",
+      "reference": "The adapter's `abortSignal` fires, so your fetch can stop, and the message ends with status `incomplete` and reason `cancelled`; the text streamed so far stays.",
+      "keyPoints": [
+        "The abortSignal fires",
+        "The message ends incomplete with reason cancelled"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/local/local-thread-runtime-core.ts",
+          "line": 1598,
+          "anchor": "status: { type: \"incomplete\", reason: \"cancelled\" },"
+        },
+        {
+          "file": "packages/core/src/runtime/utils/chat-model-adapter.ts",
+          "line": 53,
+          "anchor": "readonly abortSignal: AbortSignal;"
+        }
+      ]
+    },
+    {
+      "id": "h095",
+      "cluster": "modal",
+      "question": "Is there a ready-made floating chat bubble for a help widget?",
+      "reference": "Yes, the assistant-modal element: a floating chat bubble with a thread list and a resizable window. It installs the thread and thread-list elements and is built on `AssistantModalPrimitive`; assistant-sidebar is the side-panel alternative.",
+      "keyPoints": [
+        "The assistant-modal element (floating bubble)",
+        "It reuses the thread (and thread-list) elements"
+      ],
+      "sources": [
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1739,
+          "anchor": "Floating chat bubble for support widgets and help desks"
+        },
+        {
+          "file": "apps/registry/src/registry.ts",
+          "line": 1758,
+          "anchor": "name: \"assistant-sidebar\""
+        }
+      ]
+    },
+    {
+      "id": "h096",
+      "cluster": "voice",
+      "question": "How do I add a microphone button so users can dictate into the composer?",
+      "reference": "Give the runtime a dictation adapter, for example `adapters: { dictation: new WebSpeechDictationAdapter() }` (the browser's Web Speech API). The thread's dictation capability turns on only when a dictation adapter is set, and the default thread element shows the mic button only then.",
+      "keyPoints": [
+        "A dictation adapter (e.g. WebSpeechDictationAdapter)",
+        "The mic button appears only when the runtime has that adapter"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/adapters/speech.ts",
+          "line": 164,
+          "anchor": "export class WebSpeechDictationAdapter"
+        },
+        {
+          "file": "packages/core/src/runtimes/local/local-thread-runtime-core.ts",
+          "line": 611,
+          "anchor": "const canDictate = options.adapters?.dictation !== undefined;"
+        }
+      ]
+    },
+    {
+      "id": "h097",
+      "cluster": "external-store",
+      "question": "With ExternalStoreRuntime, why does my store need setMessages?",
+      "reference": "`setMessages` applies a message list the runtime rewrote. Branch switching requires it, and it is how the runtime knows a removal will survive: without it, cancelling a run leaves a trailing user message in the thread and the composer untouched.",
+      "keyPoints": [
+        "Branch switching requires setMessages",
+        "Without it, cancelling leaves the trailing user message (removals don't stick)"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/runtimes/external-store/external-store-adapter.ts",
+          "line": 167,
+          "anchor": "Applies a message list the runtime rewrote"
+        },
+        {
+          "file": "packages/core/src/runtimes/external-store/external-store-adapter.ts",
+          "line": 189,
+          "anchor": "This complements `setMessages` rather than replacing it"
+        }
+      ]
+    },
+    {
+      "id": "h098",
+      "cluster": "suggestions",
+      "question": "How do I produce suggestions that change after every reply in LocalRuntime?",
+      "reference": "Pass a suggestion adapter (`adapters.suggestion`). Its `generate({ messages, signal })` returns suggestions or an async generator of them after a run settles; an optional `key` tells the runtime when to regenerate. The follow-up-suggestions element renders them.",
+      "keyPoints": [
+        "A SuggestionAdapter with generate({ messages })",
+        "It runs after each reply settles"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/adapters/suggestion.ts",
+          "line": 10,
+          "anchor": "export type SuggestionAdapter = {"
+        }
+      ]
+    },
+    {
+      "id": "h099",
+      "cluster": "agent-docs",
+      "question": "How do I give my coding agent access to the assistant-ui docs through MCP?",
+      "reference": "Run `npx assistant-ui mcp` with a flag for your tool (--cursor, --windsurf, --vscode, --zed, --claude-code, --claude-desktop). It writes that tool's MCP config pointing at the hosted docs server https://www.assistant-ui.com/mcp (or the @assistant-ui/mcp-docs-server package where a command is needed).",
+      "keyPoints": [
+        "npx assistant-ui mcp with a flag for the tool",
+        "It configures the hosted server at https://www.assistant-ui.com/mcp"
+      ],
+      "sources": [
+        {
+          "file": "packages/cli/src/commands/mcp.ts",
+          "line": 25,
+          "anchor": "const HOSTED_MCP_URL = \"https://www.assistant-ui.com/mcp\";"
+        }
+      ]
+    },
+    {
+      "id": "h100",
+      "cluster": "reasoning",
+      "question": "How do I render reasoning parts myself, and what happens to them when I use a ChainOfThought component?",
+      "reference": "Pass a `Reasoning` component in `MessagePrimitive.Parts`' components. If you set `ChainOfThought`, it takes over rendering all reasoning and tool-call parts in the message, so `Reasoning`, `tools`, `ReasoningGroup` and `ToolGroup` can't be used alongside it.",
+      "keyPoints": [
+        "components.Reasoning renders reasoning parts",
+        "ChainOfThought renders all reasoning and tool-call parts and can't be combined with Reasoning/tools"
+      ],
+      "sources": [
+        {
+          "file": "packages/core/src/react/primitives/message/MessageParts.tsx",
+          "line": 298,
+          "anchor": "When `ChainOfThought` is set, it takes control of rendering ALL reasoning and"
+        }
+      ]
+    }
+  ]
+}

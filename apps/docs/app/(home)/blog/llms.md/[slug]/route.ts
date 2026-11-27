@@ -1,9 +1,9 @@
 import { cacheLife } from "next/cache";
 import type { NextRequest } from "next/server";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
+import { missingMarkdownResponse } from "@/lib/docs-markdown";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 import { blog, type BlogPage } from "@/lib/source";
-import { notFound } from "next/navigation";
 import { remark } from "remark";
 import remarkGfm from "remark-gfm";
 import remarkMdx from "remark-mdx";
@@ -37,7 +37,9 @@ export async function GET(
 ) {
   const { slug } = await params;
   const markdown = await getMarkdown(slug);
-  if (markdown === null) notFound();
+  if (markdown === null) {
+    return missingMarkdownResponse(`/blog/${slug}`, blog.getPages());
+  }
   return createMarkdownResponse(markdown);
 }
 

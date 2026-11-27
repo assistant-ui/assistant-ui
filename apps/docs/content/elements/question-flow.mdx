@@ -78,12 +78,15 @@ export const toolkit = defineToolkit({
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { toolkit } from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
@@ -92,7 +95,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-The model receives the result only after the last answer lands. See [Tool UI](/docs/tools/tool-ui#user-input-collection) for the human tool lifecycle.
+The model receives the result only after the last answer lands. `sendAutomaticallyWhen` sends it back then; without it, the turn stops at the questions. See [Tool UI](/docs/tools/tool-ui#user-input-collection) for the human tool lifecycle.
 
   </Step>
 </Steps>

@@ -6,18 +6,19 @@ import {
 } from "./groupParts";
 
 describe("group identity inheritance", () => {
-  it("preserves unique sibling keys, shared members for retained identity keys, and stable maps across seeded nested evolutions", () => {
-    const paths = [
-      [],
-      ["group-parts"],
-      ["group-parts", "group-leaves"],
-      ["group-parts", "group-leaves", "group-deep"],
-      ["group-parts", "group-other"],
-      ["group-other", "group-leaves"],
-      ["group-other", "group-leaves", "group-deep"],
-      ['group-"parts', "group-leaves:deep", "group-parts"],
-    ];
-    for (let run = 1; run <= 32; run++) {
+  it.each(Array.from({ length: 32 }, (_, index) => index + 1))(
+    "preserves unique sibling keys, shared members for retained identity keys, and stable maps across nested evolutions for seed %i",
+    (run) => {
+      const paths = [
+        [],
+        ["group-parts"],
+        ["group-parts", "group-leaves"],
+        ["group-parts", "group-leaves", "group-deep"],
+        ["group-parts", "group-other"],
+        ["group-other", "group-leaves"],
+        ["group-other", "group-leaves", "group-deep"],
+        ['group-"parts', "group-leaves:deep", "group-parts"],
+      ];
       let seed = run;
       const random = (limit: number) => {
         seed ^= seed << 13;
@@ -99,6 +100,6 @@ describe("group identity inheritance", () => {
         previousKeys = keys;
         previousGroups = groups;
       }
-    }
-  });
+    },
+  );
 });

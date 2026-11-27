@@ -175,3 +175,57 @@ async def test_differently_cased_user_id_header_is_filtered() -> None:
     assert response.headers[RESUMABLE_STREAM_ID_HEADER] == "s1"
     assert "spoof" not in response.headers.values()
     await response.body_iterator.aclose()
+
+
+@pytest.mark.anyio
+async def test_data_stream_responses_declare_the_protocol_header() -> None:
+    # Both the producer and the resume response carry the data stream header,
+    # so a client that omits `protocol` detects the data stream on reconnect
+    # too; an assistant transport stream carries none.
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store()
+    )
+
+    async def callback(controller: RunController) -> None:
+        controller.append_text("hi")
+
+    first = await create_resumable_assistant_stream_response(
+        context=ctx, stream_id="s1", callback=callback
+    )
+    await _collect_body(first)
+    second = await create_resume_assistant_stream_response(
+        context=ctx, stream_id="s1"
+    )
+    transport = await create_resumable_assistant_stream_response(
+        context=ctx,
+        stream_id="s2",
+        callback=callback,
+        encoder=AssistantTransportEncoder(),
+    )
+
+    assert first.headers["x-vercel-ai-data-stream"] == "v1"
+    assert second.headers["x-vercel-ai-data-stream"] == "v1"
+    assert second.headers[RESUMABLE_STREAM_ID_HEADER] == "s1"
+    assert "x-vercel-ai-data-stream" not in transport.headers
+    await _collect_body(transport)
+
+
+@pytest.mark.anyio
+async def test_caller_headers_replace_encoder_headers_in_any_case() -> None:
+    ctx = create_resumable_stream_context(
+        store=create_in_memory_resumable_stream_store()
+    )
+
+    async def callback(controller: RunController) -> None:
+        controller.append_text("hi")
+
+    response = await create_resumable_assistant_stream_response(
+        context=ctx,
+        stream_id="s1",
+        callback=callback,
+        headers={"X-Vercel-AI-Data-Stream": "v2", "X-Resumable-Stream-Id": "x"},
+    )
+    await _collect_body(response)
+
+    assert response.headers.getlist("x-vercel-ai-data-stream") == ["v2"]
+    assert response.headers.getlist(RESUMABLE_STREAM_ID_HEADER) == ["s1"]

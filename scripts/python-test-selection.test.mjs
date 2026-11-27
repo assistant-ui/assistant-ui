@@ -155,3 +155,77 @@ test("a large mixed diff still selects only the affected packages", (t) => {
       pkg === "assistant-stream" || pkg === "assistant-ui-sync-server-api",
     );
 });
+
+const transportPage =
+  "apps/docs/content/docs/runtimes/custom/assistant-transport.mdx";
+const checker = "apps/docs/lib/python-blocks.py";
+const backend = "assistant-transport-backend";
+const backendReadme = `python/${backend}/README_examples.md`;
+const sampleTest = "python/assistant-stream/tests/test_docs_samples.py";
+const unrelatedDocs = ["apps/docs/content/meta.json", "apps/docs/lib/notes.md"];
+
+for (const event of ["push", "pull_request"]) {
+  test(`${event} watches docs sample inputs`, () => {
+    const block = workflow.match(
+      new RegExp(`^  ${event}:\\n[\\s\\S]*?(?=^  \\w+:|^\\S)`, "m"),
+    )[0];
+    const patterns = [...block.matchAll(/^      - "(.+)"$/gm)].map(
+      (match) => match[1],
+    );
+    const matches = (file) =>
+      patterns.some((pattern) => path.posix.matchesGlob(file, pattern));
+    for (const file of [
+      transportPage,
+      "apps/docs/content/index.md",
+      checker,
+      backendReadme,
+      sampleTest,
+    ]) {
+      assert.ok(matches(file), file);
+    }
+    for (const file of unrelatedDocs) assert.equal(matches(file), false, file);
+  });
+}
+
+for (const [files, expected] of [
+  [[transportPage], ["assistant-stream"]],
+  [["apps/docs/content/index.md"], ["assistant-stream"]],
+  [[checker], ["assistant-stream"]],
+  [[sampleTest], ["assistant-stream"]],
+  [[backendReadme], ["assistant-stream", backend]],
+  [[`python/${backend}/nested/README.md`], [backend]],
+  [[`python/${backend}/README.mdx`], [backend]],
+  [
+    [transportPage, `python/${backend}/module.py`],
+    ["assistant-stream", backend],
+  ],
+  [unrelatedDocs, []],
+]) {
+  test(`selects docs sample suites for ${files.join(" and ")}`, (t) => {
+    const f = fixture(t);
+    for (const file of files) f.write(file, "changed\n");
+    f.commit();
+    for (const pkg of packages)
+      assert.equal(f.selected(pkg), expected.includes(pkg), pkg);
+  });
+}
+
+test("moving or deleting a docs sample still selects assistant-stream", (t) => {
+  const f = fixture(t);
+  f.write(transportPage);
+  f.write(backendReadme);
+  const base = f.commit();
+  rmSync(path.join(f.root, transportPage));
+  f.write("apps/docs/archive/transport.mdx");
+  const moved = f.commit();
+  for (const pkg of packages)
+    assert.equal(f.selected(pkg, base), pkg === "assistant-stream");
+  rmSync(path.join(f.root, backendReadme));
+  f.commit();
+  for (const pkg of packages) {
+    assert.equal(
+      f.selected(pkg, moved),
+      pkg === "assistant-stream" || pkg === backend,
+    );
+  }
+});

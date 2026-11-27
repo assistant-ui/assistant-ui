@@ -10,6 +10,7 @@
     "langgraph",
     "custom-thread-list",
     "servers",
-    "migrate-cloud-ai-sdk"
+    "migrate-cloud-ai-sdk",
+    "upgrade-from-0-1"
   ]
 }

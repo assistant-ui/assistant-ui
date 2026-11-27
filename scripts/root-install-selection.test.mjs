@@ -37,3 +37,17 @@ for (const [file, job] of [
     assert.doesNotMatch(step, /--filter[= ](["']?)\.\1(?=\s)/);
   });
 }
+
+test("the docs Vercel install selects the root with its workspace dependencies", () => {
+  const readJson = (file) =>
+    JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"));
+  const { name } = readJson("package.json");
+  const { installCommand } = readJson("apps/docs/vercel.json");
+  const filters = [
+    ...installCommand.matchAll(/--filter[= ](["']?)(\S+?)\1(?=\s|$)/g),
+  ].map(([, , filter]) => filter);
+  assert.ok(
+    filters.includes(`${name}...`),
+    `missing root filter in ${installCommand}`,
+  );
+});

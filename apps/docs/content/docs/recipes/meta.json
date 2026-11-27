@@ -1,0 +1,8 @@
+{
+  "title": "Recipes",
+  "description": "Goal-first, tested apps you or your coding agent can copy: a custom backend, saved chat history, tool UIs and tool approval.",
+  "icon": "ChefHat",
+  "root": true,
+  "platforms": ["react"],
+  "pages": ["index", "own-backend", "chat-history", "tool-ui", "tool-approval"]
+}

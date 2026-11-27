@@ -1,0 +1,9 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test:coverage": {
+      "inputs": ["$TURBO_EXTENDS$", "!README.md"]
+    }
+  }
+}

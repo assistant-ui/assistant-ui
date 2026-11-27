@@ -60,6 +60,18 @@ export function runCheck(
     throw new Error("BASE_SHA and HEAD_SHA are required.");
   git(root, ["rev-parse", "--verify", `${baseSha}^{tree}`]);
   git(root, ["rev-parse", "--verify", `${headSha}^{tree}`]);
+  const changedInputs = git(root, [
+    "diff",
+    "--no-renames",
+    "--name-only",
+    "-z",
+    baseSha,
+    headSha,
+    "--",
+    ":(glob)api-surface/*.ts",
+    ":(glob)packages/*/package.json",
+  ]);
+  if (!changedInputs) return [];
   const changedChangesets = git(root, [
     "diff",
     "--no-renames",
@@ -79,9 +91,16 @@ export function runCheck(
     ),
   );
   const readManifests = (revision) =>
-    git(root, ["ls-tree", "-r", "--name-only", revision, "--", "packages"])
-      .trim()
-      .split("\n")
+    git(root, [
+      "ls-tree",
+      "-r",
+      "-z",
+      "--name-only",
+      revision,
+      "--",
+      "packages",
+    ])
+      .split("\0")
       .filter((file) => /^packages\/[^/]+\/package\.json$/.test(file))
       .map((file) => JSON.parse(atRevision(root, revision, file)));
   const basePackages = readManifests(baseSha).filter(

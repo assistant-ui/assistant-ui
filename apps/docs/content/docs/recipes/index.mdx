@@ -1,0 +1,24 @@
+---
+title: Recipes
+description: "Complete, tested assistant-ui apps for common goals: connect your own backend, save chat history in your database, render tool calls as components, and ask before running a tool."
+platforms: ["react"]
+---
+
+A recipe starts from something you want to build, not from an API. Each one is a small, complete app in the repository's [`examples`](https://github.com/assistant-ui/assistant-ui/tree/main/examples) folder that CI builds, typechecks and tests against a scripted model, and the page shows its code as it is in the repository. Read the first lines to see whether it fits, then hand the page to your coding agent: every recipe is also served as Markdown (add `.md` to its URL) and listed in [llms.txt](/llms.txt).
+
+<Cards>
+  <Card title="Connect the chat to your own backend" href="/docs/recipes/own-backend">
+    Stream replies from an API you already have, in its own request format, with `LocalRuntime` and one `ChatModelAdapter`.
+  </Card>
+  <Card title="Save chat history in your own database" href="/docs/recipes/chat-history">
+    Threads and messages in SQLite, with a thread list sidebar, titles, archive and delete.
+  </Card>
+  <Card title="Show a tool result as your own component" href="/docs/recipes/tool-ui">
+    Render a server tool's call and result as a React component, such as a weather card.
+  </Card>
+  <Card title="Ask before running a tool" href="/docs/recipes/tool-approval">
+    Let the agent run safe tools on its own and wait for the user to allow risky ones.
+  </Card>
+</Cards>
+
+Every recipe builds on an app made with `npx assistant-ui@latest create`. The page shows the files that carry the recipe; the example folder also has its `package.json`, tests and configuration. To run one from a clone of the repository, see its Run it section.

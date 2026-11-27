@@ -5,18 +5,20 @@ import {
   createInertComposer,
 } from "../inert/InertThreadRuntimeCore";
 
-const EMPTY_THREAD_ERROR = new Error(
-  "This is the empty thread, a placeholder for the main thread. You cannot perform any actions on this thread instance. This error is probably because you tried to call a thread method in your render function. Call the method inside a `useEffect` hook instead.",
-);
+// Created where it is thrown, so the stack shows the call that came too early.
+const createEmptyThreadError = () =>
+  new Error(
+    "This is the empty thread, the placeholder assistant-ui shows until a thread's runtime has mounted: while the thread list loads, and while a thread you opened is still mounting. It cannot run actions, so this call came too early, often from the first render or an effect that runs on mount. Call the method from an event handler, or wait until `useAuiState((s) => s.thread.isLoading)` is false.",
+  );
 
 class EmptyThreadRuntimeCore extends InertThreadRuntimeCore {
   protected get error() {
-    return EMPTY_THREAD_ERROR;
+    return createEmptyThreadError();
   }
 
   messages = [] as never[];
 
-  composer = createInertComposer(EMPTY_THREAD_ERROR, true);
+  composer = createInertComposer(createEmptyThreadError, true);
 
   isLoading = true;
 
@@ -37,7 +39,7 @@ class EmptyThreadRuntimeCore extends InertThreadRuntimeCore {
   }
 
   override waitForUpdate(): Promise<void> {
-    return Promise.reject(EMPTY_THREAD_ERROR);
+    return Promise.reject(createEmptyThreadError());
   }
 }
 

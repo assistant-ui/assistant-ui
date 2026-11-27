@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import { parseMessage, parsePart, parsePartStatus, partKey } from "./parse";
 
 describe("parsePartStatus", () => {
@@ -248,7 +248,7 @@ describe("parseMessage", () => {
       },
       0,
     );
-    if (!message) return;
+    assert.isNotNull(message);
     expect(message.parts).toHaveLength(1);
     expect(message.parts[0]?.type).toBe("text");
     expect(message.attachments).toEqual([
@@ -269,7 +269,7 @@ describe("parseMessage", () => {
       },
       0,
     );
-    if (!message) return;
+    assert.isNotNull(message);
     expect(message.status).toEqual({
       type: "incomplete",
       reason: "error",

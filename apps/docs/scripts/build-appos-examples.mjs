@@ -1,21 +1,8 @@
-// Builds the appOS example apps and packs them into unsigned web bundles the
-// Examples pages embed with <AppOSApp>. The examples are plain Next.js apps:
-// appOS's build adapter (@assistant-ui/appos/next, set through NEXT_ADAPTER_PATH)
-// writes each one's .next/appos/, an appOS app folder. An unsigned bundle's
-// identity is its URL, so it is served from the docs site itself:
-// public/appos/<name>.<hash>.wbn. The hashed names land in
-// generated/appos-examples.json for the pages to read.
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { basename, join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { hash } from "node:crypto";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pack } from "@assistant-ui/appos/pack";
-
-const adapter = createRequire(import.meta.url).resolve(
-  "@assistant-ui/appos/next",
-);
 
 const docs = fileURLToPath(new URL("..", import.meta.url));
 const repo = join(docs, "../..");
@@ -31,30 +18,32 @@ const existing = await readdir(publicDir);
 const manifest = {};
 
 for (const { name, dir } of EXAMPLES) {
-  const dist = join(repo, dir, ".next/appos");
-  // A plain `next build` (turbo's) clears .next/, so this builds again then.
-  if (!existsSync(join(dist, "index.html"))) {
-    const { status } = spawnSync(
-      "pnpm",
-      ["--filter", name, "exec", "next", "build"],
-      {
-        cwd: repo,
-        stdio: "inherit",
-        env: { ...process.env, NEXT_ADAPTER_PATH: adapter },
-      },
+  // Turbo builds this prerequisite for docs build and dev. Direct pnpm runs need it too.
+  if (!process.env.TURBO_HASH) {
+    execFileSync(
+      process.execPath,
+      [
+        fileURLToPath(import.meta.resolve("turbo")),
+        "run",
+        "build:appos",
+        "--filter",
+        name,
+      ],
+      { cwd: repo, stdio: "inherit" },
     );
-    if (status !== 0) process.exit(status ?? 1);
   }
+  const bundle = await readFile(join(repo, dir, ".next-appos/example.wbn"));
+  const filename = `${name}.${hash("sha256", bundle).slice(0, 12)}.wbn`;
+  await writeFile(join(publicDir, filename), bundle);
+  manifest[name] = `/appos/${filename}`;
   for (const file of existing) {
-    if (file.startsWith(`${name}.`) && file.endsWith(".wbn"))
+    if (
+      file !== filename &&
+      file.startsWith(`${name}.`) &&
+      file.endsWith(".wbn")
+    )
       await rm(join(publicDir, file));
   }
-  const { out, size, files } = await pack({
-    dir: dist,
-    out: join(publicDir, `${name}.[hash].wbn`),
-  });
-  manifest[name] = `/appos/${basename(out)}`;
-  console.log(`packed ${dir} (${files} files, ${size} bytes) -> ${out}`);
 }
 
 await mkdir(join(docs, "generated"), { recursive: true });
