@@ -6,6 +6,7 @@ on:
     paths:
       - "packages/**"
       - "apps/**"
+      - "api-surface/*.ts"
       - "examples/**"
       - "templates/**"
       - "evals/**"
@@ -20,6 +21,7 @@ on:
       - "scripts/test-coverage-contract.test.mjs"
       - "scripts/vitest-waitfor-interval.mjs"
       - "scripts/lib/**"
+      - ".gitignore"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -69,6 +71,7 @@ jobs:
           if [ -n "$BASE" ] && git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null && git diff --quiet "$BASE" HEAD -- \
             packages \
             apps \
+            ':(glob)api-surface/*.ts' \
             examples \
             templates \
             evals \
@@ -83,6 +86,7 @@ jobs:
             scripts/test-coverage-contract.test.mjs \
             scripts/vitest-waitfor-interval.mjs \
             scripts/lib \
+            .gitignore \
             turbo.json \
             package.json \
             pnpm-lock.yaml \
