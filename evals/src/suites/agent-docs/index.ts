@@ -127,10 +127,11 @@ async function runTrial(
     docsDir,
     new URL(docs.docsUrl).hostname,
   );
-  // An agent cut off mid-task (a plan's usage limit, an API error) didn't finish either: an error, not a score.
+  // An agent cut off mid-task (a plan's usage limit, an API error) or that never started didn't finish
+  // either: an error, not a score.
   if (summary.agentError) {
     throw new Error(
-      `the agent's answer was an error: ${summary.agentError} (${runDir})`,
+      `the agent didn't finish: ${summary.agentError} (${runDir})`,
     );
   }
 

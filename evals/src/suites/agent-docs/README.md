@@ -42,7 +42,7 @@ The agent signs in with `CLAUDE_CODE_OAUTH_TOKEN` (a Claude plan token from `cla
 nomos secret run CLAUDE_TOKEN_CI_REVIEW:CLAUDE_CODE_OAUTH_TOKEN -- pnpm eval agent-docs tool-approval
 ```
 
-On a plan token, trials cost nothing extra but count against the plan's usage limits. A trial whose answer is an error, as when it hits a limit, is recorded as errored and left out of the score, like one that timed out. A full round is ten tasks of 4 to 10 minutes each, so run it on a token for a plan that isn't shared with the PR reviews. On `ANTHROPIC_API_KEY`, the key's Console organization pays per token. Each trial's `costUsd` is Claude Code's `total_cost_usd`, the API price, whichever way it signed in.
+On a plan token, trials cost nothing extra but count against the plan's usage limits. A trial whose answer is an error (as when it hits a limit), or whose agent never answers, is recorded as errored and left out of the score, like one that timed out. A full round is ten tasks of 4 to 10 minutes each, so run it on a token for a plan that isn't shared with the PR reviews. On `ANTHROPIC_API_KEY`, the key's Console organization pays per token. Each trial's `costUsd` is Claude Code's `total_cost_usd`, the API price, whichever way it signed in.
 
 To measure docs that aren't deployed yet, serve `apps/docs` locally and point the suite at it with a label of your own:
 

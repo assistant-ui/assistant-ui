@@ -65,7 +65,7 @@ test("summarizeTranscript finds the docs pages, node_modules lookups and the clo
   }
 });
 
-test("summarizeTranscript keeps the error when the agent's answer is one, as at a usage limit", () => {
+test("summarizeTranscript keeps why the agent didn't finish: an error answer, as at a usage limit, or none", () => {
   const dir = mkdtempSync(join(tmpdir(), "agent-docs-transcript-"));
   try {
     const file = join(dir, "transcript.jsonl");
@@ -84,6 +84,11 @@ test("summarizeTranscript keeps the error when the agent's answer is one, as at 
     assert.equal(
       summarizeTranscript(file, "/runs/docs/site").agentError,
       "You've hit your limit",
+    );
+    writeFileSync(file, JSON.stringify({ type: "system", subtype: "init" }));
+    assert.equal(
+      summarizeTranscript(file, "/runs/docs/site").agentError,
+      "the agent never answered",
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

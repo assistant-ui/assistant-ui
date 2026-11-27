@@ -16,7 +16,7 @@ export interface TranscriptSummary {
   webFetches: string[];
   /** The agent's closing message: what it built and what the docs lacked. */
   finalMessage: string;
-  /** Why the agent's answer was an error, such as a plan's usage limit, or null when it finished. */
+  /** Why the agent didn't finish: its answer was an error (a plan's usage limit) or it never answered. Null when it did. */
   agentError: string | null;
 }
 
@@ -38,7 +38,7 @@ export function summarizeTranscript(
     finalMessage: "",
     agentError: null,
   };
-  if (!existsSync(file)) return summary;
+  if (!existsSync(file)) return { ...summary, agentError: "no transcript" };
   const rel = (path: string) =>
     path === docsDir
       ? "/"
@@ -142,6 +142,8 @@ export function summarizeTranscript(
       }
     }
   }
+  // A CLI that crashed or was refused before its session started writes no result at all.
+  if (resultsSeen === 0) summary.agentError = "the agent never answered";
   if (!summary.finalMessage) summary.finalMessage = lastText;
   return summary;
 }
