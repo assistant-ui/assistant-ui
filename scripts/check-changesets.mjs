@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { committedRangeChangedFiles } from "./lib/changed-files.mjs";
 import { parseReleaseLine, readChangesetSource } from "./lib/changesets.mjs";
+import {
+  cloudHarnessTemplate,
+  isCloudHarnessTemplateEntry,
+} from "./lib/cloud-harness-template.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { hasOption } from "./lib/script-options.mjs";
 import { readJson, readWorkspaceManifestEntries } from "./lib/workspace.mjs";
@@ -211,8 +215,29 @@ function matchesFilesEntry(relative, entry) {
   return path.matchesGlob(relative, pattern);
 }
 
+function matchesReleaseFiles(relative, pkg) {
+  return (
+    pkg.releaseFiles.some(
+      (entry) => !entry.startsWith("!") && matchesFilesEntry(relative, entry),
+    ) &&
+    !pkg.releaseFiles.some(
+      (entry) => entry.startsWith("!") && matchesFilesEntry(relative, entry),
+    )
+  );
+}
+
 export function isReleaseRelevantPackageFile(file, pkg) {
   const packageRoot = path.posix.dirname(pkg.manifest);
+  if (
+    pkg.manifest === "packages/cli/package.json" &&
+    file.startsWith(`${cloudHarnessTemplate}/`)
+  ) {
+    const relative = file.slice(cloudHarnessTemplate.length + 1);
+    return (
+      relative.split("/").every(isCloudHarnessTemplateEntry) &&
+      matchesReleaseFiles(file, pkg)
+    );
+  }
   if (!file.startsWith(`${packageRoot}/`)) return false;
 
   const relative = file.slice(packageRoot.length + 1);
@@ -226,14 +251,7 @@ export function isReleaseRelevantPackageFile(file, pkg) {
     return false;
   }
 
-  return (
-    pkg.releaseFiles.some(
-      (entry) => !entry.startsWith("!") && matchesFilesEntry(relative, entry),
-    ) &&
-    !pkg.releaseFiles.some(
-      (entry) => entry.startsWith("!") && matchesFilesEntry(relative, entry),
-    )
-  );
+  return matchesReleaseFiles(relative, pkg);
 }
 
 export function findMissingPackageChangesets(

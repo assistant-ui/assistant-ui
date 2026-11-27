@@ -22,6 +22,12 @@ const fixture = (t) => {
   );
   mkdirSync(path.dirname(script), { recursive: true });
   cpSync(new URL("./copy-cloud-harness-template.mjs", import.meta.url), script);
+  const filter = "scripts/lib/cloud-harness-template.mjs";
+  mkdirSync(path.join(root, "scripts/lib"), { recursive: true });
+  cpSync(
+    new URL(`../../../${filter}`, import.meta.url),
+    path.join(root, filter),
+  );
   const write = (relative, text) => {
     const file = path.join(root, relative);
     mkdirSync(path.dirname(file), { recursive: true });

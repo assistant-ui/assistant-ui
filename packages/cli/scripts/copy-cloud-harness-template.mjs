@@ -8,10 +8,14 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  cloudHarnessTemplate,
+  isCloudHarnessTemplateEntry,
+} from "../../../scripts/lib/cloud-harness-template.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const source = path.resolve(root, "../../templates/cloud-harness");
-const target = path.join(root, "templates/cloud-harness");
+const source = path.resolve(root, "../..", cloudHarnessTemplate);
+const target = path.join(root, cloudHarnessTemplate);
 if (!existsSync(source))
   throw new Error(`Cloud harness template is missing: ${source}`);
 mkdirSync(path.dirname(target), { recursive: true });
@@ -21,24 +25,7 @@ const temporary = mkdtempSync(
 try {
   cpSync(source, temporary, {
     recursive: true,
-    filter: (file) =>
-      ![
-        "node_modules",
-        ".next",
-        ".turbo",
-        "dist",
-        "coverage",
-        "out",
-        "build",
-        ".vercel",
-        ".DS_Store",
-        "cloud.json",
-        "provision.json",
-        "next-env.d.ts",
-      ].includes(path.basename(file)) &&
-      (!path.basename(file).startsWith(".env") ||
-        path.basename(file) === ".env.example") &&
-      !file.endsWith(".tsbuildinfo"),
+    filter: (file) => isCloudHarnessTemplateEntry(path.basename(file)),
   });
   rmSync(target, { recursive: true, force: true });
   renameSync(temporary, target);

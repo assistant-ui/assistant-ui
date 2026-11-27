@@ -4,6 +4,7 @@
     "build": {
       "inputs": [
         "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/scripts/lib/cloud-harness-template.mjs",
         "$TURBO_ROOT$/templates/cloud-harness/**",
         "!$TURBO_ROOT$/templates/cloud-harness/node_modules/**",
         "!$TURBO_ROOT$/templates/cloud-harness/.next/**"
