@@ -91,6 +91,51 @@ test("unrelated root Markdown stays outside the main push filter", () => {
   assert.equal(triggers("README.md"), false);
 });
 
+test("a required check runs every shared helper test on pull requests and in the merge queue", () => {
+  const required = new Set(
+    JSON.parse(read(".github/review-policy.json")).requiredChecks.map(
+      ({ context }) => context,
+    ),
+  );
+  const jobs = workflow.split("\njobs:\n")[1]?.split(/\n {2}[\w-]+:\n/);
+  assert.ok(jobs, "the workflow has jobs");
+  // A condition that names events restricts the job or step to those events.
+  const runsOn = (condition, event) =>
+    !condition?.includes("github.event_name") ||
+    condition.includes(`'${event}'`);
+  const helpers = readdirSync(path.join(repoRoot, "scripts/lib"))
+    .filter((file) => file.endsWith(".test.mjs"))
+    .map((file) => `scripts/lib/${file}`);
+  for (const event of ["pull_request", "merge_group"]) {
+    const globs = jobs
+      .filter((job) => required.has(job.match(/^ {4}name: (.+)$/m)?.[1]))
+      .filter((job) => runsOn(job.match(/^ {4}if: (.+)$/m)?.[1], event))
+      .flatMap((job) => job.split("\n      - ").slice(1))
+      .filter((step) => runsOn(step.match(/^ {8}if: (.+)$/m)?.[1], event))
+      .flatMap((step) =>
+        [
+          ...step.matchAll(
+            /^ {8}run: (?:node --test ([^\n]+)|(?:pnpm run|node --run) ([\w:-]+))/gm,
+          ),
+        ].flatMap(([, targets, script]) =>
+          script
+            ? suiteTargets(script)
+            : targets
+                .trim()
+                .split(/\s+/)
+                .map((target) => target.replace(/^"|"$/g, "")),
+        ),
+      );
+    assert.deepEqual(
+      helpers.filter(
+        (file) => !globs.some((glob) => path.posix.matchesGlob(file, glob)),
+      ),
+      [],
+      `${event}: run these in a job listed under \`requiredChecks\` in .github/review-policy.json`,
+    );
+  }
+});
+
 test("Workspace Ranges and Review Policy Scripts split the shared helper tests without overlap", () => {
   const job = workflow
     .split("\n  workspace-ranges:\n")[1]
