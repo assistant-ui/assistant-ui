@@ -97,7 +97,7 @@ describe("toRealTraces", () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it("matches a highlighter that a trace names through a pnpm symlink", () => {
+  it("reports a missing theme when a trace names the highlighter through a pnpm symlink", () => {
     const store = path.join(
       root,
       "node_modules/.pnpm/@farming-labs+next@0.2.152/node_modules/@farming-labs/next",
@@ -111,6 +111,15 @@ describe("toRealTraces", () => {
     const link = path.join(root, "apps/docs/node_modules/@farming-labs/next");
     mkdirSync(path.dirname(link), { recursive: true });
     symlinkSync(store, link, "junction");
+    const themeStore = path.join(
+      root,
+      "node_modules/.pnpm/@shikijs+themes@4.5.0/node_modules/@shikijs/themes/dist",
+    );
+    const realLatte = path.join(themeStore, "catppuccin-latte.mjs");
+    const realMocha = path.join(themeStore, "catppuccin-mocha.mjs");
+    mkdirSync(themeStore, { recursive: true });
+    writeFileSync(realLatte, "");
+    writeFileSync(realMocha, "");
     const filePath = path.join(
       root,
       "apps/docs/.next/server/app/api/mcp/route.js.nft.json",
@@ -118,17 +127,22 @@ describe("toRealTraces", () => {
     const linked: RouteTrace = {
       filePath,
       files: [
-        path.relative(
-          path.dirname(filePath),
-          path.join(link, "dist/mdx-plugins/rehype-code.mjs"),
-        ),
-      ],
+        path.join(link, "dist/mdx-plugins/rehype-code.mjs"),
+        realLatte,
+      ].map((file) => path.relative(path.dirname(filePath), file)),
     };
 
     expect(shipsHighlighter(linked, realHighlighter)).toBe(false);
-    expect(toRealTraces([linked])).toEqual([
-      { filePath, files: [realHighlighter] },
+    const normalized = toRealTraces([linked]);
+    expect(normalized).toEqual([
+      { filePath, files: [realHighlighter, realLatte] },
     ]);
+    expect(
+      findHighlighterTraceGaps(normalized, realHighlighter, [
+        realLatte,
+        realMocha,
+      ]),
+    ).toEqual([{ filePath, missingFiles: [realMocha] }]);
   });
 
   it("keeps the path of a traced file that is not on disk", () => {
@@ -142,6 +156,15 @@ describe("toRealTraces", () => {
     ).toEqual([
       { filePath, files: [path.join(root, "apps/docs/.next/missing.mjs")] },
     ]);
+  });
+
+  it("rethrows a realpath error when a traced path traverses a file", () => {
+    const filePath = path.join(root, "route.js.nft.json");
+    writeFileSync(path.join(root, "module.mjs"), "");
+
+    expect(() =>
+      toRealTraces([{ filePath, files: ["module.mjs/child.mjs"] }]),
+    ).toThrow(expect.objectContaining({ code: "ENOTDIR" }));
   });
 });
 

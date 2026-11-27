@@ -16,7 +16,8 @@ export function toRealTraces(routeTraces: readonly RouteTrace[]): RouteTrace[] {
     if (real === undefined) {
       try {
         real = realpathSync(file);
-      } catch {
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code !== "ENOENT") throw error;
         real = file;
       }
       realpaths.set(file, real);
