@@ -5,7 +5,7 @@ import path from "node:path";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-type Tab = { id: string; docs: string; html: string };
+type Tab = { id: string; caption: string; docs: string; html: string };
 
 vi.mock("next/cache", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -27,6 +27,7 @@ vi.mock("@/components/pages/home/library-body", () => ({
     <ul>
       {setupTabs.map((tab) => (
         <li key={tab.id} aria-label={tab.id} data-docs={tab.docs}>
+          <p>{tab.caption}</p>
           {tab.html}
         </li>
       ))}
@@ -56,6 +57,19 @@ it("gives the Mastra tab its own snippet and a real docs page", async () => {
   expect(
     existsSync(path.join(repoRoot, "apps/docs/content", `${docs}.mdx`)),
   ).toBe(true);
+});
+
+it("labels the LangGraph and Custom setup snippets as abridged", async () => {
+  render(await HomePage());
+
+  for (const name of ["langgraph", "custom"]) {
+    expect(screen.getByRole("listitem", { name }).textContent).toContain(
+      "Abridged excerpt.",
+    );
+  }
+  expect(
+    screen.getByRole("listitem", { name: "ai-sdk" }).textContent,
+  ).not.toContain("Abridged excerpt.");
 });
 
 it("describes the organization that operates the site", async () => {
