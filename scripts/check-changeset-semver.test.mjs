@@ -577,7 +577,7 @@ test("the executable analyzes only the changesets the PR range adds", () => {
     git(root, "init", "-q", "-b", "main");
     const base = commitAll(root, "base");
     writeFileSync(
-      path.join(root, ".changeset", "added-by-the-pr.md"),
+      path.join(root, ".changeset", "café.md"),
       '---\n"@fixture/dep": patch\n---\n\nfix: fixture\n',
     );
     const head = commitAll(root, "head");
@@ -587,7 +587,7 @@ test("the executable analyzes only the changesets the PR range adds", () => {
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.match(
       result.stdout,
-      /\| `added-by-the-pr\.md` \| `@fixture\/dep` \| 0\.12\.15 \| patch \|/,
+      /\| `café\.md` \| `@fixture\/dep` \| 0\.12\.15 \| patch \|/,
     );
     assert.doesNotMatch(
       result.stdout,
@@ -615,8 +615,8 @@ test("a changeset the PR renames and edits is analyzed under its new name", () =
     const base = commitAll(root, "base");
     rmSync(path.join(root, ".changeset", "old-name.md"));
     writeFileSync(
-      path.join(root, ".changeset", "new-name.md"),
-      `---\n"@fixture/dep": minor\n---\n\n${summary}\n`,
+      path.join(root, ".changeset", "café.md"),
+      `---\n"@fixture/dep": major\n---\n\n${summary}\n`,
     );
     const head = commitAll(root, "head");
 
@@ -625,20 +625,22 @@ test("a changeset the PR renames and edits is analyzed under its new name", () =
     assert.equal(result.status, 1, result.stdout + result.stderr);
     assert.match(
       result.stdout,
-      /`new-name\.md` \| `@fixture\/dep` \| 0\.12\.15 \| \*\*minor\*\*/,
+      /`café\.md` \| `@fixture\/dep` \| 0\.12\.15 \| \*\*major\*\*/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("a PR range that touches no changeset ends the run before any summary", () => {
+test("a PR range that only deletes a changeset and edits package code ends the run before any summary", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
+    "deleted.md": '"@fixture/dep": major',
     "already-on-base.md": '"@fixture/dep": minor',
   });
   try {
     git(root, "init", "-q", "-b", "main");
     const base = commitAll(root, "base");
+    rmSync(path.join(root, ".changeset", "deleted.md"));
     writeFileSync(
       path.join(root, "packages", "dep", "index.js"),
       "export default 1;\n",
