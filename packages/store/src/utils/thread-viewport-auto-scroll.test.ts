@@ -2062,11 +2062,11 @@ describe("createThreadViewportAutoScroll", () => {
         ...view,
         controller,
         messages,
-        prepend: (extraGrowth = 0) => {
+        prepend: (extraGrowth = 0, previousFirstMessageId = "message-4") => {
           growthBelow = extraGrowth;
           view.element.prepend(...messages.slice(0, 4));
           updateHeight();
-          controller.messagesPrepended("message-4");
+          controller.messagesPrepended(previousFirstMessageId);
           resizeObserver.trigger();
         },
         settle: (index: number) => {
@@ -2119,6 +2119,22 @@ describe("createThreadViewportAutoScroll", () => {
       observers.at(-1)!.trigger();
 
       expect(view.element.scrollTop).toBe(315);
+      view.controller.dispose();
+    });
+
+    it("keeps follow off after a prepend restored by distance from the bottom", () => {
+      const view = pagedViewport(30, true, 290);
+      view.controller.registerContentInset().setHeight(40);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -30 }));
+      view.setTop(0);
+      view.prepend(0, "message-unknown");
+      const held = view.element.scrollTop;
+      view.element.dispatchEvent(new Event("scroll"));
+
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(held);
       view.controller.dispose();
     });
 

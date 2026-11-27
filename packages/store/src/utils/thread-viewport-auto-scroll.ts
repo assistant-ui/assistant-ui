@@ -521,14 +521,13 @@ export const createThreadViewportAutoScroll = (input: {
       const anchor = firstMessage;
       if (anchor?.id === previousFirstMessageId && keepMessageAt(anchor)) {
         prependAnchor = measureReaderMessage(element) ?? anchor;
-        prependFollowSuppressed = true;
       } else {
         const top = element.scrollHeight - (lastScrollHeight - lastScrollTop);
         if (Math.abs(element.scrollTop - top) >= 1)
           element.scrollTo({ top, behavior: "instant" });
       }
       atNativeBottom = isViewportAtBottom(element);
-      if (atNativeBottom) prependFollowSuppressed = false;
+      prependFollowSuppressed = !atNativeBottom;
       if (!input.getOptions().holdFollow || atNativeBottom)
         followBottom = atNativeBottom;
       lastScrollTop = element.scrollTop;
