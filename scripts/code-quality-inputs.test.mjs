@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -31,6 +31,7 @@ const triggers = (file) =>
 const suiteTargets = (script) =>
   [...(packageJson.scripts[script] ?? "").matchAll(/node --test ([^&|;\n]+)/g)]
     .flatMap((match) => match[1].trim().split(/\s+/))
+    .map((target) => target.replace(/^"|"$/g, ""))
     .filter((file) => file.endsWith(".mjs"));
 
 test("the workflow still runs every suite this guard covers", () => {
@@ -100,4 +101,33 @@ for (const file of [".oxlintrc.json", ".oxfmtrc.json"]) {
 
 test("unrelated root Markdown stays outside the main push filter", () => {
   assert.equal(triggers("README.md"), false);
+});
+
+test("each shared helper test has one owner per event", () => {
+  const job = workflow
+    .split("\n  workspace-ranges:\n")[1]
+    ?.split(/\n  [\w-]+:\n/)[0];
+  assert.ok(job, "the workflow has a Workspace Ranges job");
+  const steps = [
+    ...job.matchAll(
+      /\n {8}(?:if: github\.event_name == '(\w+)'\n {8})?run: node --test "(scripts\/lib\/[^"]+)"/g,
+    ),
+  ].map(([, event, glob]) => ({ event, glob }));
+  const reviewPolicy = suiteTargets("review-policy:test");
+  const helpers = readdirSync(path.join(repoRoot, "scripts/lib"))
+    .filter((file) => file.endsWith(".test.mjs"))
+    .map((file) => `scripts/lib/${file}`);
+  for (const event of ["push", "pull_request", "merge_group"]) {
+    const globs = [
+      ...steps.filter((step) => !step.event || step.event === event),
+      ...(event === "push" ? [] : reviewPolicy.map((glob) => ({ glob }))),
+    ].map((step) => step.glob);
+    for (const file of helpers) {
+      assert.equal(
+        globs.filter((glob) => path.posix.matchesGlob(file, glob)).length,
+        1,
+        `${event}: ${file}`,
+      );
+    }
+  }
 });
