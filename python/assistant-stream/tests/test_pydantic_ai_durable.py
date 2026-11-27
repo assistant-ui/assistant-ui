@@ -1195,6 +1195,85 @@ def test_dead_claim_rollback_uses_the_previous_runs_current_state(
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
+@pytest.mark.parametrize("state", ["settled", "cancel_requested"])
+def test_dead_claim_rollback_restores_a_change_that_lands_during_the_claim(
+    kind: str, state: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        finalizing = asyncio.Event()
+        release_finalize = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        store = create_in_memory_resumable_stream_store()
+        finalize = store.finalize
+
+        async def pause_finalization(stream_id, *args, **kwargs):
+            if stream_id == "6-thread.first":
+                finalizing.set()
+                await release_finalize.wait()
+            return await finalize(stream_id, *args, **kwargs)
+
+        monkeypatch.setattr(store, "finalize", pause_finalization)
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Partial answer"
+            started.set()
+            await release_model.wait()
+            yield " completed"
+
+        streams = create_resumable_stream_context(
+            store=store, wait_until=producers.append
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)),
+            threads=threads,
+            streams=streams,
+            cancel_poll_interval=None,
+        )
+        changed: ThreadRecord | None = None
+        try:
+            await _start_run(durable, _run_input("thread", [_user("First")], "first"))
+            await started.wait()
+            second_producer = len(producers)
+
+            async def change_then_die(record, write):
+                nonlocal changed
+                if record.run_id != "second" or not record.running:
+                    await write()
+                    return
+                if state == "settled":
+                    release_model.set()
+                    await finalizing.wait()
+                else:
+                    assert await threads.request_cancel("thread", "6-thread.first")
+                changed = await threads.get("thread")
+                assert await write(), "the second run did not claim the thread"
+                producers[second_producer].cancel()
+                await asyncio.gather(producers[second_producer], return_exceptions=True)
+
+            _on_claim(monkeypatch, threads, change_then_die)
+            assert (
+                await _start_run(
+                    durable, _run_input("thread", [_user("Second")], "second")
+                )
+            ).status_code == 200
+
+            assert changed is not None
+            assert changed.running is (state != "settled")
+            assert changed.cancel_requested is (state == "cancel_requested")
+            assert await threads.get("thread") == changed
+        finally:
+            release_model.set()
+            release_finalize.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
 @pytest.mark.parametrize("kind", ["memory", "sqlite"])
 def test_producer_dead_after_its_claim_gives_the_thread_back_to_the_live_run(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -2219,6 +2298,30 @@ async def _shared_threads(kind: str, tmp_path: Path):
     if kind == "sqlite":
         return SqliteThreadStore(tmp_path / "threads.db")
     return InMemoryThreadStore()
+
+
+def _on_claim(monkeypatch: pytest.MonkeyPatch, threads, hook) -> None:
+    """Runs `hook(record, write)` for each conditional write `start_run` makes.
+
+    The write goes through `claim` on stores that have it and through
+    `put_if_stream` otherwise; `write()` performs it and returns whether it
+    wrote.
+    """
+    name = "claim" if hasattr(threads, "claim") else "put_if_stream"
+    inner = getattr(threads, name)
+
+    async def wrapped(thread_id, record, *, expected):
+        result = None
+
+        async def write() -> bool:
+            nonlocal result
+            result = await inner(thread_id, record, expected=expected)
+            return result[0] if name == "claim" else result
+
+        await hook(record, write)
+        return result
+
+    monkeypatch.setattr(threads, name, wrapped)
 
 
 async def _drop(threads) -> None:
