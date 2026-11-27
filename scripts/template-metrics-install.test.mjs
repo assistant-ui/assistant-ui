@@ -186,6 +186,11 @@ for (const [kind, entry, expectedUiLoc] of [
     301,
   ],
   [
+    "lazy import with a plain template literal",
+    "const load = () => import(`@/ui/chart`);",
+    301,
+  ],
+  [
     "import-like text in comments",
     ['// import("@/ui/chart")', '/* import("@/ui/chart") */'].join("\n"),
     301,
