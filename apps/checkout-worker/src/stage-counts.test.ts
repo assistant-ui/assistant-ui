@@ -51,6 +51,15 @@ describe("stage tracker", () => {
     expect(track(setup("installing", introduced))).toEqual(["installing"]);
   });
 
+  it("still counts the stages of a restored setup whose agent had not introduced itself", () => {
+    const { track } = createStageTracker();
+    expect(track(setup("planning"))).toEqual([]);
+    expect(track(setup("planning", introduced))).toEqual([
+      "created",
+      "planning",
+    ]);
+  });
+
   it("counts a cancelled setup as created and cancelled, without its agent", () => {
     const { track } = createStageTracker();
     track(initialCheckoutState());

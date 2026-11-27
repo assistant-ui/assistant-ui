@@ -1032,8 +1032,14 @@ describe("stage counts", () => {
     expect(JSON.stringify([...fixture.stats.stored])).not.toContain("jane");
   });
 
+  /** A planning setup whose agent introduced itself before the object last stopped, so its stages were counted. */
+  const introducedState = (): Checkout.State => {
+    const state = modelState();
+    return { ...state, agent: { ...state.agent, introducedAt: 1 } };
+  };
+
   it("does not count again the stages of a setup it restores", async () => {
-    const fixture = createInstance(modelState());
+    const fixture = createInstance(introducedState());
     const client = await connect(fixture);
     await client.commands["agent/hello"]({ cwd: "/app", kind: "codex" });
     await fixture.ready();
@@ -1048,11 +1054,24 @@ describe("stage counts", () => {
     ]);
   });
 
+  it("counts the stages of a restored setup whose agent introduces itself only after the restore", async () => {
+    const fixture = createInstance(modelState());
+    const client = await connect(fixture);
+    await client.commands["agent/intro"]({ kind: "codex" });
+    await fixture.ready();
+    const day = new Date().toISOString().slice(0, 10);
+    expect(Object.fromEntries(fixture.stats.stored)).toEqual({
+      [`count:${day}:created:codex`]: 1,
+      [`count:${day}:planning:codex`]: 1,
+      [`pending:${day}`]: 1,
+    });
+  });
+
   it("sends a count again with the next change when the counter fails", async () => {
     const stats = createStats();
     const counter = stats.binding.get();
     let failures = 1;
-    const fixture = createInstance(modelState(), unlimited(), {
+    const fixture = createInstance(introducedState(), unlimited(), {
       ...stats,
       binding: {
         idFromName: stats.binding.idFromName,

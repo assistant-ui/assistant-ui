@@ -63,7 +63,8 @@ const reached = (state: Checkout.State): Stage[] => {
 /**
  * Which stages of one setup still need counting. The first state it sees is
  * the one the object restored, whose stages were counted before (or before
- * counting began), so only stages reached after that count, each once.
+ * counting began) once its agent had introduced itself, so only stages
+ * reached after that count, each once.
  * The CLI names its agent kind right after it creates the setup, so stages
  * it reaches before then wait for that, and a closed setup counts every
  * stage it reached without one. `release` hands back stages whose count
@@ -73,15 +74,20 @@ export const createStageTracker = () => {
   let counted: Set<Stage> | undefined;
   const seen = new Set<Stage>();
   const track = (state: Checkout.State): Stage[] => {
+    const introduced =
+      state.agent.introducedAt !== null || state.agent.lastSeenAt !== null;
+    const open = state.status !== "done" && state.status !== "cancelled";
     if (counted === undefined) {
-      counted = new Set(reached(state));
+      // An open setup whose agent has not introduced itself has counted
+      // nothing yet, so its stages still wait for the introduction.
+      if (open && !introduced) {
+        counted = new Set();
+        for (const stage of reached(state)) seen.add(stage);
+      } else counted = new Set(reached(state));
       return [];
     }
     for (const stage of reached(state)) seen.add(stage);
-    const introduced =
-      state.agent.introducedAt !== null || state.agent.lastSeenAt !== null;
-    if (!introduced && state.status !== "done" && state.status !== "cancelled")
-      return [];
+    if (open && !introduced) return [];
     const fresh = STAGES.filter(
       (stage) => seen.has(stage) && !counted!.has(stage),
     );
