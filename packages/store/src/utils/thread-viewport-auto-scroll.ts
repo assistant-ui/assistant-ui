@@ -135,6 +135,7 @@ export const createThreadViewportAutoScroll = (input: {
   let firstMessage: MessageOffset | null = null;
   let prependAnchor: MessageOffset | null = null;
   let heldScrollTop = 0;
+  let atNativeBottom = true;
 
   const keepMessageAt = (anchor: MessageOffset) => {
     if (!element) return false;
@@ -221,6 +222,7 @@ export const createThreadViewportAutoScroll = (input: {
       prependAnchor = null;
 
     const { autoScroll, holdFollow } = input.getOptions();
+    atNativeBottom = isViewportAtBottom(element);
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     const clientHeight = element.clientHeight;
     const clampTarget = Math.max(0, lastScrollHeight - clientHeight);
@@ -256,7 +258,8 @@ export const createThreadViewportAutoScroll = (input: {
           if (followPaused && scrolledSincePause) followPaused = false;
           scrolledSincePause = false;
         }
-        followBottom = true;
+        // Held rows inside the inset band stay held until the true bottom.
+        if (!prependAnchor || atNativeBottom) followBottom = true;
       } else if (scrolledAway) {
         intent = null;
         cancelFrame();
@@ -444,6 +447,7 @@ export const createThreadViewportAutoScroll = (input: {
       firstMessage = null;
       prependAnchor = null;
       heldScrollTop = el.scrollTop;
+      atNativeBottom = isViewportAtBottom(el);
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
       el.addEventListener("scroll", onScroll);
@@ -504,7 +508,10 @@ export const createThreadViewportAutoScroll = (input: {
     messagesPrepended: (previousFirstMessageId) => {
       if (
         !element ||
-        (input.getOptions().autoScroll && followBottom && !followPaused) ||
+        (input.getOptions().autoScroll &&
+          followBottom &&
+          !followPaused &&
+          atNativeBottom) ||
         intent !== null
       )
         return;
@@ -516,6 +523,9 @@ export const createThreadViewportAutoScroll = (input: {
         if (Math.abs(element.scrollTop - top) >= 1)
           element.scrollTo({ top, behavior: "instant" });
       }
+      atNativeBottom = isViewportAtBottom(element);
+      if (!input.getOptions().holdFollow || atNativeBottom)
+        followBottom = atNativeBottom;
       lastScrollTop = element.scrollTop;
       lastScrollHeight = element.scrollHeight;
     },
