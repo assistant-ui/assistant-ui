@@ -20,6 +20,7 @@ on:
       - "scripts/test-coverage-contract.test.mjs"
       - "scripts/vitest-waitfor-interval.mjs"
       - "scripts/lib/**"
+      - ".gitignore"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -83,6 +84,7 @@ jobs:
             scripts/test-coverage-contract.test.mjs \
             scripts/vitest-waitfor-interval.mjs \
             scripts/lib \
+            .gitignore \
             turbo.json \
             package.json \
             pnpm-lock.yaml \

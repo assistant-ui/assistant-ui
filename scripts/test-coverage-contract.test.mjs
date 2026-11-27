@@ -94,9 +94,19 @@ function coverageFixture(t) {
   };
 }
 
-test("coverage skips root Markdown changes for PRs and merge groups", (t) => {
+function matchesMainPush(file) {
+  return pushPatterns.reduce((included, pattern) => {
+    const negative = pattern.startsWith("!");
+    return path.posix.matchesGlob(file, negative ? pattern.slice(1) : pattern)
+      ? !negative
+      : included;
+  }, false);
+}
+
+test("coverage skips root Markdown changes on main, PRs and merge groups", (t) => {
   const fixture = coverageFixture(t);
   fixture.commit("README.md");
+  assert.equal(matchesMainPush("README.md"), false);
   for (const event of ["pull_request", "merge_group"]) {
     assert.equal(fixture.run(event), "run=false", event);
   }
@@ -135,28 +145,17 @@ for (const file of [
   });
 }
 
-for (const file of sharedTestInputs) {
+for (const file of [".gitignore", ...sharedTestInputs]) {
   for (const event of ["pull_request", "merge_group"]) {
-    test(`shared test input ${file} runs coverage for ${event}`, (t) => {
+    test(`test input ${file} runs coverage for ${event}`, (t) => {
       const fixture = coverageFixture(t);
       fixture.commit(file);
       assert.equal(fixture.run(event), "run=true");
     });
   }
 
-  test(`shared test input ${file} triggers coverage on main`, () => {
-    assert.equal(
-      pushPatterns.reduce((included, pattern) => {
-        const negative = pattern.startsWith("!");
-        return path.posix.matchesGlob(
-          file,
-          negative ? pattern.slice(1) : pattern,
-        )
-          ? !negative
-          : included;
-      }, false),
-      true,
-    );
+  test(`test input ${file} triggers coverage on main`, () => {
+    assert.equal(matchesMainPush(file), true);
   });
 }
 
