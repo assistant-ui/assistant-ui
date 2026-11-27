@@ -587,7 +587,7 @@ const toolkit = defineToolkit({
 
 Approval gates require a runtime that implements them: the AI SDK v7 runtime emits them for `toolApproval`-gated tools, and `LocalRuntime` supports gates emitted by your `ChatModelAdapter`; see [LocalRuntime approval gates](/docs/runtimes/custom/local-runtime#approval-gates). For tools where the user supplies the result itself, use `unstable_humanToolNames` with `addResult` instead; see [human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
 
-With `useChatRuntime`, the run continues after the user answers only if `sendAutomaticallyWhen` is set to `lastAssistantMessageIsCompleteWithApprovalResponses`. The option takes one function, so a thread that has both approval gates and tool results from the browser checks for both:
+With `useChatRuntime`, the answer goes into the `useChat` messages, and the run continues only if `sendAutomaticallyWhen` is set to `lastAssistantMessageIsCompleteWithApprovalResponses`. `sendAutomaticallyWhen` takes one function, so a thread that has both approval gates and tool results from the browser checks for both:
 
 ```tsx
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
@@ -602,6 +602,8 @@ const runtime = useChatRuntime({
     lastAssistantMessageIsCompleteWithApprovalResponses(options),
 });
 ```
+
+A custom [`onRespondToToolApproval`](/docs/runtimes/ai-sdk/v7#onrespondtotoolapproval) handler bypasses `useChat`, so it has to resume the run itself.
 
 For the server-side setup (`toolApproval`, `needsApproval`), see [AI SDK v7 server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 
