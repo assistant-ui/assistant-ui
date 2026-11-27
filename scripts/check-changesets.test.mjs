@@ -1186,6 +1186,24 @@ test("findChangedManifestFields ignores what a release rewrites", () => {
   );
 });
 
+test("findChangedManifestFields ignores dependency entry order", () => {
+  for (const key of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
+    assert.deepEqual(
+      findChangedManifestFields(
+        { [key]: { "@types/react": "*", react: "^18 || ^19" } },
+        { [key]: { react: "^18 || ^19", "@types/react": "*" } },
+        new Set(),
+      ),
+      [],
+      key,
+    );
+  }
+});
+
 test("findChangedManifestFields watches key removal and condition order", () => {
   const base = {
     name: "@fixture/published",
