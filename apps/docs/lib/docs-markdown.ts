@@ -125,8 +125,12 @@ export function nearestPages<Page extends MarkdownPage>(
 // The path as the 404 quotes it: route params arrive decoded, so a crafted
 // url could carry a newline and markdown out of the code span.
 function displayPath(pathname: string) {
-  // oxlint-disable-next-line no-control-regex
-  return pathname.replace(/[\u0000-\u001f\u007f`]/g, "").slice(0, 200);
+  return (
+    pathname
+      // oxlint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029`]/g, "")
+      .slice(0, 200)
+  );
 }
 
 /**
@@ -136,7 +140,6 @@ function displayPath(pathname: string) {
 export function missingMarkdownResponse(
   pathname: string,
   pages: readonly MarkdownPage[],
-  // The platform and view query of the request, kept on the /docs links.
   search = "",
 ): Response {
   const nearest = nearestPages(pathname, pages);
@@ -155,7 +158,10 @@ export function missingMarkdownResponse(
           ? `: ${page.data.description}`
           : "";
         const query =
-          search && page.url.startsWith("/docs") ? `?${search}` : "";
+          search &&
+          (page.url.startsWith("/docs") || page.url.startsWith("/design/"))
+            ? `?${search}`
+            : "";
         return `- [${page.data.title}](${page.url}.md${query})${description}`;
       }),
     );

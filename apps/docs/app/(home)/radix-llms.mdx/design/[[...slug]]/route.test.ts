@@ -50,7 +50,7 @@ describe("GET", () => {
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
   });
 
-  it("suggests a nearby design page when the requested page is missing", async () => {
+  it("suggests a nearby Radix design page when the requested page is missing", async () => {
     const response = await GET(
       new Request("https://example.com/design/buttons.md?view=radix-ui"),
       { params: Promise.resolve({ slug: ["buttons"] }) },
@@ -62,6 +62,6 @@ describe("GET", () => {
     );
     const body = await response.text();
     expect(body).toContain("There is no page at `/design/buttons`.");
-    expect(body).toContain("[Button](/design/button.md)");
+    expect(body).toContain("[Button](/design/button.md?view=radix-ui)");
   });
 });

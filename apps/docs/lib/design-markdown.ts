@@ -41,6 +41,7 @@ export async function getDesignMarkdownResponse(
     return missingMarkdownResponse(
       ["/design", ...(slug ?? [])].join("/"),
       design.getPages(),
+      flavor === "radix" ? "view=radix-ui" : "",
     );
   }
   return createMarkdownResponse(markdown);

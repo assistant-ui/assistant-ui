@@ -17,12 +17,16 @@ async function getMarkdown() {
     HOME_DESCRIPTION,
     `## ${HOME_LIBRARY.title}`,
     HOME_LIBRARY.description,
-    ...SETUP_SNIPPETS.flatMap(({ label, caption, code, docs }) => [
-      `### ${label}`,
-      caption,
-      ["```tsx", code, "```"].join("\n"),
-      `[Read the ${label} guide](${docs})`,
-    ]),
+    ...SETUP_SNIPPETS.flatMap((snippet) => {
+      const { label, caption, code, docs } = snippet;
+      return [
+        `### ${label}`,
+        caption,
+        ...("excerptNote" in snippet ? [snippet.excerptNote] : []),
+        ["```tsx", code, "```"].join("\n"),
+        `[Read the ${label} guide](${docs})`,
+      ];
+    }),
     "[Examples](/examples) · [Components](/components) · [Contact sales](/contact-sales) · [Privacy](/privacy-policy)",
   ].join("\n\n");
 

@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import type { IncomingMessage } from "node:http";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { withAui } from "@assistant-ui/next";
 import { compile, evaluate } from "@mdx-js/mdx";
@@ -11,7 +12,11 @@ import type { TableOfContents } from "fumadocs-core/toc";
 import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
 import type { PluggableList } from "unified";
-import { DOCS_SITES } from "./lib/docs-sites";
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
+import {
+  matchHas,
+  prepareDestination,
+} from "next/dist/shared/lib/router/utils/prepare-destination";
 
 const { rmSync } = vi.hoisted(() => ({ rmSync: vi.fn() }));
 vi.mock("node:fs", async (importOriginal) => ({
@@ -99,20 +104,37 @@ describe("docs Next config composition", () => {
     });
   });
 
-  it("rewrites unmatched markdown requests to the markdown 404", async () => {
-    const rewrites = await config.rewrites!();
-    expect(rewrites).toMatchObject({
-      fallback: expect.arrayContaining([
-        {
-          source: "/:path*",
-          has: [
-            { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-          ],
-          destination: "/missing.md",
-        },
-      ]),
-    });
-  });
+  it.each([
+    ["/nested/unknown-page", "text/markdown"],
+    ["/unknown-page.md", "*/*"],
+    ["/nested/unknown-page.mdx", "*/*"],
+  ])(
+    "rewrites unmatched %s with Accept %s and preserves the original path",
+    async (pathname, accept) => {
+      const rewrites = await config.rewrites!();
+      const fallback = Array.isArray(rewrites) ? [] : (rewrites.fallback ?? []);
+      const request = { headers: { accept } } as IncomingMessage;
+      const query = { path: "incoming-query" };
+      const [destination] = fallback.flatMap((rule) => {
+        const params = getPathMatch(rule.source, { strict: true })(pathname);
+        const headerParams = matchHas(request, query, rule.has, rule.missing);
+        if (!params || !headerParams) return [];
+        return [
+          prepareDestination({
+            appendParamsToQuery: true,
+            destination: rule.destination,
+            params: { ...params, ...headerParams },
+            query,
+          }).parsedDestination,
+        ];
+      });
+
+      expect(destination).toMatchObject({
+        pathname: "/missing.md",
+        query: { path: pathname },
+      });
+    },
+  );
 
   it("varies responses on Accept at markdown-negotiating sources", async () => {
     const headers = await config.headers!();
@@ -123,15 +145,7 @@ describe("docs Next config composition", () => {
       .map(({ source }) => source);
 
     expect(sources.sort()).toEqual(
-      [
-        "/",
-        "/pricing",
-        "/docs/:path*",
-        "/examples/:path*",
-        "/design/:path*",
-        "/elements/:path*",
-        ...DOCS_SITES.map(({ id }) => `/${id}/docs/:path*`),
-      ].sort(),
+      ["/", "/:path((?!api(?:/|$)|_next(?:/|$)).*)"].sort(),
     );
   });
 

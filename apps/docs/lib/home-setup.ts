@@ -35,6 +35,7 @@ export default function App() {
     docs: "/docs/runtimes/langgraph/overview",
     changed: [2, 6, 7, 8],
     caption: "Point stream at your graph. Threads and interrupts included.",
+    excerptNote: "Abridged excerpt. Define `streamMessage` for your graph.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -101,6 +102,8 @@ export default function App() {
     docs: "/docs/runtimes/custom/overview",
     changed: [2, 6, 7, 8],
     caption: "No adapter at all. Your store, your transport, any backend.",
+    excerptNote:
+      "Abridged excerpt. Supply `messages`, `convertMessage`, and `onNew` from your store.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useExternalStoreRuntime } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
