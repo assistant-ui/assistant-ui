@@ -21,3 +21,12 @@ What is copied, and from where:
 When to redo it: a starter is added, removed, or renamed in the CLI; a starter's imports, `.env.example`, or `package.json` change; or a registry item's files or dependencies change.
 
 A fix that was tried and set aside: a `pnpm generate:library-starters` script in `apps/docs/scripts` that imports the CLI's `PROJECT_METADATA`, `scanRequiredComponents`, and registry URL helpers, resolves everything above, and writes `lib/library/starters.generated.json` for `starters-data.ts` to merge in. It reproduced the snapshot exactly. Its costs: it needs `apps/registry/dist` built first (it is gitignored), it fetches from ui.shadcn.com, it adds a generated file and a package script to the docs app, and CI would not type-check it, since the docs `tsconfig` skips top-level `scripts/*.mts`.
+
+## MCP page data is hand-copied
+
+`lib/library/mcp-data.ts` holds what `/library/mcp` shows. It was copied by hand, so it goes stale when the sources change. Nothing checks it today.
+
+- The editors, their config file paths, config shapes, and "what to do next" lines mirror `MCP_CONFIGS` in `packages/cli/src/commands/mcp.ts` and the Manual Installation tabs in `content/docs/(before-you-start)/llm.mdx`. The docs app cannot import the CLI.
+- The tool names are the ones in `lib/mcp-tool-definitions.ts` and `templateToolDefinitions` in `app/api/mcp/route.ts`. Their one-line descriptions come from the Available Tools table in `llm.mdx`, because the definitions' own descriptions are written for agents and are too long for a list.
+
+When to redo it: the CLI's `mcp` command gains or changes an editor, or the hosted server adds, removes, or renames a tool.

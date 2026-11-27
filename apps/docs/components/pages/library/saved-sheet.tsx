@@ -13,6 +13,8 @@ import {
 import {
   getLibrarySavedItems,
   librarySavedPrompt,
+  type LibrarySavedItem,
+  type LibrarySavedPreview,
 } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +30,8 @@ import {
   LibraryMenuItem,
   LibraryMenuTrigger,
 } from "./library-menu";
+import { LibraryKindLabel } from "./library-kind";
+import { SkillThumbnail } from "./skill-card";
 import { StarterThumbnail } from "./starter-card";
 import { copyWithLibraryToast } from "./library-toast";
 
@@ -59,8 +63,21 @@ export function LibrarySavedButton({ className }: { className?: string }) {
   );
 }
 
-export function LibrarySavedSheet() {
-  const items = getLibrarySavedItems(useLibrarySaved());
+function SavedPreview({ preview }: { preview: LibrarySavedPreview }) {
+  return preview.kind === "starter" ? (
+    <StarterThumbnail starter={preview.starter} />
+  ) : (
+    <SkillThumbnail name={preview.skill} />
+  );
+}
+
+/** The saved panel; mounted once for every library page. `items` are the saveable items the server reads, such as skills. */
+export function LibrarySavedSheet({
+  items: more,
+}: {
+  items?: readonly LibrarySavedItem[];
+}) {
+  const items = getLibrarySavedItems(useLibrarySaved(), more);
   const open = useLibrarySavedOpen();
   const commands = items.map((item) => item.command).join("\n");
 
@@ -76,7 +93,7 @@ export function LibrarySavedSheet() {
               </Dialog.Title>
               <Dialog.Description className="text-muted-foreground text-sm">
                 {items.length === 0
-                  ? "Save a starter from its card's menu."
+                  ? "Save a starter or a skill from its card's menu."
                   : `${items.length} ${items.length === 1 ? "item" : "items"}`}
               </Dialog.Description>
             </div>
@@ -95,14 +112,12 @@ export function LibrarySavedSheet() {
                     key={item.id}
                     className="hover:bg-foreground/[0.025] flex items-center gap-3 rounded-xl py-2 ps-2 pe-1"
                   >
-                    <StarterThumbnail starter={item.starter} />
+                    <SavedPreview preview={item.preview} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-sm font-medium">
                         {item.name}
                       </span>
-                      <span className="text-muted-foreground truncate text-xs">
-                        {item.type}
-                      </span>
+                      <LibraryKindLabel kind={item.kind} />
                     </span>
                     <button
                       type="button"

@@ -8,10 +8,9 @@ import {
   StartersViewMenu,
   type StarterSort,
 } from "./starters-view-menu";
-import { LibrarySavedButton, LibrarySavedSheet } from "./saved-sheet";
+import { LibrarySavedButton } from "./saved-sheet";
 import { PillTabs, type PillTab } from "./pill-tabs";
 import { LibraryEmpty } from "./library-empty";
-import { LibraryToaster } from "./library-toast";
 import { SearchBar } from "./search-bar";
 import { EXAMPLES, TEMPLATES, type Starter } from "@/lib/library/starters-data";
 
@@ -119,8 +118,6 @@ export function StartersBrowser() {
           <LibrarySavedButton />
         </div>
       </div>
-      <LibrarySavedSheet />
-      <LibraryToaster />
       <StarterSheet
         starter={selected}
         open={detailsOpen}

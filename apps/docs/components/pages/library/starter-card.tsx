@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ArrowRightIcon } from "lucide-react";
 import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
+import { ItemGlyph, ItemThumbnail, ItemTitle, itemFrame } from "./library-item";
 import { StarterGlyph } from "./starter-glyphs";
 import { StarterMenu } from "./starter-menu";
 
@@ -86,45 +86,11 @@ function StarterPreview({
       className="object-cover object-top"
     />
   ) : (
-    <span className="[container-type:size] flex size-full items-center justify-center">
-      <span className="flex w-[min(36cqw,64cqh)] [&>svg]:h-auto [&>svg]:w-full [&>svg]:[stroke-width:0.5]">
-        <StarterGlyph starter={starter} />
-      </span>
-    </span>
+    <ItemGlyph>
+      <StarterGlyph starter={starter} />
+    </ItemGlyph>
   );
 }
-
-function StarterTitle({
-  starter,
-  onSelect,
-  className,
-}: {
-  starter: Starter;
-  onSelect: (starter: Starter) => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex items-baseline gap-1.5", className)}>
-      <h3 className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={() => onSelect(starter)}
-          className="cursor-pointer text-left underline-offset-4 outline-none group-hover/navlink:underline after:absolute after:inset-0"
-        >
-          {starter.label}
-        </button>
-      </h3>
-      <ArrowRightIcon
-        aria-hidden
-        className="text-muted-foreground size-3.5 shrink-0 self-center opacity-0 transition-opacity group-hover/navlink:opacity-100 motion-reduce:transition-none"
-      />
-    </div>
-  );
-}
-
-const frame =
-  "bg-foreground/[0.03] group-hover/navlink:bg-foreground/[0.05] dark:bg-foreground/[0.045] dark:group-hover/navlink:bg-foreground/[0.07] group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-ring transition-colors group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-2";
 
 type StarterItemProps = {
   starter: Starter;
@@ -178,11 +144,11 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
       className="group/navlink relative flex min-w-0 flex-col"
       {...handlers}
     >
-      <div className={cn(frame, "rounded-[32px] p-5")}>
+      <div className={cn(itemFrame, "rounded-[32px] p-5")}>
         <div className="bg-background relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-xl">
           <StarterMenu
             starter={starter}
-            className="absolute top-3 right-3 z-10"
+            className="bg-background/45 text-foreground hover:bg-background/70 data-popup-open:bg-background/70 absolute top-3 right-3 z-10 backdrop-blur-md"
           />
           <StarterPreview
             starter={starter}
@@ -209,7 +175,11 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
           ) : null}
         </div>
       </div>
-      <StarterTitle starter={starter} onSelect={onSelect} className="mt-3.5" />
+      <ItemTitle
+        label={starter.label}
+        onSelect={() => onSelect(starter)}
+        className="mt-3.5"
+      />
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {starter.description}
       </p>
@@ -220,11 +190,9 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
 /** A starter's small preview, as the list view and the saved panel show it. */
 export function StarterThumbnail({ starter }: { starter: Starter }) {
   return (
-    <div className={cn(frame, "shrink-0 rounded-[18px] p-2")}>
-      <div className="bg-background relative flex aspect-[16/10] w-24 items-center justify-center overflow-hidden rounded-[10px]">
-        <StarterPreview starter={starter} sizes="96px" />
-      </div>
-    </div>
+    <ItemThumbnail>
+      <StarterPreview starter={starter} sizes="96px" />
+    </ItemThumbnail>
   );
 }
 
@@ -236,7 +204,7 @@ export function StarterRow({ starter, onSelect }: StarterItemProps) {
     >
       <StarterThumbnail starter={starter} />
       <div className="min-w-0 flex-1">
-        <StarterTitle starter={starter} onSelect={onSelect} />
+        <ItemTitle label={starter.label} onSelect={() => onSelect(starter)} />
         <p className="text-muted-foreground mt-0.5 truncate text-[13px]">
           {starter.description}
         </p>

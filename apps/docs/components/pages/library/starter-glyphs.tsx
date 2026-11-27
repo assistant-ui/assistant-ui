@@ -7,15 +7,15 @@ import { starterId, type Starter } from "@/lib/library/starters-data";
 // copied here. Each is a 32 by 24 line drawing whose accent and motion play
 // while its `group/navlink` card is hovered.
 
-const ACCENT_STROKE =
+export const ACCENT_STROKE =
   "transition-colors duration-200 group-hover/navlink:stroke-blue-500 group-focus-visible/navlink:stroke-blue-500 group-aria-[current=page]/navlink:stroke-blue-500";
 
-const ACCENT_FILL =
+export const ACCENT_FILL =
   "transition-colors duration-200 group-hover/navlink:fill-blue-500 group-focus-visible/navlink:fill-blue-500 group-aria-[current=page]/navlink:fill-blue-500";
 
-const FAINT = "stroke-foreground/15";
+export const FAINT = "stroke-foreground/15";
 
-const DIM = "stroke-foreground/25";
+export const DIM = "stroke-foreground/25";
 
 type GlyphMotion =
   | "draw"
@@ -36,7 +36,7 @@ type GlyphMotion =
   | "blink"
   | "orbit";
 
-function motion(
+export function motion(
   kind: GlyphMotion,
   delay = 0,
   vars: Record<`--glyph-${string}`, string> = {},
@@ -47,7 +47,7 @@ function motion(
   };
 }
 
-function GlyphSvg({ children }: { children: ReactNode }) {
+export function GlyphSvg({ children }: { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 32 24"
@@ -86,7 +86,7 @@ function WindowChrome({
   );
 }
 
-function GlyphNative() {
+export function GlyphNative() {
   return (
     <GlyphSvg>
       <g {...motion("tilt")}>
@@ -119,7 +119,7 @@ function GlyphNative() {
   );
 }
 
-function GlyphInk() {
+export function GlyphInk() {
   return (
     <GlyphSvg>
       <WindowChrome y={4} height={16} />
@@ -142,7 +142,7 @@ function GlyphInk() {
   );
 }
 
-function GlyphCloud() {
+export function GlyphCloud() {
   return (
     <GlyphSvg>
       <path
@@ -160,9 +160,9 @@ function GlyphCloud() {
   );
 }
 
-const SOLID = "fill-foreground/35 stroke-none";
+export const SOLID = "fill-foreground/35 stroke-none";
 
-const DOT = "fill-foreground/30 stroke-none";
+export const DOT = "fill-foreground/30 stroke-none";
 
 function GlyphThread() {
   return (
@@ -348,7 +348,7 @@ function GlyphEditor() {
   );
 }
 
-function GlyphStream() {
+export function GlyphStream() {
   return (
     <GlyphSvg>
       <path d="M4.5 7H27" className={DIM} />
@@ -581,7 +581,7 @@ function GlyphStore() {
   );
 }
 
-function GlyphPointer() {
+export function GlyphPointer() {
   return (
     <GlyphSvg>
       <rect x="4" y="4.5" width="17" height="11.5" rx="2" className={DIM} />
@@ -624,7 +624,7 @@ function GlyphMarkup() {
   );
 }
 
-function GlyphThreadList() {
+export function GlyphThreadList() {
   return (
     <GlyphSvg>
       <rect x="3.5" y="4" width="25" height="16" rx="2" className={DIM} />
@@ -789,7 +789,7 @@ function GlyphRoutes() {
   );
 }
 
-function GlyphLayers() {
+export function GlyphLayers() {
   return (
     <GlyphSvg>
       <path

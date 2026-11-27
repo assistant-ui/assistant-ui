@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { Header } from "@/components/shared/header";
 import { LegalLinks } from "@/components/shared/legal-links";
+import { LibraryToaster } from "@/components/pages/library/library-toast";
+import { LibrarySavedSheet } from "@/components/pages/library/saved-sheet";
+import { getLibrarySkills } from "@/lib/library/load-skills";
+import { savedSkillItem } from "@/lib/library/saved-items";
 
 export default function Layout({
   children,
@@ -11,6 +15,8 @@ export default function Layout({
     <div className="flex min-h-screen flex-col">
       <Header />
       {children}
+      <LibrarySavedSheet items={getLibrarySkills().map(savedSkillItem)} />
+      <LibraryToaster />
       <footer className="mx-auto w-full max-w-7xl px-4 pb-10">
         <div className="border-t pt-6">
           <LegalLinks />

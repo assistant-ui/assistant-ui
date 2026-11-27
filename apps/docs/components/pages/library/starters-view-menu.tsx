@@ -1,19 +1,10 @@
 "use client";
 
-import { RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 import {
-  LibraryMenu,
   LibraryMenuCheckboxItem,
   LibraryMenuContent,
-  LibraryMenuGroup,
-  LibraryMenuItem,
-  LibraryMenuLabel,
-  LibraryMenuRadioGroup,
-  LibraryMenuRadioItem,
-  LibraryMenuSeparator,
   LibraryMenuSub,
   LibraryMenuSubTrigger,
-  LibraryMenuTrigger,
 } from "./library-menu";
 import {
   STARTER_FRAMEWORKS,
@@ -24,10 +15,14 @@ import {
   type StarterRuntime,
 } from "@/lib/library/starters-data";
 import { FilterIcon } from "./filter-icons";
-import { LibraryTooltip } from "./library-tooltip";
+import {
+  LibraryViewMenu,
+  type LibrarySort,
+  type LibraryView,
+} from "./library-view-menu";
 
-export type StarterSort = "default" | "name-asc" | "name-desc";
-export type StarterView = "grid" | "list";
+export type StarterSort = LibrarySort;
+export type StarterView = LibraryView;
 
 export type StartersViewOptions = {
   frameworks: readonly StarterFramework[];
@@ -47,17 +42,6 @@ export const DEFAULT_VIEW_OPTIONS: StartersViewOptions = {
   view: "grid",
 };
 
-const SORTS: readonly { value: StarterSort; label: string }[] = [
-  { value: "default", label: "Recommended" },
-  { value: "name-asc", label: "Name, A to Z" },
-  { value: "name-desc", label: "Name, Z to A" },
-];
-
-const VIEWS: readonly { value: StarterView; label: string }[] = [
-  { value: "grid", label: "Grid" },
-  { value: "list", label: "List" },
-];
-
 const toggle = <T,>(list: readonly T[], value: T, on: boolean): T[] =>
   on ? [...list, value] : list.filter((entry) => entry !== value);
 
@@ -76,32 +60,24 @@ export function StartersViewMenu({
   options: StartersViewOptions;
   onOptionsChange: (options: StartersViewOptions) => void;
 }) {
-  const filtered =
+  const filtersOn =
     options.frameworks.length > 0 ||
     options.runtimes.length > 0 ||
     options.integrations.length > 0 ||
-    options.withScreenshot ||
-    options.sort !== DEFAULT_VIEW_OPTIONS.sort;
+    options.withScreenshot;
 
   return (
-    <LibraryMenu>
-      <LibraryTooltip label="Filter, sort, and view">
-        <LibraryMenuTrigger
-          aria-label={`Filter, sort, and view${filtered ? ", filters on" : ""}`}
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground relative size-9 shrink-0 rounded-full"
-        >
-          <SlidersHorizontalIcon aria-hidden />
-          {filtered ? (
-            <span
-              aria-hidden
-              className="bg-foreground absolute top-1.5 right-1.5 size-1.5 rounded-full"
-            />
-          ) : null}
-        </LibraryMenuTrigger>
-      </LibraryTooltip>
-      <LibraryMenuContent align="end">
-        <LibraryMenuGroup>
-          <LibraryMenuLabel>Filter</LibraryMenuLabel>
+    <LibraryViewMenu
+      sort={options.sort}
+      view={options.view}
+      onSortChange={(sort) => onOptionsChange({ ...options, sort })}
+      onViewChange={(view) => onOptionsChange({ ...options, view })}
+      onReset={() =>
+        onOptionsChange({ ...DEFAULT_VIEW_OPTIONS, view: options.view })
+      }
+      filtersOn={filtersOn}
+      filters={
+        <>
           <LibraryMenuSub>
             <LibraryMenuSubTrigger>
               Framework
@@ -187,53 +163,8 @@ export function StartersViewMenu({
           >
             Has a screenshot
           </LibraryMenuCheckboxItem>
-        </LibraryMenuGroup>
-        <LibraryMenuSeparator />
-        <LibraryMenuGroup>
-          <LibraryMenuLabel>Sort</LibraryMenuLabel>
-          <LibraryMenuRadioGroup
-            value={options.sort}
-            onValueChange={(sort: StarterSort) =>
-              onOptionsChange({ ...options, sort })
-            }
-          >
-            {SORTS.map((sort) => (
-              <LibraryMenuRadioItem key={sort.value} value={sort.value}>
-                {sort.label}
-              </LibraryMenuRadioItem>
-            ))}
-          </LibraryMenuRadioGroup>
-        </LibraryMenuGroup>
-        <LibraryMenuSeparator />
-        <LibraryMenuGroup>
-          <LibraryMenuLabel>View</LibraryMenuLabel>
-          <LibraryMenuRadioGroup
-            value={options.view}
-            onValueChange={(view: StarterView) =>
-              onOptionsChange({ ...options, view })
-            }
-          >
-            {VIEWS.map((view) => (
-              <LibraryMenuRadioItem key={view.value} value={view.value}>
-                {view.label}
-              </LibraryMenuRadioItem>
-            ))}
-          </LibraryMenuRadioGroup>
-        </LibraryMenuGroup>
-        {filtered ? (
-          <>
-            <LibraryMenuSeparator />
-            <LibraryMenuItem
-              onClick={() =>
-                onOptionsChange({ ...DEFAULT_VIEW_OPTIONS, view: options.view })
-              }
-            >
-              <RotateCcwIcon aria-hidden />
-              Reset filters and sort
-            </LibraryMenuItem>
-          </>
-        ) : null}
-      </LibraryMenuContent>
-    </LibraryMenu>
+        </>
+      }
+    />
   );
 }

@@ -1,6 +1,7 @@
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { listSkills } from "@/lib/agent-skills";
+import { MCP_COMMAND, MCP_EDITORS } from "./mcp-data";
 import { EXAMPLES, TEMPLATES } from "./starters-data";
 
 export type LibraryGroup = {
@@ -16,15 +17,6 @@ export type LibrarySection = {
   href: string;
   groups: readonly LibraryGroup[];
 };
-
-const MCP_CLIENTS = [
-  "Cursor",
-  "Windsurf",
-  "VS Code",
-  "Zed",
-  "Claude Code",
-  "Claude Desktop",
-];
 
 export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
   {
@@ -63,7 +55,7 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     description:
       "Instructions a coding agent loads to build with assistant-ui.",
     command: "npx skills add assistant-ui/skills",
-    href: "/docs/llm#skills",
+    href: "/library/skills",
     groups: [
       { label: "Skills", items: listSkills().map((skill) => skill.name) },
     ],
@@ -73,9 +65,11 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     title: "MCP server",
     description:
       "Connects your editor's agent to the assistant-ui docs and examples.",
-    command: "npx assistant-ui@latest mcp",
-    href: "/docs/cli#mcp",
-    groups: [{ label: "Editors", items: MCP_CLIENTS }],
+    command: MCP_COMMAND,
+    href: "/library/mcp",
+    groups: [
+      { label: "Editors", items: MCP_EDITORS.map((editor) => editor.label) },
+    ],
   },
 ];
 

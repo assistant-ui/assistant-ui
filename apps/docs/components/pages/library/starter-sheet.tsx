@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   ArrowUpRightIcon,
@@ -33,14 +33,13 @@ import {
   type Starter,
 } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
-import {
-  setLibrarySavedOpen,
-  toggleLibrarySavedItem,
-  useLibrarySaved,
-} from "./saved-store";
-import { copyWithLibraryToast, libraryToast } from "./library-toast";
+import { useLibrarySaved } from "./saved-store";
+import { copyWithLibraryToast } from "./library-toast";
+import { toggleLibrarySavedWithToast } from "./library-item-menu";
 import { FilterIcon } from "./filter-icons";
 import { LibraryCopyButton } from "./library-copy-button";
+import { GroupRow, RowGroup } from "./library-row-group";
+import { CommandLine, Step } from "./library-steps";
 import {
   LibraryDrawer,
   LibraryDrawerClose,
@@ -65,69 +64,6 @@ function CodeList({ items }: { items: readonly string[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-/** A labelled group of rows in a bordered box, like a settings panel. */
-function RowGroup({
-  title,
-  aside,
-  children,
-}: {
-  title: string;
-  aside?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <div className="text-muted-foreground flex items-baseline justify-between gap-4 text-sm">
-        <h3>{title}</h3>
-        {aside}
-      </div>
-      <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-2xl border px-4">
-        {children}
-      </ul>
-    </section>
-  );
-}
-
-/** One row: an icon, a label, an optional value on the right, and an optional action after it. */
-function GroupRow({
-  icon,
-  label,
-  value,
-  action,
-  mono = false,
-}: {
-  icon: ReactNode;
-  label: ReactNode;
-  value?: ReactNode;
-  action?: ReactNode;
-  mono?: boolean;
-}) {
-  return (
-    <li className="flex min-h-12 min-w-0 items-center gap-3 py-2.5">
-      <span className="text-muted-foreground flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-        {icon}
-      </span>
-      <span
-        className={cn(
-          "min-w-0 truncate",
-          value ? "shrink-0" : "flex-1",
-          mono
-            ? "font-mono text-[13px] [font-variant-ligatures:none]"
-            : "text-sm",
-        )}
-      >
-        {label}
-      </span>
-      {value ? (
-        <span className="text-muted-foreground flex min-w-0 flex-1 items-center justify-end gap-1.5 text-sm">
-          {value}
-        </span>
-      ) : null}
-      {action}
-    </li>
   );
 }
 
@@ -212,43 +148,6 @@ const TABS = [
   { value: "dependencies", label: "Dependencies" },
 ] as const;
 
-function CommandLine({ command }: { command: string }) {
-  return (
-    <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] flex items-center gap-2 rounded-xl py-1 ps-3 pe-1">
-      <code className="min-w-0 flex-1 overflow-x-auto font-mono text-xs whitespace-nowrap [font-variant-ligatures:none]">
-        {command}
-      </code>
-      <LibraryCopyButton text={command} label="Copy command" />
-    </div>
-  );
-}
-
-function Step({
-  number,
-  title,
-  children,
-}: {
-  number: number;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="group/step relative flex gap-3 pb-6 last:pb-0">
-      <span
-        aria-hidden
-        className="bg-foreground/25 absolute top-6 bottom-0 left-[11.5px] w-px group-last/step:hidden"
-      />
-      <span className="bg-foreground/[0.06] ring-background relative grid size-6 shrink-0 place-items-center rounded-full text-xs tabular-nums ring-4">
-        {number}
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-2 pt-0.5">
-        <h3 className="text-sm font-medium">{title}</h3>
-        {children}
-      </div>
-    </li>
-  );
-}
-
 function OpenStep({ starter }: { starter: Starter }) {
   const open = starterOpen(starter);
   if ("text" in open) {
@@ -282,21 +181,8 @@ function StarterDetails({ starter }: { starter: Starter }) {
   const isSaved = useLibrarySaved().includes(starterId(starter));
   const prompt = starterPrompt(starter);
 
-  const toggleSaved = () => {
-    const added = toggleLibrarySavedItem(starterId(starter));
-    libraryToast.success(
-      added
-        ? `${starter.label} saved.`
-        : `${starter.label} removed from saved.`,
-      {
-        group: "saved",
-        action: {
-          label: "View saved",
-          onClick: () => setLibrarySavedOpen(true),
-        },
-      },
-    );
-  };
+  const toggleSaved = () =>
+    toggleLibrarySavedWithToast(starterId(starter), starter.label);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
