@@ -24,12 +24,7 @@ import {
   useLibrarySaved,
   useLibrarySavedOpen,
 } from "./saved-store";
-import {
-  LibraryMenu,
-  LibraryMenuContent,
-  LibraryMenuItem,
-  LibraryMenuTrigger,
-} from "./library-menu";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "./menu";
 import { LibraryKindLabel } from "./library-kind";
 import { SkillThumbnail } from "./skill-card";
 import { StarterThumbnail } from "./starter-card";
@@ -142,19 +137,19 @@ export function LibrarySavedSheet({
                   <Trash2Icon aria-hidden />
                   Clear all
                 </button>
-                <LibraryMenu>
-                  <LibraryMenuTrigger
+                <Menu>
+                  <MenuTrigger
                     className={cn(
                       button,
-                      "bg-foreground text-background hover:bg-foreground/90 data-popup-open:bg-foreground/90 flex flex-1",
+                      "bg-foreground text-background hover:bg-foreground/90 focus-visible:bg-foreground/90 data-popup-open:bg-foreground/90 flex flex-1",
                     )}
                   >
                     <CopyIcon aria-hidden />
                     Copy
                     <ChevronDownIcon aria-hidden className="opacity-70" />
-                  </LibraryMenuTrigger>
-                  <LibraryMenuContent side="top" align="end">
-                    <LibraryMenuItem
+                  </MenuTrigger>
+                  <MenuContent side="top" align="end">
+                    <MenuItem
                       onClick={() =>
                         copyWithLibraryToast(
                           commands,
@@ -168,8 +163,8 @@ export function LibrarySavedSheet({
                       {items.length === 1
                         ? "Copy install command"
                         : "Copy install commands"}
-                    </LibraryMenuItem>
-                    <LibraryMenuItem
+                    </MenuItem>
+                    <MenuItem
                       onClick={() =>
                         copyWithLibraryToast(
                           librarySavedPrompt(items),
@@ -179,9 +174,9 @@ export function LibrarySavedSheet({
                     >
                       <BotIcon aria-hidden />
                       Copy agent prompt
-                    </LibraryMenuItem>
-                  </LibraryMenuContent>
-                </LibraryMenu>
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
               </div>
             </>
           ) : null}

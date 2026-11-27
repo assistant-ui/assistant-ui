@@ -18,7 +18,7 @@ import { PillTabs, type PillTab } from "./pill-tabs";
 import { LibrarySavedButton } from "./saved-sheet";
 import { SearchBar } from "./search-bar";
 import { SkillCard, SkillRow } from "./skill-card";
-import { SkillSheet } from "./skill-sheet";
+import { SkillDialog } from "./skill-dialog";
 
 type SkillTab = "all" | SkillGroupId;
 
@@ -80,13 +80,7 @@ export function SkillsBrowser({ skills }: { skills: readonly LibrarySkill[] }) {
           <LibrarySavedButton />
         </div>
       </div>
-      <SkillSheet
-        skill={selected}
-        total={skills.length}
-        open={open}
-        onOpenChange={setOpen}
-        onSelect={select}
-      />
+      <SkillDialog skill={selected} open={open} onOpenChange={setOpen} />
       <p role="status" className="sr-only">
         {normalized ? `${shown.length} skills found` : ""}
       </p>

@@ -5,12 +5,12 @@ import { ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LibraryCopyButton } from "./library-copy-button";
 import {
-  LibraryMenu,
-  LibraryMenuContent,
-  LibraryMenuRadioGroup,
-  LibraryMenuRadioItem,
-  LibraryMenuTrigger,
-} from "./library-menu";
+  Menu,
+  MenuContent,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuTrigger,
+} from "./menu";
 
 const STORAGE_KEY = "aui-library-snippet-tab";
 const listeners = new Set<() => void>();
@@ -91,30 +91,26 @@ export function LibraryCodeSnippet({
         label={`Copy ${current.label}`}
         className="me-1 rounded-full"
       />
-      <LibraryMenu>
-        <LibraryMenuTrigger
+      <Menu>
+        <MenuTrigger
           aria-label={`${label}: ${current.label}`}
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground border-foreground/10 flex h-full w-10 shrink-0 items-center justify-center rounded-e-full border-s pe-1"
+          className="text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground border-foreground/10 h-full w-10 shrink-0 justify-center rounded-s-none rounded-e-full border-s px-0 pe-1 pointer-coarse:h-full"
         >
           <ChevronDownIcon aria-hidden />
-        </LibraryMenuTrigger>
-        <LibraryMenuContent align="end">
-          <LibraryMenuRadioGroup
+        </MenuTrigger>
+        <MenuContent align="end">
+          <MenuRadioGroup
             value={current.label}
             onValueChange={(value) => remember(String(value))}
           >
             {tabs.map((tab) => (
-              <LibraryMenuRadioItem
-                key={tab.label}
-                value={tab.label}
-                closeOnClick
-              >
+              <MenuRadioItem key={tab.label} value={tab.label} closeOnClick>
                 {tab.label}
-              </LibraryMenuRadioItem>
+              </MenuRadioItem>
             ))}
-          </LibraryMenuRadioGroup>
-        </LibraryMenuContent>
-      </LibraryMenu>
+          </MenuRadioGroup>
+        </MenuContent>
+      </Menu>
     </div>
   );
 }

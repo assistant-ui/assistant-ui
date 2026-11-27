@@ -1,8 +1,8 @@
-const REPO = "assistant-ui/skills";
+export const SKILLS_REPO = "assistant-ui/skills";
 
-export const SKILLS_COMMAND = `npx skills add ${REPO}`;
+export const SKILLS_COMMAND = `npx skills add ${SKILLS_REPO}`;
 export const SKILLS_PROMPT = `Install the assistant-ui agent skills with \`${SKILLS_COMMAND}\``;
-export const SKILLS_REPO_HREF = `https://github.com/${REPO}`;
+export const SKILLS_REPO_HREF = `https://github.com/${SKILLS_REPO}`;
 
 export type SkillGroupId = "start" | "interface" | "runtime" | "platforms";
 
@@ -116,7 +116,10 @@ export const SKILL_CATALOG: Record<
 
 export type SkillReference = {
   file: string;
-  note: string;
+  /** Where the file is read from: the skills repo, at the commit this site pins. */
+  href: string;
+  /** The file's place inside the skill's folder, such as `references/ai-sdk.md`. */
+  path: string;
 };
 
 /** What the skills page shows for one skill; the full SKILL.md is fetched from `rawHref` on demand. */
@@ -125,19 +128,19 @@ export type LibrarySkill = {
   title: string;
   /** One line for a card or a row. */
   summary: string;
-  /** The description an agent matches a task against. */
+  /** The description an agent matches a task against; search reads it. */
   description: string;
-  /** The opening paragraph of SKILL.md. */
-  intro: string;
   group: SkillGroupId;
   sections: readonly string[];
   references: readonly SkillReference[];
-  related: readonly string[];
   command: string;
   /** What to tell a coding agent to install this skill. */
   prompt: string;
   slash: string;
+  /** The site's copy of SKILL.md, with its links made absolute. */
   rawHref: string;
+  /** SKILL.md as the skills repo holds it, for a download. */
+  sourceFileHref: string;
   sourceHref: string;
 };
 

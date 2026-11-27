@@ -70,7 +70,7 @@ export function SkillCard({ skill, onSelect }: SkillItemProps) {
   );
 }
 
-/** A skill's glyph in a small frame, as the list view and the saved panel show it. */
+/** A skill's glyph in a small frame, as the saved panel shows it. */
 export function SkillThumbnail({ name }: { name: string }) {
   return (
     <ItemThumbnail>
@@ -87,7 +87,11 @@ export function SkillRow({ skill, onSelect }: SkillItemProps) {
       data-nav-glyph-motion
       className="group/navlink relative flex min-w-0 items-center gap-4 py-2"
     >
-      <SkillThumbnail name={skill.name} />
+      <div className={cn(itemFrame, "shrink-0 rounded-2xl p-1.5")}>
+        <span className="bg-background grid h-11 w-14 place-items-center rounded-[10px] [&>svg]:h-8 [&>svg]:w-[2.667rem]">
+          <SkillGlyph name={skill.name} />
+        </span>
+      </div>
       <div className="min-w-0 flex-1">
         <ItemTitle label={skill.title} onSelect={() => onSelect(skill.name)} />
         <p className="text-muted-foreground mt-0.5 line-clamp-2 text-[13px] leading-relaxed">

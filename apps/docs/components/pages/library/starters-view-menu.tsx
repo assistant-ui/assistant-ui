@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  LibraryMenuCheckboxItem,
-  LibraryMenuContent,
-  LibraryMenuSub,
-  LibraryMenuSubTrigger,
-} from "./library-menu";
+  MenuCheckboxItem,
+  MenuSubContent,
+  MenuSub,
+  MenuSubTrigger,
+} from "./menu";
 import {
   STARTER_FRAMEWORKS,
   STARTER_INTEGRATIONS,
@@ -78,14 +78,16 @@ export function StartersViewMenu({
       filtersOn={filtersOn}
       filters={
         <>
-          <LibraryMenuSub>
-            <LibraryMenuSubTrigger>
-              Framework
-              <SelectedCount count={options.frameworks.length} />
-            </LibraryMenuSubTrigger>
-            <LibraryMenuContent side="right" align="start" sideOffset={4}>
+          <MenuSub>
+            <MenuSubTrigger>
+              <span className="flex flex-1 items-center gap-2">
+                Framework
+                <SelectedCount count={options.frameworks.length} />
+              </span>
+            </MenuSubTrigger>
+            <MenuSubContent>
               {STARTER_FRAMEWORKS.map((framework) => (
-                <LibraryMenuCheckboxItem
+                <MenuCheckboxItem
                   key={framework}
                   checked={options.frameworks.includes(framework)}
                   onCheckedChange={(checked) =>
@@ -101,18 +103,20 @@ export function StartersViewMenu({
                 >
                   <FilterIcon name={framework} />
                   {framework}
-                </LibraryMenuCheckboxItem>
+                </MenuCheckboxItem>
               ))}
-            </LibraryMenuContent>
-          </LibraryMenuSub>
-          <LibraryMenuSub>
-            <LibraryMenuSubTrigger>
-              Runtime
-              <SelectedCount count={options.runtimes.length} />
-            </LibraryMenuSubTrigger>
-            <LibraryMenuContent side="right" align="start" sideOffset={4}>
+            </MenuSubContent>
+          </MenuSub>
+          <MenuSub>
+            <MenuSubTrigger>
+              <span className="flex flex-1 items-center gap-2">
+                Runtime
+                <SelectedCount count={options.runtimes.length} />
+              </span>
+            </MenuSubTrigger>
+            <MenuSubContent>
               {STARTER_RUNTIMES.map((runtime) => (
-                <LibraryMenuCheckboxItem
+                <MenuCheckboxItem
                   key={runtime}
                   checked={options.runtimes.includes(runtime)}
                   onCheckedChange={(checked) =>
@@ -124,18 +128,20 @@ export function StartersViewMenu({
                 >
                   <FilterIcon name={runtime} />
                   {runtime}
-                </LibraryMenuCheckboxItem>
+                </MenuCheckboxItem>
               ))}
-            </LibraryMenuContent>
-          </LibraryMenuSub>
-          <LibraryMenuSub>
-            <LibraryMenuSubTrigger>
-              Integrations
-              <SelectedCount count={options.integrations.length} />
-            </LibraryMenuSubTrigger>
-            <LibraryMenuContent side="right" align="start" sideOffset={4}>
+            </MenuSubContent>
+          </MenuSub>
+          <MenuSub>
+            <MenuSubTrigger>
+              <span className="flex flex-1 items-center gap-2">
+                Integrations
+                <SelectedCount count={options.integrations.length} />
+              </span>
+            </MenuSubTrigger>
+            <MenuSubContent>
               {STARTER_INTEGRATIONS.map((integration) => (
-                <LibraryMenuCheckboxItem
+                <MenuCheckboxItem
                   key={integration}
                   checked={options.integrations.includes(integration)}
                   onCheckedChange={(checked) =>
@@ -151,18 +157,18 @@ export function StartersViewMenu({
                 >
                   <FilterIcon name={integration} />
                   {integration}
-                </LibraryMenuCheckboxItem>
+                </MenuCheckboxItem>
               ))}
-            </LibraryMenuContent>
-          </LibraryMenuSub>
-          <LibraryMenuCheckboxItem
+            </MenuSubContent>
+          </MenuSub>
+          <MenuCheckboxItem
             checked={options.withScreenshot}
             onCheckedChange={(withScreenshot) =>
               onOptionsChange({ ...options, withScreenshot })
             }
           >
             Has a screenshot
-          </LibraryMenuCheckboxItem>
+          </MenuCheckboxItem>
         </>
       }
     />

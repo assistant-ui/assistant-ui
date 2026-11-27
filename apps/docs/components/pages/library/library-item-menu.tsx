@@ -15,13 +15,14 @@ import {
   useLibrarySaved,
 } from "./saved-store";
 import {
-  LibraryMenu,
-  LibraryMenuContent,
-  LibraryMenuItem,
-  LibraryMenuSeparator,
-  LibraryMenuTrigger,
-} from "./library-menu";
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuTrigger,
+} from "./menu";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
+import { iconMenuTrigger } from "./library-item";
 import { LibraryTooltip } from "./library-tooltip";
 
 /** Saves the item or removes it from saved, and says which in a toast that opens the saved panel. */
@@ -59,43 +60,40 @@ export function LibraryItemMenu({
   const isSaved = useLibrarySaved().includes(id);
 
   return (
-    <LibraryMenu>
+    <Menu>
       <LibraryTooltip side={tooltipSide} label="Add or copy">
-        <LibraryMenuTrigger
+        <MenuTrigger
           aria-label={`Options for ${label}${isSaved ? ", saved" : ""}`}
-          className={cn(
-            "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground size-8 rounded-full",
-            className,
-          )}
+          className={cn(iconMenuTrigger, className)}
         >
           {isSaved ? <CheckIcon aria-hidden /> : <PlusIcon aria-hidden />}
-        </LibraryMenuTrigger>
+        </MenuTrigger>
       </LibraryTooltip>
-      <LibraryMenuContent side="bottom" align="end">
-        <LibraryMenuItem onClick={() => toggleLibrarySavedWithToast(id, label)}>
+      <MenuContent side="bottom" align="end">
+        <MenuItem onClick={() => toggleLibrarySavedWithToast(id, label)}>
           {isSaved ? (
             <BookmarkCheckIcon aria-hidden />
           ) : (
             <BookmarkIcon aria-hidden />
           )}
           {isSaved ? "Remove from saved" : "Save"}
-        </LibraryMenuItem>
-        <LibraryMenuSeparator />
-        <LibraryMenuItem
+        </MenuItem>
+        <MenuSeparator />
+        <MenuItem
           onClick={() =>
             copyWithLibraryToast(command, "Install command copied.")
           }
         >
           <TerminalIcon aria-hidden />
           Copy install command
-        </LibraryMenuItem>
-        <LibraryMenuItem
+        </MenuItem>
+        <MenuItem
           onClick={() => copyWithLibraryToast(prompt, "Agent prompt copied.")}
         >
           <BotIcon aria-hidden />
           Copy agent prompt
-        </LibraryMenuItem>
-      </LibraryMenuContent>
-    </LibraryMenu>
+        </MenuItem>
+      </MenuContent>
+    </Menu>
   );
 }

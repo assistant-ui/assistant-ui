@@ -3,16 +3,18 @@
 import type { ReactNode } from "react";
 import { RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 import {
-  LibraryMenu,
-  LibraryMenuContent,
-  LibraryMenuGroup,
-  LibraryMenuItem,
-  LibraryMenuLabel,
-  LibraryMenuRadioGroup,
-  LibraryMenuRadioItem,
-  LibraryMenuSeparator,
-  LibraryMenuTrigger,
-} from "./library-menu";
+  Menu,
+  MenuContent,
+  MenuGroup,
+  MenuItem,
+  MenuLabel,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuSeparator,
+  MenuTrigger,
+} from "./menu";
+import { cn } from "@/lib/utils";
+import { iconMenuTrigger } from "./library-item";
 import { LibraryTooltip } from "./library-tooltip";
 
 export type LibrarySort = "default" | "name-asc" | "name-desc";
@@ -69,13 +71,13 @@ export function LibraryViewMenu({
   const label = filters ? "Filter, sort, and view" : "Sort and view";
 
   return (
-    <LibraryMenu>
+    <Menu>
       <LibraryTooltip label={label}>
-        <LibraryMenuTrigger
+        <MenuTrigger
           aria-label={
             changed ? `${label}, ${filters ? "filters" : "sort"} on` : label
           }
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] data-popup-open:bg-foreground/[0.06] data-popup-open:text-foreground relative size-9 shrink-0 rounded-full"
+          className={cn(iconMenuTrigger, "relative size-9")}
         >
           <SlidersHorizontalIcon aria-hidden />
           {changed ? (
@@ -84,55 +86,55 @@ export function LibraryViewMenu({
               className="bg-foreground absolute top-1.5 right-1.5 size-1.5 rounded-full"
             />
           ) : null}
-        </LibraryMenuTrigger>
+        </MenuTrigger>
       </LibraryTooltip>
-      <LibraryMenuContent align="end">
+      <MenuContent align="end">
         {filters ? (
           <>
-            <LibraryMenuGroup>
-              <LibraryMenuLabel>Filter</LibraryMenuLabel>
+            <MenuGroup>
+              <MenuLabel>Filter</MenuLabel>
               {filters}
-            </LibraryMenuGroup>
-            <LibraryMenuSeparator />
+            </MenuGroup>
+            <MenuSeparator />
           </>
         ) : null}
-        <LibraryMenuGroup>
-          <LibraryMenuLabel>Sort</LibraryMenuLabel>
-          <LibraryMenuRadioGroup
+        <MenuGroup>
+          <MenuLabel>Sort</MenuLabel>
+          <MenuRadioGroup
             value={sort}
             onValueChange={(value: LibrarySort) => onSortChange(value)}
           >
             {SORTS.map((option) => (
-              <LibraryMenuRadioItem key={option.value} value={option.value}>
+              <MenuRadioItem key={option.value} value={option.value}>
                 {option.label}
-              </LibraryMenuRadioItem>
+              </MenuRadioItem>
             ))}
-          </LibraryMenuRadioGroup>
-        </LibraryMenuGroup>
-        <LibraryMenuSeparator />
-        <LibraryMenuGroup>
-          <LibraryMenuLabel>View</LibraryMenuLabel>
-          <LibraryMenuRadioGroup
+          </MenuRadioGroup>
+        </MenuGroup>
+        <MenuSeparator />
+        <MenuGroup>
+          <MenuLabel>View</MenuLabel>
+          <MenuRadioGroup
             value={view}
             onValueChange={(value: LibraryView) => onViewChange(value)}
           >
             {VIEWS.map((option) => (
-              <LibraryMenuRadioItem key={option.value} value={option.value}>
+              <MenuRadioItem key={option.value} value={option.value}>
                 {option.label}
-              </LibraryMenuRadioItem>
+              </MenuRadioItem>
             ))}
-          </LibraryMenuRadioGroup>
-        </LibraryMenuGroup>
+          </MenuRadioGroup>
+        </MenuGroup>
         {changed ? (
           <>
-            <LibraryMenuSeparator />
-            <LibraryMenuItem onClick={onReset}>
+            <MenuSeparator />
+            <MenuItem onClick={onReset}>
               <RotateCcwIcon aria-hidden />
               {filters ? "Reset filters and sort" : "Reset sort"}
-            </LibraryMenuItem>
+            </MenuItem>
           </>
         ) : null}
-      </LibraryMenuContent>
-    </LibraryMenu>
+      </MenuContent>
+    </Menu>
   );
 }

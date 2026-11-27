@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import type { LibrarySkill } from "@/lib/library/skills-data";
 
 function Skeleton() {
   return (
@@ -25,7 +24,8 @@ const SkillMarkdownBody = dynamic(() => import("./skill-markdown-body"), {
 
 const documents = new Map<string, Promise<string>>();
 
-const loadDocument = (href: string) => {
+/** The text of one skill file, without its frontmatter; fetched once and kept. */
+export const loadSkillDocument = (href: string) => {
   let request = documents.get(href);
   if (!request) {
     request = fetch(href).then(async (response) => {
@@ -40,27 +40,40 @@ const loadDocument = (href: string) => {
 
 type Loaded = { href: string; text: string } | { href: string; failed: true };
 
-/** A skill's SKILL.md, fetched from the site's own copy the first time it is shown. */
-export function SkillMarkdown({ skill }: { skill: LibrarySkill }) {
+/**
+ * One markdown file of a skill, fetched the first time it is shown. `label`
+ * names it while it loads; `base` is set for a file whose relative links
+ * should be read against its own address; `raw` shows the source as written.
+ */
+export function SkillMarkdown({
+  href,
+  label,
+  base,
+  raw = false,
+}: {
+  href: string;
+  label: string;
+  base?: string;
+  raw?: boolean;
+}) {
   const [loaded, setLoaded] = useState<Loaded>();
-  const { rawHref } = skill;
 
   useEffect(() => {
     let current = true;
-    loadDocument(rawHref).then(
-      (text) => current && setLoaded({ href: rawHref, text }),
-      () => current && setLoaded({ href: rawHref, failed: true }),
+    loadSkillDocument(href).then(
+      (text) => current && setLoaded({ href, text }),
+      () => current && setLoaded({ href, failed: true }),
     );
     return () => {
       current = false;
     };
-  }, [rawHref]);
+  }, [href]);
 
-  const state = loaded?.href === rawHref ? loaded : undefined;
+  const state = loaded?.href === href ? loaded : undefined;
 
   if (!state) {
     return (
-      <div role="status" aria-label={`Loading ${skill.name}/SKILL.md`}>
+      <div role="status" aria-label={`Loading ${label}`}>
         <Skeleton />
       </div>
     );
@@ -70,15 +83,25 @@ export function SkillMarkdown({ skill }: { skill: LibrarySkill }) {
       <p className="text-muted-foreground text-sm">
         This file did not load.{" "}
         <a
-          href={rawHref}
+          href={href}
           target="_blank"
           rel="noreferrer"
           className="text-foreground underline underline-offset-4"
         >
-          Open SKILL.md
+          Open {label}
         </a>
       </p>
     );
   }
-  return <SkillMarkdownBody text={state.text} />;
+  if (raw) {
+    return (
+      <pre
+        data-skill-markdown
+        className="font-mono text-xs leading-relaxed break-words whitespace-pre-wrap [font-variant-ligatures:none]"
+      >
+        {state.text}
+      </pre>
+    );
+  }
+  return <SkillMarkdownBody text={state.text} {...(base && { base })} />;
 }
