@@ -21,8 +21,7 @@
         "!$TURBO_ROOT$/examples/with-generative-ui/lib/**/*.test.ts",
         "$TURBO_ROOT$/packages/react-google-adk/src/**/*.ts",
         "$TURBO_ROOT$/examples/with-expo/**/*.{ts,tsx}",
-        "!$TURBO_ROOT$/examples/with-expo/**/{node_modules,.next,dist,build}/**",
-        "!README.md"
+        "!$TURBO_ROOT$/examples/with-expo/**/{node_modules,.next,dist,build}/**"
       ]
     },
     "test:coverage": {
@@ -44,8 +43,7 @@
         "!$TURBO_ROOT$/examples/with-generative-ui/lib/**/*.test.ts",
         "$TURBO_ROOT$/packages/react-google-adk/src/**/*.ts",
         "$TURBO_ROOT$/examples/with-expo/**/*.{ts,tsx}",
-        "!$TURBO_ROOT$/examples/with-expo/**/{node_modules,.next,dist,build}/**",
-        "!README.md"
+        "!$TURBO_ROOT$/examples/with-expo/**/{node_modules,.next,dist,build}/**"
       ]
     }
   }
