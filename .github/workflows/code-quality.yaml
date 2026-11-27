@@ -12,6 +12,7 @@ on:
       - "templates/**"
       - "scripts/generate-api-surface.mjs"
       - "scripts/generate-api-surface.test.mjs"
+      - ".github/workflows/autofix.yaml"
       - "scripts/autofix-install.mjs"
       - "scripts/autofix-install.test.mjs"
       - "scripts/update-api-surface.mjs"

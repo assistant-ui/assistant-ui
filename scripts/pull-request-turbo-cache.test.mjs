@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -50,7 +58,7 @@ const jobs = [
     "autofix.yaml",
     "autofix",
     "Update API surface snapshots",
-    "github.event_name == 'pull_request'",
+    "github.event_name == 'pull_request' && steps.turbo_cache.outputs.restore != 'false'",
   ],
   [
     "pkg-pr-new.yaml",
@@ -126,4 +134,73 @@ test("workflows that restore main's coverage cache never save a Turbo cache", ()
       }
     }
   }
+});
+
+test("autofix skips restores only for docs content after lint", (t) => {
+  const all = jobSteps(workflow("autofix.yaml"), "autofix");
+  const index = all.findIndex((step) => field(step, "id") === "turbo_cache");
+  const indexOf = (name) =>
+    all.findIndex((step) => step.startsWith(`name: ${name}\n`));
+  assert(indexOf("Lint fix") < index);
+  for (const shard of shards)
+    assert(
+      index < indexOf(`Restore main's coverage Turbo cache, shard ${shard}`),
+    );
+  assert.equal(field(all[index], "if"), "github.event_name == 'pull_request'");
+  assert.equal(
+    field(all[indexOf("Update API surface snapshots")], "if"),
+    undefined,
+  );
+
+  const cwd = mkdtempSync(path.join(tmpdir(), "autofix-cache-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const git = (...args) => execFileSync("git", args, { cwd });
+  git("init", "-q");
+  const write = (file) => {
+    mkdirSync(path.dirname(path.join(cwd, file)), { recursive: true });
+    writeFileSync(path.join(cwd, file), "input");
+    git("add", "--", file);
+  };
+  write("packages/core/src/index.ts");
+  git(
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "user.name=Test",
+    "-c",
+    "user.email=test@example.com",
+    "commit",
+    "-qm",
+    "base",
+  );
+  const output = path.join(cwd, "output");
+  const restores = (base = "HEAD") => {
+    writeFileSync(output, "");
+    execFileSync(
+      "bash",
+      ["-eo", "pipefail", "-c", all[index].split("        run: |\n")[1]],
+      {
+        cwd,
+        env: { ...process.env, BASE: base, GITHUB_OUTPUT: output },
+        stdio: "pipe",
+      },
+    );
+    return !readFileSync(output, "utf8").split("\n").includes("restore=false");
+  };
+  write("apps/docs/content/blog/vs-code/index.mdx");
+  write("apps/docs/content/blog/vs-code/vscode-extension.png");
+  assert.equal(restores(), false);
+  assert.equal(restores("missing-base"), true);
+  for (const input of [
+    "api-surface/core.ts",
+    "pnpm-lock.yaml",
+    "apps/docs/content-tools/config.json",
+    "unknown-input",
+  ]) {
+    write(input);
+    assert.equal(restores(), true, input);
+    git("rm", "-qf", "--", input);
+  }
+  writeFileSync(path.join(cwd, "packages/core/src/index.ts"), "lint fix");
+  assert.equal(restores(), true);
 });
