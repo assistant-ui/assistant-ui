@@ -113,16 +113,13 @@ BACKENDS = [
 ]
 
 
-THREAD_BACKENDS = [
-    "memory",
-    "sqlite",
-    pytest.param(
-        "postgres",
-        marks=pytest.mark.skipif(
-            not os.environ.get("DATABASE_URL"), reason="needs DATABASE_URL"
-        ),
+POSTGRES_THREAD_BACKEND = pytest.param(
+    "postgres",
+    marks=pytest.mark.skipif(
+        not os.environ.get("DATABASE_URL"), reason="needs DATABASE_URL"
     ),
-]
+)
+THREAD_BACKENDS = ["memory", "sqlite", POSTGRES_THREAD_BACKEND]
 
 
 class Server:
@@ -1332,7 +1329,7 @@ def test_producer_dead_after_its_claim_gives_the_thread_back_to_the_live_run(
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
-@pytest.mark.parametrize("kind", ["memory", "sqlite"])
+@pytest.mark.parametrize("kind", ["memory", "sqlite", "without-claim"])
 def test_producer_dead_after_its_claim_restores_the_run_that_finished(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1341,7 +1338,9 @@ def test_producer_dead_after_its_claim_restores_the_run_that_finished(
         release_options = asyncio.Event()
         producers: list[asyncio.Task[None]] = []
         threads = (
-            InMemoryThreadStore()
+            _StoreWithoutClaim()
+            if kind == "without-claim"
+            else InMemoryThreadStore()
             if kind == "memory"
             else SqliteThreadStore(tmp_path / "threads.db")
         )
@@ -1380,8 +1379,9 @@ def test_producer_dead_after_its_claim_restores_the_run_that_finished(
             second_producer = len(producers)
 
             async def die_after_claim(record, expected, write):
-                await write()
+                claimed = await write()
                 if record.run_id == "second":
+                    assert claimed, "the second run did not claim the thread"
                     producers[second_producer].cancel()
                     await asyncio.gather(
                         producers[second_producer], return_exceptions=True
@@ -1394,7 +1394,14 @@ def test_producer_dead_after_its_claim_restores_the_run_that_finished(
             release_options.set()
             await asyncio.gather(*producers, return_exceptions=True)
 
-        assert await threads.get("thread") == finished
+        stored = await threads.get("thread")
+        if kind == "without-claim":
+            assert stored is not None
+            assert stored.run_id == "second"
+            assert stored.running is False
+            assert stored.messages == [question]
+        else:
+            assert stored == finished
 
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
@@ -1965,6 +1972,35 @@ def test_thread_stores_put_if_stream_has_one_concurrent_winner(
                 await store.close()
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("kind", [POSTGRES_THREAD_BACKEND])
+def test_postgres_claim_returns_a_concurrently_inserted_null_stream_record(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        store = await _shared_threads(kind, tmp_path)
+        concurrent = ThreadRecord(messages=[_user("Saved")], owner="alice")
+        replacement = ThreadRecord(stream_id="new", running=True, owner="alice")
+        locked_record = store._locked_record
+
+        async def insert_after_missing_row(db, thread_id: str) -> ThreadRecord | None:
+            current = await locked_record(db, thread_id)
+            if current is None:
+                await store.put(thread_id, concurrent)
+            return current
+
+        monkeypatch.setattr(store, "_locked_record", insert_after_missing_row)
+        try:
+            assert await store.claim("thread", replacement, expected=None) == (
+                False,
+                concurrent,
+            )
+            assert await store.get("thread") == concurrent
+        finally:
+            await _drop(store)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
 def test_sqlite_store_rejects_an_unsafe_table_name(tmp_path: Path) -> None:

@@ -472,9 +472,18 @@ class PostgresThreadStore:
             current = await self._locked_record(db, thread_id)
             if (current.stream_id if current is not None else None) != expected:
                 return False, current
-            if await self._write_if_stream(db, thread_id, record, expected):
-                return True, current
-            # A missing row has nothing to lock, so a concurrent insert can win.
+            if current is not None:
+                return (
+                    await self._write_if_stream(db, thread_id, record, expected),
+                    current,
+                )
+            cursor = await db.execute(
+                f"INSERT INTO {self._table} (id, owner, record, updated_at)"
+                " VALUES (%s, %s, %s::jsonb, %s) ON CONFLICT (id) DO NOTHING",
+                (thread_id, record.owner, record.to_json(), record.updated_at),
+            )
+            if cursor.rowcount == 1:
+                return True, None
             return False, await self._locked_record(db, thread_id)
 
     async def request_cancel(self, thread_id: str, stream_id: str) -> bool:
