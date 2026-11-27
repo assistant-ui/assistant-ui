@@ -11,7 +11,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
 import ts from "typescript";
-import { emitDeclarations, outputSpecifier } from "./declarations.ts";
+import {
+  emitDeclarations,
+  outputSpecifier,
+  typeAsAliasedModule,
+} from "./declarations.ts";
 
 const fixture = (t: TestContext, files: Record<string, string>) => {
   const cwd = mkdtempSync(join(tmpdir(), "aui-declarations-"));
@@ -194,6 +198,70 @@ test("emitDeclarations keeps the declaration map aligned after rewriting a speci
   const line = lines.findIndex((text) => text.includes("second?"));
   assert.match(lines[line]!, /import\("\.\/other\.js"\)\.Other, second\?/);
   const column = lines[line]!.indexOf("second?");
+  const segment = decodeMappings(map.mappings).find(
+    ([generatedLine, generatedColumn]) =>
+      generatedLine === line && generatedColumn === column,
+  );
+  assert.ok(segment, `no mapping at ${line}:${column}`);
+  assert.equal(
+    source[segment[2]!]!.slice(segment[3]!, segment[3]! + "second".length),
+    "second",
+  );
+});
+
+test("typeAsAliasedModule declares each export as the aliased module's, keeping the emitted type for a name it lacks", (t) => {
+  const cwd = fixture(t, {
+    "real.ts": "export const first = (value: number) => String(value);",
+    "shim.ts": [
+      "export const first = (value: any) => value,",
+      "  second = (value: any) => value;",
+    ].join("\n"),
+  });
+  emitDeclarations({
+    cwd,
+    entry: ["src/real.ts", "src/shim.ts"],
+    rootDir: "src",
+    outDir: "dist",
+  });
+  typeAsAliasedModule(join(cwd, "dist", "shim.d.ts"), "./real.js");
+
+  const consumer = join(cwd, "dist", "consumer.ts");
+  writeFileSync(
+    consumer,
+    [
+      'import { first, second } from "./shim.js";',
+      "export const text: string = first(1);",
+      "// @ts-expect-error -- typed as the aliased module's export",
+      'first("1");',
+      "// @ts-expect-error -- keeps the emitted function type",
+      "export const fallback: number = second;",
+    ].join("\n"),
+  );
+  const program = ts.createProgram([consumer], {
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    strict: true,
+    noEmit: true,
+    types: [],
+  });
+  assert.deepEqual(
+    ts
+      .getPreEmitDiagnostics(program)
+      .map((diagnostic) =>
+        ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+      ),
+    [],
+  );
+
+  const declaration = readFileSync(join(cwd, "dist", "shim.d.ts"), "utf8");
+  const map = JSON.parse(
+    readFileSync(join(cwd, "dist", "shim.d.ts.map"), "utf8"),
+  ) as { mappings: string };
+  const source = readFileSync(join(cwd, "src", "shim.ts"), "utf8").split("\n");
+  const lines = declaration.split("\n");
+  const line = lines.findIndex((text) => text.includes(" second: "));
+  const column = lines[line]!.indexOf("second");
   const segment = decodeMappings(map.mappings).find(
     ([generatedLine, generatedColumn]) =>
       generatedLine === line && generatedColumn === column,

@@ -5,9 +5,10 @@
 // and to React otherwise. Alias `react` to this module (build `output.paths` /
 // vitest resolver) in code that can run inside a tap resource.
 //
-// This subpath ships no type declarations: the build reverts the aliased
-// specifier back to `"react"` in emitted `.d.ts`, so consumer types resolve to
-// React's own. The source-level TS2498 from the `export *` below is suppressed.
+// aui-build declares each export as React's export of the same name, so a
+// direct import type-checks as React. `export *` cannot re-export a module that
+// uses `export =`, as @types/react does, so it is runtime only and stripped
+// from the declarations.
 import React from "react";
 import { peekResourceFiber } from "../core/helpers/execution-context";
 import * as hooks from "../react-hooks";
@@ -19,6 +20,7 @@ import { useReactEffectEvent } from "./useReactEffectEvent";
 import { useId as useTapId } from "../react-hooks/useId";
 import { useImperativeHandle as useTapImperativeHandle } from "../react-hooks/useImperativeHandle";
 
+/** @internal */
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.
 export * from "react";
 export { default } from "react";

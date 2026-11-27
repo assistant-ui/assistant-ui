@@ -3,7 +3,11 @@ import type { Dirent } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
 import { declaredImports, undeclaredTypeReferences } from "./declared-imports";
-import { assertPreservedDirectives, emitDeclarations } from "./declarations";
+import {
+  assertPreservedDirectives,
+  emitDeclarations,
+  typeAsAliasedModule,
+} from "./declarations";
 import { reactCompiler } from "./react-compiler";
 
 const isDev = process.argv.slice(2).includes("dev");
@@ -216,6 +220,9 @@ if (cjsEntries.length > 0) {
       rootDir: "src",
       outDir: "dist",
     });
+    if (isTapPackage) {
+      typeAsAliasedModule(resolve("dist/react-shim/index.d.ts"), "react");
+    }
   }
 
   // `output.paths` also rewrites tap's own shim runtime, which must not

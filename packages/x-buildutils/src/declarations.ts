@@ -128,6 +128,12 @@ const relativeSpecifierEdits = (
   return edits;
 };
 
+type DeclarationMap = {
+  sourceRoot?: string;
+  sources: string[];
+  mappings: string;
+};
+
 // The declaration emitter keeps a relative specifier as the source spells it,
 // so each emitted declaration and its map are rewritten in place afterwards.
 const rewriteRelativeSpecifiers = (
@@ -136,11 +142,7 @@ const rewriteRelativeSpecifiers = (
   cache: ts.ModuleResolutionCache,
 ) => {
   const mapFile = `${declarationFile}.map`;
-  const map = JSON.parse(readFileSync(mapFile, "utf8")) as {
-    sourceRoot?: string;
-    sources: string[];
-    mappings: string;
-  };
+  const map = JSON.parse(readFileSync(mapFile, "utf8")) as DeclarationMap;
   const [source] = map.sources;
   if (map.sources.length !== 1 || source === undefined) {
     throw new Error(`Expected one source in ${mapFile}`);
@@ -153,9 +155,16 @@ const rewriteRelativeSpecifiers = (
     ts.ScriptTarget.Latest,
   );
   const edits = relativeSpecifierEdits(declaration, importer, options, cache);
-  if (edits.length === 0) return;
+  writeEdits(declaration, map, edits);
+};
 
-  let output = text;
+const writeEdits = (
+  declaration: ts.SourceFile,
+  map: DeclarationMap,
+  edits: readonly { start: number; end: number; text: string }[],
+) => {
+  if (edits.length === 0) return;
+  let output = declaration.text;
   const columnEdits = new Map<number, { column: number; delta: number }[]>();
   for (const edit of edits.toSorted((a, b) => b.start - a.start)) {
     output = output.slice(0, edit.start) + edit.text + output.slice(edit.end);
@@ -168,14 +177,51 @@ const rewriteRelativeSpecifiers = (
       },
     ]);
   }
-  writeFileSync(declarationFile, output);
+  writeFileSync(declaration.fileName, output);
   writeFileSync(
-    mapFile,
+    `${declaration.fileName}.map`,
     JSON.stringify({
       ...map,
       mappings: shiftMappings(map.mappings, columnEdits),
     }),
   );
+};
+
+// A shim runs in place of the module it is aliased to, so each constant it
+// exports is declared as that module's export of the same name. The emitted
+// type stays as the fallback for a name the installed version of the module
+// does not declare, such as a React 19 hook under React 18's types.
+export const typeAsAliasedModule = (
+  declarationFile: string,
+  module: string,
+) => {
+  const map = JSON.parse(
+    readFileSync(`${declarationFile}.map`, "utf8"),
+  ) as DeclarationMap;
+  const declaration = ts.createSourceFile(
+    declarationFile,
+    readFileSync(declarationFile, "utf8"),
+    ts.ScriptTarget.Latest,
+  );
+  const edits = declaration.statements.flatMap((statement) =>
+    ts.isVariableStatement(statement) &&
+    statement.modifiers?.some(
+      (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+    )
+      ? statement.declarationList.declarations.flatMap(({ name, type }) => {
+          if (!ts.isIdentifier(name) || !type) return [];
+          const start = type.getStart(declaration);
+          return [
+            {
+              start,
+              end: start,
+              text: `typeof import(${JSON.stringify(module)}) extends { ${name.text}: infer T } ? T : `,
+            },
+          ];
+        })
+      : [],
+  );
+  writeEdits(declaration, map, edits);
 };
 
 const require = createRequire(import.meta.url);

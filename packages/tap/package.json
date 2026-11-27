@@ -22,11 +22,11 @@
       "default": "./dist/internal.js"
     },
     "./react-shim": {
-      "types": null,
+      "types": "./dist/react-shim/index.d.ts",
       "default": "./dist/react-shim/index.js"
     },
     "./react-shim/compiler-runtime": {
-      "types": null,
+      "types": "./dist/react-shim/compiler-runtime.d.ts",
       "default": "./dist/react-shim/compiler-runtime.js"
     },
     "./standalone-shim": {
@@ -50,8 +50,6 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
-    "!dist/react-shim/**/*.d.ts",
-    "!dist/react-shim/**/*.d.ts.map",
     "!dist/standalone-shim/**/*.d.ts",
     "!dist/standalone-shim/**/*.d.ts.map",
     "src",

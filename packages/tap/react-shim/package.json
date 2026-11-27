@@ -1,4 +1,5 @@
 {
   "type": "module",
-  "main": "../dist/react-shim/index.js"
+  "main": "../dist/react-shim/index.js",
+  "types": "../dist/react-shim/index.d.ts"
 }

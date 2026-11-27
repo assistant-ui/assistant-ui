@@ -1,4 +1,5 @@
 {
   "type": "module",
-  "main": "../../dist/react-shim/compiler-runtime.js"
+  "main": "../../dist/react-shim/compiler-runtime.js",
+  "types": "../../dist/react-shim/compiler-runtime.d.ts"
 }
