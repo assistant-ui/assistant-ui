@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:appos": "next build && node scripts/pack-appos.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },
@@ -26,6 +27,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@assistant-ui/appos": "^0.0.1",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",

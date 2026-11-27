@@ -7,7 +7,7 @@
         "^build",
         "generate:type-docs",
         "//#docs-source-inputs",
-        "with-article-assistant#build"
+        "with-article-assistant#build:appos"
       ],
       "inputs": [
         "$TURBO_EXTENDS$",
@@ -59,7 +59,7 @@
       "dependsOn": [
         "^build",
         "generate:type-docs",
-        "with-article-assistant#build"
+        "with-article-assistant#build:appos"
       ],
       "cache": false,
       "persistent": true,
