@@ -91,7 +91,7 @@ test("unrelated root Markdown stays outside the main push filter", () => {
   assert.equal(triggers("README.md"), false);
 });
 
-test("each shared helper test has one owner per event", () => {
+test("Workspace Ranges and Review Policy Scripts split the shared helper tests without overlap", () => {
   const job = workflow
     .split("\n  workspace-ranges:\n")[1]
     ?.split(/\n  [\w-]+:\n/)[0];
