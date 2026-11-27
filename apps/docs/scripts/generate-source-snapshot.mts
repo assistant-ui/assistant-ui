@@ -56,6 +56,8 @@ async function main() {
     return;
   }
 
+  if (process.argv.includes("--check")) return;
+
   await fs.rm(OUTPUT_PATH, { recursive: true, force: true });
   await writeSnapshot(snapshot);
 }
