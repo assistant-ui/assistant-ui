@@ -40,6 +40,8 @@ import { shallowArrayEqual } from "../../runtime/utils/external-message-conversi
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
+  ThreadRuntimeEventPayload,
+  ThreadRuntimeEventType,
 } from "../../runtime/interfaces/thread-runtime-core";
 import type {
   ExternalThreadQueueAdapter,
@@ -539,6 +541,60 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this._updateStoreSnapshot(store);
+  }
+
+  private _heldEvents: (() => void)[] | null = null;
+  private _initializeHeld = false;
+
+  public override _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
+    event: E,
+    payload: ThreadRuntimeEventPayload[E],
+  ) {
+    if (this._heldEvents) {
+      if (event === "initialize") this._initializeHeld = true;
+      this._heldEvents.push(() => {
+        if (event === "initialize") this._initializeHeld = false;
+        super._notifyEventSubscribers(event, payload);
+      });
+      return;
+    }
+    super._notifyEventSubscribers(event, payload);
+  }
+
+  protected override _isInitializeHeld() {
+    return this._initializeHeld;
+  }
+
+  /**
+   * Applies a host snapshot at once but holds the lifecycle events it raises
+   * (`initialize`, `runStart`, `runEnd`). The returned function delivers
+   * them, so a caller can publish the state before paint and still reach
+   * listeners that subscribe later in the same commit. Until then, every
+   * event the thread raises queues behind the held ones, so listeners see
+   * them in order.
+   */
+  public __internal_setAdapterHoldingEvents(
+    store: ExternalStoreAdapter<any>,
+  ): () => void {
+    const held = (this._heldEvents ??= []);
+    const deliver = () => {
+      if (this._heldEvents !== held) return;
+      // An event a listener raises joins the queue and is delivered in turn.
+      try {
+        while (held.length > 0) held.shift()!();
+      } finally {
+        this._heldEvents = null;
+      }
+    };
+    try {
+      this.__internal_setAdapter(store);
+    } catch (error) {
+      // Events raised before the failure reach listeners, as they did when
+      // the update delivered them as it went.
+      deliver();
+      throw error;
+    }
+    return deliver;
   }
 
   private _evictPlaceholder() {
