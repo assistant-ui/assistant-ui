@@ -45,6 +45,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=3.4.0" },
+    { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.115" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "langchain-core", marker = "extra == 'langgraph'", specifier = ">=0.3.0" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'postgres'", specifier = ">=3.2" },

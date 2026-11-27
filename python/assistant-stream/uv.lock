@@ -20,6 +20,31 @@ wheels = [
 ]
 
 [[package]]
+name = "annotated-doc"
+version = "0.0.6"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.11'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0f/6e/a61e86e43bb6039b31a33a8f5fba76fe1cdacf3661e7b9756d4ff1b28cdc/annotated_doc-0.0.6.tar.gz", hash = "sha256:7969bb69912085b2285849c0dcac0b4b374fd180c13cf10a87f284ffcf347bbf", size = 10767, upload-time = "2026-11-10T18:17:11.28Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/f5/3dd85d583e55be76cd02b1fc9bbec771b12d63124b01661d9535ccf8721f/annotated_doc-0.0.6-py3-none-any.whl", hash = "sha256:361ca0950cc7082f53fa69e9328409f40a62c61e57e0a47e1825a08078a58a53", size = 5293, upload-time = "2026-11-10T18:17:10.249Z" },
+]
+
+[[package]]
+name = "annotated-doc"
+version = "0.0.7"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'emscripten'",
+    "python_full_version == '3.11.*' or (python_full_version >= '3.12' and sys_platform != 'emscripten')",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0b/7d/bdbf3062e5dae31da8b3de1e3269110beb93d268df4a7f6d22b167c6cee0/annotated_doc-0.0.7.tar.gz", hash = "sha256:0a30ef8f5322a4173720ae6712dc9a5e58f5a19868f3f167b4b5778db066c2b5", size = 10764, upload-time = "2026-11-18T11:06:55.181Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5e/b1/9530d6bee606979d54501adcc767d958a38929827f11a524b0d93429d2ad/annotated_doc-0.0.7-py3-none-any.whl", hash = "sha256:6bc31bbbec6dfaaedc1676dbc11dbda96fe22a2b5c400e9ebad113fec44a9dc6", size = 5286, upload-time = "2026-11-18T11:06:54.096Z" },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -54,6 +79,8 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "fastapi", version = "0.162.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "fastapi", version = "0.165.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "httpx" },
     { name = "pytest" },
     { name = "redis" },
@@ -75,6 +102,7 @@ redis = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=3.4.0" },
+    { name = "fastapi", marker = "extra == 'dev'", specifier = ">=0.115" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "langchain-core", marker = "extra == 'langgraph'", specifier = ">=0.3.0" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'postgres'", specifier = ">=3.2" },
@@ -305,6 +333,49 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/0e/97c33bf5009bdbac74fd2beace167cab3f978feb69cc36f1ef79360d6c4e/exceptiongroup-1.3.1-py3-none-any.whl", hash = "sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598", size = 16740, upload-time = "2025-11-21T23:01:53.443Z" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.162.5"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.11'",
+]
+dependencies = [
+    { name = "annotated-doc", version = "0.0.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "anyio" },
+    { name = "opentelemetry-api" },
+    { name = "pydantic" },
+    { name = "starlette", version = "1.7.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/7b/ae546e10f153fcf9a6afd8b9fe4730bdfeb8fdcb93178d54122973ef3f4c/fastapi-0.162.5.tar.gz", hash = "sha256:1ca37f64f61c99cebd38636e67525fb721c5e8c1169f07f2a35d73b0a63265d4", size = 531785, upload-time = "2026-11-11T22:29:53.177Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/19/5b9abfa67a29b862e509911eef40f4901f78aa48de32ad1f939b5c2b165e/fastapi-0.162.5-py3-none-any.whl", hash = "sha256:5303c67415fde762889ca337db79d27b755b8bd09cef314fa7a4340bb30bfd2b", size = 151782, upload-time = "2026-11-11T22:29:51.47Z" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.165.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'emscripten'",
+    "python_full_version == '3.11.*' or (python_full_version >= '3.12' and sys_platform != 'emscripten')",
+]
+dependencies = [
+    { name = "annotated-doc", version = "0.0.7", source = { registry = "https://pypi.org/simple" } },
+    { name = "anyio" },
+    { name = "opentelemetry-api" },
+    { name = "pydantic" },
+    { name = "starlette", version = "1.10.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/27/f9/e7820ef181026fea100bde02d811445bf8e883362d7092b6928767147056/fastapi-0.165.0.tar.gz", hash = "sha256:dd94d4128319c1e1d50535ab023ab698f850a4d2822f0e181747b46f4ff3c0ab", size = 557984, upload-time = "2026-11-18T19:15:37.076Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/c1/3b74c030262a1b38b1fee180f80b4007bbc11c9ac12028cb18c7bcecaec9/fastapi-0.165.0-py3-none-any.whl", hash = "sha256:896f48462042bb4f162147eb8fac7e858753dc1f486765709baf105d70e4fc5b", size = 159475, upload-time = "2026-11-18T19:15:35.345Z" },
 ]
 
 [[package]]
