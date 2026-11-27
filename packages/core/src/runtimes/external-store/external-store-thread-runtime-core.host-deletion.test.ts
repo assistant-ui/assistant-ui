@@ -22,6 +22,10 @@ const replacement = ExportedMessageRepository.fromArray([
   { id: "a1b", role: "assistant", content: "replacement" },
 ]).messages[0]!.message;
 
+const trailingUserReplacement = ExportedMessageRepository.fromArray([
+  { id: "u2srv", role: "user", content: "second" },
+]).messages[0]!.message;
+
 const adapter = (items: readonly ThreadMessage[]) =>
   ({
     messages: items,
@@ -35,7 +39,7 @@ const createRuntime = (items: readonly ThreadMessage[]) =>
 const exportedIds = (runtime: ExternalStoreThreadRuntimeCore) =>
   runtime.export().messages.map(({ message }) => message.id);
 
-describe("external-store host deletions from the middle of a message array", () => {
+describe("external-store host deletions from message snapshots", () => {
   it("evicts a dropped message and its feedback", () => {
     const initial = messages.slice(0, 4);
     const runtime = createRuntime(initial);
@@ -75,6 +79,40 @@ describe("external-store host deletions from the middle of a message array", () 
 
     expect(runtime.getBranches("a1b")).toEqual(["a1", "a1b"]);
     expect(exportedIds(runtime)).toContain("a1");
+  });
+
+  it("evicts a replaced trailing user when Stop restores its draft", () => {
+    const initial = messages.slice(0, 3);
+    const renamed = [...initial.slice(0, -1), trailingUserReplacement];
+    let hostMessages = renamed;
+    const setMessages = vi.fn((next: readonly ThreadMessage[]) => {
+      hostMessages = [...next];
+    });
+    const runningAdapter = (items: readonly ThreadMessage[]) =>
+      ({
+        ...adapter(items),
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(initial);
+
+    runtime.__internal_setAdapter(runningAdapter(initial));
+    runtime.__internal_setAdapter(runningAdapter(renamed));
+    expect(runtime.getMessageById("u2")).toBeUndefined();
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      runtime.cancelRun();
+      vi.runAllTimers();
+
+      expect(runtime.messages.map(({ id }) => id)).toEqual(["u1", "a1"]);
+      expect(runtime.composer.text).toBe("second");
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(hostMessages.map(({ id }) => id)).toEqual(["u1", "a1"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps messages when the host republishes the same path", () => {

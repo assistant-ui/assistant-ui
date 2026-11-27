@@ -861,6 +861,20 @@ export class ExternalStoreThreadRuntimeCore
         }
       }
 
+      const previousTail = this._storeMessages.at(-1);
+      const incomingTail = messages.at(-1);
+      if (
+        isRunning &&
+        previousTail?.role === "user" &&
+        incomingTail?.role === "user" &&
+        previousTail.id !== incomingTail.id &&
+        !incomingIds.has(previousTail.id) &&
+        (this._storeMessages.at(-2)?.id ?? null) ===
+          (messages.at(-2)?.id ?? null)
+      ) {
+        hostDeletedMessages.set(previousTail.id, previousTail);
+      }
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
