@@ -3,7 +3,10 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "dependsOn": [],
+      "dependsOn": [
+        "@assistant-ui/ui#build",
+        "@assistant-ui/x-buildutils#build"
+      ],
       "inputs": [
         "$TURBO_EXTENDS$",
         "$TURBO_ROOT$/apps/docs/**",
@@ -12,7 +15,10 @@
       ]
     },
     "typecheck": {
-      "dependsOn": [],
+      "dependsOn": [
+        "@assistant-ui/ui#build",
+        "@assistant-ui/x-buildutils#build"
+      ],
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/apps/docs/**",
