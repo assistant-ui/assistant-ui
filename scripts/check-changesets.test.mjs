@@ -709,6 +709,53 @@ test("changed package validation ignores non-release edits and requires a PR cha
   }
 });
 
+test("a covered manifest skips Git manifest reads while uncovered source still requires a changeset", (t) => {
+  const root = createWorkspace("");
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  git(root, "init", "-q", "-b", "main");
+  const base = commitAll(root, "base");
+
+  writeFileSync(
+    path.join(root, "packages/held/package.json"),
+    JSON.stringify({
+      name: "@fixture/held",
+      version: "1.0.0",
+      sideEffects: false,
+    }),
+  );
+  writeFileSync(
+    path.join(root, ".changeset/held.md"),
+    '---\n"@fixture/held": patch\n---\n\nUpdate the published manifest.\n',
+  );
+  mkdirSync(path.join(root, "packages/published/src"));
+  writeFileSync(
+    path.join(root, "packages/published/src/index.ts"),
+    "export {};\n",
+  );
+  const head = commitAll(root, "covered manifest and uncovered source");
+
+  const trace = path.join(root, "git-trace.jsonl");
+  const result = runExecutable(root, {
+    args: ["--changed-packages"],
+    env: { BASE_SHA: base, HEAD_SHA: head, GIT_TRACE2_EVENT: trace },
+  });
+  assert.equal(result.status, 1);
+  assert.match(
+    result.stderr,
+    /"@fixture\/published" \(packages\/published\/src\/index\.ts\)/,
+  );
+  const commands = readFileSync(trace, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .filter(({ event }) => event === "start")
+    .map(({ argv }) => argv[1]);
+  assert.deepEqual(
+    commands.filter((cmd) => cmd === "ls-tree" || cmd === "show"),
+    [],
+  );
+});
+
 test("a none release does not stand in for the changeset a changed package needs", () => {
   const root = createWorkspace(
     '---\n"@fixture/held": patch\n---\n\nfix: base\n',
