@@ -115,12 +115,6 @@ function ToolGroupTrigger({
       )}
       {...props}
     >
-      {active && (
-        <LoaderIcon
-          data-slot="tool-group-trigger-loader"
-          className="aui-tool-group-trigger-loader size-3 shrink-0 animate-spin [animation-duration:0.6s]"
-        />
-      )}
       <span
         data-slot="tool-group-trigger-label"
         className={cn(
@@ -133,16 +127,23 @@ function ToolGroupTrigger({
       >
         {label}
       </span>
-      <ChevronDownIcon
-        data-slot="tool-group-trigger-chevron"
-        className={cn(
-          "aui-tool-group-trigger-chevron size-3 shrink-0",
-          "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-          "-rotate-90",
-          "group-data-open/trigger:rotate-0",
-          "group-data-panel-open/trigger:rotate-0",
-        )}
-      />
+      {active ? (
+        <LoaderIcon
+          data-slot="tool-group-trigger-loader"
+          className="aui-tool-group-trigger-loader size-3 shrink-0 animate-spin [animation-duration:0.6s]"
+        />
+      ) : (
+        <ChevronDownIcon
+          data-slot="tool-group-trigger-chevron"
+          className={cn(
+            "aui-tool-group-trigger-chevron size-3 shrink-0",
+            "transition-transform duration-(--animation-duration) ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+            "-rotate-90",
+            "group-data-open/trigger:rotate-0",
+            "group-data-panel-open/trigger:rotate-0",
+          )}
+        />
+      )}
     </CollapsibleTrigger>
   );
 }

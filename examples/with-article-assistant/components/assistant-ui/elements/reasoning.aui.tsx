@@ -62,7 +62,8 @@ const ReasoningRoot = forwardRef<
   );
 });
 
-const ReasoningImpl: ReasoningMessagePartComponent = () => <MarkdownText />;
+const ReasoningImpl: ReasoningMessagePartComponent = ({ unstable_redacted }) =>
+  unstable_redacted ? null : <MarkdownText />;
 
 const ReasoningGroupImpl: ReasoningGroupComponent = ({
   children,

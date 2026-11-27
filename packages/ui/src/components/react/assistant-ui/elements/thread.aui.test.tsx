@@ -543,6 +543,39 @@ describe("Thread", () => {
     expect(attachments?.classList.contains("empty:hidden")).toBe(true);
   });
 
+  it("hides the suggestions wrapper when no suggestions are configured", () => {
+    render(<TestThread autoFocus={false} />);
+
+    const suggestions = document.querySelector(
+      ".aui-thread-welcome-suggestions",
+    );
+
+    expect(suggestions).toBeTruthy();
+    expect(suggestions?.matches(":empty")).toBe(true);
+    expect(suggestions?.classList.contains("empty:hidden")).toBe(true);
+  });
+
+  it("renders no element for a redacted reasoning part", async () => {
+    render(
+      <AssistantContentTestThread
+        content={[
+          { type: "reasoning", text: "", unstable_redacted: true },
+          { type: "reasoning", text: "Visible thought" },
+          { type: "text", text: "Answer" },
+        ]}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /Reasoning/ }));
+
+    const content = await waitFor(() => {
+      const element = document.querySelector(".aui-reasoning-text-content");
+      expect(element?.textContent).toContain("Visible thought");
+      return element as HTMLElement;
+    });
+    expect(content.children).toHaveLength(1);
+  });
+
   it("lets the user branch picker follow the rendered rows", async () => {
     render(<UserMessageTestThread />);
 
@@ -750,6 +783,35 @@ describe("Thread", () => {
         within(spokenMessage).queryByRole("button", { name: "Refresh" }),
       ).toBeNull();
     }
+  });
+
+  it("keeps the spoken row's columns fixed when its action bar appears on hover", async () => {
+    const { aui, voice } = renderVoiceThread();
+
+    await act(async () => {
+      aui.thread.connectVoice();
+      voice.emitTranscript({ role: "user", text: "Hello", isFinal: true });
+      await Promise.resolve();
+    });
+
+    const row = document.querySelector<HTMLElement>(
+      '[data-slot="aui_spoken-message-root"]',
+    )!;
+    const content = row.querySelector(
+      '[data-slot="aui_spoken-message-content"]',
+    )!;
+    const columns = content.children.length;
+    const slot = content.querySelector(".aui-spoken-action-bar-wrapper");
+
+    expect(within(row).queryByRole("button", { name: "Copy" })).toBeNull();
+    expect(slot?.classList.contains("size-6")).toBe(true);
+    expect(slot?.classList.contains("shrink-0")).toBe(true);
+
+    fireEvent.mouseEnter(row);
+
+    const copy = await within(row).findByRole("button", { name: "Copy" });
+    expect(slot?.contains(copy)).toBe(true);
+    expect(content.children).toHaveLength(columns);
   });
 
   it("marks a single final voice transcript as a single spoken row", async () => {

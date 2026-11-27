@@ -77,7 +77,7 @@ const VoiceControlCenter: FC = () => {
       <VoiceOrb variant="blue" className="size-20" />
       <VoiceWaveform />
 
-      <div className="flex items-center gap-3">
+      <div className="flex min-h-7 items-center gap-3">
         <AuiIf
           condition={(s) =>
             s.thread.voice == null || s.thread.voice.status.type === "ended"

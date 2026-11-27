@@ -163,17 +163,13 @@ export function CanvasSplitBody({
       data-slot="canvas-split-body"
       className={cn(
         "flex min-h-[9rem] flex-1 flex-col gap-1.5 overflow-y-auto p-4",
+        writing &&
+          "empty:before:bg-foreground/70 *:last:after:bg-foreground/70 *:last:after:ms-0.5 *:last:after:inline-block *:last:after:h-[1.05em] *:last:after:w-[2px] *:last:after:animate-pulse *:last:after:rounded-full *:last:after:align-text-bottom empty:before:h-[1.05em] empty:before:w-[2px] empty:before:animate-pulse empty:before:rounded-full motion-reduce:*:last:after:animate-none motion-reduce:empty:before:animate-none",
         className,
       )}
       {...props}
     >
       {children}
-      {writing && (
-        <span
-          aria-hidden
-          className="bg-foreground/70 h-[1.05em] w-[2px] animate-pulse rounded-full motion-reduce:animate-none"
-        />
-      )}
     </div>
   );
 }

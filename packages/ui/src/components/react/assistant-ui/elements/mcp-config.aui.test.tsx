@@ -180,6 +180,19 @@ describe.each([
     expect(await screen.findByText("Docs")).toBeTruthy();
   });
 
+  it.each([".aui-mcp-connectors", ".aui-mcp-custom-servers"])(
+    "hides the empty %s list so it adds no gap under the title",
+    async (section) => {
+      renderDialog(Dialog);
+      fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
+      await screen.findByRole("button", { name: "Add server" });
+
+      const list = document.querySelector(`${section} > div`)!;
+      expect(list.matches(":empty")).toBe(true);
+      expect(list.classList.contains("empty:hidden")).toBe(true);
+    },
+  );
+
   const openServers = async (servers: MCPCustomServerRecord[]) => {
     renderDialog(Dialog, servers);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));

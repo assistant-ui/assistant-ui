@@ -246,6 +246,14 @@ describe("ThreadList", () => {
     expect(slots(container, "search")).toHaveLength(0);
   });
 
+  it("hides the empty items list so it adds no trailing gap", async () => {
+    const { container } = renderThreadList(makeAdapter([]));
+
+    const [items] = slots(container, "items");
+    await waitFor(() => expect(items?.matches(":empty")).toBe(true));
+    expect(items?.classList.contains("empty:hidden")).toBe(true);
+  });
+
   it("matches titles case-insensitively and ignores surrounding whitespace", async () => {
     const { container } = renderThreadList(
       makeAdapter(withTitles("Trip planning", "Budget review")),

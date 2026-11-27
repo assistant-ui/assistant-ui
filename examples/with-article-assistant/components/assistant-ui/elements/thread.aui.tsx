@@ -372,7 +372,9 @@ const SpokenMessage: FC = () => {
             </span>
           )}
         </div>
-        <SpokenActionBar />
+        <div className="aui-spoken-action-bar-wrapper size-6 shrink-0">
+          <SpokenActionBar />
+        </div>
       </div>
     </MessagePrimitive.Root>
   );
@@ -493,7 +495,7 @@ const ThreadWelcome: FC = () => {
 
 const ThreadSuggestions: FC = () => {
   return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-col">
+    <div className="aui-thread-welcome-suggestions flex w-full flex-col empty:hidden">
       <ThreadPrimitive.Suggestions>
         {() => <ThreadSuggestionItem />}
       </ThreadPrimitive.Suggestions>

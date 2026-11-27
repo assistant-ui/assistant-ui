@@ -103,7 +103,7 @@ const ConnectorsSection: FC = () => {
   return (
     <section className="aui-mcp-connectors flex flex-col gap-2">
       <SectionTitle>Connectors</SectionTitle>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 empty:hidden">
         <McpManagerPrimitive.Connectors>
           {() => <ServerCard />}
         </McpManagerPrimitive.Connectors>
@@ -121,7 +121,7 @@ const CustomServersSection: FC = () => {
       <SectionTitle>Custom servers</SectionTitle>
       <div
         ref={listRef}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-2 empty:hidden"
         onFocus={(e) => onListFocus(e.currentTarget, e.target)}
       >
         <McpManagerPrimitive.CustomServers>

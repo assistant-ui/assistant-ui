@@ -186,4 +186,39 @@ describe("Sources", () => {
 
     expect(screen.getByText("example.com/report")).toBeTruthy();
   });
+
+  it("drops the title slot of an untitled document so the badge adds no gap", () => {
+    const { container } = render(
+      <Sources
+        type="source"
+        sourceType="document"
+        id="doc"
+        title=""
+        mediaType="application/pdf"
+        status={{ type: "complete" }}
+      />,
+    );
+
+    const source = container.querySelector('[data-slot="source"]')!;
+    expect(
+      [...source.children].map((child) => child.getAttribute("data-slot")),
+    ).toEqual(["source-document-icon"]);
+  });
+
+  it("titles a document source when it has a title", () => {
+    render(
+      <Sources
+        type="source"
+        sourceType="document"
+        id="doc"
+        title="Q3 report"
+        mediaType="application/pdf"
+        status={{ type: "complete" }}
+      />,
+    );
+
+    expect(screen.getByText("Q3 report").getAttribute("data-slot")).toBe(
+      "source-title",
+    );
+  });
 });

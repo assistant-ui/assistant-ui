@@ -203,7 +203,7 @@ const SourcesImpl: SourceMessagePartComponent = (part) => {
       >
         <span data-slot="source" className="inline-flex items-center gap-1.5">
           <DocumentSourceIcon />
-          <SourceTitle>{title}</SourceTitle>
+          {title && <SourceTitle>{title}</SourceTitle>}
         </span>
       </Badge>
     );

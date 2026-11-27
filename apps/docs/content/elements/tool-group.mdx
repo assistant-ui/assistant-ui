@@ -95,9 +95,8 @@ Standalone, there's no run to group calls from. See [The parallel-tools design](
 ```tsx
 <div data-slot="tool-group-root" data-variant="outline">
   <button data-slot="tool-group-trigger" aria-expanded={/* open */}>
-    {/* spinner, only while active */}
     <span data-slot="tool-group-trigger-label">{/* "3 tool calls" / "1 tool call" */}</span>
-    {/* chevron, rotates open */}
+    {/* spinner while active, otherwise a chevron that rotates open */}
   </button>
   <div data-slot="tool-group-content">
     {/* each tool call, revealed with a staggered fade/slide */}
