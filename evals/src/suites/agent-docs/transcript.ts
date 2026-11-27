@@ -1,0 +1,149 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+export interface TranscriptSummary {
+  turns: number;
+  /** How long the agent took to give its first answer, without any later wake-ups. */
+  answerSeconds: number | null;
+  costUsd: number | null;
+  /** Docs files the agent opened, relative to the docs folder, in order of first read. */
+  docsRead: string[];
+  /** Searches the agent ran over the docs. */
+  docsSearches: string[];
+  /** Reads, searches and shell commands that went into node_modules: the docs didn't answer something. */
+  nodeModulesLookups: number;
+  /** Shell commands that reached for the network beyond package installs. */
+  webFetches: string[];
+  /** The agent's closing message: what it built and what the docs lacked. */
+  finalMessage: string;
+  /** Why the agent didn't finish: its answer was an error (a plan's usage limit) or it never answered. Null when it did. */
+  agentError: string | null;
+}
+
+/** Summarizes a `claude -p --output-format stream-json` transcript. */
+export function summarizeTranscript(
+  file: string,
+  docsDir: string,
+  /** The docs site's host, whose pages count as read when fetched from the web. */
+  docsHost = "www.assistant-ui.com",
+): TranscriptSummary {
+  const summary: TranscriptSummary = {
+    turns: 0,
+    answerSeconds: null,
+    costUsd: null,
+    docsRead: [],
+    docsSearches: [],
+    nodeModulesLookups: 0,
+    webFetches: [],
+    finalMessage: "",
+    agentError: null,
+  };
+  if (!existsSync(file)) return { ...summary, agentError: "no transcript" };
+  const rel = (path: string) =>
+    path === docsDir
+      ? "/"
+      : path.startsWith(`${docsDir}/`)
+        ? path.slice(docsDir.length)
+        : undefined;
+  const docsPage = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname === docsHost ? parsed.pathname : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  let lastText = "";
+  let resultsSeen = 0;
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    let event: any;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    // A background task finishing after the agent's answer wakes it for another, shorter result, so keep them all.
+    if (event.type === "result") {
+      // Only the answer counts: an error in a later wake-up comes after the work is done.
+      if (resultsSeen++ === 0 && event.is_error === true) {
+        summary.agentError = String(
+          event.result || event.subtype || "error",
+        ).slice(0, 300);
+      }
+      summary.turns += event.num_turns ?? 0;
+      if (
+        summary.answerSeconds === null &&
+        typeof event.duration_ms === "number"
+      ) {
+        summary.answerSeconds = Math.round(event.duration_ms / 1000);
+      }
+      // The cost is the session's running total; the turns count only that answer.
+      if (typeof event.total_cost_usd === "number") {
+        summary.costUsd = Math.max(summary.costUsd ?? 0, event.total_cost_usd);
+      }
+      if (typeof event.result === "string" && event.result.trim()) {
+        summary.finalMessage = summary.finalMessage
+          ? `${summary.finalMessage}\n\n${event.result}`
+          : event.result;
+      }
+      continue;
+    }
+    if (event.type !== "assistant") continue;
+    for (const block of event.message?.content ?? []) {
+      if (block.type === "text" && block.text) lastText = block.text;
+      if (block.type !== "tool_use") continue;
+      const input = block.input ?? {};
+      const target = String(
+        input.file_path ?? input.path ?? input.command ?? input.pattern ?? "",
+      );
+      if (target.includes("node_modules")) summary.nodeModulesLookups++;
+      if (block.name === "Read") {
+        const doc = rel(String(input.file_path ?? ""));
+        if (doc && !summary.docsRead.includes(doc)) summary.docsRead.push(doc);
+      } else if (block.name === "WebFetch") {
+        const page = docsPage(String(input.url ?? ""));
+        if (page && !summary.docsRead.includes(page))
+          summary.docsRead.push(page);
+      } else if (block.name === "Grep" || block.name === "Glob") {
+        if (String(input.path ?? "").startsWith(docsDir)) {
+          summary.docsSearches.push(String(input.pattern ?? ""));
+        }
+      } else if (block.name === "Bash") {
+        const command = String(input.command ?? "");
+        // Pages the shell printed: absolute paths into the docs, or paths relative to a `cd` into them.
+        const base = /\bcd\s+"?([^\s";&]+)/.exec(command)?.[1] ?? "";
+        for (const raw of command.split(/[\s;&|()]+/)) {
+          const token = raw.replace(/^["']|["']$/g, "");
+          if (!/\.(md|txt)$/.test(token) || token.includes("*")) continue;
+          const path = token.startsWith("/")
+            ? token
+            : base.startsWith(docsDir)
+              ? join(base, token)
+              : "";
+          const doc = rel(path);
+          if (doc && !summary.docsRead.includes(doc))
+            summary.docsRead.push(doc);
+        }
+        if (command.includes(docsDir) && /\b(grep|rg|find)\b/.test(command)) {
+          summary.docsSearches.push(command.slice(0, 200));
+        }
+        if (
+          /\b(curl|wget)\b/.test(command) &&
+          !/127\.0\.0\.1|localhost/.test(command)
+        ) {
+          summary.webFetches.push(command.slice(0, 200));
+          for (const [url] of command.matchAll(/https?:\/\/[^\s"')]+/g)) {
+            const page = docsPage(url!);
+            if (page && !summary.docsRead.includes(page))
+              summary.docsRead.push(page);
+          }
+        }
+      }
+    }
+  }
+  // A CLI that crashed or was refused before its session started writes no result at all.
+  if (resultsSeen === 0) summary.agentError = "the agent never answered";
+  if (!summary.finalMessage) summary.finalMessage = lastText;
+  return summary;
+}
