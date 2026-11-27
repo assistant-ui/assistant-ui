@@ -26,7 +26,7 @@ describe("agent setup banner", () => {
     );
   });
 
-  it("copies the bare prompt for assistant-ui itself", () => {
+  it("copies the default setup prompt for assistant-ui itself", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
