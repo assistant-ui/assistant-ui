@@ -91,9 +91,8 @@ export function runCheck(
     ),
   );
   const readManifests = (revision) =>
-    git(root, ["ls-tree", "-r", "--name-only", revision, "--", "packages"])
-      .trim()
-      .split("\n")
+    git(root, ["ls-tree", "-r", "-z", "--name-only", revision, "--", "packages"])
+      .split("\0")
       .filter((file) => /^packages\/[^/]+\/package\.json$/.test(file))
       .map((file) => JSON.parse(atRevision(root, revision, file)));
   const basePackages = readManifests(baseSha).filter(
