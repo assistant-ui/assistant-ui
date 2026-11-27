@@ -11,7 +11,7 @@ import type { Checkout } from "setup-agent";
 const FUNNEL = ["created", "planning", "installing", "done"] as const;
 
 /** A stage a setup's count records; `cancelled` can follow any other. */
-export type Stage = (typeof FUNNEL)[number] | "cancelled";
+type Stage = (typeof FUNNEL)[number] | "cancelled";
 
 const STAGES: readonly string[] = [...FUNNEL, "cancelled"];
 
@@ -92,7 +92,7 @@ const STATS_URL = "https://setup-stats";
 export const COUNT_URL = `${STATS_URL}/count`;
 export const EXPORT_URL = `${STATS_URL}/export`;
 
-export type StatsEnv = {
+type StatsEnv = {
   /** The PostHog project key the setup app sends events with; without it counts are kept but not exported. */
   POSTHOG_API_KEY?: string;
 };
