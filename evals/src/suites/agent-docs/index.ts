@@ -127,6 +127,12 @@ async function runTrial(
     docsDir,
     new URL(docs.docsUrl).hostname,
   );
+  // An agent cut off mid-task (a plan's usage limit, an API error) didn't finish either: an error, not a score.
+  if (summary.agentError) {
+    throw new Error(
+      `the agent's answer was an error: ${summary.agentError} (${runDir})`,
+    );
+  }
 
   const mock = await startMockLLM(
     agentMock.port,

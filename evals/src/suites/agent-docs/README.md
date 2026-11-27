@@ -36,13 +36,13 @@ TRIALS=1 pnpm eval agent-docs tool-approval    # one task
 node src/suites/agent-docs/score.ts            # the score table across all saved trials
 ```
 
-The agent signs in with `CLAUDE_CODE_OAUTH_TOKEN` (a Claude plan token from `claude setup-token`) when that is set, else with `ANTHROPIC_API_KEY`, else with the machine's own `claude` login. Only the chosen one is passed to Claude Code, and its shell sees neither. Each trial records which one under `agentAuth`. Where the plan token is a nomOS secret, map it onto the variable for the run:
+The agent signs in with `CLAUDE_CODE_OAUTH_TOKEN` (a Claude plan token from `claude setup-token`) when that is set, else with `ANTHROPIC_API_KEY`, else with the machine's own `claude` login. Only the chosen one is passed to Claude Code, and its shell sees neither. Each trial records which one under `agentAuth`. Where the plan token is a nomOS secret, map it onto the variable for the run; this one is the PR reviews' token, fine for a trial or two:
 
 ```bash
-nomos secret run CLAUDE_TOKEN_CI_REVIEW:CLAUDE_CODE_OAUTH_TOKEN -- pnpm eval agent-docs
+nomos secret run CLAUDE_TOKEN_CI_REVIEW:CLAUDE_CODE_OAUTH_TOKEN -- pnpm eval agent-docs tool-approval
 ```
 
-On a plan token, trials cost nothing extra but count against the plan's usage limits, and a trial cut off by a limit scores as a fail, so read its transcript before counting it. A full round is ten tasks of 4 to 10 minutes each, so run it on a token for a plan that isn't shared with the PR reviews. On `ANTHROPIC_API_KEY`, the key's Console organization pays per token. Each trial's `costUsd` is Claude Code's `total_cost_usd`, the API price, whichever way it signed in.
+On a plan token, trials cost nothing extra but count against the plan's usage limits. A trial whose answer is an error, as when it hits a limit, is recorded as errored and left out of the score, like one that timed out. A full round is ten tasks of 4 to 10 minutes each, so run it on a token for a plan that isn't shared with the PR reviews. On `ANTHROPIC_API_KEY`, the key's Console organization pays per token. Each trial's `costUsd` is Claude Code's `total_cost_usd`, the API price, whichever way it signed in.
 
 To measure docs that aren't deployed yet, serve `apps/docs` locally and point the suite at it with a label of your own:
 
@@ -76,7 +76,7 @@ The agent runs as `claude -p` with Bash, Read, Write, Edit, Glob and Grep in the
 | `bundled` | The same snapshot inside the project under `.assistant-ui-docs/`, with an `AGENTS.md` index and a `CLAUDE.md` that loads it | |
 | `web` | The site at `DOCS_URL`, fetched with the shell | That host on the shell's network (no WebFetch: it runs outside the sandbox, and with permissions bypassed nothing could limit its hosts) |
 
-Its shell runs in Claude Code's sandbox, which is the boundary, so permissions are bypassed and nothing waits on a prompt. It can read nothing in the home directory except the preference files `create-next-app`, `shadcn` and the assistant-ui CLI keep and, when node lives there (an nvm or fnm install), node's own folder and the npm and corepack packages, nor this repository; it writes only inside the trial folder; and its network reaches only the npm registry, `r.assistant-ui.com`, `ui.shadcn.com`, GitHub downloads, Google Fonts and localhost. It gets a bare environment and a `PATH` with only `node`, `npm`, `npx`, `pnpm` and `corepack`; `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` keeps Claude Code's credential out of its shell. Its process group, every process it started and anything still running inside the trial folder are killed 30 seconds after it answers.
+Its shell runs in Claude Code's sandbox, which is the boundary, so permissions are bypassed and nothing waits on a prompt. It can read nothing in the home directory except the preference files `create-next-app`, `shadcn` and the assistant-ui CLI keep and, when node lives there (an nvm or fnm install), node's own folder and the npm and corepack packages, nor this repository; it writes only inside the trial folder and those preference files; and its network reaches only the npm registry, `r.assistant-ui.com`, `ui.shadcn.com`, GitHub downloads, Google Fonts and localhost. It gets a bare environment and a `PATH` of `node`, `npm`, `npx`, `pnpm` and `corepack` ahead of the system folders (`/usr/bin`, `/bin`, `/usr/sbin`, `/sbin`); `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` keeps Claude Code's credential out of its shell. Its process group, every process it started and anything still running inside the trial folder are killed 30 seconds after it answers.
 
 The app is then built, typechecked and served outside the sandbox, with the same `PATH`, a throwaway `HOME` and the trial's own npm config and cache, and no secrets in its environment. It can still read files by absolute path, so run the suite on a machine or container that keeps nothing private.
 

@@ -59,6 +59,32 @@ test("summarizeTranscript finds the docs pages, node_modules lookups and the clo
       summary.finalMessage,
       "Built it. Docs: the route example is stale.",
     );
+    assert.equal(summary.agentError, null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("summarizeTranscript keeps the error when the agent's answer is one, as at a usage limit", () => {
+  const dir = mkdtempSync(join(tmpdir(), "agent-docs-transcript-"));
+  try {
+    const file = join(dir, "transcript.jsonl");
+    const events = [
+      { type: "system", subtype: "init" },
+      {
+        type: "result",
+        subtype: "success",
+        is_error: true,
+        num_turns: 3,
+        result: "You've hit your limit",
+      },
+      { type: "result", subtype: "success", is_error: true, result: "later" },
+    ];
+    writeFileSync(file, events.map((e) => JSON.stringify(e)).join("\n"));
+    assert.equal(
+      summarizeTranscript(file, "/runs/docs/site").agentError,
+      "You've hit your limit",
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

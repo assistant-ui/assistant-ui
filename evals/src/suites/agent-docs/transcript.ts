@@ -16,6 +16,8 @@ export interface TranscriptSummary {
   webFetches: string[];
   /** The agent's closing message: what it built and what the docs lacked. */
   finalMessage: string;
+  /** Why the agent's answer was an error, such as a plan's usage limit, or null when it finished. */
+  agentError: string | null;
 }
 
 /** Summarizes a `claude -p --output-format stream-json` transcript. */
@@ -34,6 +36,7 @@ export function summarizeTranscript(
     nodeModulesLookups: 0,
     webFetches: [],
     finalMessage: "",
+    agentError: null,
   };
   if (!existsSync(file)) return summary;
   const rel = (path: string) =>
@@ -51,6 +54,7 @@ export function summarizeTranscript(
     }
   };
   let lastText = "";
+  let resultsSeen = 0;
   for (const line of readFileSync(file, "utf8").split("\n")) {
     if (!line.trim()) continue;
     let event: any;
@@ -61,6 +65,12 @@ export function summarizeTranscript(
     }
     // A background task finishing after the agent's answer wakes it for another, shorter result, so keep them all.
     if (event.type === "result") {
+      // Only the answer counts: an error in a later wake-up comes after the work is done.
+      if (resultsSeen++ === 0 && event.is_error === true) {
+        summary.agentError = String(
+          event.result || event.subtype || "error",
+        ).slice(0, 300);
+      }
       summary.turns += event.num_turns ?? 0;
       if (
         summary.answerSeconds === null &&
