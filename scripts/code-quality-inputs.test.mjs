@@ -15,7 +15,7 @@ const workflow = read(".github/workflows/code-quality.yaml");
 
 // Suites the workflow runs through an npm script in a job that also runs on a
 // push to `main`, so a change to a file they run has to trigger that push.
-const SUITES = ["api-surface:test"];
+const SUITES = ["api-surface:test:ci", "experimental:test:ci"];
 
 const pushPaths = (() => {
   const trigger = workflow
@@ -41,6 +41,18 @@ test("the workflow still runs every suite this guard covers", () => {
         `run: (?:pnpm run|node --run) ${suite.replace(":", "\\:")}\\b`,
       ),
       `the workflow no longer runs \`${suite}\`; update SUITES`,
+    );
+  }
+});
+
+test("package suites leave shared helper tests to Workspace Ranges", () => {
+  for (const suite of SUITES) {
+    const targets = suiteTargets(suite);
+    assert.ok(targets.length > 0, suite);
+    assert.deepEqual(
+      targets.filter((file) => file.startsWith("scripts/lib/")),
+      [],
+      suite,
     );
   }
 });
