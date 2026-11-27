@@ -6,13 +6,15 @@ name: Docs Exam
 # reader's "the docs conflict" sentences and the answers that missed a key
 # point, for a person to turn into cards.
 #
-# Manual only. One held-out skim run makes about 200 model calls (a reader and
-# a judge per question), about $18 at API prices, which the project
-# doesn't spend today; claude-review is the only model spend in CI. Add a
-# weekly schedule once that spend is approved, for example:
-#   schedule:
-#     - cron: "17 7 * * 1"
+# Runs the held-out skim exam every Sunday, and any exam by hand. One held-out
+# skim run makes about 200 model calls (a reader and a judge per question),
+# about $18 at API prices. Like claude-review, it runs on the project's Claude
+# plan through assistant-billing, which records that cost but bills nothing
+# (decision: #10926).
 on:
+  # Sunday 07:17 UTC, when PR reviews, which share the plan, are quietest.
+  schedule:
+    - cron: "17 7 * * 0"
   workflow_dispatch:
     inputs:
       exam:
@@ -48,6 +50,10 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    # A scheduled run has no inputs, so it takes the defaults.
+    env:
+      EXAM: ${{ inputs.exam || 'heldout' }}
+      READER: ${{ inputs.reader || 'skim' }}
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -64,8 +70,10 @@ jobs:
         run: npm install --global @anthropic-ai/claude-code@2.1.332
 
       # Same short-lived key exchange as claude-review: the job trades its
-      # GitHub OIDC token at assistant-billing for a key that expires in
-      # minutes and only reaches the metered messages endpoints.
+      # GitHub OIDC token at assistant-billing for a key that reaches only the
+      # messages endpoints and is served on the Claude plan. assistant-billing's
+      # docs-exam rule gives it an hour, the job's own timeout, and a $50 cap at
+      # API rates, above a held-out deep run (about $26).
       - name: Get a short-lived model key
         id: model-key
         run: |
@@ -83,8 +91,6 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ steps.model-key.outputs.key }}
           ANTHROPIC_BASE_URL: ${{ env.BILLING_GATEWAY }}
-          EXAM: ${{ inputs.exam }}
-          READER: ${{ inputs.reader }}
           # A CI runner isn't a busy laptop; 8 at a time keeps a held-out run near 5 minutes, inside the key's lifetime.
           EXAM_CONCURRENCY: "8"
         # pipefail keeps tee from hiding a failed run; run-exam.ts exits 1 when no question was graded.
@@ -96,9 +102,6 @@ jobs:
 
       - name: Write the findings to the job summary
         if: always()
-        env:
-          EXAM: ${{ inputs.exam }}
-          READER: ${{ inputs.reader }}
         run: |
           f="$RUNNER_TEMP/docs-exam/$EXAM-$READER.gaps.md"
           [ -f "$f" ] && cat "$f" >> "$GITHUB_STEP_SUMMARY" || echo "No findings file was written." >> "$GITHUB_STEP_SUMMARY"
@@ -107,6 +110,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
-          name: docs-exam-${{ inputs.exam }}-${{ inputs.reader }}-${{ github.run_attempt }}
+          name: docs-exam-${{ env.EXAM }}-${{ env.READER }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/docs-exam/
           retention-days: 90
