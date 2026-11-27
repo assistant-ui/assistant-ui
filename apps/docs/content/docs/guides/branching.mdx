@@ -4,18 +4,22 @@ description: Edit messages or regenerate AI responses, then switch between alter
 platforms: ["react"]
 ---
 
-import { BranchingSample } from "@/components/pages/docs/samples/branching";
+import { BranchTreeSample } from "@/components/pages/docs/samples/branch-tree.lazy";
 
 Branching lets users navigate between alternative versions of a message. A new branch is created when:
 
 - A user message is edited
 - An assistant message is reloaded (reload creates a new branch on the same message)
 
-assistant-ui tracks branches by observing changes to the `messages` array.
+Where the branches live depends on who holds the messages. `LocalRuntime` keeps the whole tree itself. With `ExternalStoreRuntime` your store holds one path, the `messages` array: when an edit or a regenerate replaces the end of that array, the runtime keeps the replaced messages as the other branch, and calls your `setMessages` with the chosen path when the user switches. To hand the runtime a tree you already have, such as one loaded from your database, pass it as `messageRepository` (see [External store](/docs/runtimes/custom/external-store)).
+
+A thread is a tree, not a list. Every message records its parent, and messages that share a parent are branches of each other. The thread shows one path through the tree, from the first message to the head, and the branch picker on a message moves that path to a sibling. Nothing is deleted when you edit or regenerate.
+
+<BranchTreeSample description="A thread drawn as a message tree, with the visible path from the first message to the head" />
+
+The panel reads the tree with `thread.export()`. It returns an `ExportedMessageRepository`: every message with its `parentId`, plus the `headId`. That is also the shape a `ThreadHistoryAdapter` loads, which is how saved threads keep their branches.
 
 ## Shortest Working Pattern
-
-<BranchingSample />
 
 Place a branch picker inside your message component:
 

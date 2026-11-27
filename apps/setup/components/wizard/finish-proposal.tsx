@@ -62,11 +62,14 @@ export function FinishProposal({
   agentName,
   onClosed,
   summary,
+  agentAway = false,
 }: {
   checkout: CheckoutContextValue;
   agentName: string;
   onClosed: () => void;
   summary?: boolean;
+  /** The agent stopped after proposing to finish; closing does not need it. */
+  agentAway?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -140,6 +143,12 @@ export function FinishProposal({
           </DialogContent>
         </Dialog>
       </div>
+      {agentAway ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {agentName} is no longer connected. Finish does not need it; a message
+          you send waits until it reconnects.
+        </p>
+      ) : null}
       {summary ? (
         <SelectedProducts products={checkout.state?.products ?? []} />
       ) : null}

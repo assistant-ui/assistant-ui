@@ -260,7 +260,10 @@ import { Text } from "ink";
 import { useMemo } from "react";
 
 export function useWeatherToolkit() {
-  const render = useInlineRender(({ args, result }) => (
+  const render = useInlineRender<
+    { city: string },
+    { temperature: number }
+  >(({ args, result }) => (
     <Text>{args.city}: {result?.temperature}°F</Text>
   ));
 

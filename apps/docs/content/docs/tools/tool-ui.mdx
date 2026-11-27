@@ -384,8 +384,9 @@ const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
 A human tool has no executor. Its `render` collects the input and passes it to `addResult`:
 
 <Callout type="tip">
-  Call `addResult(...)` exactly once. It completes the tool call, and the
-  assistant continues with the data you passed.
+  Call `addResult(...)` exactly once. It completes the tool call. With
+  `useChatRuntime`, the assistant replies to the result only if you set
+  `sendAutomaticallyWhen`; see [Continuing the turn](#continuing-the-turn).
 </Callout>
 
 ```tsx
@@ -505,6 +506,25 @@ export default defineToolkit({
   the whole result.
 </Callout>
 
+### Continuing the turn
+
+`useChatRuntime` does not send a tool result to the model on its own. After `addResult()`, or after `execute` returns from a `resume()`, the tool call is complete, but the turn stops there until the user sends another message.
+
+To have the assistant continue as soon as the result is in, set `sendAutomaticallyWhen`:
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+});
+```
+
+`lastAssistantMessageIsCompleteWithToolCalls` waits until every tool call in the assistant's last step has a result, then sends them back in one request. The same applies to frontend tools that run in the browser without asking the user. `useChat` takes the same option when you build the runtime with `useAISDKRuntime`. `LocalRuntime` continues on its own.
+
+An answer to a server-side approval gate needs a different check, `lastAssistantMessageIsCompleteWithApprovalResponses`; see the next section.
+
 ### Server-side approval gates
 
 Some runtimes (notably AI SDK v7's `toolApproval`-gated tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
@@ -567,7 +587,25 @@ const toolkit = defineToolkit({
 
 Approval gates require a runtime that implements them: the AI SDK v7 runtime emits them for `toolApproval`-gated tools, and `LocalRuntime` supports gates emitted by your `ChatModelAdapter`; see [LocalRuntime approval gates](/docs/runtimes/custom/local-runtime#approval-gates). For tools where the user supplies the result itself, use `unstable_humanToolNames` with `addResult` instead; see [human-in-the-loop tools](/docs/runtimes/custom/local-runtime#human-in-the-loop-tools).
 
-For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v7 server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
+With `useChatRuntime`, the answer goes into the `useChat` messages, and the run continues only if `sendAutomaticallyWhen` is set to `lastAssistantMessageIsCompleteWithApprovalResponses`. `sendAutomaticallyWhen` takes one function, so a thread that has both approval gates and tool results from the browser checks for both:
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import {
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  lastAssistantMessageIsCompleteWithToolCalls,
+} from "ai";
+
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: (options) =>
+    lastAssistantMessageIsCompleteWithToolCalls(options) ||
+    lastAssistantMessageIsCompleteWithApprovalResponses(options),
+});
+```
+
+A custom [`onRespondToToolApproval`](/docs/runtimes/ai-sdk/v7#onrespondtotoolapproval) handler bypasses `useChat`, so it has to resume the run itself.
+
+For the server-side setup (`toolApproval`, `needsApproval`), see [AI SDK v7 server-side tool approval](/docs/runtimes/ai-sdk/v7#server-side-tool-approval).
 
 ### Approval options
 

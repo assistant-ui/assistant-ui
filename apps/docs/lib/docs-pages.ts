@@ -6,6 +6,7 @@ import {
   rewriteLegacyDocsSitePath,
   type DocsSite,
 } from "@/lib/docs-sites";
+import { rewriteMovedDocsPath } from "@/lib/moved-docs";
 
 export type DocsPage = InferPageType<typeof source> | DocsSitePage;
 
@@ -39,7 +40,10 @@ function slugsUnder(pathname: string, base: string): string[] | null {
 // the legacy paths a site page moved from.
 export function resolveDocsUrl(pathname: string): DocsPage | undefined {
   const normalized = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  const path = rewriteLegacyDocsSitePath(normalized) ?? normalized;
+  const path =
+    rewriteLegacyDocsSitePath(normalized) ??
+    rewriteMovedDocsPath(normalized) ??
+    normalized;
 
   for (const site of DOCS_SITES) {
     const slugs = slugsUnder(path, docsSiteBaseUrl(site.id));

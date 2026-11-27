@@ -6,7 +6,20 @@ platforms: ["react"]
 
 ## Mental Model
 
-Editing re-submits a message from a past point in the conversation and creates a new branch. The messages after the edited one are discarded, and the assistant generates a fresh response from that point forward. Each user message has an independent edit composer; only one can be active at a time.
+Editing re-submits a message from a past point in the conversation and creates a new branch. The edit composer opens with the message's text; sending adds the edited message next to the original instead of overwriting it, and the assistant generates a fresh response from that point forward. The original and everything after it stay in the thread as the other branch, so a [branch picker](/docs/guides/branching) can switch back. Each user message has an independent edit composer; only one can be active at a time.
+
+Those later messages leave the visible path but stay stored. The edited message becomes a sibling of the original, under the same parent, and the original keeps everything that followed it:
+
+```mermaid
+flowchart TD
+    u1["user: Plan a weekend in Lisbon"] --> a1["assistant: Day 1, Alfama…"]
+    a1 --> u2["user: Make it cheaper<br/>(original, branch 1 of 2)"]
+    a1 --> u3["user: Make it three days<br/>(edited, branch 2 of 2)"]
+    u2 --> a2["assistant: Skip the tram…"]
+    u3 --> a3["assistant: Day 3, Sintra…"]
+```
+
+The thread shows one path through this tree at a time. After the edit it shows the new branch, and `BranchPickerPrimitive` on the edited message reads 2 / 2, so the user can switch back to the original.
 
 The recommended way to wire this up is via the `children` render prop on `ThreadPrimitive.Messages`, branching on `message.role` and on `message.composer.isEditing` to swap in an edit composer when needed.
 

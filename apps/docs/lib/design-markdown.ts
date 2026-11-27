@@ -6,7 +6,8 @@ export async function getDesignMarkdown(
   slug: string[] | undefined,
   flavor: LLMRenderContext["flavor"],
 ) {
-  if (!slug || slug.length === 0) {
+  // /design/components lists the same components as /design.
+  if (!slug || slug.length === 0 || slug.join("/") === "components") {
     return [
       "# Design",
       "",

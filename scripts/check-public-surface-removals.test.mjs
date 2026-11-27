@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,13 +20,13 @@ const root = path.resolve(import.meta.dirname, "..");
 const base =
   "declare const useFoo: number; declare const useBar: number; declare namespace entry_root_exports { export { useFoo, useBar }; } export { entry_root_exports as entry_root };";
 
-const runScript = (dir, baseSha, headSha) =>
+const runScript = (dir, baseSha, headSha, env = {}) =>
   spawnSync(
     process.execPath,
     [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
     {
       encoding: "utf8",
-      env: { ...process.env, BASE_SHA: baseSha, HEAD_SHA: headSha },
+      env: { ...process.env, ...env, BASE_SHA: baseSha, HEAD_SHA: headSha },
     },
   );
 
@@ -74,7 +80,44 @@ test("executable requires the comparison revisions", () => {
   assert.match(result.stderr, /BASE_SHA and HEAD_SHA are required/);
 });
 
-test("compares Git snapshots and accepts only an added marked changeset for the package", (t) => {
+test("skips blob reads when only a changeset and a nested manifest change", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-skip-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+  git("init", "-q");
+  mkdirSync(path.join(dir, "packages/core/example"), { recursive: true });
+  writeFileSync(
+    path.join(dir, "packages/core/package.json"),
+    '{"name":"core"}',
+  );
+  git("add", "packages");
+  const before = git("write-tree");
+  mkdirSync(path.join(dir, ".changeset"));
+  writeFileSync(path.join(dir, ".changeset/note.md"), "A note.");
+  writeFileSync(path.join(dir, "packages/core/example/package.json"), "{}");
+  git("add", ".changeset", "packages");
+  const after = git("write-tree");
+
+  const trace = path.join(dir, "git-trace.jsonl");
+  const result = runScript(dir, before, after, { GIT_TRACE2_EVENT: trace });
+  assert.equal(result.status, 0, result.stderr);
+  const commands = readFileSync(trace, "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line))
+    .filter((event) => event.event === "cmd_name")
+    .map((event) => event.name);
+  assert.ok(commands.includes("diff"));
+  assert.deepEqual(
+    commands.filter((name) => name === "show" || name === "ls-tree"),
+    [],
+  );
+  assert.equal(runScript(dir, "missing-base", after).status, 1);
+  assert.equal(runScript(dir, before, "missing-head").status, 1);
+});
+
+test("compares Git snapshots for a package in a non-ASCII directory", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const git = (...args) =>
@@ -85,8 +128,9 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
     writeFileSync(target, text);
   };
   git("init", "-q");
+  git("config", "core.quotePath", "true");
   put(
-    "packages/core/package.json",
+    "packages/café/package.json",
     JSON.stringify({ name: "@assistant-ui/core", version: "1.0.0" }),
   );
   put(

@@ -8,7 +8,7 @@ import { AttachmentSample } from "@/components/pages/docs/samples/attachment";
 
 Let users attach images, documents, and other files to their messages.
 
-<AttachmentSample />
+<AttachmentSample description="Attachment tiles for an image and a file, each with a remove button" />
 
 ## Overview
 
@@ -17,6 +17,20 @@ The attachment system consists of:
 - **Attachment Adapters**: Backend logic for processing attachment files
 - **UI Components**: Pre-built components for attachment display and interaction
 - **Runtime Integration**: Attachment support in the assistant-ui runtimes
+
+An attachment adapter has three methods, and the composer calls each one at a fixed moment:
+
+```mermaid
+flowchart LR
+    file["File picked,<br/>dropped or pasted"] -- "add()" --> pending["PendingAttachment<br/>in the composer"]
+    pending -- "send()" --> complete["CompleteAttachment<br/>on the sent message"]
+    pending -- "remove()" --> gone["Removed by<br/>the user"]
+```
+
+- `add({ file })` runs as soon as a file arrives. It returns a `PendingAttachment`, typically with status `requires-action` (reason `composer-send`). Written as an async generator, it can yield the same attachment several times instead, for example with status `running` (reason `uploading`) and a `progress` value while it uploads.
+- `send(attachment)` runs when the user sends the message. It returns a `CompleteAttachment` with status `complete` and the `content` parts the model receives.
+- `remove(attachment)` runs when the user removes a pending attachment.
+- If `send()` throws, the message goes back to the composer and that attachment's status becomes `incomplete` (reason `error`), so the user can retry or remove it.
 
 <AnchorAlias id="getting-started" />
 
@@ -226,7 +240,7 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
     // Option 1: Extract text from PDF (requires pdf parsing library)
     // const text = await this.extractTextFromPDF(attachment.file);
 
-    // Option 2: Convert to base64 for API processing
+    // Option 2: Send the whole PDF as a file part for models that read PDFs
     const base64Data = await this.fileToBase64(attachment.file);
 
     return {
@@ -235,8 +249,10 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
       name: attachment.name,
       content: [
         {
-          type: "text",
-          text: `[PDF Document: ${attachment.name}]\nBase64 data: ${base64Data.substring(0, 50)}...`,
+          type: "file",
+          filename: attachment.name,
+          data: base64Data,
+          mimeType: "application/pdf",
         },
       ],
       status: { type: "complete" },
@@ -465,56 +481,33 @@ A result that arrives after the signal aborts is discarded either way, so an ada
 Validate files in the adapter's `add()` method:
 
 ```tsx
-class ValidatedImageAdapter implements AttachmentAdapter {
-  accept = "image/*";
-  maxSizeBytes = 5 * 1024 * 1024; // 5MB
+import {
+  SimpleImageAttachmentAdapter,
+  type PendingAttachment,
+} from "@assistant-ui/react";
 
+const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_SIDE = 4096;
+
+class ValidatedImageAdapter extends SimpleImageAttachmentAdapter {
   async add({ file }: { file: File }): Promise<PendingAttachment> {
-    // Validate file size
-    if (file.size > this.maxSizeBytes) {
-      return {
-        id: generateId(),
-        type: "image",
-        name: file.name,
-        file,
-        status: {
-          type: "incomplete",
-          reason: "error",
-        },
-      };
+    const attachment = await super.add({ file });
+    if (file.size > MAX_BYTES || !(await fitsDimensions(file))) {
+      return { ...attachment, status: { type: "incomplete", reason: "error" } };
     }
-
-    // Validate image dimensions
-    try {
-      const dimensions = await this.getImageDimensions(file);
-      if (dimensions.width > 4096 || dimensions.height > 4096) {
-        throw new Error("Image dimensions exceed 4096x4096");
-      }
-    } catch (error) {
-      return {
-        id: generateId(),
-        type: "image",
-        name: file.name,
-        file,
-        status: {
-          type: "incomplete",
-          reason: "error",
-        },
-      };
-    }
-
-    // Return valid attachment
-    return {
-      id: generateId(),
-      type: "image",
-      name: file.name,
-      file,
-      status: { type: "requires-action", reason: "composer-send" },
-    };
+    return attachment;
   }
+}
 
-  private async getImageDimensions(file: File) {
-    // Implementation to check image dimensions
+async function fitsDimensions(file: File) {
+  if (file.type === "image/svg+xml") return true; // vector: no pixel size
+  try {
+    const bitmap = await createImageBitmap(file);
+    const fits = bitmap.width <= MAX_SIDE && bitmap.height <= MAX_SIDE;
+    bitmap.close();
+    return fits;
+  } catch {
+    return false; // not a readable image
   }
 }
 ```

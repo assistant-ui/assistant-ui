@@ -4,14 +4,14 @@ description: A floating chat popover with a fixed-position trigger button that o
 platforms: ["react"]
 ---
 
-import { AssistantModalSample } from "@/components/pages/docs/samples/assistant-modal";
+import { AssistantModalPreview } from "@/components/pages/docs/samples/assistant-modal-preview.lazy";
 import { AssistantModalPrimitive as AssistantModalPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The AssistantModal primitive is a floating chat popover built on [Radix Popover](https://www.radix-ui.com/primitives/docs/components/popover). A trigger button opens a chat panel. You control the trigger, content, positioning, and animations.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
-    <AssistantModalSample />
+    <AssistantModalPreview description="A floating trigger button that opens the assistant in a popover anchored to it" />
   </Tab>
   <Tab>
 ```tsx
@@ -94,55 +94,6 @@ The `unstable_openOnRunStart` prop (default `true`) automatically opens the moda
 >
 ```
 
-## Parts
-
-### Root
-
-Radix Popover provider, manages open/close state. No DOM element rendered.
-
-```tsx
-<AssistantModalPrimitive.Root unstable_openOnRunStart={false}>
-  ...
-</AssistantModalPrimitive.Root>
-```
-
-<PrimitivesTypeTable type="AssistantModalPrimitiveRootProps" parameters={AssistantModalPrimitiveDocs.Root.props} />
-
-### Trigger
-
-Button that toggles the modal open and closed. Renders a `<button>` element unless `asChild` is set.
-
-```tsx
-<AssistantModalPrimitive.Trigger className="rounded-full bg-primary px-4 py-2 text-primary-foreground">
-  Open Chat
-</AssistantModalPrimitive.Trigger>
-```
-
-### Anchor
-
-Positions the trigger and content relative to a shared anchor. Renders a `<div>` element unless `asChild` is set.
-
-```tsx
-<AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4">
-  <AssistantModalPrimitive.Trigger>Chat</AssistantModalPrimitive.Trigger>
-</AssistantModalPrimitive.Anchor>
-```
-
-### Content
-
-The floating chat panel. Renders a `<div>` element inside a portal.
-
-```tsx
-<AssistantModalPrimitive.Content
-  sideOffset={16}
-  className="h-[600px] w-[400px] rounded-xl border bg-background shadow-lg"
->
-  <Thread />
-</AssistantModalPrimitive.Content>
-```
-
-<PrimitivesTypeTable type="AssistantModalPrimitiveContentProps" parameters={AssistantModalPrimitiveDocs.Content.props} />
-
 ## Patterns
 
 ### Floating Bottom-Right Widget
@@ -202,6 +153,55 @@ Render the content inside a specific container instead of `document.body`:
   <Thread />
 </AssistantModalPrimitive.Content>
 ```
+
+## Parts
+
+### Root
+
+Radix Popover provider, manages open/close state. No DOM element rendered.
+
+```tsx
+<AssistantModalPrimitive.Root unstable_openOnRunStart={false}>
+  ...
+</AssistantModalPrimitive.Root>
+```
+
+<PrimitivesTypeTable type="AssistantModalPrimitiveRootProps" parameters={AssistantModalPrimitiveDocs.Root.props} />
+
+### Trigger
+
+Button that toggles the modal open and closed. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<AssistantModalPrimitive.Trigger className="rounded-full bg-primary px-4 py-2 text-primary-foreground">
+  Open Chat
+</AssistantModalPrimitive.Trigger>
+```
+
+### Anchor
+
+Positions the trigger and content relative to a shared anchor. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4">
+  <AssistantModalPrimitive.Trigger>Chat</AssistantModalPrimitive.Trigger>
+</AssistantModalPrimitive.Anchor>
+```
+
+### Content
+
+The floating chat panel. Renders a `<div>` element inside a portal.
+
+```tsx
+<AssistantModalPrimitive.Content
+  sideOffset={16}
+  className="h-[600px] w-[400px] rounded-xl border bg-background shadow-lg"
+>
+  <Thread />
+</AssistantModalPrimitive.Content>
+```
+
+<PrimitivesTypeTable type="AssistantModalPrimitiveContentProps" parameters={AssistantModalPrimitiveDocs.Content.props} />
 
 ## Relationship to Components
 

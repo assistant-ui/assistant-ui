@@ -209,6 +209,10 @@ const createRuntime = () => {
       {
         CHECKOUT: { idFromName: (name) => name, get: vi.fn() },
         NEW_LINKS: { limit: async () => ({ success: true }) },
+        SETUP_STATS: {
+          idFromName: (name) => name,
+          get: () => ({ fetch: () => new Response(null, { status: 204 }) }),
+        },
       },
     );
     counts.instances.push(instance);

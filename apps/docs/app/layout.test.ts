@@ -10,12 +10,6 @@ vi.mock("./provider", () => ({ Provider: () => null }));
 vi.mock("@/components/pages/docs/assistant/site-assistant", () => ({
   SiteAssistant: () => null,
 }));
-vi.mock("@/components/generative-ui-style", () => ({
-  GenerativeUIStyle: () => null,
-}));
-vi.mock("@/components/gallery/gallery-staging", () => ({
-  galleryStagingCss: "",
-}));
 vi.mock("@/components/analytics-gate", () => ({ AnalyticsGate: () => null }));
 vi.mock("@/components/consent-banner", () => ({ ConsentBanner: () => null }));
 vi.mock("@/components/outside-renderer", () => ({

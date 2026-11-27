@@ -5,8 +5,6 @@ import { Provider } from "./provider";
 import { SiteAssistant } from "@/components/pages/docs/assistant/site-assistant";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
-import { GenerativeUIStyle } from "@/components/generative-ui-style";
-import { galleryStagingCss } from "@/components/gallery/gallery-staging";
 import { umamiBootstrapScript } from "@/lib/umami-sampling";
 import { AnalyticsGate } from "@/components/analytics-gate";
 import { ConsentBanner } from "@/components/consent-banner";
@@ -89,8 +87,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <GenerativeUIStyle />
-        <style>{galleryStagingCss}</style>
+        <link rel="stylesheet" href="/styles/generative-ui.css" />
         <script dangerouslySetInnerHTML={{ __html: umamiBootstrapScript }} />
       </head>
       <body

@@ -5,12 +5,16 @@ on:
     branches: [main]
     paths:
       - "python/**"
+      - "apps/docs/content/**/*.md*"
+      - "apps/docs/lib/python-blocks.py"
       - ".github/workflows/python-tests.yaml"
       - "scripts/python-test-selection.test.mjs"
   pull_request:
     branches: [main]
     paths:
       - "python/**"
+      - "apps/docs/content/**/*.md*"
+      - "apps/docs/lib/python-blocks.py"
       - ".github/workflows/python-tests.yaml"
       - "scripts/python-test-selection.test.mjs"
 
@@ -105,6 +109,11 @@ jobs:
           if git rev-parse --verify --quiet "${BASE_REF}^{commit}" > /dev/null &&
             git diff --quiet --no-renames "$BASE_REF" HEAD -- "${paths[@]}"; then
             run=false
+            if [ "$PACKAGE" = assistant-stream ]; then
+              # Check sample inputs separately so sibling package exclusions do not hide their READMEs.
+              samples=(':(glob)apps/docs/content/**/*.md*' apps/docs/lib/python-blocks.py ':(glob)python/*/README*.md')
+              git diff --quiet --no-renames "$BASE_REF" HEAD -- "${samples[@]}" || run=true
+            fi
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
 

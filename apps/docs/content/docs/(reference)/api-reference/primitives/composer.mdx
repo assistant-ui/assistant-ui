@@ -15,7 +15,11 @@ For examples and usage patterns, see [Composer](/docs/primitives/composer).
 ## Anatomy
 
 ```tsx
-import { ComposerPrimitive } from "@assistant-ui/react";
+import {
+  AttachmentPrimitive,
+  AuiIf,
+  ComposerPrimitive,
+} from "@assistant-ui/react";
 
 // creating a new message
 const Composer = () => (
@@ -25,7 +29,14 @@ const Composer = () => (
         <ComposerPrimitive.QuoteText />
         <ComposerPrimitive.QuoteDismiss />
       </ComposerPrimitive.Quote>
-      <ComposerPrimitive.Attachments />
+      <ComposerPrimitive.Attachments>
+        {() => (
+          <AttachmentPrimitive.Root>
+            <AttachmentPrimitive.Name />
+            <AttachmentPrimitive.Remove />
+          </AttachmentPrimitive.Root>
+        )}
+      </ComposerPrimitive.Attachments>
       <ComposerPrimitive.AddAttachment />
       <ComposerPrimitive.Input />
       <ComposerPrimitive.Send />

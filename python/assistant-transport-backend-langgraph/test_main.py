@@ -7,6 +7,7 @@ import pytest
 from dotenv import dotenv_values
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from pydantic import ValidationError
 
 import main
 
@@ -273,3 +274,81 @@ def test_example_configuration_binds_loopback(monkeypatch: pytest.MonkeyPatch) -
 
     assert runs[0]["host"] == "127.0.0.1"
     assert runs[0]["port"] == 8010
+
+
+USER_COMMAND = {
+    "type": "add-message",
+    "message": {"role": "user", "parts": [{"type": "text", "text": "hi"}]},
+}
+TOOL_RESULT_COMMAND = {
+    "type": "add-tool-result",
+    "toolCallId": "call-1",
+    "toolName": "get_weather",
+    "result": {"temp": 21},
+}
+CUSTOM_COMMAND = {"type": "my-custom-command", "data": "hello"}
+
+
+def test_chat_request_accepts_custom_commands_next_to_built_in_ones() -> None:
+    request = main.ChatRequest.model_validate(
+        {"commands": [USER_COMMAND, CUSTOM_COMMAND, TOOL_RESULT_COMMAND]}
+    )
+
+    assert [type(command) for command in request.commands] == [
+        main.AddMessageCommand,
+        main.CustomCommand,
+        main.AddToolResultCommand,
+    ]
+    assert request.commands[1].model_extra == {"data": "hello"}
+
+
+@pytest.mark.parametrize(
+    "command",
+    [{"type": "add-message"}, {"type": "add-tool-result", "result": 1}],
+)
+def test_chat_request_rejects_malformed_built_in_commands(command) -> None:
+    with pytest.raises(ValidationError):
+        main.ChatRequest.model_validate({"commands": [command]})
+
+
+def test_chat_endpoint_skips_custom_commands(monkeypatch: pytest.MonkeyPatch) -> None:
+    inputs: list[dict[str, object]] = []
+
+    class RecordingGraph:
+        async def astream(self, input_state, **_kwargs):
+            inputs.append(input_state)
+            return
+            yield
+
+    monkeypatch.setattr(main, "graph", RecordingGraph())
+
+    response = TestClient(main.app).post(
+        "/assistant",
+        json={"state": {"messages": []}, "commands": [CUSTOM_COMMAND, TOOL_RESULT_COMMAND]},
+    )
+
+    assert response.status_code == 200
+    [message] = inputs[0]["messages"]
+    assert isinstance(message, ToolMessage)
+    assert message.tool_call_id == "call-1"
+
+
+def test_chat_endpoint_runs_no_model_turn_for_custom_commands_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[object] = []
+
+    class RecordingGraph:
+        async def astream(self, input_state, **_kwargs):
+            calls.append(input_state)
+            return
+            yield
+
+    monkeypatch.setattr(main, "graph", RecordingGraph())
+
+    response = TestClient(main.app).post(
+        "/assistant", json={"state": {"messages": []}, "commands": [CUSTOM_COMMAND]}
+    )
+
+    assert response.status_code == 200
+    assert calls == []

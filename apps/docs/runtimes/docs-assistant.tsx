@@ -25,10 +25,11 @@ export function DocsAssistantRuntimeProvider({
     [],
   );
 
+  // No automatic sending: the docs assistant has no browser tools, and the
+  // server finishes every answer, so a reply never waits on the client.
   const runtime = useDocsChatRuntime({
     api: "/api/doc/chat",
     adapters,
-    sendAutomatically: true,
   });
 
   return (

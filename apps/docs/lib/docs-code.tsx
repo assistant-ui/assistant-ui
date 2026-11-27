@@ -10,13 +10,14 @@ import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import rehypeCode from "@farming-labs/next/mdx-plugins/rehype-code";
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
 import { transformerMetaHighlight } from "@shikijs/transformers";
+import { codeTokenClasses } from "./code-token-classes";
 
 const themes = { light: "catppuccin-latte", dark: "catppuccin-mocha" };
 
 // Bump `v` when the options below change. next.config.mts sets the package
 // versions, so an upgrade of the highlighting stack drops cached highlights.
 const CACHE_SALT = JSON.stringify({
-  v: 1,
+  v: 2,
   themes,
   versions: process.env.DOCS_CODE_VERSIONS,
 });
@@ -34,6 +35,7 @@ export const docsCodeOptions = {
       },
     },
     transformerMetaHighlight(),
+    codeTokenClasses(),
   ],
 } satisfies Parameters<typeof rehypeCode>[0];
 
@@ -144,10 +146,14 @@ async function DocsCodeBlock({
  * to the final component map so the highlighted `pre` renders through that
  * map's `pre`, as it did when highlighting happened at compile time.
  */
-export function withDocsCodeBlock<T extends MDXComponents>(components: T): T {
+export function withDocsCodeBlock<T extends MDXComponents>(
+  components: T,
+  overrides?: MDXComponents,
+): T {
   const bound = components as MDXComponents;
+  const codeComponents = overrides ? { ...bound, ...overrides } : bound;
   bound.DocsCodeBlock = (props: DocsCodeBlockProps) => (
-    <DocsCodeBlock {...props} components={bound} />
+    <DocsCodeBlock {...props} components={codeComponents} />
   );
   return components;
 }

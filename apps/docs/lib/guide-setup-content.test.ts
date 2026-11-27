@@ -86,6 +86,11 @@ describe("guide Setup sections", () => {
           readFileSync(path.join(GUIDES_DIR, file), "utf8"),
         ),
       );
-    expect(withBanner.sort()).toEqual(["dictation.mdx", "speech.mdx"]);
+    expect(withBanner.sort()).toEqual([
+      "devtools.mdx",
+      "dictation.mdx",
+      "rtl.mdx",
+      "speech.mdx",
+    ]);
   });
 });

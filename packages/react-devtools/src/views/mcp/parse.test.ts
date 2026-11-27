@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import { parseMcpManager } from "./parse";
 
 describe("parseMcpManager", () => {
@@ -53,7 +53,7 @@ describe("parseMcpManager", () => {
         { id: "x1", name: "B", connectionState: "authRequired", tools: [] },
       ],
     });
-    if (!manager) return;
+    assert.isNotNull(manager);
     expect(manager.servers.map((s) => s.id)).toEqual(["c1", "x1"]);
   });
 

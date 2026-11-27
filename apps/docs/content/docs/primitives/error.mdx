@@ -8,9 +8,11 @@ import { ErrorPrimitiveSample } from "@/components/pages/docs/samples/error-prim
 
 The Error primitive renders error states on messages using an accessible `role="alert"` container with automatic error text extraction. `Root` always renders its container; `Message` only renders when the message has an error. Wrap in `MessagePrimitive.Error` if you need the entire block to be conditional.
 
+To let people try again, put `ActionBarPrimitive.Reload` next to the message: it asks for the failed reply again. [Error state](/elements/error-state) is a ready-made banner with that retry button.
+
 <Tabs items={["Preview", "Code"]}>
   <Tab>
-    <ErrorPrimitiveSample />
+    <ErrorPrimitiveSample description="An assistant message with an error alert under it: An error occurred. Please try again." />
   </Tab>
   <Tab>
 ```tsx
@@ -91,6 +93,25 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 </MessagePrimitive.Error>
 ```
 
+## Patterns
+
+### Styled Error Alert
+
+```tsx
+<ErrorPrimitive.Root className="mt-2 flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+  <ErrorPrimitive.Message />
+</ErrorPrimitive.Root>
+```
+
+### Custom Error Content
+
+```tsx
+<ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
+  <p className="font-medium text-destructive text-sm">Error</p>
+  <ErrorPrimitive.Message className="text-destructive/80 text-sm" />
+</ErrorPrimitive.Root>
+```
+
 ## Parts
 
 ### Root
@@ -109,25 +130,6 @@ Renders the current error text for the active message.
 
 ```tsx
 <ErrorPrimitive.Message className="text-destructive text-sm" />
-```
-
-## Patterns
-
-### Styled Error Alert
-
-```tsx
-<ErrorPrimitive.Root className="mt-2 flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-  <ErrorPrimitive.Message />
-</ErrorPrimitive.Root>
-```
-
-### Custom Error Content
-
-```tsx
-<ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
-  <p className="font-medium text-destructive text-sm">Error</p>
-  <ErrorPrimitive.Message className="text-destructive/80 text-sm" />
-</ErrorPrimitive.Root>
 ```
 
 ## Relationship to Components

@@ -1,0 +1,71 @@
+{
+  "model": "sonnet",
+  "reader": "deep",
+  "docs": "final branch on 5439bc338",
+  "results": [
+    {
+      "id": "q15",
+      "concept": "branching",
+      "question": "What is a branch in assistant-ui, and how does the user move between branches?",
+      "answer": "A branch is an alternative version of a message. It's created when a user message is edited or an assistant reply is regenerated (reloaded), for example with `ActionBarPrimitive.Reload`. The old version isn't overwritten. Messages form a tree, and the thread shows the one path through it that the user picked.\n\nUsers move between versions with a branch picker inside `MessagePrimitive.Root`. `BranchPickerPrimitive.Root` contains `Previous`, `Next`, `Number` and `Count`, giving a \"2 / 3\" control. `hideWhenSingleBranch` hides it when there's only one version. The buttons disable at the first or last branch, and during a run unless the runtime supports `switchBranchDuringRun`. The shadcn `Thread` component already includes pickers on user and assistant messages.\n\nIn code, call `aui.message.switchToBranch({ branchId })`, with `aui` from `useAui()`, in a message context. The Context API page also shows a `position` argument; the Vue docs give its values as `\"previous\"` or `\"next\"`, but the React pages I read don't.\n\n`LocalRuntime` keeps the tree itself. With `ExternalStoreRuntime`, providing `setMessages` enables switching; your store holds the current path, and the runtime passes you the chosen one. To load an existing tree, use `messageRepository`.\n\nPages: docs/guides/branching.md, docs/primitives/branch-picker.md, docs/concepts/messages.md, docs/concepts/context-api.md, docs/vue/branching.md, docs/runtimes/custom/external-store.md",
+      "pages": [
+        "docs/guides/branching.md",
+        "docs/primitives/branch-picker.md",
+        "docs/api-reference/primitives/branch-picker.md",
+        "docs/concepts/messages.md",
+        "docs/concepts/context-api.md"
+      ],
+      "searches": [
+        "Grep: [Bb]ranch(?!es? of (the )?repo)",
+        "Grep: switchToBranch|switchBranch|branchNumber|branchCount|BranchPicker\\.|branching",
+        "Grep: [Bb]ranch"
+      ],
+      "seconds": 17
+    },
+    {
+      "id": "q16",
+      "concept": "regenerate",
+      "question": "What happens when the user asks to regenerate (reload) an assistant reply? Is the previous reply lost?",
+      "answer": "In general, the old reply isn't lost. Regenerating (`ActionBarPrimitive.Reload`, or `reload()` on the message) starts a new run and adds the reply as a sibling branch. Users switch with `BranchPickerPrimitive` (`Previous`, `Number`, `Count`, `Next`); code can call `aui.message.switchToBranch`. `Reload` is disabled while the thread is running or disabled.\n\nIt depends on your runtime:\n- **`LocalRuntime`:** keeps the whole tree; regeneration and branching are built in.\n- **`ExternalStoreRuntime`:** `onReload(parentId, config)` enables regeneration; `setMessages` enables switching. When your `messages` array's tail is replaced, the runtime keeps the old messages as a branch, although your store holds only one path. To restore a saved tree, pass `messageRepository`, including the selected `headId`.\n- **LangGraph:** Regenerate requires `getCheckpointId`, and your `stream` must forward the checkpoint (the `unstable_createLangGraphStream` helper does). These pages don't explicitly say whether the old reply stays selectable.\n\nAfter a page refresh, Assistant Cloud's tree storage can retain earlier paths; custom history rows include `parent_id`. The docs don't say whether branches survive refresh without persistence.\n\nException: with Cloud, `Resume` on an empty interrupted reply deletes it, leaving no branch if the runtime supports deletion.\n\nPages: docs/guides/branching.md, docs/concepts/messages.md, docs/concepts/runtime.md, docs/concepts/context-api.md, docs/primitives/action-bar.md, docs/runtimes/custom/external-store.md, docs/runtimes/langgraph/interrupts.md, docs/cloud/messages.md, docs/integrations/persistence/custom-adapter.md",
+      "pages": [
+        "docs/guides/branching.md",
+        "docs/cloud/messages.md",
+        "docs/runtimes/custom/external-store.md",
+        "docs/primitives/branch-picker.md",
+        "docs/runtimes/langgraph/interrupts.md"
+      ],
+      "searches": [
+        "Grep: regenerat|reload|BranchPicker|onReload",
+        "Grep: regenerat|reload|onReload|branch",
+        "Grep: regenerat|onReload|reload\\(|startRun|branch",
+        "Grep: regenerat|branch",
+        "Grep: regenerat|reload|branch|parent_?id|withFormat",
+        "Grep: regenerat|branch",
+        "Grep: reload|regenerat",
+        "Grep: onReload|Regenerate|branch cleanup|[Bb]ranch",
+        "Grep: [Bb]ranch|parent_id|headId",
+        "Grep: regenerate-message|trigger.*regenerate|[Rr]egenerat|messageRepository",
+        "Grep: reload|Reload"
+      ],
+      "seconds": 32
+    },
+    {
+      "id": "q28",
+      "concept": "outside-thread",
+      "question": "How do I send a message or start a new thread from a button that lives outside the chat UI?",
+      "answer": "**Put the button under `AssistantRuntimeProvider`.** It can sit outside `<Thread />`, for example in a header or sidebar. The `thread`, `composer` and `threads` scopes are available anywhere under the provider.\n\n```tsx\nconst aui = useAui();\n// send\naui.thread.append(\"Hello\");\n// new thread\naui.threads.switchToNewThread();\n```\n\nA user message appended this way starts a reply unless it sets `startRun: false`. To send through the composer, call `aui.composer.setText(text)`, then `aui.composer.send()`; `setText` changes the draft. For a new-thread button, you can also use `ThreadListPrimitive.New`.\n\n**Threads:** by default, a runtime holds one in-memory thread. For a thread list, the docs offer Assistant Cloud, `useRemoteThreadListRuntime` or `ExternalStoreThreadListAdapter`. They don't say how `switchToNewThread()` behaves without one.\n\n**Doing both in one click:** the docs don't give a recipe or say whether you can await the switch. Accessors read during a previous render stay bound to the old thread, so test any switch-then-send code.\n\n**Outside the provider:** `useAui` won't work. Preferably, move the provider higher. Otherwise, publish `aui` from a child component that renders nothing, using an effect that updates when `aui` changes. The docs show this for reading state; using the published client to send or switch is my inference.\n\nPages: docs/guides/state-outside-the-thread.md, docs/concepts/context-api.md, docs/concepts/threads.md, docs/primitives/thread-list.md",
+      "pages": [
+        "docs/guides/state-outside-the-thread.md",
+        "docs/concepts/context-api.md",
+        "docs/api-reference/runtimes/thread-runtime.md",
+        "docs/api-reference/runtimes/thread-list-runtime.md",
+        "docs/concepts/threads.md"
+      ],
+      "searches": [
+        "Grep: switchToNewThread|thread(\\(\\))?\\.append\\(",
+        "Grep: \\.append\\(|ThreadListPrimitive\\.New\\b|startRun:"
+      ],
+      "seconds": 19
+    }
+  ]
+}

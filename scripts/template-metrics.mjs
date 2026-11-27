@@ -88,11 +88,11 @@ function bundleInputs(root, baseRef) {
 }
 
 function trackedFiles(root, dir) {
-  return execFileSync("git", ["ls-files", "--", dir], {
+  return execFileSync("git", ["ls-files", "-z", "--", dir], {
     cwd: root,
     encoding: "utf8",
   })
-    .split("\n")
+    .split("\0")
     .filter(Boolean);
 }
 

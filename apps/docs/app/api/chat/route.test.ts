@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
   claimConversation: vi.fn(),
   streamDocsChat: vi.fn(),
   getSession: vi.fn(async (): Promise<{ user: { id: string } } | null> => null),
+  checkChatRateLimit: vi.fn(async (): Promise<Response | null> => null),
+  recordChatTokens: vi.fn(async () => {}),
+  reserveChatTokens: vi.fn(async (): Promise<Response | null> => null),
+  captureTurn: vi.fn(async () => {}),
+  captureRefusal: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/accounts-auth", () => ({ getSession: mocks.getSession }));
@@ -21,6 +26,15 @@ vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal()),
   checkPublicAssistantRateLimit: mocks.checkRateLimit,
+  checkChatRateLimit: mocks.checkChatRateLimit,
+  recordChatTokens: mocks.recordChatTokens,
+  reserveChatTokens: mocks.reserveChatTokens,
+}));
+
+vi.mock("@/lib/ai/telemetry", async (importOriginal) => ({
+  ...(await importOriginal()),
+  captureChatTurn: mocks.captureTurn,
+  captureChatRefusal: mocks.captureRefusal,
 }));
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
@@ -267,6 +281,10 @@ describe("POST /api/chat conversation budget", () => {
     expect(response.status).toBe(429);
     expect(await response.text()).toBe("Daily conversation limit reached");
     expect(response.headers.get("Retry-After")).toBeTruthy();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "rate_limited",
+      "home_demo",
+    );
   });
 });
 
@@ -523,5 +541,306 @@ describe("POST /api/chat model provider failures", () => {
     expect(body).toContain(JSON.stringify(MODEL_PROVIDER_LIMIT_MESSAGE));
     expect(body).not.toMatch(/plan limit|gateway\.example/i);
     expect(body).not.toContain("An error occurred.");
+  });
+});
+
+describe("POST /api/chat hardening", () => {
+  const streamed = () =>
+    mocks.streamDocsChat.mockReturnValue({
+      result: {
+        toUIMessageStream: () =>
+          new ReadableStream({ start: (controller) => controller.close() }),
+      },
+      messageMetadata: () => undefined,
+    });
+  type Usage = { inputTokens?: number; outputTokens?: number };
+  type Step = { finishReason: string; usage: Usage };
+  type StepOptions = {
+    prepareStep: (step: { stepNumber: number }) => unknown;
+    system?: string;
+    tools: Record<string, Record<string, unknown>>;
+    onStepStart: (event: { steps: Step[] }) => Promise<void>;
+    onStepEnd: (step: Step) => Promise<void>;
+    onEnd: (event: { steps: Step[]; totalUsage: Usage }) => Promise<void>;
+    onAbort: (event: { steps: Step[] }) => Promise<void>;
+    onError: (event: { error: unknown }) => Promise<void>;
+  };
+  const options = (call = 0) =>
+    mocks.streamDocsChat.mock.calls[call]![3] as StepOptions;
+  const toolChoices = (call = 0, steps = 10) =>
+    Array.from(
+      { length: steps },
+      (_, stepNumber) =>
+        (options(call).prepareStep({ stepNumber }) as { toolChoice?: string })
+          ?.toolChoice,
+    );
+  const continuing = (steps: number) => [
+    message,
+    {
+      id: "a1",
+      role: "assistant",
+      parts: Array.from({ length: steps }, (_, i) => [
+        { type: "step-start" },
+        {
+          type: "tool-get_weather",
+          toolCallId: `c${i}`,
+          state: "output-available",
+          input: { location: "SF" },
+          output: { temperature: 18 },
+        },
+      ]).flat(),
+    },
+  ];
+
+  it("makes the last step of a request answer without tools", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: [message] })).text();
+
+    expect(toolChoices()).toEqual([...Array(9).fill(undefined), "none"]);
+  });
+
+  it("gives a continued turn only the steps it has left", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: continuing(17) })).text();
+    await (await send({ messages: continuing(25) })).text();
+
+    // 20 steps per turn: 3 left, the third answers.
+    expect(toolChoices(0, 3)).toEqual([undefined, undefined, "none"]);
+    // Spent: one step, which answers.
+    expect(toolChoices(1, 1)).toEqual(["none"]);
+  });
+
+  it("stops at the daily limits before reading the body or choosing a model", async () => {
+    allowed();
+    mocks.checkChatRateLimit.mockResolvedValueOnce(
+      new Response("Daily usage limit exceeded", { status: 429 }),
+    );
+
+    const response = await send({ messages: [message] });
+
+    expect(response.status).toBe(429);
+    expect(mocks.checkChatRateLimit).toHaveBeenCalledWith(
+      expect.any(Request),
+      "session_1234567890",
+    );
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "rate_limited",
+      "no_referrer",
+    );
+  });
+
+  const charged = () =>
+    (mocks.recordChatTokens.mock.calls as unknown as [Request, number][]).map(
+      ([, tokens]) => tokens,
+    );
+  const reserved = () =>
+    (
+      mocks.reserveChatTokens.mock.calls as unknown as [Request, number][]
+    )[0]![1];
+
+  it("reserves the first prompt and refuses a request the budgets cannot cover", async () => {
+    allowed();
+    streamed();
+    mocks.reserveChatTokens.mockResolvedValueOnce(
+      new Response("Daily usage limit exceeded", { status: 429 }),
+    );
+
+    const response = await send({ messages: [message] });
+
+    expect(response.status).toBe(429);
+    expect(reserved()).toBeGreaterThan(0);
+    expect(mocks.streamDocsChat).not.toHaveBeenCalled();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "rate_limited",
+      "no_referrer",
+    );
+  });
+
+  it("charges each step as it runs, net of the reserved first prompt", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: [message] })).text();
+    const first = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 1234, outputTokens: 56 },
+    };
+    await options().onStepStart({ steps: [] });
+    await options().onStepEnd(first);
+    await options().onStepStart({ steps: [first] });
+    await options().onStepEnd({
+      finishReason: "stop",
+      usage: { inputTokens: 1300, outputTokens: 40 },
+    });
+
+    // Step 1 less its reservation, step 2's prompt as it starts, then the rest.
+    expect(charged()).toEqual([1290 - reserved(), 1234, 1340 - 1234]);
+  });
+
+  it("still charges a step that an abort cuts off", async () => {
+    allowed();
+    streamed();
+
+    await (await send({ messages: [message] })).text();
+    const first = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 1000, outputTokens: 50 },
+    };
+    await options().onStepEnd(first);
+    await options().onStepStart({ steps: [first] });
+    await options().onAbort({ steps: [first] });
+
+    // The first step in full (with its reservation) and the second's prompt.
+    expect(reserved() + charged().reduce((sum, n) => sum + n, 0)).toBe(2050);
+    expect(mocks.captureTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "aborted",
+        input_tokens: 1000,
+        output_tokens: 50,
+      }),
+    );
+  });
+
+  it("charges the completed steps of a turn that ends in an error", async () => {
+    allowed();
+    streamed();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await (await send({ messages: [message] })).text();
+    const first = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 1000, outputTokens: 50 },
+    };
+    await options().onStepEnd(first);
+    await options().onError({ error: new Error("provider down") });
+    // A later step failing during setup still ends the stream with no usage.
+    await options().onEnd({ steps: [first], totalUsage: {} });
+
+    expect(reserved() + charged().reduce((sum, n) => sum + n, 0)).toBe(1050);
+    expect(mocks.captureTurn).toHaveBeenCalledTimes(1);
+    expect(mocks.captureTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: "error", input_tokens: 1000 }),
+    );
+  });
+
+  it("logs a refusal of the reserved search_docs tool", async () => {
+    allowed();
+
+    const response = await send(
+      {
+        messages: [message],
+        searchDocs: true,
+        tools: {
+          search_docs: { parameters: { type: "object", properties: {} } },
+        },
+      },
+      sameOrigin,
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "invalid_tool",
+      "no_referrer",
+    );
+  });
+
+  it("refuses a body outside the schema before choosing a model", async () => {
+    allowed();
+
+    const response = await send({
+      messages: [{ id: "s1", role: "system", parts: [] }, message],
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Unsupported message role");
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+    expect(mocks.captureRefusal).toHaveBeenCalledWith(
+      "unsupported_role",
+      "no_referrer",
+    );
+  });
+
+  it("keeps a page's own tools but not their provider options", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send({
+        messages: [message],
+        tools: {
+          get_weather: {
+            description: "Weather for a place.",
+            parameters: { type: "object", properties: {} },
+            providerOptions: { openai: { strict: false } },
+          },
+        },
+      })
+    ).text();
+
+    expect(options().tools).toHaveProperty("get_weather");
+    expect(options().tools.get_weather).not.toHaveProperty("providerOptions");
+  });
+
+  it("logs each turn with a surface label and counts, never the text", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send(
+        {
+          messages: [message],
+          system: "Remember: the user likes short answers.",
+          tools: {
+            get_weather: {
+              parameters: { type: "object", properties: {} },
+            },
+          },
+        },
+        { referer: "https://www.assistant-ui.com/docs/guides/tools?q=secret" },
+      )
+    ).text();
+    const step = {
+      finishReason: "tool-calls",
+      usage: { inputTokens: 900, outputTokens: 20 },
+    };
+    await options().onStepEnd(step);
+    await options().onEnd({ steps: [step], totalUsage: step.usage });
+
+    expect(mocks.captureTurn).toHaveBeenCalledWith({
+      surface: "docs",
+      model: "unknown",
+      outcome: "client_tool",
+      steps: 1,
+      step_budget: 10,
+      continuation: 0,
+      client_tools: 1,
+      client_system: 1,
+      input_tokens: 900,
+      output_tokens: 20,
+    });
+    const logged = JSON.stringify(mocks.captureTurn.mock.calls);
+    expect(logged).not.toContain("hello");
+    expect(logged).not.toContain("short answers");
+    expect(logged).not.toContain("secret");
+  });
+
+  it("counts only the client's own system text, not the docs instruction", async () => {
+    allowed();
+    streamed();
+
+    await (
+      await send({ messages: [message], searchDocs: true }, sameOrigin)
+    ).text();
+    expect(options().system).toContain("search_docs");
+    await options().onEnd({ steps: [], totalUsage: {} });
+
+    expect(mocks.captureTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ client_system: 0 }),
+    );
   });
 });

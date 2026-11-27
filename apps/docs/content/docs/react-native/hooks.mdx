@@ -211,7 +211,10 @@ import { Text } from "react-native";
 import { useMemo } from "react";
 
 export function useMyToolToolkit(someOuterProp: string) {
-  const stableRender = useInlineRender(({ args, result }) => (
+  const stableRender = useInlineRender<
+    Record<string, unknown>,
+    { value: string }
+  >(({ result }) => (
     <Text>{someOuterProp}: {result?.value}</Text>
   ));
 

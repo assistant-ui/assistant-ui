@@ -170,10 +170,12 @@ export async function POST(req: Request) {
     model: openai(config?.modelName ?? "gpt-5.6-luna"),
     providerOptions: { openai: { reasoningEffort: "none" } },
     temperature: callSettings?.temperature,
-    system,
+    instructions: system,
     messages: await convertToModelMessages(messages),
   });
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
 }
 ```
 

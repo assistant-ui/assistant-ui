@@ -53,7 +53,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-`status.type` is `"running"` while the arguments stream in and `"incomplete"` when the call was cut short, so the card renders only once the arguments are complete. Call `addResult` exactly once to resolve the call and let the model continue. The result shape is yours; `{ accepted: false }` here is a convention for "show me something else", not a fixed protocol value. An app that wants the model to keep proposing without resolving the call yet could instead leave it pending and send a follow-up user message.
+`status.type` is `"running"` while the arguments stream in and `"incomplete"` when the call was cut short, so the card renders only once the arguments are complete. Call `addResult` exactly once to resolve the call. The `sendAutomaticallyWhen` option in the next step sends the result back so the model continues. The result shape is yours; `{ accepted: false }` here is a convention for "show me something else", not a fixed protocol value. An app that wants the model to keep proposing without resolving the call yet could instead leave it pending and send a follow-up user message.
 
   </Step>
   <Step>
@@ -65,12 +65,15 @@ export const toolkit = defineToolkit({
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { toolkit } from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
