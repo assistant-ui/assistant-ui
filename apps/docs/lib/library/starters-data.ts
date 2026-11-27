@@ -204,16 +204,22 @@ export const STARTERS: readonly Starter[] = [
     kind: "template",
     screenshots: {
       light: [
-        "/screenshot/starters/minimal/empty-light.png",
-        "/screenshot/starters/minimal/conversation-light.png",
-        "/screenshot/starters/minimal/reply-end-light.png",
-        "/screenshot/starters/minimal/mobile-light.png",
+        "/screenshot/starters/minimal/desktop-conversation-light.png",
+        "/screenshot/starters/minimal/desktop-empty-light.png",
       ],
       dark: [
-        "/screenshot/starters/minimal/empty-dark.png",
-        "/screenshot/starters/minimal/conversation-dark.png",
-        "/screenshot/starters/minimal/reply-end-dark.png",
-        "/screenshot/starters/minimal/mobile-dark.png",
+        "/screenshot/starters/minimal/desktop-conversation-dark.png",
+        "/screenshot/starters/minimal/desktop-empty-dark.png",
+      ],
+    },
+    phoneScreenshots: {
+      light: [
+        "/screenshot/starters/minimal/phone-conversation-light.png",
+        "/screenshot/starters/minimal/phone-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/minimal/phone-conversation-dark.png",
+        "/screenshot/starters/minimal/phone-empty-dark.png",
       ],
     },
     framework: "Next.js",
@@ -272,16 +278,22 @@ export const STARTERS: readonly Starter[] = [
     kind: "template",
     screenshots: {
       light: [
-        "/screenshot/starters/cloud/empty-light.png",
-        "/screenshot/starters/cloud/conversation-light.png",
-        "/screenshot/starters/cloud/reply-end-light.png",
-        "/screenshot/starters/cloud/mobile-light.png",
+        "/screenshot/starters/cloud/desktop-conversation-light.png",
+        "/screenshot/starters/cloud/desktop-empty-light.png",
       ],
       dark: [
-        "/screenshot/starters/cloud/empty-dark.png",
-        "/screenshot/starters/cloud/conversation-dark.png",
-        "/screenshot/starters/cloud/reply-end-dark.png",
-        "/screenshot/starters/cloud/mobile-dark.png",
+        "/screenshot/starters/cloud/desktop-conversation-dark.png",
+        "/screenshot/starters/cloud/desktop-empty-dark.png",
+      ],
+    },
+    phoneScreenshots: {
+      light: [
+        "/screenshot/starters/cloud/phone-conversation-light.png",
+        "/screenshot/starters/cloud/phone-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/cloud/phone-conversation-dark.png",
+        "/screenshot/starters/cloud/phone-empty-dark.png",
       ],
     },
     framework: "Next.js",
