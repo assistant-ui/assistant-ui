@@ -1,6 +1,7 @@
 import { cacheLife } from "next/cache";
 import type { NextRequest } from "next/server";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
+import { missingMarkdownResponse } from "@/lib/docs-markdown";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 import { blog, type BlogPage } from "@/lib/source";
 import { remark } from "remark";
@@ -36,6 +37,9 @@ export async function GET(
 ) {
   const { slug } = await params;
   const markdown = await getMarkdown(slug);
+  if (markdown === null) {
+    return missingMarkdownResponse(`/blog/${slug}`, blog.getPages());
+  }
   return createMarkdownResponse(markdown);
 }
 

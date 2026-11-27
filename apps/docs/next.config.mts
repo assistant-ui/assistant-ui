@@ -247,7 +247,18 @@ const config: NextConfig = {
           },
         ]
       : []),
-    { source: "/:path*", headers: [{ key: "Vary", value: "Accept" }] },
+    ...[
+      "/",
+      "/pricing",
+      "/docs/:path*",
+      "/examples/:path*",
+      "/design/:path*",
+      "/elements/:path*",
+      ...docsSiteMarkdownAcceptRewrites().map(({ source }) => source),
+    ].map((source) => ({
+      source,
+      headers: [{ key: "Vary", value: "Accept" }],
+    })),
     ...apiCatalogDiscoveryPaths.map((source) => ({
       source,
       headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],

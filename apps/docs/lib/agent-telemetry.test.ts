@@ -129,7 +129,7 @@ describe("agentDocsRead", () => {
       "text/markdown",
       { kind: "markdown", negotiated: true },
     ],
-    ["/", "text/markdown, */*", { kind: "llms", negotiated: true }],
+    ["/", "text/markdown, */*", { kind: "markdown", negotiated: true }],
   ] as const)("counts %s", (path, accept, expected) => {
     expect(agentDocsRead(path, headers(accept))).toEqual({ path, ...expected });
   });

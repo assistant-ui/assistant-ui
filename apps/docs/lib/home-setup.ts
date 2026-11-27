@@ -1,3 +1,11 @@
+export const HOME_TITLE = "assistant-ui · The frontend library for AI agents";
+export const HOME_DESCRIPTION =
+  "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.";
+export const HOME_LIBRARY = {
+  title: "@assistant-ui/react",
+  description: "The runtime owns the thread, the stream, and the tools.",
+};
+
 export const SETUP_SNIPPETS = [
   {
     id: "ai-sdk",

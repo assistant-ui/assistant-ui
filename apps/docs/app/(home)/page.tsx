@@ -70,11 +70,6 @@ export default async function HomePage() {
 
   return (
     <PageFrame pad="heroBody" className="relative z-2 flex flex-col">
-      <link
-        rel="service-desc"
-        href="/openapi.json"
-        type="application/vnd.oai.openapi+json"
-      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

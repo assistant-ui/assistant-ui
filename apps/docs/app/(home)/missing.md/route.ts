@@ -1,5 +1,5 @@
-import { createMarkdownResponse } from "@/lib/markdown-response";
+import { missingMarkdownResponse } from "@/lib/docs-markdown";
 
-export function GET() {
-  return createMarkdownResponse(null);
+export function GET(request: Request) {
+  return missingMarkdownResponse(new URL(request.url).pathname, []);
 }

@@ -11,6 +11,7 @@ import type { TableOfContents } from "fumadocs-core/toc";
 import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
 import type { PluggableList } from "unified";
+import { DOCS_SITES } from "./lib/docs-sites";
 
 const { rmSync } = vi.hoisted(() => ({ rmSync: vi.fn() }));
 vi.mock("node:fs", async (importOriginal) => ({
@@ -81,6 +82,57 @@ describe("docs Next config composition", () => {
     expect(config.turbopack?.rules).toMatchObject({
       "*.tsx": { loaders: [{ loader: "@assistant-ui/next/loader" }] },
     });
+  });
+
+  it("rewrites requests for the homepage in markdown before checking the filesystem", async () => {
+    const rewrites = await config.rewrites!();
+    expect(rewrites).toMatchObject({
+      beforeFiles: expect.arrayContaining([
+        {
+          source: "/",
+          has: [
+            { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          ],
+          destination: "/index.md",
+        },
+      ]),
+    });
+  });
+
+  it("rewrites unmatched markdown requests to the markdown 404", async () => {
+    const rewrites = await config.rewrites!();
+    expect(rewrites).toMatchObject({
+      fallback: expect.arrayContaining([
+        {
+          source: "/:path*",
+          has: [
+            { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          ],
+          destination: "/missing.md",
+        },
+      ]),
+    });
+  });
+
+  it("varies responses on Accept at markdown-negotiating sources", async () => {
+    const headers = await config.headers!();
+    const sources = headers
+      .filter(({ headers }) =>
+        headers.some(({ key, value }) => key === "Vary" && value === "Accept"),
+      )
+      .map(({ source }) => source);
+
+    expect(sources.sort()).toEqual(
+      [
+        "/",
+        "/pricing",
+        "/docs/:path*",
+        "/examples/:path*",
+        "/design/:path*",
+        "/elements/:path*",
+        ...DOCS_SITES.map(({ id }) => `/${id}/docs/:path*`),
+      ].sort(),
+    );
   });
 
   // A /docs redirect written here by hand moves the page for browsers only:

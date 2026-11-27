@@ -2,6 +2,18 @@ import type { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
 import "@/test/mock-content";
 
+const { post } = vi.hoisted(() => ({
+  post: {
+    data: {
+      description: "Description",
+      getText: vi.fn(async () => "Post body"),
+      title: "Post",
+    },
+    path: "post.mdx",
+    url: "/blog/post",
+  },
+}));
+
 vi.mock("@/lib/source", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/source")>();
 
@@ -9,15 +21,8 @@ vi.mock("@/lib/source", async (importOriginal) => {
     ...actual,
     blog: {
       ...actual.blog,
-      getPage: () => ({
-        data: {
-          description: "Description",
-          getText: vi.fn(async () => "Post body"),
-          title: "Post",
-        },
-        path: "post.mdx",
-        url: "/blog/post",
-      }),
+      getPage: (slug: string[]) => (slug.join("/") === "post" ? post : undefined),
+      getPages: () => [post],
     },
   };
 });
@@ -42,5 +47,20 @@ describe("GET", () => {
       /^"sha256-[a-f0-9]{64}"$/,
     );
     expect(response.headers.get("X-Robots-Tag")).toBe("noindex, follow");
+  });
+
+  it("suggests a nearby blog post when the requested post is missing", async () => {
+    const response = await GET(
+      new Request("https://example.com/blog/posts.md") as NextRequest,
+      { params: Promise.resolve({ slug: "posts" }) },
+    );
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("Content-Type")).toBe(
+      "text/markdown; charset=utf-8",
+    );
+    const body = await response.text();
+    expect(body).toContain("There is no page at `/blog/posts`.");
+    expect(body).toContain("[Post](/blog/post.md)");
   });
 });

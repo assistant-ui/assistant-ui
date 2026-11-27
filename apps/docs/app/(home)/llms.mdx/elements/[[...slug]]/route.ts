@@ -1,6 +1,7 @@
 import { cacheLife } from "next/cache";
 import { getLLMText } from "@/lib/get-llm-text";
 import { elementsDocs } from "@/lib/source";
+import { notFound } from "next/navigation";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 import {
   kebabCaseSlug,
@@ -70,6 +71,7 @@ export async function GET(
     );
   }
   const markdown = await getMarkdown(slug);
+  if (markdown === null) notFound();
   return createMarkdownResponse(markdown);
 }
 

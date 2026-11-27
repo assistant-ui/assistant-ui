@@ -3,16 +3,12 @@ import { sha256 } from "./sha256";
 const CACHE_CONTROL = "no-cache, must-revalidate";
 
 export function createMarkdownResponse(
-  content: string | null,
+  content: string,
   contentType = "text/markdown; charset=utf-8",
 ) {
-  const body =
-    content ??
-    "# Page not found\n\nBrowse the [documentation index](/llms.txt) or return to the [homepage](/index.md).\n";
-  const digest = sha256(body);
+  const digest = sha256(content);
 
-  return new Response(body, {
-    status: content === null ? 404 : 200,
+  return new Response(content, {
     headers: {
       "Cache-Control": CACHE_CONTROL,
       "Content-Type": contentType,
