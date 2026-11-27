@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Tabs } from "@base-ui/react/tabs";
 import {
@@ -171,13 +172,10 @@ function StarterDetails({ starter }: { starter: Starter }) {
             href={starterSourceHref(starter)}
             target="_blank"
             rel="noreferrer"
-            className={cn(
-              button,
-              "bg-foreground/[0.06] hover:bg-foreground/[0.1] shrink-0 rounded-full",
-            )}
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-1.5 inline-flex shrink-0 items-center gap-1 rounded-sm text-sm underline-offset-4 transition-colors outline-none hover:underline focus-visible:ring-2"
           >
-            View source
-            <ArrowUpRightIcon aria-hidden />
+            View repo
+            <ArrowUpRightIcon aria-hidden className="size-3.5" />
             <span className="sr-only">on GitHub (opens in a new tab)</span>
           </a>
         </div>
@@ -352,11 +350,17 @@ export function StarterDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const popupRef = useRef<HTMLDivElement>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
-        <Dialog.Popup className="bg-background ring-foreground/10 fixed top-[max(1rem,6vh)] left-1/2 z-50 max-h-[calc(100dvh-max(2rem,12vh))] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto rounded-[30px] shadow-xl ring-1 transition-[opacity,scale] duration-150 outline-none data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
+        <Dialog.Popup
+          ref={popupRef}
+          tabIndex={-1}
+          initialFocus={popupRef}
+          className="bg-background ring-foreground/10 fixed top-[max(1rem,6vh)] left-1/2 z-50 max-h-[calc(100dvh-max(2rem,12vh))] w-[min(40rem,calc(100vw-2rem))] -translate-x-1/2 overflow-y-auto rounded-[30px] shadow-xl ring-1 transition-[opacity,scale] duration-150 outline-none data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none"
+        >
           {starter ? <StarterDetails starter={starter} /> : null}
           <Dialog.Close
             aria-label="Close"
