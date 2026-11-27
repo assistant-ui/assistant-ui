@@ -921,9 +921,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Common logic for both paths
-    const tail = messages.findLast(
-      (message) => !message.metadata?.isOptimistic,
-    );
+    const tail = messages.findLast((message) => !message.metadata.isOptimistic);
     if (tail?.role !== "user") {
       this._trailingUserRollback = undefined;
     } else {
@@ -1825,7 +1823,7 @@ export class ExternalStoreThreadRuntimeCore
     this.repository.deleteMessage(messageId);
     if (!previousPath) return;
     const previousHead = previousPath.findLast((message) => {
-      if (message.metadata?.isOptimistic) return false;
+      if (message.metadata.isOptimistic) return false;
       try {
         this.repository.getMessage(message.id);
         return true;
@@ -1953,7 +1951,6 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
-    this._rollbackPath = undefined;
     this._trailingUserRollback = undefined;
     super.import(data);
     this._clearPendingResume(pendingResume);
