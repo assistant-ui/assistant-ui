@@ -18,7 +18,10 @@ const SHARED_BUILD_INPUTS = [
 
 export const APP_BUILD_INPUTS = [
   ...SHARED_BUILD_INPUTS,
+  "apps/docs/components",
   "apps/docs/content",
+  "apps/docs/lib",
+  "apps/docs/styles",
   "examples",
   "templates",
 ];
