@@ -406,13 +406,12 @@ const LOOKS = [
 /** The All tab's backdrop, the one panel that mixes colors. */
 const HOME_TONE: VisualTone = "iris";
 
-/** Each tab's own color, as the hue its hero visuals are tinted with: ten hues spaced evenly around the wheel, so no two tabs share one. */
+/** Each tab's own color, as the hue its hero visuals are tinted with: hues spaced around the wheel, so no two tabs share one. */
 const SECTION_HUE: Record<LibrarySectionId, number> = {
   blocks: 10,
   runtimes: 46,
   mcp: 82,
   starters: 118,
-  tools: 154,
   agents: 190,
   components: 226,
   integrations: 262,

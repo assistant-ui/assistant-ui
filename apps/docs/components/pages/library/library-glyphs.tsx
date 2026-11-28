@@ -117,33 +117,6 @@ function GlyphRuntimes() {
   );
 }
 
-/** A call between braces. */
-function GlyphTools() {
-  return (
-    <GlyphSvg>
-      <path
-        {...motion("draw")}
-        pathLength={100}
-        d="M12.5 5.5c-2 0-2.5 1-2.5 2.600v1.600c0 1.400-.6 2.300-2 2.300 1.400 0 2 .9 2 2.300v1.600c0 1.600.5 2.600 2.500 2.600"
-      />
-      <path
-        {...motion("draw", 90)}
-        pathLength={100}
-        d="M19.5 5.5c2 0 2.500 1 2.500 2.600v1.600c0 1.400.6 2.300 2 2.300-1.400 0-2 .9-2 2.300v1.600c0 1.600-.5 2.600-2.500 2.600"
-      />
-      <rect
-        {...motion("pop", 240)}
-        x="14.6"
-        y="10.6"
-        width="2.8"
-        height="2.8"
-        rx="0.7"
-        className={cn(SOLID, ACCENT_FILL)}
-      />
-    </GlyphSvg>
-  );
-}
-
 /** Two services that overlap. */
 function GlyphIntegrations() {
   return (
@@ -380,7 +353,6 @@ const GLYPHS: Record<LibrarySectionId, () => ReactNode> = {
   blocks: GlyphBlocks,
   starters: GlyphStarters,
   runtimes: GlyphRuntimes,
-  tools: GlyphTools,
   integrations: GlyphIntegrations,
   utilities: GlyphUtilities,
   skills: GlyphSkills,

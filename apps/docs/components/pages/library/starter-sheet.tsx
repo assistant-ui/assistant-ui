@@ -1,21 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   ArrowUpRightIcon,
   BotIcon,
   CalendarIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DownloadIcon,
   FolderGitIcon,
   GlobeIcon,
   KeyRoundIcon,
-  BookmarkCheckIcon,
-  BookmarkIcon,
   TerminalIcon,
-  XIcon,
   BoxIcon,
   ComponentIcon,
   FileCodeIcon,
@@ -63,29 +58,24 @@ import {
   type Starter,
 } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
-import { useLibrarySaved } from "./saved-store";
 import { copyWithLibraryToast } from "./library-toast";
-import { toggleLibrarySavedWithToast } from "./library-item-menu";
 import { FilterIcon } from "./filter-icons";
 import { LibraryCopyButton } from "./library-copy-button";
 import { LibraryIconButton } from "./library-icon-button";
-import { LibraryKindLabel } from "./library-kind";
+import {
+  SheetFooter,
+  SheetHeader,
+  SheetLinkRow,
+  sheetButton,
+  sheetPrimary,
+} from "./library-sheet";
 import { LibraryStatusBadge } from "./library-status";
 import { PresetThumbnail } from "./preset-card";
 import { StarterThumbnail } from "./starter-card";
 import { GroupRow, RowGroup } from "./library-row-group";
 import { CommandLine, Step } from "./library-steps";
-import {
-  LibraryDrawer,
-  LibraryDrawerClose,
-  LibraryDrawerContent,
-  LibraryDrawerDescription,
-  LibraryDrawerTitle,
-} from "./library-drawer";
+import { LibraryDrawer, LibraryDrawerContent } from "./library-drawer";
 import { StarterScreenshots } from "./starter-screenshots";
-
-const button =
-  "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-(--library-control) px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 function CodeList({ items }: { items: readonly string[] }) {
   return (
@@ -182,45 +172,6 @@ const TABS = [
   { value: "setup", label: "Setup" },
   { value: "dependencies", label: "Dependencies" },
 ] as const;
-
-/** A row that names a place and opens it in a new tab. */
-function LinkRow({
-  icon,
-  label,
-  href,
-  text = href.replace(/^https:\/\//, ""),
-  tooltip,
-}: {
-  icon: ReactNode;
-  label: string;
-  href: string;
-  /** What the row shows for the address; the address itself when left out. */
-  text?: string;
-  tooltip: string;
-}) {
-  return (
-    <GroupRow
-      icon={icon}
-      label={label}
-      value={
-        <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
-          {text}
-        </span>
-      }
-      action={
-        <LibraryIconButton
-          tooltip={tooltip}
-          aria-label={`${tooltip} (opens in a new tab)`}
-          nativeButton={false}
-          render={<a href={href} target="_blank" rel="noreferrer" />}
-          className="-me-1.5"
-        >
-          <ArrowUpRightIcon aria-hidden />
-        </LibraryIconButton>
-      }
-    />
-  );
-}
 
 function OpenStep({ open }: { open: ReturnType<typeof starterOpen> }) {
   if ("text" in open) {
@@ -366,7 +317,6 @@ function StarterDetails({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [view.id]);
-  const isSaved = useLibrarySaved().includes(view.id);
   const status = libraryStatus(view.id);
 
   return (
@@ -376,54 +326,31 @@ function StarterDetails({
         className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       >
         <div className="flex flex-1 flex-col gap-6 p-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-3">
-              {entry.kind === "preset" ? (
+          <SheetHeader
+            thumbnail={
+              entry.kind === "preset" ? (
                 <PresetThumbnail id={entry.preset.id} />
               ) : (
                 <StarterThumbnail starter={entry.starter} />
-              )}
-              <div className="flex min-w-0 flex-1 flex-col gap-1 self-center">
-                <LibraryDrawerTitle className="text-lg leading-6 font-medium">
-                  {view.label}
-                </LibraryDrawerTitle>
-                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <LibraryKindLabel kind={view.kind} />
-                  <LibraryStatusBadge id={view.id} />
-                </div>
-              </div>
-              <div className="-me-2 -mt-0.5 flex shrink-0 items-center">
-                <LibraryIconButton
-                  tooltip={
-                    previous ? `Previous: ${entryName(previous)}` : "Previous"
-                  }
-                  side="bottom"
-                  disabled={!previous}
-                  focusableWhenDisabled
-                  onClick={() => previous && onEntryChange(previous)}
-                >
-                  <ChevronLeftIcon aria-hidden />
-                </LibraryIconButton>
-                <LibraryIconButton
-                  tooltip={next ? `Next: ${entryName(next)}` : "Next"}
-                  side="bottom"
-                  disabled={!next}
-                  focusableWhenDisabled
-                  onClick={() => next && onEntryChange(next)}
-                >
-                  <ChevronRightIcon aria-hidden />
-                </LibraryIconButton>
-                <LibraryDrawerClose
-                  render={<LibraryIconButton tooltip="Close" side="bottom" />}
-                >
-                  <XIcon aria-hidden />
-                </LibraryDrawerClose>
-              </div>
-            </div>
-            <LibraryDrawerDescription className="text-muted-foreground text-sm text-pretty">
-              {view.description}
-            </LibraryDrawerDescription>
-          </div>
+              )
+            }
+            title={view.label}
+            kind={view.kind}
+            badge={<LibraryStatusBadge id={view.id} />}
+            description={view.description}
+            previous={
+              previous && {
+                label: entryName(previous),
+                go: () => onEntryChange(previous),
+              }
+            }
+            next={
+              next && {
+                label: entryName(next),
+                go: () => onEntryChange(next),
+              }
+            }
+          />
 
           <Tabs.Root
             value={tab}
@@ -487,7 +414,7 @@ function StarterDetails({
                   />
                 ) : null}
                 {view.download ? (
-                  <LinkRow
+                  <SheetLinkRow
                     icon={<DownloadIcon aria-hidden />}
                     label="Download"
                     href={view.download}
@@ -510,7 +437,7 @@ function StarterDetails({
               {view.repo || view.preview || view.updated ? (
                 <RowGroup title="Links">
                   {view.repo ? (
-                    <LinkRow
+                    <SheetLinkRow
                       icon={<FolderGitIcon aria-hidden />}
                       label="Repo"
                       href={view.repo}
@@ -519,7 +446,7 @@ function StarterDetails({
                     />
                   ) : null}
                   {view.preview ? (
-                    <LinkRow
+                    <SheetLinkRow
                       icon={<GlobeIcon aria-hidden />}
                       label="Preview"
                       href={view.preview}
@@ -666,7 +593,7 @@ function StarterDetails({
           </Tabs.Root>
         </div>
       </div>
-      <div className="flex gap-2 border-t p-4">
+      <SheetFooter id={view.id} label={view.label}>
         {command ? (
           <button
             type="button"
@@ -674,10 +601,7 @@ function StarterDetails({
             onClick={() =>
               copyWithLibraryToast(command, "Install command copied.")
             }
-            className={cn(
-              button,
-              "bg-foreground text-background hover:bg-foreground/90 flex-1",
-            )}
+            className={cn(sheetButton, sheetPrimary)}
           >
             <TerminalIcon aria-hidden />
             Install
@@ -687,10 +611,7 @@ function StarterDetails({
             href={view.download}
             target="_blank"
             rel="noreferrer"
-            className={cn(
-              button,
-              "bg-foreground text-background hover:bg-foreground/90 flex-1",
-            )}
+            className={cn(sheetButton, sheetPrimary)}
           >
             <DownloadIcon aria-hidden />
             Download
@@ -700,32 +621,13 @@ function StarterDetails({
           <button
             type="button"
             onClick={() => copyWithLibraryToast(prompt, "Agent prompt copied.")}
-            className={cn(
-              button,
-              "bg-foreground text-background hover:bg-foreground/90 flex-1",
-            )}
+            className={cn(sheetButton, sheetPrimary)}
           >
             <BotIcon aria-hidden />
             Copy agent prompt
           </button>
         )}
-        <button
-          type="button"
-          aria-pressed={isSaved}
-          onClick={() => toggleLibrarySavedWithToast(view.id, view.label)}
-          className={cn(
-            button,
-            "bg-foreground/[0.06] hover:bg-foreground/[0.1] flex-1",
-          )}
-        >
-          {isSaved ? (
-            <BookmarkCheckIcon aria-hidden />
-          ) : (
-            <BookmarkIcon aria-hidden />
-          )}
-          {isSaved ? "Remove from saved" : "Save"}
-        </button>
-      </div>
+      </SheetFooter>
     </div>
   );
 }

@@ -11,7 +11,6 @@ import {
   LIBRARY_INTEGRATIONS,
   LIBRARY_PRIMITIVES,
   LIBRARY_RUNTIMES,
-  LIBRARY_TOOLS,
   LIBRARY_UTILITIES,
   type LibraryPageGroup,
 } from "./docs-data";
@@ -46,7 +45,6 @@ export type LibrarySectionId =
   | "blocks"
   | "starters"
   | "runtimes"
-  | "tools"
   | "integrations"
   | "utilities"
   | "skills"
@@ -127,12 +125,7 @@ const links = (items: readonly LibraryLink[]): LibraryEntry[] =>
   items.map((link) => ({ kind: "link", link }));
 
 /** Tabs whose every row leads with a mark; an item with no key of its own shows its first letter. */
-const MARKED: readonly string[] = [
-  "runtimes",
-  "tools",
-  "integrations",
-  "utilities",
-];
+const MARKED: readonly string[] = ["runtimes", "integrations", "utilities"];
 
 const marked = (section: string, id: string, name: string) =>
   LIBRARY_MARKS[id] ??
@@ -316,16 +309,6 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     groups: pages("runtimes", LIBRARY_RUNTIMES),
   },
   {
-    id: "tools",
-    title: "Tools",
-    noun: "tools",
-    description: "Tool calls, tool UI, generative UI, and MCP.",
-    href: "/docs/tools",
-    guide: "Read the tools guide",
-    skills: ["tools", "generative-ui"],
-    groups: pages("tools", LIBRARY_TOOLS),
-  },
-  {
     id: "integrations",
     title: "Integrations",
     noun: "integrations",
@@ -423,7 +406,6 @@ const COMMAND_BASE: Partial<Record<LibrarySectionId, string>> = {
   components: SHADCN_ADD,
   starters: STARTERS_COMMAND,
   runtimes: "npm install",
-  tools: "npm install",
   integrations: "npm install",
   utilities: "npm install",
   agents: `${SKILLS_COMMAND} -a`,

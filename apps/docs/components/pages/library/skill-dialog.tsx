@@ -7,6 +7,8 @@ import {
   BookmarkIcon,
   BookmarkXIcon,
   BotIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
   EllipsisIcon,
@@ -240,7 +242,20 @@ const RESULTS = "search-results";
 
 type Target = { hit: SkillSearchHit; done: boolean };
 
-function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
+function SkillDialogBody({
+  skill,
+  previous,
+  next,
+  stepped,
+  onSkillChange,
+}: {
+  skill: LibrarySkill;
+  previous: LibrarySkill | undefined;
+  next: LibrarySkill | undefined;
+  /** The arrow that brought this skill up, which takes focus so stepping can go on from the keyboard. */
+  stepped: "previous" | "next" | null;
+  onSkillChange: (skill: LibrarySkill, by: "previous" | "next") => void;
+}) {
   const isSaved = useLibrarySaved().includes(skillSavedId(skill.name));
   const files = filesOf(skill);
   const [name, setName] = useState("SKILL.md");
@@ -357,6 +372,26 @@ function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
           </LibraryDialogDescription>
         </div>
         <div className="-me-1 -mt-1 flex items-center">
+          <LibraryIconButton
+            tooltip={previous ? `Previous: ${previous.title}` : "Previous"}
+            side="bottom"
+            disabled={!previous}
+            focusableWhenDisabled
+            autoFocus={stepped === "previous"}
+            onClick={() => previous && onSkillChange(previous, "previous")}
+          >
+            <ChevronLeftIcon aria-hidden />
+          </LibraryIconButton>
+          <LibraryIconButton
+            tooltip={next ? `Next: ${next.title}` : "Next"}
+            side="bottom"
+            disabled={!next}
+            focusableWhenDisabled
+            autoFocus={stepped === "next"}
+            onClick={() => next && onSkillChange(next, "next")}
+          >
+            <ChevronRightIcon aria-hidden />
+          </LibraryIconButton>
           <SkillMenu skill={skill} file={file} />
           <LibraryDialogClose
             render={<LibraryIconButton tooltip="Close" side="bottom" />}
@@ -507,23 +542,52 @@ function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
 /** `skill` stays set while the dialog closes, so its content holds through the exit animation. */
 export function SkillDialog({
   skill,
+  skills,
+  onSkillChange,
   open,
   onOpenChange,
 }: {
   skill: LibrarySkill | null;
+  /** The skills on screen, in order, which the arrows step through. */
+  skills: readonly LibrarySkill[];
+  onSkillChange: (skill: LibrarySkill) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
+  const index = skill
+    ? skills.findIndex((entry) => entry.name === skill.name)
+    : -1;
+  const previous = index > 0 ? skills[index - 1] : undefined;
+  const next = index === -1 ? undefined : skills[index + 1];
+  const [stepped, setStepped] = useState<"previous" | "next" | null>(null);
   return (
-    <LibraryDialog open={open} onOpenChange={onOpenChange}>
+    <LibraryDialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setStepped(null);
+        onOpenChange(nextOpen);
+      }}
+    >
       <LibraryDialogContent
         ref={popupRef}
         tabIndex={-1}
         initialFocus={popupRef}
         className="h-[40rem] sm:w-[36rem]"
       >
-        {skill ? <SkillDialogBody key={skill.name} skill={skill} /> : null}
+        {skill ? (
+          <SkillDialogBody
+            key={skill.name}
+            skill={skill}
+            previous={previous}
+            next={next}
+            stepped={stepped}
+            onSkillChange={(nextSkill, by) => {
+              setStepped(by);
+              onSkillChange(nextSkill);
+            }}
+          />
+        ) : null}
       </LibraryDialogContent>
     </LibraryDialog>
   );

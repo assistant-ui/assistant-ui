@@ -14,7 +14,6 @@ const KIND_TONE: Record<LibraryKind, string> = {
   component: "text-sky-700 dark:text-sky-400",
   block: "text-rose-600 dark:text-rose-400",
   runtime: "text-orange-700 dark:text-orange-400",
-  tool: "text-teal-700 dark:text-teal-400",
   integration: "text-indigo-600 dark:text-indigo-400",
   utility: "text-fuchsia-700 dark:text-fuchsia-400",
   agent: "text-cyan-700 dark:text-cyan-400",

@@ -87,10 +87,11 @@ When to redo it: the CLI's `mcp` command gains or changes an editor, or the host
 
 ## Docs-backed library tabs are hand-copied snapshots
 
-`lib/library/docs-data.ts` holds what the Runtimes, Tools, Integrations, and Utilities tabs and the Primitives group on `/library` show: each page's name, one line about it, its address, and its group. Nothing reads the docs content, so the file goes stale when a page changes. Nothing checks it today.
+`lib/library/docs-data.ts` holds what the Runtimes, Integrations, and Utilities tabs and the Primitives group on `/library` show: each page's name, one line about it, its address, and its group. Nothing reads the docs content, so the file goes stale when a page changes. Nothing checks it today.
 
 - Names and lines were copied from each page's `title` and `description` under `content/docs`, the line cut to its first sentence.
-- The groups mirror the separators in each section's `content/docs/<section>/meta.json` (Runtimes, Tools) or its subfolders (Integrations).
+- The groups mirror the separators in each section's `content/docs/<section>/meta.json` (Runtimes) or its subfolders (Integrations).
+- There is no Tools tab. The docs' Tools section is 17 pages, none of them a registry item and most of them guides with nothing to install, so it was removed from the library; the registry's tool components are under Components.
 - Runtime names are shortened by hand ("Vercel AI SDK" for a page titled "Vercel AI SDK Runtime").
 - Utilities adds four things that are not under `content/docs/utilities`: DevTools (`guides/devtools`), Safe Content Frame, Generative Frame, and Variants.
 
@@ -138,10 +139,10 @@ When to redo it: a registry item, an npm package, or a `setup` product is rename
 
 ## Marks before item names are hand-assigned
 
-`lib/library/marks.ts` says what is drawn before each Runtimes, Tools, Integrations, Utilities, and MCP server item: a brand's logo, a coding agent's mark, or one of the library's line drawings. `components/pages/library/library-mark.tsx` draws them. An item with no entry shows the first letter of its name (Pydantic AI, better-auth, and Auth.js today, which have no logo in the repository).
+`lib/library/marks.ts` says what is drawn before each Runtimes, Integrations, Utilities, and MCP server item: a brand's logo, a coding agent's mark, or one of the library's line drawings. `components/pages/library/library-mark.tsx` draws them. An item with no entry shows the first letter of its name (Pydantic AI, better-auth, and Auth.js today, which have no logo in the repository).
 
 - Logos come from `components/icons` and from the brands the starters' filter menu already draws.
-- Tools and Utilities have no brands of their own, so most borrow a skill's or a tab's drawing; four utilities have their own drawings in `library-glyphs.tsx`.
+- Utilities have no brands of their own, so most borrow a skill's or a tab's drawing; four utilities have their own drawings in `library-glyphs.tsx`.
 - Components have no marks yet; that tab is due to be redone.
 
 When to redo it: an item is added to one of those tabs, or a logo for a lettered item is added to the repository.

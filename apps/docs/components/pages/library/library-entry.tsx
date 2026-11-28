@@ -6,34 +6,49 @@ import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import type { LibraryBlock } from "@/lib/library/blocks-data";
 import type { LibraryLink, LibrarySectionId } from "@/lib/library/library-data";
-import { blockSavedId } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
 import { overPreview } from "./library-icon-button";
 import { LibraryGlyph } from "./library-glyphs";
 import { itemFrame } from "./library-item";
-import type { LibraryDetails } from "./library-item-dialog";
+import { libraryDetails, type LibraryDetails } from "./library-item-sheet";
 import { LibraryItemMenu } from "./library-item-menu";
 import { LibraryMark } from "./library-mark";
 
-/** An item's name as the link to its page; the click area covers the whole item. */
-function LinkTitle({
+const titleTarget =
+  "focus-visible:after:ring-ring underline-offset-4 outline-none group-hover/navlink:underline after:absolute after:-inset-x-2 after:inset-y-0 after:rounded-lg focus-visible:after:ring-2";
+
+/**
+ * An item's name, whose click area covers the whole item. It opens the item's
+ * details when it has them, and otherwise is the link to its page.
+ */
+function EntryTitle({
   href,
+  onSelect,
   className,
   children,
 }: {
   href: string;
+  onSelect: (() => void) | undefined;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <div className={cn("flex items-baseline gap-1.5", className)}>
       <h3 className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
-        <Link
-          href={href}
-          className="focus-visible:after:ring-ring underline-offset-4 outline-none group-hover/navlink:underline after:absolute after:-inset-x-2 after:inset-y-0 after:rounded-lg focus-visible:after:ring-2"
-        >
-          {children}
-        </Link>
+        {onSelect ? (
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={onSelect}
+            className={cn(titleTarget, "cursor-pointer text-left")}
+          >
+            {children}
+          </button>
+        ) : (
+          <Link href={href} className={titleTarget}>
+            {children}
+          </Link>
+        )}
       </h3>
       <ArrowRightIcon
         aria-hidden
@@ -43,7 +58,7 @@ function LinkTitle({
   );
 }
 
-/** A library item that lives on its own page: its name and one line about it. */
+/** A library item as a row: its name and one line about it. */
 export function LinkRow({
   link,
   onDetails,
@@ -64,30 +79,19 @@ export function LinkRow({
       {link.description}
     </p>
   );
-  const { id, prompt } = link;
-  const docs = link.docs ?? link.href;
+  const details = libraryDetails({ kind: "link", link });
+  const open = details ? () => onDetails(details) : undefined;
   const menu = (className: string) =>
-    id && prompt ? (
+    details ? (
       <LibraryItemMenu
-        id={id}
-        label={link.name}
-        prompt={prompt}
-        docs={docs}
-        onDetails={() =>
-          onDetails({
-            id,
-            name: link.name,
-            // A row whose second line is a command says nothing more in prose.
-            description: link.code ? "" : link.description,
-            prompt,
-            docs,
-            ...(link.mark && { mark: link.mark }),
-            ...(link.command && { command: link.command }),
-          })
-        }
+        id={details.id}
+        label={details.name}
+        prompt={details.prompt}
+        docs={details.docs}
+        onDetails={() => onDetails(details)}
         tooltipSide="top"
         className={className}
-        {...(link.command && { command: link.command })}
+        {...(details.command && { command: details.command })}
       />
     ) : null;
 
@@ -106,7 +110,9 @@ export function LinkRow({
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <LinkTitle href={link.href}>{link.name}</LinkTitle>
+          <EntryTitle href={link.href} onSelect={open}>
+            {link.name}
+          </EntryTitle>
           {description}
         </div>
         {menu("relative z-10 shrink-0")}
@@ -117,7 +123,9 @@ export function LinkRow({
   return (
     <li className="group/navlink relative flex min-w-0 items-start gap-2 py-2">
       <div className="min-w-0 flex-1">
-        <LinkTitle href={link.href}>{link.name}</LinkTitle>
+        <EntryTitle href={link.href} onSelect={open}>
+          {link.name}
+        </EntryTitle>
         {description}
       </div>
       {menu("relative z-10 -mt-1 shrink-0")}
@@ -137,27 +145,18 @@ export function BlockCard({
   /** Opens the block's details. */
   onDetails: (details: LibraryDetails) => void;
 }) {
-  const id = blockSavedId(block.slug);
-  const docs = `/blocks/${block.slug}`;
+  const details = libraryDetails({ kind: "block", block })!;
+  const { docs } = details;
   return (
     <li className="group/navlink relative flex min-w-0 flex-col">
       <div className={cn(itemFrame, "rounded-(--library-card) p-5")}>
         <div className="bg-background relative aspect-[16/10] overflow-hidden rounded-(--library-card-inner)">
           <LibraryItemMenu
-            id={id}
+            id={details.id}
             label={block.title}
             prompt={block.prompt}
             docs={docs}
-            onDetails={() =>
-              onDetails({
-                id,
-                name: block.title,
-                description: block.description,
-                image: block.image,
-                prompt: block.prompt,
-                docs,
-              })
-            }
+            onDetails={() => onDetails(details)}
             className={overPreview}
           />
           <Image
@@ -176,9 +175,13 @@ export function BlockCard({
           />
         </div>
       </div>
-      <LinkTitle href={docs} className="mt-3.5">
+      <EntryTitle
+        href={docs}
+        onSelect={() => onDetails(details)}
+        className="mt-3.5"
+      >
         {block.title}
-      </LinkTitle>
+      </EntryTitle>
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
         {block.description}
       </p>

@@ -5,7 +5,7 @@ import { LibraryBrowser } from "@/components/pages/library/library-browser";
 
 const title = "Library";
 const description =
-  "Components, blocks, starters, runtimes, tools, integrations, utilities, skills, and editor setups for assistant-ui projects.";
+  "Components, blocks, starters, runtimes, integrations, utilities, skills, and editor setups for assistant-ui projects.";
 
 export const metadata: Metadata = {
   title,

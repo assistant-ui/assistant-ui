@@ -32,7 +32,11 @@ import { cn } from "@/lib/utils";
 import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
 import { LibraryDock } from "./library-dock";
 import { LibraryHero } from "./library-hero";
-import { LibraryItemDialog, type LibraryDetails } from "./library-item-dialog";
+import {
+  LibraryItemSheet,
+  libraryDetails,
+  type LibraryDetails,
+} from "./library-item-sheet";
 import { LibraryEmpty } from "./library-empty";
 import { BlockCard, LinkRow, SectionTile } from "./library-entry";
 import {
@@ -220,6 +224,18 @@ export function LibraryBrowser() {
     .filter(({ count }) => count > 0);
 
   const resultCount = sections.reduce((total, { count }) => total + count, 0);
+
+  const shown = sections.flatMap(({ groups }) =>
+    groups.flatMap((group) => group.entries),
+  );
+  // The items on screen that open the shared drawer, which its arrows step through.
+  const detailItems = shown.flatMap((entry) => {
+    const item = libraryDetails(entry);
+    return item ? [item] : [];
+  });
+  const shownSkills = shown.flatMap((entry) =>
+    entry.kind === "skill" ? [entry.skill] : [],
+  );
 
   // The starters and presets on screen, in the order shown, which the drawer's arrows step through.
   const sheetEntries = sections
@@ -483,6 +499,8 @@ export function LibraryBrowser() {
         />
         <SkillDialog
           skill={skill}
+          skills={shownSkills}
+          onSkillChange={setSkill}
           open={skillOpen}
           onOpenChange={setSkillOpen}
         />
@@ -504,8 +522,10 @@ export function LibraryBrowser() {
           layout={layout}
           onLayoutChange={setLayout}
         />
-        <LibraryItemDialog
+        <LibraryItemSheet
           item={details}
+          items={detailItems}
+          onItemChange={setDetails}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
         />
@@ -515,7 +535,7 @@ export function LibraryBrowser() {
         {home ? (
           <ul
             aria-label="Kinds of library item"
-            className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 xl:grid-cols-5"
+            className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3"
           >
             {all.map((section) => (
               <SectionTile

@@ -34,7 +34,6 @@ export type LibraryKind =
   | "component"
   | "block"
   | "runtime"
-  | "tool"
   | "integration"
   | "utility"
   | "agent"
@@ -49,7 +48,6 @@ export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
   component: "Component",
   block: "Block",
   runtime: "Runtime",
-  tool: "Tool",
   integration: "Integration",
   utility: "Utility",
   agent: "Agent",
@@ -114,7 +112,6 @@ const SECTION_KIND: Partial<Record<LibrarySectionId, LibraryKind>> = {
   components: "component",
   blocks: "block",
   runtimes: "runtime",
-  tools: "tool",
   integrations: "integration",
   utilities: "utility",
   agents: "agent",
