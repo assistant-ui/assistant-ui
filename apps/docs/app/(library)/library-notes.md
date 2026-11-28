@@ -30,3 +30,41 @@ A fix that was tried and set aside: a `pnpm generate:library-starters` script in
 - The tool names are the ones in `lib/mcp-tool-definitions.ts` and `templateToolDefinitions` in `app/api/mcp/route.ts`. Their one-line descriptions come from the Available Tools table in `llm.mdx`, because the definitions' own descriptions are written for agents and are too long for a list.
 
 When to redo it: the CLI's `mcp` command gains or changes an editor, or the hosted server adds, removes, or renames a tool.
+
+## Docs-backed library tabs are hand-copied snapshots
+
+`lib/library/docs-data.ts` holds what the Runtimes, Tools, Integrations, and Utilities tabs and the Primitives group on `/library` show: each page's name, one line about it, its address, and its group. Nothing reads the docs content, so the file goes stale when a page changes. Nothing checks it today.
+
+- Names and lines were copied from each page's `title` and `description` under `content/docs`, the line cut to its first sentence.
+- The groups mirror the separators in each section's `content/docs/<section>/meta.json` (Runtimes, Tools) or its subfolders (Integrations).
+- Runtime names are shortened by hand ("Vercel AI SDK" for a page titled "Vercel AI SDK Runtime").
+- Utilities adds four things that are not under `content/docs/utilities`: DevTools (`guides/devtools`), Safe Content Frame, Generative Frame, and Variants.
+
+When to redo it: a page is added, removed, moved, retitled, or redescribed in one of those docs sections.
+
+## Skills are a hand-copied snapshot
+
+`LIBRARY_SKILLS` in `lib/library/skills-data.ts` holds every skill the library shows: its name, title, one-line summary, description, group, section headings, reference files, commands, and addresses. It was copied from what the page built out of `lib/agent-skills.generated.json`, at the skills repo commit that file pinned. The one-line summaries and the groups were written for this page and are edited in the same list.
+
+What still comes from outside: the skill dialog fetches each SKILL.md from the site's `/.well-known/agent-skills/<name>/SKILL.md` and each reference file from the skills repo on GitHub, at the commit written into the snapshot's addresses.
+
+When to redo it: a skill is added, removed, or renamed, its description or headings change, or the pinned commit moves.
+
+## The agent setup prompt is a copy
+
+`lib/library/agent-prompt.ts` is a copy of `agentSetupPrompt` from `lib/agent-setup-prompt.ts`. Starters and the saved panel build their agent prompts with it. When to redo it: the site's setup prompt or the `setup` command changes.
+
+## Components and blocks are hand-copied snapshots
+
+The library keeps its own copies so it does not depend on other pages' files, which are due to be removed. Nothing checks the copies today.
+
+- `lib/library/components-data.ts` holds each element's and UI component's slug, name, and description. They were copied from `ELEMENTS` in `components/pages/elements/registry.tsx` and `DESIGN_COMPONENTS` in `components/pages/design/registry-meta.ts`.
+- The same file holds the Vocabulary group: the 35 components a model can write, in the categories of `COMPONENT_CATEGORIES` in `lib/component-reference.ts`, each with the first sentence of its description in `defaultGenerativeUILibrary` from `@assistant-ui/generative-ui`. Rows link to `/elements/vocabulary#<name>`.
+- It also holds the Features group: the 19 items the `/components` page lists beside its elements (the Chat Starter, the 16 guides in `lib/catalog/products/guides.ts`, Assistant Cloud, and Agent Tool), with each one's name, tagline, and address.
+- The Primitives group is in `lib/library/docs-data.ts`, described above.
+- `lib/library/blocks-data.ts` holds each block's slug, title, description, screenshots, stack, and use cases, copied from `BLOCKS` in `lib/blocks.ts`.
+- The Routes and pages group in `lib/library/library-data.ts` mirrors three items in `apps/registry/src/registry.ts`.
+
+What still points outside the library: every component, block, and utility row links to that item's page (`/elements/<slug>`, `/design/components/<slug>`, `/blocks/<slug>`, `/safe-content-frame`, `/generative-frame`, `/variants`), and block cards show the screenshots in `public/screenshot/blocks`. When one of those pages or folders is removed, its rows need a new address or their own detail view.
+
+When to redo it: an element, UI component, vocabulary component, feature, primitive, or block is added, removed, or renamed.

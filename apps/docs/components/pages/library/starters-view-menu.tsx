@@ -10,6 +10,7 @@ import {
   STARTER_FRAMEWORKS,
   STARTER_INTEGRATIONS,
   STARTER_RUNTIMES,
+  type Starter,
   type StarterFramework,
   type StarterIntegration,
   type StarterRuntime,
@@ -41,6 +42,24 @@ export const DEFAULT_VIEW_OPTIONS: StartersViewOptions = {
   sort: "default",
   view: "grid",
 };
+
+/** Whether a starter passes the filters picked in the menu. */
+export const matchesStarterOptions = (
+  starter: Starter,
+  options: StartersViewOptions,
+): boolean =>
+  (!options.withScreenshot ||
+    starter.image !== undefined ||
+    starter.screenshots !== undefined) &&
+  (options.frameworks.length === 0 ||
+    options.frameworks.includes(starter.framework)) &&
+  (options.runtimes.length === 0 ||
+    (starter.runtime !== undefined &&
+      options.runtimes.includes(starter.runtime))) &&
+  (options.integrations.length === 0 ||
+    (starter.integrations ?? []).some((integration) =>
+      options.integrations.includes(integration),
+    ));
 
 const toggle = <T,>(list: readonly T[], value: T, on: boolean): T[] =>
   on ? [...list, value] : list.filter((entry) => entry !== value);

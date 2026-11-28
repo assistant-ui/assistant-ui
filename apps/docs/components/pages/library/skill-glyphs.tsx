@@ -258,7 +258,7 @@ function GlyphTools() {
 }
 
 /** Two servers behind a switch the user flips. */
-function GlyphMcpServers() {
+export function GlyphMcpServers() {
   return (
     <GlyphSvg>
       <rect x="3.5" y="4.5" width="10" height="6" rx="1.3" className={DIM} />

@@ -6,7 +6,7 @@ import { createOgMetadata } from "@/lib/og";
 import { LibraryRelated } from "@/components/pages/library/library-related";
 import { McpConnect } from "@/components/pages/library/mcp-connect";
 import { McpHeroActions } from "@/components/pages/library/mcp-hero-actions";
-import { getLibrarySkills } from "@/lib/library/load-skills";
+import { LIBRARY_SKILLS } from "@/lib/library/skills-data";
 import {
   MCP_EDITORS,
   MCP_TOOL_COUNT,
@@ -99,7 +99,7 @@ export default function McpPage(): React.ReactElement {
         heading="Goes with"
         href="/library/skills"
         title="Skills"
-        description={`${getLibrarySkills().length} skills that teach the agent how to build with assistant-ui. The server is where it looks things up.`}
+        description={`${LIBRARY_SKILLS.length} skills that teach the agent how to build with assistant-ui. The server is where it looks things up.`}
       />
     </PageFrame>
   );

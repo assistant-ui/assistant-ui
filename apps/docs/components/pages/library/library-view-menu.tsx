@@ -47,7 +47,8 @@ export const sortLibraryItems = <T,>(
 
 /**
  * The button beside a library search bar: sort, grid or list, and a reset.
- * A page with filters passes them as `filters` and says when one is on.
+ * A page with filters passes them as `filters` and says when one is on; a
+ * list with one layout leaves `view` out.
  */
 export function LibraryViewMenu({
   sort,
@@ -59,16 +60,18 @@ export function LibraryViewMenu({
   filtersOn = false,
 }: {
   sort: LibrarySort;
-  view: LibraryView;
+  view?: LibraryView;
   onSortChange: (sort: LibrarySort) => void;
-  onViewChange: (view: LibraryView) => void;
+  onViewChange?: (view: LibraryView) => void;
   /** Puts the sort, and any filters, back; the view stays. */
   onReset: () => void;
   filters?: ReactNode;
   filtersOn?: boolean;
 }) {
   const changed = filtersOn || sort !== "default";
-  const label = filters ? "Filter, sort, and view" : "Sort and view";
+  const sortLabel = view ? "Sort and view" : "Sort";
+  const filterLabel = view ? "Filter, sort, and view" : "Filter and sort";
+  const label = filters ? filterLabel : sortLabel;
 
   return (
     <Menu>
@@ -111,20 +114,24 @@ export function LibraryViewMenu({
             ))}
           </MenuRadioGroup>
         </MenuGroup>
-        <MenuSeparator />
-        <MenuGroup>
-          <MenuLabel>View</MenuLabel>
-          <MenuRadioGroup
-            value={view}
-            onValueChange={(value: LibraryView) => onViewChange(value)}
-          >
-            {VIEWS.map((option) => (
-              <MenuRadioItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuRadioItem>
-            ))}
-          </MenuRadioGroup>
-        </MenuGroup>
+        {view && onViewChange ? (
+          <>
+            <MenuSeparator />
+            <MenuGroup>
+              <MenuLabel>View</MenuLabel>
+              <MenuRadioGroup
+                value={view}
+                onValueChange={(value: LibraryView) => onViewChange(value)}
+              >
+                {VIEWS.map((option) => (
+                  <MenuRadioItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuRadioItem>
+                ))}
+              </MenuRadioGroup>
+            </MenuGroup>
+          </>
+        ) : null}
         {changed ? (
           <>
             <MenuSeparator />

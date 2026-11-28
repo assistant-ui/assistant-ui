@@ -59,7 +59,7 @@ export function GlyphSvg({ children }: { children: ReactNode }) {
   );
 }
 
-function WindowChrome({
+export function WindowChrome({
   y = 3.5,
   height = 17,
 }: {

@@ -4,7 +4,7 @@ import { createOgMetadata } from "@/lib/og";
 import { LibraryRelated } from "@/components/pages/library/library-related";
 import { SkillsBrowser } from "@/components/pages/library/skills-browser";
 import { SkillsHero } from "@/components/pages/library/skills-hero";
-import { getLibrarySkills } from "@/lib/library/load-skills";
+import { LIBRARY_SKILLS } from "@/lib/library/skills-data";
 import { MCP_EDITORS } from "@/lib/library/mcp-data";
 
 const title = "Skills";
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default function SkillsPage(): React.ReactElement {
-  const skills = getLibrarySkills();
+  const skills = LIBRARY_SKILLS;
 
   return (
     <PageFrame pad="sub">

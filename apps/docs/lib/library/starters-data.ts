@@ -1,4 +1,4 @@
-import { agentSetupPrompt } from "@/lib/agent-setup-prompt";
+import { agentSetupPrompt } from "./agent-prompt";
 
 export type StarterKind = "template" | "example";
 

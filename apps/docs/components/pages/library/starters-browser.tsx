@@ -6,6 +6,7 @@ import { StarterSheet } from "./starter-sheet";
 import {
   DEFAULT_VIEW_OPTIONS,
   StartersViewMenu,
+  matchesStarterOptions,
   type StarterSort,
 } from "./starters-view-menu";
 import { LibrarySavedButton } from "./saved-sheet";
@@ -76,16 +77,7 @@ export function StartersBrowser() {
         section.starters.filter(
           (starter) =>
             (!normalized || matches(starter, normalized)) &&
-            (!options.withScreenshot || starter.image || starter.screenshots) &&
-            (options.frameworks.length === 0 ||
-              options.frameworks.includes(starter.framework)) &&
-            (options.runtimes.length === 0 ||
-              (starter.runtime !== undefined &&
-                options.runtimes.includes(starter.runtime))) &&
-            (options.integrations.length === 0 ||
-              (starter.integrations ?? []).some((integration) =>
-                options.integrations.includes(integration),
-              )),
+            matchesStarterOptions(starter, options),
         ),
         options.sort,
       ),

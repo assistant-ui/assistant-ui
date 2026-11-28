@@ -1,4 +1,4 @@
-import { agentSetupPrompt } from "@/lib/agent-setup-prompt";
+import { agentSetupPrompt } from "./agent-prompt";
 import type { LibrarySkill } from "./skills-data";
 import {
   STARTERS,
