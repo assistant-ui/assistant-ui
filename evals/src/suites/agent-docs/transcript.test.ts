@@ -32,6 +32,27 @@ test("summarizeTranscript finds the docs pages, node_modules lookups and the clo
       }),
       tool("Bash", { command: "curl -s https://example.com/x" }),
       tool("Bash", { command: "curl -s http://127.0.0.1:3000/" }),
+      // Claude Code refusing a call counts; a command that failed doesn't.
+      {
+        type: "user",
+        message: {
+          content: [
+            {
+              type: "tool_result",
+              is_error: true,
+              content:
+                "allowed_domains cannot widen network access in this session",
+            },
+            {
+              type: "tool_result",
+              is_error: true,
+              content: [
+                { type: "text", text: "Exit code 1\nnpm ERR! 404 Not Found" },
+              ],
+            },
+          ],
+        },
+      },
       {
         type: "result",
         num_turns: 12,
@@ -52,6 +73,9 @@ test("summarizeTranscript finds the docs pages, node_modules lookups and the clo
     assert.deepEqual(summary.docsSearches, ["TooltipProvider"]);
     assert.equal(summary.nodeModulesLookups, 1);
     assert.deepEqual(summary.webFetches, ["curl -s https://example.com/x"]);
+    assert.deepEqual(summary.refusals, [
+      "allowed_domains cannot widen network access in this session",
+    ]);
     assert.equal(summary.turns, 12);
     assert.equal(summary.answerSeconds, 95);
     assert.equal(summary.costUsd, 0.4);
