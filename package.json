@@ -25,7 +25,7 @@
     "public-surface-removals:test": "node --test scripts/check-public-surface-removals.test.mjs",
     "standalone-shim-imports:check": "node scripts/check-standalone-shim-imports.mjs",
     "standalone-shim-imports:test": "node --test scripts/check-standalone-shim-imports.test.mjs",
-    "api-surface:test": "node --test scripts/autofix-install.test.mjs scripts/generate-api-surface.test.mjs scripts/update-api-surface.test.mjs scripts/lib/changed-files.test.mjs scripts/lib/workspace.test.mjs",
+    "api-surface:test": "node --test scripts/autofix-install.test.mjs scripts/generate-api-surface.test.mjs scripts/update-api-surface.test.mjs scripts/lib/changed-files.test.mjs scripts/lib/changesets.test.mjs scripts/lib/main.test.mjs scripts/lib/package-exports.test.mjs scripts/lib/workspace.test.mjs",
     "api-reference-inputs:test": "node --test scripts/api-reference-inputs.test.mjs",
     "changeset-semver:check": "node scripts/check-changeset-semver.mjs",
     "changeset-semver:test": "node --test scripts/check-changeset-semver.test.mjs",
