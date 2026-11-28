@@ -63,7 +63,10 @@ export default async function HomePage() {
   const setupTabs = SETUP_SNIPPETS.map((snippet, index) => ({
     id: snippet.id,
     label: snippet.label,
-    caption: snippet.caption,
+    caption:
+      "excerptNote" in snippet
+        ? `${snippet.caption} ${snippet.excerptNote.replaceAll("`", "")}`
+        : snippet.caption,
     docs: snippet.docs,
     html: markChangedLines(setupHtml[index]!, snippet.changed),
   }));
