@@ -60,6 +60,10 @@ const NOT_LIVE: Record<string, StatusNote> = {
     status: "experimental",
     why: "It is built on the Vue package, which is at 0.0.x.",
   },
+  "templates/nuxt": {
+    status: "experimental",
+    why: "It is built on the Vue package, which is at 0.0.x.",
+  },
   "examples/with-svelte": UNPUBLISHED("@assistant-ui/svelte"),
   "examples/with-sveltekit": UNPUBLISHED("@assistant-ui/svelte"),
   "examples/with-solid": UNPUBLISHED("@assistant-ui/solid"),

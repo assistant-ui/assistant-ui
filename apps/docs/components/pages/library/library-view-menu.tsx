@@ -12,10 +12,7 @@ import {
   MenuRadioItem,
   MenuSeparator,
 } from "./menu";
-import {
-  LibraryIconButton,
-  LibraryMenuIconButton,
-} from "./library-icon-button";
+import { LibraryMenuIconButton } from "./library-icon-button";
 
 export type LibrarySort = "default" | "name-asc" | "name-desc";
 export type LibraryView = "grid" | "list" | "table";
@@ -47,19 +44,6 @@ export const sortLibraryItems = <T,>(
           ? label(a).localeCompare(label(b))
           : label(b).localeCompare(label(a)),
       );
-
-/** The view button switched off, for a tab with nothing to filter or sort, so the row keeps the same controls. */
-export function LibraryViewMenuOff() {
-  return (
-    <LibraryIconButton
-      tooltip="Filter and sort"
-      disabled
-      className="size-9 disabled:opacity-40"
-    >
-      <SlidersHorizontalIcon aria-hidden />
-    </LibraryIconButton>
-  );
-}
 
 /**
  * The button beside a library search bar: sort, the view, and a reset. A page

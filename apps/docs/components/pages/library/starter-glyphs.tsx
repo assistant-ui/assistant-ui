@@ -821,6 +821,7 @@ const STARTER_GLYPHS: Record<string, () => ReactNode> = {
   "templates/mcp": GlyphPorts,
   "templates/eve": GlyphAgent,
   "templates/vscode": GlyphEditor,
+  "templates/nuxt": GlyphRoutes,
   "examples/with-ai-sdk-v7": GlyphStream,
   "examples/with-eve": GlyphAgent,
   "examples/with-artifacts": GlyphArtifact,

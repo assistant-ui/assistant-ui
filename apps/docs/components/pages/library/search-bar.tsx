@@ -9,20 +9,28 @@ export function SearchBar({
   value,
   onValueChange,
   label,
+  count,
   className,
 }: {
   value: string;
   onValueChange: (value: string) => void;
   label: string;
+  /** How many items are listed, shown at the end of the field. */
+  count?: string;
   className?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className={cn("relative", className)}>
+    <div
+      className={cn(
+        "bg-background focus-within:border-foreground/30 flex h-9 items-center gap-2 rounded-(--library-control) border ps-3.5 pe-1.5 transition-colors",
+        className,
+      )}
+    >
       <SearchIcon
         aria-hidden
-        className="text-muted-foreground pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2"
+        className="text-muted-foreground pointer-events-none size-4 shrink-0"
       />
       <input
         ref={inputRef}
@@ -40,21 +48,27 @@ export function SearchBar({
         aria-label={label}
         autoComplete="off"
         spellCheck={false}
-        className="bg-background placeholder:text-muted-foreground focus-visible:border-foreground/30 h-9 w-full rounded-(--library-control) border px-10 text-sm transition-colors outline-none [&::-webkit-search-cancel-button]:appearance-none"
+        className="placeholder:text-muted-foreground h-full min-w-0 flex-1 bg-transparent text-sm outline-none [&::-webkit-search-cancel-button]:appearance-none"
       />
-      {value && (
-        <span className="absolute inset-y-0 end-1.5 flex items-center">
-          <LibraryIconButton
-            tooltip="Clear search"
-            onClick={() => {
-              onValueChange("");
-              inputRef.current?.focus();
-            }}
-            className="size-6"
-          >
-            <XIcon aria-hidden />
-          </LibraryIconButton>
+      {count ? (
+        <span
+          aria-hidden
+          className="text-muted-foreground shrink-0 text-xs whitespace-nowrap tabular-nums last:pe-2"
+        >
+          {count}
         </span>
+      ) : null}
+      {value && (
+        <LibraryIconButton
+          tooltip="Clear search"
+          onClick={() => {
+            onValueChange("");
+            inputRef.current?.focus();
+          }}
+          className="size-6"
+        >
+          <XIcon aria-hidden />
+        </LibraryIconButton>
       )}
     </div>
   );

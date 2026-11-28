@@ -27,9 +27,10 @@ When to redo it: a starter is added, removed, or renamed in the CLI; a starter's
 - Names are the folder names. Labels and one-line descriptions were written for the library from each README, or from the app's page when there is no README.
 - `framework` and `runtime` were read from each `package.json`; `env` from each `.env.example`, leaving out lines that are commented out.
 - Two folders were left out because the repository does not track them: `with-base` and `with-human-in-the-loop`.
+- `REPO_TEMPLATES` does the same for folders under `templates/`. It holds one, `nuxt`, which the CLI's `create -t` does not offer.
 - The frameworks and runtimes these examples added (Vite, Nuxt, Vue, SvelteKit, Svelte, SolidStart, Solid, Chrome extension; A2A, OpenCode, Pi, Flue) also show in the Starters filter menu. Pi and Flue have no mark in `filter-icons.tsx` and show their first letter.
 
-When to redo it: a folder is added to or removed from `examples/`, or the CLI starts offering one of these, in which case it moves to the main list with its components, files, and dependencies filled in.
+When to redo it: a folder is added to or removed from `examples/` or `templates/`, or the CLI starts offering one of these, in which case it moves to the main list with its components, files, and dependencies filled in.
 
 A fix that was tried and set aside: a `pnpm generate:library-starters` script in `apps/docs/scripts` that imports the CLI's `PROJECT_METADATA`, `scanRequiredComponents`, and registry URL helpers, resolves everything above, and writes `lib/library/starters.generated.json` for `starters-data.ts` to merge in. It reproduced the snapshot exactly. Its costs: it needs `apps/registry/dist` built first (it is gitignored), it fetches from ui.shadcn.com, it adds a generated file and a package script to the docs app, and CI would not type-check it, since the docs `tsconfig` skips top-level `scripts/*.mts`.
 
@@ -129,6 +130,7 @@ The library keeps its own copies so it does not depend on other pages' files, wh
 - `lib/library/components-data.ts` holds each element's and UI component's slug, name, and description. They were copied from `ELEMENTS` in `components/pages/elements/registry.tsx` and `DESIGN_COMPONENTS` in `components/pages/design/registry-meta.ts`.
 - The same file holds the Vocabulary group: the 35 components a model can write, in the categories of `COMPONENT_CATEGORIES` in `lib/component-reference.ts`, each with the first sentence of its description in `defaultGenerativeUILibrary` from `@assistant-ui/generative-ui`. Rows link to `/elements/vocabulary#<name>`.
 - It also holds the Features group: the 19 items the `/components` page lists beside its elements (the Chat Starter, the 16 guides in `lib/catalog/products/guides.ts`, Assistant Cloud, and Agent Tool), with each one's name, tagline, and address.
+- The React Native and Vue marks on elements (`traits` in the same file) mirror `nativeRegistry` and `vueRegistry` in `apps/registry/src/registry.ts`: an element is marked when that registry has an item of the same name, and Tool fallback is marked for the native `elements-tool-fallback`. The native-only `icon` and `elements-icon-button` have no row. A marked row still shows the React install command.
 - The Primitives group is in `lib/library/docs-data.ts`, described above.
 - `lib/library/blocks-data.ts` holds each block's slug, title, description, screenshots, stack, and use cases, copied from `BLOCKS` in `lib/blocks.ts`.
 - The Routes and pages group in `lib/library/library-data.ts` mirrors three items in `apps/registry/src/registry.ts`.
@@ -152,7 +154,7 @@ When to redo it: a registry item, an npm package, or a `setup` product is rename
 
 ## Marks before item names are hand-assigned
 
-`lib/library/marks.ts` says what is drawn before each Runtimes, Integrations, Utilities, and MCP server item: a brand's logo, a coding agent's mark, or one of the library's line drawings. `components/pages/library/library-mark.tsx` draws them. An item with no entry shows the first letter of its name (Pydantic AI, better-auth, and Auth.js today, which have no logo in the repository).
+`lib/library/marks.ts` says what is drawn before each Runtimes, Integrations, Utilities, and MCP server item: a brand's logo, a coding agent's mark, or one of the library's line drawings. `components/pages/library/library-mark.tsx` draws them. An item with no entry shows the first letter of its name; none does today. Pydantic's and Better Auth's marks are Simple Icons 16 paths, and the Auth.js shield is a 96px copy of `authjs.dev/img/logo-sm.png` in `public/library/marks`. Among the coding agents, Neovate's mark is the `neovateai` organization's GitHub picture, and Codemaker has none (its site refuses automated requests), so it shows its first letter.
 
 - Logos come from `components/icons` and from the brands the starters' filter menu already draws.
 - Utilities have no brands of their own, so most borrow a skill's or a tab's drawing; four utilities have their own drawings in `library-glyphs.tsx`.
@@ -163,3 +165,25 @@ When to redo it: an item is added to one of those tabs, or a logo for a lettered
 ## Install lines copied from docs pages
 
 Ten docs-backed items take their install command from the first `<InstallCommand npm={[...]}>` on their page (Langfuse, LangSmith, custom thread persistence, Mastra, Pydantic AI, Cloudflare Agents, LocalRuntime, ExternalStoreRuntime, MCP, and MCP Apps). The command sits in `lib/library/docs-data.ts` and goes stale when the page's packages or pinned versions change.
+
+## The All tab is a data table
+
+Under All, `components/pages/library/library-table.tsx` lists every item a page at a time, modelled on the data table at https://claude.ai/artifact/2x8iStPKm4CwE1aGmgkNuL: a checkbox per row and one for the page, a footer with Actions for the picked rows (save, copy install commands, copy one agent prompt, export, clear), a per-page picker (10, 25, 50, 100), the range, and previous and next. The search field shows how many items are listed, and the button beside it filters by type, sorts, hides columns, switches to the tile grid, and exports what is listed as CSV, JSON, or Markdown. What a row says as text, its sort, and its export are in `lib/library/table-data.ts`.
+
+The table's columns are Name (with one line on what the item is), Type, Status, Platform, Commands, Links, and Updated; Needs, Used by, and the full install command are columns that start hidden. Commands is a button that lists every way to get the item and copies the one picked (`lib/library/commands.ts` works them out: the library's own command, the assistant-ui CLI's, the registry file, the React Native and Vue registries where the item is in them, pnpm, yarn, and bun for an npm install, a prompt for a coding agent, and the guided setup). The filter button narrows by type, platform, and status, each option showing how many items it would list, and the filters that are on show as chips above the table.
+
+Each row leads with the item's picture (`library-thumb.tsx`): a starter's screenshots in the current mode or its drawing, a block's screenshot, a preset's drawn chat, a skill's drawing, or a runtime's, integration's, utility's, agent's, or editor's mark. The 250 components have no screenshot, so each shows an icon from the lucide set, picked by hand for what the component does and kept by row id in `components/pages/library/component-icons.tsx`; the details drawer shows the same icon. The Components tab's own rows are still text only. An automated capture of each element's demo was tried once and set aside, because the element pages lay their demos out differently.
+
+When to redo it: a new kind of item is added (give it a picture in `library-thumb.tsx` and a row in `libraryTableRecord`), a component is added (give it an icon in `component-icons.tsx`, or it shows the first letter of its name), or components get screenshots.
+
+## Item facts are a snapshot
+
+`lib/library/facts-data.json` holds, for each of the library's items, its status, platforms, last-updated day, version, links, what it needs, the npm packages it adds, and the files it writes. `lib/library/facts.ts` reads it and works out what uses each item. The table's Status, Platform, Links, Updated, Needs, and Used by columns come from it, and so do the About, Links, Needs, Used by, Install tree, npm packages, and Files groups in the details drawer (`components/pages/library/library-facts.tsx`). Nothing checks it today.
+
+- It was made on 2026-11-28 by a one-off script, which is not in the repository, from the item list behind the Registry page at https://claude.ai/artifact/3rn1p8ckPAEtEBZWZYnwn4. That list was read from the repository at commit `4e4dd62` on 2026-11-25: the registry, the CLI's templates, examples, presets, and commands, the published packages, the skills and agents, the docs blocks and guides, and the generative UI vocabulary, with each status checked against r.assistant-ui.com, npm, and PyPI the same day.
+- A library item takes the facts of the list entry it stands for: a component by the registry item its install command names, a runtime or utility by its docs page or package, and so on. Something an item needs that is not a library item (a support file, a package, a shadcn/ui primitive) is kept under `others` with what it needs in turn, so the totals and the install tree are whole.
+- 96 library items have no entry in that list and were given facts by rule: the generative examples and the primitives take their package's status and version; UI components without a registry item are "Copy only"; features are "In CLI"; playground templates are "Hosted", a status the list does not have; the recipe examples are "GitHub only"; and the thread list adapters page is "Docs". Their dates are the last commit on `main` to their docs page, or the day in `updated-data.ts`.
+- Status here says how an item reaches a project. It is a different thing from the badge on a starter (`status-data.ts`), which says whether the starter should stay on show.
+- Starters and skills keep their own drawers, which do not show these groups.
+
+When to redo it: a registry item, package, starter, or docs page is added, removed, or renamed, a dependency between registry items changes, or the dates and versions should be current.

@@ -60,7 +60,7 @@ const shortCommand = (command: string) =>
   command.startsWith(CLI) ? command.slice(CLI.length) : command;
 
 /** A dash for a cell with nothing in it; a screen reader hears what is missing. */
-function Empty({ label }: { label: string }) {
+export function TableEmpty({ label }: { label: string }) {
   return (
     <span className="text-muted-foreground">
       <span aria-hidden>–</span>
@@ -90,8 +90,13 @@ function StackIcon({ name }: { name: StarterIntegration }) {
   );
 }
 
-const cell = "px-2.5 py-2 text-left align-middle text-[13px]";
-const head = cn(cell, "text-muted-foreground py-2.5 text-xs font-normal");
+export const tableCell = "px-2.5 py-2 text-left align-middle text-[13px]";
+export const tableHead = cn(
+  tableCell,
+  "text-muted-foreground py-2.5 text-xs font-normal",
+);
+const cell = tableCell;
+const head = tableHead;
 
 function Stack({
   name,
@@ -135,7 +140,7 @@ export function StarterTable({
           source: starter.hosted
             ? { label: "Preview", href: starter.hosted.preview }
             : source && starter.repoOnly
-              ? { label: `examples/${starter.name}`, href: source }
+              ? { label: `${starter.kind}s/${starter.name}`, href: source }
               : undefined,
           instead: starter.hosted ? "Download" : "Repo only",
           updated: LIBRARY_UPDATED[starterId(starter)],
@@ -258,7 +263,7 @@ export function StarterTable({
                 {row.runtime ? (
                   <Stack name={row.runtime} />
                 ) : (
-                  <Empty label="None" />
+                  <TableEmpty label="None" />
                 )}
               </td>
               <td className={cell}>
@@ -271,7 +276,7 @@ export function StarterTable({
                 ) : row.integrations[0] ? (
                   <Stack name={row.integrations[0]} />
                 ) : (
-                  <Empty label="None" />
+                  <TableEmpty label="None" />
                 )}
               </td>
               <td className={cell}>
@@ -316,7 +321,7 @@ export function StarterTable({
                     {formatLibraryDay(row.updated)}
                   </time>
                 ) : (
-                  <Empty label="Unknown" />
+                  <TableEmpty label="Unknown" />
                 )}
               </td>
               <td className={cn(cell, "px-1")}>{row.menu}</td>

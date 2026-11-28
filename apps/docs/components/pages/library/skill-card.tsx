@@ -12,7 +12,8 @@ type SkillItemProps = {
   onSelect: (name: string) => void;
 };
 
-function SkillMenu({
+/** The plus menu on a skill, wherever the skill is listed. */
+export function SkillMenu({
   skill,
   onDetails,
   tooltipSide,

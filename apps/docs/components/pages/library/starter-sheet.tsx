@@ -223,7 +223,7 @@ const viewOf = (entry: StarterEntry): SheetView => {
       ? undefined
       : starter.hosted
         ? "This is a playground template, so it has no install command. Download it as a project, or open its preview."
-        : "The create command does not offer this example, so it has no install command. Run it from a clone of the repository.",
+        : `The create command does not offer this ${starter.kind}, so it has no install command. Run it from a clone of the repository.`,
     framework: starter.framework,
     runtime: starter.runtime,
     integrations: starter.integrations ?? [],

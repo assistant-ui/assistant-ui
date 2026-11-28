@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import { XIcon } from "lucide-react";
 import {
   entryKey,
   entryName,
@@ -27,6 +28,21 @@ import {
   type LibraryPreset,
 } from "@/lib/library/presets-data";
 import { libraryStatus } from "@/lib/library/status-data";
+import {
+  LIBRARY_AVAILABILITY,
+  LIBRARY_PLATFORMS,
+  libraryFact,
+  type LibraryAvailability,
+  type LibraryPlatform,
+} from "@/lib/library/facts";
+import {
+  entryFactId,
+  libraryItem,
+  libraryTableRecord,
+  sortTableItems,
+  type LibraryTableItem,
+  type TableSort,
+} from "@/lib/library/table-data";
 import { starterId, type Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
@@ -40,8 +56,14 @@ import {
 import { LibraryEmpty } from "./library-empty";
 import { BlockCard, LinkRow, SectionTile } from "./library-entry";
 import {
+  LibraryTable,
+  TABLE_HIDDEN,
+  downloadTableRecords,
+  type TableColumnId,
+} from "./library-table";
+import { LibraryTableMenu, type TableFilter } from "./library-table-menu";
+import {
   LibraryViewMenu,
-  LibraryViewMenuOff,
   sortLibraryItems,
   type LibrarySort,
   type LibraryView,
@@ -79,6 +101,14 @@ type TabFilter = {
 };
 
 const NO_FILTER: TabFilter = { groups: [], traits: [], sort: "default" };
+
+/** The All tab's table sort as the order a grid's groups can take. */
+const groupSort = (sort: TableSort | null): LibrarySort =>
+  sort?.column !== "name"
+    ? "default"
+    : sort.dir === "asc"
+      ? "name-asc"
+      : "name-desc";
 
 const toggle = (list: readonly string[], value: string, on: boolean) =>
   on ? [...list, value] : list.filter((entry) => entry !== value);
@@ -136,6 +166,17 @@ export function LibraryBrowser() {
   >({});
   const [starterOptions, setStarterOptions] = useState(DEFAULT_VIEW_OPTIONS);
   const [skillView, setSkillView] = useState<LibraryView>("list");
+  const [allView, setAllView] = useState<LibraryView>("table");
+  const [allTypes, setAllTypes] = useState<readonly string[]>([]);
+  const [allSort, setAllSort] = useState<TableSort | null>(null);
+  const [allPlatforms, setAllPlatforms] = useState<readonly LibraryPlatform[]>(
+    [],
+  );
+  const [allStatuses, setAllStatuses] = useState<
+    readonly LibraryAvailability[]
+  >([]);
+  const [allHidden, setAllHidden] =
+    useState<readonly TableColumnId[]>(TABLE_HIDDEN);
   const [sheet, setSheet] = useState<StarterEntry | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const openSheet = (entry: StarterEntry) => {
@@ -144,6 +185,10 @@ export function LibraryBrowser() {
   };
   const [skill, setSkill] = useState<LibrarySkill | null>(null);
   const [skillOpen, setSkillOpen] = useState(false);
+  const openSkill = (next: LibrarySkill) => {
+    setSkill(next);
+    setSkillOpen(true);
+  };
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [details, setDetails] = useState<LibraryDetails | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -151,11 +196,36 @@ export function LibraryBrowser() {
     setDetails(next);
     setDetailsOpen(true);
   };
+  // Opens any library item in the drawer its kind uses, closing the one that asked.
+  const openItem = (factId: string) => {
+    const entry = libraryItem(factId)?.entry;
+    if (!entry) return;
+    setSheetOpen(false);
+    setSkillOpen(false);
+    setDetailsOpen(false);
+    switch (entry.kind) {
+      case "starter":
+      case "preset":
+        openSheet(entry);
+        break;
+      case "skill":
+        setSkill(entry.skill);
+        setSkillOpen(true);
+        break;
+      default: {
+        const next = libraryDetails(entry);
+        if (next) openDetails(next);
+        else if (entry.kind === "link") window.location.assign(entry.link.href);
+      }
+    }
+  };
   const normalized = useDeferredValue(query).trim().toLowerCase();
 
   const all = LIBRARY_SECTIONS;
   const current = all.find((section) => section.id === tab);
-  const home = !current && !normalized;
+  // Under All, every item in one table, or a tile per type that turns into results on a search.
+  const allTable = !current && allView === "table";
+  const home = !current && !normalized && !allTable;
   const GroupLabel = current ? "h2" : "p";
 
   const filter = (current && filters[current.id]) ?? NO_FILTER;
@@ -163,7 +233,11 @@ export function LibraryBrowser() {
     if (current) setFilters({ ...filters, [current.id]: next });
   };
   const onStarters = current?.id === "starters";
-  const sort = onStarters ? starterOptions.sort : filter.sort;
+  const sort = onStarters
+    ? starterOptions.sort
+    : current
+      ? filter.sort
+      : groupSort(allSort);
   const starterRows = onStarters && starterOptions.view === "list";
   const starterTable = onStarters && starterOptions.view === "table";
   const openStarter = (starter: Starter) =>
@@ -172,8 +246,42 @@ export function LibraryBrowser() {
     openSheet({ kind: "preset", preset });
   const skillTiles = current?.id === "skills" && skillView === "grid";
 
-  const sections = all
-    .filter((section) => !current || section === current)
+  // Whether an item passes the All tab's filters; `skip` leaves one out, to count what picking in it would give.
+  const allPass = (
+    sectionId: string,
+    entry: LibraryEntry,
+    skip?: "type" | "platform" | "status",
+  ) => {
+    if (
+      skip !== "type" &&
+      allTypes.length > 0 &&
+      !allTypes.includes(sectionId)
+    ) {
+      return false;
+    }
+    if (allPlatforms.length === 0 && allStatuses.length === 0) return true;
+    const fact = libraryFact(entryFactId(entry));
+    if (
+      skip !== "platform" &&
+      allPlatforms.length > 0 &&
+      !allPlatforms.some((platform) => fact?.platforms.includes(platform))
+    ) {
+      return false;
+    }
+    return (
+      skip === "status" ||
+      allStatuses.length === 0 ||
+      (fact !== undefined && allStatuses.includes(fact.status))
+    );
+  };
+
+  const listed = all.filter((section) =>
+    current
+      ? section === current
+      : allTypes.length === 0 || allTypes.includes(section.id),
+  );
+
+  const sections = listed
     .map((section) => {
       const matched = section.groups
         .filter(
@@ -188,6 +296,7 @@ export function LibraryBrowser() {
             group.entries.filter(
               (entry) =>
                 (!normalized || matchesEntry(entry, normalized)) &&
+                (current !== undefined || allPass(section.id, entry)) &&
                 (!current ||
                   filter.traits.every(
                     (trait) =>
@@ -208,7 +317,7 @@ export function LibraryBrowser() {
                         libraryStatus(presetId(entry.preset)).status,
                       ))),
             ),
-            current ? sort : "default",
+            sort,
             entryName,
           ),
         }))
@@ -224,11 +333,30 @@ export function LibraryBrowser() {
     })
     .filter(({ count }) => count > 0);
 
-  const resultCount = sections.reduce((total, { count }) => total + count, 0);
+  const resultCount = sections.reduce((sum, { count }) => sum + count, 0);
+  const total = current ? sectionCount(current) : libraryTotal(all);
 
-  const shown = sections.flatMap(({ groups }) =>
-    groups.flatMap((group) => group.entries),
-  );
+  // One sort runs through the whole table, not through each group.
+  const tableItems: readonly LibraryTableItem[] = allTable
+    ? sortTableItems(
+        sections.flatMap(({ section, groups }) =>
+          groups.flatMap((group) =>
+            group.entries.map((entry) => ({
+              section,
+              group: group.label,
+              entry,
+            })),
+          ),
+        ),
+        allSort,
+      )
+    : [];
+
+  const shown = allTable
+    ? tableItems.map((item) => item.entry)
+    : sections.flatMap(({ groups }) =>
+        groups.flatMap((group) => group.entries),
+      );
   // The items on screen that open the shared drawer, which its arrows step through.
   const detailItems = shown.flatMap((entry) => {
     const item = libraryDetails(entry);
@@ -239,17 +367,12 @@ export function LibraryBrowser() {
   );
 
   // The starters and presets on screen, in the order shown, which the drawer's arrows step through.
-  const sheetEntries = sections
-    .flatMap(({ groups }) => {
-      const entries = groups.flatMap((group) => group.entries);
-      return starterTable
-        ? sortLibraryItems(entries, sort, entryName)
-        : entries;
-    })
-    .filter(
-      (entry): entry is StarterEntry =>
-        entry.kind === "starter" || entry.kind === "preset",
-    );
+  const sheetEntries = (
+    starterTable ? sortLibraryItems(shown, sort, entryName) : shown
+  ).filter(
+    (entry): entry is StarterEntry =>
+      entry.kind === "starter" || entry.kind === "preset",
+  );
 
   // While a search is on, each tab says how many of its items match.
   const matches = (section: (typeof all)[number]) =>
@@ -331,10 +454,7 @@ export function LibraryBrowser() {
           <Item
             key={entryKey(entry)}
             skill={entry.skill}
-            onSelect={() => {
-              setSkill(entry.skill);
-              setSkillOpen(true);
-            }}
+            onSelect={() => openSkill(entry.skill)}
           />
         );
       }
@@ -382,8 +502,93 @@ export function LibraryBrowser() {
       </MenuCheckboxItem>
     )) ?? null;
 
+  // Under All, every item a search leaves, for counting what each filter option would list.
+  const searched = current
+    ? []
+    : all.flatMap((section) =>
+        section.groups.flatMap((group) =>
+          group.entries
+            .filter((entry) => !normalized || matchesEntry(entry, normalized))
+            .map((entry) => ({
+              sectionId: section.id,
+              entry,
+              fact: libraryFact(entryFactId(entry)),
+            })),
+        ),
+      );
+  const countOf = (
+    skip: "type" | "platform" | "status",
+    has: (row: (typeof searched)[number]) => boolean,
+  ) =>
+    searched.filter(
+      (row) => allPass(row.sectionId, row.entry, skip) && has(row),
+    ).length;
+  const allFilters: readonly TableFilter[] = [
+    {
+      id: "type",
+      label: "Type",
+      options: all.map((section) => ({
+        id: section.id,
+        label: section.title,
+        count: countOf("type", (row) => row.sectionId === section.id),
+      })),
+      picked: allTypes,
+      onPickedChange: setAllTypes,
+    },
+    {
+      id: "platform",
+      label: "Platform",
+      options: LIBRARY_PLATFORMS.map((platform) => ({
+        id: platform,
+        label: platform,
+        count: countOf(
+          "platform",
+          (row) => row.fact?.platforms.includes(platform) ?? false,
+        ),
+      })),
+      picked: allPlatforms,
+      onPickedChange: (picked) =>
+        setAllPlatforms(picked as readonly LibraryPlatform[]),
+    },
+    {
+      id: "status",
+      label: "Status",
+      options: LIBRARY_AVAILABILITY.map((status) => ({
+        id: status,
+        label: status,
+        count: countOf("status", (row) => row.fact?.status === status),
+      })),
+      picked: allStatuses,
+      onPickedChange: (picked) =>
+        setAllStatuses(picked as readonly LibraryAvailability[]),
+    },
+  ];
+  const allFiltersOn = allFilters.some((entry) => entry.picked.length > 0);
+  const clearAllFilters = () => {
+    setAllTypes([]);
+    setAllPlatforms([]);
+    setAllStatuses([]);
+  };
+
   const menu = !current ? (
-    <LibraryViewMenuOff />
+    <LibraryTableMenu
+      filters={allFilters}
+      sort={allSort}
+      onSortChange={setAllSort}
+      hidden={allHidden}
+      onHiddenChange={setAllHidden}
+      view={allView}
+      onViewChange={setAllView}
+      count={tableItems.length}
+      onExport={(format) =>
+        downloadTableRecords(format, tableItems.map(libraryTableRecord))
+      }
+      onReset={() => {
+        clearAllFilters();
+        setAllSort(null);
+        setAllHidden(TABLE_HIDDEN);
+      }}
+    />
   ) : onStarters ? (
     <StartersViewMenu
       options={starterOptions}
@@ -425,6 +630,7 @@ export function LibraryBrowser() {
   );
 
   const filtered =
+    (!current && allFiltersOn) ||
     filter.groups.length > 0 ||
     filter.traits.length > 0 ||
     (onStarters &&
@@ -483,6 +689,11 @@ export function LibraryBrowser() {
                 label={
                   current ? `Search ${current.noun}` : "Search the library"
                 }
+                count={
+                  resultCount === total
+                    ? `${total}`
+                    : `${resultCount} of ${total}`
+                }
                 className="min-w-0 flex-1 sm:w-72 sm:flex-none"
               />
               {menu}
@@ -524,10 +735,7 @@ export function LibraryBrowser() {
             const found = LIBRARY_SKILLS.find((entry) => entry.name === name);
             return found ? [found] : [];
           })}
-          onSkill={(selected) => {
-            setSkill(selected);
-            setSkillOpen(true);
-          }}
+          onSkill={openSkill}
           onAppearance={() => setAppearanceOpen(true)}
         />
         <LibraryAppearancePanel
@@ -540,6 +748,7 @@ export function LibraryBrowser() {
           item={details}
           items={detailItems}
           onItemChange={setDetails}
+          onGo={openItem}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
         />
@@ -551,7 +760,7 @@ export function LibraryBrowser() {
             aria-label="Kinds of library item"
             className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {all.map((section) => (
+            {listed.map((section) => (
               <SectionTile
                 key={section.id}
                 id={section.id}
@@ -566,14 +775,18 @@ export function LibraryBrowser() {
           <LibraryEmpty
             title={
               !current
-                ? `Nothing in the library matches “${query.trim()}”`
+                ? query.trim()
+                  ? `Nothing in the library matches “${query.trim()}”`
+                  : "Nothing in the library matches these filters"
                 : query.trim()
                   ? `No ${current.noun} match “${query.trim()}”`
                   : `No ${current.noun} match these filters`
             }
             description={
               !current
-                ? "Try a different word, like a component or a framework."
+                ? query.trim()
+                  ? "Try a different word, like a component or a framework."
+                  : "Turn a filter off to see more."
                 : query.trim()
                   ? "Try a different word, or search the whole library under All."
                   : "Turn a filter off to see more."
@@ -587,6 +800,7 @@ export function LibraryBrowser() {
               onClick: () => {
                 setQuery("");
                 setFilter({ ...filter, groups: [], traits: [] });
+                if (!current) clearAllFilters();
                 if (onStarters) {
                   setStarterOptions({
                     ...DEFAULT_VIEW_OPTIONS,
@@ -598,6 +812,67 @@ export function LibraryBrowser() {
             }}
             className="mb-12"
           />
+        ) : allTable ? (
+          <div className="pb-6">
+            {allFiltersOn ? (
+              <ul
+                aria-label="Filters on"
+                className="mb-3 flex flex-wrap items-center gap-1.5"
+              >
+                {allFilters.flatMap((entry) =>
+                  entry.picked.map((id) => {
+                    const label =
+                      entry.options.find((option) => option.id === id)?.label ??
+                      id;
+                    return (
+                      <li key={`${entry.id}:${id}`}>
+                        <button
+                          type="button"
+                          aria-label={`Remove the ${label} filter`}
+                          onClick={() =>
+                            entry.onPickedChange(
+                              entry.picked.filter((picked) => picked !== id),
+                            )
+                          }
+                          className="bg-foreground/[0.06] hover:bg-foreground/[0.1] focus-visible:ring-ring flex h-7 cursor-pointer items-center gap-1.5 rounded-(--library-control) ps-2.5 pe-2 text-xs transition-colors outline-none focus-visible:ring-2"
+                        >
+                          <span className="text-muted-foreground">
+                            {entry.label}
+                          </span>
+                          {label}
+                          <XIcon
+                            aria-hidden
+                            className="text-muted-foreground size-3"
+                          />
+                        </button>
+                      </li>
+                    );
+                  }),
+                )}
+                <li>
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="text-muted-foreground hover:text-foreground focus-visible:ring-ring h-7 cursor-pointer rounded-(--library-control) px-2 text-xs transition-colors outline-none focus-visible:ring-2"
+                  >
+                    Clear
+                  </button>
+                </li>
+              </ul>
+            ) : null}
+            <LibraryTable
+              items={tableItems}
+              total={total}
+              resetKey={`${normalized}|${allTypes.join()}|${allPlatforms.join()}|${allStatuses.join()}|${allSort?.column}|${allSort?.dir}`}
+              sort={allSort}
+              onSortChange={setAllSort}
+              hidden={allHidden}
+              onStarter={openStarter}
+              onPreset={openPreset}
+              onSkill={openSkill}
+              onDetails={openDetails}
+            />
+          </div>
         ) : (
           <div className="flex flex-col">
             {sections.map(({ section, count, groups }, index) => (

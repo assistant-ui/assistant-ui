@@ -65,6 +65,18 @@ export const toggleLibrarySavedItem = (id: string): boolean => {
   return !isSaved;
 };
 
+/** Saves every id that is not saved yet; returns how many were added. */
+export const saveLibraryItems = (added: readonly string[]): number => {
+  const current = getSnapshot();
+  const fresh = added.filter((id) => !current.includes(id));
+  if (fresh.length > 0) commit([...current, ...fresh]);
+  return fresh.length;
+};
+
+export const removeLibrarySavedItems = (removed: readonly string[]) => {
+  commit(getSnapshot().filter((entry) => !removed.includes(entry)));
+};
+
 export const removeLibrarySavedItem = (id: string) => {
   commit(getSnapshot().filter((entry) => entry !== id));
 };

@@ -2,24 +2,18 @@
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
-import {
-  AppWindowIcon,
-  BookOpenIcon,
-  BotIcon,
-  TerminalIcon,
-} from "lucide-react";
+import { BotIcon, TerminalIcon } from "lucide-react";
 import type { LibraryEntry } from "@/lib/library/library-data";
 import { blockSavedId, getLibrarySavedItems } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
-import { LibraryCopyButton } from "./library-copy-button";
+import { ComponentIcon } from "./component-icons";
 import { LibraryDrawer, LibraryDrawerContent } from "./library-drawer";
+import { LibraryFacts } from "./library-facts";
 import { ItemThumbnail } from "./library-item";
 import { LibraryMark } from "./library-mark";
-import { GroupRow, RowGroup } from "./library-row-group";
 import {
   SheetFooter,
   SheetHeader,
-  SheetLinkRow,
   sheetButton,
   sheetPrimary,
 } from "./library-sheet";
@@ -77,11 +71,13 @@ function DetailsBody({
   previous,
   next,
   onItemChange,
+  onGo,
 }: {
   item: LibraryDetails;
   previous: LibraryDetails | undefined;
   next: LibraryDetails | undefined;
   onItemChange: (item: LibraryDetails) => void;
+  onGo: (factId: string) => void;
 }) {
   const { command, prompt } = item;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -116,8 +112,16 @@ function DetailsBody({
                       className="hidden object-cover object-top dark:block"
                     />
                   </>
-                ) : (
+                ) : item.mark ? (
                   <LibraryMark mark={item.mark} name={item.name} large />
+                ) : (
+                  <ComponentIcon
+                    id={item.id}
+                    className="size-5"
+                    fallback={
+                      <LibraryMark mark={undefined} name={item.name} large />
+                    }
+                  />
                 )}
               </ItemThumbnail>
             }
@@ -132,54 +136,15 @@ function DetailsBody({
             }
             next={next && { label: next.name, go: () => onItemChange(next) }}
           />
-          <RowGroup title="Install">
-            {command ? (
-              <GroupRow
-                icon={<TerminalIcon aria-hidden />}
-                label="Install command"
-                value={
-                  <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
-                    {command}
-                  </span>
-                }
-                action={
-                  <LibraryCopyButton
-                    text={command}
-                    label="Copy install command"
-                    className="-me-1.5"
-                  />
-                }
-              />
-            ) : null}
-            <GroupRow
-              icon={<BotIcon aria-hidden />}
-              label="Agent prompt"
-              value={<span className="truncate">{prompt}</span>}
-              action={
-                <LibraryCopyButton
-                  text={prompt}
-                  label="Copy agent prompt"
-                  className="-me-1.5"
-                />
-              }
-            />
-          </RowGroup>
-          <RowGroup title="Links">
-            <SheetLinkRow
-              icon={<BookOpenIcon aria-hidden />}
-              label="Docs"
-              href={item.docs}
-              tooltip="Open the docs"
-            />
-            {item.page ? (
-              <SheetLinkRow
-                icon={<AppWindowIcon aria-hidden />}
-                label="Page"
-                href={item.page}
-                tooltip="Open its page"
-              />
-            ) : null}
-          </RowGroup>
+          <LibraryFacts
+            id={item.id}
+            name={item.name}
+            command={command}
+            prompt={prompt}
+            docs={item.docs}
+            page={item.page}
+            onGo={onGo}
+          />
         </div>
       </div>
       <SheetFooter id={item.id} label={item.name}>
@@ -219,12 +184,15 @@ export function LibraryItemSheet({
   item,
   items,
   onItemChange,
+  onGo,
   open,
   onOpenChange,
 }: {
   item: LibraryDetails | null;
   items: readonly LibraryDetails[];
   onItemChange: (item: LibraryDetails) => void;
+  /** Opens another library item, by the id its facts are kept under. */
+  onGo: (factId: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -244,6 +212,7 @@ export function LibraryItemSheet({
             previous={index > 0 ? items[index - 1] : undefined}
             next={index === -1 ? undefined : items[index + 1]}
             onItemChange={onItemChange}
+            onGo={onGo}
           />
         ) : null}
       </LibraryDrawerContent>

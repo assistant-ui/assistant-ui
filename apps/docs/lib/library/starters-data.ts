@@ -2809,14 +2809,26 @@ const CLI_STARTERS: readonly Starter[] = [
   },
 ];
 
-type RepoExample = Pick<
+type RepoStarter = Pick<
   Starter,
   "name" | "label" | "description" | "framework"
 > &
   Partial<Pick<Starter, "runtime" | "integrations" | "env" | "image">>;
 
+// Folders under templates/ in the repository that PROJECT_METADATA leaves out.
+const REPO_TEMPLATES: readonly RepoStarter[] = [
+  {
+    name: "nuxt",
+    label: "Nuxt",
+    description: "A Nuxt chat on the Vue components and a Nitro route.",
+    framework: "Nuxt",
+    runtime: "AI SDK",
+    env: ["OPENAI_API_KEY"],
+  },
+];
+
 // Folders under examples/ in the repository that PROJECT_METADATA leaves out.
-const REPO_EXAMPLES: readonly RepoExample[] = [
+const REPO_EXAMPLES: readonly RepoStarter[] = [
   {
     name: "recipe-chat-history",
     label: "Chat History Recipe",
@@ -3182,18 +3194,24 @@ const PLAYGROUND_TEMPLATES: readonly PlaygroundTemplate[] = [
   ),
 ];
 
-export const STARTERS: readonly Starter[] = [
-  ...CLI_STARTERS,
-  ...REPO_EXAMPLES.map((example): Starter => ({
+/** A starter `create` does not offer, as one of the kind its folder holds. */
+const repoOnly =
+  (kind: StarterKind) =>
+  (starter: RepoStarter): Starter => ({
     env: [],
-    ...example,
-    kind: "example",
+    ...starter,
+    kind,
     repoOnly: true,
     components: [],
     uiComponents: [],
     files: [],
     dependencies: [],
-  })),
+  });
+
+export const STARTERS: readonly Starter[] = [
+  ...CLI_STARTERS,
+  ...REPO_TEMPLATES.map(repoOnly("template")),
+  ...REPO_EXAMPLES.map(repoOnly("example")),
   ...PLAYGROUND_TEMPLATES.map((template): Starter => ({
     ...template,
     kind: "playground",
@@ -3261,7 +3279,7 @@ export const starterPrompt = (starter: Starter): string =>
     : agentSetupPrompt(
         [],
         starter.repoOnly
-          ? `Follow the ${starter.label} example at ${starterSourceHref(starter)}`
+          ? `Follow the ${starter.label} ${starter.kind} at ${starterSourceHref(starter)}`
           : `Start from the \`${starter.name}\` ${starter.kind}`,
       );
 

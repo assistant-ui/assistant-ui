@@ -22,6 +22,7 @@ export const LIBRARY_UPDATED: Record<string, string> = {
   "templates/mcp": "2026-11-26",
   "templates/eve": "2026-11-10",
   "templates/vscode": "2026-10-28",
+  "templates/nuxt": "2026-11-25",
   "examples/with-ag-ui": "2026-11-25",
   "examples/with-google-adk": "2026-11-18",
   "examples/with-ai-sdk-v7": "2026-11-18",

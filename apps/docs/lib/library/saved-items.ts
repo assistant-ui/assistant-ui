@@ -107,8 +107,10 @@ export const savedSkillItem = (
   preview: { kind: "skill", skill: skill.name },
 });
 
-/** The kind an item saved from each tab is; starters and skills name their own. */
-const SECTION_KIND: Partial<Record<LibrarySectionId, LibraryKind>> = {
+/** The kind an item from each tab is; starters and skills name their own. */
+export const LIBRARY_SECTION_KIND: Partial<
+  Record<LibrarySectionId, LibraryKind>
+> = {
   components: "component",
   blocks: "block",
   runtimes: "runtime",
@@ -123,7 +125,7 @@ const absolute = (href: string) =>
 
 const fromSections = (): LibrarySavedItem[] =>
   LIBRARY_SECTIONS.flatMap((section) => {
-    const kind = SECTION_KIND[section.id];
+    const kind = LIBRARY_SECTION_KIND[section.id];
     if (!kind) return [];
     const label = LIBRARY_KIND_LABEL[kind].toLowerCase();
     return section.groups.flatMap((group) =>

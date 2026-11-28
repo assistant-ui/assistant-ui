@@ -1,10 +1,11 @@
 /** Something only some elements are, which the Components tab can filter by. */
-export type LibraryTrait = "aui" | "generative" | "native";
+export type LibraryTrait = "aui" | "generative" | "native" | "vue";
 
 export const LIBRARY_TRAITS: readonly { id: LibraryTrait; label: string }[] = [
   { id: "aui", label: "AUI connected" },
   { id: "generative", label: "Generative" },
   { id: "native", label: "React Native" },
+  { id: "vue", label: "Vue" },
 ];
 
 /** A component on the library's Components tab. `slug` is the last part of its page's address. */
@@ -925,7 +926,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/thread",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/thread`",
-    traits: ["aui"],
+    traits: ["aui", "native", "vue"],
   },
   {
     slug: "assistant-modal",
@@ -955,7 +956,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/thread-list",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/thread-list`",
-    traits: ["aui"],
+    traits: ["aui", "native", "vue"],
   },
   {
     slug: "thread-list-sidebar",
@@ -985,7 +986,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/reasoning",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/reasoning`",
-    traits: ["aui"],
+    traits: ["aui", "native"],
   },
   {
     slug: "message-timing",
@@ -1034,7 +1035,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/attachment",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/attachment`",
-    traits: ["aui"],
+    traits: ["aui", "native"],
   },
   {
     slug: "follow-up-suggestions",
@@ -1054,7 +1055,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/tool-fallback",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/tool-fallback`",
-    traits: ["aui"],
+    traits: ["aui", "native"],
   },
   {
     slug: "tool-group",
@@ -1094,7 +1095,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/image",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/image`",
-    traits: ["aui"],
+    traits: ["aui", "native"],
   },
   {
     slug: "file",
@@ -1104,7 +1105,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/file",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/file`",
-    traits: ["aui"],
+    traits: ["aui", "native"],
   },
   {
     slug: "model-selector",
@@ -1144,7 +1145,7 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
     command: "npx shadcn@latest add @assistant-ui/markdown-text",
     prompt:
       "install and set up assistant-ui with `npx assistant-ui@latest setup --products elements/markdown-text`",
-    traits: ["aui"],
+    traits: ["aui", "native"],
   },
   {
     slug: "syntax-highlighter",

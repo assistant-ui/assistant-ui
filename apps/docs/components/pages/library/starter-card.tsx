@@ -51,7 +51,8 @@ function ShotStrip({
   );
 }
 
-function StarterPreview({
+/** A starter's picture filling its box: its screenshots in the current mode, its one image, or its drawing. */
+export function StarterPreview({
   starter,
   sizes,
   index = 0,
