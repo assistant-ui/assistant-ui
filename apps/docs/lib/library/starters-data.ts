@@ -1312,6 +1312,26 @@ const CLI_STARTERS: readonly Starter[] = [
         poster: "/screenshot/starters/with-artifacts/recording-dark.png",
       },
     },
+    screenshots: {
+      light: [
+        "/screenshot/starters/with-artifacts/desktop-conversation-light.png",
+        "/screenshot/starters/with-artifacts/desktop-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-artifacts/desktop-conversation-dark.png",
+        "/screenshot/starters/with-artifacts/desktop-empty-dark.png",
+      ],
+    },
+    phoneScreenshots: {
+      light: [
+        "/screenshot/starters/with-artifacts/phone-conversation-light.png",
+        "/screenshot/starters/with-artifacts/phone-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-artifacts/phone-conversation-dark.png",
+        "/screenshot/starters/with-artifacts/phone-empty-dark.png",
+      ],
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
@@ -1479,6 +1499,26 @@ const CLI_STARTERS: readonly Starter[] = [
     label: "Chain of Thought",
     description: "Reasoning, tool calls, and source citations.",
     kind: "example",
+    screenshots: {
+      light: [
+        "/screenshot/starters/with-chain-of-thought/desktop-conversation-light.png",
+        "/screenshot/starters/with-chain-of-thought/desktop-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-chain-of-thought/desktop-conversation-dark.png",
+        "/screenshot/starters/with-chain-of-thought/desktop-empty-dark.png",
+      ],
+    },
+    phoneScreenshots: {
+      light: [
+        "/screenshot/starters/with-chain-of-thought/phone-conversation-light.png",
+        "/screenshot/starters/with-chain-of-thought/phone-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-chain-of-thought/phone-conversation-dark.png",
+        "/screenshot/starters/with-chain-of-thought/phone-empty-dark.png",
+      ],
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
@@ -1630,6 +1670,16 @@ const CLI_STARTERS: readonly Starter[] = [
     label: "Custom Thread List",
     description: "A thread list with its own UI.",
     kind: "example",
+    screenshots: {
+      light: [
+        "/screenshot/starters/with-custom-thread-list/desktop-conversation-light.png",
+        "/screenshot/starters/with-custom-thread-list/desktop-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-custom-thread-list/desktop-conversation-dark.png",
+        "/screenshot/starters/with-custom-thread-list/desktop-empty-dark.png",
+      ],
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
@@ -2028,6 +2078,16 @@ const CLI_STARTERS: readonly Starter[] = [
         poster: "/screenshot/starters/with-interactables/recording-dark.png",
       },
     },
+    screenshots: {
+      light: [
+        "/screenshot/starters/with-interactables/desktop-conversation-light.png",
+        "/screenshot/starters/with-interactables/desktop-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-interactables/desktop-conversation-dark.png",
+        "/screenshot/starters/with-interactables/desktop-empty-dark.png",
+      ],
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["EXPO_PUBLIC_CHAT_ENDPOINT_URL", "OPENAI_API_KEY"],
@@ -2208,6 +2268,26 @@ const CLI_STARTERS: readonly Starter[] = [
     label: "FFmpeg",
     description: "File processing with FFmpeg.",
     kind: "example",
+    screenshots: {
+      light: [
+        "/screenshot/starters/with-ffmpeg/desktop-conversation-light.png",
+        "/screenshot/starters/with-ffmpeg/desktop-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-ffmpeg/desktop-conversation-dark.png",
+        "/screenshot/starters/with-ffmpeg/desktop-empty-dark.png",
+      ],
+    },
+    phoneScreenshots: {
+      light: [
+        "/screenshot/starters/with-ffmpeg/phone-conversation-light.png",
+        "/screenshot/starters/with-ffmpeg/phone-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-ffmpeg/phone-conversation-dark.png",
+        "/screenshot/starters/with-ffmpeg/phone-empty-dark.png",
+      ],
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
@@ -2388,6 +2468,16 @@ const CLI_STARTERS: readonly Starter[] = [
     label: "React Hook Form",
     description: "A React Hook Form integration.",
     kind: "example",
+    screenshots: {
+      light: [
+        "/screenshot/starters/with-react-hook-form/desktop-conversation-light.png",
+        "/screenshot/starters/with-react-hook-form/desktop-empty-light.png",
+      ],
+      dark: [
+        "/screenshot/starters/with-react-hook-form/desktop-conversation-dark.png",
+        "/screenshot/starters/with-react-hook-form/desktop-empty-dark.png",
+      ],
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["OPENAI_API_KEY", "OPENAI_BASE_URL"],
