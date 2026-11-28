@@ -9,6 +9,8 @@ export type ThreadSuggestionProps = Omit<
   children: PressableProps["children"];
   /** The suggestion prompt. */
   prompt: string;
+  /** Set as `metadata.custom` on the message the suggestion sends. */
+  custom?: Record<string, unknown> | undefined;
   /**
    * When true, automatically sends the message.
    * When false, replaces or appends the composer text with the suggestion.
@@ -25,6 +27,7 @@ export type ThreadSuggestionProps = Omit<
 export const ThreadSuggestion = ({
   children,
   prompt,
+  custom,
   send,
   clearComposer = true,
   disabled: disabledProp,
@@ -32,6 +35,7 @@ export const ThreadSuggestion = ({
 }: ThreadSuggestionProps) => {
   const { trigger, disabled } = useSuggestionTrigger({
     prompt,
+    custom,
     send,
     clearComposer,
   });

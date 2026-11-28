@@ -92,7 +92,11 @@ describe("useSuggestionTrigger", () => {
     mocks.state.thread.capabilities = { queue: true };
     mocks.composerState.text = "my draft";
     const { result } = renderHook(() =>
-      useSuggestionTrigger({ prompt: "Hello", send: true }),
+      useSuggestionTrigger({
+        prompt: "Hello",
+        custom: { labId: "lab-3" },
+        send: true,
+      }),
     );
 
     result.current.trigger();
@@ -101,6 +105,7 @@ describe("useSuggestionTrigger", () => {
     expect(mocks.append).toHaveBeenCalledWith({
       content: [{ type: "text", text: "Hello" }],
       runConfig: { custom: { model: "gpt-test" } },
+      metadata: { custom: { labId: "lab-3" } },
     });
     expect(mocks.setText).not.toHaveBeenCalled();
   });

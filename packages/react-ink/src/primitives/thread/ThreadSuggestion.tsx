@@ -7,6 +7,7 @@ export type ThreadSuggestionProps = Omit<
 > & {
   children: PressableProps["children"];
   prompt: string;
+  custom?: Record<string, unknown> | undefined;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };
@@ -14,6 +15,7 @@ export type ThreadSuggestionProps = Omit<
 export const ThreadSuggestion = ({
   children,
   prompt,
+  custom,
   send,
   clearComposer = true,
   disabled: disabledProp,
@@ -21,6 +23,7 @@ export const ThreadSuggestion = ({
 }: ThreadSuggestionProps) => {
   const { trigger, disabled } = useSuggestionTrigger({
     prompt,
+    custom,
     send,
     clearComposer,
   });

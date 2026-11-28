@@ -113,6 +113,7 @@ export const SuggestionPrimitiveTrigger = (
   const [local, rest] = splitProps(props, ["send", "clearComposer", "onClick"]);
   const aui = useAui();
   const prompt = useAuiState((s) => s.suggestion.prompt);
+  const custom = useAuiState((s) => s.suggestion.custom);
   const disabled = useAuiState((s) =>
     suggestionTriggerDisabled(s, local.send ?? false),
   );
@@ -137,9 +138,11 @@ export const SuggestionPrimitiveTrigger = (
           if (local.send) {
             const mode = suggestionSendMode(aui.thread.getState());
             if (mode === "blocked") return;
+            const sent = custom();
             aui.thread.append({
               content: [{ type: "text", text: prompt() }],
               runConfig: aui.composer.getState().runConfig,
+              ...(sent !== undefined && { metadata: { custom: sent } }),
             });
             if (local.clearComposer !== false && mode === "now") {
               aui.composer.setText("");

@@ -33,8 +33,9 @@ export const suggestionTrigger = (options: {
       },
       onclick: (event?: MouseEvent) => {
         if (event?.defaultPrevented || disabled.current) return;
-        const prompt = aui.suggestions.getState().suggestions[index]?.prompt;
-        if (prompt === undefined) return;
+        const suggestion = aui.suggestions.getState().suggestions[index];
+        if (suggestion === undefined) return;
+        const { prompt, custom } = suggestion;
         flushTapSync(() => {
           if (send) {
             const mode = suggestionSendMode(aui.thread.getState());
@@ -42,6 +43,7 @@ export const suggestionTrigger = (options: {
             aui.thread.append({
               content: [{ type: "text", text: prompt }],
               runConfig: aui.composer.getState().runConfig,
+              ...(custom !== undefined && { metadata: { custom } }),
             });
             if (clearComposer && mode === "now") {
               aui.composer.setText("");

@@ -7,12 +7,15 @@ import {
 
 export type UseSuggestionTriggerOptions = {
   prompt: string;
+  /** Set as `metadata.custom` on the message a send appends. */
+  custom?: Record<string, unknown> | undefined;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };
 
 export const useSuggestionTrigger = ({
   prompt,
+  custom,
   send,
   clearComposer = true,
 }: UseSuggestionTriggerOptions) => {
@@ -30,6 +33,7 @@ export const useSuggestionTrigger = ({
       aui.thread.append({
         content: [{ type: "text", text: prompt }],
         runConfig: aui.composer.getState().runConfig,
+        ...(custom !== undefined && { metadata: { custom } }),
       });
       // A queued send must not clear the draft the user is still composing.
       if (clearComposer && mode === "now") {
@@ -45,7 +49,7 @@ export const useSuggestionTrigger = ({
         );
       }
     }
-  }, [aui, resolvedSend, clearComposer, prompt]);
+  }, [aui, resolvedSend, clearComposer, prompt, custom]);
 
   return { trigger, disabled };
 };

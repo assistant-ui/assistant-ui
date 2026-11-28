@@ -29,8 +29,10 @@ const useSuggestionTrigger = ({
   clearComposer?: boolean | undefined;
 }) => {
   const prompt = useAuiState((s) => s.suggestion.prompt);
+  const custom = useAuiState((s) => s.suggestion.custom);
   const { trigger, disabled } = useSuggestionTriggerBehavior({
     prompt,
+    custom,
     send,
     clearComposer,
   });

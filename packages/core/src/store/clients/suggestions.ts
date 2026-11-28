@@ -9,7 +9,33 @@ import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-c
 
 export type SuggestionConfig =
   | string
-  | { title: string; label: string; prompt: string };
+  | {
+      title: string;
+      label: string;
+      prompt: string;
+      /** Set as `metadata.custom` on the message the suggestion sends. */
+      custom?: Record<string, unknown>;
+    };
+
+const withCustom = (
+  suggestion: Omit<SuggestionState, "custom">,
+  custom: Record<string, unknown> | undefined,
+): SuggestionState =>
+  custom === undefined ? suggestion : { ...suggestion, custom };
+
+// `custom` is compared one level deep, so nested objects in an inline config
+// still change the suggestion's identity on every render.
+const isSameSuggestion = (a: SuggestionState, b: SuggestionState) => {
+  const { custom: aCustom, ...aRest } = a;
+  const { custom: bCustom, ...bRest } = b;
+  return (
+    shallowEqual(aRest, bRest) &&
+    (aCustom === bCustom ||
+      (aCustom !== undefined &&
+        bCustom !== undefined &&
+        shallowEqual(aCustom, bCustom)))
+  );
+};
 
 const useStableSuggestionsState = (
   next: SuggestionsState,
@@ -25,7 +51,7 @@ const useStableSuggestionsState = (
     // so an equivalent hole-containing update keeps reusing prior identities.
     const previousSuggestion = previous?.suggestions[suggestions.length];
     suggestions.push(
-      previousSuggestion && shallowEqual(previousSuggestion, suggestion)
+      previousSuggestion && isSameSuggestion(previousSuggestion, suggestion)
         ? previousSuggestion
         : suggestion,
     );
@@ -74,7 +100,10 @@ const useStaticSuggestions = (
     suggestions: (suggestions ?? []).map((s) =>
       typeof s === "string"
         ? { title: s, label: "", prompt: s }
-        : { title: s.title, label: s.label, prompt: s.prompt },
+        : withCustom(
+            { title: s.title, label: s.label, prompt: s.prompt },
+            s.custom,
+          ),
     ),
   });
 };
@@ -85,11 +114,12 @@ const useThreadSuggestions = (
   suggestions: readonly ThreadSuggestion[],
 ): ClientOutput<"suggestions"> => {
   return useSuggestionsClient({
-    suggestions: suggestions.map((s) => ({
-      title: s.title ?? s.prompt,
-      label: s.label ?? "",
-      prompt: s.prompt,
-    })),
+    suggestions: suggestions.map((s) =>
+      withCustom(
+        { title: s.title ?? s.prompt, label: s.label ?? "", prompt: s.prompt },
+        s.custom,
+      ),
+    ),
   });
 };
 

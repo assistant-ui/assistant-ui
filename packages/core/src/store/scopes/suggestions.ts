@@ -4,6 +4,8 @@ export type Suggestion = {
   title: string;
   label: string;
   prompt: string;
+  /** Set as `metadata.custom` on the message the suggestion sends. */
+  custom?: Record<string, unknown>;
 };
 
 export type SuggestionsState = {

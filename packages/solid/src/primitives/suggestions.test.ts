@@ -29,10 +29,20 @@ import {
   ThreadPrimitiveSuggestions,
 } from "./suggestions";
 
-type Suggestion = { title: string; label: string; prompt: string };
+type Suggestion = {
+  title: string;
+  label: string;
+  prompt: string;
+  custom?: Record<string, unknown>;
+};
 const initialSuggestions: Suggestion[] = [
   { title: "Say hello", label: "a friendly opener", prompt: "Hello there!" },
-  { title: "Ask the time", label: "small talk", prompt: "What time is it?" },
+  {
+    title: "Ask the time",
+    label: "small talk",
+    prompt: "What time is it?",
+    custom: { topic: "time" },
+  },
   { title: "Empty", label: "no prompt", prompt: "" },
 ];
 
@@ -198,6 +208,7 @@ describe("suggestion primitives", () => {
     expect(onNew.mock.calls[0]![0]).toMatchObject({
       content: [{ type: "text", text: "What time is it?" }],
       runConfig: { custom: { mode: "echo" } },
+      metadata: { custom: { topic: "time" } },
     });
     expect(runtime.thread.composer.getState().text).toBe("");
   });

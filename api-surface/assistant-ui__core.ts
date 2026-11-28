@@ -4767,6 +4767,7 @@ type Suggestion = {
   title: string;
   label: string;
   prompt: string;
+  custom?: Record<string, unknown>;
 };
 
 type SuggestionAdapter = {
@@ -4794,6 +4795,7 @@ type SuggestionConfig = string | {
   title: string;
   label: string;
   prompt: string;
+  custom?: Record<string, unknown>;
 };
 
 type SuggestionMeta = {
@@ -4811,6 +4813,7 @@ type SuggestionState = {
   title: string;
   label: string;
   prompt: string;
+  custom?: Record<string, unknown>;
 };
 
 declare const Suggestions: Resource<ClientOutput<"suggestions">, [
@@ -5901,6 +5904,7 @@ type ThreadSuggestion = {
   title?: string;
   label?: string;
   prompt: string;
+  custom?: Record<string, unknown>;
 };
 
 type ThreadSystemMessage = MessageCommonProps & {
@@ -6610,6 +6614,7 @@ type UseComposerIfProps = RequireAtLeastOne<ComposerIfFilters>;
 
 type UseSuggestionTriggerOptions = {
   prompt: string;
+  custom?: Record<string, unknown> | undefined;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };

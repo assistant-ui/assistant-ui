@@ -9,6 +9,7 @@ import { useSuggestionTrigger as useSuggestionTriggerBehavior } from "@assistant
 
 const useThreadSuggestion = ({
   prompt,
+  custom,
   send,
   clearComposer,
   autoSend,
@@ -16,6 +17,9 @@ const useThreadSuggestion = ({
 }: {
   /** The suggestion prompt. */
   prompt: string;
+
+  /** Set as `metadata.custom` on the message the suggestion sends. */
+  custom?: Record<string, unknown> | undefined;
 
   /**
    * When true, automatically sends the message.
@@ -43,6 +47,7 @@ const useThreadSuggestion = ({
 
   const { disabled, trigger } = useSuggestionTriggerBehavior({
     prompt,
+    custom,
     send: resolvedSend,
     clearComposer,
   });
@@ -58,5 +63,5 @@ export namespace ThreadPrimitiveSuggestion {
 export const ThreadPrimitiveSuggestion = createActionButton(
   "ThreadPrimitive.Suggestion",
   useThreadSuggestion,
-  ["prompt", "send", "clearComposer", "autoSend", "method"],
+  ["prompt", "custom", "send", "clearComposer", "autoSend", "method"],
 );

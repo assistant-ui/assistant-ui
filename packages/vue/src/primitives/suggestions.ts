@@ -118,6 +118,7 @@ export const SuggestionPrimitiveTrigger = defineComponent({
   setup(props, { attrs, slots }) {
     const aui = useAui();
     const prompt = useAuiState((s) => s.suggestion.prompt);
+    const custom = useAuiState((s) => s.suggestion.custom);
     const disabled = useAuiState((s) =>
       suggestionTriggerDisabled(s, props.send),
     );
@@ -132,6 +133,9 @@ export const SuggestionPrimitiveTrigger = defineComponent({
           aui.thread.append({
             content: [{ type: "text", text: prompt.value }],
             runConfig: aui.composer.getState().runConfig,
+            ...(custom.value !== undefined && {
+              metadata: { custom: custom.value },
+            }),
           });
           if (props.clearComposer && mode === "now") {
             aui.composer.setText("");

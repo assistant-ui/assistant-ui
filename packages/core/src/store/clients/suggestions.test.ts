@@ -122,6 +122,65 @@ describe("Suggestions", () => {
       root.unmount();
     }
   });
+  it("keeps a suggestion's custom, stable across owner renders when equal", () => {
+    let rerender!: () => void;
+    const root = createTapRoot(function SuggestionsRoot() {
+      const [, setTick] = useState(0);
+      rerender = () => setTick((tick) => tick + 1);
+      return useResource(
+        Suggestions([
+          { title: "T", label: "L", prompt: "P", custom: { labId: "lab-3" } },
+        ]),
+      );
+    });
+
+    try {
+      const firstSuggestion = root
+        .getValue()
+        .suggestion({ index: 0 })
+        .getState();
+      expect(firstSuggestion).toEqual({
+        title: "T",
+        label: "L",
+        prompt: "P",
+        custom: { labId: "lab-3" },
+      });
+
+      flushTapSync(rerender);
+
+      expect(root.getValue().suggestion({ index: 0 }).getState()).toBe(
+        firstSuggestion,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+  it("updates when only a suggestion's custom changes or goes away", () => {
+    let setSuggestions!: (suggestions: SuggestionConfig[]) => void;
+    const base = { title: "T", label: "L", prompt: "P" };
+    const root = createTapRoot(function SuggestionsRoot() {
+      const [suggestions, setValue] = useState<SuggestionConfig[]>([
+        { ...base, custom: { labId: "lab-3" } },
+      ]);
+      setSuggestions = setValue;
+      return useResource(Suggestions(suggestions));
+    });
+
+    try {
+      const custom = () =>
+        root.getValue().suggestion({ index: 0 }).getState().custom;
+
+      flushTapSync(() =>
+        setSuggestions([{ ...base, custom: { labId: "lab-4" } }]),
+      );
+      expect(custom()).toEqual({ labId: "lab-4" });
+
+      flushTapSync(() => setSuggestions([base]));
+      expect(custom()).toBeUndefined();
+    } finally {
+      root.unmount();
+    }
+  });
 });
 
 describe("ThreadSuggestions", () => {

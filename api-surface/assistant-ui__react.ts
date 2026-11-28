@@ -4536,6 +4536,7 @@ type SuggestionConfig = string | {
   title: string;
   label: string;
   prompt: string;
+  custom?: Record<string, unknown>;
 };
 
 declare namespace SuggestionPrimitiveDescription {
@@ -4578,6 +4579,7 @@ type SuggestionState = {
   title: string;
   label: string;
   prompt: string;
+  custom?: Record<string, unknown>;
 };
 
 declare const Suggestions: Resource<ClientOutput<"suggestions">, [
@@ -5308,6 +5310,7 @@ declare const ThreadPrimitiveSuggestion: import("react").ForwardRefExoticCompone
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLButtonElement>, "ref"> & {
   prompt: string;
+  custom?: Record<string, unknown> | undefined;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
   autoSend?: boolean | undefined;
@@ -5696,6 +5699,7 @@ type ThreadSuggestion = {
   title?: string;
   label?: string;
   prompt: string;
+  custom?: Record<string, unknown>;
 };
 
 type ThreadSystemMessage = MessageCommonProps & {
@@ -7231,6 +7235,7 @@ declare const useThreadScrollToBottom: (_param18?: useThreadScrollToBottom.Optio
 
 declare const useThreadSuggestion: (_param19: {
   prompt: string;
+  custom?: Record<string, unknown> | undefined;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
   autoSend?: boolean | undefined;
