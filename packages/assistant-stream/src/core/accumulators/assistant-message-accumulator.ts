@@ -586,22 +586,23 @@ export class AssistantMessageAccumulator extends TransformStream<
     strict?: boolean | undefined;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
-    // The merge stream allocates part indices monotonically, so the count of
-    // delivered part-starts equals the index of the next part. A reset
-    // discards the current step's index range; live indices compact by the
+    // Chunk paths are absolute indices into the message: an initial message
+    // seeds the first ones and a streamed part follows them, so counting the
+    // part-starts yields the index of the next part. A reset discards the
+    // current step's index range, and the indices after it compact by the
     // number of discarded parts before them.
-    let nextStreamPart = 0;
-    let stepStart = 0;
-    const discarded: { start: number; end: number }[] = [];
     const initialOffset = message.parts.length;
-    const mapPartIndex = (streamIndex: number): number | undefined => {
+    let nextStreamPart = initialOffset;
+    let stepStart = initialOffset;
+    const discarded: { start: number; end: number }[] = [];
+    const mapPartIndex = (partIndex: number): number | undefined => {
       let discardedBefore = 0;
       for (const { start, end } of discarded) {
-        if (streamIndex < start) break;
-        if (streamIndex < end) return undefined;
+        if (partIndex < start) break;
+        if (partIndex < end) return undefined;
         discardedBefore += end - start;
       }
-      return initialOffset + streamIndex - discardedBefore;
+      return partIndex - discardedBefore;
     };
     let stateAccumulator: GorpStreamAccumulator | undefined;
     let finalOutputTokens: number | undefined;
@@ -630,10 +631,10 @@ export class AssistantMessageAccumulator extends TransformStream<
       transform(chunk) {
         tracker.recordChunk();
         if (chunk.path.length > 0 && chunk.type !== "part-start") {
-          const streamIndex = chunk.path[0]!;
-          const mappedIndex = mapPartIndex(streamIndex);
+          const partIndex = chunk.path[0]!;
+          const mappedIndex = mapPartIndex(partIndex);
           if (mappedIndex === undefined) return;
-          if (mappedIndex !== streamIndex) {
+          if (mappedIndex !== partIndex) {
             chunk = { ...chunk, path: [mappedIndex, ...chunk.path.slice(1)] };
           }
         }

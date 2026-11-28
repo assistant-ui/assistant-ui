@@ -1232,6 +1232,54 @@ describe("AssistantMessageAccumulator tool-call approvals", () => {
 });
 
 describe("AssistantMessageAccumulator step-reset", () => {
+  const seededMessage = (): AssistantMessage => ({
+    role: "assistant",
+    status: { type: "running" },
+    parts: [
+      {
+        type: "text",
+        text: "SEED-1",
+        status: { type: "complete", reason: "stop" },
+      },
+      {
+        type: "text",
+        text: "SEED-2",
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+    content: [],
+    metadata: {
+      unstable_state: null,
+      unstable_data: [],
+      unstable_annotations: [],
+      steps: [],
+      custom: {},
+    },
+  });
+
+  const accumulateWithSeed = async (
+    chunks: AssistantStreamChunk[],
+  ): Promise<AssistantMessage[]> => {
+    const messages: AssistantMessage[] = [];
+    await new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    })
+      .pipeThrough(
+        new AssistantMessageAccumulator({ initialMessage: seededMessage() }),
+      )
+      .pipeTo(
+        new WritableStream({
+          write(message) {
+            messages.push(message);
+          },
+        }),
+      );
+    return messages;
+  };
+
   it("truncates the current step, keeps earlier parts, and remaps late results", async () => {
     const messages = await collectStream([
       { type: "part-start", path: [0], part: { type: "text" } },
@@ -1295,53 +1343,31 @@ describe("AssistantMessageAccumulator step-reset", () => {
   });
 
   it("preserves initialMessage parts and only drops streamed parts", async () => {
-    const initialMessage: AssistantMessage = {
-      role: "assistant",
-      status: { type: "running" },
-      parts: [
-        {
-          type: "text",
-          text: "SEED-1",
-          status: { type: "complete", reason: "stop" },
-        },
-        {
-          type: "text",
-          text: "SEED-2",
-          status: { type: "complete", reason: "stop" },
-        },
-      ],
-      content: [],
-      metadata: {
-        unstable_state: null,
-        unstable_data: [],
-        unstable_annotations: [],
-        steps: [],
-        custom: {},
-      },
-    };
     const messages: AssistantMessage[] = [];
-    const accumulator = new AssistantMessageAccumulator({ initialMessage });
+    const accumulator = new AssistantMessageAccumulator({
+      initialMessage: seededMessage(),
+    });
     await new ReadableStream<AssistantStreamChunk>({
       start(controller) {
         controller.enqueue({
           type: "part-start",
-          path: [0],
+          path: [2],
           part: { type: "text" },
         });
         controller.enqueue({
           type: "text-delta",
-          path: [0],
+          path: [2],
           textDelta: "BAD",
         });
         controller.enqueue({ type: "step-reset", path: [] });
         controller.enqueue({
           type: "part-start",
-          path: [1],
+          path: [3],
           part: { type: "text" },
         });
         controller.enqueue({
           type: "text-delta",
-          path: [1],
+          path: [3],
           textDelta: "OK",
         });
         controller.enqueue({
@@ -1361,6 +1387,65 @@ describe("AssistantMessageAccumulator step-reset", () => {
           },
         }),
       );
+
+    expect(
+      messages.at(-1)!.parts.map((part) => (part as { text?: string }).text),
+    ).toEqual(["SEED-1", "SEED-2", "OK"]);
+  });
+
+  it("resolves a streamed part at its absolute index when the initial message has parts", async () => {
+    const messages = await accumulateWithSeed([
+      { type: "part-start", path: [2], part: { type: "text" } },
+      { type: "text-delta", path: [2], textDelta: "OK" },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ]);
+
+    expect(
+      messages.at(-1)!.parts.map((part) => (part as { text?: string }).text),
+    ).toEqual(["SEED-1", "SEED-2", "OK"]);
+  });
+
+  it("applies a result for a streamed tool call at its absolute index", async () => {
+    const messages = await accumulateWithSeed([
+      {
+        type: "part-start",
+        path: [2],
+        part: { type: "tool-call", toolCallId: "c1", toolName: "weather" },
+      },
+      { type: "result", path: [2], result: { temp: 72 }, isError: false },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ]);
+
+    const toolCall = messages
+      .at(-1)!
+      .parts.find((part) => part.type === "tool-call");
+    expect(toolCall).toMatchObject({ result: { temp: 72 } });
+  });
+
+  it("removes only the discarded streamed parts and keeps the seeded ones", async () => {
+    const messages = await accumulateWithSeed([
+      { type: "part-start", path: [2], part: { type: "text" } },
+      { type: "text-delta", path: [2], textDelta: "BAD" },
+      { type: "step-reset", path: [] },
+      { type: "part-start", path: [3], part: { type: "text" } },
+      { type: "text-delta", path: [3], textDelta: "OK" },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      },
+    ]);
 
     expect(
       messages.at(-1)!.parts.map((part) => (part as { text?: string }).text),
