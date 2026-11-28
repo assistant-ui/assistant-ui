@@ -861,6 +861,38 @@ export class ExternalStoreThreadRuntimeCore
         }
       }
 
+      // Mid-run, a trailing user message published under a new id is a
+      // replacement (for example a server-assigned id), not a sibling branch.
+      // Evict the stale client id so cancelRun cannot write it back beside
+      // the composer draft. Leave mid-path replacements and different-text
+      // trailing users in place so intentional branches survive.
+      const previousHostTail = this._storeMessages.at(-1);
+      const incomingTail = messages.at(-1);
+      if (
+        isRunning &&
+        previousHostTail?.role === "user" &&
+        incomingTail?.role === "user" &&
+        previousHostTail.id !== incomingTail.id &&
+        !incomingIds.has(previousHostTail.id)
+      ) {
+        const previousParentId = this._storeMessages.at(-2)?.id ?? null;
+        const incomingParentId = messages.at(-2)?.id ?? null;
+        if (
+          previousParentId === incomingParentId &&
+          getThreadMessageText(previousHostTail) ===
+            getThreadMessageText(incomingTail)
+        ) {
+          try {
+            const stale = this.repository.getMessage(
+              previousHostTail.id,
+            ).message;
+            hostDeletedMessages.set(stale.id, stale);
+          } catch {
+            // Already gone from the repository.
+          }
+        }
+      }
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
