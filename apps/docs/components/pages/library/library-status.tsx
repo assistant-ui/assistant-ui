@@ -16,6 +16,25 @@ const STATUS_TONE: Record<LibraryStatus, string> = {
   deprecated: "bg-red-500/12 text-red-700 dark:text-red-400",
 };
 
+const STATUS_DOT: Record<LibraryStatus, string> = {
+  live: "bg-emerald-500",
+  experimental: "bg-amber-500",
+  unreleased: "bg-violet-500",
+  internal: "bg-sky-500",
+  review: "bg-orange-500",
+  deprecated: "bg-red-500",
+};
+
+/** A status as a dot in its color, for a menu row. */
+export function LibraryStatusDot({ status }: { status: LibraryStatus }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("size-2 shrink-0 rounded-full", STATUS_DOT[status])}
+    />
+  );
+}
+
 /** Whether the item with this saved id should stay on show, as a colored badge. */
 export function LibraryStatusBadge({
   id,

@@ -15,7 +15,13 @@ import {
   type StarterIntegration,
   type StarterRuntime,
 } from "@/lib/library/starters-data";
+import {
+  LIBRARY_STATUSES_IN_USE,
+  LIBRARY_STATUS_LABEL,
+  type LibraryStatus,
+} from "@/lib/library/status-data";
 import { FilterIcon } from "./filter-icons";
+import { LibraryStatusDot } from "./library-status";
 import {
   LibraryViewMenu,
   type LibrarySort,
@@ -29,6 +35,7 @@ export type StartersViewOptions = {
   frameworks: readonly StarterFramework[];
   runtimes: readonly StarterRuntime[];
   integrations: readonly StarterIntegration[];
+  statuses: readonly LibraryStatus[];
   withScreenshot: boolean;
   /** Only what `create` installs by command. */
   installable: boolean;
@@ -40,6 +47,7 @@ export const DEFAULT_VIEW_OPTIONS: StartersViewOptions = {
   frameworks: [],
   runtimes: [],
   integrations: [],
+  statuses: [],
   withScreenshot: false,
   installable: false,
   sort: "default",
@@ -59,7 +67,9 @@ export const matchesStarterOptions = (
     | "hosted"
   >,
   options: StartersViewOptions,
+  status: LibraryStatus,
 ): boolean =>
+  (options.statuses.length === 0 || options.statuses.includes(status)) &&
   (!options.installable || (!starter.repoOnly && !starter.hosted)) &&
   (!options.withScreenshot ||
     starter.image !== undefined ||
@@ -98,6 +108,7 @@ export function StartersViewMenu({
     options.frameworks.length > 0 ||
     options.runtimes.length > 0 ||
     options.integrations.length > 0 ||
+    options.statuses.length > 0 ||
     options.withScreenshot ||
     options.installable;
 
@@ -193,6 +204,31 @@ export function StartersViewMenu({
                 >
                   <FilterIcon name={integration} />
                   {integration}
+                </MenuCheckboxItem>
+              ))}
+            </MenuSubContent>
+          </MenuSub>
+          <MenuSub>
+            <MenuSubTrigger>
+              <span className="flex flex-1 items-center gap-2">
+                Status
+                <SelectedCount count={options.statuses.length} />
+              </span>
+            </MenuSubTrigger>
+            <MenuSubContent>
+              {LIBRARY_STATUSES_IN_USE.map((status) => (
+                <MenuCheckboxItem
+                  key={status}
+                  checked={options.statuses.includes(status)}
+                  onCheckedChange={(checked) =>
+                    onOptionsChange({
+                      ...options,
+                      statuses: toggle(options.statuses, status, checked),
+                    })
+                  }
+                >
+                  <LibraryStatusDot status={status} />
+                  {LIBRARY_STATUS_LABEL[status]}
                 </MenuCheckboxItem>
               ))}
             </MenuSubContent>

@@ -2813,7 +2813,7 @@ type RepoExample = Pick<
   Starter,
   "name" | "label" | "description" | "framework"
 > &
-  Partial<Pick<Starter, "runtime" | "integrations" | "env">>;
+  Partial<Pick<Starter, "runtime" | "integrations" | "env" | "image">>;
 
 // Folders under examples/ in the repository that PROJECT_METADATA leaves out.
 const REPO_EXAMPLES: readonly RepoExample[] = [
@@ -2916,6 +2916,7 @@ const REPO_EXAMPLES: readonly RepoExample[] = [
     name: "with-generative-ui",
     label: "Generative UI",
     description: "Interfaces the model writes, rendered in the thread.",
+    image: "/screenshot/examples/generative-ui.png",
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["AI_GATEWAY_API_KEY", "OPENAI_API_KEY"],
@@ -2937,6 +2938,7 @@ const REPO_EXAMPLES: readonly RepoExample[] = [
     label: "Article Assistant",
     description:
       "A news article with an assistant that answers questions about it.",
+    image: "/screenshot/examples/article-assistant.png",
     framework: "Next.js",
     runtime: "AI SDK",
   },
@@ -3091,6 +3093,7 @@ const PLAYGROUND_TEMPLATES: readonly PlaygroundTemplate[] = [
     "base",
     "Base Assistant UI",
     "A full chat app on the primitives: threads, attachments, mentions, slash commands, a model picker, and voice.",
+    "/screenshot/examples/ai-sdk.png",
   ),
   demo(
     "chatgpt",

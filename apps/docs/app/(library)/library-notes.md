@@ -16,7 +16,7 @@ What is copied, and from where:
 - `components`, `uiComponents`, `files`, and `dependencies` are what `create` installs. They were worked out the way the CLI and shadcn do it: scan the starter's `@/components/assistant-ui/...` and `@/components/ui/...` imports, then follow every item's `registryDependencies` through the registry (assistant-ui items from `apps/registry/dist`, shadcn/ui items from ui.shadcn.com). `dependencies` drops `@assistant-ui/ui`, which `create` removes. Default checks out against a real `npx assistant-ui@latest create my-app`: 35 files.
 - `componentsIncluded` marks Minimal, Shared cloud chat, and React Ink, whose components ship inside the starter (`hasLocalComponents` in the CLI), so their files are listed from the starter folder instead of the registry.
 - `devScript` is set only for Expo, which starts with `npm run start`.
-- `image` points at the four screenshots that exist in `public/screenshot/examples`.
+- `image` points at a screenshot in `public/screenshot/examples` wherever the site's examples page (`lib/examples.ts`) pairs one with the same code: Artifacts, Expo, Interactables, React Hook Form, Generative UI, Article Assistant, the five style clones, and Base Assistant UI, which that page shows as "AI SDK" with an older capture. Each is one image, so it looks the same in light and dark mode.
 
 When to redo it: a starter is added, removed, or renamed in the CLI; a starter's imports, `.env.example`, or `package.json` change; or a registry item's files or dependencies change.
 

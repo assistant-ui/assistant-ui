@@ -104,6 +104,15 @@ const NOT_LIVE: Record<string, StatusNote> = {
   "playgrounds/billing-operations": TEMPORARY_HOST,
 };
 
+/** The statuses at least one item has, in the order the labels are listed. */
+export const LIBRARY_STATUSES_IN_USE = (
+  Object.keys(LIBRARY_STATUS_LABEL) as LibraryStatus[]
+).filter(
+  (status) =>
+    status === "live" ||
+    Object.values(NOT_LIVE).some((note) => note.status === status),
+);
+
 /** An item's status, and why when it is not live. */
 export const libraryStatus = (
   id: string,

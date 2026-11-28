@@ -21,8 +21,13 @@ import {
   type StarterEntry,
 } from "@/lib/library/library-data";
 import { LIBRARY_SKILLS, type LibrarySkill } from "@/lib/library/skills-data";
-import { PRESET_STACK, type LibraryPreset } from "@/lib/library/presets-data";
-import type { Starter } from "@/lib/library/starters-data";
+import {
+  PRESET_STACK,
+  presetId,
+  type LibraryPreset,
+} from "@/lib/library/presets-data";
+import { libraryStatus } from "@/lib/library/status-data";
+import { starterId, type Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
 import { LibraryDock } from "./library-dock";
@@ -186,9 +191,17 @@ export function LibraryBrowser() {
                   )) &&
                 (!onStarters ||
                   (entry.kind === "starter"
-                    ? matchesStarterOptions(entry.starter, starterOptions)
+                    ? matchesStarterOptions(
+                        entry.starter,
+                        starterOptions,
+                        libraryStatus(starterId(entry.starter)).status,
+                      )
                     : entry.kind !== "preset" ||
-                      matchesStarterOptions(PRESET_STACK, starterOptions))),
+                      matchesStarterOptions(
+                        PRESET_STACK,
+                        starterOptions,
+                        libraryStatus(presetId(entry.preset)).status,
+                      ))),
             ),
             current ? sort : "default",
             entryName,
@@ -399,6 +412,7 @@ export function LibraryBrowser() {
       (starterOptions.frameworks.length > 0 ||
         starterOptions.runtimes.length > 0 ||
         starterOptions.integrations.length > 0 ||
+        starterOptions.statuses.length > 0 ||
         starterOptions.withScreenshot ||
         starterOptions.installable));
 
