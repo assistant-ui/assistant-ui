@@ -1,18 +1,28 @@
 "use client";
 
-import { useDeferredValue, useState, useSyncExternalStore } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
+import { PanelLeftIcon, PanelTopIcon } from "lucide-react";
 import {
   entryKey,
   entryName,
   LIBRARY_SECTIONS,
   matchesEntry,
+  libraryTotal,
   sectionCount,
   type LibraryEntry,
   type LibrarySectionId,
 } from "@/lib/library/library-data";
 import type { LibrarySkill } from "@/lib/library/skills-data";
 import type { Starter } from "@/lib/library/starters-data";
+import { cn } from "@/lib/utils";
+import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
 import { LibraryHero } from "./library-hero";
 import { LibraryItemDialog, type LibraryDetails } from "./library-item-dialog";
 import { LibraryEmpty } from "./library-empty";
@@ -29,6 +39,8 @@ import {
   MenuSubContent,
   MenuSubTrigger,
 } from "./menu";
+import { LibrarySidebar, useLibraryLayout } from "./library-sidebar";
+import { LibraryTooltip } from "./library-tooltip";
 import { PillTabs, type PillTab } from "./pill-tabs";
 import { LibrarySavedButton } from "./saved-sheet";
 import { SearchBar } from "./search-bar";
@@ -97,6 +109,13 @@ function useLibraryTab() {
 export function LibraryBrowser() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useLibraryTab();
+  const [layout, setLayout] = useLibraryLayout();
+  const sidebar = layout === "sidebar";
+  const contentRef = useRef<HTMLDivElement>(null);
+  // In sidebar mode the items scroll in their own box, which a new tab starts at the top of.
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [tab]);
   const [filters, setFilters] = useState<
     Partial<Record<LibrarySectionId, TabFilter>>
   >({});
@@ -344,142 +363,202 @@ export function LibraryBrowser() {
         starterOptions.integrations.length > 0 ||
         starterOptions.withScreenshot));
 
+  // The sidebar always says how many items a type holds; a search narrows that to the matches.
+  const sidebarItems = tabs.map((entry) => {
+    const section = all.find((item) => item.id === entry.id);
+    return {
+      id: entry.id,
+      label: entry.label,
+      count:
+        entry.count ?? (section ? sectionCount(section) : libraryTotal(all)),
+      glyph: section ? <LibraryGlyph id={section.id} /> : <GlyphLibrary />,
+    };
+  });
+
   return (
-    <>
-      <PillTabs
-        tabs={tabs}
-        value={tab}
-        onValueChange={setTab}
-        label="Show library items"
-        className="mb-10"
-      />
-      <LibraryHero
-        section={current}
-        onSkill={(selected) => {
-          setSkill(selected);
-          setSkillOpen(true);
-        }}
-      />
-      <div className="mb-10 flex items-center gap-2">
-        <SearchBar
-          value={query}
-          onValueChange={setQuery}
-          label={current ? `Search ${current.noun}` : "Search the library"}
-          className="min-w-0 flex-1"
-        />
-        {menu}
-        <LibrarySavedButton />
-      </div>
-      <StarterSheet
-        starter={starter}
-        open={starterOpen}
-        onOpenChange={setStarterOpen}
-      />
-      <SkillDialog skill={skill} open={skillOpen} onOpenChange={setSkillOpen} />
-      <LibraryItemDialog
-        item={details}
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-      />
-      <p role="status" className="sr-only">
-        {normalized ? `${resultCount} items found` : ""}
-      </p>
-      {home ? (
-        <ul
-          aria-label="Kinds of library item"
-          className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 xl:grid-cols-5"
-        >
-          {all.map((section) => (
-            <SectionTile
-              key={section.id}
-              id={section.id}
-              title={section.title}
-              description={section.description}
-              count={sectionCount(section)}
-              onSelect={() => setTab(section.id)}
-            />
-          ))}
-        </ul>
-      ) : sections.length === 0 ? (
-        <LibraryEmpty
-          title={
-            !current
-              ? `Nothing in the library matches “${query.trim()}”`
-              : query.trim()
-                ? `No ${current.noun} match “${query.trim()}”`
-                : `No ${current.noun} match these filters`
-          }
-          description={
-            !current
-              ? "Try a different word, like a component or a framework."
-              : query.trim()
-                ? "Try a different word, or search the whole library under All."
-                : "Turn a filter off to see more."
-          }
-          action={{
-            label: !filtered
-              ? "Clear search"
-              : query.trim()
-                ? "Clear search and filters"
-                : "Clear filters",
-            onClick: () => {
-              setQuery("");
-              setFilter({ ...filter, groups: [], traits: [] });
-              if (onStarters) {
-                setStarterOptions({
-                  ...DEFAULT_VIEW_OPTIONS,
-                  sort: starterOptions.sort,
-                  view: starterOptions.view,
-                });
-              }
-            },
-          }}
-          className="mb-12"
-        />
-      ) : (
-        <div className="flex flex-col">
-          {sections.map(({ section, count, groups }, index) => (
-            <section
-              key={section.id}
-              aria-label={section.title}
-              className={index > 0 ? "border-t py-12" : "pb-12"}
-            >
-              {current ? null : (
-                <div className="mb-4 flex items-baseline justify-between gap-4">
-                  <h2 className="text-base font-medium">
-                    <Link
-                      href={section.href}
-                      className="decoration-foreground/30 underline-offset-4 hover:underline"
-                    >
-                      {section.title}
-                    </Link>
-                  </h2>
-                  <span className="text-muted-foreground text-sm tabular-nums">
-                    {count}
-                  </span>
-                </div>
-              )}
-              <div className="flex flex-col gap-8">
-                {groups.map((group) => (
-                  <div key={group.label} className="flex flex-col gap-2">
-                    {current || groups.length > 1 ? (
-                      <GroupLabel className="text-muted-foreground text-sm tabular-nums">
-                        {group.label} · {group.entries.length}
-                      </GroupLabel>
-                    ) : null}
-                    <ul
-                      aria-label={group.label}
-                      className={layoutOf(group.entries[0])}
-                    >
-                      {group.entries.map(renderEntry)}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+    <div
+      {...(sidebar && { "data-library-shell": "" })}
+      className={cn(
+        // In sidebar mode the library fills the frame its layout holds to one
+        // screen, and the sidebar and the items each scroll inside it.
+        sidebar &&
+          "lg:grid lg:h-full lg:min-h-0 lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-x-10",
       )}
-    </>
+    >
+      {sidebar ? (
+        <LibrarySidebar
+          items={sidebarItems}
+          value={tab}
+          onValueChange={setTab}
+          className="hidden lg:block"
+        />
+      ) : null}
+      <div
+        ref={contentRef}
+        className={cn(
+          "min-w-0",
+          sidebar &&
+            "lg:-mx-2 lg:h-full lg:min-h-0 lg:[scrollbar-width:thin] lg:overflow-y-auto lg:px-2 lg:pb-10",
+        )}
+      >
+        <PillTabs
+          tabs={tabs}
+          value={tab}
+          onValueChange={setTab}
+          label="Show library items"
+          className={cn("mb-10", sidebar && "lg:hidden")}
+        />
+        <LibraryHero
+          section={current}
+          onSkill={(selected) => {
+            setSkill(selected);
+            setSkillOpen(true);
+          }}
+        />
+        <div className="mb-10 flex items-center gap-2">
+          <SearchBar
+            value={query}
+            onValueChange={setQuery}
+            label={current ? `Search ${current.noun}` : "Search the library"}
+            className="min-w-0 flex-1"
+          />
+          {menu}
+          <LibraryTooltip
+            label={
+              sidebar ? "Show the types as tabs" : "Show the types in a sidebar"
+            }
+          >
+            <button
+              type="button"
+              aria-pressed={sidebar}
+              aria-label="Sidebar layout"
+              onClick={() => setLayout(sidebar ? "tabs" : "sidebar")}
+              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring hidden size-9 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2 lg:grid"
+            >
+              {sidebar ? (
+                <PanelTopIcon aria-hidden className="size-4" />
+              ) : (
+                <PanelLeftIcon aria-hidden className="size-4" />
+              )}
+            </button>
+          </LibraryTooltip>
+          <LibrarySavedButton />
+        </div>
+        <StarterSheet
+          starter={starter}
+          open={starterOpen}
+          onOpenChange={setStarterOpen}
+        />
+        <SkillDialog
+          skill={skill}
+          open={skillOpen}
+          onOpenChange={setSkillOpen}
+        />
+        <LibraryItemDialog
+          item={details}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+        />
+        <p role="status" className="sr-only">
+          {normalized ? `${resultCount} items found` : ""}
+        </p>
+        {home ? (
+          <ul
+            aria-label="Kinds of library item"
+            className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 xl:grid-cols-5"
+          >
+            {all.map((section) => (
+              <SectionTile
+                key={section.id}
+                id={section.id}
+                title={section.title}
+                description={section.description}
+                count={sectionCount(section)}
+                onSelect={() => setTab(section.id)}
+              />
+            ))}
+          </ul>
+        ) : sections.length === 0 ? (
+          <LibraryEmpty
+            title={
+              !current
+                ? `Nothing in the library matches “${query.trim()}”`
+                : query.trim()
+                  ? `No ${current.noun} match “${query.trim()}”`
+                  : `No ${current.noun} match these filters`
+            }
+            description={
+              !current
+                ? "Try a different word, like a component or a framework."
+                : query.trim()
+                  ? "Try a different word, or search the whole library under All."
+                  : "Turn a filter off to see more."
+            }
+            action={{
+              label: !filtered
+                ? "Clear search"
+                : query.trim()
+                  ? "Clear search and filters"
+                  : "Clear filters",
+              onClick: () => {
+                setQuery("");
+                setFilter({ ...filter, groups: [], traits: [] });
+                if (onStarters) {
+                  setStarterOptions({
+                    ...DEFAULT_VIEW_OPTIONS,
+                    sort: starterOptions.sort,
+                    view: starterOptions.view,
+                  });
+                }
+              },
+            }}
+            className="mb-12"
+          />
+        ) : (
+          <div className="flex flex-col">
+            {sections.map(({ section, count, groups }, index) => (
+              <section
+                key={section.id}
+                aria-label={section.title}
+                className={index > 0 ? "border-t py-12" : "pb-12"}
+              >
+                {current ? null : (
+                  <div className="mb-4 flex items-baseline justify-between gap-4">
+                    <h2 className="text-base font-medium">
+                      <Link
+                        href={section.href}
+                        className="decoration-foreground/30 underline-offset-4 hover:underline"
+                      >
+                        {section.title}
+                      </Link>
+                    </h2>
+                    <span className="text-muted-foreground text-sm tabular-nums">
+                      {count}
+                    </span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-8">
+                  {groups.map((group) => (
+                    <div key={group.label} className="flex flex-col gap-2">
+                      {current || groups.length > 1 ? (
+                        <GroupLabel className="text-muted-foreground text-sm tabular-nums">
+                          {group.label} · {group.entries.length}
+                        </GroupLabel>
+                      ) : null}
+                      <ul
+                        aria-label={group.label}
+                        className={layoutOf(group.entries[0])}
+                      >
+                        {group.entries.map(renderEntry)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

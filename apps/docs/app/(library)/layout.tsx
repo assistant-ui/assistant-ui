@@ -10,7 +10,9 @@ export default function Layout({
   children: ReactNode;
 }): React.ReactElement {
   return (
-    <div className="flex min-h-screen flex-col">
+    // With the library's sidebar showing, the page is one screen tall: the
+    // footer stays at the bottom and the sidebar and the items scroll inside.
+    <div className="flex min-h-screen flex-col lg:has-[[data-library-shell]]:h-dvh">
       <Header />
       {children}
       <LibrarySavedSheet />

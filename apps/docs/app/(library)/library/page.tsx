@@ -15,7 +15,10 @@ export const metadata: Metadata = {
 
 export default function LibraryPage(): React.ReactElement {
   return (
-    <PageFrame pad="sub">
+    <PageFrame
+      pad="sub"
+      className="lg:has-[[data-library-shell]]:min-h-0 lg:has-[[data-library-shell]]:flex-1 lg:has-[[data-library-shell]]:pb-0"
+    >
       <LibraryBrowser />
     </PageFrame>
   );
