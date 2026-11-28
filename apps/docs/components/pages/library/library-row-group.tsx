@@ -14,17 +14,17 @@ export function RowGroup({
   return (
     <section className="flex flex-col gap-2">
       <div className="text-muted-foreground flex items-baseline justify-between gap-4 text-sm">
-        <h3>{title}</h3>
+        <div className="text-foreground font-normal">{title}</div>
         {aside}
       </div>
-      <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-(--library-thumb) border px-4">
+      <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-(--library-thumb) border px-3">
         {children}
       </ul>
     </section>
   );
 }
 
-/** One row: an icon, a label, an optional value on the right, and an optional action after it. */
+/** One row: an optional icon, a label, an optional value on the right, and an optional action after it. */
 export function GroupRow({
   icon,
   label,
@@ -32,17 +32,19 @@ export function GroupRow({
   action,
   mono = false,
 }: {
-  icon: ReactNode;
+  icon?: ReactNode;
   label: ReactNode;
   value?: ReactNode;
   action?: ReactNode;
   mono?: boolean;
 }) {
   return (
-    <li className="flex min-h-12 min-w-0 items-center gap-3 py-2.5">
-      <span className="text-muted-foreground flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-        {icon}
-      </span>
+    <li className="flex min-h-9 min-w-0 items-center gap-2.5 py-0.5">
+      {icon ? (
+        <span className="text-muted-foreground flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+          {icon}
+        </span>
+      ) : null}
       <span
         className={cn(
           "min-w-0 truncate",

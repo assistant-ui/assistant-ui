@@ -59,7 +59,7 @@ import { PresetCard, PresetRow } from "./preset-card";
 import { LibrarySavedButton } from "./saved-sheet";
 import { SearchBar } from "./search-bar";
 import { SkillCard, SkillRow } from "./skill-card";
-import { SkillDialog } from "./skill-dialog";
+import { SkillSheet } from "./skill-sheet";
 import { StarterCard, StarterRow } from "./starter-card";
 import { StarterSheet } from "./starter-sheet";
 import { StarterTable } from "./starter-table";
@@ -511,7 +511,7 @@ export function LibraryBrowser() {
           open={sheetOpen}
           onOpenChange={setSheetOpen}
         />
-        <SkillDialog
+        <SkillSheet
           skill={skill}
           skills={shownSkills}
           onSkillChange={setSkill}

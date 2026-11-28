@@ -12,7 +12,6 @@ import {
   GlobeIcon,
   KeyRoundIcon,
   TerminalIcon,
-  ComponentIcon,
   AppWindowIcon,
   CpuIcon,
   PlugIcon,
@@ -36,6 +35,7 @@ import {
   LIBRARY_KIND_LABEL,
   type LibraryKind,
 } from "@/lib/library/saved-items";
+import { PACKAGE_VERSIONS } from "@/lib/library/package-versions";
 import { LIBRARY_UPDATED, formatLibraryDay } from "@/lib/library/updated-data";
 import {
   LIBRARY_STATUS_LABEL,
@@ -535,7 +535,6 @@ function StarterDetails({
                     components.map(({ item, link }) => (
                       <GroupRow
                         key={item}
-                        icon={<ComponentIcon aria-hidden />}
                         label={link ? link.name : item}
                         mono={!link}
                         {...(link && {
@@ -575,6 +574,13 @@ function StarterDetails({
                         icon={<PackageMark name={name} />}
                         label={name}
                         mono
+                        {...(PACKAGE_VERSIONS[name] && {
+                          value: (
+                            <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
+                              {PACKAGE_VERSIONS[name]}
+                            </span>
+                          ),
+                        })}
                       />
                     ))
                   ) : (

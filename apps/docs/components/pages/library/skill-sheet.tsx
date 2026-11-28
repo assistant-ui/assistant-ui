@@ -4,11 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   ArrowUpRightIcon,
-  BookmarkIcon,
-  BookmarkXIcon,
   BotIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
   EllipsisIcon,
@@ -19,18 +15,17 @@ import {
 import { skillSavedId } from "@/lib/library/saved-items";
 import type { LibrarySkill } from "@/lib/library/skills-data";
 import { cn } from "@/lib/utils";
-import {
-  LibraryDialog,
-  LibraryDialogClose,
-  LibraryDialogContent,
-  LibraryDialogDescription,
-  LibraryDialogTitle,
-} from "./library-dialog";
+import { LibraryDrawer, LibraryDrawerContent } from "./library-drawer";
 import {
   LibraryIconButton,
   LibraryMenuIconButton,
 } from "./library-icon-button";
-import { toggleLibrarySavedWithToast } from "./library-item-menu";
+import {
+  SheetFooter,
+  SheetHeader,
+  sheetButton,
+  sheetPrimary,
+} from "./library-sheet";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
 import {
   Menu,
@@ -39,8 +34,7 @@ import {
   MenuLinkItem,
   MenuSeparator,
 } from "./menu";
-import { useLibrarySaved } from "./saved-store";
-import { SkillGlyph } from "./skill-glyphs";
+import { SkillThumbnail } from "./skill-card";
 import { SkillMarkdown, loadSkillDocument } from "./skill-markdown";
 import {
   SKILL_SEARCH_MIN,
@@ -51,9 +45,6 @@ import {
   searchSkillFiles,
   type SkillSearchHit,
 } from "./skill-search";
-
-const button =
-  "focus-visible:ring-ring inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-(--library-control) px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 const tab =
   "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 shrink-0 cursor-pointer rounded-(--library-control) px-3 font-mono text-[13px] whitespace-nowrap transition-colors outline-none [font-variant-ligatures:none] focus-visible:ring-2 focus-visible:ring-inset";
@@ -242,7 +233,7 @@ const RESULTS = "search-results";
 
 type Target = { hit: SkillSearchHit; done: boolean };
 
-function SkillDialogBody({
+function SkillSheetBody({
   skill,
   previous,
   next,
@@ -256,7 +247,6 @@ function SkillDialogBody({
   stepped: "previous" | "next" | null;
   onSkillChange: (skill: LibrarySkill, by: "previous" | "next") => void;
 }) {
-  const isSaved = useLibrarySaved().includes(skillSavedId(skill.name));
   const files = filesOf(skill);
   const [name, setName] = useState("SKILL.md");
   const [query, setQuery] = useState<string | null>(null);
@@ -353,194 +343,152 @@ function SkillDialogBody({
         setName(String(next));
         scrollRef.current?.scrollTo({ top: 0 });
       }}
-      className="flex min-h-0 flex-1 flex-col p-4"
+      className="flex min-h-0 flex-1 flex-col"
     >
       <style>{SKILL_SEARCH_STYLES}</style>
-      <div className="flex items-start gap-3">
-        <span
-          data-nav-glyph-motion
-          className="group/navlink bg-foreground/[0.04] dark:bg-foreground/[0.06] grid h-11 w-14 shrink-0 place-items-center rounded-(--library-card-inner)"
-        >
-          <SkillGlyph name={skill.name} />
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <LibraryDialogTitle className="text-lg leading-6 font-medium">
-            {skill.title}
-          </LibraryDialogTitle>
-          <LibraryDialogDescription className="text-muted-foreground text-sm text-pretty">
-            {skill.summary}
-          </LibraryDialogDescription>
-        </div>
-        <div className="-me-1 -mt-1 flex items-center">
-          <LibraryIconButton
-            tooltip={previous ? `Previous: ${previous.title}` : "Previous"}
-            side="bottom"
-            disabled={!previous}
-            focusableWhenDisabled
-            autoFocus={stepped === "previous"}
-            onClick={() => previous && onSkillChange(previous, "previous")}
-          >
-            <ChevronLeftIcon aria-hidden />
-          </LibraryIconButton>
-          <LibraryIconButton
-            tooltip={next ? `Next: ${next.title}` : "Next"}
-            side="bottom"
-            disabled={!next}
-            focusableWhenDisabled
-            autoFocus={stepped === "next"}
-            onClick={() => next && onSkillChange(next, "next")}
-          >
-            <ChevronRightIcon aria-hidden />
-          </LibraryIconButton>
-          <SkillMenu skill={skill} file={file} />
-          <LibraryDialogClose
-            render={<LibraryIconButton tooltip="Close" side="bottom" />}
-          >
-            <XIcon aria-hidden />
-          </LibraryDialogClose>
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center gap-1">
-        <FileSearch
-          query={query}
-          onQueryChange={(next) => {
-            setQuery(next);
-            setShowResults(next !== null);
-            target.current = null;
-          }}
+      <div className="flex min-h-0 flex-1 flex-col gap-5 p-6">
+        <SheetHeader
+          thumbnail={<SkillThumbnail name={skill.name} />}
+          title={skill.title}
+          kind="skill"
+          description={skill.summary}
+          previous={
+            previous && {
+              label: previous.title,
+              go: () => onSkillChange(previous, "previous"),
+            }
+          }
+          next={
+            next && {
+              label: next.title,
+              go: () => onSkillChange(next, "next"),
+            }
+          }
+          actions={<SkillMenu skill={skill} file={file} />}
+          focused={stepped}
         />
-        <Tabs.List
-          ref={listRef}
-          aria-label={`${skill.title} files`}
-          className="flex min-w-0 flex-1 [scrollbar-width:none] gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] pe-6 [&::-webkit-scrollbar]:hidden"
-        >
-          {searching ? (
-            <Tabs.Tab value={RESULTS} className={cn(tab, "font-sans text-sm")}>
-              Results
-              {hitCount > 0 ? (
-                <span className="text-muted-foreground ms-1.5 tabular-nums">
-                  {hitCount}
-                </span>
-              ) : null}
-            </Tabs.Tab>
-          ) : null}
-          {files.map((entry) => (
-            <Tabs.Tab key={entry.name} value={entry.name} className={tab}>
-              {entry.name}
-            </Tabs.Tab>
-          ))}
-        </Tabs.List>
-        <div
-          role="group"
-          aria-label="File view"
-          className="bg-foreground/[0.04] flex shrink-0 rounded-(--library-control) p-0.5"
-        >
-          {(
-            [
-              [false, "Markdown"],
-              [true, "Raw"],
-            ] as const
-          ).map(([mode, label]) => (
-            <button
-              key={label}
-              type="button"
-              aria-pressed={raw === mode}
-              onClick={() => setRaw(mode)}
-              className={cn(
-                "focus-visible:ring-ring h-7 cursor-pointer rounded-(--library-control) px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2",
-                raw === mode
-                  ? "bg-background text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div
-        ref={scrollRef}
-        className="border-foreground/10 mt-2 min-h-0 flex-1 overflow-y-auto rounded-(--library-thumb) border p-4"
-      >
-        {searching ? (
-          <Tabs.Panel value={RESULTS} className="outline-none">
-            <p role="status" className="sr-only">
-              {texts && (query ?? "").trim().length >= SKILL_SEARCH_MIN
-                ? `${hitCount} matches in ${groups.length} files`
-                : ""}
-            </p>
-            <SkillSearchResults
-              query={query ?? ""}
-              groups={groups}
-              loading={!texts}
-              onOpen={(hit) => {
-                target.current = { hit, done: false };
-                setName(hit.file);
-                setShowResults(false);
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <div className="flex items-center gap-1">
+            <FileSearch
+              query={query}
+              onQueryChange={(next) => {
+                setQuery(next);
+                setShowResults(next !== null);
+                target.current = null;
               }}
             />
-          </Tabs.Panel>
-        ) : null}
-        {files.map((entry) => (
-          <Tabs.Panel
-            key={entry.name}
-            value={entry.name}
-            className="outline-none"
-          >
-            <SkillMarkdown
-              href={entry.href}
-              label={entry.name}
-              raw={raw}
-              {...(entry.base && { base: entry.base })}
-            />
-          </Tabs.Panel>
-        ))}
-      </div>
+            <Tabs.List
+              ref={listRef}
+              aria-label={`${skill.title} files`}
+              className="flex min-w-0 flex-1 [scrollbar-width:none] gap-1 overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] pe-6 [&::-webkit-scrollbar]:hidden"
+            >
+              {searching ? (
+                <Tabs.Tab
+                  value={RESULTS}
+                  className={cn(tab, "font-sans text-sm")}
+                >
+                  Results
+                  {hitCount > 0 ? (
+                    <span className="text-muted-foreground ms-1.5 tabular-nums">
+                      {hitCount}
+                    </span>
+                  ) : null}
+                </Tabs.Tab>
+              ) : null}
+              {files.map((entry) => (
+                <Tabs.Tab key={entry.name} value={entry.name} className={tab}>
+                  {entry.name}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+            <div
+              role="group"
+              aria-label="File view"
+              className="bg-foreground/[0.04] flex shrink-0 rounded-(--library-control) p-0.5"
+            >
+              {(
+                [
+                  [false, "Markdown"],
+                  [true, "Raw"],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={raw === mode}
+                  onClick={() => setRaw(mode)}
+                  className={cn(
+                    "focus-visible:ring-ring h-7 cursor-pointer rounded-(--library-control) px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2",
+                    raw === mode
+                      ? "bg-background text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          aria-pressed={isSaved}
-          onClick={() =>
-            toggleLibrarySavedWithToast(skillSavedId(skill.name), skill.title)
-          }
-          className={cn(
-            button,
-            isSaved
-              ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
-              : "bg-foreground/[0.06] hover:bg-foreground/[0.1]",
-          )}
-        >
-          {isSaved ? (
-            <BookmarkXIcon aria-hidden />
-          ) : (
-            <BookmarkIcon aria-hidden />
-          )}
-          {isSaved ? "Unsave" : "Save"}
-        </button>
+          <div
+            ref={scrollRef}
+            className="border-foreground/10 min-h-0 flex-1 overflow-y-auto rounded-(--library-thumb) border p-4"
+          >
+            {searching ? (
+              <Tabs.Panel value={RESULTS} className="outline-none">
+                <p role="status" className="sr-only">
+                  {texts && (query ?? "").trim().length >= SKILL_SEARCH_MIN
+                    ? `${hitCount} matches in ${groups.length} files`
+                    : ""}
+                </p>
+                <SkillSearchResults
+                  query={query ?? ""}
+                  groups={groups}
+                  loading={!texts}
+                  onOpen={(hit) => {
+                    target.current = { hit, done: false };
+                    setName(hit.file);
+                    setShowResults(false);
+                  }}
+                />
+              </Tabs.Panel>
+            ) : null}
+            {files.map((entry) => (
+              <Tabs.Panel
+                key={entry.name}
+                value={entry.name}
+                className="outline-none"
+              >
+                <SkillMarkdown
+                  href={entry.href}
+                  label={entry.name}
+                  raw={raw}
+                  {...(entry.base && { base: entry.base })}
+                />
+              </Tabs.Panel>
+            ))}
+          </div>
+        </div>
+      </div>
+      <SheetFooter id={skillSavedId(skill.name)} label={skill.title}>
         <button
           type="button"
           aria-label={`Install ${skill.title}: copy its install command`}
           onClick={() =>
             copyWithLibraryToast(skill.command, "Install command copied.")
           }
-          className={cn(
-            button,
-            "bg-foreground text-background hover:bg-foreground/90",
-          )}
+          className={cn(sheetButton, sheetPrimary)}
         >
           <TerminalIcon aria-hidden />
           Install
         </button>
-      </div>
+      </SheetFooter>
     </Tabs.Root>
   );
 }
 
-/** `skill` stays set while the dialog closes, so its content holds through the exit animation. */
-export function SkillDialog({
+/** A skill's drawer: its files to read and search, laid out like every other library drawer. `skill` stays set while it closes, so its content holds through the exit animation. */
+export function SkillSheet({
   skill,
   skills,
   onSkillChange,
@@ -562,21 +510,21 @@ export function SkillDialog({
   const next = index === -1 ? undefined : skills[index + 1];
   const [stepped, setStepped] = useState<"previous" | "next" | null>(null);
   return (
-    <LibraryDialog
+    <LibraryDrawer
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) setStepped(null);
         onOpenChange(nextOpen);
       }}
     >
-      <LibraryDialogContent
+      <LibraryDrawerContent
         ref={popupRef}
         tabIndex={-1}
         initialFocus={popupRef}
-        className="h-[40rem] sm:w-[36rem]"
+        className="w-[30rem]"
       >
         {skill ? (
-          <SkillDialogBody
+          <SkillSheetBody
             key={skill.name}
             skill={skill}
             previous={previous}
@@ -588,7 +536,7 @@ export function SkillDialog({
             }}
           />
         ) : null}
-      </LibraryDialogContent>
-    </LibraryDialog>
+      </LibraryDrawerContent>
+    </LibraryDrawer>
   );
 }

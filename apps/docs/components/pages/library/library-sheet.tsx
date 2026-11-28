@@ -43,6 +43,8 @@ export function SheetHeader({
   description,
   previous,
   next,
+  actions,
+  focused,
 }: {
   thumbnail: ReactNode;
   title: string;
@@ -52,6 +54,10 @@ export function SheetHeader({
   description: string;
   previous: SheetStep | undefined;
   next: SheetStep | undefined;
+  /** More controls, set between the arrows and close. */
+  actions?: ReactNode;
+  /** The arrow that takes focus when the header mounts, for a drawer that remounts as it steps. */
+  focused?: "previous" | "next" | null;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -74,6 +80,7 @@ export function SheetHeader({
             side="bottom"
             disabled={!previous}
             focusableWhenDisabled
+            autoFocus={focused === "previous"}
             onClick={() => previous?.go()}
           >
             <ChevronLeftIcon aria-hidden />
@@ -83,10 +90,12 @@ export function SheetHeader({
             side="bottom"
             disabled={!next}
             focusableWhenDisabled
+            autoFocus={focused === "next"}
             onClick={() => next?.go()}
           >
             <ChevronRightIcon aria-hidden />
           </LibraryIconButton>
+          {actions}
           <LibraryDrawerClose
             render={<LibraryIconButton tooltip="Close" side="bottom" />}
           >

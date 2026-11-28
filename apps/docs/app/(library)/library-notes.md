@@ -54,11 +54,18 @@ When to redo it: a template is added to or removed from the playground catalog, 
 
 When to redo it: a package is published, an example gets a README or leaves the repository, or someone decides one of the Review items.
 
-## Package logos
+## Package logos and versions
 
-`components/pages/library/package-icons.tsx` draws a brand mark beside each npm package on a starter's Dependencies tab. A package gets the mark the Starters filters already draw for its brand (assistant-ui, Vercel for the AI SDK, Next.js, LangChain, Clerk, Expo, and so on), or one of eleven more copied from Simple Icons 16.38 (React, Tailwind CSS, Radix, Lucide, Zod, Redis, FFmpeg, remark, React Hook Form, Base UI, PostCSS). A package whose project has no mark there keeps a plain package icon: `cn`, `class-variance-authority`, `zustand`, `tw-animate-css`, `uniwind`, `nitro`, `isbot`, `eventsource-parser`, `react-resizable-panels`, `harness-sdk`, `statewire`, and the `@openuidev` packages today.
+`components/pages/library/package-icons.tsx` draws a brand mark beside each npm package on a starter's Dependencies tab, and `lib/library/package-versions.ts` gives the version shown after it.
 
-When to redo it: a starter gains a package from a brand not listed in `markOf`.
+- A package gets the mark the Starters filters already draw for its brand (assistant-ui, Vercel for the AI SDK, Next.js, LangChain, Clerk, Expo, and so on), or one of twelve more copied from Simple Icons 16.38 (React, Tailwind CSS, Radix, Lucide, Zod, Redis, FFmpeg, remark, React Hook Form, Base UI, PostCSS, and shadcn/ui for `cn`, which is shadcn's package).
+- Three marks were drawn from the project's own repository: cva (`docs/src/assets/logo.svg`), Nitro (`docs/.docs/public/icon.svg`, its outline only), and react-resizable-panels (`public/favicon.svg`).
+- Three are pictures in `public/library/packages`: Zustand's bear (`docs/favicon.ico` in its repository), Uniwind's icon (`assets/uniwind-icon-180.png`), and OpenUI's mascot (`docs/public/shiro-logo.svg`, the icon openui.com uses).
+- `tw-animate-css` has no mark of its own and shows Tailwind's, since it is a Tailwind plugin. `harness-sdk` and `statewire` are assistant-ui's and show its mark.
+- `isbot` and `eventsource-parser` have no usable mark (isbot's favicon is a 16px near-transparent image) and keep a plain package icon.
+- Each version is the range the starters' own `package.json` files use most, or, for a package from this repository, its current version. Three packages a starter vendors as a file show that file's version.
+
+When to redo it: a starter gains a package from a brand not listed in `markOf`, or the versions should be current.
 
 ## Last-updated dates are a snapshot
 
