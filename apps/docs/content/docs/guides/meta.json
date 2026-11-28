@@ -42,6 +42,7 @@
     "electron",
     "tauri",
     "vscode",
+    "shadow-dom",
     "---Resilience---",
     "resumable-streams",
     "resumable-stream-stores",

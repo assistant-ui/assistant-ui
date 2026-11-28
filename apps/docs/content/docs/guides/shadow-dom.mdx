@@ -1,0 +1,70 @@
+---
+title: Shadow DOM
+description: Keep popups inside the shadow root that holds your styles.
+platforms: ["react"]
+---
+
+A browser extension or an embeddable widget often renders its UI inside a shadow root and adopts its compiled stylesheet there, so the host page's CSS and the widget's CSS stay apart. Tooltips, popovers, dialogs and preview cards portal to `document.body` by default. That is outside the shadow root, so they render without your styles.
+
+`PortalContainerContext` tells them to portal into a node you choose instead.
+
+## Provide a container
+
+Add the context to your project:
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/elements-portal-container.json
+```
+
+Render a node inside the shadow root and pass it as the context's value, above the assistant-ui components:
+
+```tsx title="components/shadow-root-portals.tsx"
+"use client";
+
+import { useState, type ReactNode } from "react";
+import { PortalContainerContext } from "@/components/assistant-ui/utils/portal-container";
+
+export function ShadowRootPortals({ children }: { children: ReactNode }) {
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+
+  return (
+    <>
+      <div ref={setContainer} />
+      <PortalContainerContext.Provider value={container}>
+        {children}
+      </PortalContainerContext.Provider>
+    </>
+  );
+}
+```
+
+The value can be any `HTMLElement` inside the shadow root, or the `ShadowRoot` itself. With no provider, popups portal to `document.body` as before.
+
+## Components that read it
+
+[Inline citation](/elements/inline-citation), the conversation map and, in a Base UI style, the [Assistant modal](/elements/assistant-modal) render their own portals and read the context.
+
+Components such as [Tooltip icon button](/elements/tooltip-icon-button) and [Model selector](/elements/model-selector) open their popups through the shadcn primitives in `components/ui`. Those files are yours, and `npx shadcn add` installs shadcn's version of them, so pass the container to each primitive's `Portal` yourself:
+
+```tsx title="components/ui/tooltip.tsx"
+import { useContext } from "react"; // [!code ++]
+import { PortalContainerContext } from "@/components/assistant-ui/utils/portal-container"; // [!code ++]
+
+function TooltipContent({
+  // ...
+}) {
+  const container = useContext(PortalContainerContext); // [!code ++]
+
+  return (
+    <TooltipPrimitive.Portal container={container}> // [!code ++]
+```
+
+Which other primitives can take the container depends on whether your shadcn style uses [Base UI or Radix UI](/docs/base-ui).
+
+With Base UI, make the same change in `popover.tsx`, in `DialogPortal` in `dialog.tsx`, and in any other primitive you use that portals, such as `dropdown-menu.tsx` and `select.tsx`. Base UI looks up the focused element inside the shadow root, so dialogs, popovers, menus and selects move focus there the same way they do in `document.body`.
+
+With Radix UI, pass the container only to `tooltip.tsx` and `hover-card.tsx`, which don't move focus. Leave every other primitive that portals in `document.body`, including `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx`, `drawer.tsx`, `popover.tsx`, `dropdown-menu.tsx`, `context-menu.tsx`, `menubar.tsx` and `select.tsx`. Radix decides where focus goes by reading `document.activeElement`, which inside a shadow root is the shadow host. Portaled into the shadow root, a dialog or popover can open with focus on its panel instead of its first control and lets Tab move focus out of it, and in a menu or select the arrow keys jump to the last item and stay there. In `document.body` these popups render without your shadow root's styles. To keep them styled, use a Base UI style, whose primitives can portal into the shadow root.
+
+In a Radix style the assistant modal is a Radix popover, so it ignores the context and portals to `document.body` like the other Radix popovers. Its focus works there, but it renders without your shadow root's styles.
+
+The message action menu in [Thread](/elements/thread) and the item menu in [Thread list](/elements/thread-list) are Radix menus in either style, so they portal to `document.body` and render there without your shadow root's styles, even in a Base UI style.

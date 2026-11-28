@@ -2,6 +2,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  type RenderOptions,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -15,6 +16,7 @@ import {
 } from "@assistant-ui/react";
 import type { RemoteThreadMetadata } from "@assistant-ui/core";
 
+import { PortalContainerContext } from "../utils/portal-container";
 import { AssistantModal as AssistantModalBase } from "./assistant-modal.aui";
 import { AssistantModal as AssistantModalRadix } from "./assistant-modal.aui.radix";
 
@@ -155,8 +157,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.each(flavors)("AssistantModal (%s)", (_flavor, AssistantModal) => {
-  const renderModal = (adapter: RemoteThreadListAdapter) =>
+describe.each(flavors)("AssistantModal (%s)", (flavor, AssistantModal) => {
+  const renderModal = (
+    adapter: RemoteThreadListAdapter,
+    options?: RenderOptions,
+  ) =>
     render(
       <AuiProvider
         config={AuiConfig({
@@ -168,7 +173,67 @@ describe.each(flavors)("AssistantModal (%s)", (_flavor, AssistantModal) => {
       >
         <AssistantModal />
       </AuiProvider>,
+      options,
     );
+
+  const renderInShadowRoot = () => {
+    const host = document.body.appendChild(document.createElement("div"));
+    const shadow = host.attachShadow({ mode: "open" });
+    const portalContainer = shadow.appendChild(document.createElement("div"));
+    const mount = shadow.appendChild(document.createElement("div"));
+    renderModal(makeAdapter(withTitles("Budget review")), {
+      container: mount,
+      wrapper: ({ children }) => (
+        <PortalContainerContext.Provider value={portalContainer}>
+          {children}
+        </PortalContainerContext.Provider>
+      ),
+    });
+    fireEvent.click(mount.querySelector(".aui-modal-button")!);
+    return { shadow, portalContainer };
+  };
+
+  if (flavor === "base") {
+    it.each([
+      ["the popup", "content"],
+      ["the picked item", "item"],
+    ] as const)(
+      "opens inside the PortalContainerContext container in a shadow root and moves focus to the picked thread's title when %s had focus",
+      async (_, focused) => {
+        const { shadow, portalContainer } = renderInShadowRoot();
+        const inShadow = (name: string) =>
+          portalContainer.querySelector<HTMLElement>(`.aui-modal-${name}`);
+
+        await waitFor(() => expect(inShadow("content")).toBeTruthy());
+        expect(part("content")).toBeNull();
+
+        const threads = inShadow("threads") as HTMLButtonElement;
+        await waitFor(() => expect(threads.disabled).toBe(false));
+        fireEvent.click(threads);
+        const itemSelector = '[data-slot="aui_thread-list-item-trigger"]';
+        await waitFor(() =>
+          expect(portalContainer.querySelector(itemSelector)).toBeTruthy(),
+        );
+        const item = portalContainer.querySelector<HTMLElement>(itemSelector)!;
+        const focusedElement = focused === "item" ? item : inShadow("content")!;
+        focusedElement.focus();
+        expect(shadow.activeElement).toBe(focusedElement);
+        fireEvent.click(item);
+        await waitFor(() => expect(item.isConnected).toBe(false));
+
+        await waitFor(() =>
+          expect(shadow.activeElement).toBe(inShadow("title")),
+        );
+      },
+    );
+  } else {
+    it("ignores PortalContainerContext and opens in document.body, where Radix focus handling works", async () => {
+      const { portalContainer } = renderInShadowRoot();
+
+      await waitFor(() => expect(part("content")).toBeTruthy());
+      expect(portalContainer.querySelector(".aui-modal-content")).toBeNull();
+    });
+  }
 
   it("opens on the thread, named by its title, with the threads toggle disabled while nothing is listed", async () => {
     renderModal(makeAdapter([]));
