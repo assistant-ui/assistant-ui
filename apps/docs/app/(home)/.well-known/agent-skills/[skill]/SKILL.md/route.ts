@@ -11,9 +11,8 @@ type Context = { params: Promise<{ skill: string }> };
 
 const SKILLS_PATH = "/.well-known/agent-skills";
 
-// The known skills as markdown pages. The url ends in the skill name, because
-// nearestPages matches the requested name against a url's last segment, and
-// href points the link at the skill's SKILL.md.
+// nearestPages matches against a url's last segment, so the url ends in the
+// skill name and href carries the SKILL.md link.
 function skillPages() {
   return listSkills().map((skill) => ({
     url: `${SKILLS_PATH}/${skill.name}`,
@@ -22,9 +21,6 @@ function skillPages() {
   }));
 }
 
-// An agent asking for a skill that doesn't exist gets a markdown 404 that
-// suggests the nearest real skills, like the other markdown routes, instead
-// of the HTML not-found page.
 function missingSkillResponse(name: string, head: boolean) {
   const response = missingMarkdownResponse(
     `${SKILLS_PATH}/${name}`,
