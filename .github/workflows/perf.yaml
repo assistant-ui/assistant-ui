@@ -5,6 +5,8 @@ on:
     branches: [main]
     types: [opened, reopened, ready_for_review, synchronize]
     paths:
+      - "scripts/perf-lanes.test.mjs"
+      - "scripts/lib/package-test-inputs.mjs"
       - "packages/x-performance/**"
       - "packages/tap/**"
       - "packages/core/**"
@@ -42,6 +44,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Test performance routing
+        run: node --test scripts/perf-lanes.test.mjs
+
       - name: Decide which lanes the change touches
         id: lanes
         shell: bash
@@ -49,14 +54,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          changed=$(git diff --name-only "$BASE_SHA...HEAD")
-          bench=false
-          trace=false
-          if grep -qE '^(packages/(x-performance|tap|core|store|assistant-stream|react|react-markdown|ai-sdk|react-langgraph|react-pi)/|\.github/workflows/perf\.yaml)' <<<"$changed"; then bench=true; fi
-          if grep -qE '^(packages/tw-shimmer/|packages/x-performance/(fixtures|lib/trace)|\.github/workflows/perf\.yaml)' <<<"$changed"; then trace=true; fi
-          echo "bench=$bench" >> "$GITHUB_OUTPUT"
-          echo "trace=$trace" >> "$GITHUB_OUTPUT"
-          echo "bench=$bench trace=$trace"
+          git diff --name-only --no-renames -z "$BASE_SHA...HEAD" |
+            node packages/x-performance/lib/pr-lanes.mjs | tee -a "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
         if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
@@ -120,9 +119,9 @@ jobs:
           node packages/x-performance/bin/aui-perf.mjs report --out "$RUNNER_TEMP/comment.md" "${args[@]}"
           cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Post the report as a sticky PR comment
-        if: steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true'
+      - name: Update the sticky PR report
         env:
+          MEASURED: ${{ steps.lanes.outputs.bench == 'true' || steps.lanes.outputs.trace == 'true' }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -130,7 +129,11 @@ jobs:
         run: |
           set -euo pipefail
           existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
-          if [ -n "$existing" ]; then
+          if [ "$MEASURED" = false ]; then
+            if [ -n "$existing" ]; then
+              gh api "repos/$REPO/issues/comments/$existing" --method DELETE
+            fi
+          elif [ -n "$existing" ]; then
             gh api "repos/$REPO/issues/comments/$existing" --method PATCH -F body=@"$RUNNER_TEMP/comment.md"
           else
             gh api "repos/$REPO/issues/$PR_NUMBER/comments" --method POST -F body=@"$RUNNER_TEMP/comment.md"
