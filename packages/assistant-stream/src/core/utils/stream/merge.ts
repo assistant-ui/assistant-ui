@@ -273,6 +273,7 @@ export const createMergeStream = () => {
     const waitForPartWrites =
       chunk.type === "part-start" ||
       chunk.type === "step-finish" ||
+      chunk.type === "step-reset" ||
       chunk.type === "message-finish" ||
       chunk.type === "error";
     // Active child reads split raw batches to preserve microtask ordering.

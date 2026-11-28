@@ -151,6 +151,8 @@ type AssistantStreamChunk = {
   };
   readonly isContinued: boolean;
 } | {
+  readonly type: "step-reset";
+} | {
   readonly type: "message-finish";
   readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
   readonly usage: {
@@ -879,6 +881,7 @@ type TextStatus = {
 type TextStreamController = {
   append(textDelta: string, providerMetadata?: PartProviderMetadata): void;
   close(providerMetadata?: PartProviderMetadata): void;
+  __internal_truncate(): void;
 };
 
 type ThreadMessageLike = {
@@ -1008,6 +1011,7 @@ type ToolCallStreamController = {
   argsText: TextStreamController;
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
   setApproval(approval: ToolCallApproval): void;
+  __internal_truncate(): void;
   close(): void;
 };
 
@@ -1209,6 +1213,8 @@ type UIMessageStreamChunk = {
 } | {
   type: "start-step";
   messageId?: string;
+} | {
+  type: "reset-step";
 } | {
   type: "finish-step";
   finishReason: FinishReason;

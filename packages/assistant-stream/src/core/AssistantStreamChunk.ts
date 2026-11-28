@@ -127,6 +127,10 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly isContinued: boolean;
     }
   | {
+      /** Discards the parts streamed since the last `step-start`. */
+      readonly type: "step-reset";
+    }
+  | {
       /** Finishes the assistant message and reports final usage. */
       readonly type: "message-finish";
       readonly finishReason:

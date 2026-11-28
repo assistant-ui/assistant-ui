@@ -87,6 +87,7 @@ export type UIMessageStreamChunk =
     }
   | { type: "tool-output-denied"; toolCallId: string }
   | { type: "start-step"; messageId?: string }
+  | { type: "reset-step" }
   | {
       type: "finish-step";
       finishReason: FinishReason;

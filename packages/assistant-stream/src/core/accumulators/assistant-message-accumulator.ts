@@ -586,6 +586,24 @@ export class AssistantMessageAccumulator extends TransformStream<
     strict?: boolean | undefined;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
+    // Chunk paths are absolute indices into the message: an initial message
+    // seeds the first ones and a streamed part follows them, so counting the
+    // part-starts yields the index of the next part. A reset discards the
+    // current step's index range, and the indices after it compact by the
+    // number of discarded parts before them.
+    const initialOffset = message.parts.length;
+    let nextStreamPart = initialOffset;
+    let stepStart = initialOffset;
+    const discarded: { start: number; end: number }[] = [];
+    const mapPartIndex = (partIndex: number): number | undefined => {
+      let discardedBefore = 0;
+      for (const { start, end } of discarded) {
+        if (partIndex < start) break;
+        if (partIndex < end) return undefined;
+        discardedBefore += end - start;
+      }
+      return partIndex - discardedBefore;
+    };
     let stateAccumulator: GorpStreamAccumulator | undefined;
     let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
@@ -612,9 +630,18 @@ export class AssistantMessageAccumulator extends TransformStream<
       },
       transform(chunk) {
         tracker.recordChunk();
+        if (chunk.path.length > 0 && chunk.type !== "part-start") {
+          const partIndex = chunk.path[0]!;
+          const mappedIndex = mapPartIndex(partIndex);
+          if (mappedIndex === undefined) return;
+          if (mappedIndex !== partIndex) {
+            chunk = { ...chunk, path: [mappedIndex, ...chunk.path.slice(1)] };
+          }
+        }
         const type = chunk.type;
         switch (type) {
           case "part-start":
+            nextStreamPart++;
             message = handlePartStart(message, chunk, warnOnce);
             if (chunk.part.type === "tool-call") {
               tracker.recordToolCallStart(chunk.part.toolCallId);
@@ -658,11 +685,28 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleData(message, chunk);
             break;
           case "step-start":
+            stepStart = nextStreamPart;
             message = handleStepStart(message, chunk);
             break;
           case "step-finish":
             message = handleStepFinish(message, chunk);
             break;
+          case "step-reset": {
+            const keep = mapPartIndex(stepStart);
+            if (nextStreamPart > stepStart) {
+              const last = discarded.at(-1);
+              if (last !== undefined && last.end === stepStart) {
+                last.end = nextStreamPart;
+              } else {
+                discarded.push({ start: stepStart, end: nextStreamPart });
+              }
+            }
+            if (keep !== undefined && keep < message.parts.length) {
+              message = withParts(message, message.parts.slice(0, keep));
+            }
+            stepStart = nextStreamPart;
+            break;
+          }
           case "error":
             message = handleErrorChunk(message, chunk);
             onError?.(chunk.error);

@@ -836,6 +836,8 @@ type AssistantStreamChunk = {
   };
   readonly isContinued: boolean;
 } | {
+  readonly type: "step-reset";
+} | {
   readonly type: "message-finish";
   readonly finishReason: "content-filter" | "error" | "length" | "other" | "stop" | "tool-calls" | "unknown";
   readonly usage: {
