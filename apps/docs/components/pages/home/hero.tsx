@@ -7,6 +7,7 @@ import { SetupCommandPrompt } from "@/components/shared/setup-command-prompt";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
+import { AGENT_SETUP_PROMPT } from "@/lib/agent-setup-prompt";
 import { CONTACT_SALES_PATH } from "@/lib/contact-sales";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "lucide-react";
@@ -124,7 +125,11 @@ export function HeroCta({
       className={cn("flex flex-wrap items-center gap-3", className)}
       style={style}
     >
-      <SetupCommandPrompt page="home" section={section} />
+      <SetupCommandPrompt
+        page="home"
+        section={section}
+        prompt={AGENT_SETUP_PROMPT}
+      />
       <Button
         variant="ghost"
         nativeButton={false}
