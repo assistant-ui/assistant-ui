@@ -345,6 +345,10 @@ export class ExternalStoreThreadRuntimeCore
   } | null = null;
   private readonly _cancelledRunIds = new Set<string>();
   private readonly _pendingCancelResyncs = new Set<() => void>();
+  private _rollbackPath: readonly ThreadMessage[] | undefined;
+  private _trailingUserRollback:
+    | { id: string; path: readonly ThreadMessage[] }
+    | undefined;
   private _movedLeaf:
     | {
         id: string;
@@ -632,6 +636,8 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingDeleteEvictions.clear();
       this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
+      this._rollbackPath = undefined;
+      this._trailingUserRollback = undefined;
       this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
@@ -915,6 +921,28 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Common logic for both paths
+    const tail = messages.findLast(
+      (message) => !message.metadata?.isOptimistic,
+    );
+    if (tail?.role !== "user") {
+      this._trailingUserRollback = undefined;
+    } else {
+      const rollback = this._trailingUserRollback;
+      const previousPath =
+        rollback?.id === tail.id ? rollback.path : this._rollbackPath;
+      const { parentId } = this.repository.getMessage(tail.id);
+      const previousRoot = previousPath?.[0];
+      this._trailingUserRollback =
+        previousPath &&
+        !previousPath.some((message) => message.id === tail.id) &&
+        (parentId === null
+          ? !previousRoot ||
+            this.repository.getBranches(tail.id).includes(previousRoot.id)
+          : previousPath.some((message) => message.id === parentId))
+          ? { id: tail.id, path: previousPath }
+          : undefined;
+    }
+
     this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
 
@@ -1002,13 +1030,7 @@ export class ExternalStoreThreadRuntimeCore
       this.repository.resetHead(visibleHeadId);
     }
 
-    const messagesSnapshot = this.repository.getMessages();
-    if (
-      !this._messages ||
-      !shallowArrayEqual(this._messages, messagesSnapshot)
-    ) {
-      this._messages = messagesSnapshot;
-    }
+    this._syncRepositoryMessages();
 
     if (this._voiceMessages.length > 0) {
       const hostIds = new Set(this._messages.map((message) => message.id));
@@ -1217,6 +1239,7 @@ export class ExternalStoreThreadRuntimeCore
     const pendingResume = this._pendingResume;
     const previousHeadId =
       onBranchChange || pendingResume ? this.repository.canonicalHeadId : null;
+    const previousBranchHeadId = this.repository.headId;
 
     this.repository.switchToBranch(branchId);
     this._pendingDeleteWindows.clear();
@@ -1224,7 +1247,12 @@ export class ExternalStoreThreadRuntimeCore
       if (pending.calls.size > 0) pending.reloaded = true;
       else this._pendingDeleteEvictions.delete(id);
     }
-    this.updateMessages(this.repository.getMessages());
+    const messages = this.repository.getMessages();
+    if (this.repository.headId !== previousBranchHeadId) {
+      this._rollbackPath = messages;
+      this._trailingUserRollback = undefined;
+    }
+    this.updateMessages(messages);
     if (pendingResume && this.repository.canonicalHeadId !== previousHeadId) {
       this._clearPendingResume(pendingResume);
     }
@@ -1504,7 +1532,9 @@ export class ExternalStoreThreadRuntimeCore
 
   private _syncRepositoryMessages() {
     const messages = this.repository.getMessages();
-    if (!shallowArrayEqual(this._messages, messages)) this._messages = messages;
+    if (!this._messages || !shallowArrayEqual(this._messages, messages))
+      this._messages = messages;
+    this._rollbackPath = this._messages;
   }
 
   public getQueueItems() {
@@ -1623,6 +1653,8 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
+    this._rollbackPath = undefined;
+    this._trailingUserRollback = undefined;
 
     // Re-arm the tracker so the next adapter snapshot (containing the
     // imported state) is treated as historical — no streamCall/execute
@@ -1649,6 +1681,8 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
+    this._rollbackPath = undefined;
+    this._trailingUserRollback = undefined;
     this._clearPendingResume(this._pendingResume);
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
@@ -1699,6 +1733,9 @@ export class ExternalStoreThreadRuntimeCore
     const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     const cancelledTailId = previousMessage?.id ?? null;
+    const rollback = this._trailingUserRollback;
+    const previousPath =
+      rollback?.id === cancelledTailId ? rollback.path : undefined;
     const runStartLease = this._runStartLeases.current();
     const trailingUserLeaf =
       isRunning &&
@@ -1721,7 +1758,7 @@ export class ExternalStoreThreadRuntimeCore
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
       };
       if (this.composer.restoreDraft(draft)) {
-        this.repository.deleteMessage(trailingUserLeaf.id);
+        this._deleteMovedLeaf(trailingUserLeaf.id, previousPath);
         movedLeaf = {
           id: trailingUserLeaf.id,
           draft,
@@ -1759,7 +1796,7 @@ export class ExternalStoreThreadRuntimeCore
           this.composer.text === movedLeaf.draft.text
         ) {
           // Unanswered tail: the removal has not reached the store yet.
-          this.repository.deleteMessage(movedLeaf.id);
+          this._deleteMovedLeaf(movedLeaf.id, previousPath);
         }
       }
       this._publishRepositoryMessages();
@@ -1778,6 +1815,27 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingCancelResyncs.delete(resync);
       resync();
     }, 0);
+  }
+
+  private _deleteMovedLeaf(
+    messageId: string,
+    previousPath: readonly ThreadMessage[] | undefined,
+  ): void {
+    const { parentId } = this.repository.getMessage(messageId);
+    this.repository.deleteMessage(messageId);
+    if (!previousPath) return;
+    const previousHead = previousPath.findLast((message) => {
+      if (message.metadata?.isOptimistic) return false;
+      try {
+        this.repository.getMessage(message.id);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    const headId = previousHead?.id ?? parentId;
+    if (headId !== this.repository.headId)
+      this.repository.import({ headId, messages: [] });
   }
 
   private _settleCancelResyncs(): void {
@@ -1875,9 +1933,12 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
     this._importedMessageIds = undefined;
+    this._trailingUserRollback = undefined;
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
-    this.updateMessages(repo.getMessages());
+    const messages = repo.getMessages();
+    this._rollbackPath = messages;
+    this.updateMessages(messages);
     this._clearPendingResume(pendingResume);
   }
 
@@ -1892,6 +1953,7 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
+    this._trailingUserRollback = undefined;
     super.import(data);
     this._clearPendingResume(pendingResume);
     const messages = this.repository.getMessages();
