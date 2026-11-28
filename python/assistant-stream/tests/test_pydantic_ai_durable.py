@@ -113,16 +113,13 @@ BACKENDS = [
 ]
 
 
-THREAD_BACKENDS = [
-    "memory",
-    "sqlite",
-    pytest.param(
-        "postgres",
-        marks=pytest.mark.skipif(
-            not os.environ.get("DATABASE_URL"), reason="needs DATABASE_URL"
-        ),
+POSTGRES_THREAD_BACKEND = pytest.param(
+    "postgres",
+    marks=pytest.mark.skipif(
+        not os.environ.get("DATABASE_URL"), reason="needs DATABASE_URL"
     ),
-]
+)
+THREAD_BACKENDS = ["memory", "sqlite", POSTGRES_THREAD_BACKEND]
 
 
 class Server:
@@ -641,15 +638,14 @@ def test_dead_producer_does_not_reclaim_a_concurrent_run(
             if kind == "memory"
             else SqliteThreadStore(tmp_path / "threads.db")
         )
-        put_if_stream = threads.put_if_stream
 
-        async def pause_first_claim(thread_id, record, *, expected):
+        async def pause_first_claim(record, expected, write):
             if record.run_id == "first":
                 claiming.set()
                 await release_claim.wait()
-            return await put_if_stream(thread_id, record, expected=expected)
+            await write()
 
-        monkeypatch.setattr(threads, "put_if_stream", pause_first_claim)
+        _on_claim(monkeypatch, threads, pause_first_claim)
 
         async def stream(messages: list[ModelMessage], info: AgentInfo):
             yield "Partial answer"
@@ -741,15 +737,12 @@ def test_producer_cancelled_at_registration_never_claims_a_live_thread(
             await started.wait()
             live = await threads.get("thread")
             assert live is not None and live.running is True
-            put_if_stream = threads.put_if_stream
 
-            async def track_claim(thread_id, record, *, expected):
-                claimed = await put_if_stream(thread_id, record, expected=expected)
-                if claimed:
+            async def track_claim(record, expected, write):
+                if await write():
                     writes.append(record)
-                return claimed
 
-            monkeypatch.setattr(threads, "put_if_stream", track_claim)
+            _on_claim(monkeypatch, threads, track_claim)
             assert (
                 await _start_run(
                     durable, _run_input("thread", [_user("Second")], "second")
@@ -955,9 +948,8 @@ def test_producer_cancelled_at_registration_updates_only_the_finished_run(
             assert previous.messages[0] == first_question
             assert _assistant_texts({"messages": previous.messages}) == ["Answer"]
             input_messages = [*previous.messages, second_question]
-            put_if_stream = threads.put_if_stream
 
-            async def interleave_third_run(thread_id, record, *, expected):
+            async def interleave_third_run(record, expected, write):
                 nonlocal third
                 if record.run_id == "second" and superseded:
                     assert (
@@ -968,12 +960,11 @@ def test_producer_cancelled_at_registration_updates_only_the_finished_run(
                     ).status_code == 200
                     third = await threads.get("thread")
                     assert third is not None and third.running is True
-                written = await put_if_stream(thread_id, record, expected=expected)
+                written = await write()
                 if record.run_id == "second":
                     writes.append((expected, written))
-                return written
 
-            monkeypatch.setattr(threads, "put_if_stream", interleave_third_run)
+            _on_claim(monkeypatch, threads, interleave_third_run)
             assert (
                 await _start_run(durable, _run_input("thread", input_messages, "second"))
             ).status_code == 200
@@ -1040,11 +1031,10 @@ def test_dead_claim_rollback_does_not_overwrite_a_third_run(
             await _start_run(durable, _run_input("thread", [_user("First")], "first"))
             await started.wait()
             second_producer = len(producers)
-            put_if_stream = threads.put_if_stream
 
-            async def interleave_third_run(thread_id, record, *, expected):
+            async def interleave_third_run(record, expected, write):
                 nonlocal third
-                claimed = await put_if_stream(thread_id, record, expected=expected)
+                claimed = await write()
                 if record.run_id == "second":
                     assert claimed
                     producers[second_producer].cancel()
@@ -1062,9 +1052,8 @@ def test_dead_claim_rollback_does_not_overwrite_a_third_run(
                     assert third is not None and third.running is True
                 elif record.run_id == "first":
                     rollbacks.append(claimed)
-                return claimed
 
-            monkeypatch.setattr(threads, "put_if_stream", interleave_third_run)
+            _on_claim(monkeypatch, threads, interleave_third_run)
             assert (
                 await _start_run(
                     durable, _run_input("thread", [_user("Second")], "second")
@@ -1155,12 +1144,11 @@ def test_dead_claim_rollback_uses_the_previous_runs_current_state(
             assert await streams.status("6-thread.first") == "streaming"
 
             second_producer = len(producers)
-            put_if_stream = threads.put_if_stream
             restored: list[ThreadRecord] = []
 
-            async def die_after_claim(thread_id, record, *, expected):
-                claimed = await put_if_stream(thread_id, record, expected=expected)
-                if record.run_id == "second":
+            async def die_after_claim(record, expected, write):
+                claimed = await write()
+                if record.run_id == "second" and record.running:
                     assert claimed
                     producers[second_producer].cancel()
                     await asyncio.gather(
@@ -1168,21 +1156,12 @@ def test_dead_claim_rollback_uses_the_previous_runs_current_state(
                     )
                 elif claimed:
                     restored.append(record)
-                return claimed
 
-            monkeypatch.setattr(threads, "put_if_stream", die_after_claim)
+            _on_claim(monkeypatch, threads, die_after_claim)
             release_options.set()
             assert (await second).status_code == 200
-            record = await threads.get("thread")
-            assert record is not None
-            if state == "settled":
-                assert record.running is False
-                assert record.run_id == "second"
-                assert restored == []
-            else:
-                assert record == current
-                assert record.cancel_requested is True
-                assert restored == [current]
+            assert await threads.get("thread") == current
+            assert restored == [current]
         finally:
             release_options.set()
             release_model.set()
@@ -1195,7 +1174,86 @@ def test_dead_claim_rollback_uses_the_previous_runs_current_state(
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
-@pytest.mark.parametrize("kind", ["memory", "sqlite"])
+@pytest.mark.parametrize("kind", THREAD_BACKENDS)
+@pytest.mark.parametrize("state", ["settled", "cancel_requested"])
+def test_dead_claim_rollback_restores_a_change_that_lands_during_the_claim(
+    kind: str, state: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        started = asyncio.Event()
+        release_model = asyncio.Event()
+        finalizing = asyncio.Event()
+        release_finalize = asyncio.Event()
+        producers: list[asyncio.Task[None]] = []
+        threads = await _shared_threads(kind, tmp_path)
+        store = create_in_memory_resumable_stream_store()
+        finalize = store.finalize
+
+        async def pause_finalization(stream_id, *args, **kwargs):
+            if stream_id == "6-thread.first":
+                finalizing.set()
+                await release_finalize.wait()
+            return await finalize(stream_id, *args, **kwargs)
+
+        monkeypatch.setattr(store, "finalize", pause_finalization)
+
+        async def stream(messages: list[ModelMessage], info: AgentInfo):
+            yield "Partial answer"
+            started.set()
+            await release_model.wait()
+            yield " completed"
+
+        streams = create_resumable_stream_context(
+            store=store, wait_until=producers.append
+        )
+        durable = DurableAGUI(
+            Agent(FunctionModel(stream_function=stream)),
+            threads=threads,
+            streams=streams,
+            cancel_poll_interval=None,
+        )
+        changed: ThreadRecord | None = None
+        try:
+            await _start_run(durable, _run_input("thread", [_user("First")], "first"))
+            await started.wait()
+            second_producer = len(producers)
+
+            async def change_then_die(record, expected, write):
+                nonlocal changed
+                if record.run_id != "second" or not record.running:
+                    await write()
+                    return
+                if state == "settled":
+                    release_model.set()
+                    await finalizing.wait()
+                else:
+                    assert await threads.request_cancel("thread", "6-thread.first")
+                changed = await threads.get("thread")
+                assert await write(), "the second run did not claim the thread"
+                producers[second_producer].cancel()
+                await asyncio.gather(producers[second_producer], return_exceptions=True)
+
+            _on_claim(monkeypatch, threads, change_then_die)
+            assert (
+                await _start_run(
+                    durable, _run_input("thread", [_user("Second")], "second")
+                )
+            ).status_code == 200
+
+            assert changed is not None
+            assert changed.running is (state != "settled")
+            assert changed.cancel_requested is (state == "cancel_requested")
+            assert await threads.get("thread") == changed
+        finally:
+            release_model.set()
+            release_finalize.set()
+            await asyncio.gather(*producers, return_exceptions=True)
+            await _drop(threads)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
+
+
+@pytest.mark.parametrize("kind", ["memory", "sqlite", "without-claim"])
 def test_producer_dead_after_its_claim_gives_the_thread_back_to_the_live_run(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1205,7 +1263,9 @@ def test_producer_dead_after_its_claim_gives_the_thread_back_to_the_live_run(
         cancelled = asyncio.Event()
         producers: list[asyncio.Task[None]] = []
         threads = (
-            InMemoryThreadStore()
+            _StoreWithoutClaim()
+            if kind == "without-claim"
+            else InMemoryThreadStore()
             if kind == "memory"
             else SqliteThreadStore(tmp_path / "threads.db")
         )
@@ -1236,19 +1296,17 @@ def test_producer_dead_after_its_claim_gives_the_thread_back_to_the_live_run(
             assert live is not None and live.running is True
 
             second_producer = len(producers)
-            put_if_stream = threads.put_if_stream
 
-            async def die_after_claim(thread_id, record, *, expected):
-                claimed = await put_if_stream(thread_id, record, expected=expected)
+            async def die_after_claim(record, expected, write):
+                claimed = await write()
                 if record.run_id == "second":
                     assert claimed, "the second run did not claim the thread"
                     producers[second_producer].cancel()
                     await asyncio.gather(
                         producers[second_producer], return_exceptions=True
                     )
-                return claimed
 
-            monkeypatch.setattr(threads, "put_if_stream", die_after_claim)
+            _on_claim(monkeypatch, threads, die_after_claim)
             assert (
                 await _start_run(
                     durable, _run_input("thread", [_user("Second")], "second")
@@ -1271,8 +1329,8 @@ def test_producer_dead_after_its_claim_gives_the_thread_back_to_the_live_run(
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
-@pytest.mark.parametrize("kind", ["memory", "sqlite"])
-def test_producer_dead_after_its_claim_does_not_restore_a_run_that_finished(
+@pytest.mark.parametrize("kind", ["memory", "sqlite", "without-claim"])
+def test_producer_dead_after_its_claim_restores_the_run_that_finished(
     kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async def scenario() -> None:
@@ -1280,7 +1338,9 @@ def test_producer_dead_after_its_claim_does_not_restore_a_run_that_finished(
         release_options = asyncio.Event()
         producers: list[asyncio.Task[None]] = []
         threads = (
-            InMemoryThreadStore()
+            _StoreWithoutClaim()
+            if kind == "without-claim"
+            else InMemoryThreadStore()
             if kind == "memory"
             else SqliteThreadStore(tmp_path / "threads.db")
         )
@@ -1317,29 +1377,31 @@ def test_producer_dead_after_its_claim_does_not_restore_a_run_that_finished(
             assert finished is not None and finished.running is False
 
             second_producer = len(producers)
-            put_if_stream = threads.put_if_stream
 
-            async def die_after_claim(thread_id, record, *, expected):
-                claimed = await put_if_stream(thread_id, record, expected=expected)
+            async def die_after_claim(record, expected, write):
+                claimed = await write()
                 if record.run_id == "second":
+                    assert claimed, "the second run did not claim the thread"
                     producers[second_producer].cancel()
                     await asyncio.gather(
                         producers[second_producer], return_exceptions=True
                     )
-                return claimed
 
-            monkeypatch.setattr(threads, "put_if_stream", die_after_claim)
+            _on_claim(monkeypatch, threads, die_after_claim)
             release_options.set()
             assert (await second).status_code == 200
         finally:
             release_options.set()
             await asyncio.gather(*producers, return_exceptions=True)
 
-        record = await threads.get("thread")
-        assert record is not None
-        assert record.running is False
-        assert record.run_id == "second"
-        assert record.messages == [question]
+        stored = await threads.get("thread")
+        if kind == "without-claim":
+            assert stored is not None
+            assert stored.run_id == "second"
+            assert stored.running is False
+            assert stored.messages == [question]
+        else:
+            assert stored == finished
 
     asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
@@ -1409,7 +1471,7 @@ def test_producer_cancelled_during_startup_does_not_leave_a_running_record(
         model = Model()
         threads = InMemoryThreadStore()
 
-        for method_name in ("put", "put_if_current", "put_if_stream"):
+        for method_name in ("put", "put_if_current", "put_if_stream", "claim"):
             write = getattr(threads, method_name)
 
             async def pause_install(thread_id, record, write=write, **kwargs):
@@ -1794,7 +1856,9 @@ def test_thread_stores_list_by_owner_newest_first(kind: str, tmp_path: Path) -> 
         pytest.param(ThreadRecord(), "old", False, id="unset-with-expectation"),
     ],
 )
+@pytest.mark.parametrize("method", ["put_if_stream", "claim"])
 def test_thread_stores_put_if_stream(
+    method: str,
     kind: str,
     initial: ThreadRecord | None,
     expected: str | None,
@@ -1822,9 +1886,15 @@ def test_thread_stores_put_if_stream(
                 updated_at=10,
             )
 
-            assert await store.put_if_stream(
-                "thread", replacement, expected=expected
-            ) is writes
+            if method == "claim":
+                assert await store.claim("thread", replacement, expected=expected) == (
+                    writes,
+                    initial,
+                )
+            else:
+                assert await store.put_if_stream(
+                    "thread", replacement, expected=expected
+                ) is writes
             assert await store.get("thread") == (replacement if writes else initial)
             assert [i for i, _ in await store.list(owner="alice")] == (
                 ["thread"] if writes else []
@@ -1856,8 +1926,9 @@ def test_thread_stores_put_if_stream(
     [None, ThreadRecord(), ThreadRecord(stream_id="old")],
     ids=["missing", "unset", "set"],
 )
+@pytest.mark.parametrize("method", ["put_if_stream", "claim"])
 def test_thread_stores_put_if_stream_has_one_concurrent_winner(
-    kind: str, initial: ThreadRecord | None, tmp_path: Path
+    method: str, kind: str, initial: ThreadRecord | None, tmp_path: Path
 ) -> None:
     async def scenario() -> None:
         if kind == "postgres":
@@ -1879,9 +1950,16 @@ def test_thread_stores_put_if_stream_has_one_concurrent_winner(
             ]
             expected = initial.stream_id if initial is not None else None
             results = await asyncio.gather(
-                store.put_if_stream("thread", records[0], expected=expected),
-                other.put_if_stream("thread", records[1], expected=expected),
+                getattr(store, method)("thread", records[0], expected=expected),
+                getattr(other, method)("thread", records[1], expected=expected),
             )
+            if method == "claim":
+                written = [result[0] for result in results]
+                previous = [result[1] for result in results]
+                winner = records[written.index(True)]
+                assert previous[written.index(True)] == initial
+                assert previous[written.index(False)] == winner
+                results = written
 
             assert results.count(True) == 1
             winner = records[results.index(True)]
@@ -1894,6 +1972,35 @@ def test_thread_stores_put_if_stream_has_one_concurrent_winner(
                 await store.close()
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("kind", [POSTGRES_THREAD_BACKEND])
+def test_postgres_claim_returns_a_concurrently_inserted_null_stream_record(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def scenario() -> None:
+        store = await _shared_threads(kind, tmp_path)
+        concurrent = ThreadRecord(messages=[_user("Saved")], owner="alice")
+        replacement = ThreadRecord(stream_id="new", running=True, owner="alice")
+        locked_record = store._locked_record
+
+        async def insert_after_missing_row(db, thread_id: str) -> ThreadRecord | None:
+            current = await locked_record(db, thread_id)
+            if current is None:
+                await store.put(thread_id, concurrent)
+            return current
+
+        monkeypatch.setattr(store, "_locked_record", insert_after_missing_row)
+        try:
+            assert await store.claim("thread", replacement, expected=None) == (
+                False,
+                concurrent,
+            )
+            assert await store.get("thread") == concurrent
+        finally:
+            await _drop(store)
+
+    asyncio.run(asyncio.wait_for(scenario(), timeout=10))
 
 
 def test_sqlite_store_rejects_an_unsafe_table_name(tmp_path: Path) -> None:
@@ -2219,6 +2326,45 @@ async def _shared_threads(kind: str, tmp_path: Path):
     if kind == "sqlite":
         return SqliteThreadStore(tmp_path / "threads.db")
     return InMemoryThreadStore()
+
+
+class _StoreWithoutClaim:
+    """A custom store written before `claim` existed."""
+
+    def __init__(self) -> None:
+        inner = InMemoryThreadStore()
+        self.get = inner.get
+        self.put = inner.put
+        self.put_if_current = inner.put_if_current
+        self.put_if_stream = inner.put_if_stream
+        self.request_cancel = inner.request_cancel
+        self.run_state = inner.run_state
+        self.list = inner.list
+
+
+def _on_claim(monkeypatch: pytest.MonkeyPatch, threads, hook) -> None:
+    """Runs `hook(record, expected, write)` for each conditional write
+    `start_run` makes.
+
+    The write goes through `claim` on stores that have it and through
+    `put_if_stream` otherwise; `write()` performs it and returns whether it
+    wrote.
+    """
+    name = "claim" if hasattr(threads, "claim") else "put_if_stream"
+    inner = getattr(threads, name)
+
+    async def wrapped(thread_id, record, *, expected):
+        result = None
+
+        async def write() -> bool:
+            nonlocal result
+            result = await inner(thread_id, record, expected=expected)
+            return result[0] if name == "claim" else result
+
+        await hook(record, expected, write)
+        return result
+
+    monkeypatch.setattr(threads, name, wrapped)
 
 
 async def _drop(threads) -> None:

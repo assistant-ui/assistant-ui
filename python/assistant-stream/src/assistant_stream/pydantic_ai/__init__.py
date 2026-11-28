@@ -10,6 +10,7 @@ Needs `pip install "assistant-stream[pydantic-ai]"`.
 
 from assistant_stream.pydantic_ai.threads import (
     CancellableThreadStore,
+    ClaimingThreadStore,
     InMemoryThreadStore,
     PostgresThreadStore,
     SqliteThreadStore,
@@ -33,6 +34,7 @@ except ImportError as error:  # pragma: no cover - depends on installed extras
 __all__ = [
     "AdapterFactory",
     "CancellableThreadStore",
+    "ClaimingThreadStore",
     "DurableAGUI",
     "InMemoryThreadStore",
     "PostgresThreadStore",
