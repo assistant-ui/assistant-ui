@@ -50,6 +50,8 @@ on:
       - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
+      - "scripts/check-vendored-tarballs.mjs"
+      - "scripts/check-vendored-tarballs.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/checkout-worker-release.mjs"
@@ -214,6 +216,12 @@ jobs:
 
       - name: Verify adapters avoid banned state patterns
         run: node scripts/check-adapter-architecture.mjs
+
+      - name: Test the vendored archive checker
+        run: node --test scripts/check-vendored-tarballs.test.mjs
+
+      - name: Verify vendored archives match their provenance
+        run: node scripts/check-vendored-tarballs.mjs
 
       - name: Test scheduled failure issue reporting
         run: node --test scripts/scheduled-failure-issue.test.mjs scripts/react18-weekly.test.mjs

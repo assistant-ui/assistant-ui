@@ -35,6 +35,7 @@
       "ownerTeam": "owners",
       "paths": [
         ".github/**",
+        "templates/cloud-harness/vendor/**",
         "CONTRIBUTING.md",
         "AGENTS.md",
         "scripts/review-tier.mjs",
