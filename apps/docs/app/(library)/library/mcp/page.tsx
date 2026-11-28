@@ -97,7 +97,7 @@ export default function McpPage(): React.ReactElement {
 
       <LibraryRelated
         heading="Goes with"
-        href="/library/skills"
+        href="/library#skills"
         title="Skills"
         description={`${LIBRARY_SKILLS.length} skills that teach the agent how to build with assistant-ui. The server is where it looks things up.`}
       />

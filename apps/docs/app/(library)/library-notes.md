@@ -6,7 +6,7 @@ VS Code (`templates/vscode`, an editor extension), React Ink (`examples/with-rea
 
 ## Starter data is a hand-copied snapshot
 
-`lib/library/starters-data.ts` holds every starter on `/library/starters`. Most of it was copied by hand or by one-off scripts, so it goes stale when a starter, the CLI, or the registry changes. Nothing checks it today.
+`lib/library/starters-data.ts` holds every starter on the library's Starters tab. Most of it was copied by hand or by one-off scripts, so it goes stale when a starter, the CLI, or the registry changes. Nothing checks it today.
 
 What is copied, and from where:
 

@@ -15,6 +15,7 @@ import {
   type LibrarySection,
 } from "@/lib/library/library-data";
 import { cn } from "@/lib/utils";
+import { AgentsCarousel } from "./agents-carousel";
 import { LibraryGlyph } from "./library-glyphs";
 import { LibraryMark } from "./library-mark";
 import { LibraryStepCommand } from "./library-step-command";
@@ -495,7 +496,13 @@ export function LibraryHero({
           </Link>
         </div>
       </div>
-      <HeroCarousel section={section} />
+      {section?.id === "agents" ? (
+        <div className="hidden lg:block">
+          <AgentsCarousel />
+        </div>
+      ) : (
+        <HeroCarousel section={section} />
+      )}
     </div>
   );
 }

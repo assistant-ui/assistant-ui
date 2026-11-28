@@ -39,6 +39,10 @@ const remember = (label: string) => {
   for (const listener of listeners) listener();
 };
 
+/** Which way to install a person last picked, as the label of that way; every snippet and stepping command shares it. */
+export const useLibrarySnippetChoice = () =>
+  [useSyncExternalStore(subscribe, readStored, () => null), remember] as const;
+
 /** A `command` shows a shell prompt; a `prompt` reads as plain text. */
 export type LibrarySnippetTab = {
   label: string;
@@ -60,7 +64,7 @@ export function LibraryCodeSnippet({
   label: string;
   className?: string;
 }) {
-  const stored = useSyncExternalStore(subscribe, readStored, () => null);
+  const [stored] = useLibrarySnippetChoice();
   const current = tabs.find((tab) => tab.label === stored) ?? tabs[0];
   if (!current) return null;
 

@@ -1,8 +1,6 @@
 export const SKILLS_REPO = "assistant-ui/skills";
 
 export const SKILLS_COMMAND = `npx skills add ${SKILLS_REPO}`;
-export const SKILLS_PROMPT = `Install the assistant-ui agent skills with \`${SKILLS_COMMAND}\``;
-export const SKILLS_REPO_HREF = `https://github.com/${SKILLS_REPO}`;
 
 /** What follows `npx skills` in the stepping install command, with what each command does. */
 export const SKILLS_COMMAND_STEPS = [

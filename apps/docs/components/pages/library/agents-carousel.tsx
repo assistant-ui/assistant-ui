@@ -2,17 +2,12 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { ArrowRightIcon } from "lucide-react";
-import { typeDeck, typePage } from "@/components/shared/type";
 import {
   SKILL_AGENTS,
   SKILL_AGENTS_DOCS,
   type SkillAgent,
 } from "@/lib/library/skill-agents";
-import { SKILLS_COMMAND_STEPS } from "@/lib/library/skills-data";
 import { cn } from "@/lib/utils";
-import { LibraryStepCommand } from "./library-step-command";
 import { VisualBackdrop, visualLift } from "./library-visual";
 import {
   Menu,
@@ -366,7 +361,7 @@ const VISUALS = [
 ];
 
 /** The agents visual as a carousel: one look at a time, with a dot for each. */
-function AgentsCarousel() {
+export function AgentsCarousel() {
   const [index, setIndex] = useState(0);
   const { Visual } = VISUALS[index % VISUALS.length]!;
   return (
@@ -405,54 +400,6 @@ function AgentsCarousel() {
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-/**
- * The skills hero: title and description, the install command beside the link
- * to the guide, and the agents the skills install into.
- */
-export function SkillsHero({
-  count,
-}: {
-  /** How many skills there are. */
-  count: number;
-}) {
-  return (
-    <div className="mb-10 grid grid-cols-[minmax(0,1fr)] items-center gap-x-12 gap-y-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)]">
-      <div className="flex flex-col gap-3">
-        <nav aria-label="Breadcrumb" className="text-sm">
-          <Link
-            href="/library"
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Library
-          </Link>
-        </nav>
-        <h1 className={typePage}>Skills</h1>
-        <p className={typeDeck}>
-          {count} skills a coding agent loads to build with assistant-ui, all
-          installed with one command.
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <LibraryStepCommand base="npx skills" steps={SKILLS_COMMAND_STEPS} />
-          <Link
-            href="/docs/llm#skills"
-            className={cn(
-              "group/cta bg-foreground/[0.06] hover:bg-foreground/[0.1] inline-flex h-9 w-fit items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors",
-              focus,
-            )}
-          >
-            Read the skills guide
-            <ArrowRightIcon
-              aria-hidden
-              className="size-4 shrink-0 transition-transform duration-200 group-hover/cta:translate-x-0.5 motion-reduce:transition-none"
-            />
-          </Link>
-        </div>
-      </div>
-      <AgentsCarousel />
     </div>
   );
 }

@@ -30,6 +30,7 @@ import {
   EXAMPLES,
   TEMPLATES,
   starterCommand,
+  starterPrompt,
   type Starter,
 } from "./starters-data";
 
@@ -76,7 +77,12 @@ export type LibraryGroup = {
 };
 
 /** One command a stepping install command shows: what follows the base, and what it does. */
-export type LibraryCommandStep = { rest: string; does: string };
+export type LibraryCommandStep = {
+  rest: string;
+  does: string;
+  /** What to tell a coding agent in place of the command; left out when saying what it does and the command is enough. */
+  prompt?: string;
+};
 
 export type LibraryCommands = {
   base: string;
@@ -130,6 +136,8 @@ const pages = (
   }));
 
 const SHADCN_ADD = "npx shadcn@latest add";
+
+const SKILLS_GUIDE = "/docs/llm#skills";
 
 const route = (
   item: string,
@@ -260,8 +268,8 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     title: "Starters",
     noun: "starters",
     description: "Templates and example apps that create a new project.",
-    href: "/library/starters",
-    guide: "Open the starters page",
+    href: "/docs/cli#create",
+    guide: "Read the CLI guide",
     groups: [
       { label: "Templates", entries: starters(TEMPLATES) },
       { label: "Examples", entries: starters(EXAMPLES) },
@@ -309,8 +317,8 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     noun: "skills",
     description:
       "Instructions a coding agent loads to build with assistant-ui.",
-    href: "/library/skills",
-    guide: "Open the skills page",
+    href: SKILLS_GUIDE,
+    guide: "Read the skills guide",
     groups: SKILL_GROUPS.map((group) => ({
       label: group.title,
       entries: LIBRARY_SKILLS.filter((skill) => skill.group === group.id).map(
@@ -324,8 +332,8 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     noun: "agents",
     description:
       "Coding agents the skills install into, each in its own folder.",
-    href: "/library/skills",
-    guide: "Open the skills page",
+    href: SKILLS_GUIDE,
+    guide: "Read the skills guide",
     groups: [
       {
         label: "Agents",
@@ -335,7 +343,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
             return {
               name: agent.name,
               description: agent.directory,
-              href: "/library/skills",
+              href: SKILLS_GUIDE,
               code: true,
               mark: `agent:${agent.slug}`,
               id: `agents/${agent.slug}`,
@@ -389,14 +397,19 @@ const COMMAND_BASE: Partial<Record<LibrarySectionId, string>> = {
 
 const STEP_LIMIT = 8;
 
-const entryCommand = (entry: LibraryEntry): string | undefined => {
+const entryInstall = (
+  entry: LibraryEntry,
+): { command?: string | undefined; prompt?: string | undefined } => {
   switch (entry.kind) {
     case "link":
-      return entry.link.command;
+      return entry.link;
     case "starter":
-      return starterCommand(entry.starter);
+      return {
+        command: starterCommand(entry.starter),
+        prompt: starterPrompt(entry.starter),
+      };
     default:
-      return undefined;
+      return {};
   }
 };
 
@@ -411,11 +424,15 @@ const commandsFor = (
   const steps = section.groups
     .flatMap((group) => group.entries)
     .flatMap((entry): LibraryCommandStep[] => {
-      const command = entryCommand(entry);
-      if (command === base) return [{ rest: "", does: entryName(entry) }];
-      return command?.startsWith(`${base} `)
-        ? [{ rest: command.slice(base.length + 1), does: entryName(entry) }]
-        : [];
+      const { command, prompt } = entryInstall(entry);
+      if (command !== base && !command?.startsWith(`${base} `)) return [];
+      return [
+        {
+          rest: command.slice(base.length + 1),
+          does: entryName(entry),
+          ...(prompt && { prompt }),
+        },
+      ];
     })
     .slice(0, STEP_LIMIT);
   return steps.length > 0 ? { base, steps } : undefined;
