@@ -1119,6 +1119,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   disconnectVoice(): void;
   muteVoice(): void;
   unmuteVoice(): void;
+  protected _isInitializeHeld(): boolean;
   protected ensureInitialized(): boolean;
   export(): ExportedMessageRepository;
   protected _beforeImportNotify(): void;
@@ -2103,6 +2104,7 @@ declare class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
   readonly threads: ExternalStoreThreadListRuntimeCore;
   constructor(adapter: ExternalStoreAdapter<any>);
   setAdapter(adapter: ExternalStoreAdapter<any>): void;
+  __internal_setAdapterHoldingEvents(adapter: ExternalStoreAdapter<any>): () => void;
 }
 
 type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
@@ -2195,6 +2197,9 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   beginEdit(messageId: string): void;
   constructor(contextProvider: ModelContextProvider, store: ExternalStoreAdapter<any>);
   __internal_setAdapter(store: ExternalStoreAdapter<any>): void;
+  _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
+  protected _isInitializeHeld(): boolean;
+  __internal_setAdapterHoldingEvents(store: ExternalStoreAdapter<any>): () => void;
   switchToBranch(branchId: string): void;
   append(rawMessage: AppendMessage): Promise<void>;
   protected _commitVoiceMessage(message: ThreadMessage): void | Promise<void>;

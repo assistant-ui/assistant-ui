@@ -9,6 +9,7 @@ on:
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/lib/workspace.mjs"
       - "examples/with-pydantic-ai-durable/**"
+      - "!examples/with-pydantic-ai-durable/README.md"
       - "python/assistant-stream/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -37,6 +38,7 @@ on:
       - "packages/x-generative-compiler/**"
       - "!packages/**/*.test.ts"
       - "!packages/**/*.test.tsx"
+      - "!packages/**/README.md"
   pull_request:
     branches: [main]
     paths:
@@ -45,6 +47,7 @@ on:
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/lib/workspace.mjs"
       - "examples/with-pydantic-ai-durable/**"
+      - "!examples/with-pydantic-ai-durable/README.md"
       - "python/assistant-stream/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -73,6 +76,7 @@ on:
       - "packages/x-generative-compiler/**"
       - "!packages/**/*.test.ts"
       - "!packages/**/*.test.tsx"
+      - "!packages/**/README.md"
   workflow_dispatch:
 
 permissions:

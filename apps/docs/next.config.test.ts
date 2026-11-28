@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import type { IncomingMessage } from "node:http";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { withAui } from "@assistant-ui/next";
 import { compile, evaluate } from "@mdx-js/mdx";
@@ -11,6 +12,11 @@ import type { TableOfContents } from "fumadocs-core/toc";
 import { defaultShikiFactory } from "fumadocs-core/highlight/shiki/full";
 import { Tab, Tabs } from "./components/pages/docs/fumadocs/tabs";
 import type { PluggableList } from "unified";
+import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
+import {
+  matchHas,
+  prepareDestination,
+} from "next/dist/shared/lib/router/utils/prepare-destination";
 
 const { rmSync } = vi.hoisted(() => ({ rmSync: vi.fn() }));
 vi.mock("node:fs", async (importOriginal) => ({
@@ -81,6 +87,66 @@ describe("docs Next config composition", () => {
     expect(config.turbopack?.rules).toMatchObject({
       "*.tsx": { loaders: [{ loader: "@assistant-ui/next/loader" }] },
     });
+  });
+
+  it("rewrites requests for the homepage in markdown before checking the filesystem", async () => {
+    const rewrites = await config.rewrites!();
+    expect(rewrites).toMatchObject({
+      beforeFiles: expect.arrayContaining([
+        {
+          source: "/",
+          has: [
+            { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+          ],
+          destination: "/index.md",
+        },
+      ]),
+    });
+  });
+
+  it.each([
+    ["/nested/unknown-page", "text/markdown"],
+    ["/unknown-page.md", "*/*"],
+    ["/nested/unknown-page.mdx", "*/*"],
+  ])(
+    "rewrites unmatched %s with Accept %s and preserves the original path",
+    async (pathname, accept) => {
+      const rewrites = await config.rewrites!();
+      const fallback = Array.isArray(rewrites) ? [] : (rewrites.fallback ?? []);
+      const request = { headers: { accept } } as IncomingMessage;
+      const query = { path: "incoming-query" };
+      const [destination] = fallback.flatMap((rule) => {
+        const params = getPathMatch(rule.source, { strict: true })(pathname);
+        const headerParams = matchHas(request, query, rule.has, rule.missing);
+        if (!params || !headerParams) return [];
+        return [
+          prepareDestination({
+            appendParamsToQuery: true,
+            destination: rule.destination,
+            params: { ...params, ...headerParams },
+            query,
+          }).parsedDestination,
+        ];
+      });
+
+      expect(destination).toMatchObject({
+        pathname: "/missing.md",
+        query: { path: pathname },
+      });
+    },
+  );
+
+  it("varies responses on Accept at markdown-negotiating sources", async () => {
+    const headers = await config.headers!();
+    const sources = headers
+      .filter(({ headers }) =>
+        headers.some(({ key, value }) => key === "Vary" && value === "Accept"),
+      )
+      .map(({ source }) => source);
+
+    expect(sources.sort()).toEqual(
+      ["/", "/:path((?!api(?:/|$)|_next(?:/|$)).*)"].sort(),
+    );
   });
 
   // A /docs redirect written here by hand moves the page for browsers only:

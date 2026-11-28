@@ -1,11 +1,15 @@
+import { cacheLife } from "next/cache";
+import { missingMarkdownResponse } from "@/lib/docs-markdown";
 import { getLLMText, type LLMRenderContext } from "@/lib/get-llm-text";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 import { design } from "@/lib/source";
-import { notFound } from "next/navigation";
 
 export async function getDesignMarkdown(
   slug: string[] | undefined,
   flavor: LLMRenderContext["flavor"],
 ) {
+  "use cache";
+  cacheLife("max");
   // /design/components lists the same components as /design.
   if (!slug || slug.length === 0 || slug.join("/") === "components") {
     return [
@@ -23,9 +27,24 @@ export async function getDesignMarkdown(
   }
 
   const page = design.getPage(slug);
-  if (!page) notFound();
+  if (!page) return null;
 
   return getLLMText(page, { flavor });
+}
+
+export async function getDesignMarkdownResponse(
+  slug: string[] | undefined,
+  flavor: LLMRenderContext["flavor"],
+) {
+  const markdown = await getDesignMarkdown(slug, flavor);
+  if (markdown === null) {
+    return missingMarkdownResponse(
+      ["/design", ...(slug ?? [])].join("/"),
+      design.getPages(),
+      flavor === "radix" ? "view=radix-ui" : "",
+    );
+  }
+  return createMarkdownResponse(markdown);
 }
 
 export function getDesignMarkdownStaticParams() {

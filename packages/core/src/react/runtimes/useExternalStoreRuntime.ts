@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useInsertionEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
@@ -13,7 +19,10 @@ import {
 } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import { ExternalStoreHistoryCopy } from "./external-store-history-copy";
-import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import {
+  useIsomorphicLayoutEffect,
+  useReplaySafeEffect,
+} from "@assistant-ui/store/internal";
 import { useIsRemoteThreadRuntimeHosted } from "./RemoteThreadRuntimeHostContext";
 
 // Module scope isolates stable callbacks from the render's V8 context containing adapters and messages.
@@ -38,6 +47,31 @@ const useRuntimeLifetime = (
       invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
   }, [runtime]);
+};
+
+// Delivers the events the layout effect held. Its own scope keeps the effect
+// from sharing a closure context with the adapter and its messages.
+const useHeldEventDelivery = (heldEvents: { current: (() => void)[] }) => {
+  useEffect(() => {
+    for (const deliver of heldEvents.current.splice(0)) deliver();
+  });
+};
+
+// The host's snapshot reaches the thread in a layout effect, so the first
+// paint after a host update already shows it. The lifecycle events it raises
+// wait for the passive effect, which runs after listeners mounted by the same
+// update have subscribed.
+const useAdapterSync = (
+  runtime: ExternalStoreRuntimeCore,
+  adaptedStore: ExternalStoreAdapter<any>,
+) => {
+  const heldEvents = useRef<(() => void)[]>([]);
+  useIsomorphicLayoutEffect(() => {
+    heldEvents.current.push(
+      runtime.__internal_setAdapterHoldingEvents(adaptedStore),
+    );
+  });
+  useHeldEventDelivery(heldEvents);
 };
 
 const useHistoryCopy = (
@@ -96,9 +130,7 @@ export const useExternalStoreRuntime = <T>(
 
   useRuntimeLifetime(isHosted, lifetime, runtime);
 
-  useEffect(() => {
-    runtime.setAdapter(adaptedStore);
-  });
+  useAdapterSync(runtime, adaptedStore);
 
   useHistoryCopy(copiesHistory, history, historyCopy, runtime);
   useRuntimeModelContext(modelContext, runtime);

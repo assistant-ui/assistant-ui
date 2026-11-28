@@ -8,6 +8,7 @@ import {
 import { TESTIMONIALS } from "@/components/pages/home/testimonials/data";
 import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { typeDeck, typePackage, typeSection } from "@/components/shared/type";
+import { HOME_LIBRARY } from "@/lib/home-setup";
 import Image from "next/image";
 
 const HOME_QUOTE_USERNAMES = [
@@ -31,11 +32,9 @@ export function LibraryBody({ setupTabs }: { setupTabs: SetupTab[] }) {
       >
         <div className="flex max-w-[40rem] flex-col gap-3">
           <h2 id="what-you-install-heading" className={typePackage}>
-            @assistant-ui/react
+            {HOME_LIBRARY.title}
           </h2>
-          <p className={typeDeck}>
-            The runtime owns the thread, the stream, and the tools.
-          </p>
+          <p className={typeDeck}>{HOME_LIBRARY.description}</p>
         </div>
 
         <LibraryShowcase setupTabs={setupTabs} />

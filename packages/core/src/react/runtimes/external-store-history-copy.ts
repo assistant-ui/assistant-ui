@@ -61,8 +61,10 @@ export class ExternalStoreHistoryCopy {
     }
   }
 
-  private branch(): ThreadMessage[] {
-    return (this.thread?.messages ?? [])
+  private branch(
+    messages: readonly ThreadMessage[] = this.thread?.messages ?? [],
+  ): ThreadMessage[] {
+    return messages
       .filter(
         (message) =>
           !message.metadata.isOptimistic &&
@@ -94,8 +96,8 @@ export class ExternalStoreHistoryCopy {
       });
   }
 
-  private seed(): void {
-    for (const message of this.branch()) {
+  private seed(messages?: readonly ThreadMessage[]): void {
+    for (const message of this.branch(messages)) {
       if (!this.copied.has(message.id) && !this.failedIds.has(message.id)) {
         this.copied.set(message.id, this.signature(message));
       }
@@ -114,9 +116,20 @@ export class ExternalStoreHistoryCopy {
     this.thread = thread;
     this.history = history;
     this.seed();
-    const offStart = thread.unstable_on("runStart", () => this.seed());
+    // runStart can arrive after the snapshot that started the run, so the
+    // seed uses the messages from before it: a message the host added in
+    // that snapshot belongs to the run and is copied when it ends.
+    let idleMessages = thread.messages;
+    const offState = thread.subscribe(() => {
+      if (!getThreadRuntimeCoreIsRunning(thread))
+        idleMessages = thread.messages;
+    });
+    const offStart = thread.unstable_on("runStart", () =>
+      this.seed(idleMessages),
+    );
     const offEnd = thread.unstable_on("runEnd", () => this.schedule());
     return () => {
+      offState();
       offStart();
       offEnd();
       if (this.timer !== undefined) clearTimeout(this.timer);

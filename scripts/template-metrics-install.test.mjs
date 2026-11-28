@@ -199,6 +199,121 @@ for (const file of [
   });
 }
 
+for (const [kind, entry, expectedUiLoc] of [
+  ["static", 'export { chart } from "@/ui/chart";', 301],
+  ["lazy alias", 'export const chart = () => import("@/ui/chart");', 301],
+  ["lazy alias after a comment", 'void import(/* chunk */ "@/ui/chart");', 301],
+  ["relative lazy dependency reached twice", 'import "@/ui/barrel";', 302],
+  [
+    "lazy import after a regular expression containing a backtick",
+    [
+      "const heading = /^[\\s#>*`-]+/;",
+      'const load = () => import("@/ui/chart");',
+      "const label = `chart`;",
+    ].join("\n"),
+    301,
+  ],
+  [
+    "static re-export after a regular expression containing a backtick",
+    'const fence = /`/; export { chart } from "@/ui/chart"; const label = `chart`;',
+    301,
+  ],
+  [
+    "lazy import with a plain template literal",
+    "const load = () => import(`@/ui/chart`);",
+    301,
+  ],
+  [
+    "lazy import with a literal dollar in a template literal",
+    "const load = () => import(`@/ui/$chart`);",
+    301,
+  ],
+  [
+    "lazy import with an interpolated template literal",
+    "const load = (name) => import(`@/ui/${name}`);",
+    0,
+  ],
+  [
+    "a long run of slashes before an import",
+    [
+      `import ${"/".repeat(5000)}`,
+      'const load = () => import("@/ui/chart");',
+    ].join("\n"),
+    301,
+  ],
+  [
+    "import-like text in comments",
+    ['// import("@/ui/chart")', '/* import("@/ui/chart") */'].join("\n"),
+    301,
+  ],
+  [
+    "import-like text in strings",
+    [
+      `const example = 'import("@/ui/chart")';`,
+      'const docs = `Use import("@/ui/chart")`;',
+    ].join("\n"),
+    301,
+  ],
+  [
+    "nonliteral imports and property calls",
+    [
+      'const path = "@/ui/chart";',
+      "void import(path);",
+      'void import("@/ui/chart" + suffix);',
+      'loader.import("@/ui/chart");',
+    ].join("\n"),
+    0,
+  ],
+]) {
+  test(`template footprint measures ${expectedUiLoc} UI LOC for ${kind}`, (t) => {
+    const { root, write, commit } = fixture(t);
+    write(
+      "templates/default/tsconfig.json",
+      JSON.stringify({
+        compilerOptions: { paths: { "@/ui/*": ["../../packages/ui/*"] } },
+      }),
+    );
+    write(
+      "packages/ui/chart.ts",
+      "export const chart = 1;\n" + "// chart\n".repeat(300),
+    );
+    write(
+      "packages/ui/$chart.ts",
+      "export const chart = 1;\n" + "// chart\n".repeat(300),
+    );
+    write(
+      "packages/ui/barrel.ts",
+      "export const load = () => Promise.all([import( /* chunk */ './chart' ), import('./chart')]);\n",
+    );
+    write("templates/default/app.ts", entry);
+    commit();
+
+    const script = "scripts/template-metrics.mjs";
+    execFileSync(process.execPath, [script, "measure", ".", "head.json"], {
+      cwd: root,
+    });
+    const rows = JSON.parse(readFileSync(path.join(root, "head.json"), "utf8"));
+    assert.equal(
+      rows.find(({ name }) => name === "default").uiLoc,
+      expectedUiLoc,
+    );
+
+    const check = spawnSync(process.execPath, [script, "check", "."], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, MAX_LOC_HARD_INCREASE: "300" },
+    });
+    const expectedDelta = expectedUiLoc + entry.split("\n").length - 1;
+    assert.equal(
+      check.status,
+      expectedDelta > 300 ? 1 : 0,
+      check.stdout + check.stderr,
+    );
+    if (expectedDelta > 300)
+      assert.ok(check.stderr.includes(`default: +${expectedDelta} LOC > 300`));
+  });
+}
+
 test("renaming a measured source into an unrelated template still builds bundles", (t) => {
   const { root, git, commit } = fixture(t);
   git("mv", "templates/default/app.ts", "templates/nuxt/moved app.ts");

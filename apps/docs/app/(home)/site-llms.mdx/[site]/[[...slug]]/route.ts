@@ -1,15 +1,18 @@
 import { cacheLife } from "next/cache";
-import { notFound } from "next/navigation";
+import { missingMarkdownResponse } from "@/lib/docs-markdown";
 import { getLLMText } from "@/lib/get-llm-text";
 import { docsSiteSources } from "@/lib/source";
-import { DOCS_SITES, docsSiteBaseUrl, getDocsSite } from "@/lib/docs-sites";
+import {
+  DOCS_SITES,
+  docsSiteBaseUrl,
+  getDocsSite,
+  type DocsSite,
+} from "@/lib/docs-sites";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
-async function getMarkdown(siteId: string, slug: string[] | undefined) {
+async function getMarkdown(site: DocsSite, slug: string[] | undefined) {
   "use cache";
   cacheLife("max");
-  const site = getDocsSite(siteId);
-  if (!site) return null;
   const loader = docsSiteSources[site.id];
 
   if (!slug || slug.length === 0) {
@@ -38,9 +41,21 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ site: string; slug?: string[] }> },
 ) {
-  const { site, slug } = await params;
+  const { site: siteId, slug } = await params;
+  const site = getDocsSite(siteId);
+  if (!site) {
+    return missingMarkdownResponse(
+      [`/site-llms.mdx/${siteId}`, ...(slug ?? [])].join("/"),
+      [],
+    );
+  }
   const markdown = await getMarkdown(site, slug);
-  if (markdown === null) notFound();
+  if (markdown === null) {
+    return missingMarkdownResponse(
+      [docsSiteBaseUrl(site.id), ...(slug ?? [])].join("/"),
+      docsSiteSources[site.id].getPages(),
+    );
+  }
   return createMarkdownResponse(markdown);
 }
 
