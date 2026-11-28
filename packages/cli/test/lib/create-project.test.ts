@@ -11,6 +11,7 @@ import {
   scaffoldProject,
   transformProject,
 } from "../../src/lib/create-project";
+import { DOWNLOAD_TIMEOUT_MS } from "../../src/lib/utils/download";
 
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn<(...args: Parameters<typeof spawn>) => EventEmitter>(),
@@ -220,9 +221,13 @@ describe("downloadProject", () => {
       timeout: 1_000,
     });
     try {
-      const rejection = expect(result).rejects.toThrow("Download timed out");
-      await vi.advanceTimersByTimeAsync(30_000);
-      await rejection;
+      const rejection = expect(result).rejects.toThrow(
+        /Download timed out.*ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS\b/,
+      );
+      await Promise.all([
+        rejection,
+        vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS),
+      ]);
       fs.rmSync(destDir, { recursive: true, force: true });
     } finally {
       finishDownload();
@@ -253,7 +258,7 @@ describe("downloadProject", () => {
       timeout: 1_000,
     });
     const rejection = expect(result).rejects.toThrow("Download timed out");
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
     await rejection;
 
     cleanupPendingProjectDownloads();
@@ -282,7 +287,7 @@ describe("downloadProject", () => {
       timeout: 1_000,
     });
     const rejection = expect(result).rejects.toThrow("Download timed out");
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
     await rejection;
 
     const exitListener = process

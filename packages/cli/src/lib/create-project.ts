@@ -178,7 +178,6 @@ export async function downloadProject(
     await withStagedDownload(
       source,
       { dir: currentStagingDir, force: true, silent: true },
-      "Download timed out. This may be due to GitHub rate limiting or a network issue. Try again in a few minutes.",
       removeStagingDir,
       async (download) => {
         await download;

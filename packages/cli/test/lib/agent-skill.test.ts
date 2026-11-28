@@ -228,13 +228,15 @@ describe("ensureSkillsPlugin", () => {
       );
 
       const outcome = expect(ensureSkillsPlugin()).rejects.toThrow(
-        /Could not fetch the assistant-ui skills/,
+        /Download timed out.*ASSISTANT_UI_DOWNLOAD_TIMEOUT_MS\b/,
       );
       await vi.waitFor(() => expect(downloadStarted).toBe(true), {
         timeout: 1_000,
       });
-      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
-      await outcome;
+      await Promise.all([
+        outcome,
+        vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS),
+      ]);
 
       const parent = path.dirname(skillsPluginDir());
       expect(fs.readdirSync(parent)).toHaveLength(1);
@@ -258,14 +260,15 @@ describe("ensureSkillsPlugin", () => {
         await new Promise<never>(() => undefined);
       });
 
-      const outcome = expect(ensureSkillsPlugin()).rejects.toThrow(
-        /Could not fetch the assistant-ui skills/,
-      );
+      const outcome =
+        expect(ensureSkillsPlugin()).rejects.toThrow(/Download timed out/);
       await vi.waitFor(() => expect(downloadStarted).toBe(true), {
         timeout: 1_000,
       });
-      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
-      await outcome;
+      await Promise.all([
+        outcome,
+        vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS),
+      ]);
 
       const exitListener = process
         .rawListeners("exit")
