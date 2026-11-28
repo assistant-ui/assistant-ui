@@ -13,6 +13,8 @@ export type LibraryComponent = {
   slug: string;
   name: string;
   description: string;
+  /** Its page, when it is not under /elements. */
+  href?: string;
   /** Absent when the component's page gives its source to copy. */
   command?: string;
   /** What to tell a coding agent to add it. */
@@ -1422,6 +1424,64 @@ export const LIBRARY_ELEMENTS: readonly LibraryComponent[] = [
       "set up https://www.assistant-ui.com/elements/generative-chart-bars",
     traits: ["generative"],
   },
+  {
+    slug: "assistant-ui",
+    name: "Chat Starter",
+    description:
+      "A streaming chat UI wired to the agent framework you already use.",
+    href: "/components/assistant-ui",
+    command: "npx assistant-ui@latest setup",
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
+  },
+  {
+    slug: "guides/latex",
+    name: "LaTeX math",
+    description: "Render LaTeX equations in chat messages with KaTeX.",
+    href: "/docs/guides/latex",
+    command: "npx assistant-ui@latest setup --products guides/latex",
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/latex`",
+  },
+  {
+    slug: "guides/streamdown",
+    name: "Streamdown renderer",
+    description:
+      "Replace react-markdown with Streamdown for built-in Shiki, KaTeX, and Mermaid.",
+    href: "/docs/guides/streamdown",
+    command: "npx assistant-ui@latest setup --products guides/streamdown",
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/streamdown`",
+  },
+  {
+    slug: "guides/mcp",
+    name: "MCP server tools",
+    description:
+      "Connect MCP servers in the chat route so their tools are available to the model.",
+    href: "/docs/tools/mcp",
+    command: "npx assistant-ui@latest setup --products guides/mcp",
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/mcp`",
+  },
+  {
+    slug: "guides/rtl",
+    name: "RTL support",
+    description:
+      "Right-to-left layout for Arabic, Hebrew, and Persian chat interfaces.",
+    href: "/docs/guides/rtl",
+    command: "npx assistant-ui@latest setup --products guides/rtl",
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/rtl`",
+  },
+  {
+    slug: "agent-tools",
+    name: "Agent Tool",
+    description: "An action the model can call, with its own UI in the thread.",
+    href: "/components/agent-tools",
+    command: "npx assistant-ui@latest setup --products agent-tools",
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup --products agent-tools`",
+  },
 ];
 
 export const LIBRARY_UI_COMPONENTS: readonly LibraryComponent[] = [
@@ -1844,203 +1904,5 @@ export const LIBRARY_VOCABULARY: readonly {
         description: "A highlighted message conveying urgency.",
       },
     ],
-  },
-];
-
-/** The chat features, services, and starter the components page lists beside its elements. */
-export const LIBRARY_FEATURES: readonly {
-  slug: string;
-  name: string;
-  description: string;
-  href: string;
-  command: string;
-  prompt: string;
-}[] = [
-  {
-    slug: "assistant-ui",
-    name: "Chat Starter",
-    description:
-      "A streaming chat UI wired to the agent framework you already use.",
-    href: "/components/assistant-ui",
-    command: "npx assistant-ui@latest setup",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup`",
-  },
-  {
-    slug: "guides/attachments",
-    name: "File attachments",
-    description:
-      "Users attach images and files to messages by picker, drag-drop, or paste.",
-    href: "/docs/guides/attachments",
-    command: "npx assistant-ui@latest setup --products guides/attachments",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/attachments`",
-  },
-  {
-    slug: "guides/speech",
-    name: "Text-to-speech",
-    description: "A read-aloud button on every assistant message.",
-    href: "/docs/guides/speech",
-    command: "npx assistant-ui@latest setup --products guides/speech",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/speech`",
-  },
-  {
-    slug: "guides/dictation",
-    name: "Voice dictation",
-    description:
-      "A microphone button that transcribes speech into the composer.",
-    href: "/docs/guides/dictation",
-    command: "npx assistant-ui@latest setup --products guides/dictation",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/dictation`",
-  },
-  {
-    slug: "guides/latex",
-    name: "LaTeX math",
-    description: "Render LaTeX equations in chat messages with KaTeX.",
-    href: "/docs/guides/latex",
-    command: "npx assistant-ui@latest setup --products guides/latex",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/latex`",
-  },
-  {
-    slug: "guides/streamdown",
-    name: "Streamdown renderer",
-    description:
-      "Replace react-markdown with Streamdown for built-in Shiki, KaTeX, and Mermaid.",
-    href: "/docs/guides/streamdown",
-    command: "npx assistant-ui@latest setup --products guides/streamdown",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/streamdown`",
-  },
-  {
-    slug: "guides/suggestions",
-    name: "Suggested prompts",
-    description:
-      "Starter prompts on the empty thread, with optional generated follow-ups.",
-    href: "/docs/guides/suggestions",
-    command: "npx assistant-ui@latest setup --products guides/suggestions",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/suggestions`",
-  },
-  {
-    slug: "guides/mentions",
-    name: "@-mentions",
-    description:
-      "Type @ in the composer to pick a tool or custom item and send it as a directive.",
-    href: "/docs/guides/mentions",
-    command: "npx assistant-ui@latest setup --products guides/mentions",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/mentions`",
-  },
-  {
-    slug: "guides/slash-commands",
-    name: "Slash commands",
-    description:
-      "Type / in the composer to open a command palette that runs your callbacks.",
-    href: "/docs/guides/slash-commands",
-    command: "npx assistant-ui@latest setup --products guides/slash-commands",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/slash-commands`",
-  },
-  {
-    slug: "guides/chain-of-thought",
-    name: "Chain of thought",
-    description:
-      "Group reasoning and tool calls into one collapsible thinking section.",
-    href: "/docs/guides/chain-of-thought",
-    command: "npx assistant-ui@latest setup --products guides/chain-of-thought",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/chain-of-thought`",
-  },
-  {
-    slug: "guides/resumable-streams",
-    name: "Resumable streams",
-    description:
-      "A response keeps streaming after a reload or dropped connection and the client picks it back up.",
-    href: "/docs/guides/resumable-streams",
-    command:
-      "npx assistant-ui@latest setup --products guides/resumable-streams",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/resumable-streams`",
-  },
-  {
-    slug: "guides/devtools",
-    name: "DevTools",
-    description:
-      "An in-browser panel for inspecting runtime state, model context, and events in development.",
-    href: "/docs/guides/devtools",
-    command: "npx assistant-ui@latest setup --products guides/devtools",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/devtools`",
-  },
-  {
-    slug: "guides/langfuse",
-    name: "Langfuse tracing",
-    description:
-      "One Langfuse trace per chat turn, with LLM and tool-call spans, via OpenTelemetry.",
-    href: "/docs/integrations/observability/langfuse",
-    command: "npx assistant-ui@latest setup --products guides/langfuse",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/langfuse`",
-  },
-  {
-    slug: "guides/langsmith",
-    name: "LangSmith tracing",
-    description: "Trace AI SDK calls into a LangSmith project with wrapAISDK.",
-    href: "/docs/integrations/observability/langsmith",
-    command: "npx assistant-ui@latest setup --products guides/langsmith",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/langsmith`",
-  },
-  {
-    slug: "guides/mcp",
-    name: "MCP server tools",
-    description:
-      "Connect MCP servers in the chat route so their tools are available to the model.",
-    href: "/docs/tools/mcp",
-    command: "npx assistant-ui@latest setup --products guides/mcp",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/mcp`",
-  },
-  {
-    slug: "guides/user-managed-mcp",
-    name: "User-managed MCP servers",
-    description:
-      "End users connect, authenticate, and add MCP servers from a dialog in the browser.",
-    href: "/docs/tools/user-managed-mcp",
-    command: "npx assistant-ui@latest setup --products guides/user-managed-mcp",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/user-managed-mcp`",
-  },
-  {
-    slug: "guides/rtl",
-    name: "RTL support",
-    description:
-      "Right-to-left layout for Arabic, Hebrew, and Persian chat interfaces.",
-    href: "/docs/guides/rtl",
-    command: "npx assistant-ui@latest setup --products guides/rtl",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products guides/rtl`",
-  },
-  {
-    slug: "cloud",
-    name: "Assistant Cloud",
-    description:
-      "Persistence, thread history, and titles for an existing assistant-ui app.",
-    href: "/components/cloud",
-    command: "npx assistant-ui@latest setup --products cloud",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products cloud`",
-  },
-  {
-    slug: "agent-tools",
-    name: "Agent Tool",
-    description: "An action the model can call, with its own UI in the thread.",
-    href: "/components/agent-tools",
-    command: "npx assistant-ui@latest setup --products agent-tools",
-    prompt:
-      "install and set up assistant-ui with `npx assistant-ui@latest setup --products agent-tools`",
   },
 ];

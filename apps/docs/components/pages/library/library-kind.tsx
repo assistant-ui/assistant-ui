@@ -12,7 +12,6 @@ const KIND_TONE: Record<LibraryKind, string> = {
   preset: "text-pink-600 dark:text-pink-400",
   skill: "text-violet-600 dark:text-violet-400",
   component: "text-sky-700 dark:text-sky-400",
-  feature: "text-teal-700 dark:text-teal-400",
   block: "text-rose-600 dark:text-rose-400",
   runtime: "text-orange-700 dark:text-orange-400",
   integration: "text-indigo-600 dark:text-indigo-400",

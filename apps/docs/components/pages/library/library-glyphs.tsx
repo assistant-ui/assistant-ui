@@ -348,42 +348,8 @@ export function GlyphLibrary() {
   );
 }
 
-/** Things a chat can do, each with a switch, the first turned on. */
-function GlyphFeatures() {
-  const rows = [5.5, 12, 18.5];
-  return (
-    <GlyphSvg>
-      {rows.map((y, index) => (
-        <g key={y}>
-          <path
-            {...motion("draw", index * 70)}
-            pathLength={100}
-            d={`M4 ${y}H${index === 1 ? 12.5 : 15.5}`}
-            className={DIM}
-          />
-          <rect
-            x="20"
-            y={y - 2.5}
-            width="8"
-            height="5"
-            rx="2.5"
-            className={index === 0 ? cn(DIM, ACCENT_STROKE) : FAINT}
-          />
-          <circle
-            cx={index === 0 ? 25.5 : 22.5}
-            cy={y}
-            r="1.25"
-            className={index === 0 ? cn(SOLID, ACCENT_FILL) : DOT}
-          />
-        </g>
-      ))}
-    </GlyphSvg>
-  );
-}
-
 const GLYPHS: Record<LibrarySectionId, () => ReactNode> = {
   components: GlyphComponents,
-  features: GlyphFeatures,
   blocks: GlyphBlocks,
   starters: GlyphStarters,
   runtimes: GlyphRuntimes,

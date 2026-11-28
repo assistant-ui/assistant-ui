@@ -2,7 +2,6 @@ import { LIBRARY_SITE, agentSetupPrompt } from "./agent-prompt";
 import { LIBRARY_BLOCKS, type LibraryBlock } from "./blocks-data";
 import {
   LIBRARY_ELEMENTS,
-  LIBRARY_FEATURES,
   LIBRARY_TRAITS,
   LIBRARY_UI_COMPONENTS,
   LIBRARY_VOCABULARY,
@@ -42,7 +41,6 @@ import {
 
 export type LibrarySectionId =
   | "components"
-  | "features"
   | "blocks"
   | "starters"
   | "runtimes"
@@ -215,10 +213,10 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
       {
         label: "Elements",
         entries: links(
-          LIBRARY_ELEMENTS.map(({ slug, ...element }) => ({
+          LIBRARY_ELEMENTS.map(({ slug, href, ...element }) => ({
             ...element,
             id: `components/${slug}`,
-            href: `/elements/${slug}`,
+            href: href ?? `/elements/${slug}`,
           })),
         ),
       },
@@ -273,28 +271,6 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
             href: "/docs/runtimes/eve/overview",
           }),
         ]),
-      },
-    ],
-  },
-  {
-    id: "features",
-    title: "Features",
-    type: "Feature",
-    noun: "features",
-    description:
-      "Things the setup command adds to a chat: attachments, speech, mentions, MCP, and more.",
-    href: "/docs/cli#setup",
-    guide: "Read the setup guide",
-    skills: ["setup"],
-    groups: [
-      {
-        label: "Features",
-        entries: links(
-          LIBRARY_FEATURES.map(({ slug, ...feature }) => {
-            const id = `features/${slug}`;
-            return { ...feature, id, mark: `icon:${id}` };
-          }),
-        ),
       },
     ],
   },
@@ -450,7 +426,6 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
 /** The start every install command in a tab shares, for tabs whose items install by command. */
 const COMMAND_BASE: Partial<Record<LibrarySectionId, string>> = {
   components: SHADCN_ADD,
-  features: "npx assistant-ui@latest setup",
   starters: STARTERS_COMMAND,
   runtimes: "npm install",
   integrations: "npm install",

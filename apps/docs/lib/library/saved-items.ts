@@ -32,7 +32,6 @@ export type LibraryKind =
   | "preset"
   | "skill"
   | "component"
-  | "feature"
   | "block"
   | "runtime"
   | "integration"
@@ -47,7 +46,6 @@ export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
   preset: "Preset",
   skill: "Skill",
   component: "Component",
-  feature: "Feature",
   block: "Block",
   runtime: "Runtime",
   integration: "Integration",
@@ -114,7 +112,6 @@ export const LIBRARY_SECTION_KIND: Partial<
   Record<LibrarySectionId, LibraryKind>
 > = {
   components: "component",
-  features: "feature",
   blocks: "block",
   runtimes: "runtime",
   integrations: "integration",
@@ -130,7 +127,6 @@ const fromSections = (): LibrarySavedItem[] =>
   LIBRARY_SECTIONS.flatMap((section) => {
     const kind = LIBRARY_SECTION_KIND[section.id];
     if (!kind) return [];
-    const label = LIBRARY_KIND_LABEL[kind].toLowerCase();
     return section.groups.flatMap((group) =>
       group.entries.flatMap((entry): LibrarySavedItem[] => {
         if (entry.kind === "block") {
@@ -158,7 +154,7 @@ const fromSections = (): LibrarySavedItem[] =>
                 ? `the MCP server in ${name}`
                 : kind === "agent"
                   ? `the assistant-ui skills for ${name}`
-                  : `${name} (${label})`,
+                  : `${name} (${LIBRARY_KIND_LABEL[kind].toLowerCase()})`,
             href: absolute(href),
             preview: { kind: "section", section: section.id },
           },
