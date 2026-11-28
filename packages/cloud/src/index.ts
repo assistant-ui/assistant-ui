@@ -2,12 +2,14 @@ export type {
   CloudMessage,
   CloudMessageRun,
   CloudRunLease,
+  CloudThreadRun,
   AssistantCloudThreadMessageFeedbackBody,
   AssistantCloudThreadMessageFeedbackResponse,
 } from "./AssistantCloudThreadMessages";
 export type {
   AssistantCloudThreadRuns,
   AssistantCloudRunHeartbeatResponse,
+  AssistantCloudThreadRunOpenBody,
   CloudRunEndReason,
 } from "./AssistantCloudThreadRuns";
 export type {
@@ -60,6 +62,7 @@ export {
   type CloudMessagePersistenceOptions,
   type CloudMessageRunPhase,
   type CloudRunState,
+  type CloudThreadRunRead,
 } from "./CloudMessagePersistence";
 export {
   createFormattedPersistence,
