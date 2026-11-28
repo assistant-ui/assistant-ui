@@ -65,7 +65,13 @@ const makeComposer = (adapter: AttachmentAdapter, messages: unknown[] = []) => {
 
 const makeThread = (
   adapter: AttachmentAdapter,
-  { isRunning = false }: { isRunning?: boolean } = {},
+  {
+    isRunning = false,
+    messages = [],
+  }: {
+    isRunning?: boolean;
+    messages?: { id: string; role: string }[];
+  } = {},
 ) => {
   const listeners = new Set<() => void>();
   const runtime = {
@@ -79,7 +85,7 @@ const makeThread = (
     },
     capabilities: { cancel: true },
     isRunning,
-    messages: [] as { id: string; role: string }[],
+    messages: [...messages] as { id: string; role: string }[],
     getModelContext: () => ({ unstable_composerMetadata: undefined }),
     adapters: { attachments: adapter },
   };
@@ -92,6 +98,10 @@ const makeThread = (
     cancelRun: runtime.cancelRun,
     show: (id: string, role = "user") => {
       runtime.messages = [...runtime.messages, { id, role }];
+      for (const listener of listeners) listener();
+    },
+    prepend: (id: string, role = "user") => {
+      runtime.messages = [{ id, role }, ...runtime.messages];
       for (const listener of listeners) listener();
     },
   };
@@ -242,6 +252,53 @@ describe("a message in transit", () => {
     show("a1", "assistant");
     expect(composer.inTransit.map((message) => message.text)).toEqual(["two"]);
     show("m2");
+    expect(composer.inTransit).toEqual([]);
+  });
+
+  it("does not settle an in-transit send on prepended same-role history", async () => {
+    const { composer, prepend } = makeThread(uploadAdapter(settledUpload), {
+      messages: [{ id: "greet", role: "assistant" }],
+    });
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    await composer.send();
+
+    expect(composer.inTransit).toHaveLength(1);
+
+    prepend("hist-user", "user");
+    expect(composer.inTransit).toHaveLength(1);
+  });
+
+  it("does not settle an in-transit send on prepended other-role history", async () => {
+    const { composer, prepend } = makeThread(uploadAdapter(settledUpload), {
+      messages: [{ id: "greet", role: "assistant" }],
+    });
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    await composer.send();
+
+    expect(composer.inTransit).toHaveLength(1);
+
+    prepend("hist-assistant", "assistant");
+    expect(composer.inTransit).toHaveLength(1);
+  });
+
+  it("still settles the oldest send on a later same-role message", async () => {
+    const { composer, prepend, show } = makeThread(
+      uploadAdapter(settledUpload),
+      { messages: [{ id: "greet", role: "assistant" }] },
+    );
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    await composer.send();
+
+    prepend("hist-user", "user");
+    expect(composer.inTransit).toHaveLength(1);
+
+    show("m1");
     expect(composer.inTransit).toEqual([]);
   });
 

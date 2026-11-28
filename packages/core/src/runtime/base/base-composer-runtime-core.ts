@@ -227,10 +227,10 @@ export abstract class BaseComposerRuntimeCore
   }
 
   /**
-   * The ids of the thread's messages of a role, or undefined when this
-   * composer's sends do not render in the thread. A dispatched submission
-   * stays in transit until a message of its role that was not there at
-   * dispatch shows up.
+   * The keys of the thread's messages, each an `id|role` pair, or undefined
+   * when this composer's sends do not render in the thread. A dispatched
+   * submission stays in transit until a message of its role that was not
+   * there at dispatch shows up.
    */
   protected threadMessageIds(
     _role: MessageRole,
@@ -245,8 +245,10 @@ export abstract class BaseComposerRuntimeCore
    */
   protected settleInTransit() {
     if (this._inTransit.length === 0) return;
-    const match = matchInTransit(this._inTransit, (entry) =>
-      this.threadMessageIds(entry.submission.role),
+    const match = matchInTransit(
+      this._inTransit,
+      (entry) => this.threadMessageIds(entry.submission.role),
+      (entry, key) => key.endsWith(`|${entry.submission.role}`),
     );
     if (match.landed.size === 0) return;
     this._setInTransit(retainInTransit(this._inTransit, match));

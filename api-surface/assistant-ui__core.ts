@@ -1798,7 +1798,7 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   startDictation(): void;
   cancel(): void;
-  protected threadMessageIds(role: MessageRole): string[];
+  protected threadMessageIds(_role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
