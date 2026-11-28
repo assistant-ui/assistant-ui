@@ -46,11 +46,11 @@ export function LibraryStepCommand({
   return (
     <div
       className={cn(
-        "border-foreground/10 bg-background relative flex h-9 w-full max-w-md min-w-0 items-center rounded-(--library-control) border ps-4",
+        "border-foreground/10 bg-background relative flex h-10 w-full max-w-md min-w-0 items-center rounded-(--library-control) border ps-4",
         className,
       )}
     >
-      <code className="flex min-w-0 flex-1 items-center overflow-hidden font-mono text-[13px] whitespace-nowrap [font-variant-ligatures:none]">
+      <code className="flex min-w-0 flex-1 items-center overflow-hidden font-mono text-sm whitespace-nowrap [font-variant-ligatures:none]">
         {asPrompt ? (
           <span
             key={prompt}
