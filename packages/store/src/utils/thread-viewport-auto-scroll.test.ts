@@ -2010,8 +2010,13 @@ describe("createThreadViewportAutoScroll", () => {
   });
 
   describe("earlier messages", () => {
-    const pagedViewport = (scrollTop = 0, autoScroll = false) => {
-      const view = geometry(320, 100);
+    const pagedViewport = (
+      scrollTop = 0,
+      autoScroll = false,
+      clientHeight = 100,
+      overrides: () => Partial<ThreadViewportAutoScrollOptions> = () => ({}),
+    ) => {
+      const view = geometry(320, clientHeight);
       const heights = Array<number>(8).fill(80);
       let growthBelow = 0;
       const messages = heights.map((_, index) => {
@@ -2027,7 +2032,8 @@ describe("createThreadViewportAutoScroll", () => {
         };
         return message;
       });
-      view.element.getBoundingClientRect = () => new DOMRect(0, 40, 100, 100);
+      view.element.getBoundingClientRect = () =>
+        new DOMRect(0, 40, 100, view.element.clientHeight);
       view.element.append(...messages.slice(4));
       const updateHeight = () => {
         view.grow(
@@ -2045,6 +2051,7 @@ describe("createThreadViewportAutoScroll", () => {
           scrollToBottomOnInitialize: false,
           scrollToBottomOnRunStart: false,
           scrollToBottomOnThreadSwitch: false,
+          ...overrides(),
         }),
         onAtBottomChange: vi.fn(),
       });
@@ -2055,11 +2062,11 @@ describe("createThreadViewportAutoScroll", () => {
         ...view,
         controller,
         messages,
-        prepend: (extraGrowth = 0) => {
+        prepend: (extraGrowth = 0, previousFirstMessageId = "message-4") => {
           growthBelow = extraGrowth;
           view.element.prepend(...messages.slice(0, 4));
           updateHeight();
-          controller.messagesPrepended("message-4");
+          controller.messagesPrepended(previousFirstMessageId);
           resizeObserver.trigger();
         },
         settle: (index: number) => {
@@ -2084,6 +2091,129 @@ describe("createThreadViewportAutoScroll", () => {
         expect(view.element.scrollTop).toBe(540);
         view.controller.dispose();
       }
+    });
+
+    it("keeps the rows in place when the overflow is shorter than the footer", () => {
+      const view = pagedViewport(30, true, 290);
+      view.controller.registerContentInset().setHeight(40);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -30 }));
+      view.setTop(0);
+
+      view.prepend();
+
+      expect(view.element.scrollTop).toBe(320);
+      view.controller.dispose();
+    });
+
+    it("keeps the reader in place after scrolling within the footer inset following a prepend", () => {
+      const view = pagedViewport(30, true, 290);
+      view.controller.registerContentInset().setHeight(40);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -30 }));
+      view.setTop(0);
+      view.prepend();
+      expect(view.element.scrollTop).toBe(320);
+
+      view.setTop(315);
+      expect(view.controller.isAtBottom).toBe(true);
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(315);
+      view.controller.dispose();
+    });
+
+    it("keeps follow off after a prepend restored by distance from the bottom", () => {
+      const view = pagedViewport(30, true, 290);
+      view.controller.registerContentInset().setHeight(40);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -30 }));
+      view.setTop(0);
+      view.prepend(0, "message-unknown");
+      const held = view.element.scrollTop;
+      view.element.dispatchEvent(new Event("scroll"));
+
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(held);
+      view.controller.dispose();
+    });
+
+    it("follows growth below once the held rows reach the bottom", () => {
+      const view = pagedViewport(220, true);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -220 }));
+      view.setTop(0);
+      view.prepend();
+      expect(view.element.scrollTop).toBe(320);
+
+      view.resize(320);
+      observers.at(-1)!.trigger();
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(360);
+      view.controller.dispose();
+    });
+
+    it("follows growth below in the same frame as rows held at the bottom", () => {
+      const view = pagedViewport(220, true);
+      view.element.dispatchEvent(new WheelEvent("wheel", { deltaY: -220 }));
+      view.setTop(0);
+      view.resize(320);
+      view.element.prepend(...view.messages.slice(0, 4));
+      view.grow(640);
+      view.controller.messagesPrepended("message-4");
+      expect(view.element.scrollTop).toBe(320);
+
+      view.grow(680);
+      observers.at(-1)!.trigger();
+
+      expect(view.element.scrollTop).toBe(360);
+      view.controller.dispose();
+    });
+
+    it.each([true, false])(
+      "resumes a held follow after a page prepends while follow is on hold (autoScroll %s during the hold)",
+      (autoScrollDuringHold) => {
+        let holdFollow = true;
+        let autoScroll = autoScrollDuringHold;
+        const view = pagedViewport(220, true, 100, () => ({
+          autoScroll,
+          holdFollow,
+        }));
+        view.grow(340);
+        observers.at(-1)!.trigger();
+        view.prepend(20);
+
+        holdFollow = false;
+        autoScroll = true;
+        view.grow(680);
+        observers.at(-1)!.trigger();
+
+        expect(view.element.scrollTop).toBe(580);
+        view.controller.dispose();
+      },
+    );
+
+    it("holds the rows at the bottom while an opened disclosure pauses follow", () => {
+      const view = pagedViewport(220, true);
+      const toggle = document.createElement("button");
+      toggle.setAttribute("aria-expanded", "false");
+      view.messages[7]!.append(toggle);
+      toggle.click();
+      view.prepend();
+      expect(view.element.scrollTop).toBe(540);
+
+      view.settle(3);
+      expect(view.element.scrollTop).toBe(580);
+      view.controller.dispose();
+    });
+
+    it("keeps a following reader at the bottom when the viewport shrinks in the same update", () => {
+      const view = pagedViewport(30, true, 290);
+      view.resize(270);
+      view.prepend();
+      expect(view.element.scrollTop).toBe(370);
+      view.controller.dispose();
     });
 
     it("does not count growth below the reader in the same update as part of the page", () => {
