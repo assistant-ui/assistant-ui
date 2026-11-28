@@ -401,13 +401,6 @@ export function LibraryBrowser() {
             "lg:-mx-2 lg:h-full lg:min-h-0 lg:[scrollbar-width:thin] lg:overflow-y-auto lg:px-2 lg:pb-10",
         )}
       >
-        <PillTabs
-          tabs={tabs}
-          value={tab}
-          onValueChange={setTab}
-          label="Show library items"
-          className={cn("mb-10", sidebar && "lg:hidden")}
-        />
         <LibraryHero
           section={current}
           onSkill={(selected) => {
@@ -415,34 +408,45 @@ export function LibraryBrowser() {
             setSkillOpen(true);
           }}
         />
-        <div className="mb-10 flex items-center gap-2">
-          <SearchBar
-            value={query}
-            onValueChange={setQuery}
-            label={current ? `Search ${current.noun}` : "Search the library"}
-            className="min-w-0 flex-1"
+        <div className="mb-10 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <PillTabs
+            tabs={tabs}
+            value={tab}
+            onValueChange={setTab}
+            label="Show library items"
+            className={cn(sidebar && "lg:hidden")}
           />
-          {menu}
-          <LibraryTooltip
-            label={
-              sidebar ? "Show the types as tabs" : "Show the types in a sidebar"
-            }
-          >
-            <button
-              type="button"
-              aria-pressed={sidebar}
-              aria-label="Sidebar layout"
-              onClick={() => setLayout(sidebar ? "tabs" : "sidebar")}
-              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring hidden size-9 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2 lg:grid"
+          <div className="flex min-w-0 flex-1 basis-64 items-center gap-2">
+            <SearchBar
+              value={query}
+              onValueChange={setQuery}
+              label={current ? `Search ${current.noun}` : "Search the library"}
+              className="min-w-0 flex-1"
+            />
+            {menu}
+            <LibraryTooltip
+              label={
+                sidebar
+                  ? "Show the types as tabs"
+                  : "Show the types in a sidebar"
+              }
             >
-              {sidebar ? (
-                <PanelTopIcon aria-hidden className="size-4" />
-              ) : (
-                <PanelLeftIcon aria-hidden className="size-4" />
-              )}
-            </button>
-          </LibraryTooltip>
-          <LibrarySavedButton />
+              <button
+                type="button"
+                aria-pressed={sidebar}
+                aria-label="Sidebar layout"
+                onClick={() => setLayout(sidebar ? "tabs" : "sidebar")}
+                className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring hidden size-9 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2 lg:grid"
+              >
+                {sidebar ? (
+                  <PanelTopIcon aria-hidden className="size-4" />
+                ) : (
+                  <PanelLeftIcon aria-hidden className="size-4" />
+                )}
+              </button>
+            </LibraryTooltip>
+            <LibrarySavedButton />
+          </div>
         </div>
         <StarterSheet
           starter={starter}

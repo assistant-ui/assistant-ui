@@ -516,17 +516,10 @@ export function LibraryHero({
             : `${libraryTotal(LIBRARY_SECTIONS)} things you can add to an assistant-ui project.`}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          {commands ? (
-            <LibraryStepCommand
-              key={section?.id ?? "all"}
-              base={commands.base}
-              steps={commands.steps}
-            />
-          ) : null}
           <Link
             href={guide.href}
             className={cn(
-              "group/cta bg-foreground/[0.06] hover:bg-foreground/[0.1] inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors",
+              "group/cta bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors",
               focus,
             )}
           >
@@ -536,6 +529,13 @@ export function LibraryHero({
               className="size-4 shrink-0 transition-transform duration-200 group-hover/cta:translate-x-0.5 motion-reduce:transition-none"
             />
           </Link>
+          {commands ? (
+            <LibraryStepCommand
+              key={section?.id ?? "all"}
+              base={commands.base}
+              steps={commands.steps}
+            />
+          ) : null}
           {skills.length > 0 ? (
             <Menu>
               <LibraryTooltip label="Skills for this tab">
