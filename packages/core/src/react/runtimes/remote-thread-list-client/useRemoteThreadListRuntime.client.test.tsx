@@ -503,6 +503,60 @@ describe.each(["class", "client"] as const)(
 );
 
 describe("useRemoteThreadListRuntime client bridge", () => {
+  it("selects an attached controlled thread in the prop commit layout phase", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-a" },
+          { status: "regular" as const, remoteId: "thread-b" },
+        ],
+      })),
+    });
+    let runtime!: AssistantRuntime;
+    let observeCommit = false;
+    let mainThreadIdAtCommit: string | undefined;
+    const App = ({ threadId }: { threadId: string }) => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        threadId,
+        runtimeHook: useEmptyThreadRuntime,
+      });
+      useIsomorphicLayoutEffect(() => {
+        if (observeCommit) {
+          mainThreadIdAtCommit = runtime.threads.getState().mainThreadId;
+        }
+      }, [threadId]);
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    const view = render(<App threadId="thread-a" />);
+
+    try {
+      await actSettled(() => runtime.threads.getLoadThreadsPromise());
+      await waitFor(() =>
+        expect(runtime.threads.getState().mainThreadId).toBe("thread-a"),
+      );
+
+      view.rerender(<App threadId="thread-b" />);
+      await waitFor(() =>
+        expect(runtime.threads.getState().mainThreadId).toBe("thread-b"),
+      );
+      observeCommit = true;
+
+      act(() => view.rerender(<App threadId="thread-a" />));
+
+      expect(mainThreadIdAtCommit).toBe("thread-a");
+      await waitFor(() =>
+        expect(runtime.threads.getState().mainThreadId).toBe("thread-a"),
+      );
+    } finally {
+      view.unmount();
+    }
+  });
+
   it.each(["no provider", "useAdapters"] as const)(
     "warns once per provider-only interval and rearms after %s",
     async (exit) => {

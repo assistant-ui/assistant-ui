@@ -1129,7 +1129,7 @@ const useRemoteThreadList = (
         );
       }
       try {
-        if (ensureThread) {
+        if (ensureThread && isThreadAttached?.(targetId) !== true) {
           await ensureThread(data);
           if (generation !== session.switchGeneration) return;
         }

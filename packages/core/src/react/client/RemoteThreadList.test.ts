@@ -396,6 +396,44 @@ const mountArchivedInitializingThread = async () => {
 };
 
 describe("RemoteThreadList", () => {
+  it("selects an already-attached thread before yielding to microtasks", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "A", title: "A" },
+          { status: "regular" as const, remoteId: "B", title: "B" },
+        ],
+      })),
+    });
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          backgroundThreads: true,
+          thread: (threadId) => StubThread({ threadId }) as never,
+          __internal_ensureThread: async () => {},
+          __internal_isThreadAttached: () => true,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const threads = handle.getClient().threads;
+
+    try {
+      await threads.getLoadThreadsPromise();
+      flushTapSync(() => threads.switchToThread("A"));
+      await waitFor(() => expect(threads.getState().mainThreadId).toBe("A"));
+      flushTapSync(() => threads.switchToThread("B"));
+      await waitFor(() => expect(threads.getState().mainThreadId).toBe("B"));
+
+      flushTapSync(() => threads.switchToThread("A"));
+
+      expect(threads.getState().mainThreadId).toBe("A");
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it.each([false, true])(
     "emits item switch events once to both scopes with backgroundThreads=%s",
     async (backgroundThreads) => {

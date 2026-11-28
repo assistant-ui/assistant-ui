@@ -18,7 +18,7 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
-import { resource, useResource } from "@assistant-ui/tap";
+import { flushTapSync, resource, useResource } from "@assistant-ui/tap";
 import { useRefreshScope } from "@assistant-ui/tap/internal";
 import {
   AuiConfig,
@@ -37,6 +37,7 @@ import {
   useIsServerRender,
 } from "@assistant-ui/store/internal";
 import { isDevelopment } from "../../store/internal";
+import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
@@ -209,6 +210,30 @@ const useClientRemoteThreadListRuntime = (
   useIsomorphicLayoutEffect(() => {
     binding.core.optionsStore.setState(options);
   }, [binding, options]);
+  const lastThreadId = useRef(options.threadId);
+  useIsomorphicLayoutEffect(() => {
+    const threadId = options.threadId;
+    if (Object.is(lastThreadId.current, threadId)) return;
+    lastThreadId.current = threadId;
+    if (threadId === undefined) return;
+    const target = binding.core.threads.getItemById(threadId);
+    if (
+      target === undefined ||
+      target.status === "archived" ||
+      target.id === binding.core.threads.mainThreadId ||
+      !binding.core.threads.__internal_isThreadAttached(target.id)
+    )
+      return;
+    const actions = binding.handle
+      .getClient()
+      .threads.__internal_getRawActions?.();
+    if (actions === undefined) return;
+    flushTapSync(() =>
+      handleThreadListAction("switch", () =>
+        actions.switchToThread(target.id, undefined, false),
+      ),
+    );
+  }, [binding, options.threadId]);
   return binding.assistantRuntime;
 };
 
