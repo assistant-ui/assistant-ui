@@ -64,7 +64,7 @@ function RecordingLoop({
   return (
     <video
       key={mode}
-      src={recording[mode].video}
+      src={recording[mode].preview}
       autoPlay
       muted
       loop

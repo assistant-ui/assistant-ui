@@ -87,10 +87,10 @@ export type Starter = {
     light: readonly string[];
     dark: readonly string[];
   };
-  /** A recording of the app in use in each color mode, with the still shown while it is not playing. */
+  /** A recording of the app in use in each color mode: `video` is the full recording the drawer plays, `preview` the same recording at card size that a card plays, and `poster` the still shown while nothing plays. */
   recording?: {
-    light: { video: string; poster: string };
-    dark: { video: string; poster: string };
+    light: { video: string; preview: string; poster: string };
+    dark: { video: string; preview: string; poster: string };
   };
 };
 
@@ -2845,10 +2845,14 @@ const REPO_EXAMPLES: readonly RepoStarter[] = [
     recording: {
       light: {
         video: "/screenshot/starters/recipe-chat-history/recording-light.mp4",
+        preview:
+          "/screenshot/starters/recipe-chat-history/recording-light-card.mp4",
         poster: "/screenshot/starters/recipe-chat-history/recording-light.png",
       },
       dark: {
         video: "/screenshot/starters/recipe-chat-history/recording-dark.mp4",
+        preview:
+          "/screenshot/starters/recipe-chat-history/recording-dark-card.mp4",
         poster: "/screenshot/starters/recipe-chat-history/recording-dark.png",
       },
     },
