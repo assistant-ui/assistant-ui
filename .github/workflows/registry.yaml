@@ -95,6 +95,15 @@ jobs:
           fetch-depth: 1
           ref: ${{ steps.deploy-sha.outputs.value }}
 
+      - name: Checkout the changeset helper from the workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .github/release-tools
+          sparse-checkout: /scripts/pending-changesets.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Validate the packages are published
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         env:
@@ -104,12 +113,13 @@ jobs:
             const fs = require("node:fs");
 
             const deploySha = process.env.DEPLOY_SHA;
-            const pendingChangesets = fs
-              .readdirSync(".changeset")
-              .filter((file) => file.endsWith(".md") && file !== "README.md");
-            if (pendingChangesets.length > 0) {
+            const { pendingChangesets } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/release-tools/scripts/pending-changesets.mjs`
+            );
+            const pending = pendingChangesets();
+            if (pending.length > 0) {
               core.setFailed(
-                `${deploySha} has ${pendingChangesets.length} pending changesets, so its packages are not on npm yet; the registry deploys after the next npm publish`,
+                `${deploySha} has ${pending.length} pending changesets, so its packages are not on npm yet; the registry deploys after the next npm publish`,
               );
               return;
             }
