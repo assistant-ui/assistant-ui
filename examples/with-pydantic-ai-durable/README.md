@@ -14,7 +14,8 @@ uv run uvicorn main:app --port 8000
 
 Without `OPENAI_API_KEY` the server uses a demo model that streams a canned answer slowly, so there is time to close the tab. Set `OPENAI_API_KEY` (and optionally `MODEL`) to use OpenAI.
 
-Frontend:
+Keep the server running. In a second terminal, run these commands from the
+`examples/with-pydantic-ai-durable` directory:
 
 ```sh
 cp .env.example .env.local
