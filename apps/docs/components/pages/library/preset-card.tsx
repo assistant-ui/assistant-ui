@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { ItemThumbnail, ItemTitle, itemFrame } from "./library-item";
 import { overPreview } from "./library-icon-button";
 import { LibraryItemMenu } from "./library-item-menu";
+import { LibraryStatusBadge } from "./library-status";
 
 const PRESET_DOCS = "/docs/cli#create";
 
@@ -152,6 +153,7 @@ export function PresetCard({ preset, onSelect }: PresetItemProps) {
       <ItemTitle
         label={preset.name}
         onSelect={() => onSelect(preset)}
+        aside={<LibraryStatusBadge id={presetId(preset)} />}
         className="mt-3.5"
       />
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
@@ -175,7 +177,11 @@ export function PresetRow({ preset, onSelect }: PresetItemProps) {
     <li className="group/navlink relative flex min-w-0 items-center gap-4 py-2">
       <PresetThumbnail id={preset.id} />
       <div className="min-w-0 flex-1">
-        <ItemTitle label={preset.name} onSelect={() => onSelect(preset)} />
+        <ItemTitle
+          label={preset.name}
+          onSelect={() => onSelect(preset)}
+          aside={<LibraryStatusBadge id={presetId(preset)} />}
+        />
         <p className="text-muted-foreground mt-0.5 truncate text-[13px]">
           {preset.description}
         </p>

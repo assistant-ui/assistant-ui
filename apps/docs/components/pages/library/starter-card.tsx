@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import type { Starter } from "@/lib/library/starters-data";
+import { starterId, type Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { ItemGlyph, ItemThumbnail, ItemTitle, itemFrame } from "./library-item";
 import { overPreview } from "./library-icon-button";
+import { LibraryStatusBadge } from "./library-status";
 import { StarterGlyph } from "./starter-glyphs";
 import { StarterMenu } from "./starter-menu";
 
@@ -180,6 +181,7 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
       <ItemTitle
         label={starter.label}
         onSelect={() => onSelect(starter)}
+        aside={<LibraryStatusBadge id={starterId(starter)} />}
         className="mt-3.5"
       />
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
@@ -206,7 +208,11 @@ export function StarterRow({ starter, onSelect }: StarterItemProps) {
     >
       <StarterThumbnail starter={starter} />
       <div className="min-w-0 flex-1">
-        <ItemTitle label={starter.label} onSelect={() => onSelect(starter)} />
+        <ItemTitle
+          label={starter.label}
+          onSelect={() => onSelect(starter)}
+          aside={<LibraryStatusBadge id={starterId(starter)} />}
+        />
         <p className="text-muted-foreground mt-0.5 truncate text-[13px]">
           {starter.description}
         </p>

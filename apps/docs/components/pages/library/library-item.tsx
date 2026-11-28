@@ -20,14 +20,17 @@ export const itemFrame =
 export function ItemTitle({
   label,
   onSelect,
+  aside,
   className,
 }: {
   label: string;
   onSelect: () => void;
+  /** Sits after the name, such as a status badge. */
+  aside?: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-baseline gap-1.5", className)}>
+    <div className={cn("flex items-center gap-1.5", className)}>
       <h3 className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
         <button
           type="button"
@@ -38,6 +41,7 @@ export function ItemTitle({
           {label}
         </button>
       </h3>
+      {aside}
       <ArrowRightIcon
         aria-hidden
         className="text-muted-foreground size-3.5 shrink-0 self-center opacity-0 transition-opacity group-hover/navlink:opacity-100 motion-reduce:transition-none"

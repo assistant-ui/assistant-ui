@@ -44,6 +44,16 @@ A fix that was tried and set aside: a `pnpm generate:library-starters` script in
 
 When to redo it: a template is added to or removed from the playground catalog, or a hosted address changes.
 
+## Statuses are judgments, not facts
+
+`lib/library/status-data.ts` gives every starter and preset a status badge that says whether it should stay on show. It is a note for the people who keep the library: nothing reads it to hide an item, and nothing checks it.
+
+- Live: keep it. Experimental: keep it, marked as early. Unreleased: hide it until its package is on npm. Internal: hide it, since it is a test bed or a demo and not something to start from. Review: a person should decide. Deprecated: remove it; no item has it today.
+- An item not listed in the file is Live. Each listed item carries the reason, which the drawer shows.
+- The reasons were read on 2026-11-27 from each example's README, whether its package is published (`private` and `version` in `packages/*/package.json`), and where a playground template is hosted.
+
+When to redo it: a package is published, an example gets a README or leaves the repository, or someone decides one of the Review items.
+
 ## Last-updated dates are a snapshot
 
 `lib/library/updated-data.ts` holds the "Last updated" day the Starters drawer and table view show: the day of the last commit on `main` that touched the item's code, read on 2026-11-27. Nothing checks it today, so a date is only right until that code changes again.

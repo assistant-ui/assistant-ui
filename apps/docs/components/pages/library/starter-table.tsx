@@ -2,6 +2,11 @@
 
 import type { ReactNode } from "react";
 import { ArrowUpRightIcon, CheckIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { LibraryEntry } from "@/lib/library/library-data";
 import {
   PRESET_STACK,
@@ -23,6 +28,7 @@ import { LIBRARY_UPDATED, formatLibraryDay } from "@/lib/library/updated-data";
 import { cn } from "@/lib/utils";
 import { FilterIcon } from "./filter-icons";
 import { LibraryKindLabel } from "./library-kind";
+import { LibraryStatusBadge } from "./library-status";
 import { PresetMenu } from "./preset-card";
 import { StarterMenu } from "./starter-menu";
 
@@ -52,6 +58,37 @@ const CLI = "npx assistant-ui@latest ";
 /** A command without the start every row shares, so the part that differs fits its cell. */
 const shortCommand = (command: string) =>
   command.startsWith(CLI) ? command.slice(CLI.length) : command;
+
+/** A dash for a cell with nothing in it; a screen reader hears what is missing. */
+function Empty({ label }: { label: string }) {
+  return (
+    <span className="text-muted-foreground">
+      <span aria-hidden>–</span>
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
+/** A logo alone, named by its tooltip, for a cell that holds more than one. */
+function StackIcon({ name }: { name: StarterIntegration }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <span
+            role="img"
+            aria-label={name}
+            tabIndex={0}
+            className="focus-visible:ring-ring hover:bg-foreground/[0.06] grid size-6 place-items-center rounded-(--library-icon) outline-none focus-visible:ring-2"
+          />
+        }
+      >
+        <FilterIcon name={name} />
+      </TooltipTrigger>
+      <TooltipContent>{name}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 const cell = "px-2.5 py-2 text-left align-middle text-[13px]";
 const head = cn(cell, "text-muted-foreground py-2.5 text-xs font-normal");
@@ -145,10 +182,11 @@ export function StarterTable({
 
   return (
     <div className="border-foreground/10 overflow-x-auto rounded-(--library-thumb) border">
-      <table className="w-full min-w-[72rem] table-fixed border-collapse">
+      <table className="w-full min-w-[78.5rem] table-fixed border-collapse">
         <colgroup>
           <col className="w-[10.5rem]" />
           <col className="w-[6.25rem]" />
+          <col className="w-[6.5rem]" />
           <col className="w-[8.25rem]" />
           <col className="w-[7.5rem]" />
           <col className="w-[8.75rem]" />
@@ -164,6 +202,9 @@ export function StarterTable({
             </th>
             <th scope="col" className={head}>
               Type
+            </th>
+            <th scope="col" className={head}>
+              Status
             </th>
             <th scope="col" className={head}>
               Framework
@@ -208,24 +249,29 @@ export function StarterTable({
                 <LibraryKindLabel kind={row.kind} className="text-[13px]" />
               </td>
               <td className={cell}>
+                <LibraryStatusBadge id={row.key} />
+              </td>
+              <td className={cell}>
                 <Stack name={row.framework} />
               </td>
               <td className={cell}>
                 {row.runtime ? (
                   <Stack name={row.runtime} />
                 ) : (
-                  <span className="text-muted-foreground">None</span>
+                  <Empty label="None" />
                 )}
               </td>
               <td className={cell}>
-                {row.integrations.length > 0 ? (
-                  <span className="flex flex-col gap-1.5">
+                {row.integrations.length > 1 ? (
+                  <span className="flex items-center gap-1">
                     {row.integrations.map((name) => (
-                      <Stack key={name} name={name} />
+                      <StackIcon key={name} name={name} />
                     ))}
                   </span>
+                ) : row.integrations[0] ? (
+                  <Stack name={row.integrations[0]} />
                 ) : (
-                  <span className="text-muted-foreground">None</span>
+                  <Empty label="None" />
                 )}
               </td>
               <td className={cell}>
@@ -270,7 +316,7 @@ export function StarterTable({
                     {formatLibraryDay(row.updated)}
                   </time>
                 ) : (
-                  <span className="text-muted-foreground">Unknown</span>
+                  <Empty label="Unknown" />
                 )}
               </td>
               <td className={cn(cell, "px-1")}>{row.menu}</td>

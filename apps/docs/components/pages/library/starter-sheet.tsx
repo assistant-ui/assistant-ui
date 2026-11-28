@@ -43,6 +43,11 @@ import {
   type LibraryKind,
 } from "@/lib/library/saved-items";
 import { LIBRARY_UPDATED, formatLibraryDay } from "@/lib/library/updated-data";
+import {
+  LIBRARY_STATUS_LABEL,
+  LIBRARY_STATUS_MEANING,
+  libraryStatus,
+} from "@/lib/library/status-data";
 import type {
   StarterFramework,
   StarterIntegration,
@@ -65,6 +70,7 @@ import { FilterIcon } from "./filter-icons";
 import { LibraryCopyButton } from "./library-copy-button";
 import { LibraryIconButton } from "./library-icon-button";
 import { LibraryKindLabel } from "./library-kind";
+import { LibraryStatusBadge } from "./library-status";
 import { PresetThumbnail } from "./preset-card";
 import { StarterThumbnail } from "./starter-card";
 import { GroupRow, RowGroup } from "./library-row-group";
@@ -361,6 +367,7 @@ function StarterDetails({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [view.id]);
   const isSaved = useLibrarySaved().includes(view.id);
+  const status = libraryStatus(view.id);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -380,7 +387,10 @@ function StarterDetails({
                 <LibraryDrawerTitle className="text-lg leading-6 font-medium">
                   {view.label}
                 </LibraryDrawerTitle>
-                <LibraryKindLabel kind={view.kind} />
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <LibraryKindLabel kind={view.kind} />
+                  <LibraryStatusBadge id={view.id} />
+                </div>
               </div>
               <div className="-me-2 -mt-0.5 flex shrink-0 items-center">
                 <LibraryIconButton
@@ -444,6 +454,14 @@ function StarterDetails({
               value="overview"
               className="flex flex-col gap-6 outline-none"
             >
+              {status.why ? (
+                <p className="text-muted-foreground text-sm text-pretty">
+                  <span className="text-foreground font-medium">
+                    {LIBRARY_STATUS_LABEL[status.status]}.
+                  </span>{" "}
+                  {status.why} {LIBRARY_STATUS_MEANING[status.status]}
+                </p>
+              ) : null}
               {view.note ? (
                 <p className="text-muted-foreground text-sm text-pretty">
                   {view.note}
