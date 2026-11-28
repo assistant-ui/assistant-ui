@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ArrowRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** The page title, as the theme sets its size, weight, and spacing; a step smaller on a phone. */
@@ -42,10 +41,6 @@ export function ItemTitle({
         </button>
       </h3>
       {aside}
-      <ArrowRightIcon
-        aria-hidden
-        className="text-muted-foreground size-3.5 shrink-0 self-center opacity-0 transition-opacity group-hover/navlink:opacity-100 motion-reduce:transition-none"
-      />
     </div>
   );
 }

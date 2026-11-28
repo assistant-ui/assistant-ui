@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon } from "lucide-react";
 import type { LibraryBlock } from "@/lib/library/blocks-data";
 import type { LibraryLink, LibrarySectionId } from "@/lib/library/library-data";
 import { cn } from "@/lib/utils";
@@ -50,10 +49,6 @@ function EntryTitle({
           </Link>
         )}
       </h3>
-      <ArrowRightIcon
-        aria-hidden
-        className="text-muted-foreground size-3.5 shrink-0 self-center opacity-0 transition-opacity group-hover/navlink:opacity-100 motion-reduce:transition-none"
-      />
     </div>
   );
 }

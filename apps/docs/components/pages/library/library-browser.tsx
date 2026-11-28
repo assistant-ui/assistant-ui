@@ -166,7 +166,7 @@ export function LibraryBrowser() {
   >({});
   const [starterOptions, setStarterOptions] = useState(DEFAULT_VIEW_OPTIONS);
   const [skillView, setSkillView] = useState<LibraryView>("list");
-  const [allView, setAllView] = useState<LibraryView>("table");
+  const [allView, setAllView] = useState<LibraryView>("grid");
   const [allTypes, setAllTypes] = useState<readonly string[]>([]);
   const [allGroups, setAllGroups] = useState<readonly string[]>([]);
   const [allSort, setAllSort] = useState<TableSort | null>(null);
@@ -228,6 +228,7 @@ export function LibraryBrowser() {
   const allTable = !current && allView === "table";
   const home = !current && !normalized && !allTable;
   const GroupLabel = current ? "h2" : "p";
+  const groupLabel = "flex items-baseline gap-2 text-sm font-medium";
 
   const filter = (current && filters[current.id]) ?? NO_FILTER;
   const setFilter = (next: TabFilter) => {
@@ -915,24 +916,25 @@ export function LibraryBrowser() {
                 className={index > 0 ? "border-t py-12" : "pb-12"}
               >
                 {current ? null : (
-                  <div className="mb-4 flex items-baseline justify-between gap-4">
-                    <h2 className="text-base font-medium">
-                      <Link
-                        href={section.href}
-                        className="decoration-foreground/30 underline-offset-4 hover:underline"
-                      >
-                        {section.title}
-                      </Link>
-                    </h2>
-                    <span className="text-muted-foreground text-sm tabular-nums">
+                  <h2 className="mb-4 flex items-baseline gap-2 text-sm font-medium">
+                    <Link
+                      href={section.href}
+                      className="rounded-sm underline-offset-4 outline-none hover:underline focus-visible:underline"
+                    >
+                      {section.title}
+                    </Link>
+                    <span className="text-muted-foreground text-xs font-normal tabular-nums">
                       {count}
                     </span>
-                  </div>
+                  </h2>
                 )}
                 {starterTable ? (
                   <div className="flex flex-col gap-2">
-                    <GroupLabel className="text-muted-foreground text-sm tabular-nums">
-                      {section.title} · {count}
+                    <GroupLabel className={groupLabel}>
+                      {section.title}
+                      <span className="text-muted-foreground text-xs font-normal tabular-nums">
+                        {count}
+                      </span>
                     </GroupLabel>
                     <StarterTable
                       entries={sheetEntries}
@@ -941,37 +943,15 @@ export function LibraryBrowser() {
                     />
                   </div>
                 ) : (
-                  <div
-                    className={cn(
-                      "flex flex-col",
-                      groups.length > 1 ? "gap-12" : "gap-8",
-                    )}
-                  >
-                    {groups.map((group, index) => (
-                      <div
-                        key={group.label}
-                        className={cn(
-                          "flex flex-col",
-                          groups.length > 1
-                            ? "border-foreground/10 gap-6 border-t pt-6"
-                            : "gap-2",
-                        )}
-                      >
-                        {groups.length > 1 ? (
-                          <div className="flex items-baseline gap-3">
-                            <span className="text-muted-foreground text-xs tabular-nums">
-                              {String(index + 1).padStart(2, "0")}
-                            </span>
-                            <GroupLabel className="text-sm font-medium">
-                              {group.label}
-                            </GroupLabel>
-                            <span className="text-muted-foreground ms-auto text-sm tabular-nums">
+                  <div className="flex flex-col gap-8">
+                    {groups.map((group) => (
+                      <div key={group.label} className="flex flex-col gap-3">
+                        {current || groups.length > 1 ? (
+                          <GroupLabel className={groupLabel}>
+                            {group.label}
+                            <span className="text-muted-foreground text-xs font-normal tabular-nums">
                               {group.entries.length}
                             </span>
-                          </div>
-                        ) : current ? (
-                          <GroupLabel className="text-muted-foreground text-sm tabular-nums">
-                            {group.label} · {group.entries.length}
                           </GroupLabel>
                         ) : null}
                         <ul

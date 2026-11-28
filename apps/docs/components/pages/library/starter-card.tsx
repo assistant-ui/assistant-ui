@@ -235,7 +235,6 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
       <ItemTitle
         label={starter.label}
         onSelect={() => onSelect(starter)}
-        aside={<LibraryStatusBadge id={starterId(starter)} />}
         className="mt-3.5"
       />
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
