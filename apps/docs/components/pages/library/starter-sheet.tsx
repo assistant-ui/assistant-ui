@@ -69,7 +69,6 @@ import {
   sheetButton,
   sheetPrimary,
 } from "./library-sheet";
-import { LibraryStatusBadge } from "./library-status";
 import { PresetThumbnail } from "./preset-card";
 import { StarterThumbnail } from "./starter-card";
 import { GroupRow, RowGroup } from "./library-row-group";
@@ -302,7 +301,6 @@ function StarterDetails({
             }
             title={view.label}
             kind={view.kind}
-            badge={<LibraryStatusBadge id={view.id} />}
             description={view.description}
             previous={
               previous && {

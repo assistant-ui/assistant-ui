@@ -153,7 +153,6 @@ export function PresetCard({ preset, onSelect }: PresetItemProps) {
       <ItemTitle
         label={preset.name}
         onSelect={() => onSelect(preset)}
-        aside={<LibraryStatusBadge id={presetId(preset)} />}
         className="mt-3.5"
       />
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
