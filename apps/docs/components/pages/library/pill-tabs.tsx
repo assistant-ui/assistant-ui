@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 export type PillTab<T extends string> = {
   id: T;
   label: string;
+  /** How many items the tab holds right now; a tab at zero is dimmed. */
+  count?: number;
 };
 
 export function PillTabs<T extends string>({
@@ -39,9 +41,15 @@ export function PillTabs<T extends string>({
               selected
                 ? "bg-foreground/[0.06] text-foreground dark:bg-foreground/[0.09]"
                 : "text-muted-foreground hover:text-foreground",
+              tab.count === 0 && !selected && "opacity-50",
             )}
           >
             {tab.label}
+            {tab.count === undefined ? null : (
+              <span className="text-muted-foreground ms-1.5 text-xs tabular-nums">
+                {tab.count}
+              </span>
+            )}
           </button>
         );
       })}

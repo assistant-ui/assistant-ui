@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Dialog } from "@base-ui/react/dialog";
 import {
   BookmarkIcon,
@@ -13,7 +14,6 @@ import {
 import {
   getLibrarySavedItems,
   librarySavedPrompt,
-  type LibrarySavedItem,
   type LibrarySavedPreview,
 } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,8 @@ import {
   useLibrarySavedOpen,
 } from "./saved-store";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "./menu";
+import { LibraryGlyph } from "./library-glyphs";
+import { ItemGlyph, ItemThumbnail } from "./library-item";
 import { LibraryKindLabel } from "./library-kind";
 import { SkillThumbnail } from "./skill-card";
 import { StarterThumbnail } from "./starter-card";
@@ -59,22 +61,48 @@ export function LibrarySavedButton({ className }: { className?: string }) {
 }
 
 function SavedPreview({ preview }: { preview: LibrarySavedPreview }) {
-  return preview.kind === "starter" ? (
-    <StarterThumbnail starter={preview.starter} />
-  ) : (
-    <SkillThumbnail name={preview.skill} />
-  );
+  switch (preview.kind) {
+    case "starter":
+      return <StarterThumbnail starter={preview.starter} />;
+    case "skill":
+      return <SkillThumbnail name={preview.skill} />;
+    case "block":
+      return (
+        <ItemThumbnail>
+          <Image
+            src={preview.image.light}
+            alt=""
+            fill
+            sizes="96px"
+            className="object-cover object-top dark:hidden"
+          />
+          <Image
+            src={preview.image.dark}
+            alt=""
+            fill
+            sizes="96px"
+            className="hidden object-cover object-top dark:block"
+          />
+        </ItemThumbnail>
+      );
+    case "section":
+      return (
+        <ItemThumbnail>
+          <ItemGlyph>
+            <LibraryGlyph id={preview.section} />
+          </ItemGlyph>
+        </ItemThumbnail>
+      );
+  }
 }
 
-/** The saved panel; mounted once for every library page. `items` are the saveable items the server reads, such as skills. */
-export function LibrarySavedSheet({
-  items: more,
-}: {
-  items?: readonly LibrarySavedItem[];
-}) {
-  const items = getLibrarySavedItems(useLibrarySaved(), more);
+/** The saved panel; mounted once for every library page. */
+export function LibrarySavedSheet() {
+  const items = getLibrarySavedItems(useLibrarySaved());
   const open = useLibrarySavedOpen();
-  const commands = items.map((item) => item.command).join("\n");
+  const commands = items.flatMap((item) =>
+    item.command ? [item.command] : [],
+  );
 
   return (
     <Dialog.Root open={open} onOpenChange={setLibrarySavedOpen}>
@@ -88,7 +116,7 @@ export function LibrarySavedSheet({
               </Dialog.Title>
               <Dialog.Description className="text-muted-foreground text-sm">
                 {items.length === 0
-                  ? "Save a starter or a skill from its card's menu."
+                  ? "Save anything in the library from its plus menu."
                   : `${items.length} ${items.length === 1 ? "item" : "items"}`}
               </Dialog.Description>
             </div>
@@ -149,21 +177,23 @@ export function LibrarySavedSheet({
                     <ChevronDownIcon aria-hidden className="opacity-70" />
                   </MenuTrigger>
                   <MenuContent side="top" align="end">
-                    <MenuItem
-                      onClick={() =>
-                        copyWithLibraryToast(
-                          commands,
-                          items.length === 1
-                            ? "Install command copied."
-                            : "Install commands copied.",
-                        )
-                      }
-                    >
-                      <TerminalIcon aria-hidden />
-                      {items.length === 1
-                        ? "Copy install command"
-                        : "Copy install commands"}
-                    </MenuItem>
+                    {commands.length > 0 ? (
+                      <MenuItem
+                        onClick={() =>
+                          copyWithLibraryToast(
+                            commands.join("\n"),
+                            commands.length === 1
+                              ? "Install command copied."
+                              : "Install commands copied.",
+                          )
+                        }
+                      >
+                        <TerminalIcon aria-hidden />
+                        {commands.length === 1
+                          ? "Copy install command"
+                          : "Copy install commands"}
+                      </MenuItem>
+                    ) : null}
                     <MenuItem
                       onClick={() =>
                         copyWithLibraryToast(

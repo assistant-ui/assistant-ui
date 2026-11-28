@@ -1,3 +1,6 @@
+/** The site's address, for a prompt that points an agent at one of its pages. */
+export const LIBRARY_SITE = "https://www.assistant-ui.com";
+
 const AGENT_SETUP_PROMPT = "install and set up assistant-ui";
 const AGENT_SETUP_COMMAND = "npx assistant-ui@latest setup";
 

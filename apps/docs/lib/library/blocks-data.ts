@@ -6,6 +6,8 @@ export type LibraryBlock = {
   /** What it is built with; search reads these. */
   stack: readonly string[];
   useCases: readonly string[];
+  /** What to tell a coding agent to add it. */
+  prompt: string;
 };
 
 export const LIBRARY_BLOCKS: readonly LibraryBlock[] = [
@@ -25,6 +27,8 @@ export const LIBRARY_BLOCKS: readonly LibraryBlock[] = [
       "Review by comment, with threads on a passage that people and the assistant both answer and react to.",
       "A starting point for any page the model edits through interactables, with the document swapped for your own state.",
     ],
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`. Add the Document editor block from https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/document-editor",
   },
   {
     slug: "images",
@@ -41,6 +45,8 @@ export const LIBRARY_BLOCKS: readonly LibraryBlock[] = [
       "A starting page of templates that set up a request before a word is typed.",
       "A shell to copy for any single-page tool: a sidebar of chats, the page, and the person at the foot.",
     ],
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`. Add the Images block from https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/images",
   },
   {
     slug: "chat-basic",
@@ -57,5 +63,7 @@ export const LIBRARY_BLOCKS: readonly LibraryBlock[] = [
       "A reference for how each primitive is composed, with every one in a single file.",
       "A chat to try a design on before you wire up a model.",
     ],
+    prompt:
+      "install and set up assistant-ui with `npx assistant-ui@latest setup`. Add the Chat basic block from https://github.com/assistant-ui/assistant-ui/tree/main/apps/docs/app/(blocks)/blocks/demos/chat-basic",
   },
 ];

@@ -1,11 +1,14 @@
 "use client";
 
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { ArrowRightIcon } from "lucide-react";
 import { typeDeck, typePage } from "@/components/shared/type";
 import {
   entryKey,
   entryName,
+  LIBRARY_GUIDE,
+  LIBRARY_INSTALL,
   LIBRARY_SECTIONS,
   libraryTotal,
   matchesEntry,
@@ -67,9 +70,38 @@ const LAYOUT = {
     "grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-1 sm:grid-cols-2 lg:grid-cols-3",
 };
 
+const subscribeToAddress = (onChange: () => void) => {
+  window.addEventListener("hashchange", onChange);
+  window.addEventListener("popstate", onChange);
+  return () => {
+    window.removeEventListener("hashchange", onChange);
+    window.removeEventListener("popstate", onChange);
+  };
+};
+
+const readHash = () => window.location.hash.slice(1);
+
+/** The open tab, kept in the address after the `#` so a tab can be linked to and Back returns to the last one. */
+function useLibraryTab() {
+  const hash = useSyncExternalStore(subscribeToAddress, readHash, () => "");
+  const tab: LibraryTab =
+    LIBRARY_SECTIONS.find((section) => section.id === hash)?.id ?? "all";
+  const setTab = (next: LibraryTab) => {
+    if (next === tab) return;
+    const { pathname, search } = window.location;
+    window.history.pushState(
+      null,
+      "",
+      next === "all" ? `${pathname}${search}` : `#${next}`,
+    );
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+  return [tab, setTab] as const;
+}
+
 export function LibraryBrowser() {
   const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<LibraryTab>("all");
+  const [tab, setTab] = useLibraryTab();
   const [filters, setFilters] = useState<
     Partial<Record<LibrarySectionId, TabFilter>>
   >({});
@@ -82,10 +114,6 @@ export function LibraryBrowser() {
   const normalized = useDeferredValue(query).trim().toLowerCase();
 
   const all = LIBRARY_SECTIONS;
-  const tabs: readonly PillTab<LibraryTab>[] = [
-    { id: "all", label: "All" },
-    ...all.map(({ id, title }) => ({ id, label: title })),
-  ];
   const current = all.find((section) => section.id === tab);
   const home = !current && !normalized;
   const GroupLabel = current ? "h2" : "p";
@@ -142,6 +170,37 @@ export function LibraryBrowser() {
     .filter(({ count }) => count > 0);
 
   const resultCount = sections.reduce((total, { count }) => total + count, 0);
+
+  // While a search is on, each tab says how many of its items match.
+  const matches = (section: (typeof all)[number]) =>
+    section === current
+      ? resultCount
+      : section.groups.reduce(
+          (total, group) =>
+            total +
+            group.entries.filter((entry) => matchesEntry(entry, normalized))
+              .length,
+          0,
+        );
+  const sectionTabs = all.map((section) => ({
+    id: section.id,
+    label: section.title,
+    ...(normalized && { count: matches(section) }),
+  }));
+  const tabs: readonly PillTab<LibraryTab>[] = [
+    {
+      id: "all",
+      label: "All",
+      ...(normalized && {
+        count: sectionTabs.reduce((total, { count = 0 }) => total + count, 0),
+      }),
+    },
+    ...sectionTabs,
+  ];
+  const install = current ? current.install : LIBRARY_INSTALL;
+  const guide = current
+    ? { label: current.guide, href: current.href }
+    : LIBRARY_GUIDE;
 
   const layoutOf = (entry: LibraryEntry | undefined) => {
     switch (entry?.kind) {
@@ -301,24 +360,32 @@ export function LibraryBrowser() {
             {menu}
             <LibrarySavedButton />
           </div>
-          {current?.install ? (
-            <LibraryCodeSnippet
-              tabs={[
-                {
-                  label: "CLI",
-                  code: current.install.command,
-                  kind: "command",
-                },
-                {
-                  label: "Agent prompt",
-                  code: current.install.prompt,
-                  kind: "prompt",
-                },
-              ]}
-              label="Install with"
-              className="w-full sm:w-96"
-            />
-          ) : null}
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {install ? (
+              <LibraryCodeSnippet
+                tabs={[
+                  { label: "CLI", code: install.command, kind: "command" },
+                  {
+                    label: "Agent prompt",
+                    code: install.prompt,
+                    kind: "prompt",
+                  },
+                ]}
+                label="Install with"
+                className="w-full sm:w-80"
+              />
+            ) : null}
+            <Link
+              href={guide.href}
+              className="group/cta focus-visible:ring-ring bg-foreground/[0.06] hover:bg-foreground/[0.1] inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-2"
+            >
+              {guide.label}
+              <ArrowRightIcon
+                aria-hidden
+                className="size-4 shrink-0 transition-transform duration-200 group-hover/cta:translate-x-0.5 motion-reduce:transition-none"
+              />
+            </Link>
+          </div>
         </div>
       </div>
       <StarterSheet

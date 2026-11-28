@@ -1,12 +1,16 @@
+"use client";
+
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
 import type { LibraryBlock } from "@/lib/library/blocks-data";
 import type { LibraryLink, LibrarySectionId } from "@/lib/library/library-data";
+import { blockSavedId } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
 import { LibraryGlyph } from "./library-glyphs";
 import { itemFrame } from "./library-item";
+import { LibraryItemMenu } from "./library-item-menu";
 
 /** An item's name as the link to its page; the click area covers the whole item. */
 function LinkTitle({
@@ -39,18 +43,30 @@ function LinkTitle({
 /** A library item that lives on its own page: its name and one line about it. */
 export function LinkRow({ link }: { link: LibraryLink }) {
   return (
-    <li className="group/navlink relative min-w-0 py-2">
-      <LinkTitle href={link.href}>{link.name}</LinkTitle>
-      <p
-        className={cn(
-          "text-muted-foreground mt-0.5",
-          link.code
-            ? "truncate font-mono text-xs leading-relaxed [font-variant-ligatures:none]"
-            : "line-clamp-2 text-[13px] leading-relaxed",
-        )}
-      >
-        {link.description}
-      </p>
+    <li className="group/navlink relative flex min-w-0 items-start gap-2 py-2">
+      <div className="min-w-0 flex-1">
+        <LinkTitle href={link.href}>{link.name}</LinkTitle>
+        <p
+          className={cn(
+            "text-muted-foreground mt-0.5",
+            link.code
+              ? "truncate font-mono text-xs leading-relaxed [font-variant-ligatures:none]"
+              : "line-clamp-2 text-[13px] leading-relaxed",
+          )}
+        >
+          {link.description}
+        </p>
+      </div>
+      {link.id && link.prompt ? (
+        <LibraryItemMenu
+          id={link.id}
+          label={link.name}
+          prompt={link.prompt}
+          tooltipSide="top"
+          className="relative z-10 -mt-1 shrink-0"
+          {...(link.command && { command: link.command })}
+        />
+      ) : null}
     </li>
   );
 }
@@ -64,6 +80,12 @@ export function BlockCard({ block }: { block: LibraryBlock }) {
     <li className="group/navlink relative flex min-w-0 flex-col">
       <div className={cn(itemFrame, "rounded-[32px] p-5")}>
         <div className="bg-background relative aspect-[16/10] overflow-hidden rounded-xl">
+          <LibraryItemMenu
+            id={blockSavedId(block.slug)}
+            label={block.title}
+            prompt={block.prompt}
+            className="bg-background/45 text-foreground hover:bg-background/70 focus-visible:bg-background/70 data-popup-open:bg-background/70 absolute top-3 right-3 z-10 backdrop-blur-md"
+          />
           <Image
             src={block.image.light}
             alt=""

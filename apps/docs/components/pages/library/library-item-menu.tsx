@@ -52,7 +52,8 @@ export function LibraryItemMenu({
   /** The item's id in the saved panel. */
   id: string;
   label: string;
-  command: string;
+  /** Left out for an item that is set up from its page. */
+  command?: string;
   prompt: string;
   tooltipSide?: "left" | "top";
   className?: string;
@@ -79,14 +80,16 @@ export function LibraryItemMenu({
           {isSaved ? "Remove from saved" : "Save"}
         </MenuItem>
         <MenuSeparator />
-        <MenuItem
-          onClick={() =>
-            copyWithLibraryToast(command, "Install command copied.")
-          }
-        >
-          <TerminalIcon aria-hidden />
-          Copy install command
-        </MenuItem>
+        {command ? (
+          <MenuItem
+            onClick={() =>
+              copyWithLibraryToast(command, "Install command copied.")
+            }
+          >
+            <TerminalIcon aria-hidden />
+            Copy install command
+          </MenuItem>
+        ) : null}
         <MenuItem
           onClick={() => copyWithLibraryToast(prompt, "Agent prompt copied.")}
         >

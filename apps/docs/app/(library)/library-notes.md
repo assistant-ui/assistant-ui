@@ -68,3 +68,16 @@ The library keeps its own copies so it does not depend on other pages' files, wh
 What still points outside the library: every component, block, and utility row links to that item's page (`/elements/<slug>`, `/design/components/<slug>`, `/blocks/<slug>`, `/safe-content-frame`, `/generative-frame`, `/variants`), and block cards show the screenshots in `public/screenshot/blocks`. When one of those pages or folders is removed, its rows need a new address or their own detail view.
 
 When to redo it: an element, UI component, vocabulary component, feature, primitive, or block is added, removed, or renamed.
+
+## Install commands and agent prompts are part of the snapshots
+
+Every item that can be saved carries its own install command and agent prompt in the data files, so the plus menu and the saved panel need nothing from outside. They were worked out the way the Library app did it:
+
+- An element installs with `npx shadcn@latest add @assistant-ui/<registry item>`; a generative one with `npm install @assistant-ui/generative-ui zod`. Its prompt names the `setup` product when the setup catalog (`lib/catalog/element-index.ts`) knows the element, and its page otherwise.
+- A UI component's command comes from the `<InstallCommand shadcn={[...]}>` line on its design page; a page without one gives source to copy, so that component has a prompt and no command.
+- A feature installs with `npx assistant-ui@latest setup --products <slug>`.
+- A primitive installs with `npm install @assistant-ui/react`. A runtime, tool, or utility with its own npm package installs that package; the rest are set up by following their page, so they have a prompt and no command.
+- A block has a prompt that points at its folder on GitHub and no command.
+- Vocabulary components ship inside `@assistant-ui/generative-ui` and cannot be added one at a time, so they have no menu.
+
+When to redo it: a registry item, an npm package, or a `setup` product is renamed, or a design page gains or loses its install line.

@@ -9,6 +9,13 @@ const KIND_TONE: Record<LibraryKind, string> = {
   template: "text-emerald-700 dark:text-emerald-400",
   example: "text-amber-700 dark:text-amber-400",
   skill: "text-violet-600 dark:text-violet-400",
+  component: "text-sky-700 dark:text-sky-400",
+  block: "text-rose-600 dark:text-rose-400",
+  runtime: "text-orange-700 dark:text-orange-400",
+  tool: "text-teal-700 dark:text-teal-400",
+  integration: "text-indigo-600 dark:text-indigo-400",
+  utility: "text-fuchsia-700 dark:text-fuchsia-400",
+  editor: "text-blue-600 dark:text-blue-400",
 };
 
 /** A library item's kind, in that kind's color with a dot before it. */

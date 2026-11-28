@@ -1,3 +1,4 @@
+import { agentSetupPrompt } from "./agent-prompt";
 import { LIBRARY_BLOCKS, type LibraryBlock } from "./blocks-data";
 import {
   LIBRARY_ELEMENTS,
@@ -14,7 +15,7 @@ import {
   LIBRARY_UTILITIES,
   type LibraryPageGroup,
 } from "./docs-data";
-import { MCP_COMMAND, MCP_EDITORS, MCP_PROMPT } from "./mcp-data";
+import { MCP_COMMAND, MCP_EDITORS, MCP_PROMPT, MCP_URL } from "./mcp-data";
 import {
   LIBRARY_SKILLS,
   SKILLS_COMMAND,
@@ -50,6 +51,12 @@ export type LibraryLink = {
   code?: boolean;
   /** The section's `traits` this item has. */
   traits?: readonly string[];
+  /** Its id in the saved panel; an item without one cannot be saved or copied. */
+  id?: string;
+  /** Absent when the item is set up by following its page. */
+  command?: string;
+  /** What to tell a coding agent to add it. */
+  prompt?: string;
 };
 
 export type LibraryEntry =
@@ -76,6 +83,8 @@ export type LibrarySection = {
     prompt: string;
   };
   href: string;
+  /** The link beside the search that says where to read more. */
+  guide: string;
   groups: readonly LibraryGroup[];
   /** Things only some of its items are, each offered as a filter. */
   traits?: readonly { id: string; label: string }[];
@@ -84,8 +93,42 @@ export type LibrarySection = {
 const links = (items: readonly LibraryLink[]): LibraryEntry[] =>
   items.map((link) => ({ kind: "link", link }));
 
-const pages = (groups: readonly LibraryPageGroup[]): LibraryGroup[] =>
-  groups.map((group) => ({ label: group.label, entries: links(group.pages) }));
+const pages = (
+  section: LibrarySectionId | "primitives",
+  groups: readonly LibraryPageGroup[],
+): LibraryGroup[] =>
+  groups.map((group) => ({
+    label: group.label,
+    entries: links(
+      group.pages.map(({ slug, ...page }) => ({
+        ...page,
+        id: `${section}/${slug}`,
+      })),
+    ),
+  }));
+
+const SHADCN_ADD = "npx shadcn@latest add";
+
+const route = (
+  item: string,
+  link: Pick<LibraryLink, "name" | "description" | "href">,
+): LibraryLink => {
+  const command = `${SHADCN_ADD} @assistant-ui/${item}`;
+  return {
+    ...link,
+    id: `routes/${item}`,
+    command,
+    prompt: agentSetupPrompt([], `Add the ${link.name} with \`${command}\``),
+  };
+};
+
+/** What the All tab offers beside the search: how to start, by hand or with an agent. */
+export const LIBRARY_INSTALL = {
+  command: "npx assistant-ui@latest init",
+  prompt: agentSetupPrompt(),
+};
+
+export const LIBRARY_GUIDE = { label: "Read the CLI guide", href: "/docs/cli" };
 
 const starters = (items: readonly Starter[]): LibraryEntry[] =>
   items.map((starter) => ({ kind: "starter", starter }));
@@ -106,30 +149,30 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
       prompt: `Add the assistant-ui thread component with \`${COMPONENTS_COMMAND}\``,
     },
     href: "/components",
+    guide: "Open the components page",
     traits: LIBRARY_TRAITS,
     groups: [
       {
         label: "Elements",
         entries: links(
-          LIBRARY_ELEMENTS.map((element) => ({
-            name: element.name,
-            description: element.description,
-            href: `/elements/${element.slug}`,
-            ...(element.traits && { traits: element.traits }),
+          LIBRARY_ELEMENTS.map(({ slug, ...element }) => ({
+            ...element,
+            id: `components/${slug}`,
+            href: `/elements/${slug}`,
           })),
         ),
       },
       {
         label: "UI",
         entries: links(
-          LIBRARY_UI_COMPONENTS.map((component) => ({
-            name: component.name,
-            description: component.description,
-            href: `/design/components/${component.slug}`,
+          LIBRARY_UI_COMPONENTS.map(({ slug, ...component }) => ({
+            ...component,
+            id: `ui/${slug}`,
+            href: `/design/components/${slug}`,
           })),
         ),
       },
-      ...pages(LIBRARY_PRIMITIVES),
+      ...pages("primitives", LIBRARY_PRIMITIVES),
       {
         label: "Vocabulary",
         entries: links(
@@ -142,28 +185,36 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
           ),
         ),
       },
-      { label: "Features", entries: links(LIBRARY_FEATURES) },
+      {
+        label: "Features",
+        entries: links(
+          LIBRARY_FEATURES.map(({ slug, ...feature }) => ({
+            ...feature,
+            id: `features/${slug}`,
+          })),
+        ),
+      },
       {
         label: "Routes and pages",
         entries: links([
-          {
+          route("ai-sdk-backend", {
             name: "AI SDK backend",
             description:
               "A Next.js route handler that streams chat completions through the AI SDK.",
             href: "/docs/runtimes/ai-sdk/overview",
-          },
-          {
+          }),
+          route("ai-sdk-backend-resumable", {
             name: "AI SDK resumable backend",
             description:
               "AI SDK route handlers with a resumable stream, so a run survives a reload.",
             href: "/docs/runtimes/resumable-streams",
-          },
-          {
+          }),
+          route("eve-chat", {
             name: "Eve chat",
             description:
               "A chat page for an Eve agent, drawn through an assistant-ui thread.",
             href: "/docs/runtimes/eve/overview",
-          },
+          }),
         ]),
       },
     ],
@@ -174,6 +225,7 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     noun: "blocks",
     description: "Whole app surfaces with an assistant built in.",
     href: "/blocks",
+    guide: "Open the blocks page",
     groups: [
       {
         label: "Blocks",
@@ -193,6 +245,7 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
         : `Create an assistant-ui app with \`${STARTERS_COMMAND}\``,
     },
     href: "/library/starters",
+    guide: "Open the starters page",
     groups: [
       { label: "Templates", entries: starters(TEMPLATES) },
       { label: "Examples", entries: starters(EXAMPLES) },
@@ -204,7 +257,8 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     noun: "runtimes",
     description: "Adapters that connect the chat to a backend.",
     href: "/docs/runtimes/pick-a-runtime",
-    groups: pages(LIBRARY_RUNTIMES),
+    guide: "Pick a runtime",
+    groups: pages("runtimes", LIBRARY_RUNTIMES),
   },
   {
     id: "tools",
@@ -212,7 +266,8 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     noun: "tools",
     description: "Tool calls, tool UI, generative UI, and MCP.",
     href: "/docs/tools",
-    groups: pages(LIBRARY_TOOLS),
+    guide: "Read the tools guide",
+    groups: pages("tools", LIBRARY_TOOLS),
   },
   {
     id: "integrations",
@@ -220,7 +275,8 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     noun: "integrations",
     description: "Gateways, observability, auth, persistence, and attachments.",
     href: "/docs/integrations",
-    groups: pages(LIBRARY_INTEGRATIONS),
+    guide: "Read the integrations guide",
+    groups: pages("integrations", LIBRARY_INTEGRATIONS),
   },
   {
     id: "utilities",
@@ -228,7 +284,8 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     noun: "utilities",
     description: "Standalone packages that work without assistant-ui.",
     href: "/docs/utilities/heat-graph",
-    groups: pages(LIBRARY_UTILITIES),
+    guide: "Read the utilities docs",
+    groups: pages("utilities", LIBRARY_UTILITIES),
   },
   {
     id: "skills",
@@ -238,6 +295,7 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
       "Instructions a coding agent loads to build with assistant-ui.",
     install: { command: SKILLS_COMMAND, prompt: SKILLS_PROMPT },
     href: "/library/skills",
+    guide: "Open the skills page",
     groups: SKILL_GROUPS.map((group) => ({
       label: group.title,
       entries: LIBRARY_SKILLS.filter((skill) => skill.group === group.id).map(
@@ -253,6 +311,7 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
       "Connects your editor's agent to the assistant-ui docs and examples.",
     install: { command: MCP_COMMAND, prompt: MCP_PROMPT },
     href: "/library/mcp",
+    guide: "See the setup steps",
     groups: [
       {
         label: "Editors",
@@ -262,6 +321,9 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
             description: editor.command,
             href: "/library/mcp",
             code: true,
+            id: `mcp/${editor.id}`,
+            command: editor.command,
+            prompt: `Connect ${editor.label} to the assistant-ui MCP server at ${MCP_URL} (Streamable HTTP)`,
           })),
         ),
       },
