@@ -136,6 +136,45 @@ describe("docs Next config composition", () => {
     },
   );
 
+  it.each([
+    ["/blocks/unknown.md", "*/*"],
+    ["/blocks/unknown.mdx", "text/markdown"],
+    ["/careers/unknown.md", "*/*"],
+    ["/careers/unknown.md", "text/markdown"],
+    ["/changelog/unknown.md", "*/*"],
+    ["/changelog/unknown/2.mdx", "text/markdown"],
+    ["/components/unknown.md", "*/*"],
+    ["/demos/unknown.mdx", "text/markdown"],
+  ])(
+    "rewrites %s with Accept %s to the markdown 404 before the dynamic page routes match",
+    async (pathname, accept) => {
+      const rewrites = await config.rewrites!();
+      const beforeFiles = Array.isArray(rewrites)
+        ? rewrites
+        : (rewrites.beforeFiles ?? []);
+      const request = { headers: { accept } } as IncomingMessage;
+      const query = {};
+      const [destination] = beforeFiles.flatMap((rule) => {
+        const params = getPathMatch(rule.source, { strict: true })(pathname);
+        const headerParams = matchHas(request, query, rule.has, rule.missing);
+        if (!params || !headerParams) return [];
+        return [
+          prepareDestination({
+            appendParamsToQuery: true,
+            destination: rule.destination,
+            params: { ...params, ...headerParams },
+            query,
+          }).parsedDestination,
+        ];
+      });
+
+      expect(destination).toMatchObject({
+        pathname: "/missing.md",
+        query: { path: pathname },
+      });
+    },
+  );
+
   it("varies responses on Accept at markdown-negotiating sources", async () => {
     const headers = await config.headers!();
     const sources = headers
