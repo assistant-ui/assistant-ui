@@ -1,6 +1,7 @@
 /**
  * What is drawn before an item's name, by the item's id. `logo:` is a brand
- * mark, `agent:` a coding agent's mark, and the rest are the library's own
+ * mark, `agent:` a coding agent's mark, `icon:` the icon kept for that id in
+ * component-icons.tsx, and the rest are the library's own
  * line drawings: `skill:` a skill's, `section:` a tab's, `utility:` a
  * utility's. An item missing here shows its first letter.
  */

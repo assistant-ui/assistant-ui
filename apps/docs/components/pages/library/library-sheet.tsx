@@ -3,8 +3,8 @@
 import type { ReactNode } from "react";
 import {
   ArrowUpRightIcon,
-  BookmarkCheckIcon,
   BookmarkIcon,
+  BookmarkMinusIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   XIcon,
@@ -121,29 +121,32 @@ export function SheetFooter({
   /** The item's id in the saved panel. */
   id: string;
   label: string;
-  /** The first button: the way to get the item. */
+  /** The last button: the way to get the item. */
   children: ReactNode;
 }) {
   const isSaved = useLibrarySaved().includes(id);
   return (
     <div className="flex gap-2 border-t p-4">
-      {children}
       <button
         type="button"
         aria-pressed={isSaved}
         onClick={() => toggleLibrarySavedWithToast(id, label)}
         className={cn(
           sheetButton,
-          "bg-foreground/[0.06] hover:bg-foreground/[0.1] flex-1",
+          "flex-1",
+          isSaved
+            ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
+            : "bg-foreground/[0.06] hover:bg-foreground/[0.1]",
         )}
       >
         {isSaved ? (
-          <BookmarkCheckIcon aria-hidden />
+          <BookmarkMinusIcon aria-hidden />
         ) : (
           <BookmarkIcon aria-hidden />
         )}
-        {isSaved ? "Remove from saved" : "Save"}
+        {isSaved ? "Unsave" : "Save"}
       </button>
+      {children}
     </div>
   );
 }

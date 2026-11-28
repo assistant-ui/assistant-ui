@@ -412,6 +412,7 @@ const SECTION_HUE: Record<LibrarySectionId, number> = {
   runtimes: 46,
   mcp: 82,
   starters: 118,
+  features: 154,
   agents: 190,
   components: 226,
   integrations: 262,

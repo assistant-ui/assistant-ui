@@ -14,7 +14,6 @@ import {
 } from "./library-data";
 import { presetCommand, presetId, presetPrompt } from "./presets-data";
 import {
-  LIBRARY_KIND_LABEL,
   LIBRARY_SECTION_KIND,
   blockSavedId,
   skillSavedId,
@@ -39,7 +38,11 @@ export type LibraryTableRecord = {
   fact: LibraryFact | undefined;
   name: string;
   kind: LibraryKind;
-  /** Empty when the group says no more than the type does. */
+  /** What it is, by the tab it is listed under: a component, a starter, a runtime. */
+  type: string;
+  /** The kind whose color the type is drawn in, one for each tab. */
+  tone: LibraryKind;
+  /** Which of its type's groups it is in; empty for a type with one group. */
   group: string;
   description: string;
   /** The description is a path, so it is set in the code face. */
@@ -51,7 +54,7 @@ export type LibraryTableRecord = {
   prompt: string | undefined;
 };
 
-/** The id an entry's facts are kept under: its id in the saved panel, or its name for a vocabulary component, which has none. */
+/** The id an entry's facts are kept under, which is its id in the saved panel. */
 export const entryFactId = (entry: LibraryEntry): string => {
   switch (entry.kind) {
     case "starter":
@@ -63,11 +66,14 @@ export const entryFactId = (entry: LibraryEntry): string => {
     case "block":
       return blockSavedId(entry.block.slug);
     case "link":
-      return entry.link.id ?? `vocabulary/${entry.link.name}`;
+      return entry.link.id ?? entry.link.href;
   }
 };
 
-type RecordText = Omit<LibraryTableRecord, "key" | "group" | "fact" | "factId">;
+type RecordText = Omit<
+  LibraryTableRecord,
+  "key" | "type" | "tone" | "group" | "fact" | "factId"
+>;
 
 const recordText = (
   section: LibrarySection,
@@ -144,8 +150,12 @@ export const libraryTableRecord = ({
   return {
     ...recordText(section, entry),
     key: `${section.id}:${entryKey(entry)}`,
-    // A tab with one group, and the starters' groups, repeat the type.
-    group: section.groups.length > 1 && section.id !== "starters" ? group : "",
+    type: section.type,
+    // Starters come in several kinds and skills in none of the tabs' own; each tab draws in one color.
+    tone:
+      LIBRARY_SECTION_KIND[section.id] ??
+      (section.id === "starters" ? "template" : "skill"),
+    group: section.groups.length > 1 ? group : "",
     factId,
     fact: libraryFact(factId),
   };
@@ -189,7 +199,7 @@ const SORT_VALUE: Record<
   (record: LibraryTableRecord) => string | number
 > = {
   name: (record) => record.name,
-  type: (record) => LIBRARY_KIND_LABEL[record.kind],
+  type: (record) => record.type,
   group: (record) => record.group,
   status: (record) => position(LIBRARY_AVAILABILITY, record.fact?.status),
   platform: (record) => position(LIBRARY_PLATFORMS, record.fact?.platforms[0]),
@@ -234,7 +244,7 @@ const EXPORT_COLUMNS: readonly {
   value: (record: LibraryTableRecord) => string;
 }[] = [
   { label: "Name", value: (record) => record.name },
-  { label: "Type", value: (record) => LIBRARY_KIND_LABEL[record.kind] },
+  { label: "Type", value: (record) => record.type },
   { label: "Group", value: (record) => record.group },
   { label: "Status", value: (record) => record.fact?.status ?? "" },
   {

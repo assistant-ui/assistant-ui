@@ -366,7 +366,11 @@ export function LibraryTable({
       case "type":
         return (
           <>
-            <LibraryKindLabel kind={record.kind} className="text-[13px]" />
+            <LibraryKindLabel
+              kind={record.tone}
+              label={record.type}
+              className="text-[13px]"
+            />
             {record.group ? (
               <span className="text-muted-foreground mt-0.5 block ps-3 text-xs text-pretty">
                 {record.group}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { ScreenshotViewer, type ViewerShot } from "./screenshot-viewer";
@@ -265,6 +266,40 @@ export function StarterScreenshots({ starter }: { starter: Starter }) {
         open={viewing}
         onOpenChange={setViewing}
       />
+    </div>
+  );
+}
+
+/** A starter's recording in the current color mode, on the same stage as a desktop screenshot, with the browser's own playback controls. */
+export function StarterRecording({ starter }: { starter: Starter }) {
+  const mode = useTheme().resolvedTheme === "dark" ? "dark" : "light";
+  if (!starter.recording) return null;
+  const { video, poster } = starter.recording[mode];
+
+  return (
+    <div
+      className={cn(
+        frame,
+        "bg-foreground/[0.03] relative min-h-64 w-full flex-1 rounded-(--library-card-inner)",
+      )}
+    >
+      <div className="[container-type:size] absolute inset-5 flex items-center justify-center">
+        <video
+          key={mode}
+          src={video}
+          poster={poster}
+          controls
+          muted
+          playsInline
+          preload="none"
+          aria-label={`${starter.label} recording`}
+          className={cn(
+            frame,
+            lift,
+            "bg-background aspect-[16/10] w-[min(100cqw,160cqh)] rounded-[1.5%/2.4%]",
+          )}
+        />
+      </div>
     </div>
   );
 }

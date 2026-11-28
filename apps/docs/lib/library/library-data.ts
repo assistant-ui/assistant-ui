@@ -1,4 +1,4 @@
-import { agentSetupPrompt } from "./agent-prompt";
+import { LIBRARY_SITE, agentSetupPrompt } from "./agent-prompt";
 import { LIBRARY_BLOCKS, type LibraryBlock } from "./blocks-data";
 import {
   LIBRARY_ELEMENTS,
@@ -42,6 +42,7 @@ import {
 
 export type LibrarySectionId =
   | "components"
+  | "features"
   | "blocks"
   | "starters"
   | "runtimes"
@@ -106,6 +107,8 @@ export type LibraryCommands = {
 export type LibrarySection = {
   id: LibrarySectionId;
   title: string;
+  /** What one of its items is, as a table's Type column says it. */
+  type: string;
   /** What its items are called, as in "Search starters". */
   noun: string;
   description: string;
@@ -148,6 +151,9 @@ const pages = (
 
 const SHADCN_ADD = "npx shadcn@latest add";
 
+/** The vocabulary ships whole inside one package, so every component in it installs the same way. */
+const VOCABULARY_COMMAND = "npm install @assistant-ui/generative-ui zod";
+
 const SKILLS_GUIDE = "/docs/llm#skills";
 
 const route = (
@@ -189,6 +195,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "components",
     title: "Components",
+    type: "Component",
     noun: "components",
     description:
       "Chat elements, UI components, primitives, and the parts a model can write.",
@@ -222,21 +229,18 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
         label: "Vocabulary",
         entries: links(
           LIBRARY_VOCABULARY.flatMap((category) =>
-            category.components.map((component) => ({
-              name: component.name,
-              description: component.description,
-              href: `/elements/vocabulary#${component.name}`,
-            })),
+            category.components.map((component) => {
+              const href = `/elements/vocabulary#${component.name}`;
+              return {
+                name: component.name,
+                description: component.description,
+                href,
+                id: `vocabulary/${component.name}`,
+                command: VOCABULARY_COMMAND,
+                prompt: `set up ${LIBRARY_SITE}${href}`,
+              };
+            }),
           ),
-        ),
-      },
-      {
-        label: "Features",
-        entries: links(
-          LIBRARY_FEATURES.map(({ slug, ...feature }) => ({
-            ...feature,
-            id: `features/${slug}`,
-          })),
         ),
       },
       {
@@ -265,8 +269,31 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     ],
   },
   {
+    id: "features",
+    title: "Features",
+    type: "Feature",
+    noun: "features",
+    description:
+      "Things the setup command adds to a chat: attachments, speech, mentions, MCP, and more.",
+    href: "/docs/cli#setup",
+    guide: "Read the setup guide",
+    skills: ["setup"],
+    groups: [
+      {
+        label: "Features",
+        entries: links(
+          LIBRARY_FEATURES.map(({ slug, ...feature }) => {
+            const id = `features/${slug}`;
+            return { ...feature, id, mark: `icon:${id}` };
+          }),
+        ),
+      },
+    ],
+  },
+  {
     id: "blocks",
     title: "Blocks",
+    type: "Block",
     noun: "blocks",
     description: "Whole app surfaces with an assistant built in.",
     href: "/blocks",
@@ -282,6 +309,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "starters",
     title: "Starters",
+    type: "Starter",
     noun: "starters",
     description:
       "Templates, example apps, playground templates, and presets that start a new project.",
@@ -301,6 +329,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "runtimes",
     title: "Runtimes",
+    type: "Runtime",
     noun: "runtimes",
     description: "Adapters that connect the chat to a backend.",
     href: "/docs/runtimes/pick-a-runtime",
@@ -311,6 +340,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "integrations",
     title: "Integrations",
+    type: "Integration",
     noun: "integrations",
     description: "Gateways, observability, auth, persistence, and attachments.",
     href: "/docs/integrations",
@@ -321,6 +351,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "utilities",
     title: "Utilities",
+    type: "Utility",
     noun: "utilities",
     description: "Standalone packages that work without assistant-ui.",
     href: "/docs/utilities/heat-graph",
@@ -330,6 +361,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "skills",
     title: "Skills",
+    type: "Skill",
     noun: "skills",
     description:
       "Instructions a coding agent loads to build with assistant-ui.",
@@ -346,6 +378,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "agents",
     title: "Agents",
+    type: "Agent",
     noun: "agents",
     description:
       "Coding agents the skills install into, each in its own folder.",
@@ -375,6 +408,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "mcp",
     title: "MCP server",
+    type: "MCP setup",
     noun: "editors",
     description:
       "Connects your editor's agent to the assistant-ui docs and examples.",
@@ -404,6 +438,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
 /** The start every install command in a tab shares, for tabs whose items install by command. */
 const COMMAND_BASE: Partial<Record<LibrarySectionId, string>> = {
   components: SHADCN_ADD,
+  features: "npx assistant-ui@latest setup",
   starters: STARTERS_COMMAND,
   runtimes: "npm install",
   integrations: "npm install",

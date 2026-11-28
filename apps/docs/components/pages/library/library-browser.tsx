@@ -168,6 +168,7 @@ export function LibraryBrowser() {
   const [skillView, setSkillView] = useState<LibraryView>("list");
   const [allView, setAllView] = useState<LibraryView>("table");
   const [allTypes, setAllTypes] = useState<readonly string[]>([]);
+  const [allGroups, setAllGroups] = useState<readonly string[]>([]);
   const [allSort, setAllSort] = useState<TableSort | null>(null);
   const [allPlatforms, setAllPlatforms] = useState<readonly LibraryPlatform[]>(
     [],
@@ -249,9 +250,17 @@ export function LibraryBrowser() {
   // Whether an item passes the All tab's filters; `skip` leaves one out, to count what picking in it would give.
   const allPass = (
     sectionId: string,
+    group: string,
     entry: LibraryEntry,
-    skip?: "type" | "platform" | "status",
+    skip?: "type" | "group" | "platform" | "status",
   ) => {
+    if (
+      skip !== "group" &&
+      allGroups.length > 0 &&
+      !allGroups.includes(`${sectionId}/${group}`)
+    ) {
+      return false;
+    }
     if (
       skip !== "type" &&
       allTypes.length > 0 &&
@@ -296,7 +305,8 @@ export function LibraryBrowser() {
             group.entries.filter(
               (entry) =>
                 (!normalized || matchesEntry(entry, normalized)) &&
-                (current !== undefined || allPass(section.id, entry)) &&
+                (current !== undefined ||
+                  allPass(section.id, group.label, entry, "type")) &&
                 (!current ||
                   filter.traits.every(
                     (trait) =>
@@ -511,17 +521,18 @@ export function LibraryBrowser() {
             .filter((entry) => !normalized || matchesEntry(entry, normalized))
             .map((entry) => ({
               sectionId: section.id,
+              group: group.label,
               entry,
               fact: libraryFact(entryFactId(entry)),
             })),
         ),
       );
   const countOf = (
-    skip: "type" | "platform" | "status",
+    skip: "type" | "group" | "platform" | "status",
     has: (row: (typeof searched)[number]) => boolean,
   ) =>
     searched.filter(
-      (row) => allPass(row.sectionId, row.entry, skip) && has(row),
+      (row) => allPass(row.sectionId, row.group, row.entry, skip) && has(row),
     ).length;
   const allFilters: readonly TableFilter[] = [
     {
@@ -529,11 +540,32 @@ export function LibraryBrowser() {
       label: "Type",
       options: all.map((section) => ({
         id: section.id,
-        label: section.title,
+        label: section.type,
         count: countOf("type", (row) => row.sectionId === section.id),
       })),
       picked: allTypes,
       onPickedChange: setAllTypes,
+    },
+    {
+      id: "group",
+      label: "Group",
+      // A type with one group has nothing to pick between.
+      options: all
+        .filter((section) => section.groups.length > 1)
+        .flatMap((section) =>
+          section.groups.map((group) => ({
+            id: `${section.id}/${group.label}`,
+            label: group.label,
+            heading: section.title,
+            count: countOf(
+              "group",
+              (row) =>
+                row.sectionId === section.id && row.group === group.label,
+            ),
+          })),
+        ),
+      picked: allGroups,
+      onPickedChange: setAllGroups,
     },
     {
       id: "platform",
@@ -566,6 +598,7 @@ export function LibraryBrowser() {
   const allFiltersOn = allFilters.some((entry) => entry.picked.length > 0);
   const clearAllFilters = () => {
     setAllTypes([]);
+    setAllGroups([]);
     setAllPlatforms([]);
     setAllStatuses([]);
   };
@@ -758,7 +791,7 @@ export function LibraryBrowser() {
         {home ? (
           <ul
             aria-label="Kinds of library item"
-            className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
           >
             {listed.map((section) => (
               <SectionTile
@@ -863,7 +896,7 @@ export function LibraryBrowser() {
             <LibraryTable
               items={tableItems}
               total={total}
-              resetKey={`${normalized}|${allTypes.join()}|${allPlatforms.join()}|${allStatuses.join()}|${allSort?.column}|${allSort?.dir}`}
+              resetKey={`${normalized}|${allTypes.join()}|${allGroups.join()}|${allPlatforms.join()}|${allStatuses.join()}|${allSort?.column}|${allSort?.dir}`}
               sort={allSort}
               onSortChange={setAllSort}
               hidden={allHidden}

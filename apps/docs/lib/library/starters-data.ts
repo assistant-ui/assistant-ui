@@ -87,6 +87,11 @@ export type Starter = {
     light: readonly string[];
     dark: readonly string[];
   };
+  /** A recording of the app in use in each color mode, with the still shown while it is not playing. */
+  recording?: {
+    light: { video: string; poster: string };
+    dark: { video: string; poster: string };
+  };
 };
 
 // The CLI is not a dependency of the docs app, so this list mirrors
@@ -2813,7 +2818,9 @@ type RepoStarter = Pick<
   Starter,
   "name" | "label" | "description" | "framework"
 > &
-  Partial<Pick<Starter, "runtime" | "integrations" | "env" | "image">>;
+  Partial<
+    Pick<Starter, "runtime" | "integrations" | "env" | "image" | "recording">
+  >;
 
 // Folders under templates/ in the repository that PROJECT_METADATA leaves out.
 const REPO_TEMPLATES: readonly RepoStarter[] = [
@@ -2835,6 +2842,16 @@ const REPO_EXAMPLES: readonly RepoStarter[] = [
     description: "Threads and messages saved in your own SQLite database.",
     framework: "Next.js",
     runtime: "AI SDK",
+    recording: {
+      light: {
+        video: "/screenshot/starters/recipe-chat-history/recording-light.mp4",
+        poster: "/screenshot/starters/recipe-chat-history/recording-light.png",
+      },
+      dark: {
+        video: "/screenshot/starters/recipe-chat-history/recording-dark.mp4",
+        poster: "/screenshot/starters/recipe-chat-history/recording-dark.png",
+      },
+    },
   },
   {
     name: "recipe-own-backend",

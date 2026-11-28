@@ -10,6 +10,7 @@ import { MastraIcon } from "@/components/icons/mastra";
 import { OpenCodeIcon } from "@/components/icons/opencode";
 import type { LibrarySectionId } from "@/lib/library/library-data";
 import { cn } from "@/lib/utils";
+import { ComponentIcon } from "./component-icons";
 import { FilterIcon } from "./filter-icons";
 import { LibraryGlyph, UtilityGlyph } from "./library-glyphs";
 import { PresetMark } from "./preset-card";
@@ -113,6 +114,14 @@ export function LibraryMark({
   const [kind = "", id = ""] = mark?.split(":") ?? [];
 
   switch (kind) {
+    case "icon":
+      return (
+        <ComponentIcon
+          id={id}
+          fallback={letter}
+          className={large ? "size-5" : "size-4"}
+        />
+      );
     case "agent":
       return (
         <AgentIcon

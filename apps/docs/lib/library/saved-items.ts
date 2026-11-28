@@ -32,6 +32,7 @@ export type LibraryKind =
   | "preset"
   | "skill"
   | "component"
+  | "feature"
   | "block"
   | "runtime"
   | "integration"
@@ -46,6 +47,7 @@ export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
   preset: "Preset",
   skill: "Skill",
   component: "Component",
+  feature: "Feature",
   block: "Block",
   runtime: "Runtime",
   integration: "Integration",
@@ -112,6 +114,7 @@ export const LIBRARY_SECTION_KIND: Partial<
   Record<LibrarySectionId, LibraryKind>
 > = {
   components: "component",
+  features: "feature",
   blocks: "block",
   runtimes: "runtime",
   integrations: "integration",

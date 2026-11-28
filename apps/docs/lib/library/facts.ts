@@ -105,7 +105,7 @@ const OTHERS = data.others as unknown as Record<string, RawOther>;
 const needs = (list: readonly RawNeed[]): LibraryNeed[] =>
   list.map(([ref, via]) => ({ ref, via }));
 
-/** An item's facts by its id in the saved panel; a vocabulary component goes by `vocabulary/<name>`. */
+/** An item's facts by its id in the saved panel. */
 export const libraryFact = (id: string): LibraryFact | undefined => {
   const raw = ITEMS[id];
   if (!raw) return undefined;

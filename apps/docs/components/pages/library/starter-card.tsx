@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 import { starterId, type Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { ItemGlyph, ItemThumbnail, ItemTitle, itemFrame } from "./library-item";
@@ -51,17 +52,65 @@ function ShotStrip({
   );
 }
 
-/** A starter's picture filling its box: its screenshots in the current mode, its one image, or its drawing. */
+/** A recording in the current color mode, looping from its start for as long as it is mounted. */
+function RecordingLoop({
+  recording,
+}: {
+  recording: NonNullable<Starter["recording"]>;
+}) {
+  const mode = useTheme().resolvedTheme === "dark" ? "dark" : "light";
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    return null;
+  return (
+    <video
+      key={mode}
+      src={recording[mode].video}
+      autoPlay
+      muted
+      loop
+      playsInline
+      aria-hidden
+      tabIndex={-1}
+      className="absolute inset-0 size-full object-cover object-top"
+    />
+  );
+}
+
+/** A starter's picture filling its box: its screenshots in the current mode, its recording, its one image, or its drawing. */
 export function StarterPreview({
   starter,
   sizes,
   index = 0,
+  playing = false,
 }: {
   starter: Starter;
   sizes: string;
   /** Which screenshot to show, for a starter with screenshots in each mode. */
   index?: number;
+  /** Plays the recording over its still, for a starter with a recording. */
+  playing?: boolean;
 }) {
+  if (starter.recording) {
+    return (
+      <>
+        <Image
+          src={starter.recording.light.poster}
+          alt=""
+          fill
+          sizes={sizes}
+          className="object-cover object-top dark:hidden"
+        />
+        <Image
+          src={starter.recording.dark.poster}
+          alt=""
+          fill
+          sizes={sizes}
+          className="hidden object-cover object-top dark:block"
+        />
+        {playing ? <RecordingLoop recording={starter.recording} /> : null}
+      </>
+    );
+  }
   if (starter.screenshots) {
     return (
       <>
@@ -100,7 +149,7 @@ type StarterItemProps = {
   onSelect: (starter: Starter) => void;
 };
 
-/** While the card is hovered or focused, steps through its screenshots; back to the first when it is not. */
+/** While the card is hovered or focused, it is active and steps through its screenshots; back to the first when it is not. */
 function useShotIndex(count: number) {
   const [active, setActive] = useState(false);
   const [index, setIndex] = useState(0);
@@ -126,6 +175,7 @@ function useShotIndex(count: number) {
 
   return {
     index,
+    active,
     handlers: {
       onPointerEnter: start,
       onPointerLeave: stop,
@@ -139,7 +189,7 @@ function useShotIndex(count: number) {
 
 export function StarterCard({ starter, onSelect }: StarterItemProps) {
   const shotCount = starter.screenshots?.light.length ?? 0;
-  const { index, handlers } = useShotIndex(shotCount);
+  const { index, active, handlers } = useShotIndex(shotCount);
 
   return (
     <li
@@ -157,6 +207,7 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
           <StarterPreview
             starter={starter}
             index={index}
+            playing={active}
             sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
           />
           {shotCount > 1 ? (

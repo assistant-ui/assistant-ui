@@ -467,9 +467,9 @@ const ICONS: Record<string, LucideIcon> = {
   "routes/eve-chat": MessageSquareCodeIcon,
 };
 
-/** The id a component's icon is kept under; a vocabulary component has no id of its own and goes by its name. */
-export const componentIconId = (link: Pick<LibraryLink, "id" | "name">) =>
-  link.id ?? `vocabulary/${link.name}`;
+/** The id a component's icon is kept under. */
+export const componentIconId = (link: Pick<LibraryLink, "id" | "href">) =>
+  link.id ?? link.href;
 
 /** A component's icon; `fallback` stands in for an item that has none. */
 export function ComponentIcon({

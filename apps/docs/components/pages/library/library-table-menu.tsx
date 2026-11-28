@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import {
   DownloadIcon,
   RotateCcwIcon,
@@ -55,7 +56,13 @@ const VIEWS: readonly { value: LibraryView; label: string }[] = [
 export type TableFilter = {
   id: string;
   label: string;
-  options: readonly { id: string; label: string; count: number }[];
+  options: readonly {
+    id: string;
+    label: string;
+    count: number;
+    /** What the option belongs to, named once above the options that share it. */
+    heading?: string;
+  }[];
   picked: readonly string[];
   onPickedChange: (picked: readonly string[]) => void;
 };
@@ -146,29 +153,37 @@ export function LibraryTableMenu({
                   ) : null}
                 </span>
               </MenuSubTrigger>
-              <MenuSubContent>
+              <MenuSubContent className="max-h-[min(28rem,70svh)] overflow-y-auto">
                 {filter.options
                   .filter(
                     (option) =>
                       option.count > 0 || filter.picked.includes(option.id),
                   )
-                  .map((option) => (
-                    <MenuCheckboxItem
-                      key={option.id}
-                      checked={filter.picked.includes(option.id)}
-                      onCheckedChange={(on) =>
-                        filter.onPickedChange(
-                          on
-                            ? [...filter.picked, option.id]
-                            : filter.picked.filter((id) => id !== option.id),
-                        )
-                      }
-                    >
-                      <span className="flex flex-1 items-center gap-2">
-                        {option.label}
-                        <Count>{option.count}</Count>
-                      </span>
-                    </MenuCheckboxItem>
+                  .map((option, index, shown) => (
+                    <Fragment key={option.id}>
+                      {option.heading &&
+                      option.heading !== shown[index - 1]?.heading ? (
+                        <>
+                          {index > 0 ? <MenuSeparator /> : null}
+                          <MenuLabel>{option.heading}</MenuLabel>
+                        </>
+                      ) : null}
+                      <MenuCheckboxItem
+                        checked={filter.picked.includes(option.id)}
+                        onCheckedChange={(on) =>
+                          filter.onPickedChange(
+                            on
+                              ? [...filter.picked, option.id]
+                              : filter.picked.filter((id) => id !== option.id),
+                          )
+                        }
+                      >
+                        <span className="flex flex-1 items-center gap-2">
+                          {option.label}
+                          <Count>{option.count}</Count>
+                        </span>
+                      </MenuCheckboxItem>
+                    </Fragment>
                   ))}
               </MenuSubContent>
             </MenuSub>
