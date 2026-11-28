@@ -71,7 +71,7 @@ export function LibraryCodeSnippet({
   return (
     <div
       className={cn(
-        "border-foreground/10 bg-background flex h-9 min-w-0 items-center rounded-full border",
+        "border-foreground/10 bg-background flex h-9 min-w-0 items-center rounded-(--library-control) border",
         className,
       )}
     >
@@ -79,7 +79,7 @@ export function LibraryCodeSnippet({
         role="group"
         aria-label={current.label}
         tabIndex={0}
-        className="focus-visible:ring-ring min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto rounded-s-full [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] outline-none focus-visible:ring-2 [&::-webkit-scrollbar]:hidden"
+        className="focus-visible:ring-ring min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto rounded-s-(--library-control) [mask-image:linear-gradient(to_right,black_calc(100%-1.5rem),transparent)] outline-none focus-visible:ring-2 [&::-webkit-scrollbar]:hidden"
       >
         <code className="block w-max ps-4 pe-6 font-mono text-[13px] whitespace-nowrap select-all">
           {current.kind === "command" ? (
@@ -93,12 +93,12 @@ export function LibraryCodeSnippet({
       <LibraryCopyButton
         text={current.code}
         label={`Copy ${current.label}`}
-        className="me-1 rounded-full"
+        className="me-1 rounded-(--library-icon)"
       />
       <Menu>
         <MenuTrigger
           aria-label={`${label}: ${current.label}`}
-          className="text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground border-foreground/10 h-full w-10 shrink-0 justify-center rounded-s-none rounded-e-full border-s px-0 pe-1 pointer-coarse:h-full"
+          className="text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground border-foreground/10 h-full w-10 shrink-0 justify-center rounded-s-none rounded-e-(--library-control) border-s px-0 pe-1 pointer-coarse:h-full"
         >
           <ChevronDownIcon aria-hidden />
         </MenuTrigger>

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const SWIPE_THRESHOLD_PX = 40;
 
 const roundButton =
-  "bg-background/70 text-foreground ring-foreground/10 hover:bg-background focus-visible:ring-ring grid size-10 cursor-pointer place-items-center rounded-full ring-1 backdrop-blur-md transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-0 [&_svg]:size-5";
+  "bg-background/70 text-foreground ring-foreground/10 hover:bg-background focus-visible:ring-ring grid size-10 cursor-pointer place-items-center rounded-(--library-icon) ring-1 backdrop-blur-md transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-0 [&_svg]:size-5";
 
 export type ViewerShot = { src: string; phone: boolean };
 

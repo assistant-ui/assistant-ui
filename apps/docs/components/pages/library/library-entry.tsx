@@ -97,8 +97,10 @@ export function LinkRow({
         data-nav-glyph-motion
         className="group/navlink relative flex min-w-0 items-center gap-4 py-2"
       >
-        <div className={cn(itemFrame, "shrink-0 rounded-2xl p-1.5")}>
-          <span className="bg-background grid h-11 w-14 place-items-center rounded-[10px]">
+        <div
+          className={cn(itemFrame, "shrink-0 rounded-(--library-thumb) p-1.5")}
+        >
+          <span className="bg-background grid h-11 w-14 place-items-center rounded-(--library-thumb-inner)">
             <LibraryMark mark={link.mark} name={link.name} large />
           </span>
         </div>
@@ -138,8 +140,8 @@ export function BlockCard({
   const docs = `/blocks/${block.slug}`;
   return (
     <li className="group/navlink relative flex min-w-0 flex-col">
-      <div className={cn(itemFrame, "rounded-[32px] p-5")}>
-        <div className="bg-background relative aspect-[16/10] overflow-hidden rounded-xl">
+      <div className={cn(itemFrame, "rounded-(--library-card) p-5")}>
+        <div className="bg-background relative aspect-[16/10] overflow-hidden rounded-(--library-card-inner)">
           <LibraryItemMenu
             id={id}
             label={block.title}
@@ -204,11 +206,11 @@ export function SectionTile({
         onClick={onSelect}
         className={cn(
           itemFrame,
-          "focus-visible:ring-ring flex w-full cursor-pointer flex-col gap-5 rounded-[28px] p-5 text-left outline-none focus-visible:ring-2",
+          "focus-visible:ring-ring flex w-full cursor-pointer flex-col gap-5 rounded-(--library-card) p-5 text-left outline-none focus-visible:ring-2",
         )}
       >
         <span className="flex items-start justify-between gap-2">
-          <span className="bg-background grid h-12 w-16 place-items-center rounded-xl">
+          <span className="bg-background grid h-12 w-16 place-items-center rounded-(--library-card-inner)">
             <LibraryGlyph id={id} />
           </span>
           <span className="text-muted-foreground text-sm tabular-nums">

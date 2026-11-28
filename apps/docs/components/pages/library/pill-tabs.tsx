@@ -37,7 +37,7 @@ export function PillTabs<T extends string>({
             aria-pressed={selected}
             onClick={() => onValueChange(tab.id)}
             className={cn(
-              "h-9 rounded-full px-3 text-sm transition-colors",
+              "h-9 rounded-(--library-control) px-3 text-sm transition-colors",
               selected
                 ? "bg-foreground/[0.06] text-foreground dark:bg-foreground/[0.09]"
                 : "text-muted-foreground hover:text-foreground",

@@ -21,7 +21,7 @@ const rowText = "text-sm/5 font-normal";
  * default steps aside.
  */
 const row = cn(
-  "relative flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 outline-none select-none pointer-coarse:h-9",
+  "relative flex h-7 cursor-pointer items-center gap-2 rounded-(--library-item) px-2 outline-none select-none pointer-coarse:h-9",
   "data-highlighted:bg-accent data-highlighted:text-accent-foreground",
   "data-disabled:pointer-events-none data-disabled:opacity-50",
   "[&_svg:not([class*='text-'])]:text-foreground [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -70,7 +70,7 @@ function MenuTrigger({
     <MenuPrimitive.Trigger
       data-slot="menu-trigger"
       className={cn(
-        "text-foreground inline-flex h-7 cursor-pointer items-center gap-2 rounded-sm border-0 bg-transparent px-3 font-sans outline-none pointer-coarse:h-9",
+        "text-foreground inline-flex h-7 cursor-pointer items-center gap-2 rounded-(--library-item) border-0 bg-transparent px-3 font-sans outline-none pointer-coarse:h-9",
         rowText,
         "hover:bg-accent focus-visible:bg-accent data-popup-open:bg-accent",
         "[&_svg]:size-4 [&_svg]:shrink-0",
@@ -138,7 +138,7 @@ function MenuContent({
           data-slot="menu-content"
           data-glass={glass || undefined}
           className={cn(
-            "rounded-surface border-border text-popover-foreground flex min-w-50 origin-(--transform-origin) [scrollbar-color:var(--border)_transparent] flex-col border p-1 font-sans outline-none",
+            "border-border text-popover-foreground flex min-w-50 origin-(--transform-origin) [scrollbar-color:var(--border)_transparent] flex-col rounded-(--library-surface) border p-1 font-sans outline-none",
             floatShadow,
             rowText,
             // Never taller than the room left on screen; long menus scroll. With a
@@ -211,7 +211,7 @@ function MenuSearch({
               search.setQuery("");
               inputRef.current?.focus();
             }}
-            className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent p-0 outline-none disabled:pointer-events-none disabled:opacity-0"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-(--library-item) border-0 bg-transparent p-0 outline-none disabled:pointer-events-none disabled:opacity-0"
           >
             <HugeiconsIcon
               icon={Cancel01Icon}

@@ -17,7 +17,7 @@ export function LibraryEmpty({
   return (
     <div
       className={cn(
-        "bg-foreground/[0.03] dark:bg-foreground/[0.045] flex flex-col items-center rounded-[32px] px-6 py-16 text-center",
+        "bg-foreground/[0.03] dark:bg-foreground/[0.045] flex flex-col items-center rounded-(--library-card) px-6 py-16 text-center",
         className,
       )}
     >
@@ -34,7 +34,7 @@ export function LibraryEmpty({
         <button
           type="button"
           onClick={action.onClick}
-          className="bg-background hover:bg-foreground/[0.06] focus-visible:ring-ring mt-5 h-9 cursor-pointer rounded-full px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-2"
+          className="bg-background hover:bg-foreground/[0.06] focus-visible:ring-ring mt-5 h-9 cursor-pointer rounded-(--library-control) px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-2"
         >
           {action.label}
         </button>

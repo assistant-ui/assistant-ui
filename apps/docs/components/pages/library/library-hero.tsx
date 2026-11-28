@@ -3,12 +3,10 @@
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon, BrainIcon } from "lucide-react";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { ArrowRightIcon } from "lucide-react";
 import {
   LIBRARY_COMMANDS,
   LIBRARY_GUIDE,
-  LIBRARY_HOME_SKILLS,
   LIBRARY_SECTIONS,
   libraryTotal,
   sectionCount,
@@ -16,28 +14,18 @@ import {
   type LibrarySection,
   type LibrarySectionId,
 } from "@/lib/library/library-data";
-import { LIBRARY_SKILLS, type LibrarySkill } from "@/lib/library/skills-data";
 import { cn } from "@/lib/utils";
 import { AgentsCarousel } from "./agents-carousel";
 import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
-import { iconMenuTrigger } from "./library-item";
+import { libraryDeck, libraryTitle } from "./library-item";
 import { LibraryMark } from "./library-mark";
 import { LibraryStepCommand } from "./library-step-command";
-import { LibraryTooltip } from "./library-tooltip";
 import {
   VisualBackdrop,
   VisualHue,
   visualLift,
   type VisualTone,
 } from "./library-visual";
-import {
-  Menu,
-  MenuContent,
-  MenuGroup,
-  MenuItem,
-  MenuLabel,
-  MenuTrigger,
-} from "./menu";
 import { SkillGlyph } from "./skill-glyphs";
 import { StarterGlyph } from "./starter-glyphs";
 
@@ -184,7 +172,7 @@ function Tiles({ title, count, items, tone }: LookProps) {
   return (
     <VisualBackdrop
       tone={tone}
-      className="flex h-52 flex-col justify-center gap-2.5 rounded-3xl px-5"
+      className="flex h-52 flex-col justify-center gap-2.5 rounded-(--library-card) px-5"
     >
       {shots.length > 0 ? (
         <ul aria-hidden className="flex justify-center gap-2.5">
@@ -255,7 +243,7 @@ function Stack({ title, items, tone }: LookProps) {
   return (
     <VisualBackdrop
       tone={tone}
-      className="grid h-52 place-items-center rounded-3xl px-6 pb-4"
+      className="grid h-52 place-items-center rounded-(--library-card) px-6 pb-4"
     >
       <div className="relative h-14 w-full max-w-xs">
         {shown
@@ -317,7 +305,10 @@ function Stack({ title, items, tone }: LookProps) {
 /** A sheet of paper on a backdrop, listing the first items and what installs each. */
 function Sheet({ title, count, items, tone }: LookProps) {
   return (
-    <VisualBackdrop tone={tone} className="h-52 rounded-3xl px-6 pt-5">
+    <VisualBackdrop
+      tone={tone}
+      className="h-52 rounded-(--library-card) px-6 pt-5"
+    >
       <div
         aria-hidden
         className={cn(
@@ -364,7 +355,7 @@ function Pills({ items, tone }: LookProps) {
   return (
     <VisualBackdrop
       tone={tone}
-      className="grid h-52 place-items-center rounded-3xl px-6"
+      className="grid h-52 place-items-center rounded-(--library-card) px-6"
     >
       <ul aria-hidden className="flex flex-wrap justify-center gap-2">
         {items.slice(0, PILL_COUNT).map((item) => (
@@ -481,18 +472,9 @@ function HeroCarousel({ section }: { section: LibrarySection | undefined }) {
 /** The top of the library under its tabs: the open tab's name, what it holds, how to install it, and a carousel of previews. */
 export function LibraryHero({
   section,
-  onSkill,
 }: {
   section: LibrarySection | undefined;
-  /** Opens a skill's details. */
-  onSkill: (skill: LibrarySkill) => void;
 }) {
-  // A tab with no skill of its own offers the overview, which says which skill to use.
-  const names = section?.skills ?? LIBRARY_HOME_SKILLS;
-  const skills = names.flatMap((name) => {
-    const skill = LIBRARY_SKILLS.find((entry) => entry.name === name);
-    return skill ? [skill] : [];
-  });
   const commands = section ? section.commands : LIBRARY_COMMANDS;
   const guide = section
     ? { label: section.guide, href: section.href }
@@ -504,13 +486,15 @@ export function LibraryHero({
         <div className="flex items-center gap-3">
           <span
             aria-hidden
-            className="bg-foreground/[0.03] dark:bg-foreground/[0.045] grid h-10 w-12 shrink-0 place-items-center rounded-xl"
+            className="bg-foreground/[0.03] dark:bg-foreground/[0.045] grid h-10 w-12 shrink-0 place-items-center rounded-(--library-card-inner)"
           >
             {section ? <LibraryGlyph id={section.id} /> : <GlyphLibrary />}
           </span>
-          <h1 className={typePage}>{section ? section.title : "Library"}</h1>
+          <h1 className={libraryTitle}>
+            {section ? section.title : "Library"}
+          </h1>
         </div>
-        <p className={typeDeck}>
+        <p className={libraryDeck}>
           {section
             ? section.description
             : `${libraryTotal(LIBRARY_SECTIONS)} things you can add to an assistant-ui project.`}
@@ -519,7 +503,7 @@ export function LibraryHero({
           <Link
             href={guide.href}
             className={cn(
-              "group/cta bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm font-medium transition-colors",
+              "group/cta bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center gap-2 rounded-(--library-control) px-3 text-sm font-medium transition-colors",
               focus,
             )}
           >
@@ -535,34 +519,6 @@ export function LibraryHero({
               base={commands.base}
               steps={commands.steps}
             />
-          ) : null}
-          {skills.length > 0 ? (
-            <Menu>
-              <LibraryTooltip label="Skills for this tab">
-                <MenuTrigger
-                  aria-label={`Skills for ${section ? section.title : "the library"}`}
-                  className={cn(
-                    iconMenuTrigger,
-                    "bg-foreground/[0.06] text-foreground size-9",
-                  )}
-                >
-                  <BrainIcon aria-hidden />
-                </MenuTrigger>
-              </LibraryTooltip>
-              <MenuContent align="start">
-                <MenuGroup>
-                  <MenuLabel>Skills</MenuLabel>
-                  {skills.map((skill) => (
-                    <MenuItem key={skill.name} onClick={() => onSkill(skill)}>
-                      <span aria-hidden className={drawing}>
-                        <SkillGlyph name={skill.name} />
-                      </span>
-                      {skill.title}
-                    </MenuItem>
-                  ))}
-                </MenuGroup>
-              </MenuContent>
-            </Menu>
           ) : null}
         </div>
       </div>

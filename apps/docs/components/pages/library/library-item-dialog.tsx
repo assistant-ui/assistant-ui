@@ -42,7 +42,7 @@ export type LibraryDetails = {
 };
 
 const button =
-  "focus-visible:ring-ring inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
+  "focus-visible:ring-ring inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-(--library-control) px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 function DetailsBody({ item }: { item: LibraryDetails }) {
   const isSaved = useLibrarySaved().includes(item.id);
@@ -51,7 +51,7 @@ function DetailsBody({ item }: { item: LibraryDetails }) {
   return (
     <div className="flex flex-col gap-5 p-4">
       <div className="flex items-start gap-3">
-        <span className="bg-foreground/[0.04] dark:bg-foreground/[0.06] relative grid h-11 w-14 shrink-0 place-items-center overflow-hidden rounded-xl">
+        <span className="bg-foreground/[0.04] dark:bg-foreground/[0.06] relative grid h-11 w-14 shrink-0 place-items-center overflow-hidden rounded-(--library-card-inner)">
           {item.image ? (
             <>
               <Image
@@ -81,7 +81,7 @@ function DetailsBody({ item }: { item: LibraryDetails }) {
         </div>
         <LibraryDialogClose
           aria-label="Close"
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-1 -mt-1 grid size-8 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4"
+          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-1 -mt-1 grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4"
         >
           <XIcon aria-hidden />
         </LibraryDialogClose>

@@ -42,7 +42,7 @@ export function LibraryCopyButton({
         timer.current = setTimeout(() => setCopied(false), COPIED_MS);
       }}
       className={cn(
-        "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors outline-none focus-visible:ring-2",
+        "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2",
         copied && "text-foreground",
         className,
       )}

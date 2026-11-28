@@ -88,7 +88,7 @@ function AgentsTiles() {
   return (
     <VisualBackdrop
       tone="mint"
-      className="flex h-52 flex-col justify-center gap-2.5 rounded-3xl"
+      className="flex h-52 flex-col justify-center gap-2.5 rounded-(--library-card)"
     >
       {rows.map((row, index) => (
         <ul
@@ -147,7 +147,7 @@ function AgentsPills() {
   return (
     <VisualBackdrop
       tone="iris"
-      className="flex h-52 flex-col items-center justify-center gap-2 rounded-3xl px-5"
+      className="flex h-52 flex-col items-center justify-center gap-2 rounded-(--library-card) px-5"
     >
       <ul className="flex w-full flex-col items-center gap-2">
         {shown.map((agent, index) => (
@@ -212,7 +212,7 @@ function AgentsStack() {
   return (
     <VisualBackdrop
       tone="dawn"
-      className="grid h-52 place-items-center rounded-3xl px-6 pb-4"
+      className="grid h-52 place-items-center rounded-(--library-card) px-6 pb-4"
     >
       <div className="relative h-14 w-full max-w-xs">
         {shown
@@ -280,7 +280,10 @@ function AgentRow({ agent }: { agent: SkillAgent }) {
 /** A sheet of paper on a backdrop, listing every agent and its folder; it scrolls. */
 function AgentsSheet() {
   return (
-    <VisualBackdrop tone="iris" className="h-52 rounded-3xl px-6 pt-5">
+    <VisualBackdrop
+      tone="iris"
+      className="h-52 rounded-(--library-card) px-6 pt-5"
+    >
       <div
         className={cn(
           "bg-background flex h-full flex-col gap-1.5 rounded-t-xl p-3",
@@ -316,7 +319,7 @@ function AgentsSearch() {
   return (
     <VisualBackdrop
       tone="dawn"
-      className="flex h-52 flex-col items-center justify-end gap-1.5 rounded-3xl px-6 pb-5"
+      className="flex h-52 flex-col items-center justify-end gap-1.5 rounded-(--library-card) px-6 pb-5"
     >
       <ul
         aria-label="Matching agents"

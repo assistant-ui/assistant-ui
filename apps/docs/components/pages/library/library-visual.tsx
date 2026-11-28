@@ -71,7 +71,7 @@ export function VisualBackdrop({
     <div
       style={style}
       className={cn(
-        "relative isolate overflow-hidden rounded-[32px]",
+        "relative isolate overflow-hidden rounded-(--library-card)",
         tone === "sand"
           ? "bg-foreground/[0.03] dark:bg-foreground/[0.045]"
           : "bg-background",

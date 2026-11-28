@@ -46,7 +46,7 @@ export function LibraryStepCommand({
   return (
     <div
       className={cn(
-        "border-foreground/10 bg-background relative flex h-9 w-full max-w-md min-w-0 items-center rounded-full border ps-4",
+        "border-foreground/10 bg-background relative flex h-9 w-full max-w-md min-w-0 items-center rounded-(--library-control) border ps-4",
         className,
       )}
     >
@@ -81,19 +81,19 @@ export function LibraryStepCommand({
             type="button"
             aria-label={`${text}: ${step.does}. Show the next one.`}
             onClick={() => setIndex((current) => (current + 1) % steps.length)}
-            className="focus-visible:ring-ring absolute inset-0 cursor-pointer rounded-full outline-none focus-visible:ring-2"
+            className="focus-visible:ring-ring absolute inset-0 cursor-pointer rounded-(--library-control) outline-none focus-visible:ring-2"
           />
         </LibraryTooltip>
       ) : null}
       <LibraryCopyButton
         text={text}
         label={asPrompt ? "Copy this prompt" : "Copy this command"}
-        className="relative me-1 rounded-full"
+        className="relative me-1 rounded-(--library-icon)"
       />
       <Menu>
         <MenuTrigger
           aria-label={`Install with: ${way}`}
-          className="text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground border-foreground/10 relative h-full w-10 shrink-0 justify-center rounded-s-none rounded-e-full border-s px-0 pe-1 pointer-coarse:h-full"
+          className="text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground border-foreground/10 relative h-full w-10 shrink-0 justify-center rounded-s-none rounded-e-(--library-control) border-s px-0 pe-1 pointer-coarse:h-full"
         >
           <ChevronDownIcon aria-hidden />
         </MenuTrigger>

@@ -20,7 +20,7 @@ export function LibraryTooltip({
       <Tooltip.Trigger render={children} />
       <Tooltip.Portal>
         <Tooltip.Positioner side={side} sideOffset={8} className="z-50">
-          <Tooltip.Popup className="bg-foreground text-background origin-(--transform-origin) rounded-md px-2 py-1 text-xs font-medium whitespace-nowrap shadow-md transition-[opacity,transform] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
+          <Tooltip.Popup className="bg-foreground text-background origin-(--transform-origin) rounded-(--library-surface) px-2 py-1 text-xs font-medium whitespace-nowrap shadow-md transition-[opacity,transform] duration-100 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
             {label}
           </Tooltip.Popup>
         </Tooltip.Positioner>

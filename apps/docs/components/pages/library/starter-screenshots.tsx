@@ -148,7 +148,7 @@ function Stage({
   onOpen: (index: number) => void;
 }) {
   const shell =
-    "bg-foreground/[0.03] relative min-h-64 w-full flex-1 rounded-xl";
+    "bg-foreground/[0.03] relative min-h-64 w-full flex-1 rounded-(--library-card-inner)";
   const area =
     "absolute inset-5 flex items-center justify-center [container-type:size]";
   const desktopBox = "relative aspect-[16/10] w-[min(100cqw,160cqh)]";

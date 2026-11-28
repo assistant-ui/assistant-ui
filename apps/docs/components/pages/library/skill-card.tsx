@@ -45,11 +45,11 @@ export function SkillCard({ skill, onSelect }: SkillItemProps) {
       <div
         className={cn(
           itemFrame,
-          "flex w-full flex-col gap-5 rounded-[28px] p-5",
+          "flex w-full flex-col gap-5 rounded-(--library-card) p-5",
         )}
       >
         <div className="flex items-start justify-between gap-2">
-          <span className="bg-background grid h-12 w-16 place-items-center rounded-xl">
+          <span className="bg-background grid h-12 w-16 place-items-center rounded-(--library-card-inner)">
             <SkillGlyph name={skill.name} />
           </span>
           <SkillMenu
@@ -93,8 +93,10 @@ export function SkillRow({ skill, onSelect }: SkillItemProps) {
       data-nav-glyph-motion
       className="group/navlink relative flex min-w-0 items-center gap-4 py-2"
     >
-      <div className={cn(itemFrame, "shrink-0 rounded-2xl p-1.5")}>
-        <span className="bg-background grid h-11 w-14 place-items-center rounded-[10px] [&>svg]:h-8 [&>svg]:w-[2.667rem]">
+      <div
+        className={cn(itemFrame, "shrink-0 rounded-(--library-thumb) p-1.5")}
+      >
+        <span className="bg-background grid h-11 w-14 place-items-center rounded-(--library-thumb-inner) [&>svg]:h-8 [&>svg]:w-[2.667rem]">
           <SkillGlyph name={skill.name} />
         </span>
       </div>

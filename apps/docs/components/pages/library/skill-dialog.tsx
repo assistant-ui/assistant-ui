@@ -50,13 +50,13 @@ import {
 } from "./skill-search";
 
 const iconButton =
-  "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
+  "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 const button =
-  "focus-visible:ring-ring inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
+  "focus-visible:ring-ring inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-(--library-control) px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 const tab =
-  "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 shrink-0 cursor-pointer rounded-full px-3 font-mono text-[13px] whitespace-nowrap transition-colors outline-none [font-variant-ligatures:none] focus-visible:ring-2 focus-visible:ring-inset";
+  "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 shrink-0 cursor-pointer rounded-(--library-control) px-3 font-mono text-[13px] whitespace-nowrap transition-colors outline-none [font-variant-ligatures:none] focus-visible:ring-2 focus-visible:ring-inset";
 
 type SkillFile = { name: string; href: string; base?: string };
 
@@ -228,13 +228,13 @@ function FileSearch({
         aria-label="Search in files"
         autoComplete="off"
         spellCheck={false}
-        className="bg-foreground/[0.04] placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-full ps-8 pe-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset [&::-webkit-search-cancel-button]:appearance-none"
+        className="bg-foreground/[0.04] placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-(--library-control) ps-8 pe-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset [&::-webkit-search-cancel-button]:appearance-none"
       />
       <button
         type="button"
         aria-label="Close search"
         onClick={() => onQueryChange(null)}
-        className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring absolute end-1 top-1/2 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2"
+        className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring absolute end-1 top-1/2 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
       >
         <XIcon aria-hidden className="size-3.5" />
       </button>
@@ -350,7 +350,7 @@ function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
       <div className="flex items-start gap-3">
         <span
           data-nav-glyph-motion
-          className="group/navlink bg-foreground/[0.04] dark:bg-foreground/[0.06] grid h-11 w-14 shrink-0 place-items-center rounded-xl"
+          className="group/navlink bg-foreground/[0.04] dark:bg-foreground/[0.06] grid h-11 w-14 shrink-0 place-items-center rounded-(--library-card-inner)"
         >
           <SkillGlyph name={skill.name} />
         </span>
@@ -403,7 +403,7 @@ function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
         <div
           role="group"
           aria-label="File view"
-          className="bg-foreground/[0.04] flex shrink-0 rounded-full p-0.5"
+          className="bg-foreground/[0.04] flex shrink-0 rounded-(--library-control) p-0.5"
         >
           {(
             [
@@ -417,7 +417,7 @@ function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
               aria-pressed={raw === mode}
               onClick={() => setRaw(mode)}
               className={cn(
-                "focus-visible:ring-ring h-7 cursor-pointer rounded-full px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2",
+                "focus-visible:ring-ring h-7 cursor-pointer rounded-(--library-control) px-2.5 text-[13px] transition-colors outline-none focus-visible:ring-2",
                 raw === mode
                   ? "bg-background text-foreground"
                   : "text-muted-foreground hover:text-foreground",
@@ -431,7 +431,7 @@ function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
 
       <div
         ref={scrollRef}
-        className="border-foreground/10 mt-2 min-h-0 flex-1 overflow-y-auto rounded-2xl border p-4"
+        className="border-foreground/10 mt-2 min-h-0 flex-1 overflow-y-auto rounded-(--library-thumb) border p-4"
       >
         {searching ? (
           <Tabs.Panel value={RESULTS} className="outline-none">

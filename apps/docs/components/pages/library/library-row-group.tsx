@@ -17,7 +17,7 @@ export function RowGroup({
         <h3>{title}</h3>
         {aside}
       </div>
-      <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-2xl border px-4">
+      <ul className="border-foreground/10 divide-foreground/10 divide-y rounded-(--library-thumb) border px-4">
         {children}
       </ul>
     </section>

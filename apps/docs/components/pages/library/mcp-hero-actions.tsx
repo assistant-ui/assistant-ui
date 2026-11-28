@@ -21,7 +21,7 @@ export function McpHeroActions() {
       />
       <Link
         href="/docs/llm#mcp"
-        className="group/cta focus-visible:ring-ring bg-foreground/[0.06] hover:bg-foreground/[0.1] inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-2"
+        className="group/cta focus-visible:ring-ring bg-foreground/[0.06] hover:bg-foreground/[0.1] inline-flex h-9 items-center gap-2 rounded-(--library-control) px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-2"
       >
         Read the MCP guide
         <ArrowRightIcon

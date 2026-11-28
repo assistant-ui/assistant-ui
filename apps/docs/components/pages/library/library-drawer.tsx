@@ -26,7 +26,7 @@ export function LibraryDrawerContent({
       <DrawerPrimitive.Viewport className="pointer-events-auto fixed inset-0 z-50">
         <DrawerPrimitive.Popup
           className={cn(
-            "bg-background ring-foreground/10 fixed inset-y-2 right-2 z-50 flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl shadow-xl ring-1 outline-none",
+            "bg-background ring-foreground/10 fixed inset-y-2 right-2 z-50 flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-(--library-floating) shadow-xl ring-1 outline-none",
             "[transform:translate3d(var(--drawer-swipe-movement-x,0px),0,0)] transition-transform duration-450 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform",
             "data-ending-style:[transform:translate3d(calc(100%+1rem),0,0)] data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*400ms)] data-starting-style:[transform:translate3d(calc(100%+1rem),0,0)] data-swiping:duration-0 motion-reduce:transition-none",
             className,

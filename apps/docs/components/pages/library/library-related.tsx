@@ -20,7 +20,7 @@ export function LibraryRelated({
       </h2>
       <Link
         href={href}
-        className="group/related bg-foreground/[0.03] hover:bg-foreground/[0.05] dark:bg-foreground/[0.045] dark:hover:bg-foreground/[0.07] focus-visible:ring-ring flex items-center justify-between gap-6 rounded-[32px] px-7 py-6 transition-colors outline-none focus-visible:ring-2"
+        className="group/related bg-foreground/[0.03] hover:bg-foreground/[0.05] dark:bg-foreground/[0.045] dark:hover:bg-foreground/[0.07] focus-visible:ring-ring flex items-center justify-between gap-6 rounded-(--library-card) px-7 py-6 transition-colors outline-none focus-visible:ring-2"
       >
         <span className="flex min-w-0 flex-col gap-1">
           <span className="text-[13.5px] font-medium">{title}</span>

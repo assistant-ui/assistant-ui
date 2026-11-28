@@ -8,10 +8,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
-import { PanelLeftIcon, PanelTopIcon } from "lucide-react";
 import {
   entryKey,
   entryName,
+  LIBRARY_HOME_SKILLS,
   LIBRARY_SECTIONS,
   matchesEntry,
   libraryTotal,
@@ -19,10 +19,11 @@ import {
   type LibraryEntry,
   type LibrarySectionId,
 } from "@/lib/library/library-data";
-import type { LibrarySkill } from "@/lib/library/skills-data";
+import { LIBRARY_SKILLS, type LibrarySkill } from "@/lib/library/skills-data";
 import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
+import { LibraryDock } from "./library-dock";
 import { LibraryHero } from "./library-hero";
 import { LibraryItemDialog, type LibraryDetails } from "./library-item-dialog";
 import { LibraryEmpty } from "./library-empty";
@@ -40,7 +41,7 @@ import {
   MenuSubTrigger,
 } from "./menu";
 import { LibrarySidebar, useLibraryLayout } from "./library-sidebar";
-import { LibraryTooltip } from "./library-tooltip";
+import { LibraryAppearancePanel } from "./library-theme";
 import { PillTabs, type PillTab } from "./pill-tabs";
 import { LibrarySavedButton } from "./saved-sheet";
 import { SearchBar } from "./search-bar";
@@ -125,6 +126,7 @@ export function LibraryBrowser() {
   const [starterOpen, setStarterOpen] = useState(false);
   const [skill, setSkill] = useState<LibrarySkill | null>(null);
   const [skillOpen, setSkillOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [details, setDetails] = useState<LibraryDetails | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const openDetails = (next: LibraryDetails) => {
@@ -401,13 +403,7 @@ export function LibraryBrowser() {
             "lg:-mx-2 lg:h-full lg:min-h-0 lg:[scrollbar-width:thin] lg:overflow-y-auto lg:px-2 lg:pb-10",
         )}
       >
-        <LibraryHero
-          section={current}
-          onSkill={(selected) => {
-            setSkill(selected);
-            setSkillOpen(true);
-          }}
-        />
+        <LibraryHero section={current} />
         <div className="mb-10 flex flex-wrap items-center gap-x-4 gap-y-3">
           <PillTabs
             tabs={tabs}
@@ -424,27 +420,6 @@ export function LibraryBrowser() {
               className="min-w-0 flex-1"
             />
             {menu}
-            <LibraryTooltip
-              label={
-                sidebar
-                  ? "Show the types as tabs"
-                  : "Show the types in a sidebar"
-              }
-            >
-              <button
-                type="button"
-                aria-pressed={sidebar}
-                aria-label="Sidebar layout"
-                onClick={() => setLayout(sidebar ? "tabs" : "sidebar")}
-                className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring hidden size-9 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2 lg:grid"
-              >
-                {sidebar ? (
-                  <PanelTopIcon aria-hidden className="size-4" />
-                ) : (
-                  <PanelLeftIcon aria-hidden className="size-4" />
-                )}
-              </button>
-            </LibraryTooltip>
             <LibrarySavedButton />
           </div>
         </div>
@@ -457,6 +432,24 @@ export function LibraryBrowser() {
           skill={skill}
           open={skillOpen}
           onOpenChange={setSkillOpen}
+        />
+        <LibraryDock
+          title={current ? current.title : "the library"}
+          skills={(current?.skills ?? LIBRARY_HOME_SKILLS).flatMap((name) => {
+            const found = LIBRARY_SKILLS.find((entry) => entry.name === name);
+            return found ? [found] : [];
+          })}
+          onSkill={(selected) => {
+            setSkill(selected);
+            setSkillOpen(true);
+          }}
+          onAppearance={() => setAppearanceOpen(true)}
+        />
+        <LibraryAppearancePanel
+          open={appearanceOpen}
+          onOpenChange={setAppearanceOpen}
+          layout={layout}
+          onLayoutChange={setLayout}
         />
         <LibraryItemDialog
           item={details}

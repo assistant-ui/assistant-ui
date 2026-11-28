@@ -4,13 +4,21 @@ import type { ReactNode } from "react";
 import { ArrowRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** The page title, as the theme sets its size, weight, and spacing; a step smaller on a phone. */
+export const libraryTitle =
+  "[font-family:var(--library-title-font)] text-[calc(var(--library-title-size)*0.8334)] leading-(--library-title-leading) [font-weight:var(--library-title-weight)] [letter-spacing:var(--library-title-tracking)] text-balance md:text-[length:var(--library-title-size)]";
+
+/** The line under the title, as the theme sets it. */
+export const libraryDeck =
+  "text-muted-foreground max-w-[40ch] text-[length:var(--library-text-size)] leading-(--library-text-leading) [font-weight:var(--library-text-weight)] [letter-spacing:var(--library-text-tracking)] text-pretty";
+
 /** The tinted frame around a library item's preview; it answers to its `group/navlink` item. */
 export const itemFrame =
   "bg-foreground/[0.03] group-hover/navlink:bg-foreground/[0.05] dark:bg-foreground/[0.045] dark:group-hover/navlink:bg-foreground/[0.07] group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-ring transition-colors group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-2";
 
 /** Makes a `MenuTrigger` a round icon button; the menu supplies the hover fill. */
 export const iconMenuTrigger =
-  "text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground size-8 shrink-0 justify-center rounded-full p-0 pointer-coarse:size-9";
+  "text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground size-8 shrink-0 justify-center rounded-(--library-icon) p-0 pointer-coarse:size-9";
 
 /** An item's name as the button that opens its details; the click area covers the whole item. */
 export function ItemTitle({
@@ -56,8 +64,8 @@ export function ItemGlyph({ children }: { children: ReactNode }) {
 /** An item's small preview, as a list row and the saved panel show it. */
 export function ItemThumbnail({ children }: { children: ReactNode }) {
   return (
-    <div className={cn(itemFrame, "shrink-0 rounded-[18px] p-2")}>
-      <div className="bg-background relative flex aspect-[16/10] w-24 items-center justify-center overflow-hidden rounded-[10px]">
+    <div className={cn(itemFrame, "shrink-0 rounded-(--library-thumb) p-2")}>
+      <div className="bg-background relative flex aspect-[16/10] w-24 items-center justify-center overflow-hidden rounded-(--library-thumb-inner)">
         {children}
       </div>
     </div>

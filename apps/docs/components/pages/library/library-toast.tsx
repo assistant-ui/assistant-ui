@@ -80,7 +80,7 @@ function ToastItem({ toast }: { toast: Toast }) {
   return (
     <li
       className={cn(
-        "bg-popover text-popover-foreground ring-foreground/10 pointer-events-auto flex w-full items-center gap-2.5 rounded-xl py-2 ps-3 pe-2 text-sm shadow-lg ring-1",
+        "bg-popover text-popover-foreground ring-foreground/10 pointer-events-auto flex w-full items-center gap-2.5 rounded-(--library-floating) py-2 ps-3 pe-2 text-sm shadow-lg ring-1",
         "animate-in fade-in-0 slide-in-from-top-2 duration-150 motion-reduce:animate-none",
       )}
     >
@@ -99,7 +99,7 @@ function ToastItem({ toast }: { toast: Toast }) {
             toast.action?.onClick();
             dismiss(toast.id);
           }}
-          className="bg-foreground text-background hover:bg-foreground/90 focus-visible:ring-ring h-7 shrink-0 cursor-pointer rounded-lg px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+          className="bg-foreground text-background hover:bg-foreground/90 focus-visible:ring-ring h-7 shrink-0 cursor-pointer rounded-(--library-control) px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2"
         >
           {toast.action.label}
         </button>
@@ -108,7 +108,7 @@ function ToastItem({ toast }: { toast: Toast }) {
         type="button"
         aria-label="Dismiss"
         onClick={() => dismiss(toast.id)}
-        className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-7 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2"
+        className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-7 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
       >
         <XIcon aria-hidden className="size-3.5" />
       </button>

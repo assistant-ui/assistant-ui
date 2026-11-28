@@ -50,7 +50,7 @@ import {
 import { StarterScreenshots } from "./starter-screenshots";
 
 const button =
-  "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
+  "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-(--library-control) px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 function CodeList({ items }: { items: readonly string[] }) {
   return (
@@ -164,7 +164,7 @@ function OpenStep({ starter }: { starter: Starter }) {
           target="_blank"
           rel="noreferrer"
           aria-label={`Open ${open.url} (opens in a new tab)`}
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 place-items-center rounded-lg transition-colors outline-none focus-visible:ring-2"
+          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
         >
           <ArrowUpRightIcon aria-hidden className="size-4" />
         </a>
@@ -209,7 +209,7 @@ function StarterDetails({ starter }: { starter: Starter }) {
             </a>
             <LibraryDrawerClose
               aria-label="Close"
-              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-2 -mt-0.5 grid size-8 shrink-0 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-2 -mt-0.5 grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
             >
               <XIcon aria-hidden className="size-4" />
             </LibraryDrawerClose>
@@ -229,7 +229,7 @@ function StarterDetails({ starter }: { starter: Starter }) {
                     key={tab.value}
                     value={tab.value}
                     className={cn(
-                      "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 cursor-pointer rounded-full px-3.5 text-sm transition-colors outline-none focus-visible:ring-2",
+                      "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 cursor-pointer rounded-(--library-control) px-3.5 text-sm transition-colors outline-none focus-visible:ring-2",
                     )}
                   >
                     {tab.label}

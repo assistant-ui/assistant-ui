@@ -33,7 +33,7 @@ import { StarterThumbnail } from "./starter-card";
 import { copyWithLibraryToast } from "./library-toast";
 
 const button =
-  "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
+  "focus-visible:ring-ring inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-(--library-control) px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 export function LibrarySavedButton({ className }: { className?: string }) {
   const count = useLibrarySaved().length;
@@ -43,7 +43,7 @@ export function LibrarySavedButton({ className }: { className?: string }) {
       onClick={() => setLibrarySavedOpen(true)}
       aria-label={`Open saved, ${count} ${count === 1 ? "item" : "items"}`}
       className={cn(
-        "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring relative grid size-9 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2",
+        "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring relative grid size-9 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2",
         className,
       )}
     >
@@ -108,7 +108,7 @@ export function LibrarySavedSheet() {
     <Dialog.Root open={open} onOpenChange={setLibrarySavedOpen}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
-        <Dialog.Popup className="bg-background ring-foreground/10 fixed inset-y-2 right-2 z-50 flex w-[min(24rem,calc(100vw-1rem))] flex-col rounded-xl shadow-xl ring-1 transition-transform duration-200 outline-none data-ending-style:translate-x-[calc(100%+1rem)] data-starting-style:translate-x-[calc(100%+1rem)] motion-reduce:transition-none">
+        <Dialog.Popup className="bg-background ring-foreground/10 fixed inset-y-2 right-2 z-50 flex w-[min(24rem,calc(100vw-1rem))] flex-col rounded-(--library-floating) shadow-xl ring-1 transition-transform duration-200 outline-none data-ending-style:translate-x-[calc(100%+1rem)] data-starting-style:translate-x-[calc(100%+1rem)] motion-reduce:transition-none">
           <div className="flex items-start justify-between gap-4 p-5 pb-3">
             <div className="flex flex-col gap-1">
               <Dialog.Title className="text-base font-medium">
@@ -122,7 +122,7 @@ export function LibrarySavedSheet() {
             </div>
             <Dialog.Close
               aria-label="Close saved"
-              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-1.5 grid size-8 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-1.5 grid size-8 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
             >
               <XIcon aria-hidden className="size-4" />
             </Dialog.Close>
@@ -133,7 +133,7 @@ export function LibrarySavedSheet() {
                 {items.map((item) => (
                   <li
                     key={item.id}
-                    className="hover:bg-foreground/[0.025] flex items-center gap-3 rounded-xl py-2 ps-2 pe-1"
+                    className="hover:bg-foreground/[0.025] flex items-center gap-3 rounded-(--library-surface) py-2 ps-2 pe-1"
                   >
                     <SavedPreview preview={item.preview} />
                     <span className="flex min-w-0 flex-1 flex-col">
@@ -146,7 +146,7 @@ export function LibrarySavedSheet() {
                       type="button"
                       aria-label={`Remove ${item.name} from saved`}
                       onClick={() => removeLibrarySavedItem(item.id)}
-                      className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-7 cursor-pointer place-items-center rounded-full transition-colors outline-none focus-visible:ring-2"
+                      className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-7 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
                     >
                       <XIcon aria-hidden className="size-3.5" />
                     </button>

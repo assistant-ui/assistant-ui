@@ -39,7 +39,7 @@ export function SearchBar({
         aria-label={label}
         autoComplete="off"
         spellCheck={false}
-        className="bg-background placeholder:text-muted-foreground focus-visible:border-foreground/30 h-9 w-full rounded-full border px-10 text-sm transition-colors outline-none [&::-webkit-search-cancel-button]:appearance-none"
+        className="bg-background placeholder:text-muted-foreground focus-visible:border-foreground/30 h-9 w-full rounded-(--library-control) border px-10 text-sm transition-colors outline-none [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && (
         <button
@@ -49,7 +49,7 @@ export function SearchBar({
             onValueChange("");
             inputRef.current?.focus();
           }}
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] absolute end-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-full transition-colors"
+          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] absolute end-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-(--library-icon) transition-colors"
         >
           <XIcon className="size-4" />
         </button>

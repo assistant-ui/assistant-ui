@@ -79,7 +79,7 @@ export function LibrarySidebar<T extends string>({
                 aria-current={selected ? "page" : undefined}
                 onClick={() => onValueChange(item.id)}
                 className={cn(
-                  "group/navlink focus-visible:ring-ring flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-lg ps-2 pe-3 text-left text-sm transition-colors outline-none focus-visible:ring-2 [&_svg]:h-5 [&_svg]:w-[1.667rem] [&_svg]:shrink-0",
+                  "group/navlink focus-visible:ring-ring flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-(--library-control) ps-2 pe-3 text-left text-sm transition-colors outline-none focus-visible:ring-2 [&_svg]:h-5 [&_svg]:w-[1.667rem] [&_svg]:shrink-0",
                   selected
                     ? "bg-foreground/[0.06] text-foreground dark:bg-foreground/[0.09] font-medium"
                     : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.03]",

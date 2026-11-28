@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import {
+  libraryDeck,
+  libraryTitle,
+} from "@/components/pages/library/library-item";
 import { createOgMetadata } from "@/lib/og";
 import { LibraryRelated } from "@/components/pages/library/library-related";
 import { McpConnect } from "@/components/pages/library/mcp-connect";
@@ -37,8 +40,8 @@ export default function McpPage(): React.ReactElement {
             Library
           </Link>
         </nav>
-        <h1 className={typePage}>MCP server</h1>
-        <p className={typeDeck}>
+        <h1 className={libraryTitle}>MCP server</h1>
+        <p className={libraryDeck}>
           One hosted server that gives your editor&apos;s agent the docs,
           examples, and app templates. It sets up in {MCP_EDITORS.length}{" "}
           editors with one command.

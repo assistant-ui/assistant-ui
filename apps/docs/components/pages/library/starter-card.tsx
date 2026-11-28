@@ -144,8 +144,8 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
       className="group/navlink relative flex min-w-0 flex-col"
       {...handlers}
     >
-      <div className={cn(itemFrame, "rounded-[32px] p-5")}>
-        <div className="bg-background relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-xl">
+      <div className={cn(itemFrame, "rounded-(--library-card) p-5")}>
+        <div className="bg-background relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-(--library-card-inner)">
           <StarterMenu
             starter={starter}
             onDetails={() => onSelect(starter)}
