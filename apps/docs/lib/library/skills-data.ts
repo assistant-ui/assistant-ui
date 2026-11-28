@@ -4,6 +4,18 @@ export const SKILLS_COMMAND = `npx skills add ${SKILLS_REPO}`;
 export const SKILLS_PROMPT = `Install the assistant-ui agent skills with \`${SKILLS_COMMAND}\``;
 export const SKILLS_REPO_HREF = `https://github.com/${SKILLS_REPO}`;
 
+/** What follows `npx skills` in the stepping install command, with what each command does. */
+export const SKILLS_COMMAND_STEPS = [
+  { rest: `add ${SKILLS_REPO}`, does: "Install every skill" },
+  { rest: `add ${SKILLS_REPO} --skill setup`, does: "Install one skill" },
+  {
+    rest: `use ${SKILLS_REPO}@setup`,
+    does: "Use one skill without installing it",
+  },
+  { rest: "check", does: "Check your installed skills for updates" },
+  { rest: "update", does: "Update your installed skills" },
+] as const;
+
 export type SkillGroupId = "start" | "interface" | "runtime" | "platforms";
 
 export type SkillGroup = {

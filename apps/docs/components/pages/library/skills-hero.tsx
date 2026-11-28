@@ -10,9 +10,9 @@ import {
   SKILL_AGENTS_DOCS,
   type SkillAgent,
 } from "@/lib/library/skill-agents";
+import { SKILLS_COMMAND_STEPS } from "@/lib/library/skills-data";
 import { cn } from "@/lib/utils";
-import { LibraryCopyButton } from "./library-copy-button";
-import { LibraryTooltip } from "./library-tooltip";
+import { LibraryStepCommand } from "./library-step-command";
 import { VisualBackdrop, visualLift } from "./library-visual";
 import {
   Menu,
@@ -29,21 +29,6 @@ const mono = "font-mono [font-variant-ligatures:none]";
 const focus = "focus-visible:ring-ring outline-none focus-visible:ring-2";
 
 const label = "text-xs font-medium";
-
-/** What follows `npx skills` in the install button, with what each command does. */
-const COMMANDS = [
-  { rest: "add assistant-ui/skills", does: "Install every skill" },
-  {
-    rest: "add assistant-ui/skills --skill setup",
-    does: "Install one skill",
-  },
-  {
-    rest: "use assistant-ui/skills@setup",
-    does: "Use one skill without installing it",
-  },
-  { rest: "check", does: "Check your installed skills for updates" },
-  { rest: "update", does: "Update your installed skills" },
-];
 
 const AgentIcon = dynamic(() =>
   import("./agent-icons").then((module) => module.AgentIcon),
@@ -425,50 +410,6 @@ function AgentsCarousel() {
 }
 
 /**
- * The install button: `npx skills` stays put and a click swaps what follows
- * it for the next command. The copy button copies the command as shown.
- */
-function InstallCommand() {
-  const [index, setIndex] = useState(0);
-  const command = COMMANDS[index % COMMANDS.length]!;
-  const text = `npx skills ${command.rest}`;
-  return (
-    <div className="border-foreground/10 bg-background relative flex h-9 w-full max-w-md min-w-0 items-center rounded-full border ps-4 pe-1">
-      <code
-        className={cn(
-          mono,
-          "flex min-w-0 flex-1 items-center overflow-hidden text-[13px] whitespace-nowrap",
-        )}
-      >
-        <span aria-hidden className="text-muted-foreground me-2">
-          $
-        </span>
-        npx skills
-        <span
-          key={command.rest}
-          className="animate-in fade-in-0 slide-in-from-bottom-1 ms-[1ch] truncate duration-200 motion-reduce:animate-none"
-        >
-          {command.rest}
-        </span>
-      </code>
-      <LibraryTooltip label={`${command.does}. Click for the next command.`}>
-        <button
-          type="button"
-          aria-label={`${text}: ${command.does}. Show the next command.`}
-          onClick={() => setIndex((current) => (current + 1) % COMMANDS.length)}
-          className={cn("absolute inset-0 cursor-pointer rounded-full", focus)}
-        />
-      </LibraryTooltip>
-      <LibraryCopyButton
-        text={text}
-        label="Copy this command"
-        className="relative rounded-full"
-      />
-    </div>
-  );
-}
-
-/**
  * The skills hero: title and description, the install command beside the link
  * to the guide, and the agents the skills install into.
  */
@@ -495,7 +436,7 @@ export function SkillsHero({
           installed with one command.
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <InstallCommand />
+          <LibraryStepCommand base="npx skills" steps={SKILLS_COMMAND_STEPS} />
           <Link
             href="/docs/llm#skills"
             className={cn(

@@ -81,3 +81,17 @@ Every item that can be saved carries its own install command and agent prompt in
 - Vocabulary components ship inside `@assistant-ui/generative-ui` and cannot be added one at a time, so they have no menu.
 
 When to redo it: a registry item, an npm package, or a `setup` product is renamed, or a design page gains or loses its install line.
+
+## Marks before item names are hand-assigned
+
+`lib/library/marks.ts` says what is drawn before each Runtimes, Tools, Integrations, Utilities, and MCP server item: a brand's logo, a coding agent's mark, or one of the library's line drawings. `components/pages/library/library-mark.tsx` draws them. An item with no entry shows the first letter of its name (Pydantic AI, better-auth, and Auth.js today, which have no logo in the repository).
+
+- Logos come from `components/icons` and from the brands the starters' filter menu already draws.
+- Tools and Utilities have no brands of their own, so most borrow a skill's or a tab's drawing; four utilities have their own drawings in `library-glyphs.tsx`.
+- Components have no marks yet; that tab is due to be redone.
+
+When to redo it: an item is added to one of those tabs, or a logo for a lettered item is added to the repository.
+
+## Install lines copied from docs pages
+
+Ten docs-backed items take their install command from the first `<InstallCommand npm={[...]}>` on their page (Langfuse, LangSmith, custom thread persistence, Mastra, Pydantic AI, Cloudflare Agents, LocalRuntime, ExternalStoreRuntime, MCP, and MCP Apps). The command sits in `lib/library/docs-data.ts` and goes stale when the page's packages or pinned versions change.

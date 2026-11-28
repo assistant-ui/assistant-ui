@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { LibraryGlyph } from "./library-glyphs";
 import { itemFrame } from "./library-item";
 import { LibraryItemMenu } from "./library-item-menu";
+import { LibraryMark } from "./library-mark";
 
 /** An item's name as the link to its page; the click area covers the whole item. */
 function LinkTitle({
@@ -44,6 +45,11 @@ function LinkTitle({
 export function LinkRow({ link }: { link: LibraryLink }) {
   return (
     <li className="group/navlink relative flex min-w-0 items-start gap-2 py-2">
+      {link.mark ? (
+        <span className="bg-foreground/[0.03] dark:bg-foreground/[0.045] grid size-9 shrink-0 place-items-center rounded-lg">
+          <LibraryMark mark={link.mark} name={link.name} />
+        </span>
+      ) : null}
       <div className="min-w-0 flex-1">
         <LinkTitle href={link.href}>{link.name}</LinkTitle>
         <p

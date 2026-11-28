@@ -242,6 +242,7 @@ export const LIBRARY_RUNTIMES: readonly LibraryPageGroup[] = [
         description:
           "Connect a Pydantic AI Python agent to assistant-ui through the AG-UI runtime.",
         href: "/docs/runtimes/pydantic-ai",
+        command: "npm install @assistant-ui/react-ag-ui @ag-ui/client@^1.0.3",
         prompt: "set up https://www.assistant-ui.com/docs/runtimes/pydantic-ai",
       },
       {
@@ -250,6 +251,8 @@ export const LIBRARY_RUNTIMES: readonly LibraryPageGroup[] = [
         description:
           "Connect Cloudflare's stateful agent framework to a React chat UI with assistant-ui through the AI SDK runtime, keeping its WebSocket transport, server-side persistence, and tool calling.",
         href: "/docs/runtimes/cloudflare-agents",
+        command:
+          "npm install agents@0.12.4 @cloudflare/ai-chat@0.7.0 ai@^6 @ai-sdk/openai@^3",
         prompt:
           "set up https://www.assistant-ui.com/docs/runtimes/cloudflare-agents",
       },
@@ -259,6 +262,8 @@ export const LIBRARY_RUNTIMES: readonly LibraryPageGroup[] = [
         description:
           "Wire the Mastra TypeScript agent framework into a React chat UI with assistant-ui, with full streaming, tool calling, multi-agent support, and thread management.",
         href: "/docs/runtimes/mastra",
+        command:
+          "npm install @mastra/core@latest @mastra/ai-sdk@latest zod@latest",
         prompt: "set up https://www.assistant-ui.com/docs/runtimes/mastra",
       },
       {
@@ -280,6 +285,7 @@ export const LIBRARY_RUNTIMES: readonly LibraryPageGroup[] = [
         name: "LocalRuntime",
         description: "Quickest path to a working chat.",
         href: "/docs/runtimes/custom/local-runtime",
+        command: "npm install @assistant-ui/react",
         prompt:
           "set up https://www.assistant-ui.com/docs/runtimes/custom/local-runtime",
       },
@@ -288,6 +294,7 @@ export const LIBRARY_RUNTIMES: readonly LibraryPageGroup[] = [
         name: "ExternalStoreRuntime",
         description: "Bring your own redux, zustand, or state manager.",
         href: "/docs/runtimes/custom/external-store",
+        command: "npm install @assistant-ui/react",
         prompt:
           "set up https://www.assistant-ui.com/docs/runtimes/custom/external-store",
       },
@@ -435,6 +442,7 @@ export const LIBRARY_TOOLS: readonly LibraryPageGroup[] = [
         description:
           "Connect MCP servers as a tool catalog in your assistant-ui app.",
         href: "/docs/tools/mcp",
+        command: "npm install @ai-sdk/mcp",
         prompt: "set up https://www.assistant-ui.com/docs/tools/mcp",
       },
       {
@@ -452,6 +460,7 @@ export const LIBRARY_TOOLS: readonly LibraryPageGroup[] = [
         name: "MCP Apps",
         description: "Render MCP App UI resources inline in chat.",
         href: "/docs/tools/mcp-apps",
+        command: "npm install @ai-sdk/mcp",
         prompt: "set up https://www.assistant-ui.com/docs/tools/mcp-apps",
       },
       {
@@ -503,6 +512,8 @@ export const LIBRARY_INTEGRATIONS: readonly LibraryPageGroup[] = [
         description:
           "Trace AI SDK calls into Langfuse via OpenTelemetry for tracing, evals, and prompt management.",
         href: "/docs/integrations/observability/langfuse",
+        command:
+          "npm install @langfuse/tracing @langfuse/otel @opentelemetry/sdk-node",
         prompt:
           "set up https://www.assistant-ui.com/docs/integrations/observability/langfuse",
       },
@@ -512,6 +523,7 @@ export const LIBRARY_INTEGRATIONS: readonly LibraryPageGroup[] = [
         description:
           "Trace AI SDK calls into LangSmith with the wrapAISDK helper.",
         href: "/docs/integrations/observability/langsmith",
+        command: "npm install langsmith",
         prompt:
           "set up https://www.assistant-ui.com/docs/integrations/observability/langsmith",
       },
@@ -567,6 +579,7 @@ export const LIBRARY_INTEGRATIONS: readonly LibraryPageGroup[] = [
         description:
           "Save chat history to your own database and load it on reload: threads (create, rename, archive, delete) through RemoteThreadListAdapter, messages through ThreadHistoryAdapter.",
         href: "/docs/integrations/persistence/custom-adapter",
+        command: "npm install drizzle-orm postgres drizzle-kit",
         prompt:
           "set up https://www.assistant-ui.com/docs/integrations/persistence/custom-adapter",
       },

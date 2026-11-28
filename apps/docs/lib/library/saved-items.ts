@@ -26,6 +26,7 @@ export type LibraryKind =
   | "tool"
   | "integration"
   | "utility"
+  | "agent"
   | "editor";
 
 export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
@@ -38,6 +39,7 @@ export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
   tool: "Tool",
   integration: "Integration",
   utility: "Utility",
+  agent: "Agent",
   editor: "MCP setup",
 };
 
@@ -85,6 +87,7 @@ const SECTION_KIND: Partial<Record<LibrarySectionId, LibraryKind>> = {
   tools: "tool",
   integrations: "integration",
   utilities: "utility",
+  agents: "agent",
   mcp: "editor",
 };
 
@@ -121,7 +124,9 @@ const fromSections = (): LibrarySavedItem[] =>
             promptName:
               kind === "editor"
                 ? `the MCP server in ${name}`
-                : `${name} (${label})`,
+                : kind === "agent"
+                  ? `the assistant-ui skills for ${name}`
+                  : `${name} (${label})`,
             href: absolute(href),
             preview: { kind: "section", section: section.id },
           },

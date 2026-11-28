@@ -305,7 +305,7 @@ function GlyphPorts() {
   );
 }
 
-function GlyphAgent() {
+export function GlyphAgent() {
   return (
     <GlyphSvg>
       <circle cx="16" cy="12" r="7.5" className={DIM} />

@@ -15,6 +15,7 @@ const KIND_TONE: Record<LibraryKind, string> = {
   tool: "text-teal-700 dark:text-teal-400",
   integration: "text-indigo-600 dark:text-indigo-400",
   utility: "text-fuchsia-700 dark:text-fuchsia-400",
+  agent: "text-cyan-700 dark:text-cyan-400",
   editor: "text-blue-600 dark:text-blue-400",
 };
 

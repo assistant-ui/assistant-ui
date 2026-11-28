@@ -2,15 +2,10 @@
 
 import { useDeferredValue, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ArrowRightIcon } from "lucide-react";
-import { typeDeck, typePage } from "@/components/shared/type";
 import {
   entryKey,
   entryName,
-  LIBRARY_GUIDE,
-  LIBRARY_INSTALL,
   LIBRARY_SECTIONS,
-  libraryTotal,
   matchesEntry,
   sectionCount,
   type LibraryEntry,
@@ -18,8 +13,7 @@ import {
 } from "@/lib/library/library-data";
 import type { LibrarySkill } from "@/lib/library/skills-data";
 import type { Starter } from "@/lib/library/starters-data";
-import { cn } from "@/lib/utils";
-import { LibraryCodeSnippet } from "./library-code-snippet";
+import { LibraryHero } from "./library-hero";
 import { LibraryEmpty } from "./library-empty";
 import { BlockCard, LinkRow, SectionTile } from "./library-entry";
 import {
@@ -197,10 +191,6 @@ export function LibraryBrowser() {
     },
     ...sectionTabs,
   ];
-  const install = current ? current.install : LIBRARY_INSTALL;
-  const guide = current
-    ? { label: current.guide, href: current.href }
-    : LIBRARY_GUIDE;
 
   const layoutOf = (entry: LibraryEntry | undefined) => {
     switch (entry?.kind) {
@@ -334,59 +324,23 @@ export function LibraryBrowser() {
 
   return (
     <>
-      <div className="mb-12 flex flex-col gap-3">
-        <h1 className={typePage}>Library</h1>
-        <p className={cn(typeDeck, "max-w-[80ch]")}>
-          {current
-            ? current.description
-            : `${libraryTotal(all)} things you can add to an assistant-ui project.`}
-        </p>
-      </div>
-      <div className="mb-12 flex flex-col gap-4">
-        <PillTabs
-          tabs={tabs}
-          value={tab}
-          onValueChange={setTab}
-          label="Show library items"
+      <PillTabs
+        tabs={tabs}
+        value={tab}
+        onValueChange={setTab}
+        label="Show library items"
+        className="mb-10"
+      />
+      <LibraryHero section={current} />
+      <div className="mb-10 flex items-center gap-2">
+        <SearchBar
+          value={query}
+          onValueChange={setQuery}
+          label={current ? `Search ${current.noun}` : "Search the library"}
+          className="min-w-0 flex-1"
         />
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <SearchBar
-              value={query}
-              onValueChange={setQuery}
-              label={current ? `Search ${current.noun}` : "Search the library"}
-              className="min-w-0 flex-1 sm:w-96 sm:flex-none"
-            />
-            {menu}
-            <LibrarySavedButton />
-          </div>
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            {install ? (
-              <LibraryCodeSnippet
-                tabs={[
-                  { label: "CLI", code: install.command, kind: "command" },
-                  {
-                    label: "Agent prompt",
-                    code: install.prompt,
-                    kind: "prompt",
-                  },
-                ]}
-                label="Install with"
-                className="w-full sm:w-80"
-              />
-            ) : null}
-            <Link
-              href={guide.href}
-              className="group/cta focus-visible:ring-ring bg-foreground/[0.06] hover:bg-foreground/[0.1] inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-2"
-            >
-              {guide.label}
-              <ArrowRightIcon
-                aria-hidden
-                className="size-4 shrink-0 transition-transform duration-200 group-hover/cta:translate-x-0.5 motion-reduce:transition-none"
-              />
-            </Link>
-          </div>
-        </div>
+        {menu}
+        <LibrarySavedButton />
       </div>
       <StarterSheet
         starter={starter}
@@ -400,7 +354,7 @@ export function LibraryBrowser() {
       {home ? (
         <ul
           aria-label="Kinds of library item"
-          className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid grid-cols-1 gap-4 pb-12 sm:grid-cols-2 xl:grid-cols-5"
         >
           {all.map((section) => (
             <SectionTile

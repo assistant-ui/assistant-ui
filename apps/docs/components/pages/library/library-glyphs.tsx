@@ -8,6 +8,7 @@ import {
   DIM,
   DOT,
   FAINT,
+  GlyphAgent,
   GlyphSvg,
   SOLID,
   WindowChrome,
@@ -217,6 +218,134 @@ function GlyphSkills() {
   );
 }
 
+/** Lines of text with a shine passing over them. */
+function GlyphShimmer() {
+  const lines = ["M4 7H28", "M4 12H22", "M4 17H25"];
+  return (
+    <GlyphSvg>
+      {lines.map((d) => (
+        <path
+          key={d}
+          d={d}
+          className="stroke-foreground/12 [stroke-width:2.6]"
+        />
+      ))}
+      {lines.map((d, index) => (
+        <path
+          key={`${d}-shine`}
+          {...motion("blip", index * 140)}
+          pathLength={100}
+          d={d}
+          className={cn(
+            "stroke-foreground/60 [stroke-width:2.6]",
+            index === 1 && ACCENT_STROKE,
+          )}
+        />
+      ))}
+    </GlyphSvg>
+  );
+}
+
+/** A grid of days, some busier than others. */
+function GlyphHeat() {
+  const tones = [
+    "fill-foreground/10",
+    "fill-foreground/25",
+    "fill-foreground/15",
+    "fill-foreground/40",
+    "fill-foreground/20",
+    "fill-foreground/10",
+    "fill-foreground/30",
+  ];
+  return (
+    <GlyphSvg>
+      {Array.from({ length: 28 }, (_, index) => (
+        <rect
+          key={index}
+          {...motion("twinkle", ((index * 7) % 10) * 90)}
+          x={2.5 + (index % 7) * 4}
+          y={4.5 + Math.floor(index / 7) * 4}
+          width="3"
+          height="3"
+          rx="0.6"
+          className={cn(
+            "stroke-none",
+            tones[(index * 3) % tones.length],
+            index === 10 && ACCENT_FILL,
+          )}
+        />
+      ))}
+    </GlyphSvg>
+  );
+}
+
+/** A window holding a fenced-off frame. */
+function GlyphFrame() {
+  return (
+    <GlyphSvg>
+      <WindowChrome />
+      <rect
+        {...motion("march")}
+        x="7"
+        y="10"
+        width="18"
+        height="7.5"
+        rx="1"
+        className="[stroke-dasharray:2_2]"
+      />
+      <rect
+        {...motion("orbit")}
+        x="14.5"
+        y="12.5"
+        width="3"
+        height="2.5"
+        rx="0.6"
+        className={cn(SOLID, ACCENT_FILL)}
+      />
+    </GlyphSvg>
+  );
+}
+
+/** Spans on a timeline. */
+function GlyphO11y() {
+  return (
+    <GlyphSvg>
+      <path d="M3 3.5V20.5" className={FAINT} />
+      <path
+        {...motion("draw")}
+        pathLength={100}
+        d="M5 6.5H28"
+        className="stroke-foreground/30 [stroke-width:2.4]"
+      />
+      <path
+        {...motion("draw", 110)}
+        pathLength={100}
+        d="M9 12H21"
+        className="stroke-foreground/25 [stroke-width:2.4]"
+      />
+      <path
+        {...motion("draw", 220)}
+        pathLength={100}
+        d="M14 17.5H25"
+        className={cn("[stroke-width:2.4]", ACCENT_STROKE)}
+      />
+    </GlyphSvg>
+  );
+}
+
+const UTILITY_GLYPHS: Record<string, () => ReactNode> = {
+  shimmer: GlyphShimmer,
+  heat: GlyphHeat,
+  frame: GlyphFrame,
+  o11y: GlyphO11y,
+};
+
+/** A utility's own drawing; one with none borrows the Utilities tab's. */
+export function UtilityGlyph({ name }: { name: string }) {
+  const Glyph = UTILITY_GLYPHS[name] ?? GlyphUtilities;
+  return <Glyph />;
+}
+
 const GLYPHS: Record<LibrarySectionId, () => ReactNode> = {
   components: GlyphComponents,
   blocks: GlyphBlocks,
@@ -226,6 +355,7 @@ const GLYPHS: Record<LibrarySectionId, () => ReactNode> = {
   integrations: GlyphIntegrations,
   utilities: GlyphUtilities,
   skills: GlyphSkills,
+  agents: GlyphAgent,
   mcp: GlyphMcpServers,
 };
 

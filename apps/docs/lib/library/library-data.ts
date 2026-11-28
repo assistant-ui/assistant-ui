@@ -15,11 +15,13 @@ import {
   LIBRARY_UTILITIES,
   type LibraryPageGroup,
 } from "./docs-data";
-import { MCP_COMMAND, MCP_EDITORS, MCP_PROMPT, MCP_URL } from "./mcp-data";
+import { LIBRARY_MARKS } from "./marks";
+import { MCP_COMMAND, MCP_EDITORS, MCP_URL } from "./mcp-data";
+import { SKILL_AGENTS } from "./skill-agents";
 import {
   LIBRARY_SKILLS,
   SKILLS_COMMAND,
-  SKILLS_PROMPT,
+  SKILLS_COMMAND_STEPS,
   SKILL_GROUPS,
   matchesSkill,
   type LibrarySkill,
@@ -27,7 +29,7 @@ import {
 import {
   EXAMPLES,
   TEMPLATES,
-  starterPrompt,
+  starterCommand,
   type Starter,
 } from "./starters-data";
 
@@ -40,6 +42,7 @@ export type LibrarySectionId =
   | "integrations"
   | "utilities"
   | "skills"
+  | "agents"
   | "mcp";
 
 /** An item that has its own page, shown as a link to it. */
@@ -49,6 +52,8 @@ export type LibraryLink = {
   href: string;
   /** Set when the description is a command, so it is set in the code face. */
   code?: boolean;
+  /** What is drawn before the name, as a key `LibraryMark` reads. */
+  mark?: string;
   /** The section's `traits` this item has. */
   traits?: readonly string[];
   /** Its id in the saved panel; an item without one cannot be saved or copied. */
@@ -70,18 +75,22 @@ export type LibraryGroup = {
   entries: readonly LibraryEntry[];
 };
 
+/** One command a stepping install command shows: what follows the base, and what it does. */
+export type LibraryCommandStep = { rest: string; does: string };
+
+export type LibraryCommands = {
+  base: string;
+  steps: readonly LibraryCommandStep[];
+};
+
 export type LibrarySection = {
   id: LibrarySectionId;
   title: string;
   /** What its items are called, as in "Search starters". */
   noun: string;
   description: string;
-  /** Absent when each item is set up from its own page. */
-  install?: {
-    command: string;
-    /** The same install, worded for a coding agent. */
-    prompt: string;
-  };
+  /** The install command in the hero, which steps through its items; absent when nothing installs by command. */
+  commands?: LibraryCommands;
   href: string;
   /** The link beside the search that says where to read more. */
   guide: string;
@@ -93,6 +102,18 @@ export type LibrarySection = {
 const links = (items: readonly LibraryLink[]): LibraryEntry[] =>
   items.map((link) => ({ kind: "link", link }));
 
+/** Tabs whose every row leads with a mark; an item with no key of its own shows its first letter. */
+const MARKED: readonly string[] = [
+  "runtimes",
+  "tools",
+  "integrations",
+  "utilities",
+];
+
+const marked = (section: string, id: string, name: string) =>
+  LIBRARY_MARKS[id] ??
+  (MARKED.includes(section) ? `letter:${name}` : undefined);
+
 const pages = (
   section: LibrarySectionId | "primitives",
   groups: readonly LibraryPageGroup[],
@@ -100,10 +121,11 @@ const pages = (
   groups.map((group) => ({
     label: group.label,
     entries: links(
-      group.pages.map(({ slug, ...page }) => ({
-        ...page,
-        id: `${section}/${slug}`,
-      })),
+      group.pages.map(({ slug, ...page }) => {
+        const id = `${section}/${slug}`;
+        const mark = marked(section, id, page.name);
+        return { ...page, id, ...(mark && { mark }) };
+      }),
     ),
   }));
 
@@ -122,10 +144,16 @@ const route = (
   };
 };
 
-/** What the All tab offers beside the search: how to start, by hand or with an agent. */
-export const LIBRARY_INSTALL = {
-  command: "npx assistant-ui@latest init",
-  prompt: agentSetupPrompt(),
+/** What the All tab's install command steps through: the CLI's own commands. */
+export const LIBRARY_COMMANDS: LibraryCommands = {
+  base: "npx assistant-ui@latest",
+  steps: [
+    { rest: "init", does: "Add assistant-ui to an existing project" },
+    { rest: "create my-app", does: "Start a new project" },
+    { rest: "add thread", does: "Add a component" },
+    { rest: "setup", does: "Set up with a coding agent" },
+    { rest: "mcp", does: "Connect your editor to the docs" },
+  ],
 };
 
 export const LIBRARY_GUIDE = { label: "Read the CLI guide", href: "/docs/cli" };
@@ -133,21 +161,15 @@ export const LIBRARY_GUIDE = { label: "Read the CLI guide", href: "/docs/cli" };
 const starters = (items: readonly Starter[]): LibraryEntry[] =>
   items.map((starter) => ({ kind: "starter", starter }));
 
-const COMPONENTS_COMMAND = "npx assistant-ui@latest add thread";
 const STARTERS_COMMAND = "npx assistant-ui@latest create my-app";
-const defaultStarter = TEMPLATES.find((starter) => starter.name === "default");
 
-export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
+const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
   {
     id: "components",
     title: "Components",
     noun: "components",
     description:
       "Chat elements, UI components, primitives, and the parts a model can write.",
-    install: {
-      command: COMPONENTS_COMMAND,
-      prompt: `Add the assistant-ui thread component with \`${COMPONENTS_COMMAND}\``,
-    },
     href: "/components",
     guide: "Open the components page",
     traits: LIBRARY_TRAITS,
@@ -238,12 +260,6 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     title: "Starters",
     noun: "starters",
     description: "Templates and example apps that create a new project.",
-    install: {
-      command: STARTERS_COMMAND,
-      prompt: defaultStarter
-        ? starterPrompt(defaultStarter)
-        : `Create an assistant-ui app with \`${STARTERS_COMMAND}\``,
-    },
     href: "/library/starters",
     guide: "Open the starters page",
     groups: [
@@ -293,7 +309,6 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     noun: "skills",
     description:
       "Instructions a coding agent loads to build with assistant-ui.",
-    install: { command: SKILLS_COMMAND, prompt: SKILLS_PROMPT },
     href: "/library/skills",
     guide: "Open the skills page",
     groups: SKILL_GROUPS.map((group) => ({
@@ -304,12 +319,40 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     })).filter((group) => group.entries.length > 0),
   },
   {
+    id: "agents",
+    title: "Agents",
+    noun: "agents",
+    description:
+      "Coding agents the skills install into, each in its own folder.",
+    href: "/library/skills",
+    guide: "Open the skills page",
+    groups: [
+      {
+        label: "Agents",
+        entries: links(
+          SKILL_AGENTS.map((agent) => {
+            const command = `${SKILLS_COMMAND} -a ${agent.slug}`;
+            return {
+              name: agent.name,
+              description: agent.directory,
+              href: "/library/skills",
+              code: true,
+              mark: `agent:${agent.slug}`,
+              id: `agents/${agent.slug}`,
+              command,
+              prompt: `Install the assistant-ui skills for ${agent.name} with \`${command}\``,
+            };
+          }),
+        ),
+      },
+    ],
+  },
+  {
     id: "mcp",
     title: "MCP server",
     noun: "editors",
     description:
       "Connects your editor's agent to the assistant-ui docs and examples.",
-    install: { command: MCP_COMMAND, prompt: MCP_PROMPT },
     href: "/library/mcp",
     guide: "See the setup steps",
     groups: [
@@ -321,6 +364,7 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
             description: editor.command,
             href: "/library/mcp",
             code: true,
+            mark: LIBRARY_MARKS[`mcp/${editor.id}`] ?? `letter:${editor.label}`,
             id: `mcp/${editor.id}`,
             command: editor.command,
             prompt: `Connect ${editor.label} to the assistant-ui MCP server at ${MCP_URL} (Streamable HTTP)`,
@@ -330,6 +374,52 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = [
     ],
   },
 ];
+
+/** The start every install command in a tab shares, for tabs whose items install by command. */
+const COMMAND_BASE: Partial<Record<LibrarySectionId, string>> = {
+  components: SHADCN_ADD,
+  starters: STARTERS_COMMAND,
+  runtimes: "npm install",
+  tools: "npm install",
+  integrations: "npm install",
+  utilities: "npm install",
+  agents: `${SKILLS_COMMAND} -a`,
+  mcp: MCP_COMMAND,
+};
+
+const STEP_LIMIT = 8;
+
+const entryCommand = (entry: LibraryEntry): string | undefined => {
+  switch (entry.kind) {
+    case "link":
+      return entry.link.command;
+    case "starter":
+      return starterCommand(entry.starter);
+    default:
+      return undefined;
+  }
+};
+
+const commandsFor = (
+  section: Omit<LibrarySection, "commands">,
+): LibraryCommands | undefined => {
+  if (section.id === "skills") {
+    return { base: "npx skills", steps: SKILLS_COMMAND_STEPS };
+  }
+  const base = COMMAND_BASE[section.id];
+  if (!base) return undefined;
+  const steps = section.groups
+    .flatMap((group) => group.entries)
+    .flatMap((entry): LibraryCommandStep[] => {
+      const command = entryCommand(entry);
+      if (command === base) return [{ rest: "", does: entryName(entry) }];
+      return command?.startsWith(`${base} `)
+        ? [{ rest: command.slice(base.length + 1), does: entryName(entry) }]
+        : [];
+    })
+    .slice(0, STEP_LIMIT);
+  return steps.length > 0 ? { base, steps } : undefined;
+};
 
 export const entryName = (entry: LibraryEntry): string => {
   switch (entry.kind) {
@@ -343,6 +433,13 @@ export const entryName = (entry: LibraryEntry): string => {
       return entry.skill.title;
   }
 };
+
+export const LIBRARY_SECTIONS: readonly LibrarySection[] = SECTIONS.map(
+  (section) => {
+    const commands = commandsFor(section);
+    return { ...section, ...(commands && { commands }) };
+  },
+);
 
 export const entryKey = (entry: LibraryEntry): string => {
   switch (entry.kind) {

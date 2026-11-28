@@ -1,0 +1,66 @@
+/**
+ * What is drawn before an item's name, by the item's id. `logo:` is a brand
+ * mark, `agent:` a coding agent's mark, and the rest are the library's own
+ * line drawings: `skill:` a skill's, `section:` a tab's, `utility:` a
+ * utility's. An item missing here shows its first letter.
+ */
+export const LIBRARY_MARKS: Record<string, string> = {
+  "runtimes/ai-sdk": "logo:vercel",
+  "runtimes/langgraph": "logo:langgraph",
+  "runtimes/langchain": "logo:langchain",
+  "runtimes/eve": "logo:eve",
+  "runtimes/google-adk": "logo:adk",
+  "runtimes/a2a": "logo:a2a",
+  "runtimes/ag-ui": "logo:agui",
+  "runtimes/opencode": "logo:opencode",
+  "runtimes/openai-agents": "logo:openai",
+  "runtimes/cloudflare-agents": "logo:cloudflare",
+  "runtimes/mastra": "logo:mastra",
+  "runtimes/claude-managed-agents": "logo:claude",
+  "runtimes/custom-local-runtime": "logo:assistant-ui",
+  "runtimes/custom-external-store": "logo:assistant-ui",
+  "runtimes/custom-data-stream": "logo:assistant-ui",
+  "runtimes/custom-assistant-transport": "logo:assistant-ui",
+
+  "tools/defining-tools": "skill:tools",
+  "tools/backend": "section:runtimes",
+  "tools/dynamic-tools": "skill:streaming",
+  "tools/tool-ui": "skill:elements",
+  "tools/generative-ui": "skill:generative-ui",
+  "tools/generative-ui-formats": "skill:markdown",
+  "tools/generative-ui-slack": "skill:generative-ui",
+  "tools/generative-ui-teams": "skill:generative-ui",
+  "tools/generative-ui-primitive": "skill:primitives",
+  "tools/interactables": "skill:copilots",
+  "tools/a2ui": "logo:agui",
+  "tools/openui": "skill:generative-ui",
+  "tools/mcp": "logo:mcp",
+  "tools/user-managed-mcp": "logo:mcp",
+  "tools/mcp-apps": "logo:mcp",
+  "tools/webmcp": "logo:mcp",
+  "tools/multi-agent": "skill:assistant-ui",
+
+  "integrations/gateways": "section:integrations",
+  "integrations/observability-langfuse": "logo:langfuse",
+  "integrations/observability-langsmith": "logo:langchain",
+  "integrations/observability-assistant-cloud": "logo:assistant-ui",
+  "integrations/auth-clerk": "logo:clerk",
+  "integrations/persistence-custom-adapter": "skill:cloud",
+  "integrations/persistence-thread-list-adapters": "skill:thread-list",
+  "integrations/attachments-custom-adapter": "section:blocks",
+
+  "utilities/heat-graph": "utility:heat",
+  "utilities/tw-shimmer": "utility:shimmer",
+  "utilities/react-o11y": "utility:o11y",
+  "utilities/devtools": "skill:observability",
+  "utilities/safe-content-frame": "utility:frame",
+  "utilities/generative-frame": "skill:generative-ui",
+  "utilities/variants": "skill:assistant-ui",
+
+  "mcp/cursor": "agent:cursor",
+  "mcp/windsurf": "agent:windsurf",
+  "mcp/vscode": "logo:vscode",
+  "mcp/zed": "agent:zed",
+  "mcp/claude-code": "agent:claude-code",
+  "mcp/claude-desktop": "logo:claude",
+};
