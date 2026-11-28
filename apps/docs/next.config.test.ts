@@ -143,6 +143,8 @@ describe("docs Next config composition", () => {
     ["/careers/unknown.md", "text/markdown"],
     ["/changelog/unknown.md", "*/*"],
     ["/changelog/unknown/2.mdx", "text/markdown"],
+    ["/components/unknown.md", "*/*"],
+    ["/demos/unknown.mdx", "text/markdown"],
   ])(
     "rewrites %s with Accept %s to the markdown 404 before the dynamic page routes match",
     async (pathname, accept) => {
