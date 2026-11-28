@@ -47,9 +47,7 @@ it("closes with the same call to action as the hero", async () => {
     screen.getByRole("button", {
       name: "Copy the setup prompt for your agent",
     }).textContent,
-  ).toBe(
-    "install and set up assistant-ui with `npx assistant-ui@latest setup`",
-  );
+  ).toBe("install and set up assistant-ui");
   expect(
     screen
       .getByRole("button", { name: "Talk to an expert" })
