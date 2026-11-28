@@ -41,6 +41,7 @@ import { LibraryEmpty } from "./library-empty";
 import { BlockCard, LinkRow, SectionTile } from "./library-entry";
 import {
   LibraryViewMenu,
+  LibraryViewMenuOff,
   sortLibraryItems,
   type LibrarySort,
   type LibraryView,
@@ -381,7 +382,9 @@ export function LibraryBrowser() {
       </MenuCheckboxItem>
     )) ?? null;
 
-  const menu = !current ? null : onStarters ? (
+  const menu = !current ? (
+    <LibraryViewMenuOff />
+  ) : onStarters ? (
     <StartersViewMenu
       options={starterOptions}
       onOptionsChange={setStarterOptions}
@@ -470,26 +473,30 @@ export function LibraryBrowser() {
             "lg:-mx-2 lg:h-full lg:min-h-0 lg:[scrollbar-width:thin] lg:overflow-y-auto lg:px-2 lg:pb-10",
         )}
       >
-        <LibraryHero section={current} />
-        <div className="mb-10 flex flex-wrap items-center gap-x-4 gap-y-3">
-          <PillTabs
-            tabs={tabs}
-            value={tab}
-            onValueChange={setTab}
-            label="Show library items"
-            className={cn(sidebar && "lg:hidden")}
-          />
-          <div className="flex min-w-0 flex-1 basis-64 items-center gap-2">
-            <SearchBar
-              value={query}
-              onValueChange={setQuery}
-              label={current ? `Search ${current.noun}` : "Search the library"}
-              className="min-w-0 flex-1"
-            />
-            {menu}
-            <LibrarySavedButton />
-          </div>
-        </div>
+        <LibraryHero
+          section={current}
+          aside={
+            <>
+              <SearchBar
+                value={query}
+                onValueChange={setQuery}
+                label={
+                  current ? `Search ${current.noun}` : "Search the library"
+                }
+                className="min-w-0 flex-1 sm:w-72 sm:flex-none"
+              />
+              {menu}
+              <LibrarySavedButton />
+            </>
+          }
+        />
+        <PillTabs
+          tabs={tabs}
+          value={tab}
+          onValueChange={setTab}
+          label="Show library items"
+          className={cn("mb-8", sidebar && "lg:hidden")}
+        />
         <StarterSheet
           entry={sheet}
           entries={sheetEntries}

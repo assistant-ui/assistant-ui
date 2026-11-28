@@ -150,11 +150,11 @@ export const LIBRARY_PRESETS: readonly {
       floating: 12,
       card: 6,
       thumb: 6,
-      titleSize: 36,
+      titleSize: 24,
       titleWeight: 550,
       titleTracking: -10,
-      titleLeading: 111,
-      textSize: 15,
+      titleLeading: 133,
+      textSize: 14,
       textWeight: 400,
       textTracking: 0,
       textLeading: 163,
@@ -179,11 +179,11 @@ export const LIBRARY_PRESETS: readonly {
       floating: 22,
       card: 32,
       thumb: 16,
-      titleSize: 36,
+      titleSize: 24,
       titleWeight: 550,
       titleTracking: -10,
-      titleLeading: 111,
-      textSize: 15,
+      titleLeading: 133,
+      textSize: 14,
       textWeight: 400,
       textTracking: 0,
       textLeading: 163,
@@ -254,7 +254,7 @@ const parseColors = (saved: unknown, d: LibraryColors): LibraryColors => {
 };
 
 /** Raised when the presets' title and text settings change; a theme saved under an older one takes the presets' new settings. */
-export const LIBRARY_TYPE_VERSION = 2;
+export const LIBRARY_TYPE_VERSION = 3;
 
 /** A saved theme read back; anything missing or malformed takes its preset's value. */
 export const parseLibraryTheme = (raw: string | null): LibraryThemeValues => {

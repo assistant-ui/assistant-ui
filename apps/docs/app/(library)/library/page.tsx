@@ -17,7 +17,7 @@ export default function LibraryPage(): React.ReactElement {
   return (
     <PageFrame
       pad="sub"
-      className="lg:has-[[data-library-shell]]:min-h-0 lg:has-[[data-library-shell]]:flex-1 lg:has-[[data-library-shell]]:pb-0"
+      className="pt-6 md:pt-8 lg:has-[[data-library-shell]]:min-h-0 lg:has-[[data-library-shell]]:flex-1 lg:has-[[data-library-shell]]:pb-0"
     >
       <LibraryBrowser />
     </PageFrame>

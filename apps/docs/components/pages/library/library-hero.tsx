@@ -18,7 +18,7 @@ import { AgentsCarousel } from "./agents-carousel";
 import { LibraryGlyph } from "./library-glyphs";
 import { libraryDeck, libraryTitle } from "./library-item";
 import { LibraryMark } from "./library-mark";
-import { LibraryStepCommand } from "./library-step-command";
+import { LibraryInstallMenu } from "./library-install-menu";
 import {
   VisualBackdrop,
   VisualHue,
@@ -479,11 +479,18 @@ function HeroCarousel({ section }: { section: LibrarySection | undefined }) {
   );
 }
 
-/** The top of the library under its tabs: the open tab's name, what it holds, how to install it, and a carousel of previews. */
+// The carousel of previews beside the hero text is switched off for now; the
+// code stays so it can come back.
+const SHOW_HERO_VISUAL: boolean = false;
+
+/** The top of the library: the open tab's name and what it holds, and at the far end of that line the page's controls, its guide, and its install commands. */
 export function LibraryHero({
   section,
+  aside,
 }: {
   section: LibrarySection | undefined;
+  /** The page's controls, set at the far end of the title's line. */
+  aside: ReactNode;
 }) {
   const commands = section ? section.commands : LIBRARY_COMMANDS;
   const guide = section
@@ -491,43 +498,50 @@ export function LibraryHero({
     : LIBRARY_GUIDE;
 
   return (
-    <div className="mb-10 grid grid-cols-[minmax(0,1fr)] items-center gap-12 lg:min-h-68 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-16">
-      <header className="max-w-2xl">
-        <h1 className={libraryTitle}>{section ? section.title : "Library"}</h1>
-        <p className={cn(libraryDeck, "mt-4 max-w-[52ch]")}>
-          {section
-            ? section.description
-            : `${libraryTotal(LIBRARY_SECTIONS)} things you can add to an assistant-ui project.`}
-        </p>
-        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+    <div
+      className={cn(
+        "mb-8 grid grid-cols-[minmax(0,1fr)] items-center gap-8",
+        SHOW_HERO_VISUAL &&
+          "lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-16",
+      )}
+    >
+      <header className="flex min-w-0 flex-wrap items-center justify-between gap-x-8 gap-y-4">
+        <div className="max-w-2xl min-w-0 flex-1 basis-72">
+          <h1 className={libraryTitle}>
+            {section ? section.title : "Library"}
+          </h1>
+          <p className={cn(libraryDeck, "mt-1 max-w-[60ch]")}>
+            {section
+              ? section.description
+              : `${libraryTotal(LIBRARY_SECTIONS)} things you can add to an assistant-ui project.`}
+          </p>
+        </div>
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+          {aside}
           <Link
             href={guide.href}
+            aria-label={guide.label}
             className={cn(
-              "bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center rounded-(--library-control) px-3 text-sm font-medium transition-colors",
+              "bg-foreground/[0.06] hover:bg-foreground/[0.1] inline-flex h-9 shrink-0 items-center rounded-(--library-control) px-3.5 text-sm font-medium transition-colors",
               focus,
             )}
           >
-            {guide.label}
+            Guide
           </Link>
-          {commands ? (
-            <LibraryStepCommand
-              key={section?.id ?? "all"}
-              base={commands.base}
-              steps={commands.steps}
-              className="w-auto min-w-48 flex-1"
-            />
-          ) : null}
+          <LibraryInstallMenu commands={commands} />
         </div>
       </header>
-      <VisualHue value={section ? SECTION_HUE[section.id] : null}>
-        {section?.id === "agents" ? (
-          <div className="hidden lg:block">
-            <AgentsCarousel />
-          </div>
-        ) : (
-          <HeroCarousel section={section} />
-        )}
-      </VisualHue>
+      {SHOW_HERO_VISUAL ? (
+        <VisualHue value={section ? SECTION_HUE[section.id] : null}>
+          {section?.id === "agents" ? (
+            <div className="hidden lg:block">
+              <AgentsCarousel />
+            </div>
+          ) : (
+            <HeroCarousel section={section} />
+          )}
+        </VisualHue>
+      ) : null}
     </div>
   );
 }
