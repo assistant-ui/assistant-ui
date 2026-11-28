@@ -48,8 +48,30 @@ describe("repo skill route", () => {
     );
   });
 
-  it("returns not found for an unknown skill", async () => {
-    await expect(GET(request, context("nope"))).rejects.toThrow();
+  it("answers an unknown skill with a markdown 404 that links the nearest skills", async () => {
+    const response = await GET(request, context("tool"));
+    const body = await response.text();
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type")).toBe(
+      "text/markdown; charset=utf-8",
+    );
+    expect(body).toContain(
+      "There is no page at `/.well-known/agent-skills/tool`.",
+    );
+    expect(body).toContain("[tools](/.well-known/agent-skills/tools/SKILL.md)");
+  });
+
+  it("answers HEAD for an unknown skill with a bodiless 404", async () => {
+    const [get, head] = await Promise.all([
+      GET(request, context("nope")),
+      HEAD(request, context("nope")),
+    ]);
+    expect(head.status).toBe(404);
+    expect(await head.text()).toBe("");
+    expect(Object.fromEntries(head.headers)).toEqual(
+      Object.fromEntries(get.headers),
+    );
   });
 
   it("prerenders every indexed repo skill", () => {
