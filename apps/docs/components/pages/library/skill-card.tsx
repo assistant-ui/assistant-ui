@@ -14,10 +14,13 @@ type SkillItemProps = {
 
 function SkillMenu({
   skill,
+  onDetails,
   tooltipSide,
   className,
 }: {
   skill: LibrarySkill;
+  /** Opens the skill's details. */
+  onDetails: () => void;
   tooltipSide?: "left" | "top";
   className: string;
 }) {
@@ -27,6 +30,8 @@ function SkillMenu({
       label={skill.title}
       command={skill.command}
       prompt={skill.prompt}
+      onDetails={onDetails}
+      docs="/docs/llm#skills"
       className={className}
       {...(tooltipSide && { tooltipSide })}
     />
@@ -49,6 +54,7 @@ export function SkillCard({ skill, onSelect }: SkillItemProps) {
           </span>
           <SkillMenu
             skill={skill}
+            onDetails={() => onSelect(skill.name)}
             tooltipSide="top"
             className="relative z-10 -me-1.5 -mt-1.5"
           />
@@ -100,6 +106,7 @@ export function SkillRow({ skill, onSelect }: SkillItemProps) {
       </div>
       <SkillMenu
         skill={skill}
+        onDetails={() => onSelect(skill.name)}
         tooltipSide="top"
         className="relative z-10 shrink-0"
       />

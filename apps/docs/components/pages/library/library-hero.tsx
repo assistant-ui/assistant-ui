@@ -3,23 +3,35 @@
 import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, BrainIcon } from "lucide-react";
 import { typeDeck, typePage } from "@/components/shared/type";
 import {
   LIBRARY_COMMANDS,
   LIBRARY_GUIDE,
+  LIBRARY_HOME_SKILLS,
   LIBRARY_SECTIONS,
   libraryTotal,
   sectionCount,
   type LibraryEntry,
   type LibrarySection,
 } from "@/lib/library/library-data";
+import { LIBRARY_SKILLS, type LibrarySkill } from "@/lib/library/skills-data";
 import { cn } from "@/lib/utils";
 import { AgentsCarousel } from "./agents-carousel";
-import { LibraryGlyph } from "./library-glyphs";
+import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
+import { iconMenuTrigger } from "./library-item";
 import { LibraryMark } from "./library-mark";
 import { LibraryStepCommand } from "./library-step-command";
+import { LibraryTooltip } from "./library-tooltip";
 import { VisualBackdrop, visualLift, type VisualTone } from "./library-visual";
+import {
+  Menu,
+  MenuContent,
+  MenuGroup,
+  MenuItem,
+  MenuLabel,
+  MenuTrigger,
+} from "./menu";
 import { SkillGlyph } from "./skill-glyphs";
 import { StarterGlyph } from "./starter-glyphs";
 
@@ -446,9 +458,18 @@ function HeroCarousel({ section }: { section: LibrarySection | undefined }) {
 /** The top of the library under its tabs: the open tab's name, what it holds, how to install it, and a carousel of previews. */
 export function LibraryHero({
   section,
+  onSkill,
 }: {
   section: LibrarySection | undefined;
+  /** Opens a skill's details. */
+  onSkill: (skill: LibrarySkill) => void;
 }) {
+  // A tab with no skill of its own offers the overview, which says which skill to use.
+  const names = section?.skills ?? LIBRARY_HOME_SKILLS;
+  const skills = names.flatMap((name) => {
+    const skill = LIBRARY_SKILLS.find((entry) => entry.name === name);
+    return skill ? [skill] : [];
+  });
   const commands = section ? section.commands : LIBRARY_COMMANDS;
   const guide = section
     ? { label: section.guide, href: section.href }
@@ -458,14 +479,12 @@ export function LibraryHero({
     <div className="mb-10 grid grid-cols-[minmax(0,1fr)] items-center gap-x-12 gap-y-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)]">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          {section ? (
-            <span
-              aria-hidden
-              className="bg-foreground/[0.03] dark:bg-foreground/[0.045] grid h-10 w-12 shrink-0 place-items-center rounded-xl"
-            >
-              <LibraryGlyph id={section.id} />
-            </span>
-          ) : null}
+          <span
+            aria-hidden
+            className="bg-foreground/[0.03] dark:bg-foreground/[0.045] grid h-10 w-12 shrink-0 place-items-center rounded-xl"
+          >
+            {section ? <LibraryGlyph id={section.id} /> : <GlyphLibrary />}
+          </span>
           <h1 className={typePage}>{section ? section.title : "Library"}</h1>
         </div>
         <p className={typeDeck}>
@@ -494,6 +513,34 @@ export function LibraryHero({
               className="size-4 shrink-0 transition-transform duration-200 group-hover/cta:translate-x-0.5 motion-reduce:transition-none"
             />
           </Link>
+          {skills.length > 0 ? (
+            <Menu>
+              <LibraryTooltip label="Skills for this tab">
+                <MenuTrigger
+                  aria-label={`Skills for ${section ? section.title : "the library"}`}
+                  className={cn(
+                    iconMenuTrigger,
+                    "bg-foreground/[0.06] text-foreground size-9",
+                  )}
+                >
+                  <BrainIcon aria-hidden />
+                </MenuTrigger>
+              </LibraryTooltip>
+              <MenuContent align="start">
+                <MenuGroup>
+                  <MenuLabel>Skills</MenuLabel>
+                  {skills.map((skill) => (
+                    <MenuItem key={skill.name} onClick={() => onSkill(skill)}>
+                      <span aria-hidden className={drawing}>
+                        <SkillGlyph name={skill.name} />
+                      </span>
+                      {skill.title}
+                    </MenuItem>
+                  ))}
+                </MenuGroup>
+              </MenuContent>
+            </Menu>
+          ) : null}
         </div>
       </div>
       {section?.id === "agents" ? (

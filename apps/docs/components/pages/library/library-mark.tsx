@@ -48,6 +48,10 @@ const isFilterLogo = (name: string): name is keyof typeof FILTER_LOGOS =>
 /** A line drawing sized to sit where a logo would. */
 const drawing = "[&>svg]:h-[18px] [&>svg]:w-6";
 
+/** The sizes a row's preview box takes, the same as a skill's. */
+const largeDrawing = "[&>svg]:h-8 [&>svg]:w-[2.667rem]";
+const largeLogo = "grid [&>img]:size-5 [&>svg]:size-5";
+
 /**
  * What stands for a library item: its brand's logo, a coding agent's mark, or
  * one of the library's line drawings, by the key in `LIBRARY_MARKS`. An item
@@ -56,11 +60,12 @@ const drawing = "[&>svg]:h-[18px] [&>svg]:w-6";
 export function LibraryMark({
   mark,
   name,
-  className,
+  large = false,
 }: {
   mark: string | undefined;
   name: string;
-  className?: string;
+  /** Sized for a row's preview box; otherwise for a tile or a line of text. */
+  large?: boolean;
 }) {
   const letter = (
     <span aria-hidden className="text-muted-foreground text-xs font-medium">
@@ -71,27 +76,46 @@ export function LibraryMark({
 
   switch (kind) {
     case "agent":
-      return <AgentIcon slug={id} fallback={letter} className="size-4" />;
+      return (
+        <AgentIcon
+          slug={id}
+          fallback={letter}
+          className={large ? "size-5" : "size-4"}
+        />
+      );
     case "logo": {
       const Logo = LOGOS[id];
-      if (Logo) return <Logo className="size-4 shrink-0" />;
-      return isFilterLogo(id) ? <FilterIcon name={FILTER_LOGOS[id]} /> : letter;
+      if (Logo) {
+        return <Logo className={cn("shrink-0", large ? "size-5" : "size-4")} />;
+      }
+      if (!isFilterLogo(id)) return letter;
+      const logo = <FilterIcon name={FILTER_LOGOS[id]} />;
+      return large ? <span className={largeLogo}>{logo}</span> : logo;
     }
     case "skill":
       return (
-        <span aria-hidden className={cn("grid", drawing, className)}>
+        <span
+          aria-hidden
+          className={cn("grid", large ? largeDrawing : drawing)}
+        >
           <SkillGlyph name={id} />
         </span>
       );
     case "section":
       return (
-        <span aria-hidden className={cn("grid", drawing, className)}>
+        <span
+          aria-hidden
+          className={cn("grid", large ? largeDrawing : drawing)}
+        >
           <LibraryGlyph id={id as LibrarySectionId} />
         </span>
       );
     case "utility":
       return (
-        <span aria-hidden className={cn("grid", drawing, className)}>
+        <span
+          aria-hidden
+          className={cn("grid", large ? largeDrawing : drawing)}
+        >
           <UtilityGlyph name={id} />
         </span>
       );

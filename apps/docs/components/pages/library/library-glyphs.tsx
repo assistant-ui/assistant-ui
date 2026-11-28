@@ -346,6 +346,35 @@ export function UtilityGlyph({ name }: { name: string }) {
   return <Glyph />;
 }
 
+/** Books on a shelf, one pulled forward. */
+export function GlyphLibrary() {
+  return (
+    <GlyphSvg>
+      <path d="M3.5 20.5H28.5" className={FAINT} />
+      <rect x="5.5" y="6" width="4" height="14.5" rx="1" className={DIM} />
+      <rect x="11" y="9" width="4" height="11.500" rx="1" className={DIM} />
+      <rect
+        {...motion("pop", 120)}
+        x="16.5"
+        y="4.5"
+        width="4"
+        height="16"
+        rx="1"
+        className={cn(SOLID, ACCENT_FILL)}
+      />
+      <rect
+        x="22.2"
+        y="8"
+        width="3.6"
+        height="12.500"
+        rx="1"
+        transform="rotate(12 24 20.500)"
+        className={DIM}
+      />
+    </GlyphSvg>
+  );
+}
+
 const GLYPHS: Record<LibrarySectionId, () => ReactNode> = {
   components: GlyphComponents,
   blocks: GlyphBlocks,

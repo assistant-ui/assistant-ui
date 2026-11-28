@@ -148,6 +148,7 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
         <div className="bg-background relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-xl">
           <StarterMenu
             starter={starter}
+            onDetails={() => onSelect(starter)}
             className="bg-background/45 text-foreground hover:bg-background/70 focus-visible:bg-background/70 data-popup-open:bg-background/70 absolute top-3 right-3 z-10 backdrop-blur-md"
           />
           <StarterPreview
@@ -211,6 +212,7 @@ export function StarterRow({ starter, onSelect }: StarterItemProps) {
       </div>
       <StarterMenu
         starter={starter}
+        onDetails={() => onSelect(starter)}
         tooltipSide="top"
         className="relative z-10 shrink-0"
       />

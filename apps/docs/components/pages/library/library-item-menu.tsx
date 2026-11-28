@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import {
+  BookOpenIcon,
   BookmarkCheckIcon,
   BookmarkIcon,
   BotIcon,
   CheckIcon,
+  InfoIcon,
   PlusIcon,
   TerminalIcon,
 } from "lucide-react";
@@ -18,6 +21,7 @@ import {
   Menu,
   MenuContent,
   MenuItem,
+  MenuLinkItem,
   MenuSeparator,
   MenuTrigger,
 } from "./menu";
@@ -40,12 +44,14 @@ export const toggleLibrarySavedWithToast = (id: string, label: string) => {
   );
 };
 
-/** The plus button on a library item: save it, or copy its install command or agent prompt. */
+/** The plus button on a library item: save it, copy its install command or agent prompt, or go to its details or its docs. */
 export function LibraryItemMenu({
   id,
   label,
   command,
   prompt,
+  onDetails,
+  docs,
   tooltipSide = "left",
   className,
 }: {
@@ -55,6 +61,10 @@ export function LibraryItemMenu({
   /** Left out for an item that is set up from its page. */
   command?: string;
   prompt: string;
+  /** Opens the item's details. */
+  onDetails: () => void;
+  /** The item's docs page. */
+  docs: string;
   tooltipSide?: "left" | "top";
   className?: string;
 }) {
@@ -96,6 +106,15 @@ export function LibraryItemMenu({
           <BotIcon aria-hidden />
           Copy agent prompt
         </MenuItem>
+        <MenuSeparator />
+        <MenuItem onClick={onDetails}>
+          <InfoIcon aria-hidden />
+          Details
+        </MenuItem>
+        <MenuLinkItem href={docs} render={<Link href={docs} />}>
+          <BookOpenIcon aria-hidden />
+          Docs
+        </MenuLinkItem>
       </MenuContent>
     </Menu>
   );

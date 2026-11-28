@@ -14,6 +14,7 @@ import {
 import type { LibrarySkill } from "@/lib/library/skills-data";
 import type { Starter } from "@/lib/library/starters-data";
 import { LibraryHero } from "./library-hero";
+import { LibraryItemDialog, type LibraryDetails } from "./library-item-dialog";
 import { LibraryEmpty } from "./library-empty";
 import { BlockCard, LinkRow, SectionTile } from "./library-entry";
 import {
@@ -105,6 +106,12 @@ export function LibraryBrowser() {
   const [starterOpen, setStarterOpen] = useState(false);
   const [skill, setSkill] = useState<LibrarySkill | null>(null);
   const [skillOpen, setSkillOpen] = useState(false);
+  const [details, setDetails] = useState<LibraryDetails | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const openDetails = (next: LibraryDetails) => {
+    setDetails(next);
+    setDetailsOpen(true);
+  };
   const normalized = useDeferredValue(query).trim().toLowerCase();
 
   const all = LIBRARY_SECTIONS;
@@ -201,14 +208,23 @@ export function LibraryBrowser() {
       case "skill":
         return skillTiles ? LAYOUT.tiles : LAYOUT.pairs;
       default:
-        return LAYOUT.links;
+        // Rows that lead with a mark are laid out like the skills.
+        return entry?.kind === "link" && entry.link.mark
+          ? LAYOUT.pairs
+          : LAYOUT.links;
     }
   };
 
   const renderEntry = (entry: LibraryEntry) => {
     switch (entry.kind) {
       case "block":
-        return <BlockCard key={entryKey(entry)} block={entry.block} />;
+        return (
+          <BlockCard
+            key={entryKey(entry)}
+            block={entry.block}
+            onDetails={openDetails}
+          />
+        );
       case "starter": {
         const Item = starterRows ? StarterRow : StarterCard;
         return (
@@ -236,7 +252,13 @@ export function LibraryBrowser() {
         );
       }
       case "link":
-        return <LinkRow key={entryKey(entry)} link={entry.link} />;
+        return (
+          <LinkRow
+            key={entryKey(entry)}
+            link={entry.link}
+            onDetails={openDetails}
+          />
+        );
     }
   };
 
@@ -331,7 +353,13 @@ export function LibraryBrowser() {
         label="Show library items"
         className="mb-10"
       />
-      <LibraryHero section={current} />
+      <LibraryHero
+        section={current}
+        onSkill={(selected) => {
+          setSkill(selected);
+          setSkillOpen(true);
+        }}
+      />
       <div className="mb-10 flex items-center gap-2">
         <SearchBar
           value={query}
@@ -348,6 +376,11 @@ export function LibraryBrowser() {
         onOpenChange={setStarterOpen}
       />
       <SkillDialog skill={skill} open={skillOpen} onOpenChange={setSkillOpen} />
+      <LibraryItemDialog
+        item={details}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
       <p role="status" className="sr-only">
         {normalized ? `${resultCount} items found` : ""}
       </p>

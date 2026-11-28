@@ -10,10 +10,13 @@ import { LibraryItemMenu } from "./library-item-menu";
 
 export function StarterMenu({
   starter,
+  onDetails,
   tooltipSide,
   className,
 }: {
   starter: Starter;
+  /** Opens the starter's details. */
+  onDetails: () => void;
   tooltipSide?: "left" | "top";
   className?: string;
 }) {
@@ -23,6 +26,8 @@ export function StarterMenu({
       label={starter.label}
       command={starterCommand(starter)}
       prompt={starterPrompt(starter)}
+      onDetails={onDetails}
+      docs="/docs/cli#create"
       {...(tooltipSide && { tooltipSide })}
       {...(className && { className })}
     />

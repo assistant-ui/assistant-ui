@@ -10,6 +10,7 @@ import { blockSavedId } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
 import { LibraryGlyph } from "./library-glyphs";
 import { itemFrame } from "./library-item";
+import type { LibraryDetails } from "./library-item-dialog";
 import { LibraryItemMenu } from "./library-item-menu";
 import { LibraryMark } from "./library-mark";
 
@@ -42,37 +43,81 @@ function LinkTitle({
 }
 
 /** A library item that lives on its own page: its name and one line about it. */
-export function LinkRow({ link }: { link: LibraryLink }) {
+export function LinkRow({
+  link,
+  onDetails,
+}: {
+  link: LibraryLink;
+  /** Opens the item's details. */
+  onDetails: (details: LibraryDetails) => void;
+}) {
+  const description = (
+    <p
+      className={cn(
+        "text-muted-foreground mt-0.5",
+        link.code
+          ? "truncate font-mono text-xs leading-relaxed [font-variant-ligatures:none]"
+          : "line-clamp-2 text-[13px] leading-relaxed",
+      )}
+    >
+      {link.description}
+    </p>
+  );
+  const { id, prompt } = link;
+  const docs = link.docs ?? link.href;
+  const menu = (className: string) =>
+    id && prompt ? (
+      <LibraryItemMenu
+        id={id}
+        label={link.name}
+        prompt={prompt}
+        docs={docs}
+        onDetails={() =>
+          onDetails({
+            id,
+            name: link.name,
+            // A row whose second line is a command says nothing more in prose.
+            description: link.code ? "" : link.description,
+            prompt,
+            docs,
+            ...(link.mark && { mark: link.mark }),
+            ...(link.command && { command: link.command }),
+          })
+        }
+        tooltipSide="top"
+        className={className}
+        {...(link.command && { command: link.command })}
+      />
+    ) : null;
+
+  // A row with a mark is drawn like a skill's: the mark in a framed preview box.
+  if (link.mark) {
+    return (
+      <li
+        data-nav-glyph-motion
+        className="group/navlink relative flex min-w-0 items-center gap-4 py-2"
+      >
+        <div className={cn(itemFrame, "shrink-0 rounded-2xl p-1.5")}>
+          <span className="bg-background grid h-11 w-14 place-items-center rounded-[10px]">
+            <LibraryMark mark={link.mark} name={link.name} large />
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <LinkTitle href={link.href}>{link.name}</LinkTitle>
+          {description}
+        </div>
+        {menu("relative z-10 shrink-0")}
+      </li>
+    );
+  }
+
   return (
     <li className="group/navlink relative flex min-w-0 items-start gap-2 py-2">
-      {link.mark ? (
-        <span className="bg-foreground/[0.03] dark:bg-foreground/[0.045] grid size-9 shrink-0 place-items-center rounded-lg">
-          <LibraryMark mark={link.mark} name={link.name} />
-        </span>
-      ) : null}
       <div className="min-w-0 flex-1">
         <LinkTitle href={link.href}>{link.name}</LinkTitle>
-        <p
-          className={cn(
-            "text-muted-foreground mt-0.5",
-            link.code
-              ? "truncate font-mono text-xs leading-relaxed [font-variant-ligatures:none]"
-              : "line-clamp-2 text-[13px] leading-relaxed",
-          )}
-        >
-          {link.description}
-        </p>
+        {description}
       </div>
-      {link.id && link.prompt ? (
-        <LibraryItemMenu
-          id={link.id}
-          label={link.name}
-          prompt={link.prompt}
-          tooltipSide="top"
-          className="relative z-10 -mt-1 shrink-0"
-          {...(link.command && { command: link.command })}
-        />
-      ) : null}
+      {menu("relative z-10 -mt-1 shrink-0")}
     </li>
   );
 }
@@ -81,15 +126,35 @@ const BLOCK_IMAGE_SIZES =
   "(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw";
 
 /** A block as a card: its screenshot in the current mode, its name, and what it is. */
-export function BlockCard({ block }: { block: LibraryBlock }) {
+export function BlockCard({
+  block,
+  onDetails,
+}: {
+  block: LibraryBlock;
+  /** Opens the block's details. */
+  onDetails: (details: LibraryDetails) => void;
+}) {
+  const id = blockSavedId(block.slug);
+  const docs = `/blocks/${block.slug}`;
   return (
     <li className="group/navlink relative flex min-w-0 flex-col">
       <div className={cn(itemFrame, "rounded-[32px] p-5")}>
         <div className="bg-background relative aspect-[16/10] overflow-hidden rounded-xl">
           <LibraryItemMenu
-            id={blockSavedId(block.slug)}
+            id={id}
             label={block.title}
             prompt={block.prompt}
+            docs={docs}
+            onDetails={() =>
+              onDetails({
+                id,
+                name: block.title,
+                description: block.description,
+                image: block.image,
+                prompt: block.prompt,
+                docs,
+              })
+            }
             className="bg-background/45 text-foreground hover:bg-background/70 focus-visible:bg-background/70 data-popup-open:bg-background/70 absolute top-3 right-3 z-10 backdrop-blur-md"
           />
           <Image
@@ -108,7 +173,7 @@ export function BlockCard({ block }: { block: LibraryBlock }) {
           />
         </div>
       </div>
-      <LinkTitle href={`/blocks/${block.slug}`} className="mt-3.5">
+      <LinkTitle href={docs} className="mt-3.5">
         {block.title}
       </LinkTitle>
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">

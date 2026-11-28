@@ -63,6 +63,8 @@ export type LibraryLink = {
   command?: string;
   /** What to tell a coding agent to add it. */
   prompt?: string;
+  /** The item's docs page, when `href` is somewhere else. */
+  docs?: string;
 };
 
 export type LibraryEntry =
@@ -98,8 +100,10 @@ export type LibrarySection = {
   /** The install command in the hero, which steps through its items; absent when nothing installs by command. */
   commands?: LibraryCommands;
   href: string;
-  /** The link beside the search that says where to read more. */
+  /** The link beside the install command that says where to read more. */
   guide: string;
+  /** The skills that teach a coding agent this tab's subject, by name; each opens from a button in the hero. */
+  skills?: readonly string[];
   groups: readonly LibraryGroup[];
   /** Things only some of its items are, each offered as a filter. */
   traits?: readonly { id: string; label: string }[];
@@ -166,6 +170,9 @@ export const LIBRARY_COMMANDS: LibraryCommands = {
 
 export const LIBRARY_GUIDE = { label: "Read the CLI guide", href: "/docs/cli" };
 
+/** The skill the All tab offers: the overview that says which skill to use. */
+export const LIBRARY_HOME_SKILLS: readonly string[] = ["assistant-ui"];
+
 const starters = (items: readonly Starter[]): LibraryEntry[] =>
   items.map((starter) => ({ kind: "starter", starter }));
 
@@ -180,6 +187,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
       "Chat elements, UI components, primitives, and the parts a model can write.",
     href: "/components",
     guide: "Open the components page",
+    skills: ["elements", "primitives"],
     traits: LIBRARY_TRAITS,
     groups: [
       {
@@ -256,6 +264,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     description: "Whole app surfaces with an assistant built in.",
     href: "/blocks",
     guide: "Open the blocks page",
+    skills: ["copilots"],
     groups: [
       {
         label: "Blocks",
@@ -270,6 +279,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     description: "Templates and example apps that create a new project.",
     href: "/docs/cli#create",
     guide: "Read the CLI guide",
+    skills: ["setup"],
     groups: [
       { label: "Templates", entries: starters(TEMPLATES) },
       { label: "Examples", entries: starters(EXAMPLES) },
@@ -282,6 +292,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     description: "Adapters that connect the chat to a backend.",
     href: "/docs/runtimes/pick-a-runtime",
     guide: "Pick a runtime",
+    skills: ["runtime", "streaming"],
     groups: pages("runtimes", LIBRARY_RUNTIMES),
   },
   {
@@ -291,6 +302,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     description: "Tool calls, tool UI, generative UI, and MCP.",
     href: "/docs/tools",
     guide: "Read the tools guide",
+    skills: ["tools", "generative-ui"],
     groups: pages("tools", LIBRARY_TOOLS),
   },
   {
@@ -300,6 +312,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     description: "Gateways, observability, auth, persistence, and attachments.",
     href: "/docs/integrations",
     guide: "Read the integrations guide",
+    skills: ["cloud", "observability"],
     groups: pages("integrations", LIBRARY_INTEGRATIONS),
   },
   {
@@ -319,6 +332,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
       "Instructions a coding agent loads to build with assistant-ui.",
     href: SKILLS_GUIDE,
     guide: "Read the skills guide",
+    skills: ["assistant-ui"],
     groups: SKILL_GROUPS.map((group) => ({
       label: group.title,
       entries: LIBRARY_SKILLS.filter((skill) => skill.group === group.id).map(
@@ -372,6 +386,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
             description: editor.command,
             href: "/library/mcp",
             code: true,
+            docs: "/docs/llm#mcp",
             mark: LIBRARY_MARKS[`mcp/${editor.id}`] ?? `letter:${editor.label}`,
             id: `mcp/${editor.id}`,
             command: editor.command,
