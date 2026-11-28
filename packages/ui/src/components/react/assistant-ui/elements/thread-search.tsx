@@ -194,7 +194,7 @@ export function ThreadSearch({
         id={listId}
         role="listbox"
         aria-label="Threads"
-        className="flex flex-col gap-1.5"
+        className="flex flex-col gap-1.5 empty:hidden"
       >
         {pinned.length > 0 && (
           <div role="group" aria-label="Pinned" className="flex flex-col">

@@ -379,7 +379,7 @@ export function TerminalBlock({
             : "text-muted-foreground",
         )}
       >
-        <div id={outputId} className="flex flex-col gap-1">
+        <div id={outputId} className="flex flex-col gap-1 empty:hidden">
           {displayedLines.map(({ line, stderr: isStderr }, index) => {
             const isLast = index === revealedLines.length - 1;
             return (

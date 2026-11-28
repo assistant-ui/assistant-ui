@@ -51,7 +51,7 @@ export const VoiceControl: FC<{ className?: string }> = ({ className }) => {
   return (
     <div
       className={cn(
-        "aui-voice-control flex items-center gap-2 border-b px-4 py-2",
+        "aui-voice-control flex min-h-11 items-center gap-2 border-b px-4",
         className,
       )}
     >

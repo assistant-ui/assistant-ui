@@ -158,6 +158,19 @@ describe("ThreadSearch", () => {
     expect(status.textContent).toBe("No thread matches “missing”");
   });
 
+  it("hides the empty listbox so it adds no gap above the status", () => {
+    render(
+      <ThreadSearch threads={threads} query="missing" activeId="pinned" />,
+    );
+
+    const listbox = screen.getByRole("listbox", { name: "Threads" });
+    const input = screen.getByRole("combobox", { name: "Search threads" });
+
+    expect(listbox.matches(":empty")).toBe(true);
+    expect(listbox.classList.contains("empty:hidden")).toBe(true);
+    expect(input.getAttribute("aria-controls")).toBe(listbox.id);
+  });
+
   it("says there are no threads yet when the list is empty", () => {
     render(<ThreadSearch threads={[]} query="" activeId="" />);
 

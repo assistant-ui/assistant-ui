@@ -95,7 +95,7 @@ export const ThreadListItems: FC<
   return (
     <div
       data-slot="aui_thread-list-items"
-      className={cn("flex flex-col gap-0.5", className)}
+      className={cn("flex flex-col gap-0.5 empty:hidden", className)}
       {...props}
     >
       <AuiIf condition={(s) => s.threads.isLoading}>

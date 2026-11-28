@@ -1,8 +1,14 @@
 import { createRef, version } from "react";
 import { act, cleanup, render, screen } from "@testing-library/react";
+import { FileTextIcon } from "lucide-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Composer, ComposerMenu } from "./composer";
+import {
+  Composer,
+  ComposerCommandItem,
+  ComposerMenu,
+  ComposerVoice,
+} from "./composer";
 
 const COMPOSER_WIDTH = 260;
 const MENU_WIDTH = 288;
@@ -161,5 +167,43 @@ describe("ComposerMenu", () => {
     const menu = screen.getByTestId("menu");
     expect(ref.current).toBe(menu);
     expect(menu.style.maxWidth).toBe("200px");
+  });
+});
+
+describe("ComposerCommandItem", () => {
+  const command = {
+    name: "summarize",
+    description: "Summarize the thread",
+    icon: FileTextIcon,
+  };
+
+  it("keeps the shortcut hint slot while the active item moves", () => {
+    const view = render(<ComposerCommandItem command={command} active />);
+    const item = screen.getByRole("button");
+    const columns = item.children.length;
+    const slot = item.lastElementChild;
+    expect(slot?.querySelector("kbd")?.textContent).toBe("↵");
+
+    view.rerender(<ComposerCommandItem command={command} active={false} />);
+    expect(item.children).toHaveLength(columns);
+    expect(item.lastElementChild).toBe(slot);
+    expect(slot?.classList.contains("w-4")).toBe(true);
+    expect(slot?.querySelector("kbd")).toBeNull();
+  });
+});
+
+describe("ComposerVoice", () => {
+  it("keeps the recording dot slot while transcribing", () => {
+    const view = render(<ComposerVoice recording seconds={3} />);
+    const row = view.container.querySelector('[data-slot="composer-voice"]')!;
+    const columns = row.children.length;
+    const dotSlot = row.firstElementChild;
+    expect(dotSlot?.childElementCount).toBe(1);
+
+    view.rerender(<ComposerVoice recording={false} seconds={3} />);
+    expect(row.children).toHaveLength(columns);
+    expect(row.firstElementChild).toBe(dotSlot);
+    expect(dotSlot?.classList.contains("size-1.5")).toBe(true);
+    expect(dotSlot?.childElementCount).toBe(0);
   });
 });

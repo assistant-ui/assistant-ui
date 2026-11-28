@@ -146,6 +146,23 @@ describe("TerminalBlock", () => {
 
     expect(writeText).toHaveBeenCalledWith("red line");
   });
+
+  it("hides the empty output so the cursor sits on the first line", () => {
+    const { container } = render(
+      <TerminalBlock
+        command="npm test"
+        lines={[]}
+        visibleCount={0}
+        done={false}
+      />,
+    );
+
+    const cursor = container.querySelector('[class~="bg-blue-500/70"]')!;
+    const output = cursor.parentElement!.firstElementChild!;
+    expect(output.id).not.toBe("");
+    expect(output.matches(":empty")).toBe(true);
+    expect(output.classList.contains("empty:hidden")).toBe(true);
+  });
 });
 
 describe("parseAnsi", () => {

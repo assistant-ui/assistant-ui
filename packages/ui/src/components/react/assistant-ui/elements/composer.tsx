@@ -267,11 +267,13 @@ export function ComposerCommandItem({
       <span className="text-muted-foreground flex-1 truncate text-start text-xs">
         {command.description}
       </span>
-      {active && (
-        <kbd className="bg-foreground/[0.06] text-muted-foreground rounded px-1 font-mono text-[10px]">
-          ↵
-        </kbd>
-      )}
+      <span className="flex w-4 justify-end">
+        {active && (
+          <kbd className="bg-foreground/[0.06] text-muted-foreground rounded px-1 font-mono text-[10px]">
+            ↵
+          </kbd>
+        )}
+      </span>
     </ComposerMenuItem>
   );
 }
@@ -419,12 +421,11 @@ export function ComposerVoice({
       className={cn("flex min-h-11 items-center gap-3 ps-3", className)}
       {...props}
     >
-      {recording && (
-        <span
-          aria-hidden
-          className="size-1.5 animate-pulse rounded-full bg-blue-500 dark:bg-blue-400"
-        />
-      )}
+      <span aria-hidden className="flex size-1.5 shrink-0">
+        {recording && (
+          <span className="size-1.5 animate-pulse rounded-full bg-blue-500 dark:bg-blue-400" />
+        )}
+      </span>
       <div className="flex h-6 items-center gap-[3px]" aria-hidden>
         {BARS.map((bar) => (
           <span

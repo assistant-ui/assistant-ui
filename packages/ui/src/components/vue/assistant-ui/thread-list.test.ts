@@ -286,6 +286,21 @@ describe("vue thread list", () => {
     unmount();
   });
 
+  it("hides the empty items list so it adds no trailing gap", async () => {
+    const { el, unmount } = mountThreadList(makeAdapter([]));
+
+    const [items] = slots(el, "items");
+    // Vue leaves zero-length text anchors, which browsers ignore for :empty and jsdom does not.
+    await settle(() => {
+      expect(slots(el, "skeleton-wrapper")).toHaveLength(0);
+      expect(items?.children).toHaveLength(0);
+      expect(items?.textContent).toBe("");
+    });
+    expect(items?.classList.contains("empty:hidden")).toBe(true);
+
+    unmount();
+  });
+
   it("matches titles case-insensitively and ignores surrounding whitespace", async () => {
     const { el, unmount } = mountThreadList(
       makeAdapter(withTitles("Trip planning", "Budget review")),
