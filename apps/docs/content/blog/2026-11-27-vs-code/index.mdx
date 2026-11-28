@@ -1,0 +1,271 @@
+---
+title: "Building VS Code Extensions with assistant-ui"
+description: "Add an assistant-ui chat to a VS Code extension with @assistant-ui/vscode."
+author: Tierney Cyren
+date: 2026-11-27T14:00:00-05:00
+---
+
+import Image from "next/image";
+import vscodeExtension from "./vscode-extension.png";
+
+In pursuit of ensuring that developers are able to build assistant experiences anywhere their users are, we've shipped `@assistant-ui/vscode` for building VS Code extensions with assistant-ui embedded.
+
+## What's Included in `@assistant-ui/vscode`
+
+The `@assistant-ui/vscode` package is a simple tool that allows _other_ assistant-ui packages to be easily embedded in VS Code extensions.
+
+We shipped `@assistant-ui/vscode` largely as a helper for tunneling `fetch` requests through the VS Code `postMessage` channel, enabling your route handlers to run seamlessly without having to write any VS Code-specific logic.
+
+Additionally, there's some non-obvious work to get support for leveraging VS Code's user themes to style assistant-ui components correctly, so we took care of that for you as well. Adopting a user's theme for your assistant-ui based extension is just two lines of code.
+
+Our goal at assistant-ui is to make it as easy as possible to build agent experiences for developers, and many developers drive VS Code daily. Since VS Code has some (reasonable!) restrictions as a development environment, providing a simple helper like `@assistant-ui/vscode` that smooths out the development experience and makes it seamless with the existing assistant-ui DX is an obvious win for anyone building for AI in VS Code.
+
+## Getting Started
+
+The fastest way to get started is with `npx` and the `assistant-ui` CLI template:
+
+```bash
+npx assistant-ui@latest create my-extension -t vscode
+cd my-extension
+code .
+# Press F5 to run the extension in a new VS Code window
+```
+
+With that, you'll have a good baseline to start building with! If you want to build it from scratch, though, it's not too hard.
+
+First, you'll want to install all the appropriate packages in your extension project:
+
+```bash
+npm i @assistant-ui/vscode @assistant-ui/react @assistant-ui/ai-sdk ai @ai-sdk/anthropic
+npm i -D esbuild tailwindcss @tailwindcss/cli @types/vscode typescript
+```
+
+Before the assistant-ui CLI can add components, it needs three files. First, map `@/` to `src` in your `tsconfig.json`:
+
+```json title="tsconfig.json"
+{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }
+```
+
+Theming is a pretty critical VS Code feature. You can import the user's theme with `@assistant-ui/vscode/theme.css` and your extension will adopt the user's theme entirely for an even more seamless integration into the user's environment:
+
+```css title="src/app.css"
+@import "tailwindcss";
+@import "@assistant-ui/vscode/theme.css";
+```
+
+Next, define where the components, utilities, and CSS live within a `components.json` file:
+
+```json title="components.json"
+{
+  "style": "base-nova",
+  "tsx": true,
+  "tailwind": { "css": "src/app.css", "baseColor": "zinc", "cssVariables": true },
+  "aliases": { "components": "@/components", "utils": "@/lib/utils" }
+}
+```
+
+Next, add the `Thread` component:
+
+```bash
+npx assistant-ui add thread
+```
+
+The above command pulls in assistant-ui's [`Thread` component](/elements/thread) into your project, installs its dependencies, and adds the styles it needs to `src/app.css`. Its files import a `cn` class-name helper from `@/lib/utils`, so let's make sure to add that file:
+
+```ts title="src/lib/utils.ts"
+export { cn } from "cn";
+```
+
+Then, build out a minimal extension host for a VS Code extension using `@assistant-ui/vscode`.
+
+```ts title="src/extension.ts"
+import { renderWebviewHtml, serveWebviewHost } from "@assistant-ui/vscode/host";
+import { anthropic } from "@ai-sdk/anthropic";
+import { convertToModelMessages, streamText } from "ai";
+import * as vscode from "vscode";
+
+// Handle POST requests to the chat API
+async function POST(req: Request) {
+  const { messages } = await req.json();
+  return streamText({
+    model: anthropic("claude-opus-5-5"),
+    messages: await convertToModelMessages(messages),
+    abortSignal: req.signal,
+  }).toUIMessageStreamResponse();
+}
+
+export function activate(context: vscode.ExtensionContext) {
+  const dist = vscode.Uri.joinPath(context.extensionUri, "dist");
+  context.subscriptions.push(
+    // Register the command to open the chat
+    vscode.commands.registerCommand("aui.openChat", () => {
+      const panel = vscode.window.createWebviewPanel(
+        "aui.chat",
+        "Assistant",
+        vscode.ViewColumn.Beside,
+        { enableScripts: true, retainContextWhenHidden: true },
+      );
+
+      // Route the webview's fetch requests to POST above
+      const host = serveWebviewHost(panel.webview, {
+        routes: {
+          "/api/chat": { POST },
+        },
+      });
+
+      // Dispose the host when the panel is closed
+      panel.onDidDispose(() => host.dispose());
+
+      // Load the bundles with a CSP and the editor theme
+      panel.webview.html = renderWebviewHtml(panel.webview, {
+        scripts: [vscode.Uri.joinPath(dist, "webview.js")],
+        styles: [
+          vscode.Uri.joinPath(dist, "app.css"),
+          vscode.Uri.joinPath(dist, "webview.css"),
+        ],
+        surface: "editor",
+      });
+    }),
+  );
+}
+```
+
+The webview you build is a regular assistant-ui app. The part specific to VS Code is passing `vscodeFetch` to the transport, rather than normal `fetch`:
+
+```tsx title="src/webview.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { vscodeFetch } from "@assistant-ui/vscode/webview";
+import { createRoot } from "react-dom/client";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+// The main app component for the webview
+function App() {
+  // Initialize the chat runtime with the VS Code fetch transport
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ fetch: vscodeFetch }),
+  });
+
+  // Render the chat thread within the assistant runtime provider
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <main className="h-screen">
+        <Thread />
+      </main>
+    </AssistantRuntimeProvider>
+  );
+}
+
+// Mount the React app to the root element
+createRoot(document.getElementById("root")!).render(<App />);
+```
+
+Register the command that opens the chat, and build both bundles:
+
+```json title="package.json"
+{
+  "main": "./dist/extension.js",
+  "engines": { "vscode": "^1.110.0" },
+  "contributes": {
+    "commands": [{ "command": "aui.openChat", "title": "Assistant: Open Chat" }]
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=dist/extension.js && esbuild src/webview.tsx --bundle --format=iife --jsx=automatic --minify --outfile=dist/webview.js && tailwindcss -i src/app.css -o dist/app.css"
+  }
+}
+```
+
+Finally, add a launch configuration so running the extension with F5 loads your `ANTHROPIC_API_KEY` from a `.env` file:
+
+```json title=".vscode/launch.json"
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "envFile": "${workspaceFolder}/.env",
+      "preLaunchTask": "npm: build"
+    }
+  ]
+}
+```
+
+Put `ANTHROPIC_API_KEY=...` in `.env` (and keep it out of git with your `.gitignore`), then press F5. For an extension you publish, store the key with the extension host's `context.secrets` instead.
+
+And with that, run **Assistant: Open Chat** from the Command Palette and you've got a chat in an editor tab, which you can drag, split and move like any file:
+
+<Image
+  src={vscodeExtension}
+  alt="VS Code with an assistant-ui chat open in an editor tab"
+  width={1552}
+  height={1012}
+/>
+
+## Saving Threads from VS Code to assistant-ui Cloud
+
+If you want to integrate [assistant-ui Cloud](https://cloud.assistant-ui.com) to store threads, it takes just seven additional lines of code.
+
+In the webview, you'll create a Cloud client and pass it to the chat runtime:
+
+```tsx title="src/webview.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantCloud } from "@assistant-ui/react"; // [!code ++]
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { vscodeFetch } from "@assistant-ui/vscode/webview";
+import { createRoot } from "react-dom/client";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+// Create an anonymous assistant-ui Cloud client for storing threads // [!code ++]
+const cloud = new AssistantCloud({ // [!code ++]
+  baseUrl: "https://proj-<id>.assistant-api.com", // [!code ++]
+  anonymous: true, // [!code ++]
+}); // [!code ++]
+
+// The main app component for the webview
+function App() {
+  // Initialize the chat runtime with the VS Code fetch transport
+  const runtime = useChatRuntime({
+    // Pass the cloud client to the chat runtime // [!code ++]
+    cloud, // [!code ++]
+    transport: new AssistantChatTransport({ fetch: vscodeFetch }),
+  });
+
+  // Render the chat thread within the assistant runtime provider
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <main className="h-screen">
+        <Thread />
+      </main>
+    </AssistantRuntimeProvider>
+  );
+}
+
+// Mount the React app to the root element
+createRoot(document.getElementById("root")!).render(<App />);
+```
+
+In the host, let the webview's CSP connect to the cloud:
+
+```ts title="src/extension.ts"
+// Load the bundles with a CSP and the editor theme
+panel.webview.html = renderWebviewHtml(panel.webview, {
+  scripts: [vscode.Uri.joinPath(dist, "webview.js")],
+  styles: [
+    vscode.Uri.joinPath(dist, "app.css"),
+    vscode.Uri.joinPath(dist, "webview.css"),
+  ],
+  surface: "editor",
+  connectSrc: ["https://proj-<id>.assistant-api.com"], // [!code ++]
+});
+```
+
+Each of your chat requests still routes through `vscodeFetch` to your route handler in the extension host. The webview talks to assistant-ui Cloud only for thread storage and run telemetry, which you can turn off with `telemetry: false` on the `AssistantCloud` client. If you turn on attachments, also add the storage host from your project's upload URLs to `connectSrc`, since files upload straight to it.
+
+## What's Next
+
+I'm excited that I get to share support for assistant-ui in VS Code. I've gotten to work around the VS Code ecosystem for around a decade, and it's nice to be able to ship something small and impactful like `@assistant-ui/vscode` that will help folks build even better experiences for developers in the editor.
+
+We're going to keep improving our support for VS Code - and other platforms! - but if you're building with `@assistant-ui/vscode` and find anything you'd like to improve, please feel free to open an issue (or submit a PR!) on [GitHub](https://github.com/assistant-ui/assistant-ui).
