@@ -299,7 +299,7 @@ test("the Ink install includes every explicitly built workspace", () => {
   }
 });
 
-test("the Expo native bundle watches bundle inputs but skips isolated package tests", () => {
+test("the Expo native bundle watches bundle inputs but skips package-only test changes", () => {
   const nativeWorkflowFile = ".github/workflows/expo-native-bundle.yaml";
   const workflow = readFileSync(
     path.join(repoRoot, nativeWorkflowFile),
@@ -318,7 +318,6 @@ test("the Expo native bundle watches bundle inputs but skips isolated package te
       (input) => input !== WORKFLOW_FILE && !input.startsWith("scripts/"),
     ),
     nativeWorkflowFile,
-    "packages/ui/src/components/react-native",
   ].sort();
 
   assert.equal(pathBlocks.length, 2, "pull request and push path filters");
@@ -347,12 +346,20 @@ test("the Expo native bundle watches bundle inputs but skips isolated package te
     ]) {
       assert.equal(matches(file), false, file);
     }
-    assert.equal(
-      matches(
-        "packages/ui/src/components/react-native/assistant-ui/thread.test.tsx",
-      ),
-      true,
-    );
+    const nativeUI =
+      "packages/ui/src/components/react-native/assistant-ui/elements";
+    const packageTests = [
+      "packages/metro/src/transformer.test.ts",
+      `${nativeUI}/image.test.tsx`,
+      `${nativeUI}/markdown-text.compiler.test.ts`,
+    ];
+    assert.equal(packageTests.some(matches), false);
+    for (const source of [
+      "packages/metro/src/transformer.ts",
+      `${nativeUI}/image.tsx`,
+    ]) {
+      assert.equal([...packageTests, source].some(matches), true, source);
+    }
     assert.deepEqual(
       patterns
         .filter((pattern) => !pattern.startsWith("!"))
@@ -382,23 +389,11 @@ test("the Expo native bundle watches bundle inputs but skips isolated package te
       ]) {
         assert.ok(matches(`${input}/${file}`), `${input}/${file}`);
       }
-      // Native UI tests enter Tailwind's scan; CJS builds use the full tsconfig program.
-      const packageRoot = input.split("/").slice(0, 2).join("/");
-      const pkg = JSON.parse(
-        readFileSync(path.join(repoRoot, packageRoot, "package.json"), "utf8"),
-      );
-      const testsAreInputs =
-        input === "packages/ui/src/components/react-native" ||
-        JSON.stringify(pkg.exports ?? {}).includes(".cjs");
       for (const file of [
         "src/index.test.ts",
         "src/nested/component.test.tsx",
       ]) {
-        assert.equal(
-          matches(`${input}/${file}`),
-          testsAreInputs,
-          `${input}/${file}`,
-        );
+        assert.equal(matches(`${input}/${file}`), false, `${input}/${file}`);
       }
     }
   }
