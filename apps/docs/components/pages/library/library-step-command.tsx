@@ -2,18 +2,17 @@
 
 import { useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { LibraryCommandStep } from "@/lib/library/library-data";
 import { cn } from "@/lib/utils";
 import { useLibrarySnippetChoice } from "./library-code-snippet";
 import { LibraryCopyButton } from "./library-copy-button";
-import { LibraryTooltip } from "./library-tooltip";
-import {
-  Menu,
-  MenuContent,
-  MenuRadioGroup,
-  MenuRadioItem,
-  MenuTrigger,
-} from "./menu";
+import { LibraryMenuIconButton } from "./library-icon-button";
+import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem } from "./menu";
 
 const WAYS = ["CLI", "Agent prompt"] as const;
 
@@ -46,7 +45,7 @@ export function LibraryStepCommand({
   return (
     <div
       className={cn(
-        "border-foreground/10 bg-background relative flex h-10 w-full max-w-md min-w-0 items-center rounded-(--library-control) border ps-4",
+        "border-foreground/10 bg-background relative flex h-8 w-full max-w-md min-w-0 items-center rounded-(--library-control) border ps-3",
         className,
       )}
     >
@@ -74,29 +73,36 @@ export function LibraryStepCommand({
         )}
       </code>
       {more ? (
-        <LibraryTooltip
-          label={`${step.does}. Click for the next ${asPrompt ? "prompt" : "command"}.`}
-        >
-          <button
-            type="button"
-            aria-label={`${text}: ${step.does}. Show the next one.`}
-            onClick={() => setIndex((current) => (current + 1) % steps.length)}
-            className="focus-visible:ring-ring absolute inset-0 cursor-pointer rounded-(--library-control) outline-none focus-visible:ring-2"
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-label={`${text}: ${step.does}. Show the next one.`}
+                onClick={() =>
+                  setIndex((current) => (current + 1) % steps.length)
+                }
+                className="focus-visible:ring-ring absolute inset-0 cursor-pointer rounded-(--library-control) outline-none focus-visible:ring-2"
+              />
+            }
           />
-        </LibraryTooltip>
+          <TooltipContent>
+            {`${step.does}. Click for the next ${asPrompt ? "prompt" : "command"}.`}
+          </TooltipContent>
+        </Tooltip>
       ) : null}
       <LibraryCopyButton
         text={text}
         label={asPrompt ? "Copy this prompt" : "Copy this command"}
-        className="relative me-1 rounded-(--library-icon)"
+        className="relative size-6"
       />
       <Menu>
-        <MenuTrigger
-          aria-label={`Install with: ${way}`}
-          className="text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground border-foreground/10 relative h-full w-10 shrink-0 justify-center rounded-s-none rounded-e-(--library-control) border-s px-0 pe-1 pointer-coarse:h-full"
+        <LibraryMenuIconButton
+          tooltip={`Install with: ${way}`}
+          className="relative me-1 size-6 pointer-coarse:size-6"
         >
           <ChevronDownIcon aria-hidden />
-        </MenuTrigger>
+        </LibraryMenuIconButton>
         <MenuContent align="end">
           <MenuRadioGroup
             value={way}

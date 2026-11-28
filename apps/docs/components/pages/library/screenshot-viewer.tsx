@@ -5,11 +5,12 @@ import Image from "next/image";
 import { Dialog } from "@base-ui/react/dialog";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LibraryIconButton } from "./library-icon-button";
 
 const SWIPE_THRESHOLD_PX = 40;
 
 const roundButton =
-  "bg-background/70 text-foreground ring-foreground/10 hover:bg-background focus-visible:ring-ring grid size-10 cursor-pointer place-items-center rounded-(--library-icon) ring-1 backdrop-blur-md transition-colors outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-0 [&_svg]:size-5";
+  "bg-background/70 text-foreground ring-foreground/10 hover:bg-background dark:hover:bg-background size-10 ring-1 backdrop-blur-md disabled:opacity-0";
 
 export type ViewerShot = { src: string; phone: boolean };
 
@@ -97,7 +98,7 @@ export function ScreenshotViewer({
       <Dialog.Portal>
         <Dialog.Backdrop
           forceRender
-          className="fixed inset-0 z-[60] bg-black/70 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none"
+          className="fixed inset-0 z-50 bg-black/70 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none"
         />
         <Dialog.Popup
           onClick={(event) => {
@@ -118,30 +119,36 @@ export function ScreenshotViewer({
             if (event.key === "ArrowLeft") go(index - 1);
             if (event.key === "ArrowRight") go(index + 1);
           }}
-          className="fixed inset-4 z-[60] flex flex-col items-center justify-center gap-4 transition-opacity duration-150 outline-none data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none sm:inset-8"
+          className="fixed inset-4 z-50 flex flex-col items-center justify-center gap-4 transition-opacity duration-150 outline-none data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none sm:inset-8"
         >
           <Dialog.Title className="sr-only">{`${label} screenshots`}</Dialog.Title>
           <div className="flex w-full max-w-6xl items-center justify-between gap-4 text-sm text-white">
             <span data-viewer-keep className="tabular-nums" aria-live="polite">
               {index + 1} / {count}
             </span>
-            <Dialog.Close aria-label="Close" className={roundButton}>
-              <XIcon aria-hidden />
+            <Dialog.Close
+              render={
+                <LibraryIconButton
+                  tooltip="Close"
+                  side="bottom"
+                  className={roundButton}
+                />
+              }
+            >
+              <XIcon aria-hidden className="size-5" />
             </Dialog.Close>
           </div>
           <div className="relative flex min-h-0 w-full max-w-6xl flex-1 items-stretch gap-3">
-            <button
-              type="button"
-              aria-label="Previous screenshot"
-              disabled={index === 0}
-              onClick={() => go(index - 1)}
-              className={cn(
-                roundButton,
-                "absolute top-1/2 left-3 z-10 -translate-y-1/2 sm:static sm:translate-y-0 sm:self-center",
-              )}
-            >
-              <ChevronLeftIcon aria-hidden />
-            </button>
+            <span className="absolute top-1/2 left-3 z-10 -translate-y-1/2 sm:static sm:translate-y-0 sm:self-center">
+              <LibraryIconButton
+                tooltip="Previous screenshot"
+                disabled={index === 0}
+                onClick={() => go(index - 1)}
+                className={roundButton}
+              >
+                <ChevronLeftIcon aria-hidden className="size-5" />
+              </LibraryIconButton>
+            </span>
             <div
               className="relative min-h-0 flex-1 touch-pan-y overflow-hidden"
               onPointerDown={(event) => {
@@ -172,18 +179,16 @@ export function ScreenshotViewer({
                 className="hidden dark:block"
               />
             </div>
-            <button
-              type="button"
-              aria-label="Next screenshot"
-              disabled={index === count - 1}
-              onClick={() => go(index + 1)}
-              className={cn(
-                roundButton,
-                "absolute top-1/2 right-3 z-10 -translate-y-1/2 sm:static sm:translate-y-0 sm:self-center",
-              )}
-            >
-              <ChevronRightIcon aria-hidden />
-            </button>
+            <span className="absolute top-1/2 right-3 z-10 -translate-y-1/2 sm:static sm:translate-y-0 sm:self-center">
+              <LibraryIconButton
+                tooltip="Next screenshot"
+                disabled={index === count - 1}
+                onClick={() => go(index + 1)}
+                className={roundButton}
+              >
+                <ChevronRightIcon aria-hidden className="size-5" />
+              </LibraryIconButton>
+            </span>
           </div>
           <div className="flex gap-1.5">
             {Array.from({ length: count }, (_, i) => (

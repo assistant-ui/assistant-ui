@@ -20,6 +20,7 @@ import {
   type LibrarySectionId,
 } from "@/lib/library/library-data";
 import { LIBRARY_SKILLS, type LibrarySkill } from "@/lib/library/skills-data";
+import { PRESET_STACK } from "@/lib/library/presets-data";
 import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
@@ -43,12 +44,14 @@ import {
 import { LibrarySidebar, useLibraryLayout } from "./library-sidebar";
 import { LibraryAppearancePanel } from "./library-theme";
 import { PillTabs, type PillTab } from "./pill-tabs";
+import { PresetCard, PresetRow } from "./preset-card";
 import { LibrarySavedButton } from "./saved-sheet";
 import { SearchBar } from "./search-bar";
 import { SkillCard, SkillRow } from "./skill-card";
 import { SkillDialog } from "./skill-dialog";
 import { StarterCard, StarterRow } from "./starter-card";
 import { StarterSheet } from "./starter-sheet";
+import { StarterTable } from "./starter-table";
 import {
   DEFAULT_VIEW_OPTIONS,
   StartersViewMenu,
@@ -147,6 +150,11 @@ export function LibraryBrowser() {
   const onStarters = current?.id === "starters";
   const sort = onStarters ? starterOptions.sort : filter.sort;
   const starterRows = onStarters && starterOptions.view === "list";
+  const starterTable = onStarters && starterOptions.view === "table";
+  const openStarter = (selected: Starter) => {
+    setStarter(selected);
+    setStarterOpen(true);
+  };
   const skillTiles = current?.id === "skills" && skillView === "grid";
 
   const sections = all
@@ -172,8 +180,10 @@ export function LibraryBrowser() {
                       entry.link.traits?.includes(trait),
                   )) &&
                 (!onStarters ||
-                  entry.kind !== "starter" ||
-                  matchesStarterOptions(entry.starter, starterOptions)),
+                  (entry.kind === "starter"
+                    ? matchesStarterOptions(entry.starter, starterOptions)
+                    : entry.kind !== "preset" ||
+                      matchesStarterOptions(PRESET_STACK, starterOptions))),
             ),
             current ? sort : "default",
             entryName,
@@ -225,6 +235,7 @@ export function LibraryBrowser() {
       case "block":
         return LAYOUT.cards;
       case "starter":
+      case "preset":
         return starterRows ? LAYOUT.rows : LAYOUT.cards;
       case "skill":
         return skillTiles ? LAYOUT.tiles : LAYOUT.pairs;
@@ -252,10 +263,17 @@ export function LibraryBrowser() {
           <Item
             key={entryKey(entry)}
             starter={entry.starter}
-            onSelect={(selected) => {
-              setStarter(selected);
-              setStarterOpen(true);
-            }}
+            onSelect={openStarter}
+          />
+        );
+      }
+      case "preset": {
+        const Item = starterRows ? PresetRow : PresetCard;
+        return (
+          <Item
+            key={entryKey(entry)}
+            preset={entry.preset}
+            onDetails={openDetails}
           />
         );
       }
@@ -363,7 +381,8 @@ export function LibraryBrowser() {
       (starterOptions.frameworks.length > 0 ||
         starterOptions.runtimes.length > 0 ||
         starterOptions.integrations.length > 0 ||
-        starterOptions.withScreenshot));
+        starterOptions.withScreenshot ||
+        starterOptions.installable));
 
   // The sidebar always says how many items a type holds; a search narrows that to the matches.
   const sidebarItems = tabs.map((entry) => {
@@ -534,23 +553,40 @@ export function LibraryBrowser() {
                     </span>
                   </div>
                 )}
-                <div className="flex flex-col gap-8">
-                  {groups.map((group) => (
-                    <div key={group.label} className="flex flex-col gap-2">
-                      {current || groups.length > 1 ? (
-                        <GroupLabel className="text-muted-foreground text-sm tabular-nums">
-                          {group.label} · {group.entries.length}
-                        </GroupLabel>
-                      ) : null}
-                      <ul
-                        aria-label={group.label}
-                        className={layoutOf(group.entries[0])}
-                      >
-                        {group.entries.map(renderEntry)}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
+                {starterTable ? (
+                  <div className="flex flex-col gap-2">
+                    <GroupLabel className="text-muted-foreground text-sm tabular-nums">
+                      {section.title} · {count}
+                    </GroupLabel>
+                    <StarterTable
+                      entries={sortLibraryItems(
+                        groups.flatMap((group) => group.entries),
+                        sort,
+                        entryName,
+                      )}
+                      onStarter={openStarter}
+                      onDetails={openDetails}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-8">
+                    {groups.map((group) => (
+                      <div key={group.label} className="flex flex-col gap-2">
+                        {current || groups.length > 1 ? (
+                          <GroupLabel className="text-muted-foreground text-sm tabular-nums">
+                            {group.label} · {group.entries.length}
+                          </GroupLabel>
+                        ) : null}
+                        <ul
+                          aria-label={group.label}
+                          className={layoutOf(group.entries[0])}
+                        >
+                          {group.entries.map(renderEntry)}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             ))}
           </div>

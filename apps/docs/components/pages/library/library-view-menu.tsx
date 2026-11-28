@@ -11,14 +11,11 @@ import {
   MenuRadioGroup,
   MenuRadioItem,
   MenuSeparator,
-  MenuTrigger,
 } from "./menu";
-import { cn } from "@/lib/utils";
-import { iconMenuTrigger } from "./library-item";
-import { LibraryTooltip } from "./library-tooltip";
+import { LibraryMenuIconButton } from "./library-icon-button";
 
 export type LibrarySort = "default" | "name-asc" | "name-desc";
-export type LibraryView = "grid" | "list";
+export type LibraryView = "grid" | "list" | "table";
 
 const SORTS: readonly { value: LibrarySort; label: string }[] = [
   { value: "default", label: "Recommended" },
@@ -29,7 +26,10 @@ const SORTS: readonly { value: LibrarySort; label: string }[] = [
 const VIEWS: readonly { value: LibraryView; label: string }[] = [
   { value: "grid", label: "Grid" },
   { value: "list", label: "List" },
+  { value: "table", label: "Table" },
 ];
+
+const DEFAULT_VIEWS: readonly LibraryView[] = ["grid", "list"];
 
 /** `items` in the picked order; "default" keeps the order they came in. */
 export const sortLibraryItems = <T,>(
@@ -46,13 +46,14 @@ export const sortLibraryItems = <T,>(
       );
 
 /**
- * The button beside a library search bar: sort, grid or list, and a reset.
- * A page with filters passes them as `filters` and says when one is on; a
- * list with one layout leaves `view` out.
+ * The button beside a library search bar: sort, the view, and a reset. A page
+ * with filters passes them as `filters` and says when one is on; a list with
+ * one layout leaves `view` out, and one with a table names it in `views`.
  */
 export function LibraryViewMenu({
   sort,
   view,
+  views = DEFAULT_VIEWS,
   onSortChange,
   onViewChange,
   onReset,
@@ -61,6 +62,7 @@ export function LibraryViewMenu({
 }: {
   sort: LibrarySort;
   view?: LibraryView;
+  views?: readonly LibraryView[];
   onSortChange: (sort: LibrarySort) => void;
   onViewChange?: (view: LibraryView) => void;
   /** Puts the sort, and any filters, back; the view stays. */
@@ -75,22 +77,21 @@ export function LibraryViewMenu({
 
   return (
     <Menu>
-      <LibraryTooltip label={label}>
-        <MenuTrigger
-          aria-label={
-            changed ? `${label}, ${filters ? "filters" : "sort"} on` : label
-          }
-          className={cn(iconMenuTrigger, "relative size-9")}
-        >
-          <SlidersHorizontalIcon aria-hidden />
-          {changed ? (
-            <span
-              aria-hidden
-              className="bg-foreground absolute top-1.5 right-1.5 size-1.5 rounded-full"
-            />
-          ) : null}
-        </MenuTrigger>
-      </LibraryTooltip>
+      <LibraryMenuIconButton
+        tooltip={label}
+        aria-label={
+          changed ? `${label}, ${filters ? "filters" : "sort"} on` : label
+        }
+        className="relative size-9"
+      >
+        <SlidersHorizontalIcon aria-hidden />
+        {changed ? (
+          <span
+            aria-hidden
+            className="bg-foreground absolute top-1.5 right-1.5 size-1.5 rounded-full"
+          />
+        ) : null}
+      </LibraryMenuIconButton>
       <MenuContent align="end">
         {filters ? (
           <>
@@ -123,11 +124,13 @@ export function LibraryViewMenu({
                 value={view}
                 onValueChange={(value: LibraryView) => onViewChange(value)}
               >
-                {VIEWS.map((option) => (
-                  <MenuRadioItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuRadioItem>
-                ))}
+                {VIEWS.filter((option) => views.includes(option.value)).map(
+                  (option) => (
+                    <MenuRadioItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuRadioItem>
+                  ),
+                )}
               </MenuRadioGroup>
             </MenuGroup>
           </>

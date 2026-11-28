@@ -20,7 +20,40 @@ What is copied, and from where:
 
 When to redo it: a starter is added, removed, or renamed in the CLI; a starter's imports, `.env.example`, or `package.json` change; or a registry item's files or dependencies change.
 
+### Examples the CLI does not offer
+
+`REPO_EXAMPLES` in the same file lists the folders under `examples/` in the repository that `PROJECT_METADATA` leaves out. `create -e` rejects their names, so each is marked `repoOnly`: it has no install command, its agent prompt points at its folder on GitHub, and its drawer shows that folder in place of the Setup and Dependencies tabs. The table view's Installable column and the "Installs by command" filter read the same mark.
+
+- Names are the folder names. Labels and one-line descriptions were written for the library from each README, or from the app's page when there is no README.
+- `framework` and `runtime` were read from each `package.json`; `env` from each `.env.example`, leaving out lines that are commented out.
+- Two folders were left out because the repository does not track them: `with-base` and `with-human-in-the-loop`.
+- The frameworks and runtimes these examples added (Vite, Nuxt, Vue, SvelteKit, Svelte, SolidStart, Solid, Chrome extension; A2A, OpenCode, Pi, Flue) also show in the Starters filter menu. Pi and Flue have no mark in `filter-icons.tsx` and show their first letter.
+
+When to redo it: a folder is added to or removed from `examples/`, or the CLI starts offering one of these, in which case it moves to the main list with its components, files, and dependencies filled in.
+
 A fix that was tried and set aside: a `pnpm generate:library-starters` script in `apps/docs/scripts` that imports the CLI's `PROJECT_METADATA`, `scanRequiredComponents`, and registry URL helpers, resolves everything above, and writes `lib/library/starters.generated.json` for `starters-data.ts` to merge in. It reproduced the snapshot exactly. Its costs: it needs `apps/registry/dist` built first (it is gitignored), it fetches from ui.shadcn.com, it adds a generated file and a package script to the docs app, and CI would not type-check it, since the docs `tsconfig` skips top-level `scripts/*.mts`.
+
+## Playground templates are a hand-copied snapshot
+
+`PLAYGROUND_TEMPLATES` in `lib/library/starters-data.ts` holds the Playground group on the Starters tab. It mirrors what `getXuluxHostedTemplatesCatalog` in `lib/xulux/templates-catalog.ts` lists, without React Ink and Expo, which are already under Examples. Nothing checks it today.
+
+- Six are the demos in `lib/xulux/demo-downloads/manifest.ts`. Each runs at `/demos/<name>`, downloads from `/api/xulux/demo-download?slug=<name>`, and has its entry file in `components/pages/examples/`. The download route answers only when the AI playground flag is on, as it is on the live site.
+- Nine are hosted apps at `*.preview.bl.run` addresses copied from the catalog: the configurable Base app, five versions of the docs assistant, and three versions of the support assistant. Their source is not in this repository, so they have a preview and a download and no source link. If one of those addresses changes or goes away, the row's links break.
+- Names and the docs and support one-liners are the catalog's; the demos' longer descriptions were shortened for the library.
+- A playground template has no install command. Its drawer shows Preview, Download, and Source in place of the Setup and Dependencies tabs, the table says "Download", and the "Installs by command" filter leaves it out. Under the other filters it counts as Next.js on the AI SDK.
+
+When to redo it: a template is added to or removed from the playground catalog, or a hosted address changes.
+
+## Presets are a hand-copied snapshot
+
+`lib/library/presets-data.ts` holds the Presets group on the Starters tab: the names `create --preset` takes, each one's name and line, and the colors, corners, and message side its card is drawn from. Nothing checks it today.
+
+- The list, the colors, the corner size, and the message side mirror `PRESETS` in `components/pages/playground/presets.ts`, which is what `/playground/init?preset=<name>` serves and what the CLI's `--preset <name>` resolves to (`resolvePresetUrl` in `packages/cli/src/commands/create.ts`). A color a preset does not set is drawn in the site's own.
+- The one-line descriptions were rewritten for the library.
+- The install command is `npx assistant-ui@latest create my-app --preset <name>`; the agent prompt applies the same registry item with `npx shadcn@latest add`, which is what `create` runs.
+- Under the Starters filters a preset counts as Next.js on the AI SDK with no screenshot, because `--preset` on its own builds on the default template.
+
+When to redo it: a preset is added, removed, renamed, or recolored in the playground.
 
 ## MCP page data is hand-copied
 

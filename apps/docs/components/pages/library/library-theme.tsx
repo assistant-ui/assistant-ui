@@ -16,6 +16,7 @@ import {
   colorCss,
   fontCss,
   libraryThemeCss,
+  LIBRARY_TYPE_VERSION,
   parseLibraryTheme,
   presetOf,
   radiusCss,
@@ -29,7 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { LibraryLayout } from "./library-sidebar";
 import { copyWithLibraryToast } from "./library-toast";
-import { LibraryTooltip } from "./library-tooltip";
+import { LibraryIconButton } from "./library-icon-button";
 import {
   Menu,
   MenuContent,
@@ -60,7 +61,10 @@ const subscribe = (listener: () => void) => {
 
 const remember = (values: LibraryThemeValues) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...values, typeVersion: LIBRARY_TYPE_VERSION }),
+    );
   } catch {}
   for (const listener of listeners) listener();
 };
@@ -88,9 +92,6 @@ export function LibraryThemeStyle({
     </style>
   );
 }
-
-const iconButton =
-  "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2";
 
 const sectionTitle = "text-[13px] font-medium";
 
@@ -190,18 +191,14 @@ function Reset({
   onReset: () => void;
 }) {
   return (
-    <button
-      type="button"
-      aria-label={`Reset ${name}`}
+    <LibraryIconButton
+      tooltip={`Reset ${name}`}
       onClick={onReset}
       disabled={!changed}
-      className={cn(
-        iconButton,
-        "size-6 transition-opacity disabled:pointer-events-none disabled:opacity-0",
-      )}
+      className="size-6 disabled:opacity-0"
     >
       <RotateCcwIcon aria-hidden className="size-3" />
-    </button>
+    </LibraryIconButton>
   );
 }
 
@@ -472,25 +469,21 @@ export function LibraryAppearancePanel({
               <CopyIcon aria-hidden className="size-3.5" />
               Copy CSS
             </button>
-            <LibraryTooltip label={`Reset all to ${baseLabel}`}>
-              <button
-                type="button"
-                aria-label={`Reset all to ${baseLabel}`}
-                disabled={preset !== null}
-                onClick={() => remember(base)}
-                className={cn(
-                  iconButton,
-                  "size-8 disabled:pointer-events-none disabled:opacity-40",
-                )}
-              >
-                <RotateCcwIcon aria-hidden className="size-3.5" />
-              </button>
-            </LibraryTooltip>
-            <Dialog.Close
-              aria-label="Close appearance"
-              className={cn(iconButton, "size-8")}
+            <LibraryIconButton
+              tooltip={`Reset all to ${baseLabel}`}
+              side="bottom"
+              disabled={preset !== null}
+              onClick={() => remember(base)}
+              className="disabled:opacity-40"
             >
-              <XIcon aria-hidden className="size-4" />
+              <RotateCcwIcon aria-hidden className="size-3.5" />
+            </LibraryIconButton>
+            <Dialog.Close
+              render={
+                <LibraryIconButton tooltip="Close appearance" side="bottom" />
+              }
+            >
+              <XIcon aria-hidden />
             </Dialog.Close>
           </div>
           <div className="min-h-0 flex-1 [scrollbar-width:thin] overflow-y-auto">

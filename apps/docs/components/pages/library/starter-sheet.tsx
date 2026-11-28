@@ -1,10 +1,13 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   ArrowUpRightIcon,
   BotIcon,
+  DownloadIcon,
+  FolderGitIcon,
+  KeyRoundIcon,
   BookmarkCheckIcon,
   BookmarkIcon,
   TerminalIcon,
@@ -32,12 +35,14 @@ import {
   starterSourceHref,
   type Starter,
 } from "@/lib/library/starters-data";
+import { LIBRARY_KIND_LABEL } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
 import { useLibrarySaved } from "./saved-store";
 import { copyWithLibraryToast } from "./library-toast";
 import { toggleLibrarySavedWithToast } from "./library-item-menu";
 import { FilterIcon } from "./filter-icons";
 import { LibraryCopyButton } from "./library-copy-button";
+import { LibraryIconButton } from "./library-icon-button";
 import { GroupRow, RowGroup } from "./library-row-group";
 import { CommandLine, Step } from "./library-steps";
 import {
@@ -148,6 +153,45 @@ const TABS = [
   { value: "dependencies", label: "Dependencies" },
 ] as const;
 
+/** A row that names a place and opens it in a new tab. */
+function LinkRow({
+  icon,
+  label,
+  href,
+  text = href.replace(/^https:\/\//, ""),
+  tooltip,
+}: {
+  icon: ReactNode;
+  label: string;
+  href: string;
+  /** What the row shows for the address; the address itself when left out. */
+  text?: string;
+  tooltip: string;
+}) {
+  return (
+    <GroupRow
+      icon={icon}
+      label={label}
+      value={
+        <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
+          {text}
+        </span>
+      }
+      action={
+        <LibraryIconButton
+          tooltip={tooltip}
+          aria-label={`${tooltip} (opens in a new tab)`}
+          nativeButton={false}
+          render={<a href={href} target="_blank" rel="noreferrer" />}
+          className="-me-1.5"
+        >
+          <ArrowUpRightIcon aria-hidden />
+        </LibraryIconButton>
+      }
+    />
+  );
+}
+
 function OpenStep({ starter }: { starter: Starter }) {
   const open = starterOpen(starter);
   if ("text" in open) {
@@ -159,15 +203,14 @@ function OpenStep({ starter }: { starter: Starter }) {
         <code className="min-w-0 flex-1 truncate font-mono text-xs [font-variant-ligatures:none]">
           {open.url}
         </code>
-        <a
-          href={open.url}
-          target="_blank"
-          rel="noreferrer"
+        <LibraryIconButton
+          tooltip="Open in a new tab"
           aria-label={`Open ${open.url} (opens in a new tab)`}
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
+          nativeButton={false}
+          render={<a href={open.url} target="_blank" rel="noreferrer" />}
         >
-          <ArrowUpRightIcon aria-hidden className="size-4" />
-        </a>
+          <ArrowUpRightIcon aria-hidden />
+        </LibraryIconButton>
       </div>
       <p className="text-muted-foreground text-sm">
         Open it in your browser once the dev server is running.
@@ -178,6 +221,12 @@ function OpenStep({ starter }: { starter: Starter }) {
 
 function StarterDetails({ starter }: { starter: Starter }) {
   const command = starterCommand(starter);
+  const source = starterSourceHref(starter);
+  const { hosted } = starter;
+  const tabs = [
+    ...(command ? TABS : TABS.slice(0, 1)),
+    ...(starter.screenshots ? [SCREENSHOTS_TAB] : []),
+  ];
   const isSaved = useLibrarySaved().includes(starterId(starter));
   const prompt = starterPrompt(starter);
 
@@ -197,21 +246,28 @@ function StarterDetails({ starter }: { starter: Starter }) {
                 {starter.description}
               </LibraryDrawerDescription>
             </div>
-            <a
-              href={starterSourceHref(starter)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-1.5 inline-flex shrink-0 items-center gap-1 rounded-sm text-sm underline-offset-4 transition-colors outline-none hover:underline focus-visible:ring-2"
-            >
-              View repo
-              <ArrowUpRightIcon aria-hidden className="size-3.5" />
-              <span className="sr-only">on GitHub (opens in a new tab)</span>
-            </a>
+            {source ? (
+              <a
+                href={source}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-1.5 inline-flex shrink-0 items-center gap-1 rounded-sm text-sm underline-offset-4 transition-colors outline-none hover:underline focus-visible:ring-2"
+              >
+                View repo
+                <ArrowUpRightIcon aria-hidden className="size-3.5" />
+                <span className="sr-only">on GitHub (opens in a new tab)</span>
+              </a>
+            ) : null}
             <LibraryDrawerClose
-              aria-label="Close"
-              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-2 -mt-0.5 grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
+              render={
+                <LibraryIconButton
+                  tooltip="Close"
+                  side="bottom"
+                  className="-me-2 -mt-0.5"
+                />
+              }
             >
-              <XIcon aria-hidden className="size-4" />
+              <XIcon aria-hidden />
             </LibraryDrawerClose>
           </div>
 
@@ -221,44 +277,95 @@ function StarterDetails({ starter }: { starter: Starter }) {
           >
             <Tabs.List
               aria-label="Starter details"
-              className="flex flex-wrap gap-1"
-            >
-              {(starter.screenshots ? [...TABS, SCREENSHOTS_TAB] : TABS).map(
-                (tab) => (
-                  <Tabs.Tab
-                    key={tab.value}
-                    value={tab.value}
-                    className={cn(
-                      "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 cursor-pointer rounded-(--library-control) px-3.5 text-sm transition-colors outline-none focus-visible:ring-2",
-                    )}
-                  >
-                    {tab.label}
-                  </Tabs.Tab>
-                ),
+              className={cn(
+                "flex flex-wrap gap-1",
+                tabs.length < 2 && "hidden",
               )}
+            >
+              {tabs.map((tab) => (
+                <Tabs.Tab
+                  key={tab.value}
+                  value={tab.value}
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 cursor-pointer rounded-(--library-control) px-3.5 text-sm transition-colors outline-none focus-visible:ring-2",
+                  )}
+                >
+                  {tab.label}
+                </Tabs.Tab>
+              ))}
             </Tabs.List>
 
             <Tabs.Panel
               value="overview"
               className="flex flex-col gap-6 outline-none"
             >
-              <RowGroup title="Install">
-                <GroupRow
-                  icon={<TerminalIcon aria-hidden />}
-                  label="Install command"
-                  value={
-                    <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
-                      {command}
-                    </span>
-                  }
-                  action={
-                    <LibraryCopyButton
-                      text={command}
-                      label="Copy install command"
-                      className="-me-1.5"
+              {command ? null : (
+                <p className="text-muted-foreground text-sm text-pretty">
+                  {hosted
+                    ? "This is a playground template, so it has no install command. Open its preview, or download it as a project."
+                    : "The create command does not offer this example, so it has no install command. Run it from a clone of the repository."}
+                </p>
+              )}
+              <RowGroup title={command ? "Install" : "Get it"}>
+                {command ? (
+                  <GroupRow
+                    icon={<TerminalIcon aria-hidden />}
+                    label="Install command"
+                    value={
+                      <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
+                        {command}
+                      </span>
+                    }
+                    action={
+                      <LibraryCopyButton
+                        text={command}
+                        label="Copy install command"
+                        className="-me-1.5"
+                      />
+                    }
+                  />
+                ) : hosted ? (
+                  <>
+                    <LinkRow
+                      icon={<AppWindowIcon aria-hidden />}
+                      label="Preview"
+                      href={hosted.preview}
+                      tooltip="Open the preview"
                     />
-                  }
-                />
+                    <LinkRow
+                      icon={<DownloadIcon aria-hidden />}
+                      label="Download"
+                      href={hosted.download}
+                      tooltip="Download the project"
+                    />
+                    {hosted.source && source ? (
+                      <LinkRow
+                        icon={<FileCodeIcon aria-hidden />}
+                        label="Source"
+                        href={source}
+                        text={hosted.source}
+                        tooltip="Open the file on GitHub"
+                      />
+                    ) : null}
+                  </>
+                ) : source ? (
+                  <GroupRow
+                    icon={<FolderGitIcon aria-hidden />}
+                    label="Folder"
+                    value={
+                      <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
+                        examples/{starter.name}
+                      </span>
+                    }
+                    action={
+                      <LibraryCopyButton
+                        text={source}
+                        label="Copy the folder's GitHub address"
+                        className="-me-1.5"
+                      />
+                    }
+                  />
+                ) : null}
                 <GroupRow
                   icon={<BotIcon aria-hidden />}
                   label="Agent prompt"
@@ -278,7 +385,7 @@ function StarterDetails({ starter }: { starter: Starter }) {
                   label="Type"
                   value={
                     <span className="text-foreground">
-                      {starter.kind === "template" ? "Template" : "Example"}
+                      {LIBRARY_KIND_LABEL[starter.kind]}
                     </span>
                   }
                 />
@@ -302,12 +409,24 @@ function StarterDetails({ starter }: { starter: Starter }) {
                   value={<StackValue names={starter.integrations ?? []} />}
                 />
               </RowGroup>
+              {starter.repoOnly && starter.env.length > 0 ? (
+                <RowGroup title="Environment variables">
+                  {starter.env.map((name) => (
+                    <GroupRow
+                      key={name}
+                      icon={<KeyRoundIcon aria-hidden />}
+                      label={name}
+                      mono
+                    />
+                  ))}
+                </RowGroup>
+              ) : null}
             </Tabs.Panel>
 
             <Tabs.Panel value="setup" className="outline-none">
               <ol className="flex flex-col">
                 <Step number={1} title="Create the project">
-                  <CommandLine command={command} />
+                  {command ? <CommandLine command={command} /> : null}
                 </Step>
                 <Step number={2} title="Set its environment variables">
                   {starter.env.length > 0 ? (
@@ -385,20 +504,36 @@ function StarterDetails({ starter }: { starter: Starter }) {
         </div>
       </div>
       <div className="flex gap-2 border-t p-4">
-        <button
-          type="button"
-          aria-label={`Install ${starter.label}: copy its install command`}
-          onClick={() =>
-            copyWithLibraryToast(command, "Install command copied.")
-          }
-          className={cn(
-            button,
-            "bg-foreground text-background hover:bg-foreground/90 flex-1",
-          )}
-        >
-          <TerminalIcon aria-hidden />
-          Install
-        </button>
+        {command ? (
+          <button
+            type="button"
+            aria-label={`Install ${starter.label}: copy its install command`}
+            onClick={() =>
+              copyWithLibraryToast(command, "Install command copied.")
+            }
+            className={cn(
+              button,
+              "bg-foreground text-background hover:bg-foreground/90 flex-1",
+            )}
+          >
+            <TerminalIcon aria-hidden />
+            Install
+          </button>
+        ) : (
+          <a
+            href={hosted?.preview ?? source}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              button,
+              "bg-foreground text-background hover:bg-foreground/90 flex-1",
+            )}
+          >
+            {hosted ? "Open preview" : "View on GitHub"}
+            <ArrowUpRightIcon aria-hidden />
+            <span className="sr-only">(opens in a new tab)</span>
+          </a>
+        )}
         <button
           type="button"
           aria-pressed={isSaved}

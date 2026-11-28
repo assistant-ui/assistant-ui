@@ -150,11 +150,11 @@ export const LIBRARY_PRESETS: readonly {
       floating: 12,
       card: 6,
       thumb: 6,
-      titleSize: 44,
+      titleSize: 36,
       titleWeight: 550,
       titleTracking: -10,
-      titleLeading: 115,
-      textSize: 17,
+      titleLeading: 111,
+      textSize: 15,
       textWeight: 400,
       textTracking: 0,
       textLeading: 163,
@@ -179,14 +179,14 @@ export const LIBRARY_PRESETS: readonly {
       floating: 22,
       card: 32,
       thumb: 16,
-      titleSize: 64,
-      titleWeight: 450,
-      titleTracking: -60,
-      titleLeading: 100,
-      textSize: 18,
+      titleSize: 36,
+      titleWeight: 550,
+      titleTracking: -10,
+      titleLeading: 111,
+      textSize: 15,
       textWeight: 400,
       textTracking: 0,
-      textLeading: 156,
+      textLeading: 163,
       tint: 0,
       accent: SITE_ACCENT,
       display: "geist",
@@ -253,6 +253,9 @@ const parseColors = (saved: unknown, d: LibraryColors): LibraryColors => {
   return { light: mode("light"), dark: mode("dark") };
 };
 
+/** Raised when the presets' title and text settings change; a theme saved under an older one takes the presets' new settings. */
+export const LIBRARY_TYPE_VERSION = 2;
+
 /** A saved theme read back; anything missing or malformed takes its preset's value. */
 export const parseLibraryTheme = (raw: string | null): LibraryThemeValues => {
   if (!raw) return DEFAULT_LIBRARY_THEME;
@@ -267,11 +270,13 @@ export const parseLibraryTheme = (raw: string | null): LibraryThemeValues => {
         clamp(saved[key], 0, RADIUS_FULL, d[key]),
       ]),
     ) as Record<LibraryRadiusKey, number>;
+    const typeSaved =
+      saved["typeVersion"] === LIBRARY_TYPE_VERSION ? saved : {};
     const type = Object.fromEntries(
       LIBRARY_TYPE.flatMap((group) =>
         group.settings.map(({ key, min, max }) => [
           key,
-          clamp(saved[key], min, max, d[key]),
+          clamp(typeSaved[key], min, max, d[key]),
         ]),
       ),
     ) as Record<LibraryTypeKey, number>;
@@ -340,6 +345,8 @@ export const libraryThemeCss = (
     // the padding between them.
     "--library-card-inner:max(calc(var(--library-card) - 20px),4px)",
     "--library-thumb-inner:max(calc(var(--library-thumb) - 6px),4px)",
+    // The assistant-ui tooltip reads the site's surface corner.
+    "--radius-surface:var(--library-surface)",
     `--library-title-size:${values.titleSize}px`,
     `--library-title-weight:${values.titleWeight}`,
     `--library-title-tracking:${values.titleTracking / 1000}em`,

@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { ItemGlyph, ItemThumbnail, ItemTitle, itemFrame } from "./library-item";
+import { overPreview } from "./library-icon-button";
 import { StarterGlyph } from "./starter-glyphs";
 import { StarterMenu } from "./starter-menu";
 
@@ -149,7 +150,7 @@ export function StarterCard({ starter, onSelect }: StarterItemProps) {
           <StarterMenu
             starter={starter}
             onDetails={() => onSelect(starter)}
-            className="bg-background/45 text-foreground hover:bg-background/70 focus-visible:bg-background/70 data-popup-open:bg-background/70 absolute top-3 right-3 z-10 backdrop-blur-md"
+            className={overPreview}
           />
           <StarterPreview
             starter={starter}

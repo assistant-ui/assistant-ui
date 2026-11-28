@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { CircleAlertIcon, CircleCheckIcon, XIcon } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import { cn } from "@/lib/utils";
+import { LibraryIconButton } from "./library-icon-button";
 
 type ToastAction = { label: string; onClick: () => void };
 
@@ -104,14 +105,14 @@ function ToastItem({ toast }: { toast: Toast }) {
           {toast.action.label}
         </button>
       ) : null}
-      <button
-        type="button"
-        aria-label="Dismiss"
+      <LibraryIconButton
+        tooltip="Dismiss"
+        side="bottom"
         onClick={() => dismiss(toast.id)}
-        className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-7 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
+        className="size-7"
       >
         <XIcon aria-hidden className="size-3.5" />
-      </button>
+      </LibraryIconButton>
     </li>
   );
 }

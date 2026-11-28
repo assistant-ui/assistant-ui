@@ -11,6 +11,7 @@ import {
 } from "@hugeicons/core-free-icons";
 
 import { cn } from "@/lib/utils";
+import { LibraryIconButton } from "./library-icon-button";
 
 const rowText = "text-sm/5 font-normal";
 
@@ -201,17 +202,16 @@ function MenuSearch({
           {...props}
         />
         {search && (
-          <button
-            type="button"
+          <LibraryIconButton
+            tooltip="Clear search"
             data-slot="menu-search-clear"
-            aria-label="Clear search"
             disabled={!search.query}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
               search.setQuery("");
               inputRef.current?.focus();
             }}
-            className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-(--library-item) border-0 bg-transparent p-0 outline-none disabled:pointer-events-none disabled:opacity-0"
+            className="hover:bg-accent dark:hover:bg-accent size-6 rounded-(--library-item) disabled:opacity-0"
           >
             <HugeiconsIcon
               icon={Cancel01Icon}
@@ -219,7 +219,7 @@ function MenuSearch({
               aria-hidden="true"
               className="size-4"
             />
-          </button>
+          </LibraryIconButton>
         )}
       </div>
       <div aria-hidden="true" className="bg-border mx-2 my-1 h-px shrink-0" />

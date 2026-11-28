@@ -100,6 +100,18 @@ const fromEntry = (entry: LibraryEntry, group: string): HeroItem => {
         ...(light && dark && { image: { light, dark } }),
       };
     }
+    case "preset":
+      return {
+        key: `preset:${entry.preset.id}`,
+        name: entry.preset.name,
+        note: `--preset ${entry.preset.id}`,
+        mark: (
+          <LibraryMark
+            mark={`preset:${entry.preset.id}`}
+            name={entry.preset.name}
+          />
+        ),
+      };
     case "block":
       return {
         key: entry.block.slug,
@@ -483,16 +495,16 @@ export function LibraryHero({
     <div className="mb-10 grid grid-cols-[minmax(0,1fr)] items-center gap-12 lg:min-h-68 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-16">
       <header className="max-w-2xl">
         <h1 className={libraryTitle}>{section ? section.title : "Library"}</h1>
-        <p className={cn(libraryDeck, "mt-5 max-w-[52ch]")}>
+        <p className={cn(libraryDeck, "mt-4 max-w-[52ch]")}>
           {section
             ? section.description
             : `${libraryTotal(LIBRARY_SECTIONS)} things you can add to an assistant-ui project.`}
         </p>
-        <div className="mt-8 flex flex-wrap items-center gap-4">
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
           <Link
             href={guide.href}
             className={cn(
-              "bg-foreground text-background hover:bg-foreground/90 inline-flex h-10 items-center rounded-(--library-control) px-4 text-base font-medium transition-colors",
+              "bg-foreground text-background hover:bg-foreground/90 inline-flex h-8 items-center rounded-(--library-control) px-3 text-sm font-medium transition-colors",
               focus,
             )}
           >

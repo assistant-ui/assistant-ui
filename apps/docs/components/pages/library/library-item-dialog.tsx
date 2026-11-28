@@ -21,6 +21,7 @@ import {
   LibraryDialogDescription,
   LibraryDialogTitle,
 } from "./library-dialog";
+import { LibraryIconButton } from "./library-icon-button";
 import { toggleLibrarySavedWithToast } from "./library-item-menu";
 import { LibraryKindLabel } from "./library-kind";
 import { LibraryMark } from "./library-mark";
@@ -80,8 +81,7 @@ function DetailsBody({ item }: { item: LibraryDetails }) {
           {kind ? <LibraryKindLabel kind={kind} /> : null}
         </div>
         <LibraryDialogClose
-          aria-label="Close"
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-1 -mt-1 grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4"
+          render={<LibraryIconButton tooltip="Close" className="-me-1 -mt-1" />}
         >
           <XIcon aria-hidden />
         </LibraryDialogClose>

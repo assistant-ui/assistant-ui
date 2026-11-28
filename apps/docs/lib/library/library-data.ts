@@ -17,6 +17,12 @@ import {
 } from "./docs-data";
 import { LIBRARY_MARKS } from "./marks";
 import { MCP_COMMAND, MCP_EDITORS, MCP_URL } from "./mcp-data";
+import {
+  LIBRARY_PRESETS,
+  presetCommand,
+  presetPrompt,
+  type LibraryPreset,
+} from "./presets-data";
 import { SKILL_AGENTS } from "./skill-agents";
 import {
   LIBRARY_SKILLS,
@@ -28,6 +34,7 @@ import {
 } from "./skills-data";
 import {
   EXAMPLES,
+  PLAYGROUND,
   TEMPLATES,
   starterCommand,
   starterPrompt,
@@ -71,6 +78,7 @@ export type LibraryEntry =
   | { kind: "link"; link: LibraryLink }
   | { kind: "block"; block: LibraryBlock }
   | { kind: "starter"; starter: Starter }
+  | { kind: "preset"; preset: LibraryPreset }
   | { kind: "skill"; skill: LibrarySkill };
 
 export type LibraryGroup = {
@@ -276,13 +284,19 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     id: "starters",
     title: "Starters",
     noun: "starters",
-    description: "Templates and example apps that create a new project.",
+    description:
+      "Templates, example apps, playground templates, and presets that start a new project.",
     href: "/docs/cli#create",
     guide: "Read the CLI guide",
     skills: ["setup"],
     groups: [
       { label: "Templates", entries: starters(TEMPLATES) },
       { label: "Examples", entries: starters(EXAMPLES) },
+      { label: "Playground", entries: starters(PLAYGROUND) },
+      {
+        label: "Presets",
+        entries: LIBRARY_PRESETS.map((preset) => ({ kind: "preset", preset })),
+      },
     ],
   },
   {
@@ -423,6 +437,11 @@ const entryInstall = (
         command: starterCommand(entry.starter),
         prompt: starterPrompt(entry.starter),
       };
+    case "preset":
+      return {
+        command: presetCommand(entry.preset),
+        prompt: presetPrompt(entry.preset),
+      };
     default:
       return {};
   }
@@ -461,6 +480,8 @@ export const entryName = (entry: LibraryEntry): string => {
       return entry.block.title;
     case "starter":
       return entry.starter.label;
+    case "preset":
+      return entry.preset.name;
     case "skill":
       return entry.skill.title;
   }
@@ -481,6 +502,8 @@ export const entryKey = (entry: LibraryEntry): string => {
       return entry.block.slug;
     case "starter":
       return entry.starter.name;
+    case "preset":
+      return `preset:${entry.preset.id}`;
     case "skill":
       return entry.skill.name;
   }
@@ -513,6 +536,11 @@ export const matchesEntry = (entry: LibraryEntry, query: string): boolean => {
           entry.starter.runtime ?? "",
           ...(entry.starter.integrations ?? []),
         ],
+        query,
+      );
+    case "preset":
+      return includes(
+        [entry.preset.name, entry.preset.id, entry.preset.description],
         query,
       );
     case "skill":

@@ -20,14 +20,15 @@ export function StarterMenu({
   tooltipSide?: "left" | "top";
   className?: string;
 }) {
+  const command = starterCommand(starter);
   return (
     <LibraryItemMenu
       id={starterId(starter)}
       label={starter.label}
-      command={starterCommand(starter)}
       prompt={starterPrompt(starter)}
       onDetails={onDetails}
-      docs="/docs/cli#create"
+      docs={starter.hosted?.preview ?? "/docs/cli#create"}
+      {...(command && { command })}
       {...(tooltipSide && { tooltipSide })}
       {...(className && { className })}
     />

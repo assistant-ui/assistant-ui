@@ -2,7 +2,7 @@
 
 import { PaletteIcon, SettingsIcon } from "lucide-react";
 import type { LibrarySkill } from "@/lib/library/skills-data";
-import { LibraryTooltip } from "./library-tooltip";
+import { LibraryMenuIconButton } from "./library-icon-button";
 import {
   Menu,
   MenuContent,
@@ -10,7 +10,6 @@ import {
   MenuItem,
   MenuLabel,
   MenuSeparator,
-  MenuTrigger,
 } from "./menu";
 import { SkillGlyph } from "./skill-glyphs";
 
@@ -33,14 +32,13 @@ export function LibraryDock({
   return (
     <div className="fixed right-4 bottom-4 z-40">
       <Menu>
-        <LibraryTooltip side="left" label="Skills and appearance">
-          <MenuTrigger
-            aria-label="Skills and appearance"
-            className="bg-background text-foreground ring-foreground/10 hover:bg-background data-popup-open:bg-background size-10 justify-center rounded-(--library-icon) p-0 shadow-[0_1px_2px_oklch(0_0_0/8%),0_8px_24px_-8px_oklch(0_0_0/30%)] ring-1 dark:shadow-[0_1px_2px_oklch(0_0_0/40%),0_8px_24px_-8px_oklch(0_0_0/70%)]"
-          >
-            <SettingsIcon aria-hidden />
-          </MenuTrigger>
-        </LibraryTooltip>
+        <LibraryMenuIconButton
+          tooltip="Skills and appearance"
+          side="left"
+          className="bg-background text-foreground ring-foreground/10 hover:bg-background dark:hover:bg-background aria-expanded:bg-background size-10 shadow-[0_1px_2px_oklch(0_0_0/8%),0_8px_24px_-8px_oklch(0_0_0/30%)] ring-1 dark:shadow-[0_1px_2px_oklch(0_0_0/40%),0_8px_24px_-8px_oklch(0_0_0/70%)] pointer-coarse:size-10"
+        >
+          <SettingsIcon aria-hidden />
+        </LibraryMenuIconButton>
         <MenuContent side="top" align="end">
           {skills.length > 0 ? (
             <>

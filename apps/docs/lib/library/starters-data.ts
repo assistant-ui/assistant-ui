@@ -1,6 +1,6 @@
-import { agentSetupPrompt } from "./agent-prompt";
+import { LIBRARY_SITE, agentSetupPrompt } from "./agent-prompt";
 
-export type StarterKind = "template" | "example";
+export type StarterKind = "template" | "example" | "playground";
 
 export const STARTER_FRAMEWORKS = [
   "Next.js",
@@ -9,6 +9,14 @@ export const STARTER_FRAMEWORKS = [
   "Expo",
   "Ink",
   "VS Code",
+  "Vite",
+  "Nuxt",
+  "Vue",
+  "SvelteKit",
+  "Svelte",
+  "SolidStart",
+  "Solid",
+  "Chrome extension",
 ] as const;
 
 export type StarterFramework = (typeof STARTER_FRAMEWORKS)[number];
@@ -20,6 +28,10 @@ export const STARTER_RUNTIMES = [
   "Google ADK",
   "Eve",
   "OpenAI SDK",
+  "A2A",
+  "OpenCode",
+  "Pi",
+  "Flue",
 ] as const;
 
 export type StarterRuntime = (typeof STARTER_RUNTIMES)[number];
@@ -55,6 +67,10 @@ export type Starter = {
   files: readonly string[];
   /** npm packages the project ends up with: its `package.json` plus what the registry items add. */
   dependencies: readonly string[];
+  /** `create` does not offer it: it is run from a clone of the repository, so it has no install command. */
+  repoOnly?: true;
+  /** A playground template: where it runs, where it downloads from, and its entry file in the repository when it has one. It has no install command. */
+  hosted?: { preview: string; download: string; source?: string };
   /** The components ship inside the starter instead of being installed from the registry. */
   componentsIncluded?: true;
   /** The `package.json` script that starts it locally, when it is not `dev`. */
@@ -75,7 +91,7 @@ export type Starter = {
 
 // The CLI is not a dependency of the docs app, so this list mirrors
 // PROJECT_METADATA in packages/cli/src/commands/create.ts.
-export const STARTERS: readonly Starter[] = [
+const CLI_STARTERS: readonly Starter[] = [
   {
     name: "default",
     label: "Default",
@@ -2793,6 +2809,401 @@ export const STARTERS: readonly Starter[] = [
   },
 ];
 
+type RepoExample = Pick<
+  Starter,
+  "name" | "label" | "description" | "framework"
+> &
+  Partial<Pick<Starter, "runtime" | "integrations" | "env">>;
+
+// Folders under examples/ in the repository that PROJECT_METADATA leaves out.
+const REPO_EXAMPLES: readonly RepoExample[] = [
+  {
+    name: "recipe-chat-history",
+    label: "Chat History Recipe",
+    description: "Threads and messages saved in your own SQLite database.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+  },
+  {
+    name: "recipe-own-backend",
+    label: "Own Backend Recipe",
+    description: "A chat streaming from a backend with its own request format.",
+    framework: "Next.js",
+  },
+  {
+    name: "recipe-tool-approval",
+    label: "Tool Approval Recipe",
+    description: "An agent that asks before it runs a tool.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+    env: ["OPENAI_API_KEY", "TOOL_APPROVAL_SECRET"],
+  },
+  {
+    name: "recipe-tool-ui",
+    label: "Tool UI Recipe",
+    description: "A tool result drawn as your own component.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+  },
+  {
+    name: "with-a2a",
+    label: "A2A",
+    description: "An agent over the A2A protocol.",
+    framework: "Next.js",
+    runtime: "A2A",
+    env: ["NEXT_PUBLIC_A2A_SERVER_URL"],
+  },
+  {
+    name: "with-opencode",
+    label: "OpenCode",
+    description: "An OpenCode server through its runtime adapter.",
+    framework: "Next.js",
+    runtime: "OpenCode",
+    env: ["NEXT_PUBLIC_OPENCODE_BASE_URL"],
+  },
+  {
+    name: "with-pi",
+    label: "Pi",
+    description: "The Pi coding agent, run in-process.",
+    framework: "Next.js",
+    runtime: "Pi",
+    env: ["PI_WORKSPACE_PATH"],
+  },
+  {
+    name: "with-flue",
+    label: "Flue",
+    description: "A chat on one durable Flue conversation.",
+    framework: "Vite",
+    runtime: "Flue",
+    env: ["OPENAI_API_KEY", "MODEL_SPECIFIER"],
+  },
+  {
+    name: "with-langchain",
+    label: "LangChain useStream",
+    description: "LangChain's useStream as an assistant-ui runtime.",
+    framework: "Next.js",
+    runtime: "LangGraph",
+    env: [
+      "NEXT_PUBLIC_LANGGRAPH_API_URL",
+      "NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID",
+    ],
+  },
+  {
+    name: "with-pydantic-ai-durable",
+    label: "Durable Pydantic AI",
+    description: "Pydantic AI threads that survive a closed browser.",
+    framework: "Next.js",
+    runtime: "AG-UI",
+    env: ["NEXT_PUBLIC_DURABLE_AGENT_URL"],
+  },
+  {
+    name: "with-mcp",
+    label: "React MCP",
+    description: "A local MCP server with OAuth, and a client on react-mcp.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+    integrations: ["MCP"],
+  },
+  {
+    name: "with-webmcp",
+    label: "WebMCP",
+    description: "Frontend tools exposed to a WebMCP browser.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+    env: ["OPENAI_API_KEY"],
+  },
+  {
+    name: "with-generative-ui",
+    label: "Generative UI",
+    description: "Interfaces the model writes, rendered in the thread.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+    env: ["AI_GATEWAY_API_KEY", "OPENAI_API_KEY"],
+  },
+  {
+    name: "with-agent-document-editor",
+    label: "Agent Document Editor",
+    description: "A rich text document you and an assistant edit together.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+    env: [
+      "OPENAI_API_KEY",
+      "ANTHROPIC_API_KEY",
+      "GOOGLE_GENERATIVE_AI_API_KEY",
+    ],
+  },
+  {
+    name: "with-article-assistant",
+    label: "Article Assistant",
+    description:
+      "A news article with an assistant that answers questions about it.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+  },
+  {
+    name: "with-image-generation",
+    label: "Image Generation",
+    description:
+      "An image generated by a server route, shown with the Image component.",
+    framework: "Next.js",
+  },
+  {
+    name: "with-virtualized-thread",
+    label: "Virtualized Thread",
+    description: "A 500-message thread rendered one row at a time.",
+    framework: "Next.js",
+  },
+  {
+    name: "with-tap-runtime",
+    label: "Tap Runtime",
+    description: "A runtime built on tap and the store.",
+    framework: "Next.js",
+  },
+  {
+    name: "with-store",
+    label: "Store",
+    description: "Scopes, lists, and providers in the assistant-ui store.",
+    framework: "Next.js",
+  },
+  {
+    name: "with-heat-graph",
+    label: "Heat Graph",
+    description: "An activity graph drawn with heat-graph.",
+    framework: "Next.js",
+  },
+  {
+    name: "waterfall",
+    label: "Waterfall",
+    description: "A span timeline drawn with react-o11y.",
+    framework: "Next.js",
+  },
+  {
+    name: "with-react-ink-web",
+    label: "React Ink Web",
+    description: "The terminal chat, run in the browser.",
+    framework: "Next.js",
+    runtime: "AI SDK",
+  },
+  {
+    name: "with-vscode",
+    label: "VS Code Test Bed",
+    description:
+      "A VS Code extension that tests the chat webview with scripted fixtures.",
+    framework: "VS Code",
+    runtime: "AI SDK",
+  },
+  {
+    name: "with-browser-extension",
+    label: "Browser Extension",
+    description: "A chat in a Chrome side panel.",
+    framework: "Chrome extension",
+  },
+  {
+    name: "with-nuxt",
+    label: "Nuxt",
+    description: "A Nuxt 4 app on the Vue primitives.",
+    framework: "Nuxt",
+    runtime: "AI SDK",
+    env: ["OPENAI_API_KEY"],
+  },
+  {
+    name: "with-vue",
+    label: "Vue",
+    description: "A Vue app on Vite.",
+    framework: "Vue",
+  },
+  {
+    name: "with-sveltekit",
+    label: "SvelteKit",
+    description: "A SvelteKit app streaming from a server route.",
+    framework: "SvelteKit",
+    runtime: "AI SDK",
+    env: ["OPENAI_API_KEY"],
+  },
+  {
+    name: "with-svelte",
+    label: "Svelte",
+    description: "A Svelte app on Vite.",
+    framework: "Svelte",
+  },
+  {
+    name: "with-solid-start",
+    label: "SolidStart",
+    description: "A SolidStart app.",
+    framework: "SolidStart",
+  },
+  {
+    name: "with-solid",
+    label: "Solid",
+    description: "A Solid app on Vite.",
+    framework: "Solid",
+  },
+];
+
+type PlaygroundTemplate = Pick<
+  Starter,
+  "name" | "label" | "description" | "image"
+> & { hosted: NonNullable<Starter["hosted"]> };
+
+/** A demo the docs site runs at /demos and zips up as a starter app. */
+const demo = (
+  name: string,
+  label: string,
+  description: string,
+  image?: string,
+): PlaygroundTemplate => ({
+  name,
+  label,
+  description,
+  ...(image && { image }),
+  hosted: {
+    preview: `/demos/${name}`,
+    download: `/api/xulux/demo-download?slug=${name}`,
+    source: `apps/docs/components/pages/examples/${name}.tsx`,
+  },
+});
+
+/** One version of a hosted template app, picked by its `v` parameter. */
+const version = (
+  host: string,
+  name: string,
+  label: string,
+  description: string,
+): PlaygroundTemplate => ({
+  name,
+  label,
+  description,
+  hosted: {
+    preview: `${host}/preview?v=${name}`,
+    download: `${host}/api/download?v=${name}`,
+  },
+});
+
+const BASE_HOST = "https://71e34324f44b97fed5523a6a9857f14b.preview.bl.run";
+const DOCS_HOST = "https://0d9e27d14127c0eeadfc34b424cc7ed0.preview.bl.run";
+const SUPPORT_HOST = "https://8fd186ab9f30417b876d717f734067a9.preview.bl.run";
+
+// The playground's templates, mirroring getXuluxHostedTemplatesCatalog in
+// lib/xulux/templates-catalog.ts without the two that are already examples
+// (React Ink and Expo).
+const PLAYGROUND_TEMPLATES: readonly PlaygroundTemplate[] = [
+  demo(
+    "base",
+    "Base Assistant UI",
+    "A full chat app on the primitives: threads, attachments, mentions, slash commands, a model picker, and voice.",
+  ),
+  demo(
+    "chatgpt",
+    "ChatGPT Style Assistant",
+    "The ChatGPT interface rebuilt on the primitives: colors, type, tools menu, composer, and messages.",
+    "/screenshot/examples/chatgpt.png",
+  ),
+  demo(
+    "claude",
+    "Claude Style Assistant",
+    "A Claude-style chat with serif type, warm colors, file controls, and a compact composer.",
+    "/screenshot/examples/claude.png",
+  ),
+  demo(
+    "grok",
+    "Grok Style Assistant",
+    "A Grok-style chat with minimal dark styling and a centered composer.",
+    "/screenshot/examples/grok.png",
+  ),
+  demo(
+    "gemini",
+    "Gemini Style Assistant",
+    "A Gemini-style chat with starter prompts and rounded composer controls.",
+    "/screenshot/examples/gemini.png",
+  ),
+  demo(
+    "perplexity",
+    "Perplexity Style Assistant",
+    "A Perplexity-style search assistant with a focused input and a follow-up composer.",
+    "/screenshot/examples/perplexity.png",
+  ),
+  {
+    name: "base-assistant-ui",
+    label: "Configurable Base Assistant UI",
+    description:
+      "The Base demo as a hosted template you configure: theme, welcome, suggestions, and slash commands.",
+    hosted: { preview: BASE_HOST, download: `${BASE_HOST}/api/download` },
+  },
+  version(
+    DOCS_HOST,
+    "product-docs",
+    "Product Docs Assistant",
+    "Answers product documentation questions beside a SaaS docs article.",
+  ),
+  version(
+    DOCS_HOST,
+    "developer-api",
+    "Developer API Integration Assistant",
+    "Helps developers debug API setup, auth, SDKs, webhooks, and errors.",
+  ),
+  version(
+    DOCS_HOST,
+    "website-copilot",
+    "Website Page Copilot",
+    "Explains the current site page and suggests the visitor's next action.",
+  ),
+  version(
+    DOCS_HOST,
+    "docs-search",
+    "Search-and-Navigate Docs Helper",
+    "Prioritizes source search and page preview navigation across a docs corpus.",
+  ),
+  version(
+    DOCS_HOST,
+    "code-examples",
+    "Code Example Generator",
+    "Focuses on generating implementation snippets grounded in docs context.",
+  ),
+  version(
+    SUPPORT_HOST,
+    "integration-health",
+    "Integration Health Assistant",
+    "Triage sync delays, connector health, and access issues for integration teams.",
+  ),
+  version(
+    SUPPORT_HOST,
+    "incident-command",
+    "Incident Command Assistant",
+    "Prepare incident triage notes for reliability and on-call teams.",
+  ),
+  version(
+    SUPPORT_HOST,
+    "billing-operations",
+    "Billing Operations Assistant",
+    "Triage payment, invoice, and account-access issues for revenue teams.",
+  ),
+];
+
+export const STARTERS: readonly Starter[] = [
+  ...CLI_STARTERS,
+  ...REPO_EXAMPLES.map((example): Starter => ({
+    env: [],
+    ...example,
+    kind: "example",
+    repoOnly: true,
+    components: [],
+    uiComponents: [],
+    files: [],
+    dependencies: [],
+  })),
+  ...PLAYGROUND_TEMPLATES.map((template): Starter => ({
+    ...template,
+    kind: "playground",
+    framework: "Next.js",
+    runtime: "AI SDK",
+    env: [],
+    components: [],
+    uiComponents: [],
+    files: [],
+    dependencies: [],
+  })),
+];
+
 export const TEMPLATES = STARTERS.filter(
   (starter) => starter.kind === "template",
 );
@@ -2801,7 +3212,18 @@ export const EXAMPLES = STARTERS.filter(
   (starter) => starter.kind === "example",
 );
 
-export const starterCommand = ({ name, kind }: Starter): string => {
+export const PLAYGROUND = STARTERS.filter(
+  (starter) => starter.kind === "playground",
+);
+
+/** What creates the starter; a starter `create` does not offer has none. */
+export const starterCommand = ({
+  name,
+  kind,
+  repoOnly,
+  hosted,
+}: Starter): string | undefined => {
+  if (repoOnly || hosted) return undefined;
   if (kind === "example")
     return `npx assistant-ui@latest create my-app -e ${name}`;
   if (name === "default") return "npx assistant-ui@latest create my-app";
@@ -2810,15 +3232,35 @@ export const starterCommand = ({ name, kind }: Starter): string => {
   return `npx assistant-ui@latest create my-app -t ${name}`;
 };
 
-export const starterSourceHref = ({ name, kind }: Starter): string =>
-  `https://github.com/assistant-ui/assistant-ui/tree/main/${kind}s/${name}`;
+const REPOSITORY = "https://github.com/assistant-ui/assistant-ui";
+
+/** The starter's code on GitHub; a playground template hosted elsewhere has none. */
+export const starterSourceHref = ({
+  name,
+  kind,
+  hosted,
+}: Starter): string | undefined => {
+  if (!hosted) return `${REPOSITORY}/tree/main/${kind}s/${name}`;
+  return hosted.source ? `${REPOSITORY}/blob/main/${hosted.source}` : undefined;
+};
+
+/** An address on the site made absolute, for a prompt or a new tab. */
+export const starterAbsolute = (href: string): string =>
+  href.startsWith("/") ? `${LIBRARY_SITE}${href}` : href;
 
 /** Unique across templates and examples, which share some names. */
 export const starterId = ({ name, kind }: Starter): string =>
   `${kind}s/${name}`;
 
 export const starterPrompt = (starter: Starter): string =>
-  agentSetupPrompt([], `Start from the \`${starter.name}\` ${starter.kind}`);
+  starter.hosted
+    ? `Download the ${starter.label} template from ${starterAbsolute(starter.hosted.download)} and run it. It is previewed at ${starterAbsolute(starter.hosted.preview)}`
+    : agentSetupPrompt(
+        [],
+        starter.repoOnly
+          ? `Follow the ${starter.label} example at ${starterSourceHref(starter)}`
+          : `Start from the \`${starter.name}\` ${starter.kind}`,
+      );
 
 /** Where to see a starter once it is running: a local address, or how to open it when it isn't a web page. */
 export const starterOpen = (

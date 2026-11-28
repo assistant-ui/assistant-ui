@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import { cn } from "@/lib/utils";
+import { LibraryIconButton } from "./library-icon-button";
 import { libraryToast } from "./library-toast";
 
 const COPIED_MS = 1600;
@@ -29,9 +30,8 @@ export function LibraryCopyButton({
   useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
-    <button
-      type="button"
-      aria-label={copied ? "Copied" : label}
+    <LibraryIconButton
+      tooltip={copied ? "Copied" : label}
       onClick={async () => {
         if (!(await copyTextToClipboard(text))) {
           libraryToast.error("The clipboard is not available.");
@@ -42,13 +42,13 @@ export function LibraryCopyButton({
         timer.current = setTimeout(() => setCopied(false), COPIED_MS);
       }}
       className={cn(
-        "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2",
+        "grid place-items-center",
         copied && "text-foreground",
         className,
       )}
     >
       <CopyIcon aria-hidden className={cn(swap, copied ? hidden : shown)} />
       <CheckIcon aria-hidden className={cn(swap, copied ? shown : hidden)} />
-    </button>
+    </LibraryIconButton>
   );
 }

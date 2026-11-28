@@ -26,8 +26,10 @@ import {
 } from "./saved-store";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "./menu";
 import { LibraryGlyph } from "./library-glyphs";
+import { LibraryIconButton } from "./library-icon-button";
 import { ItemGlyph, ItemThumbnail } from "./library-item";
 import { LibraryKindLabel } from "./library-kind";
+import { PresetThumbnail } from "./preset-card";
 import { SkillThumbnail } from "./skill-card";
 import { StarterThumbnail } from "./starter-card";
 import { copyWithLibraryToast } from "./library-toast";
@@ -38,16 +40,13 @@ const button =
 export function LibrarySavedButton({ className }: { className?: string }) {
   const count = useLibrarySaved().length;
   return (
-    <button
-      type="button"
+    <LibraryIconButton
+      tooltip="Saved"
       onClick={() => setLibrarySavedOpen(true)}
       aria-label={`Open saved, ${count} ${count === 1 ? "item" : "items"}`}
-      className={cn(
-        "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring relative grid size-9 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2",
-        className,
-      )}
+      className={cn("relative size-9", className)}
     >
-      <BookmarkIcon aria-hidden className="size-4" />
+      <BookmarkIcon aria-hidden />
       {count > 0 ? (
         <span
           aria-hidden
@@ -56,7 +55,7 @@ export function LibrarySavedButton({ className }: { className?: string }) {
           {count}
         </span>
       ) : null}
-    </button>
+    </LibraryIconButton>
   );
 }
 
@@ -66,6 +65,8 @@ function SavedPreview({ preview }: { preview: LibrarySavedPreview }) {
       return <StarterThumbnail starter={preview.starter} />;
     case "skill":
       return <SkillThumbnail name={preview.skill} />;
+    case "preset":
+      return <PresetThumbnail id={preview.preset} />;
     case "block":
       return (
         <ItemThumbnail>
@@ -121,10 +122,15 @@ export function LibrarySavedSheet() {
               </Dialog.Description>
             </div>
             <Dialog.Close
-              aria-label="Close saved"
-              className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring -me-1.5 grid size-8 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
+              render={
+                <LibraryIconButton
+                  tooltip="Close saved"
+                  side="bottom"
+                  className="-me-1.5"
+                />
+              }
             >
-              <XIcon aria-hidden className="size-4" />
+              <XIcon aria-hidden />
             </Dialog.Close>
           </div>
           {items.length > 0 ? (
@@ -142,14 +148,15 @@ export function LibrarySavedSheet() {
                       </span>
                       <LibraryKindLabel kind={item.kind} />
                     </span>
-                    <button
-                      type="button"
+                    <LibraryIconButton
+                      tooltip="Remove from saved"
+                      side="left"
                       aria-label={`Remove ${item.name} from saved`}
                       onClick={() => removeLibrarySavedItem(item.id)}
-                      className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-7 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
+                      className="size-7"
                     >
                       <XIcon aria-hidden className="size-3.5" />
-                    </button>
+                    </LibraryIconButton>
                   </li>
                 ))}
               </ul>

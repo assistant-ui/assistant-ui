@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LibraryIconButton } from "./library-icon-button";
 
 export function SearchBar({
   value,
@@ -42,17 +43,18 @@ export function SearchBar({
         className="bg-background placeholder:text-muted-foreground focus-visible:border-foreground/30 h-9 w-full rounded-(--library-control) border px-10 text-sm transition-colors outline-none [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value && (
-        <button
-          type="button"
-          aria-label="Clear search"
-          onClick={() => {
-            onValueChange("");
-            inputRef.current?.focus();
-          }}
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] absolute end-1.5 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-(--library-icon) transition-colors"
-        >
-          <XIcon className="size-4" />
-        </button>
+        <span className="absolute inset-y-0 end-1.5 flex items-center">
+          <LibraryIconButton
+            tooltip="Clear search"
+            onClick={() => {
+              onValueChange("");
+              inputRef.current?.focus();
+            }}
+            className="size-6"
+          >
+            <XIcon aria-hidden />
+          </LibraryIconButton>
+        </span>
       )}
     </div>
   );

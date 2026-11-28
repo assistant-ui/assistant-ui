@@ -11,7 +11,6 @@ import {
   PlusIcon,
   TerminalIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   setLibrarySavedOpen,
   toggleLibrarySavedItem,
@@ -23,11 +22,9 @@ import {
   MenuItem,
   MenuLinkItem,
   MenuSeparator,
-  MenuTrigger,
 } from "./menu";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
-import { iconMenuTrigger } from "./library-item";
-import { LibraryTooltip } from "./library-tooltip";
+import { LibraryMenuIconButton } from "./library-icon-button";
 
 /** Saves the item or removes it from saved, and says which in a toast that opens the saved panel. */
 export const toggleLibrarySavedWithToast = (id: string, label: string) => {
@@ -72,14 +69,14 @@ export function LibraryItemMenu({
 
   return (
     <Menu>
-      <LibraryTooltip side={tooltipSide} label="Add or copy">
-        <MenuTrigger
-          aria-label={`Options for ${label}${isSaved ? ", saved" : ""}`}
-          className={cn(iconMenuTrigger, className)}
-        >
-          {isSaved ? <CheckIcon aria-hidden /> : <PlusIcon aria-hidden />}
-        </MenuTrigger>
-      </LibraryTooltip>
+      <LibraryMenuIconButton
+        tooltip="Add or copy"
+        side={tooltipSide}
+        aria-label={`Options for ${label}${isSaved ? ", saved" : ""}`}
+        {...(className && { className })}
+      >
+        {isSaved ? <CheckIcon aria-hidden /> : <PlusIcon aria-hidden />}
+      </LibraryMenuIconButton>
       <MenuContent side="bottom" align="end">
         <MenuItem onClick={() => toggleLibrarySavedWithToast(id, label)}>
           {isSaved ? (

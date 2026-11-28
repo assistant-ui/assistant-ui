@@ -8,6 +8,7 @@ import type { LibraryBlock } from "@/lib/library/blocks-data";
 import type { LibraryLink, LibrarySectionId } from "@/lib/library/library-data";
 import { blockSavedId } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
+import { overPreview } from "./library-icon-button";
 import { LibraryGlyph } from "./library-glyphs";
 import { itemFrame } from "./library-item";
 import type { LibraryDetails } from "./library-item-dialog";
@@ -157,7 +158,7 @@ export function BlockCard({
                 docs,
               })
             }
-            className="bg-background/45 text-foreground hover:bg-background/70 focus-visible:bg-background/70 data-popup-open:bg-background/70 absolute top-3 right-3 z-10 backdrop-blur-md"
+            className={overPreview}
           />
           <Image
             src={block.image.light}

@@ -30,6 +30,8 @@ export type StartersViewOptions = {
   runtimes: readonly StarterRuntime[];
   integrations: readonly StarterIntegration[];
   withScreenshot: boolean;
+  /** Only what `create` installs by command. */
+  installable: boolean;
   sort: StarterSort;
   view: StarterView;
 };
@@ -39,15 +41,26 @@ export const DEFAULT_VIEW_OPTIONS: StartersViewOptions = {
   runtimes: [],
   integrations: [],
   withScreenshot: false,
+  installable: false,
   sort: "default",
   view: "grid",
 };
 
 /** Whether a starter passes the filters picked in the menu. */
 export const matchesStarterOptions = (
-  starter: Starter,
+  starter: Pick<
+    Starter,
+    | "framework"
+    | "runtime"
+    | "integrations"
+    | "image"
+    | "screenshots"
+    | "repoOnly"
+    | "hosted"
+  >,
   options: StartersViewOptions,
 ): boolean =>
+  (!options.installable || (!starter.repoOnly && !starter.hosted)) &&
   (!options.withScreenshot ||
     starter.image !== undefined ||
     starter.screenshots !== undefined) &&
@@ -60,6 +73,8 @@ export const matchesStarterOptions = (
     (starter.integrations ?? []).some((integration) =>
       options.integrations.includes(integration),
     ));
+
+const STARTER_VIEWS: readonly StarterView[] = ["grid", "list", "table"];
 
 const toggle = <T,>(list: readonly T[], value: T, on: boolean): T[] =>
   on ? [...list, value] : list.filter((entry) => entry !== value);
@@ -83,12 +98,14 @@ export function StartersViewMenu({
     options.frameworks.length > 0 ||
     options.runtimes.length > 0 ||
     options.integrations.length > 0 ||
-    options.withScreenshot;
+    options.withScreenshot ||
+    options.installable;
 
   return (
     <LibraryViewMenu
       sort={options.sort}
       view={options.view}
+      views={STARTER_VIEWS}
       onSortChange={(sort) => onOptionsChange({ ...options, sort })}
       onViewChange={(view) => onOptionsChange({ ...options, view })}
       onReset={() =>
@@ -180,6 +197,14 @@ export function StartersViewMenu({
               ))}
             </MenuSubContent>
           </MenuSub>
+          <MenuCheckboxItem
+            checked={options.installable}
+            onCheckedChange={(installable) =>
+              onOptionsChange({ ...options, installable })
+            }
+          >
+            Installs by command
+          </MenuCheckboxItem>
           <MenuCheckboxItem
             checked={options.withScreenshot}
             onCheckedChange={(withScreenshot) =>

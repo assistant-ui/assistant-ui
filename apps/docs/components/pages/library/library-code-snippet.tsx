@@ -4,13 +4,8 @@ import { useSyncExternalStore } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LibraryCopyButton } from "./library-copy-button";
-import {
-  Menu,
-  MenuContent,
-  MenuRadioGroup,
-  MenuRadioItem,
-  MenuTrigger,
-} from "./menu";
+import { LibraryMenuIconButton } from "./library-icon-button";
+import { Menu, MenuContent, MenuRadioGroup, MenuRadioItem } from "./menu";
 
 const STORAGE_KEY = "aui-library-snippet-tab";
 const listeners = new Set<() => void>();
@@ -93,15 +88,15 @@ export function LibraryCodeSnippet({
       <LibraryCopyButton
         text={current.code}
         label={`Copy ${current.label}`}
-        className="me-1 rounded-(--library-icon)"
+        className="size-7"
       />
       <Menu>
-        <MenuTrigger
-          aria-label={`${label}: ${current.label}`}
-          className="text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground border-foreground/10 h-full w-10 shrink-0 justify-center rounded-s-none rounded-e-(--library-control) border-s px-0 pe-1 pointer-coarse:h-full"
+        <LibraryMenuIconButton
+          tooltip={`${label}: ${current.label}`}
+          className="me-1 size-7 pointer-coarse:size-7"
         >
           <ChevronDownIcon aria-hidden />
-        </MenuTrigger>
+        </LibraryMenuIconButton>
         <MenuContent align="end">
           <MenuRadioGroup
             value={current.label}

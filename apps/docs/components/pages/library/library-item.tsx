@@ -16,10 +16,6 @@ export const libraryDeck =
 export const itemFrame =
   "bg-foreground/[0.03] group-hover/navlink:bg-foreground/[0.05] dark:bg-foreground/[0.045] dark:group-hover/navlink:bg-foreground/[0.07] group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-ring transition-colors group-has-[button[aria-haspopup=dialog]:focus-visible]/navlink:ring-2";
 
-/** Makes a `MenuTrigger` a round icon button; the menu supplies the hover fill. */
-export const iconMenuTrigger =
-  "text-muted-foreground hover:text-foreground focus-visible:text-foreground data-popup-open:text-foreground size-8 shrink-0 justify-center rounded-(--library-icon) p-0 pointer-coarse:size-9";
-
 /** An item's name as the button that opens its details; the click area covers the whole item. */
 export function ItemTitle({
   label,

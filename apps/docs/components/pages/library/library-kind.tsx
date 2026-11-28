@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 const KIND_TONE: Record<LibraryKind, string> = {
   template: "text-emerald-700 dark:text-emerald-400",
   example: "text-amber-700 dark:text-amber-400",
+  playground: "text-lime-700 dark:text-lime-400",
+  preset: "text-pink-600 dark:text-pink-400",
   skill: "text-violet-600 dark:text-violet-400",
   component: "text-sky-700 dark:text-sky-400",
   block: "text-rose-600 dark:text-rose-400",

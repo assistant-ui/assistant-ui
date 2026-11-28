@@ -24,17 +24,18 @@ import {
   LibraryDialogDescription,
   LibraryDialogTitle,
 } from "./library-dialog";
-import { iconMenuTrigger } from "./library-item";
+import {
+  LibraryIconButton,
+  LibraryMenuIconButton,
+} from "./library-icon-button";
 import { toggleLibrarySavedWithToast } from "./library-item-menu";
 import { copyWithLibraryToast, libraryToast } from "./library-toast";
-import { LibraryTooltip } from "./library-tooltip";
 import {
   Menu,
   MenuContent,
   MenuItem,
   MenuLinkItem,
   MenuSeparator,
-  MenuTrigger,
 } from "./menu";
 import { useLibrarySaved } from "./saved-store";
 import { SkillGlyph } from "./skill-glyphs";
@@ -48,9 +49,6 @@ import {
   searchSkillFiles,
   type SkillSearchHit,
 } from "./skill-search";
-
-const iconButton =
-  "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring grid size-8 shrink-0 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
 
 const button =
   "focus-visible:ring-ring inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-(--library-control) px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 [&_svg]:size-4";
@@ -112,14 +110,13 @@ const downloadSkill = async (skill: LibrarySkill) => {
 function SkillMenu({ skill, file }: { skill: LibrarySkill; file: SkillFile }) {
   return (
     <Menu>
-      <LibraryTooltip label="More">
-        <MenuTrigger
-          aria-label={`More for ${skill.title}`}
-          className={iconMenuTrigger}
-        >
-          <EllipsisIcon aria-hidden />
-        </MenuTrigger>
-      </LibraryTooltip>
+      <LibraryMenuIconButton
+        tooltip="More"
+        side="bottom"
+        aria-label={`More for ${skill.title}`}
+      >
+        <EllipsisIcon aria-hidden />
+      </LibraryMenuIconButton>
       <MenuContent align="end">
         <MenuItem
           onClick={async () => {
@@ -193,17 +190,13 @@ function FileSearch({
 
   if (!open) {
     return (
-      <LibraryTooltip label="Search files">
-        <button
-          ref={buttonRef}
-          type="button"
-          aria-label="Search files"
-          onClick={() => onQueryChange("")}
-          className={iconButton}
-        >
-          <SearchIcon aria-hidden />
-        </button>
-      </LibraryTooltip>
+      <LibraryIconButton
+        ref={buttonRef}
+        tooltip="Search files"
+        onClick={() => onQueryChange("")}
+      >
+        <SearchIcon aria-hidden />
+      </LibraryIconButton>
     );
   }
 
@@ -230,14 +223,15 @@ function FileSearch({
         spellCheck={false}
         className="bg-foreground/[0.04] placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-(--library-control) ps-8 pe-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset [&::-webkit-search-cancel-button]:appearance-none"
       />
-      <button
-        type="button"
-        aria-label="Close search"
-        onClick={() => onQueryChange(null)}
-        className="text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] focus-visible:ring-ring absolute end-1 top-1/2 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-(--library-icon) transition-colors outline-none focus-visible:ring-2"
-      >
-        <XIcon aria-hidden className="size-3.5" />
-      </button>
+      <span className="absolute inset-y-0 end-1 flex items-center">
+        <LibraryIconButton
+          tooltip="Close search"
+          onClick={() => onQueryChange(null)}
+          className="size-6"
+        >
+          <XIcon aria-hidden className="size-3.5" />
+        </LibraryIconButton>
+      </span>
     </div>
   );
 }
@@ -364,7 +358,9 @@ function SkillDialogBody({ skill }: { skill: LibrarySkill }) {
         </div>
         <div className="-me-1 -mt-1 flex items-center">
           <SkillMenu skill={skill} file={file} />
-          <LibraryDialogClose aria-label="Close" className={iconButton}>
+          <LibraryDialogClose
+            render={<LibraryIconButton tooltip="Close" side="bottom" />}
+          >
             <XIcon aria-hidden />
           </LibraryDialogClose>
         </div>

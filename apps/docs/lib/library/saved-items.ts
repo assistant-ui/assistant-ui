@@ -1,10 +1,18 @@
 import { LIBRARY_SITE, agentSetupPrompt } from "./agent-prompt";
 import { LIBRARY_SECTIONS, type LibrarySectionId } from "./library-data";
+import {
+  LIBRARY_PRESETS,
+  presetCommand,
+  presetId,
+  type LibraryPreset,
+} from "./presets-data";
 import { LIBRARY_SKILLS, type LibrarySkill } from "./skills-data";
 import {
   STARTERS,
+  starterAbsolute,
   starterCommand,
   starterId,
+  starterSourceHref,
   type Starter,
 } from "./starters-data";
 
@@ -12,6 +20,7 @@ import {
 export type LibrarySavedPreview =
   | { kind: "starter"; starter: Starter }
   | { kind: "skill"; skill: string }
+  | { kind: "preset"; preset: string }
   | { kind: "block"; image: { light: string; dark: string } }
   | { kind: "section"; section: LibrarySectionId };
 
@@ -19,6 +28,8 @@ export type LibrarySavedPreview =
 export type LibraryKind =
   | "template"
   | "example"
+  | "playground"
+  | "preset"
   | "skill"
   | "component"
   | "block"
@@ -32,6 +43,8 @@ export type LibraryKind =
 export const LIBRARY_KIND_LABEL: Record<LibraryKind, string> = {
   template: "Template",
   example: "Example",
+  playground: "Playground",
+  preset: "Preset",
   skill: "Skill",
   component: "Component",
   block: "Block",
@@ -57,13 +70,30 @@ export type LibrarySavedItem = {
   preview: LibrarySavedPreview;
 };
 
-const fromStarter = (starter: Starter): LibrarySavedItem => ({
-  id: starterId(starter),
-  name: starter.label,
-  kind: starter.kind,
-  command: starterCommand(starter),
-  promptName: `the \`${starter.name}\` ${starter.kind}`,
-  preview: { kind: "starter", starter },
+const fromStarter = (starter: Starter): LibrarySavedItem => {
+  const command = starterCommand(starter);
+  const href = starter.hosted
+    ? starterAbsolute(starter.hosted.preview)
+    : starterSourceHref(starter);
+  return {
+    id: starterId(starter),
+    name: starter.label,
+    kind: starter.kind,
+    ...(command ? { command } : href ? { href } : {}),
+    promptName: starter.hosted
+      ? `the ${starter.label} playground template`
+      : `the \`${starter.name}\` ${starter.kind}`,
+    preview: { kind: "starter", starter },
+  };
+};
+
+const fromPreset = (preset: LibraryPreset): LibrarySavedItem => ({
+  id: presetId(preset),
+  name: preset.name,
+  kind: "preset",
+  command: presetCommand(preset),
+  promptName: `the \`${preset.id}\` preset`,
+  preview: { kind: "preset", preset: preset.id },
 });
 
 export const skillSavedId = (name: string) => `skills/${name}`;
@@ -140,6 +170,7 @@ export const blockSavedId = (slug: string) => `blocks/${slug}`;
 const ALL_ITEMS = new Map(
   [
     ...STARTERS.map(fromStarter),
+    ...LIBRARY_PRESETS.map(fromPreset),
     ...LIBRARY_SKILLS.map(savedSkillItem),
     ...fromSections(),
   ].map((item) => [item.id, item] as const),
@@ -179,9 +210,14 @@ export const librarySavedPrompt = (
     starters.length === 0
       ? ""
       : starters.length === 1
-        ? `Start from ${starters[0]!.promptName}`
+        ? `Start from ${starters[0]!.promptName}${
+            starters[0]!.command ? "" : ` at ${starters[0]!.href}`
+          }`
         : `Create one project from each of these: ${starters
-            .map((item) => `${item.promptName} (\`${item.command}\`)`)
+            .map(
+              (item) =>
+                `${item.promptName} (${item.command ? `\`${item.command}\`` : item.href})`,
+            )
             .join(", ")}`;
   const othersNote =
     others.length === 0

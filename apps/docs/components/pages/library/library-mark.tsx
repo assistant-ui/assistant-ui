@@ -12,6 +12,7 @@ import type { LibrarySectionId } from "@/lib/library/library-data";
 import { cn } from "@/lib/utils";
 import { FilterIcon } from "./filter-icons";
 import { LibraryGlyph, UtilityGlyph } from "./library-glyphs";
+import { PresetMark } from "./preset-card";
 import { SkillGlyph } from "./skill-glyphs";
 
 const AgentIcon = dynamic(() =>
@@ -53,8 +54,9 @@ const largeDrawing = "[&>svg]:h-8 [&>svg]:w-[2.667rem]";
 const largeLogo = "grid [&>img]:size-5 [&>svg]:size-5";
 
 /**
- * What stands for a library item: its brand's logo, a coding agent's mark, or
- * one of the library's line drawings, by the key in `LIBRARY_MARKS`. An item
+ * What stands for a library item: its brand's logo, a coding agent's mark, a
+ * preset's colors, or one of the library's line drawings, by the key in
+ * `LIBRARY_MARKS`. An item
  * with no key, or a key nothing draws, shows the first letter of its name.
  */
 export function LibraryMark({
@@ -92,6 +94,8 @@ export function LibraryMark({
       const logo = <FilterIcon name={FILTER_LOGOS[id]} />;
       return large ? <span className={largeLogo}>{logo}</span> : logo;
     }
+    case "preset":
+      return <PresetMark id={id} large={large} />;
     case "skill":
       return (
         <span
