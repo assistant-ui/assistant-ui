@@ -1,4 +1,11 @@
-import type { CSSProperties, ReactNode } from "react";
+"use client";
+
+import {
+  createContext,
+  useContext,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 
 export type VisualTone = "iris" | "dawn" | "mint" | "sand";
@@ -31,6 +38,20 @@ const TONES: Record<VisualTone, string> = {
   sand: "",
 };
 
+/** One color family around `hue`: its neighbors on the wheel, so the panel reads as a single color. */
+const family = (hue: number) =>
+  [
+    field("12% 18%", hue),
+    field("88% 22%", hue + 28),
+    field("70% 100%", hue - 24, 0.12, 0.45),
+    field("20% 100%", hue + 12, 0.1, 0.4),
+  ].join(",");
+
+const VisualHueContext = createContext<number | null>(null);
+
+/** Gives every backdrop inside it one color family, by its hue, whatever tone each asks for. */
+export const VisualHue = VisualHueContext.Provider;
+
 /** The soft colored panel a library visual sits on; `sand` is the site's own tint with no color. */
 export function VisualBackdrop({
   tone,
@@ -41,8 +62,10 @@ export function VisualBackdrop({
   className?: string;
   children?: ReactNode;
 }) {
-  const style: CSSProperties | undefined = TONES[tone]
-    ? { backgroundImage: TONES[tone] }
+  const hue = useContext(VisualHueContext);
+  const image = hue !== null && tone !== "sand" ? family(hue) : TONES[tone];
+  const style: CSSProperties | undefined = image
+    ? { backgroundImage: image }
     : undefined;
   return (
     <div

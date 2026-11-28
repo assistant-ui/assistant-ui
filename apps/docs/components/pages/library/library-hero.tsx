@@ -14,6 +14,7 @@ import {
   sectionCount,
   type LibraryEntry,
   type LibrarySection,
+  type LibrarySectionId,
 } from "@/lib/library/library-data";
 import { LIBRARY_SKILLS, type LibrarySkill } from "@/lib/library/skills-data";
 import { cn } from "@/lib/utils";
@@ -23,7 +24,12 @@ import { iconMenuTrigger } from "./library-item";
 import { LibraryMark } from "./library-mark";
 import { LibraryStepCommand } from "./library-step-command";
 import { LibraryTooltip } from "./library-tooltip";
-import { VisualBackdrop, visualLift, type VisualTone } from "./library-visual";
+import {
+  VisualBackdrop,
+  VisualHue,
+  visualLift,
+  type VisualTone,
+} from "./library-visual";
 import {
   Menu,
   MenuContent,
@@ -389,11 +395,28 @@ function Pills({ items, tone }: LookProps) {
 }
 
 const LOOKS = [
-  { name: "tiles", Look: Tiles, tone: "mint" },
-  { name: "a card stack", Look: Stack, tone: "dawn" },
-  { name: "a list", Look: Sheet, tone: "iris" },
-  { name: "pills", Look: Pills, tone: "mint" },
+  { name: "tiles", Look: Tiles },
+  { name: "a card stack", Look: Stack },
+  { name: "a list", Look: Sheet },
+  { name: "pills", Look: Pills },
 ] as const;
+
+/** The All tab's backdrop, the one panel that mixes colors. */
+const HOME_TONE: VisualTone = "iris";
+
+/** Each tab's own color, as the hue its hero visuals are tinted with: ten hues spaced evenly around the wheel, so no two tabs share one. */
+const SECTION_HUE: Record<LibrarySectionId, number> = {
+  blocks: 10,
+  runtimes: 46,
+  mcp: 82,
+  starters: 118,
+  tools: 154,
+  agents: 190,
+  components: 226,
+  integrations: 262,
+  skills: 298,
+  utilities: 334,
+};
 
 /** The open tab's items as a carousel: one look at a time, with a dot for each. */
 function HeroCarousel({ section }: { section: LibrarySection | undefined }) {
@@ -408,7 +431,7 @@ function HeroCarousel({ section }: { section: LibrarySection | undefined }) {
     ? LOOKS
     : LOOKS.slice(1);
   const at = index % looks.length;
-  const { Look, tone } = looks[at]!;
+  const { Look } = looks[at]!;
 
   return (
     <div className="hidden flex-col gap-2.5 lg:flex">
@@ -420,7 +443,7 @@ function HeroCarousel({ section }: { section: LibrarySection | undefined }) {
           title={section ? section.title : "Library"}
           count={count}
           items={items}
-          tone={tone}
+          tone={HOME_TONE}
         />
       </div>
       <div
@@ -543,13 +566,15 @@ export function LibraryHero({
           ) : null}
         </div>
       </div>
-      {section?.id === "agents" ? (
-        <div className="hidden lg:block">
-          <AgentsCarousel />
-        </div>
-      ) : (
-        <HeroCarousel section={section} />
-      )}
+      <VisualHue value={section ? SECTION_HUE[section.id] : null}>
+        {section?.id === "agents" ? (
+          <div className="hidden lg:block">
+            <AgentsCarousel />
+          </div>
+        ) : (
+          <HeroCarousel section={section} />
+        )}
+      </VisualHue>
     </div>
   );
 }
