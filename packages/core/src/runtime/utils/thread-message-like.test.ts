@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fromThreadMessageLike } from "./thread-message-like";
+import {
+  fromThreadMessageLike,
+  unstable_getThreadMessageLikePartIndices,
+  type ThreadMessageLike,
+} from "./thread-message-like";
 
 describe("fromThreadMessageLike", () => {
   it("preserves assistant run identity", () => {
@@ -549,5 +553,98 @@ describe("fromThreadMessageLike with part fields of the wrong type", () => {
       { type: "reasoning", text: "", unstable_redacted: true },
       { type: "reasoning", text: "visible" },
     ]);
+  });
+});
+
+describe("unstable_getThreadMessageLikePartIndices", () => {
+  const status = { type: "complete", reason: "stop" } as const;
+  const toolCall = {
+    type: "tool-call",
+    toolCallId: "t1",
+    toolName: "search",
+    args: {},
+  } as const;
+
+  it.each<[string, ThreadMessageLike, number[]]>([
+    [
+      "empty text and reasoning ahead of a tool call",
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "" },
+          { type: "reasoning", text: "" },
+          toolCall,
+          { type: "text", text: "Found 3 rows." },
+        ],
+      },
+      [2, 3],
+    ],
+    [
+      "the same message once the empty parts fill in",
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Let me check." },
+          { type: "reasoning", text: "Looking it up." },
+          toolCall,
+          { type: "text", text: "Found 3 rows." },
+        ],
+      },
+      [0, 1, 2, 3],
+    ],
+    [
+      "redacted reasoning and malformed parts",
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "", unstable_redacted: true },
+          { type: "file", data: "abc" } as never,
+          { type: "text", text: " " },
+          { type: "data-step", data: 1 },
+        ],
+      },
+      [0, 3],
+    ],
+    [
+      "a user text part whose text is not a string",
+      {
+        role: "user",
+        content: [
+          { type: "text", text: 5 } as never,
+          { type: "text", text: "" },
+        ],
+      },
+      [1],
+    ],
+    ["empty assistant string content", { role: "assistant", content: "" }, []],
+    [
+      "whitespace assistant string content",
+      { role: "assistant", content: "  " },
+      [],
+    ],
+    ["empty user string content", { role: "user", content: "" }, [0]],
+    ["empty system string content", { role: "system", content: "" }, [0]],
+    ["assistant string content", { role: "assistant", content: "Hi" }, [0]],
+  ])("maps %s", (_, like, expected) => {
+    expect(unstable_getThreadMessageLikePartIndices(like)).toEqual(expected);
+    expect(fromThreadMessageLike(like, "id", status).content).toHaveLength(
+      expected.length,
+    );
+  });
+
+  it("throws where fromThreadMessageLike throws", () => {
+    const twoPartSystem: ThreadMessageLike = {
+      role: "system",
+      content: [
+        { type: "text", text: "a" },
+        { type: "text", text: "b" },
+      ],
+    };
+    expect(() => fromThreadMessageLike(twoPartSystem, "id", status)).toThrow(
+      "System messages must have exactly one text message part.",
+    );
+    expect(() =>
+      unstable_getThreadMessageLikePartIndices(twoPartSystem),
+    ).toThrow("System messages must have exactly one text message part.");
   });
 });

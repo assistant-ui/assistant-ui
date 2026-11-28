@@ -828,6 +828,24 @@ const original = getExternalStoreMessages(threadMessage);
 This API is experimental and may change without notice.
 </Callout>
 
+### `unstable_getThreadMessageLikePartIndices`
+
+On an assistant message, conversion leaves out text that is empty or whitespace, as at the start of a stream, and reasoning with no text or summary unless it is redacted. On any message it also leaves out malformed parts, and on an assistant message an image that isn't a data, `https:` or `blob:` URL. Unsupported part types and invalid system content throw instead, and `unstable_getThreadMessageLikePartIndices` throws in the same cases. So a part's index in `s.message.parts`, or in a group's `indices`, can be lower than its index in the `ThreadMessageLike` your `convertMessage` returned, and it moves when an earlier part fills in. Map it back to your message:
+
+```tsx
+import { unstable_getThreadMessageLikePartIndices } from "@assistant-ui/react";
+
+const like = convertMessage(original); // with array content
+const indices = unstable_getThreadMessageLikePartIndices(like);
+const stored = like.content[indices[i]!]; // the part components see at index i
+```
+
+String content counts as one text part at index 0. On an assistant message it is left out when empty or whitespace. This covers an inline `convertMessage`, not `useExternalMessageConverter`, which can join messages and merge their reasoning parts.
+
+<Callout type="warn">
+This API is experimental and may change without notice.
+</Callout>
+
 ## Best practices
 
 1. **Immutable updates.** Always create new arrays:

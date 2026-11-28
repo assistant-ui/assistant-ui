@@ -86,7 +86,11 @@ export {
   createVoiceSession,
   toolApprovalAcceptsText,
 } from "@assistant-ui/core";
-export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
+export {
+  fromThreadMessageLike,
+  unstable_getThreadMessageLikePartIndices,
+  generateId,
+} from "@assistant-ui/core";
 export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // Attachment adapter implementations

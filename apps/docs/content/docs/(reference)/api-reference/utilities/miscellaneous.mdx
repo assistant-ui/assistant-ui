@@ -214,6 +214,22 @@ pass it through to narrow the default set rather than widen it.
 const unstable_defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
 ```
 
+### unstable_getThreadMessageLikePartIndices
+
+<Callout type="tip">
+<strong>Experimental.</strong> Shipped 2026-11-25; it may change in any release.
+</Callout>
+
+Maps the parts of `fromThreadMessageLike(like)` back to `like.content`.
+For array content, part `i` of the converted message came from
+`like.content[result[i]]`. String content becomes one text part at index 0;
+on an assistant message it is left out when empty or whitespace. Throws
+where `fromThreadMessageLike` throws.
+
+```ts
+const unstable_getThreadMessageLikePartIndices: (like: ThreadMessageLike) => number[];
+```
+
 ### unstable_useWebMcpProvider
 
 <Callout type="tip">

@@ -74,7 +74,11 @@ export type {
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
 export { createVoiceSession } from "@assistant-ui/core";
-export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
+export {
+  fromThreadMessageLike,
+  unstable_getThreadMessageLikePartIndices,
+  generateId,
+} from "@assistant-ui/core";
 export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // Attachment adapter implementations
