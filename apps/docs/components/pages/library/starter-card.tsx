@@ -188,7 +188,9 @@ function useShotIndex(count: number) {
 }
 
 export function StarterCard({ starter, onSelect }: StarterItemProps) {
-  const shotCount = starter.screenshots?.light.length ?? 0;
+  const shotCount = starter.recording
+    ? 0
+    : (starter.screenshots?.light.length ?? 0);
   const { index, active, handlers } = useShotIndex(shotCount);
 
   return (

@@ -31,12 +31,29 @@ import {
 export type StarterSort = LibrarySort;
 export type StarterView = LibraryView;
 
+/** What a starter's card shows: its recording, else its screenshots, else its drawing. */
+export const STARTER_MEDIA = ["video", "screenshots", "drawing"] as const;
+export type StarterMedia = (typeof STARTER_MEDIA)[number];
+
+const STARTER_MEDIA_LABEL: Record<StarterMedia, string> = {
+  video: "Video",
+  screenshots: "Screenshots only",
+  drawing: "Drawing only",
+};
+
+const starterMedia = ({
+  recording,
+  screenshots,
+  image,
+}: Pick<Starter, "recording" | "screenshots" | "image">): StarterMedia =>
+  recording ? "video" : screenshots || image ? "screenshots" : "drawing";
+
 export type StartersViewOptions = {
   frameworks: readonly StarterFramework[];
   runtimes: readonly StarterRuntime[];
   integrations: readonly StarterIntegration[];
   statuses: readonly LibraryStatus[];
-  withScreenshot: boolean;
+  media: readonly StarterMedia[];
   /** Only what `create` installs by command. */
   installable: boolean;
   sort: StarterSort;
@@ -48,7 +65,7 @@ export const DEFAULT_VIEW_OPTIONS: StartersViewOptions = {
   runtimes: [],
   integrations: [],
   statuses: [],
-  withScreenshot: false,
+  media: [],
   installable: false,
   sort: "default",
   view: "grid",
@@ -63,6 +80,7 @@ export const matchesStarterOptions = (
     | "integrations"
     | "image"
     | "screenshots"
+    | "recording"
     | "repoOnly"
     | "hosted"
   >,
@@ -71,9 +89,8 @@ export const matchesStarterOptions = (
 ): boolean =>
   (options.statuses.length === 0 || options.statuses.includes(status)) &&
   (!options.installable || (!starter.repoOnly && !starter.hosted)) &&
-  (!options.withScreenshot ||
-    starter.image !== undefined ||
-    starter.screenshots !== undefined) &&
+  (options.media.length === 0 ||
+    options.media.includes(starterMedia(starter))) &&
   (options.frameworks.length === 0 ||
     options.frameworks.includes(starter.framework)) &&
   (options.runtimes.length === 0 ||
@@ -109,7 +126,7 @@ export function StartersViewMenu({
     options.runtimes.length > 0 ||
     options.integrations.length > 0 ||
     options.statuses.length > 0 ||
-    options.withScreenshot ||
+    options.media.length > 0 ||
     options.installable;
 
   return (
@@ -233,6 +250,30 @@ export function StartersViewMenu({
               ))}
             </MenuSubContent>
           </MenuSub>
+          <MenuSub>
+            <MenuSubTrigger>
+              <span className="flex flex-1 items-center gap-2">
+                Media
+                <SelectedCount count={options.media.length} />
+              </span>
+            </MenuSubTrigger>
+            <MenuSubContent>
+              {STARTER_MEDIA.map((media) => (
+                <MenuCheckboxItem
+                  key={media}
+                  checked={options.media.includes(media)}
+                  onCheckedChange={(checked) =>
+                    onOptionsChange({
+                      ...options,
+                      media: toggle(options.media, media, checked),
+                    })
+                  }
+                >
+                  {STARTER_MEDIA_LABEL[media]}
+                </MenuCheckboxItem>
+              ))}
+            </MenuSubContent>
+          </MenuSub>
           <MenuCheckboxItem
             checked={options.installable}
             onCheckedChange={(installable) =>
@@ -240,14 +281,6 @@ export function StartersViewMenu({
             }
           >
             Installs by command
-          </MenuCheckboxItem>
-          <MenuCheckboxItem
-            checked={options.withScreenshot}
-            onCheckedChange={(withScreenshot) =>
-              onOptionsChange({ ...options, withScreenshot })
-            }
-          >
-            Has a screenshot
           </MenuCheckboxItem>
         </>
       }

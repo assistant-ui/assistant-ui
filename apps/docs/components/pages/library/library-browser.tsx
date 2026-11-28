@@ -671,7 +671,7 @@ export function LibraryBrowser() {
         starterOptions.runtimes.length > 0 ||
         starterOptions.integrations.length > 0 ||
         starterOptions.statuses.length > 0 ||
-        starterOptions.withScreenshot ||
+        starterOptions.media.length > 0 ||
         starterOptions.installable));
 
   // The sidebar always says how many items a type holds; a search narrows that to the matches.

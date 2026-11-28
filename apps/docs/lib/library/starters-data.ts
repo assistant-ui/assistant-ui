@@ -102,6 +102,18 @@ const CLI_STARTERS: readonly Starter[] = [
     label: "Default",
     description: "A Next.js chat on the Vercel AI SDK.",
     kind: "template",
+    recording: {
+      light: {
+        video: "/screenshot/starters/default/recording-light.mp4",
+        preview: "/screenshot/starters/default/recording-light-card.mp4",
+        poster: "/screenshot/starters/default/recording-light.png",
+      },
+      dark: {
+        video: "/screenshot/starters/default/recording-dark.mp4",
+        preview: "/screenshot/starters/default/recording-dark-card.mp4",
+        poster: "/screenshot/starters/default/recording-dark.png",
+      },
+    },
     screenshots: {
       light: [
         "/screenshot/starters/default/desktop-conversation-light.png",
@@ -1288,6 +1300,18 @@ const CLI_STARTERS: readonly Starter[] = [
     label: "Artifacts",
     description: "Artifact rendering.",
     kind: "example",
+    recording: {
+      light: {
+        video: "/screenshot/starters/with-artifacts/recording-light.mp4",
+        preview: "/screenshot/starters/with-artifacts/recording-light-card.mp4",
+        poster: "/screenshot/starters/with-artifacts/recording-light.png",
+      },
+      dark: {
+        video: "/screenshot/starters/with-artifacts/recording-dark.mp4",
+        preview: "/screenshot/starters/with-artifacts/recording-dark-card.mp4",
+        poster: "/screenshot/starters/with-artifacts/recording-dark.png",
+      },
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["OPENAI_API_KEY"],
@@ -1990,6 +2014,20 @@ const CLI_STARTERS: readonly Starter[] = [
     label: "Interactables",
     description: "Interactive components the model drives.",
     kind: "example",
+    recording: {
+      light: {
+        video: "/screenshot/starters/with-interactables/recording-light.mp4",
+        preview:
+          "/screenshot/starters/with-interactables/recording-light-card.mp4",
+        poster: "/screenshot/starters/with-interactables/recording-light.png",
+      },
+      dark: {
+        video: "/screenshot/starters/with-interactables/recording-dark.mp4",
+        preview:
+          "/screenshot/starters/with-interactables/recording-dark-card.mp4",
+        poster: "/screenshot/starters/with-interactables/recording-dark.png",
+      },
+    },
     framework: "Next.js",
     runtime: "AI SDK",
     env: ["EXPO_PUBLIC_CHAT_ENDPOINT_URL", "OPENAI_API_KEY"],
