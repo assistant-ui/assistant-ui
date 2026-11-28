@@ -1,3 +1,4 @@
+---
 "@assistant-ui/core": patch
 ---
 
