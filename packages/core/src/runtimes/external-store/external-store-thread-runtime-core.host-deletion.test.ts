@@ -87,3 +87,79 @@ describe("external-store host deletions from the middle of a message array", () 
     expect(runtime.getBranches("u2")).toEqual(["u2"]);
   });
 });
+
+describe("external-store trailing user id swap during a run", () => {
+  const storeWithRun = (
+    items: readonly ThreadMessage[],
+    setMessages?: (messages: readonly ThreadMessage[]) => void,
+  ) =>
+    ({
+      messages: items,
+      isRunning: true,
+      onNew: async () => {},
+      onCancel: vi.fn(),
+      ...(setMessages ? { setMessages } : {}),
+    }) as ExternalStoreAdapter;
+
+  it("evicts the stale client id so Stop does not write it back", () => {
+    const history = ExportedMessageRepository.fromArray([
+      { id: "u1", role: "user", content: "first" },
+      { id: "a1", role: "assistant", content: "first reply" },
+      { id: "u2", role: "user", content: "second" },
+    ]).messages.map(({ message }) => message);
+    const renamed = ExportedMessageRepository.fromArray([
+      { id: "u1", role: "user", content: "first" },
+      { id: "a1", role: "assistant", content: "first reply" },
+      { id: "u2srv", role: "user", content: "second" },
+    ]).messages.map(({ message }) => message);
+
+    const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+      void messages;
+    });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      storeWithRun(history, setMessages),
+    );
+
+    runtime.__internal_setAdapter(storeWithRun(renamed, setMessages));
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      runtime.cancelRun();
+      vi.runAllTimers();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(runtime.composer.text).toBe("second");
+    expect(runtime.getMessageById("u2")).toBeUndefined();
+    expect(exportedIds(runtime)).not.toContain("u2");
+    expect(exportedIds(runtime)).not.toContain("u2srv");
+    const writtenIds = setMessages.mock.calls.flatMap((call) =>
+      (call[0] ?? []).map((message) => message.id),
+    );
+    expect(writtenIds).not.toContain("u2");
+  });
+
+  it("keeps a trailing user with different text as a sibling branch", () => {
+    const history = ExportedMessageRepository.fromArray([
+      { id: "u1", role: "user", content: "first" },
+      { id: "a1", role: "assistant", content: "first reply" },
+      { id: "u2", role: "user", content: "second" },
+    ]).messages.map(({ message }) => message);
+    const branched = ExportedMessageRepository.fromArray([
+      { id: "u1", role: "user", content: "first" },
+      { id: "a1", role: "assistant", content: "first reply" },
+      { id: "u3", role: "user", content: "other" },
+    ]).messages.map(({ message }) => message);
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      contextProvider,
+      storeWithRun(history),
+    );
+    runtime.__internal_setAdapter(storeWithRun(branched));
+
+    expect(runtime.getMessageById("u2")).toBeDefined();
+    expect(runtime.getBranches("u3")).toEqual(["u2", "u3"]);
+  });
+});
