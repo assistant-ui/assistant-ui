@@ -1,5 +1,19 @@
 # @assistant-ui/core
 
+## 0.3.39
+
+### Patch Changes
+
+- [#10906](https://github.com/assistant-ui/assistant-ui/pull/10906) [`f2e6c73`](https://github.com/assistant-ui/assistant-ui/commit/f2e6c73fe9cffd922d156e1e1f0e2b22d58f62e5) - The error a thread method throws before the thread's runtime has mounted now points at the call that came too early: it is created at each throw, so its stack includes the frame of your code that made the call. Its message says when the placeholder thread is in place (while the thread list loads, and while an opened thread mounts) and what to do instead: call the method from an event handler, or wait until `useAuiState((s) => s.thread.isLoading)` is false. The readonly thread's error is also created where it is thrown. ([@Yonom](https://github.com/Yonom))
+
+- [#10881](https://github.com/assistant-ui/assistant-ui/pull/10881) [`289119e`](https://github.com/assistant-ui/assistant-ui/commit/289119ed2019a0f83f698be867280c9ffd69d3ff) - fix: `useExternalStoreRuntime` hands the host's new messages to the thread before the browser paints, so the thread no longer shows the previous messages for a frame (or an empty-state greeting after a load). `initialize`, `runStart` and `runEnd` still reach listeners mounted by the same update. ([@Yonom](https://github.com/Yonom))
+
+- [#10879](https://github.com/assistant-ui/assistant-ui/pull/10879) [`b691d36`](https://github.com/assistant-ui/assistant-ui/commit/b691d368a01c7874ff869a3e5e6d58557f3e88b6) - In `ExternalThread`, keep an in-transit send on screen when `loadEarlier()` prepends earlier same-role history. ([@pratik340](https://github.com/pratik340))
+
+- [#10847](https://github.com/assistant-ui/assistant-ui/pull/10847) [`db46e0b`](https://github.com/assistant-ui/assistant-ui/commit/db46e0b306e19e6af0567fdbcb2364368c0acc75) - `MessagePrimitive.GroupedParts` keeps a group mounted when a part without an identity, such as reasoning, lands ahead of the tool calls it already holds. The group keeps its earlier key while one of those tool calls stays in it, so state inside it, like an open tool group, survives. ([@samdickson22](https://github.com/samdickson22))
+
+- [#10810](https://github.com/assistant-ui/assistant-ui/pull/10810) [`51e1678`](https://github.com/assistant-ui/assistant-ui/commit/51e1678f7d534b0d4b4934c457b194e4eb89a4cd) - `addToolResult` on the local runtime now stores the result on the open tool call when a settled call earlier in the same assistant message has the same `toolCallId`, as providers that number calls per step produce. Before, it overwrote every call with that id, so the earlier call showed and sent the new result, and the history adapter persisted it. ([@micheal0034](https://github.com/micheal0034))
+
 ## 0.3.38
 
 ### Patch Changes

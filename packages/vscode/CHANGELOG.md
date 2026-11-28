@@ -1,5 +1,13 @@
 # @assistant-ui/vscode
 
+## 0.0.3
+
+### Patch Changes
+
+- [#10814](https://github.com/assistant-ui/assistant-ui/pull/10814) [`25c4f81`](https://github.com/assistant-ui/assistant-ui/commit/25c4f81a82e27f9417e28b4e2d7a86da2fd1d6d9) - A route served by `serveWebviewRoutes` now sees `request.signal` abort when the webview aborts its fetch, even if a garbage collection runs while the route waits. Node's `Request` only forwards an abort while the `Request` object is still reachable, and the router did not keep it reachable, so a route that kept only `request.signal`, such as a long poll waiting for the abort, could wait forever. ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`f2e6c73`](https://github.com/assistant-ui/assistant-ui/commit/f2e6c73fe9cffd922d156e1e1f0e2b22d58f62e5), [`289119e`](https://github.com/assistant-ui/assistant-ui/commit/289119ed2019a0f83f698be867280c9ffd69d3ff), [`b691d36`](https://github.com/assistant-ui/assistant-ui/commit/b691d368a01c7874ff869a3e5e6d58557f3e88b6), [`db46e0b`](https://github.com/assistant-ui/assistant-ui/commit/db46e0b306e19e6af0567fdbcb2364368c0acc75), [`51e1678`](https://github.com/assistant-ui/assistant-ui/commit/51e1678f7d534b0d4b4934c457b194e4eb89a4cd)]:
+  - @assistant-ui/core@0.3.39
+
 ## 0.0.2
 
 ### Patch Changes
