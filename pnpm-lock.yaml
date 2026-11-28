@@ -185,6 +185,7 @@ overrides:
   seroval-plugins@>=1.0.0 <1.7.8: ^1.7.8
   seroval@>=1.0.0 <1.8.2: ^1.8.2
   smol-toml@>=1.0.0 <1.9.0: ^1.9.0
+  tar@>=7.0.0 <7.5.24: ^7.5.24
   undici@>=5.0.0 <5.29.0: ^5.29.0
   undici@>=7.0.0 <7.30.2: ^7.30.2
   undici@>=8.0.0 <8.12.4: ^8.12.4
@@ -574,7 +575,7 @@ importers:
         version: link:../../packages/assistant-stream
       aui-auth:
         specifier: ^0.2.3
-        version: 0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        version: 0.2.3(hono@4.13.23)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       bash-tool:
         specifier: ^1.3.19
         version: 1.3.19(ai@7.0.153(zod@4.6.7))(just-bash@3.6.0(supports-color@10.2.2))
@@ -2875,10 +2876,10 @@ importers:
         version: 2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@5.29.0)(ws@8.22.0)(zod@4.6.7)
       '@hono/node-server':
         specifier: ^2.1.11
-        version: 2.1.11(hono@4.13.18)
+        version: 2.1.11(hono@4.13.23)
       hono:
-        specifier: ^4.13.16
-        version: 4.13.18
+        specifier: ^4.13.23
+        version: 4.13.23
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -2894,7 +2895,7 @@ importers:
         version: link:../../packages/x-buildutils
       '@flue/vite':
         specifier: ^2.3.0
-        version: 2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.4.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.4.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.18)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.19)(supports-color@10.2.2)(typescript@7.0.2)(undici@5.29.0)(vite@8.3.8(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)
+        version: 2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.4.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.4.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.23)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.19)(supports-color@10.2.2)(typescript@7.0.2)(undici@5.29.0)(vite@8.3.8(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.8(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -5088,7 +5089,7 @@ importers:
         version: 1.8.1
       aui-auth:
         specifier: ^0.2.3
-        version: 0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+        version: 0.2.3(hono@4.13.23)(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
       chalk:
         specifier: ^6.0.1
         version: 6.0.1
@@ -19509,8 +19510,8 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
-  hono@4.13.18:
-    resolution: {integrity: sha512-H9q/E1XizaWstJxUW881dmLxEj+t/TrGGnyxINkm4+sK0qUwsMtFdo2BWI9Vs3cIS19MU6b6iCijoUoEf4f3DA==}
+  hono@4.13.23:
+    resolution: {integrity: sha512-OS90dj7dcsftEEWCOef8jRbnHE5lbrOq0hNRqjSyPsOnaGZvvfof1KS05hQNb4kUOCfDq1mG3PmHoX37DMnHQg==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -23862,6 +23863,10 @@ packages:
     resolution: {integrity: sha512-MFO/QzvtAOmJbkhOaCTvbGcFN9L9b+JunIsDwaKljSOdcLMea3NJ1k9Usz/rjdfSXTq4dfzfeS7W4p4YOAAHeA==}
     engines: {node: '>=18'}
 
+  tar@7.5.24:
+    resolution: {integrity: sha512-to/OxuCk5DeVONcjjODT7aeoRq5NIPPlfPc0tNML+wLlnf6u5BcJz97Uukv3pT3jzorkFhUevylkAiBr+ZmV2w==}
+    engines: {node: '>=18'}
+
   teex@1.0.1:
     resolution: {integrity: sha512-eYE6iEI62Ni1H8oIa7KlDU6uQBtqr4Eajni3wX7rpfXD8ysFx8z0+dri+KWEPWpBsxXfxu58x/0jvTVT1ekOSg==}
 
@@ -27966,10 +27971,10 @@ snapshots:
     dependencies:
       '@earendil-works/pi-agent-core': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@5.29.0)(ws@8.22.0)(zod@4.6.7)
       '@earendil-works/pi-ai': 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(undici@5.29.0)(ws@8.22.0)(zod@4.6.7)
-      '@hono/node-server': 2.1.11(hono@4.13.18)
+      '@hono/node-server': 2.1.11(hono@4.13.23)
       '@modelcontextprotocol/client': 2.4.0
       '@valibot/to-json-schema': 1.8.0(valibot@1.5.0(typescript@7.0.2))
-      hono: 4.13.18
+      hono: 4.13.23
       js-yaml: 5.5.0
       ulidx: 2.4.1
       valibot: 1.5.0(typescript@7.0.2)
@@ -27991,10 +27996,10 @@ snapshots:
     dependencies:
       '@durable-streams/client': 0.2.7
 
-  '@flue/vite@2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.4.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.4.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.18)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.19)(supports-color@10.2.2)(typescript@7.0.2)(undici@5.29.0)(vite@8.3.8(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)':
+  '@flue/vite@2.3.0(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@aws-sdk/credential-provider-node@3.972.88)(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.4.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.4.0)(@smithy/signature-v4@5.7.4)(ai@7.0.153(zod@4.6.7))(hono@4.13.23)(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.19)(supports-color@10.2.2)(typescript@7.0.2)(undici@5.29.0)(vite@8.3.8(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(ws@8.22.0)(zod@4.6.7)':
     dependencies:
       '@flue/runtime': 2.3.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@smithy/signature-v4@5.7.4)(supports-color@10.2.2)(typescript@7.0.2)(undici@5.29.0)(ws@8.22.0)(zod@4.6.7)
-      '@hono/node-server': 2.1.11(hono@4.13.18)
+      '@hono/node-server': 2.1.11(hono@4.13.23)
       agents: 0.20.1(@ai-sdk/react@4.0.157(react@19.3.1)(zod@4.6.7))(@babel/core@8.0.9)(@babel/runtime@8.0.8)(@cloudflare/workers-types@5.20261026.1)(@modelcontextprotocol/client@2.4.0)(@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7))(@modelcontextprotocol/server@2.4.0)(ai@7.0.153(zod@4.6.7))(just-bash@3.6.0(supports-color@10.2.2))(react@19.3.1)(rolldown@1.2.19)(vite@8.3.8(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(zod@4.6.7)
       magic-string: 1.4.4
       tinyglobby: 0.2.17
@@ -28219,22 +28224,22 @@ snapshots:
     dependencies:
       '@hapi/hoek': 11.0.7
 
-  '@hono/node-server@2.1.11(hono@4.13.18)':
+  '@hono/node-server@2.1.11(hono@4.13.23)':
     dependencies:
-      hono: 4.13.18
+      hono: 4.13.23
 
-  '@hono/node-ws@1.3.1(@hono/node-server@2.1.11(hono@4.13.18))(hono@4.13.18)':
+  '@hono/node-ws@1.3.1(@hono/node-server@2.1.11(hono@4.13.23))(hono@4.13.23)':
     dependencies:
-      '@hono/node-server': 2.1.11(hono@4.13.18)
-      hono: 4.13.18
+      '@hono/node-server': 2.1.11(hono@4.13.23)
+      hono: 4.13.23
       ws: 8.22.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
 
-  '@hono/zod-validator@0.7.6(hono@4.13.18)(zod@4.6.7)':
+  '@hono/zod-validator@0.7.6(hono@4.13.23)(zod@4.6.7)':
     dependencies:
-      hono: 4.13.18
+      hono: 4.13.23
       zod: 4.6.7
 
   '@hookform/resolvers@6.0.0(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(joi@18.3.2)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)':
@@ -28499,9 +28504,9 @@ snapshots:
   '@langchain/langgraph-api@1.5.5(f2d4902d37f1dde27f0e2bd968a06280)':
     dependencies:
       '@babel/code-frame': 7.29.7
-      '@hono/node-server': 2.1.11(hono@4.13.18)
-      '@hono/node-ws': 1.3.1(@hono/node-server@2.1.11(hono@4.13.18))(hono@4.13.18)
-      '@hono/zod-validator': 0.7.6(hono@4.13.18)(zod@4.6.7)
+      '@hono/node-server': 2.1.11(hono@4.13.23)
+      '@hono/node-ws': 1.3.1(@hono/node-server@2.1.11(hono@4.13.23))(hono@4.13.23)
+      '@hono/zod-validator': 0.7.6(hono@4.13.23)(zod@4.6.7)
       '@langchain/core': 1.4.2(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(openai@7.43.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(google-auth-library@10.9.1(supports-color@10.2.2))(undici@5.29.0)(ws@8.22.0)(zod@4.6.7))(ws@8.22.0)
       '@langchain/langgraph': 1.5.2(@langchain/core@1.4.2(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(openai@7.43.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(google-auth-library@10.9.1(supports-color@10.2.2))(undici@5.29.0)(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       '@langchain/langgraph-checkpoint': 1.2.1(@langchain/core@1.4.2(@opentelemetry/api@1.10.0)(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.10.0))(openai@7.43.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(google-auth-library@10.9.1(supports-color@10.2.2))(undici@5.29.0)(ws@8.22.0)(zod@4.6.7))(ws@8.22.0))
@@ -28512,7 +28517,7 @@ snapshots:
       dedent: 1.7.2
       dotenv: 16.6.1
       exit-hook: 4.0.0
-      hono: 4.13.18
+      hono: 4.13.23
       langsmith: 0.10.13(@opentelemetry/api@1.10.0)(openai@7.43.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(google-auth-library@10.9.1(supports-color@10.2.2))(undici@5.29.0)(ws@8.22.0)(zod@4.6.7))(ws@8.22.0)
       open: 10.2.0
       semver: 7.8.5
@@ -28558,7 +28563,7 @@ snapshots:
       open: 10.2.0
       package-manager-detector: 1.9.0
       stacktrace-parser: 0.1.11
-      tar: 7.5.22
+      tar: 7.5.24
       winston: 3.19.0
       winston-console-format: 1.0.8
       yaml: 2.9.1
@@ -28953,7 +28958,7 @@ snapshots:
       node-fetch: 2.7.0
       nopt: 8.1.0
       semver: 7.8.5
-      tar: 7.5.22
+      tar: 7.5.24
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -29039,13 +29044,13 @@ snapshots:
 
   '@modelcontextprotocol/node@2.1.2(@modelcontextprotocol/server@2.4.0)':
     dependencies:
-      '@hono/node-server': 2.1.11(hono@4.13.18)
+      '@hono/node-server': 2.1.11(hono@4.13.23)
       '@modelcontextprotocol/server': 2.4.0
-      hono: 4.13.18
+      hono: 4.13.23
 
   '@modelcontextprotocol/sdk@1.32.2(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.6.7)':
     dependencies:
-      '@hono/node-server': 2.1.11(hono@4.13.18)
+      '@hono/node-server': 2.1.11(hono@4.13.23)
       ajv: 8.20.0
       ajv-formats: 3.0.1
       content-type: 1.0.5
@@ -29055,7 +29060,7 @@ snapshots:
       eventsource-parser: 3.1.1
       express: 5.3.0(supports-color@10.2.2)
       express-rate-limit: 8.7.5(express@5.3.0(supports-color@10.2.2))(supports-color@10.2.2)
-      hono: 4.13.18
+      hono: 4.13.23
       jose: 6.2.13
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -34484,7 +34489,7 @@ snapshots:
       path-to-regexp: 8.4.2
       semver: 7.5.4
       stat-mode: 0.3.0
-      tar: 7.5.22
+      tar: 7.5.24
       tinyexec: 0.3.2
       tree-kill: 1.2.2
       uid-promise: 1.0.0
@@ -35469,19 +35474,19 @@ snapshots:
 
   attr-accept@2.2.5: {}
 
-  aui-auth@0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
+  aui-auth@0.2.3(hono@4.13.23)(next@16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
     dependencies:
       authical: 0.0.3
     optionalDependencies:
-      hono: 4.13.18
+      hono: 4.13.23
       next: 16.4.5(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
 
-  aui-auth@0.2.3(hono@4.13.18)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
+  aui-auth@0.2.3(hono@4.13.23)(next@16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1):
     dependencies:
       authical: 0.0.3
     optionalDependencies:
-      hono: 4.13.18
+      hono: 4.13.23
       next: 16.4.5(@babel/core@8.0.9)(@opentelemetry/api@1.10.0)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react: 19.3.1
 
@@ -38715,7 +38720,7 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
-  hono@4.13.18: {}
+  hono@4.13.23: {}
 
   hookable@5.5.3: {}
 
@@ -44870,6 +44875,14 @@ snapshots:
       - react-native-b4a
 
   tar@7.5.22:
+    dependencies:
+      '@isaacs/fs-minipass': 4.0.1
+      chownr: 3.0.0
+      minipass: 7.1.3
+      minizlib: 3.1.0
+      yallist: 5.0.0
+
+  tar@7.5.24:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
