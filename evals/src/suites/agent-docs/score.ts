@@ -19,6 +19,7 @@ interface Trial {
   turns: number;
   docsRead: string[];
   nodeModulesLookups: number;
+  refusals?: string[];
 }
 
 const trials: Trial[] = existsSync(dir)
@@ -73,4 +74,8 @@ for (const [page, n] of [...pages].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
 const lookups = trials.reduce((sum, t) => sum + (t.nodeModulesLookups ?? 0), 0);
 console.log(
   `\nLookups in node_modules (the docs didn't answer): ${lookups} across ${trials.length} trials`,
+);
+const refused = trials.filter((t) => t.refusals?.length);
+console.log(
+  `Tool calls Claude Code refused (the harness in the agent's way): ${refused.reduce((sum, t) => sum + t.refusals!.length, 0)} in ${refused.length} of ${trials.length} trials`,
 );

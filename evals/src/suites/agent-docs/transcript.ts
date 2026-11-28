@@ -18,7 +18,13 @@ export interface TranscriptSummary {
   finalMessage: string;
   /** Why the agent didn't finish: its answer was an error (a plan's usage limit) or it never answered. Null when it did. */
   agentError: string | null;
+  /** Tool calls Claude Code refused (a permission check, the sandbox), each one's message: the harness in the agent's way. */
+  refusals: string[];
 }
+
+/** A tool result that is Claude Code refusing the call, not the command failing. */
+const REFUSAL =
+  /requires approval|has been denied|been denied because|denied by your permission|cannot widen network access|outside (?:of )?(?:the|your) working director|computed at run time|don't ask mode/i;
 
 /** Summarizes a `claude -p --output-format stream-json` transcript. */
 export function summarizeTranscript(
@@ -37,6 +43,7 @@ export function summarizeTranscript(
     webFetches: [],
     finalMessage: "",
     agentError: null,
+    refusals: [],
   };
   if (!existsSync(file)) return { ...summary, agentError: "no transcript" };
   const rel = (path: string) =>
@@ -86,6 +93,17 @@ export function summarizeTranscript(
         summary.finalMessage = summary.finalMessage
           ? `${summary.finalMessage}\n\n${event.result}`
           : event.result;
+      }
+      continue;
+    }
+    if (event.type === "user") {
+      for (const block of event.message?.content ?? []) {
+        if (block.type !== "tool_result" || block.is_error !== true) continue;
+        const text =
+          typeof block.content === "string"
+            ? block.content
+            : (block.content ?? []).map((c: any) => c.text ?? "").join(" ");
+        if (REFUSAL.test(text)) summary.refusals.push(text.slice(0, 200));
       }
       continue;
     }

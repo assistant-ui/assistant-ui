@@ -48,6 +48,7 @@ Every app must:
 - Use Next.js (App Router) with TypeScript and npm. \`npm run build\` must pass, \`npm run start\` must serve the app, and the chat is on the home page \`/\`.
 - Use the model server running at ${mockUrl}/v1. It is OpenAI-compatible (Chat Completions and Responses APIs), takes any API key (use "mock"), and serves the model id "mock-1". It is a scripted mock, not a real model: unless the task says otherwise it replies "Echo: <the user's last message>". Keep this exact address; don't use any other model provider.
 - Before you finish, build the app and check that the feature works. To try it, start it on port ${appPort}. You don't need to stop the servers you start: everything you leave running is stopped when you finish.
+- The hosts above are already open to the shell, and no other can be added: don't pass \`allowed_domains\` to a shell command, which is refused here. No browser can start here either: check the app with the build and with curl against the running server; the harness opens it in Chrome after you finish.
 
 The task:
 ${task}
@@ -125,8 +126,9 @@ const lsof = () => {
 };
 
 /**
- * The file tools are fenced by `blockWritesOutsideWorkingDirectories`, which Claude Code
- * 2.1.314 added; an older CLI ignores the key and would let Write and Edit reach anywhere.
+ * The file tools are fenced by `blockWritesOutsideWorkingDirectories` (Claude Code 2.1.314) and
+ * `blockFileToolReadsOutsideWorkingDirectories` (read only from --settings, as here; checked on
+ * 2.1.332); an older CLI ignores the keys and would let Read, Write and Edit reach anywhere.
  */
 const requireWriteFence = (claude: string) => {
   const version = /(\d+)\.(\d+)\.(\d+)/.exec(
@@ -138,10 +140,10 @@ const requireWriteFence = (claude: string) => {
     minor !== undefined &&
     patch !== undefined &&
     (major > 2 ||
-      (major === 2 && (minor > 1 || (minor === 1 && patch >= 314))));
+      (major === 2 && (minor > 1 || (minor === 1 && patch >= 332))));
   if (!ok) {
     throw new Error(
-      `agent-docs needs Claude Code 2.1.314 or later for its write fence; found ${version?.[0] ?? "an unknown version"}.`,
+      `agent-docs needs Claude Code 2.1.332 or later for its file-tool fence; found ${version?.[0] ?? "an unknown version"}.`,
     );
   }
 };
@@ -273,14 +275,17 @@ export async function runAgent(opts: {
   const settings = {
     permissions: {
       allow: ["Read", "Edit", "Write", "Glob", "Grep", "Bash"],
-      // The file tools run outside the sandbox, so they are fenced here: no writes outside the
-      // working folders, and none into the docs, which every trial of the run shares.
+      // The file tools run outside the sandbox, so they are fenced here: no reads or writes outside the
+      // working folders, and no writes into the docs, which every trial of the run shares. The shell's
+      // fence is the sandbox alone: blockReadsOutsideWorkingDirectories also bound shell commands and
+      // refused about half the trials' ordinary ones (`cd <docs>; cat x.md`, a path under $TMPDIR, a
+      // command with several parts), where the sandbox's denyRead already keeps the shell out.
       deny: [
         "WebFetch",
         "WebSearch",
         ...(docsDir ? [`Edit(/${docsDir}/**)`, `Write(/${docsDir}/**)`] : []),
       ],
-      blockReadsOutsideWorkingDirectories: true,
+      blockFileToolReadsOutsideWorkingDirectories: true,
       blockWritesOutsideWorkingDirectories: true,
     },
     sandbox: {
