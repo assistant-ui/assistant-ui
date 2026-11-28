@@ -1,5 +1,13 @@
 # setup-agent
 
+## 0.2.4
+
+### Patch Changes
+
+- [#10817](https://github.com/assistant-ui/assistant-ui/pull/10817) [`1503639`](https://github.com/assistant-ui/assistant-ui/commit/1503639fd82dcdf12a1aa49134201e725e1c2557) - A setup link now holds one setup: a later `checkout/create` is refused with `already-created`, so another link holder can't replace a setup's products, guides or instructions, and a product added from the browser keeps its guide only when it comes from the setup's own guide origin. `wait start` returns at once for a finished or cancelled setup, printing `{"ok":false,"status":"done"}` or `{"ok":false,"status":"cancelled"}`, and the stream (`npx setup-agent <url> stream` and `assistant-ui setup`) stops once the setup closes. ([@Yonom](https://github.com/Yonom))
+
+- [#10818](https://github.com/assistant-ui/assistant-ui/pull/10818) [`022d8f8`](https://github.com/assistant-ui/assistant-ui/commit/022d8f8972233d676ad1dd18a780b5a9c512b42b) - `npx setup-agent <url>` now talks only to the official setup server or one on this machine (`runSetupCommand` takes `servers` for a CLI that embeds setup), and `--setup-app-url` opens only the official setup page or one on this machine. `assistant-ui setup` refuses any other setup server or page before it creates a setup. A coding agent the CLI starts runs from its absolute path, skipping `PATH` entries a project could plant a binary in. ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.3
 
 ### Patch Changes

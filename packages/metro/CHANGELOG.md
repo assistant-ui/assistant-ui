@@ -1,5 +1,11 @@
 # @assistant-ui/metro
 
+## 0.0.18
+
+### Patch Changes
+
+- [#10921](https://github.com/assistant-ui/assistant-ui/pull/10921) [`93bf017`](https://github.com/assistant-ui/assistant-ui/commit/93bf0175e8785db60f6185b8818847fc6a9e610d) - chore: update dependencies ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.0.17
 
 ### Patch Changes

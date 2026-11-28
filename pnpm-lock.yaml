@@ -4927,7 +4927,7 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2(zod@4.6.7)
       '@assistant-ui/core':
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../core
       assistant-stream:
         specifier: ^0.3.59
@@ -5710,7 +5710,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.25
@@ -6154,7 +6154,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.37
+        specifier: ^0.3.39
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.24
@@ -6212,7 +6212,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../core
       '@assistant-ui/tap':
         specifier: workspace:^
@@ -6304,7 +6304,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../core
       '@assistant-ui/react-langchain':
         specifier: ^0.0.42
@@ -7070,7 +7070,7 @@ importers:
   packages/solid:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.25
@@ -7134,7 +7134,7 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.25
@@ -7470,7 +7470,7 @@ importers:
   packages/vscode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../core
     devDependencies:
       '@assistant-ui/store':

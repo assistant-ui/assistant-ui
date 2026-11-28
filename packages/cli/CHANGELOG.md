@@ -1,5 +1,23 @@
 # assistant-ui
 
+## 0.0.138
+
+### Patch Changes
+
+- [#10855](https://github.com/assistant-ui/assistant-ui/pull/10855) [`8fbdf3e`](https://github.com/assistant-ui/assistant-ui/commit/8fbdf3e3e22acf7679a09acaccfd955d18aa495f) - `assistant-ui create` refuses a destination that is a symbolic link, and while it writes the project and when it cleans up after a failure it checks that the destination is still the directory it started with. If that directory was replaced, nothing more is written to or removed from it. ([@Yonom](https://github.com/Yonom))
+
+- [#10900](https://github.com/assistant-ui/assistant-ui/pull/10900) [`841473e`](https://github.com/assistant-ui/assistant-ui/commit/841473edc848c271f5233ce4e497ae0671cb281a) - the agent skill the CLI installs now comes from the skills commit whose cloud skill lists `threads.messages.delete` and `threads.claim` and says that `threads.messages.list` pages with `limit` and `after` ([@Yonom](https://github.com/Yonom))
+
+- [#10827](https://github.com/assistant-ui/assistant-ui/pull/10827) [`d95a63e`](https://github.com/assistant-ui/assistant-ui/commit/d95a63e7d1b1dfec28ab5ce7d85563d7a57c122e) - `assistant-ui cloud login --setup-url` and `assistant-ui cloud setup --setup-url` now accept only the official setup server or one on this machine, so a look-alike server can't receive the device sign-in link. ([@Yonom](https://github.com/Yonom))
+
+- [#10833](https://github.com/assistant-ui/assistant-ui/pull/10833) [`5b7dc71`](https://github.com/assistant-ui/assistant-ui/commit/5b7dc71ed3be43cb72736365f9562e071dc6e638) - `assistant-ui codemod` and `assistant-ui upgrade` keep each file's line endings. On Windows a file with LF line endings came back with CRLF on every line after a codemod changed it, and on Linux and macOS a CRLF file came back with LF. ([@harshdazz](https://github.com/harshdazz))
+
+- [#10817](https://github.com/assistant-ui/assistant-ui/pull/10817) [`1503639`](https://github.com/assistant-ui/assistant-ui/commit/1503639fd82dcdf12a1aa49134201e725e1c2557) - A setup link now holds one setup: a later `checkout/create` is refused with `already-created`, so another link holder can't replace a setup's products, guides or instructions, and a product added from the browser keeps its guide only when it comes from the setup's own guide origin. `wait start` returns at once for a finished or cancelled setup, printing `{"ok":false,"status":"done"}` or `{"ok":false,"status":"cancelled"}`, and the stream (`npx setup-agent <url> stream` and `assistant-ui setup`) stops once the setup closes. ([@Yonom](https://github.com/Yonom))
+
+- [#10818](https://github.com/assistant-ui/assistant-ui/pull/10818) [`022d8f8`](https://github.com/assistant-ui/assistant-ui/commit/022d8f8972233d676ad1dd18a780b5a9c512b42b) - `npx setup-agent <url>` now talks only to the official setup server or one on this machine (`runSetupCommand` takes `servers` for a CLI that embeds setup), and `--setup-app-url` opens only the official setup page or one on this machine. `assistant-ui setup` refuses any other setup server or page before it creates a setup. A coding agent the CLI starts runs from its absolute path, skipping `PATH` entries a project could plant a binary in. ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`1503639`](https://github.com/assistant-ui/assistant-ui/commit/1503639fd82dcdf12a1aa49134201e725e1c2557), [`022d8f8`](https://github.com/assistant-ui/assistant-ui/commit/022d8f8972233d676ad1dd18a780b5a9c512b42b)]:
+  - setup-agent@0.2.4
+
 ## 0.0.137
 
 ### Patch Changes
