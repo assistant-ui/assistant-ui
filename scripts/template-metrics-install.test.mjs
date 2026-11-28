@@ -443,3 +443,73 @@ for (const filename of ["cafe.ts", "café.ts"]) {
     assert.match(check.stderr, /nuxt: \+301 LOC > 300/);
   });
 }
+
+for (const extension of ["ts", "mts", "cts", "mjs", "cjs", "vue"]) {
+  test(`default template measures and gates reachable UI from a .${extension} entry`, (t) => {
+    const { root, write, git, commit, metrics } = fixture(t);
+    cpSync(
+      new URL("../templates/default/tsconfig.json", import.meta.url),
+      path.join(root, "templates/default/tsconfig.json"),
+    );
+    const entry = `templates/default/app.${extension}`;
+    if (extension !== "ts") git("mv", "templates/default/app.ts", entry);
+    const source = (specifier) => {
+      const load = `void import("${specifier}");`;
+      return extension === "vue"
+        ? `<script setup>\n${load}\n</script>\n`
+        : load;
+    };
+    write(entry, source("react"));
+    write("packages/ui/src/chart.ts", "// chart\n".repeat(301));
+    commit();
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+
+    write(entry, source("@assistant-ui/ui/chart"));
+    const measure = metrics("measure", ".", "head.json");
+    assert.equal(measure.status, 0, measure.stderr);
+    const head = JSON.parse(readFileSync(path.join(root, "head.json"), "utf8"));
+    const check = metrics("check", ".");
+    assert.deepEqual(
+      {
+        uiLoc: head.find(({ name }) => name === "default").uiLoc,
+        status: check.status,
+      },
+      { uiLoc: 301, status: 1 },
+    );
+    assert.match(check.stderr, /default: \+301 LOC > 300/);
+  });
+}
+
+test("configured aliases use the first existing target and exclude npm packages", (t) => {
+  const { root, write, metrics } = fixture(t);
+  write(
+    "templates/default/tsconfig.json",
+    JSON.stringify({
+      compilerOptions: {
+        paths: {
+          "@assistant-ui/ui/*": [
+            "../../packages/ui/base/*",
+            "../../packages/ui/radix/*",
+          ],
+        },
+      },
+    }),
+  );
+  write(
+    "templates/default/app.ts",
+    [
+      'import "@assistant-ui/ui/chart";',
+      'import "@assistant-ui/ui/badge";',
+      'import "react";',
+    ].join("\n"),
+  );
+  write("packages/ui/base/chart.ts", "// chart\n");
+  write("packages/ui/radix/chart.ts", "// unused\n".repeat(10));
+  write("packages/ui/radix/badge.ts", "// badge\n".repeat(2));
+  write("templates/default/node_modules/react/index.js", "// external\n");
+  const measure = metrics("measure", ".", "head.json");
+  assert.equal(measure.status, 0, measure.stderr);
+  const head = JSON.parse(readFileSync(path.join(root, "head.json"), "utf8"));
+  const { ownLoc, uiLoc } = head.find(({ name }) => name === "default");
+  assert.deepEqual({ ownLoc, uiLoc }, { ownLoc: 3, uiLoc: 3 });
+});

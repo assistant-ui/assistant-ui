@@ -31,7 +31,7 @@ import { tmpdir } from "node:os";
 import { gzipSync } from "node:zlib";
 import { join, extname, dirname, resolve } from "node:path";
 
-const CODE_EXT = new Set([
+const IMPORT_EXT = new Set([
   ".ts",
   ".tsx",
   ".js",
@@ -40,9 +40,9 @@ const CODE_EXT = new Set([
   ".cjs",
   ".mts",
   ".cts",
-  ".css",
   ".vue",
 ]);
+const CODE_EXT = new Set([...IMPORT_EXT, ".css"]);
 const RESOLVE_EXT = [".tsx", ".ts", ".jsx", ".js"];
 
 function listTemplates(root) {
@@ -122,6 +122,7 @@ function loadAliases(tplDir) {
   const paths = parsed.compilerOptions?.paths ?? {};
   return Object.entries(paths)
     .map(([key, targets]) => ({
+      wildcard: key.endsWith("*"),
       prefix: key.replace(/\*$/, ""),
       targets: targets.map((target) => target.replace(/\*$/, "")),
     }))
@@ -145,19 +146,18 @@ function resolveCandidate(target) {
 // Alias targets are tsconfig fallback arrays: entries are tried in order and
 // the first that exists wins, matching bundler resolution.
 function resolveModule(fromFile, spec, tplDir, aliases) {
-  if (spec.startsWith("@/")) {
-    const alias = aliases.find((a) => spec.startsWith(a.prefix));
-    if (!alias) return null;
-    for (const target of alias.targets) {
-      const resolved = resolveCandidate(
-        resolve(tplDir, target + spec.slice(alias.prefix.length)),
-      );
-      if (resolved) return resolved;
-    }
-    return null;
-  }
   if (spec.startsWith(".")) {
     return resolveCandidate(resolve(dirname(fromFile), spec));
+  }
+  const alias = aliases.find((a) =>
+    a.wildcard ? spec.startsWith(a.prefix) : spec === a.prefix,
+  );
+  if (!alias) return null;
+  for (const target of alias.targets) {
+    const resolved = resolveCandidate(
+      resolve(tplDir, target + spec.slice(alias.prefix.length)),
+    );
+    if (resolved) return resolved;
   }
   return null;
 }
@@ -192,7 +192,7 @@ function footprintFor(root, name) {
     const file = stack.pop();
     if (visited.has(file)) continue;
     visited.add(file);
-    if (!/\.(tsx?|jsx?)$/.test(file)) continue;
+    if (!IMPORT_EXT.has(extname(file))) continue;
     for (const spec of importsOf(file)) {
       const resolved = resolveModule(file, spec, tplDir, aliases);
       if (resolved && !visited.has(resolved)) stack.push(resolved);
