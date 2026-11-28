@@ -158,6 +158,9 @@ describe("setup", () => {
     expect(header).toContain(
       "`npx assistant-ui@latest setup https://c.test/abc cancel`, then `kill 42`",
     );
+    expect(header).toContain(
+      "Write out each setup command in full, such as `npx assistant-ui@latest setup https://c.test/abc status`. Don't keep it in a shell variable",
+    );
   });
 
   it("refuses a step command whose setup page is not the official one or local", async () => {
