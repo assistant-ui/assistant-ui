@@ -18,9 +18,10 @@ import {
   sectionCount,
   type LibraryEntry,
   type LibrarySectionId,
+  type StarterEntry,
 } from "@/lib/library/library-data";
 import { LIBRARY_SKILLS, type LibrarySkill } from "@/lib/library/skills-data";
-import { PRESET_STACK } from "@/lib/library/presets-data";
+import { PRESET_STACK, type LibraryPreset } from "@/lib/library/presets-data";
 import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { GlyphLibrary, LibraryGlyph } from "./library-glyphs";
@@ -125,8 +126,12 @@ export function LibraryBrowser() {
   >({});
   const [starterOptions, setStarterOptions] = useState(DEFAULT_VIEW_OPTIONS);
   const [skillView, setSkillView] = useState<LibraryView>("list");
-  const [starter, setStarter] = useState<Starter | null>(null);
-  const [starterOpen, setStarterOpen] = useState(false);
+  const [sheet, setSheet] = useState<StarterEntry | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const openSheet = (entry: StarterEntry) => {
+    setSheet(entry);
+    setSheetOpen(true);
+  };
   const [skill, setSkill] = useState<LibrarySkill | null>(null);
   const [skillOpen, setSkillOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -151,10 +156,10 @@ export function LibraryBrowser() {
   const sort = onStarters ? starterOptions.sort : filter.sort;
   const starterRows = onStarters && starterOptions.view === "list";
   const starterTable = onStarters && starterOptions.view === "table";
-  const openStarter = (selected: Starter) => {
-    setStarter(selected);
-    setStarterOpen(true);
-  };
+  const openStarter = (starter: Starter) =>
+    openSheet({ kind: "starter", starter });
+  const openPreset = (preset: LibraryPreset) =>
+    openSheet({ kind: "preset", preset });
   const skillTiles = current?.id === "skills" && skillView === "grid";
 
   const sections = all
@@ -202,6 +207,19 @@ export function LibraryBrowser() {
     .filter(({ count }) => count > 0);
 
   const resultCount = sections.reduce((total, { count }) => total + count, 0);
+
+  // The starters and presets on screen, in the order shown, which the drawer's arrows step through.
+  const sheetEntries = sections
+    .flatMap(({ groups }) => {
+      const entries = groups.flatMap((group) => group.entries);
+      return starterTable
+        ? sortLibraryItems(entries, sort, entryName)
+        : entries;
+    })
+    .filter(
+      (entry): entry is StarterEntry =>
+        entry.kind === "starter" || entry.kind === "preset",
+    );
 
   // While a search is on, each tab says how many of its items match.
   const matches = (section: (typeof all)[number]) =>
@@ -273,7 +291,7 @@ export function LibraryBrowser() {
           <Item
             key={entryKey(entry)}
             preset={entry.preset}
-            onDetails={openDetails}
+            onSelect={openPreset}
           />
         );
       }
@@ -443,9 +461,11 @@ export function LibraryBrowser() {
           </div>
         </div>
         <StarterSheet
-          starter={starter}
-          open={starterOpen}
-          onOpenChange={setStarterOpen}
+          entry={sheet}
+          entries={sheetEntries}
+          onEntryChange={setSheet}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
         />
         <SkillDialog
           skill={skill}
@@ -559,13 +579,9 @@ export function LibraryBrowser() {
                       {section.title} · {count}
                     </GroupLabel>
                     <StarterTable
-                      entries={sortLibraryItems(
-                        groups.flatMap((group) => group.entries),
-                        sort,
-                        entryName,
-                      )}
+                      entries={sheetEntries}
                       onStarter={openStarter}
-                      onDetails={openDetails}
+                      onPreset={openPreset}
                     />
                   </div>
                 ) : (

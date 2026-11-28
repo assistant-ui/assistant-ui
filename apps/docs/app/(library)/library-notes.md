@@ -40,9 +40,20 @@ A fix that was tried and set aside: a `pnpm generate:library-starters` script in
 - Six are the demos in `lib/xulux/demo-downloads/manifest.ts`. Each runs at `/demos/<name>`, downloads from `/api/xulux/demo-download?slug=<name>`, and has its entry file in `components/pages/examples/`. The download route answers only when the AI playground flag is on, as it is on the live site.
 - Nine are hosted apps at `*.preview.bl.run` addresses copied from the catalog: the configurable Base app, five versions of the docs assistant, and three versions of the support assistant. Their source is not in this repository, so they have a preview and a download and no source link. If one of those addresses changes or goes away, the row's links break.
 - Names and the docs and support one-liners are the catalog's; the demos' longer descriptions were shortened for the library.
-- A playground template has no install command. Its drawer shows Preview, Download, and Source in place of the Setup and Dependencies tabs, the table says "Download", and the "Installs by command" filter leaves it out. Under the other filters it counts as Next.js on the AI SDK.
+- A playground template has no install command. Its drawer has a Download row and a Links group with Repo and Preview, and leaves out the Setup and Dependencies tabs, the table says "Download", and the "Installs by command" filter leaves it out. Under the other filters it counts as Next.js on the AI SDK.
 
 When to redo it: a template is added to or removed from the playground catalog, or a hosted address changes.
+
+## Last-updated dates are a snapshot
+
+`lib/library/updated-data.ts` holds the "Last updated" day the Starters drawer and table view show: the day of the last commit on `main` that touched the item's code, read on 2026-11-27. Nothing checks it today, so a date is only right until that code changes again.
+
+- A template or example uses its folder (`templates/<name>`, `examples/<name>`), a playground demo its entry file in `components/pages/examples/`, and every preset the one file they share, `components/pages/playground/presets.ts`.
+- The nine hosted playground templates have no code in this repository and so no date.
+- Each date is `git log -1 --format=%cs origin/main -- <path>`.
+- That commit is often a change made across the whole repository, such as a dependency update, and not a change to the starter itself, so the date says when the folder last changed for any reason.
+
+When to redo it: before a release of the library page, or whenever the dates should be current.
 
 ## Presets are a hand-copied snapshot
 

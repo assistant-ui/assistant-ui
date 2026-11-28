@@ -7,6 +7,7 @@ import {
   PRESET_STACK,
   presetCommand,
   presetId,
+  type LibraryPreset,
 } from "@/lib/library/presets-data";
 import type { LibraryKind } from "@/lib/library/saved-items";
 import {
@@ -15,14 +16,14 @@ import {
   starterSourceHref,
   type Starter,
   type StarterFramework,
+  type StarterIntegration,
   type StarterRuntime,
 } from "@/lib/library/starters-data";
+import { LIBRARY_UPDATED, formatLibraryDay } from "@/lib/library/updated-data";
 import { cn } from "@/lib/utils";
 import { FilterIcon } from "./filter-icons";
-import { LibraryCopyButton } from "./library-copy-button";
-import type { LibraryDetails } from "./library-item-dialog";
 import { LibraryKindLabel } from "./library-kind";
-import { PresetMenu, presetDetails } from "./preset-card";
+import { PresetMenu } from "./preset-card";
 import { StarterMenu } from "./starter-menu";
 
 type Row = {
@@ -31,12 +32,15 @@ type Row = {
   kind: LibraryKind;
   framework: StarterFramework;
   runtime: StarterRuntime | undefined;
+  integrations: readonly StarterIntegration[];
   /** Absent for a starter `create` does not offer. */
   command: string | undefined;
   /** Where to get it instead, shown in place of a command. */
   source: { label: string; href: string } | undefined;
   /** What stands in the Installable column when there is no command. */
   instead: string;
+  /** The day its code last changed, as an ISO date. */
+  updated: string | undefined;
   onOpen: () => void;
   menu: ReactNode;
 };
@@ -49,10 +53,14 @@ const CLI = "npx assistant-ui@latest ";
 const shortCommand = (command: string) =>
   command.startsWith(CLI) ? command.slice(CLI.length) : command;
 
-const cell = "px-3 py-2 text-left align-middle text-[13px]";
+const cell = "px-2.5 py-2 text-left align-middle text-[13px]";
 const head = cn(cell, "text-muted-foreground py-2.5 text-xs font-normal");
 
-function Stack({ name }: { name: StarterFramework | StarterRuntime }) {
+function Stack({
+  name,
+}: {
+  name: StarterFramework | StarterRuntime | StarterIntegration;
+}) {
   return (
     <span className="flex min-w-0 items-center gap-2">
       <FilterIcon name={name} />
@@ -65,13 +73,13 @@ function Stack({ name }: { name: StarterFramework | StarterRuntime }) {
 export function StarterTable({
   entries,
   onStarter,
-  onDetails,
+  onPreset,
 }: {
   entries: readonly LibraryEntry[];
   /** Opens a starter's details. */
   onStarter: (starter: Starter) => void;
   /** Opens a preset's details. */
-  onDetails: (details: LibraryDetails) => void;
+  onPreset: (preset: LibraryPreset) => void;
 }) {
   const rows = entries.flatMap((entry): Row[] => {
     if (entry.kind === "starter") {
@@ -85,6 +93,7 @@ export function StarterTable({
           kind: starter.kind,
           framework: starter.framework,
           runtime: starter.runtime,
+          integrations: starter.integrations ?? [],
           command: starterCommand(starter),
           source: starter.hosted
             ? { label: "Preview", href: starter.hosted.preview }
@@ -92,6 +101,7 @@ export function StarterTable({
               ? { label: `examples/${starter.name}`, href: source }
               : undefined,
           instead: starter.hosted ? "Download" : "Repo only",
+          updated: LIBRARY_UPDATED[starterId(starter)],
           onOpen,
           menu: (
             <StarterMenu
@@ -113,14 +123,16 @@ export function StarterTable({
           kind: "preset",
           framework: PRESET_STACK.framework,
           runtime: PRESET_STACK.runtime,
+          integrations: [],
           command: presetCommand(preset),
           source: undefined,
           instead: "",
-          onOpen: () => onDetails(presetDetails(preset)),
+          updated: LIBRARY_UPDATED[presetId(preset)],
+          onOpen: () => onPreset(preset),
           menu: (
             <PresetMenu
               preset={preset}
-              onDetails={onDetails}
+              onSelect={onPreset}
               tooltipSide="top"
               className={menuClass}
             />
@@ -133,15 +145,17 @@ export function StarterTable({
 
   return (
     <div className="border-foreground/10 overflow-x-auto rounded-(--library-thumb) border">
-      <table className="w-full min-w-[56rem] table-fixed border-collapse">
+      <table className="w-full min-w-[72rem] table-fixed border-collapse">
         <colgroup>
-          <col className="w-[18%]" />
-          <col className="w-[11%]" />
-          <col className="w-[15%]" />
-          <col className="w-[13%]" />
-          <col className="w-[10%]" />
+          <col className="w-[10.5rem]" />
+          <col className="w-[6.25rem]" />
+          <col className="w-[8.25rem]" />
+          <col className="w-[7.5rem]" />
+          <col className="w-[8.75rem]" />
+          <col className="w-[5.25rem]" />
           <col />
-          <col className="w-14" />
+          <col className="w-[6.5rem]" />
+          <col className="w-10" />
         </colgroup>
         <thead>
           <tr className="border-foreground/10 border-b">
@@ -158,10 +172,16 @@ export function StarterTable({
               Runtime
             </th>
             <th scope="col" className={head}>
+              Integrations
+            </th>
+            <th scope="col" className={head}>
               Installable
             </th>
             <th scope="col" className={head}>
               Command or source
+            </th>
+            <th scope="col" className={head}>
+              Last updated
             </th>
             <th scope="col" className={head}>
               <span className="sr-only">Options</span>
@@ -179,7 +199,7 @@ export function StarterTable({
                   type="button"
                   aria-haspopup="dialog"
                   onClick={row.onOpen}
-                  className="focus-visible:ring-ring block max-w-full cursor-pointer truncate rounded-sm text-left underline-offset-4 outline-none hover:underline focus-visible:ring-2"
+                  className="focus-visible:ring-ring max-w-full cursor-pointer rounded-sm text-left text-pretty underline-offset-4 outline-none hover:underline focus-visible:ring-2"
                 >
                   {row.name}
                 </button>
@@ -198,6 +218,17 @@ export function StarterTable({
                 )}
               </td>
               <td className={cell}>
+                {row.integrations.length > 0 ? (
+                  <span className="flex flex-col gap-1.5">
+                    {row.integrations.map((name) => (
+                      <Stack key={name} name={name} />
+                    ))}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">None</span>
+                )}
+              </td>
+              <td className={cell}>
                 {row.command ? (
                   <span className="flex items-center gap-1.5">
                     <CheckIcon aria-hidden className="size-3.5 shrink-0" />
@@ -211,18 +242,12 @@ export function StarterTable({
               </td>
               <td className={cell}>
                 {row.command ? (
-                  <span className="flex min-w-0 items-center gap-1">
-                    <code
-                      title={row.command}
-                      className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs [font-variant-ligatures:none]"
-                    >
-                      {shortCommand(row.command)}
-                    </code>
-                    <LibraryCopyButton
-                      text={row.command}
-                      label={`Copy the install command for ${row.name}`}
-                    />
-                  </span>
+                  <code
+                    title={row.command}
+                    className="text-muted-foreground block truncate font-mono text-xs [font-variant-ligatures:none]"
+                  >
+                    {shortCommand(row.command)}
+                  </code>
                 ) : row.source ? (
                   <a
                     href={row.source.href}
@@ -239,7 +264,16 @@ export function StarterTable({
                   </a>
                 ) : null}
               </td>
-              <td className={cn(cell, "px-2")}>{row.menu}</td>
+              <td className={cn(cell, "whitespace-nowrap")}>
+                {row.updated ? (
+                  <time dateTime={row.updated}>
+                    {formatLibraryDay(row.updated)}
+                  </time>
+                ) : (
+                  <span className="text-muted-foreground">Unknown</span>
+                )}
+              </td>
+              <td className={cn(cell, "px-1")}>{row.menu}</td>
             </tr>
           ))}
         </tbody>

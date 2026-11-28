@@ -1,12 +1,16 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
   ArrowUpRightIcon,
   BotIcon,
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   DownloadIcon,
   FolderGitIcon,
+  GlobeIcon,
   KeyRoundIcon,
   BookmarkCheckIcon,
   BookmarkIcon,
@@ -22,12 +26,30 @@ import {
   ShapesIcon,
   type LucideIcon,
 } from "lucide-react";
+import {
+  entryKey,
+  entryName,
+  type StarterEntry,
+} from "@/lib/library/library-data";
+import {
+  PRESET_STACK,
+  presetCommand,
+  presetId,
+  presetPlayground,
+  presetPrompt,
+} from "@/lib/library/presets-data";
+import {
+  LIBRARY_KIND_LABEL,
+  type LibraryKind,
+} from "@/lib/library/saved-items";
+import { LIBRARY_UPDATED, formatLibraryDay } from "@/lib/library/updated-data";
 import type {
   StarterFramework,
   StarterIntegration,
   StarterRuntime,
 } from "@/lib/library/starters-data";
 import {
+  STARTERS,
   starterCommand,
   starterId,
   starterOpen,
@@ -35,7 +57,6 @@ import {
   starterSourceHref,
   type Starter,
 } from "@/lib/library/starters-data";
-import { LIBRARY_KIND_LABEL } from "@/lib/library/saved-items";
 import { cn } from "@/lib/utils";
 import { useLibrarySaved } from "./saved-store";
 import { copyWithLibraryToast } from "./library-toast";
@@ -43,6 +64,9 @@ import { toggleLibrarySavedWithToast } from "./library-item-menu";
 import { FilterIcon } from "./filter-icons";
 import { LibraryCopyButton } from "./library-copy-button";
 import { LibraryIconButton } from "./library-icon-button";
+import { LibraryKindLabel } from "./library-kind";
+import { PresetThumbnail } from "./preset-card";
+import { StarterThumbnail } from "./starter-card";
 import { GroupRow, RowGroup } from "./library-row-group";
 import { CommandLine, Step } from "./library-steps";
 import {
@@ -192,8 +216,7 @@ function LinkRow({
   );
 }
 
-function OpenStep({ starter }: { starter: Starter }) {
-  const open = starterOpen(starter);
+function OpenStep({ open }: { open: ReturnType<typeof starterOpen> }) {
   if ("text" in open) {
     return <p className="text-muted-foreground text-sm">{open.text}</p>;
   }
@@ -219,60 +242,182 @@ function OpenStep({ starter }: { starter: Starter }) {
   );
 }
 
-function StarterDetails({ starter }: { starter: Starter }) {
-  const command = starterCommand(starter);
-  const source = starterSourceHref(starter);
-  const { hosted } = starter;
-  const tabs = [
-    ...(command ? TABS : TABS.slice(0, 1)),
-    ...(starter.screenshots ? [SCREENSHOTS_TAB] : []),
-  ];
-  const isSaved = useLibrarySaved().includes(starterId(starter));
-  const prompt = starterPrompt(starter);
+/** What the drawer shows for one starter or preset, so every kind is laid out the same way. */
+type SheetView = {
+  /** Its id in the saved panel. */
+  id: string;
+  label: string;
+  description: string;
+  kind: LibraryKind;
+  /** Absent when `create` does not offer it. */
+  command: string | undefined;
+  prompt: string;
+  /** Its code on GitHub. */
+  repo: string | undefined;
+  /** Where it runs on the web. */
+  preview: string | undefined;
+  download: string | undefined;
+  /** The day its code last changed, as an ISO date. */
+  updated: string | undefined;
+  /** Why there is no install command, or what the command does beyond creating a project. */
+  note: string | undefined;
+  framework: StarterFramework;
+  runtime: StarterRuntime | undefined;
+  integrations: readonly StarterIntegration[];
+  env: readonly string[];
+  /** How to start it once `create` has made it; absent without a command. */
+  setup:
+    | { devScript: string; open: ReturnType<typeof starterOpen> }
+    | undefined;
+  /** The starter itself, for what `create` installs and its screenshots. */
+  starter: Starter | undefined;
+};
 
-  const toggleSaved = () =>
-    toggleLibrarySavedWithToast(starterId(starter), starter.label);
+const DEFAULT_TEMPLATE = STARTERS.find(
+  (starter) => starter.kind === "template" && starter.name === "default",
+);
+
+const viewOf = (entry: StarterEntry): SheetView => {
+  if (entry.kind === "preset") {
+    const { preset } = entry;
+    return {
+      id: presetId(preset),
+      label: preset.name,
+      description: preset.description,
+      kind: "preset",
+      command: presetCommand(preset),
+      prompt: presetPrompt(preset),
+      repo: undefined,
+      preview: presetPlayground(preset),
+      download: undefined,
+      updated: LIBRARY_UPDATED[presetId(preset)],
+      note: "The command creates the default template, then applies this preset's look to its thread.",
+      framework: PRESET_STACK.framework,
+      runtime: PRESET_STACK.runtime,
+      integrations: [],
+      env: DEFAULT_TEMPLATE?.env ?? [],
+      setup: { devScript: "dev", open: { url: "http://localhost:3000" } },
+      starter: undefined,
+    };
+  }
+  const { starter } = entry;
+  const command = starterCommand(starter);
+  return {
+    id: starterId(starter),
+    label: starter.label,
+    description: starter.description,
+    kind: starter.kind,
+    command,
+    prompt: starterPrompt(starter),
+    repo: starterSourceHref(starter),
+    preview: starter.hosted?.preview,
+    download: starter.hosted?.download,
+    updated: LIBRARY_UPDATED[starterId(starter)],
+    note: command
+      ? undefined
+      : starter.hosted
+        ? "This is a playground template, so it has no install command. Download it as a project, or open its preview."
+        : "The create command does not offer this example, so it has no install command. Run it from a clone of the repository.",
+    framework: starter.framework,
+    runtime: starter.runtime,
+    integrations: starter.integrations ?? [],
+    env: starter.env,
+    setup: command
+      ? { devScript: starter.devScript ?? "dev", open: starterOpen(starter) }
+      : undefined,
+    starter,
+  };
+};
+
+const REPOSITORY_PATH =
+  /^https:\/\/github\.com\/assistant-ui\/assistant-ui\/(?:tree|blob)\/main\//;
+
+function StarterDetails({
+  entry,
+  previous,
+  next,
+  onEntryChange,
+}: {
+  entry: StarterEntry;
+  previous: StarterEntry | undefined;
+  next: StarterEntry | undefined;
+  onEntryChange: (entry: StarterEntry) => void;
+}) {
+  const view = viewOf(entry);
+  const { command, prompt, starter, setup } = view;
+  const tabs = [
+    TABS[0],
+    ...(setup ? [TABS[1]] : []),
+    ...(starter && command ? [TABS[2]] : []),
+    ...(starter?.screenshots ? [SCREENSHOTS_TAB] : []),
+  ];
+  // The open tab carries over to the next item when that item has it.
+  const [picked, setPicked] = useState<string>(TABS[0].value);
+  const tab = tabs.some((item) => item.value === picked)
+    ? picked
+    : TABS[0].value;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [view.id]);
+  const isSaved = useLibrarySaved().includes(view.id);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div
+        ref={scrollRef}
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      >
         <div className="flex flex-1 flex-col gap-6 p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <LibraryDrawerTitle className="text-xl font-medium">
-                {starter.label}
-              </LibraryDrawerTitle>
-              <LibraryDrawerDescription className="text-muted-foreground text-sm">
-                {starter.description}
-              </LibraryDrawerDescription>
-            </div>
-            {source ? (
-              <a
-                href={source}
-                target="_blank"
-                rel="noreferrer"
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mt-1.5 inline-flex shrink-0 items-center gap-1 rounded-sm text-sm underline-offset-4 transition-colors outline-none hover:underline focus-visible:ring-2"
-              >
-                View repo
-                <ArrowUpRightIcon aria-hidden className="size-3.5" />
-                <span className="sr-only">on GitHub (opens in a new tab)</span>
-              </a>
-            ) : null}
-            <LibraryDrawerClose
-              render={
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              {entry.kind === "preset" ? (
+                <PresetThumbnail id={entry.preset.id} />
+              ) : (
+                <StarterThumbnail starter={entry.starter} />
+              )}
+              <div className="flex min-w-0 flex-1 flex-col gap-1 self-center">
+                <LibraryDrawerTitle className="text-lg leading-6 font-medium">
+                  {view.label}
+                </LibraryDrawerTitle>
+                <LibraryKindLabel kind={view.kind} />
+              </div>
+              <div className="-me-2 -mt-0.5 flex shrink-0 items-center">
                 <LibraryIconButton
-                  tooltip="Close"
+                  tooltip={
+                    previous ? `Previous: ${entryName(previous)}` : "Previous"
+                  }
                   side="bottom"
-                  className="-me-2 -mt-0.5"
-                />
-              }
-            >
-              <XIcon aria-hidden />
-            </LibraryDrawerClose>
+                  disabled={!previous}
+                  focusableWhenDisabled
+                  onClick={() => previous && onEntryChange(previous)}
+                >
+                  <ChevronLeftIcon aria-hidden />
+                </LibraryIconButton>
+                <LibraryIconButton
+                  tooltip={next ? `Next: ${entryName(next)}` : "Next"}
+                  side="bottom"
+                  disabled={!next}
+                  focusableWhenDisabled
+                  onClick={() => next && onEntryChange(next)}
+                >
+                  <ChevronRightIcon aria-hidden />
+                </LibraryIconButton>
+                <LibraryDrawerClose
+                  render={<LibraryIconButton tooltip="Close" side="bottom" />}
+                >
+                  <XIcon aria-hidden />
+                </LibraryDrawerClose>
+              </div>
+            </div>
+            <LibraryDrawerDescription className="text-muted-foreground text-sm text-pretty">
+              {view.description}
+            </LibraryDrawerDescription>
           </div>
 
           <Tabs.Root
-            defaultValue="overview"
+            value={tab}
+            onValueChange={(value) => setPicked(String(value))}
             className="flex flex-1 flex-col gap-5"
           >
             <Tabs.List
@@ -282,15 +427,15 @@ function StarterDetails({ starter }: { starter: Starter }) {
                 tabs.length < 2 && "hidden",
               )}
             >
-              {tabs.map((tab) => (
+              {tabs.map((item) => (
                 <Tabs.Tab
-                  key={tab.value}
-                  value={tab.value}
+                  key={item.value}
+                  value={item.value}
                   className={cn(
                     "text-muted-foreground hover:text-foreground data-active:bg-foreground/[0.06] data-active:text-foreground dark:data-active:bg-foreground/[0.09] focus-visible:ring-ring h-8 cursor-pointer rounded-(--library-control) px-3.5 text-sm transition-colors outline-none focus-visible:ring-2",
                   )}
                 >
-                  {tab.label}
+                  {item.label}
                 </Tabs.Tab>
               ))}
             </Tabs.List>
@@ -299,14 +444,12 @@ function StarterDetails({ starter }: { starter: Starter }) {
               value="overview"
               className="flex flex-col gap-6 outline-none"
             >
-              {command ? null : (
+              {view.note ? (
                 <p className="text-muted-foreground text-sm text-pretty">
-                  {hosted
-                    ? "This is a playground template, so it has no install command. Open its preview, or download it as a project."
-                    : "The create command does not offer this example, so it has no install command. Run it from a clone of the repository."}
+                  {view.note}
                 </p>
-              )}
-              <RowGroup title={command ? "Install" : "Get it"}>
+              ) : null}
+              <RowGroup title="Install">
                 {command ? (
                   <GroupRow
                     icon={<TerminalIcon aria-hidden />}
@@ -324,46 +467,13 @@ function StarterDetails({ starter }: { starter: Starter }) {
                       />
                     }
                   />
-                ) : hosted ? (
-                  <>
-                    <LinkRow
-                      icon={<AppWindowIcon aria-hidden />}
-                      label="Preview"
-                      href={hosted.preview}
-                      tooltip="Open the preview"
-                    />
-                    <LinkRow
-                      icon={<DownloadIcon aria-hidden />}
-                      label="Download"
-                      href={hosted.download}
-                      tooltip="Download the project"
-                    />
-                    {hosted.source && source ? (
-                      <LinkRow
-                        icon={<FileCodeIcon aria-hidden />}
-                        label="Source"
-                        href={source}
-                        text={hosted.source}
-                        tooltip="Open the file on GitHub"
-                      />
-                    ) : null}
-                  </>
-                ) : source ? (
-                  <GroupRow
-                    icon={<FolderGitIcon aria-hidden />}
-                    label="Folder"
-                    value={
-                      <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
-                        examples/{starter.name}
-                      </span>
-                    }
-                    action={
-                      <LibraryCopyButton
-                        text={source}
-                        label="Copy the folder's GitHub address"
-                        className="-me-1.5"
-                      />
-                    }
+                ) : null}
+                {view.download ? (
+                  <LinkRow
+                    icon={<DownloadIcon aria-hidden />}
+                    label="Download"
+                    href={view.download}
+                    tooltip="Download the project"
                   />
                 ) : null}
                 <GroupRow
@@ -379,39 +489,72 @@ function StarterDetails({ starter }: { starter: Starter }) {
                   }
                 />
               </RowGroup>
+              {view.repo || view.preview || view.updated ? (
+                <RowGroup title="Links">
+                  {view.repo ? (
+                    <LinkRow
+                      icon={<FolderGitIcon aria-hidden />}
+                      label="Repo"
+                      href={view.repo}
+                      text={view.repo.replace(REPOSITORY_PATH, "")}
+                      tooltip="Open on GitHub"
+                    />
+                  ) : null}
+                  {view.preview ? (
+                    <LinkRow
+                      icon={<GlobeIcon aria-hidden />}
+                      label="Preview"
+                      href={view.preview}
+                      tooltip="Open the preview"
+                    />
+                  ) : null}
+                  {view.updated ? (
+                    <GroupRow
+                      icon={<CalendarIcon aria-hidden />}
+                      label="Last updated"
+                      value={
+                        <time
+                          dateTime={view.updated}
+                          className="text-foreground"
+                        >
+                          {formatLibraryDay(view.updated)}
+                        </time>
+                      }
+                    />
+                  ) : null}
+                </RowGroup>
+              ) : null}
               <RowGroup title="Stack">
                 <GroupRow
                   icon={<ShapesIcon aria-hidden />}
                   label="Type"
                   value={
                     <span className="text-foreground">
-                      {LIBRARY_KIND_LABEL[starter.kind]}
+                      {LIBRARY_KIND_LABEL[view.kind]}
                     </span>
                   }
                 />
                 <GroupRow
                   icon={<AppWindowIcon aria-hidden />}
                   label="Framework"
-                  value={<StackValue names={[starter.framework]} />}
+                  value={<StackValue names={[view.framework]} />}
                 />
                 <GroupRow
                   icon={<CpuIcon aria-hidden />}
                   label="Runtime"
                   value={
-                    <StackValue
-                      names={starter.runtime ? [starter.runtime] : []}
-                    />
+                    <StackValue names={view.runtime ? [view.runtime] : []} />
                   }
                 />
                 <GroupRow
                   icon={<PlugIcon aria-hidden />}
                   label="Integrations"
-                  value={<StackValue names={starter.integrations ?? []} />}
+                  value={<StackValue names={view.integrations} />}
                 />
               </RowGroup>
-              {starter.repoOnly && starter.env.length > 0 ? (
+              {!setup && view.env.length > 0 ? (
                 <RowGroup title="Environment variables">
-                  {starter.env.map((name) => (
+                  {view.env.map((name) => (
                     <GroupRow
                       key={name}
                       icon={<KeyRoundIcon aria-hidden />}
@@ -423,81 +566,83 @@ function StarterDetails({ starter }: { starter: Starter }) {
               ) : null}
             </Tabs.Panel>
 
-            <Tabs.Panel value="setup" className="outline-none">
-              <ol className="flex flex-col">
-                <Step number={1} title="Create the project">
-                  {command ? <CommandLine command={command} /> : null}
-                </Step>
-                <Step number={2} title="Set its environment variables">
-                  {starter.env.length > 0 ? (
-                    <>
-                      <CommandLine command="cd my-app && cp .env.example .env.local" />
-                      <p className="text-muted-foreground text-sm">
-                        Then set these in{" "}
-                        <span className="font-mono text-xs">.env.local</span>:
-                      </p>
-                      <CodeList items={starter.env} />
-                    </>
-                  ) : (
-                    <>
-                      <CommandLine command="cd my-app" />
-                      <p className="text-muted-foreground text-sm">
-                        It needs no environment variables.
-                      </p>
-                    </>
-                  )}
-                </Step>
-                <Step number={3} title="Start it">
-                  <CommandLine
-                    command={`npm run ${starter.devScript ?? "dev"}`}
-                  />
-                </Step>
-                <Step number={4} title="Open it">
-                  <OpenStep starter={starter} />
-                </Step>
-              </ol>
-            </Tabs.Panel>
+            {setup && command ? (
+              <Tabs.Panel value="setup" className="outline-none">
+                <ol className="flex flex-col">
+                  <Step number={1} title="Create the project">
+                    <CommandLine command={command} />
+                  </Step>
+                  <Step number={2} title="Set its environment variables">
+                    {view.env.length > 0 ? (
+                      <>
+                        <CommandLine command="cd my-app && cp .env.example .env.local" />
+                        <p className="text-muted-foreground text-sm">
+                          Then set these in{" "}
+                          <span className="font-mono text-xs">.env.local</span>:
+                        </p>
+                        <CodeList items={view.env} />
+                      </>
+                    ) : (
+                      <>
+                        <CommandLine command="cd my-app" />
+                        <p className="text-muted-foreground text-sm">
+                          It needs no environment variables.
+                        </p>
+                      </>
+                    )}
+                  </Step>
+                  <Step number={3} title="Start it">
+                    <CommandLine command={`npm run ${setup.devScript}`} />
+                  </Step>
+                  <Step number={4} title="Open it">
+                    <OpenStep open={setup.open} />
+                  </Step>
+                </ol>
+              </Tabs.Panel>
+            ) : null}
 
-            <Tabs.Panel
-              value="dependencies"
-              className="flex flex-col gap-6 outline-none"
-            >
-              <p className="text-muted-foreground text-sm">
-                {starter.componentsIncluded
-                  ? `This ${starter.kind}'s components ship inside it, so create copies them with the project instead of installing them from the registry.`
-                  : "Everything create installs, including the items each component needs."}
-              </p>
-              <DependencyList
-                title="Registry components"
-                icon={ComponentIcon}
-                rows={names(starter.components)}
-              />
-              <DependencyList
-                title="UI components"
-                icon={BoxIcon}
-                rows={names(starter.uiComponents)}
-              />
-              <DependencyList
-                title={
-                  starter.componentsIncluded
-                    ? "Component files"
-                    : "Files created"
-                }
-                icon={FileCodeIcon}
-                rows={fileRows(starter.files)}
-              />
-              <DependencyList
-                title="npm packages"
-                icon={PackageIcon}
-                rows={names(starter.dependencies)}
-              />
-            </Tabs.Panel>
-            {starter.screenshots ? (
+            {starter && command ? (
+              <Tabs.Panel
+                value="dependencies"
+                className="flex flex-col gap-6 outline-none"
+              >
+                <p className="text-muted-foreground text-sm">
+                  {starter.componentsIncluded
+                    ? `This ${starter.kind}'s components ship inside it, so create copies them with the project instead of installing them from the registry.`
+                    : "Everything create installs, including the items each component needs."}
+                </p>
+                <DependencyList
+                  title="Registry components"
+                  icon={ComponentIcon}
+                  rows={names(starter.components)}
+                />
+                <DependencyList
+                  title="UI components"
+                  icon={BoxIcon}
+                  rows={names(starter.uiComponents)}
+                />
+                <DependencyList
+                  title={
+                    starter.componentsIncluded
+                      ? "Component files"
+                      : "Files created"
+                  }
+                  icon={FileCodeIcon}
+                  rows={fileRows(starter.files)}
+                />
+                <DependencyList
+                  title="npm packages"
+                  icon={PackageIcon}
+                  rows={names(starter.dependencies)}
+                />
+              </Tabs.Panel>
+            ) : null}
+            {starter?.screenshots ? (
               <Tabs.Panel
                 value="screenshots"
                 className="flex min-h-0 flex-1 flex-col outline-none"
               >
-                <StarterScreenshots starter={starter} />
+                <StarterScreenshots key={view.id} starter={starter} />
               </Tabs.Panel>
             ) : null}
           </Tabs.Root>
@@ -507,7 +652,7 @@ function StarterDetails({ starter }: { starter: Starter }) {
         {command ? (
           <button
             type="button"
-            aria-label={`Install ${starter.label}: copy its install command`}
+            aria-label={`Install ${view.label}: copy its install command`}
             onClick={() =>
               copyWithLibraryToast(command, "Install command copied.")
             }
@@ -519,9 +664,9 @@ function StarterDetails({ starter }: { starter: Starter }) {
             <TerminalIcon aria-hidden />
             Install
           </button>
-        ) : (
+        ) : view.download ? (
           <a
-            href={hosted?.preview ?? source}
+            href={view.download}
             target="_blank"
             rel="noreferrer"
             className={cn(
@@ -529,15 +674,27 @@ function StarterDetails({ starter }: { starter: Starter }) {
               "bg-foreground text-background hover:bg-foreground/90 flex-1",
             )}
           >
-            {hosted ? "Open preview" : "View on GitHub"}
-            <ArrowUpRightIcon aria-hidden />
+            <DownloadIcon aria-hidden />
+            Download
             <span className="sr-only">(opens in a new tab)</span>
           </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => copyWithLibraryToast(prompt, "Agent prompt copied.")}
+            className={cn(
+              button,
+              "bg-foreground text-background hover:bg-foreground/90 flex-1",
+            )}
+          >
+            <BotIcon aria-hidden />
+            Copy agent prompt
+          </button>
         )}
         <button
           type="button"
           aria-pressed={isSaved}
-          onClick={toggleSaved}
+          onClick={() => toggleLibrarySavedWithToast(view.id, view.label)}
           className={cn(
             button,
             "bg-foreground/[0.06] hover:bg-foreground/[0.1] flex-1",
@@ -555,17 +712,28 @@ function StarterDetails({ starter }: { starter: Starter }) {
   );
 }
 
-/** `starter` stays set while the drawer closes, so its content holds through the exit animation. */
+/**
+ * The drawer every starter and preset opens in. `entry` stays set while it
+ * closes, so its content holds through the exit animation; `entries` is the
+ * list on screen, in order, which the arrows step through.
+ */
 export function StarterSheet({
-  starter,
+  entry,
+  entries,
+  onEntryChange,
   open,
   onOpenChange,
 }: {
-  starter: Starter | null;
+  entry: StarterEntry | null;
+  entries: readonly StarterEntry[];
+  onEntryChange: (entry: StarterEntry) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
+  const index = entry
+    ? entries.findIndex((item) => entryKey(item) === entryKey(entry))
+    : -1;
   return (
     <LibraryDrawer open={open} onOpenChange={onOpenChange}>
       <LibraryDrawerContent
@@ -574,7 +742,14 @@ export function StarterSheet({
         initialFocus={popupRef}
         className="w-[30rem]"
       >
-        {starter ? <StarterDetails starter={starter} /> : null}
+        {entry ? (
+          <StarterDetails
+            entry={entry}
+            previous={index > 0 ? entries[index - 1] : undefined}
+            next={index === -1 ? undefined : entries[index + 1]}
+            onEntryChange={onEntryChange}
+          />
+        ) : null}
       </LibraryDrawerContent>
     </LibraryDrawer>
   );

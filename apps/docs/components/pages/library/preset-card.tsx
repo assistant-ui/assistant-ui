@@ -12,7 +12,6 @@ import {
 import { cn } from "@/lib/utils";
 import { ItemThumbnail, ItemTitle, itemFrame } from "./library-item";
 import { overPreview } from "./library-icon-button";
-import type { LibraryDetails } from "./library-item-dialog";
 import { LibraryItemMenu } from "./library-item-menu";
 
 const PRESET_DOCS = "/docs/cli#create";
@@ -111,25 +110,15 @@ export function PresetMark({ id, large }: { id: string; large: boolean }) {
   );
 }
 
-export const presetDetails = (preset: LibraryPreset): LibraryDetails => ({
-  id: presetId(preset),
-  name: preset.name,
-  description: preset.description,
-  mark: `preset:${preset.id}`,
-  command: presetCommand(preset),
-  prompt: presetPrompt(preset),
-  docs: PRESET_DOCS,
-});
-
 type PresetItemProps = {
   preset: LibraryPreset;
   /** Opens the preset's details. */
-  onDetails: (details: LibraryDetails) => void;
+  onSelect: (preset: LibraryPreset) => void;
 };
 
 export function PresetMenu({
   preset,
-  onDetails,
+  onSelect,
   tooltipSide,
   className,
 }: PresetItemProps & { tooltipSide?: "left" | "top"; className: string }) {
@@ -139,7 +128,7 @@ export function PresetMenu({
       label={preset.name}
       command={presetCommand(preset)}
       prompt={presetPrompt(preset)}
-      onDetails={() => onDetails(presetDetails(preset))}
+      onDetails={() => onSelect(preset)}
       docs={PRESET_DOCS}
       className={className}
       {...(tooltipSide && { tooltipSide })}
@@ -147,14 +136,14 @@ export function PresetMenu({
   );
 }
 
-export function PresetCard({ preset, onDetails }: PresetItemProps) {
+export function PresetCard({ preset, onSelect }: PresetItemProps) {
   return (
     <li className="group/navlink relative flex min-w-0 flex-col">
       <div className={cn(itemFrame, "rounded-(--library-card) p-5")}>
         <div className="bg-background relative aspect-[16/10] overflow-hidden rounded-(--library-card-inner)">
           <PresetMenu
             preset={preset}
-            onDetails={onDetails}
+            onSelect={onSelect}
             className={overPreview}
           />
           <PresetPreview preset={preset} />
@@ -162,7 +151,7 @@ export function PresetCard({ preset, onDetails }: PresetItemProps) {
       </div>
       <ItemTitle
         label={preset.name}
-        onSelect={() => onDetails(presetDetails(preset))}
+        onSelect={() => onSelect(preset)}
         className="mt-3.5"
       />
       <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
@@ -181,22 +170,19 @@ export function PresetThumbnail({ id }: { id: string }) {
   );
 }
 
-export function PresetRow({ preset, onDetails }: PresetItemProps) {
+export function PresetRow({ preset, onSelect }: PresetItemProps) {
   return (
     <li className="group/navlink relative flex min-w-0 items-center gap-4 py-2">
       <PresetThumbnail id={preset.id} />
       <div className="min-w-0 flex-1">
-        <ItemTitle
-          label={preset.name}
-          onSelect={() => onDetails(presetDetails(preset))}
-        />
+        <ItemTitle label={preset.name} onSelect={() => onSelect(preset)} />
         <p className="text-muted-foreground mt-0.5 truncate text-[13px]">
           {preset.description}
         </p>
       </div>
       <PresetMenu
         preset={preset}
-        onDetails={onDetails}
+        onSelect={onSelect}
         tooltipSide="top"
         className="relative z-10 shrink-0"
       />

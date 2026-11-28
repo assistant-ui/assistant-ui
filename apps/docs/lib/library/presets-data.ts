@@ -159,6 +159,10 @@ export const presetCommand = ({ id }: LibraryPreset): string =>
 const presetUrl = ({ id }: LibraryPreset): string =>
   `${LIBRARY_SITE}/playground/init?preset=${id}`;
 
+/** The playground with the preset loaded. */
+export const presetPlayground = ({ id }: LibraryPreset): string =>
+  `/playground?preset=${id}`;
+
 export const presetPrompt = (preset: LibraryPreset): string =>
   agentSetupPrompt(
     [],

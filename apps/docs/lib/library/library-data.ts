@@ -81,6 +81,12 @@ export type LibraryEntry =
   | { kind: "preset"; preset: LibraryPreset }
   | { kind: "skill"; skill: LibrarySkill };
 
+/** An entry the starters' drawer opens: a starter or a preset. */
+export type StarterEntry = Extract<
+  LibraryEntry,
+  { kind: "starter" | "preset" }
+>;
+
 export type LibraryGroup = {
   label: string;
   entries: readonly LibraryEntry[];
