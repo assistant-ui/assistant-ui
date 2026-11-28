@@ -170,6 +170,7 @@ export const agentHeader = (o: {
     : `If the user is in your conversation, give them ${o.pageUrl} to open on any device${o.noBrowser ? ` (setup opens no browser here: ${o.noBrowser})` : ""}, or ask them each question and pass the reply with \`answer\`. If nobody will answer, stop this setup and run \`${SETUP_COMMAND} --unattended\`.`;
   return `This is the assistant-ui CLI, which you ran to set up assistant-ui; its output is the install itself.
 ${ways}
+Write out each setup command in full, such as \`${cmd} status\`. Don't keep it in a shell variable: zsh, the default shell on macOS, runs an unquoted \`$S status\` as a single word and fails.
 To end setup: \`${cmd} cancel\`, then \`kill ${o.pid}\`. Never \`pkill -f\`: it also matches your own shell.
 
 `;
