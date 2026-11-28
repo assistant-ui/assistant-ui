@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Tabs } from "@base-ui/react/tabs";
 import {
+  ArrowRightIcon,
   ArrowUpRightIcon,
   BotIcon,
   CalendarIcon,
@@ -11,19 +12,17 @@ import {
   GlobeIcon,
   KeyRoundIcon,
   TerminalIcon,
-  BoxIcon,
   ComponentIcon,
-  FileCodeIcon,
-  PackageIcon,
   AppWindowIcon,
   CpuIcon,
   PlugIcon,
   ShapesIcon,
-  type LucideIcon,
 } from "lucide-react";
 import {
+  componentForRegistryItem,
   entryKey,
   entryName,
+  type LibraryLink,
   type StarterEntry,
 } from "@/lib/library/library-data";
 import {
@@ -62,6 +61,7 @@ import { copyWithLibraryToast } from "./library-toast";
 import { FilterIcon } from "./filter-icons";
 import { LibraryCopyButton } from "./library-copy-button";
 import { LibraryIconButton } from "./library-icon-button";
+import { PackageMark } from "./package-icons";
 import {
   SheetFooter,
   SheetHeader,
@@ -92,45 +92,6 @@ function CodeList({ items }: { items: readonly string[] }) {
   );
 }
 
-type Row = { label: string; value?: string };
-
-function DependencyList({
-  title,
-  icon: Icon,
-  rows,
-}: {
-  title: string;
-  icon: LucideIcon;
-  rows: readonly Row[];
-}) {
-  return (
-    <RowGroup
-      title={title}
-      aside={<span className="tabular-nums">{rows.length}</span>}
-    >
-      {rows.length > 0 ? (
-        rows.map((row) => (
-          <GroupRow
-            key={row.value ? `${row.value}/${row.label}` : row.label}
-            icon={<Icon aria-hidden />}
-            label={row.label}
-            mono
-            {...(row.value && {
-              value: (
-                <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
-                  {row.value}
-                </span>
-              ),
-            })}
-          />
-        ))
-      ) : (
-        <li className="text-muted-foreground py-3 text-sm">None</li>
-      )}
-    </RowGroup>
-  );
-}
-
 /** Logos and names for one stack field, or "None". */
 function StackValue({
   names,
@@ -149,18 +110,6 @@ function StackValue({
     </span>
   );
 }
-
-const names = (items: readonly string[]): Row[] =>
-  items.map((label) => ({ label }));
-
-/** A file as its name, with the folder it is written to as the value. */
-const fileRows = (paths: readonly string[]): Row[] =>
-  paths.map((path) => {
-    const slash = path.lastIndexOf("/");
-    return slash === -1
-      ? { label: path }
-      : { label: path.slice(slash + 1), value: path.slice(0, slash) };
-  });
 
 const SCREENSHOTS_TAB = {
   value: "screenshots",
@@ -294,14 +243,34 @@ function StarterDetails({
   previous,
   next,
   onEntryChange,
+  onComponent,
 }: {
   entry: StarterEntry;
   previous: StarterEntry | undefined;
   next: StarterEntry | undefined;
   onEntryChange: (entry: StarterEntry) => void;
+  onComponent: (link: LibraryLink) => void;
 }) {
   const view = viewOf(entry);
   const { command, prompt, starter, setup } = view;
+  // What the starter installs: the library's own components first, then the
+  // support files (hooks, helpers) that are not components of their own.
+  const installed = starter
+    ? [
+        ...starter.components.map((item) => ({
+          item,
+          link: componentForRegistryItem(item, false),
+        })),
+        ...starter.uiComponents.map((item) => ({
+          item: `ui/${item}`,
+          link: componentForRegistryItem(item, true),
+        })),
+      ]
+    : [];
+  const components = [
+    ...installed.filter(({ link }) => link),
+    ...installed.filter(({ link }) => !link),
+  ];
   const tabs = [
     TABS[0],
     ...(setup ? [TABS[1]] : []),
@@ -556,30 +525,62 @@ function StarterDetails({
                     ? `This ${starter.kind}'s components ship inside it, so create copies them with the project instead of installing them from the registry.`
                     : "Everything create installs, including the items each component needs."}
                 </p>
-                <DependencyList
-                  title="Registry components"
-                  icon={ComponentIcon}
-                  rows={names(starter.components)}
-                />
-                <DependencyList
-                  title="UI components"
-                  icon={BoxIcon}
-                  rows={names(starter.uiComponents)}
-                />
-                <DependencyList
-                  title={
-                    starter.componentsIncluded
-                      ? "Component files"
-                      : "Files created"
+                <RowGroup
+                  title="Components"
+                  aside={
+                    <span className="tabular-nums">{components.length}</span>
                   }
-                  icon={FileCodeIcon}
-                  rows={fileRows(starter.files)}
-                />
-                <DependencyList
-                  title="npm packages"
-                  icon={PackageIcon}
-                  rows={names(starter.dependencies)}
-                />
+                >
+                  {components.length > 0 ? (
+                    components.map(({ item, link }) => (
+                      <GroupRow
+                        key={item}
+                        icon={<ComponentIcon aria-hidden />}
+                        label={link ? link.name : item}
+                        mono={!link}
+                        {...(link && {
+                          value: (
+                            <span className="truncate font-mono text-xs [font-variant-ligatures:none]">
+                              {item}
+                            </span>
+                          ),
+                          action: (
+                            <LibraryIconButton
+                              tooltip={`Open ${link.name} in Components`}
+                              onClick={() => onComponent(link)}
+                              className="-me-1.5"
+                            >
+                              <ArrowRightIcon aria-hidden />
+                            </LibraryIconButton>
+                          ),
+                        })}
+                      />
+                    ))
+                  ) : (
+                    <li className="text-muted-foreground py-3 text-sm">None</li>
+                  )}
+                </RowGroup>
+                <RowGroup
+                  title="Packages"
+                  aside={
+                    <span className="tabular-nums">
+                      {starter.dependencies.length}
+                    </span>
+                  }
+                >
+                  {starter.dependencies.length > 0 ? (
+                    starter.dependencies.map((name) => (
+                      <GroupRow
+                        key={name}
+                        icon={<PackageMark name={name} />}
+                        label={name}
+                        mono
+                      />
+                    ))
+                  ) : (
+                    <li className="text-muted-foreground py-3 text-sm">None</li>
+                  )}
+                </RowGroup>
               </Tabs.Panel>
             ) : null}
             {starter?.screenshots ? (
@@ -641,12 +642,15 @@ export function StarterSheet({
   entry,
   entries,
   onEntryChange,
+  onComponent,
   open,
   onOpenChange,
 }: {
   entry: StarterEntry | null;
   entries: readonly StarterEntry[];
   onEntryChange: (entry: StarterEntry) => void;
+  /** Opens a component the starter installs, in the Components tab. */
+  onComponent: (link: LibraryLink) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -668,6 +672,7 @@ export function StarterSheet({
             previous={index > 0 ? entries[index - 1] : undefined}
             next={index === -1 ? undefined : entries[index + 1]}
             onEntryChange={onEntryChange}
+            onComponent={onComponent}
           />
         ) : null}
       </LibraryDrawerContent>

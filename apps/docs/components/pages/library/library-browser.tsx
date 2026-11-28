@@ -501,6 +501,13 @@ export function LibraryBrowser() {
           entry={sheet}
           entries={sheetEntries}
           onEntryChange={setSheet}
+          onComponent={(link) => {
+            const item = libraryDetails({ kind: "link", link });
+            if (!item) return;
+            setSheetOpen(false);
+            setTab("components");
+            openDetails(item);
+          }}
           open={sheetOpen}
           onOpenChange={setSheetOpen}
         />

@@ -54,6 +54,12 @@ When to redo it: a template is added to or removed from the playground catalog, 
 
 When to redo it: a package is published, an example gets a README or leaves the repository, or someone decides one of the Review items.
 
+## Package logos
+
+`components/pages/library/package-icons.tsx` draws a brand mark beside each npm package on a starter's Dependencies tab. A package gets the mark the Starters filters already draw for its brand (assistant-ui, Vercel for the AI SDK, Next.js, LangChain, Clerk, Expo, and so on), or one of eleven more copied from Simple Icons 16.38 (React, Tailwind CSS, Radix, Lucide, Zod, Redis, FFmpeg, remark, React Hook Form, Base UI, PostCSS). A package whose project has no mark there keeps a plain package icon: `cn`, `class-variance-authority`, `zustand`, `tw-animate-css`, `uniwind`, `nitro`, `isbot`, `eventsource-parser`, `react-resizable-panels`, `harness-sdk`, `statewire`, and the `@openuidev` packages today.
+
+When to redo it: a starter gains a package from a brand not listed in `markOf`.
+
 ## Last-updated dates are a snapshot
 
 `lib/library/updated-data.ts` holds the "Last updated" day the Starters drawer and table view show: the day of the last commit on `main` that touched the item's code, read on 2026-11-27. Nothing checks it today, so a date is only right until that code changes again.

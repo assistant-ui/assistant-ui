@@ -482,6 +482,31 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = SECTIONS.map(
   },
 );
 
+const COMPONENT_LINKS: readonly LibraryLink[] = LIBRARY_SECTIONS.filter(
+  (section) => section.id === "components",
+).flatMap((section) =>
+  section.groups.flatMap((group) =>
+    group.entries.flatMap((entry) =>
+      entry.kind === "link" ? [entry.link] : [],
+    ),
+  ),
+);
+
+/**
+ * The library component a registry item is, as a starter lists it: an
+ * assistant-ui item by the name its install command ends with, a shadcn/ui
+ * item by its slug. Absent for a support file such as a hook.
+ */
+export const componentForRegistryItem = (
+  item: string,
+  ui: boolean,
+): LibraryLink | undefined =>
+  COMPONENT_LINKS.find((link) =>
+    ui
+      ? link.id === `ui/${item}`
+      : link.command?.endsWith(` @assistant-ui/${item}`),
+  );
+
 export const entryKey = (entry: LibraryEntry): string => {
   switch (entry.kind) {
     case "link":

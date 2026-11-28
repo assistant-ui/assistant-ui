@@ -3,12 +3,45 @@
 import type { ReactNode } from "react";
 import { LibraryCopyButton } from "./library-copy-button";
 
-/** A command on a tinted line, with a copy button. */
+const SHELL_TOKEN = /(\s+|&&|\|\||[|;]|"[^"]*"|'[^']*'|`[^`]*`|[^\s|;&]+)/g;
+
+// The colors the site's code blocks use, which a library code theme re-points.
+const SHELL_TONE = {
+  command: "text-(--ch-5)",
+  flag: "text-(--ch-2)",
+  operator: "text-(--ch-7)",
+  argument: "text-(--ch-8)",
+};
+
+/** A shell command as colored spans: each command's name, its flags, the operators between commands, and the rest. */
+function highlightShell(command: string): ReactNode[] {
+  let startsCommand = true;
+  return (command.match(SHELL_TOKEN) ?? []).map((token, index) => {
+    if (/^\s+$/.test(token)) return token;
+    let tone = SHELL_TONE.argument;
+    if (/^(&&|\|\||[|;])$/.test(token)) {
+      tone = SHELL_TONE.operator;
+      startsCommand = true;
+    } else if (startsCommand) {
+      tone = SHELL_TONE.command;
+      startsCommand = false;
+    } else if (token.startsWith("-")) {
+      tone = SHELL_TONE.flag;
+    }
+    return (
+      <span key={index} className={tone}>
+        {token}
+      </span>
+    );
+  });
+}
+
+/** A command on a tinted line, highlighted, with a copy button. */
 export function CommandLine({ command }: { command: string }) {
   return (
     <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] flex items-center gap-2 rounded-xl py-1 ps-3 pe-1">
       <code className="min-w-0 flex-1 overflow-x-auto font-mono text-xs whitespace-nowrap [font-variant-ligatures:none]">
-        {command}
+        {highlightShell(command)}
       </code>
       <LibraryCopyButton text={command} label="Copy command" />
     </div>
