@@ -75,7 +75,7 @@ import { StarterThumbnail } from "./starter-card";
 import { GroupRow, RowGroup } from "./library-row-group";
 import { CommandLine, Step } from "./library-steps";
 import { LibraryDrawer, LibraryDrawerContent } from "./library-drawer";
-import { StarterRecording, StarterScreenshots } from "./starter-screenshots";
+import { StarterMedia } from "./starter-screenshots";
 
 function CodeList({ items }: { items: readonly string[] }) {
   return (
@@ -111,15 +111,7 @@ function StackValue({
   );
 }
 
-const SCREENSHOTS_TAB = {
-  value: "screenshots",
-  label: "Screenshots",
-} as const;
-
-const RECORDING_TAB = {
-  value: "recording",
-  label: "Recording",
-} as const;
+const MEDIA_TAB = { value: "media", label: "Media" } as const;
 
 const TABS = [
   { value: "overview", label: "Overview" },
@@ -280,8 +272,7 @@ function StarterDetails({
     TABS[0],
     ...(setup ? [TABS[1]] : []),
     ...(starter && command ? [TABS[2]] : []),
-    ...(starter?.screenshots ? [SCREENSHOTS_TAB] : []),
-    ...(starter?.recording ? [RECORDING_TAB] : []),
+    ...(starter?.screenshots || starter?.recording ? [MEDIA_TAB] : []),
   ];
   // The open tab carries over to the next item when that item has it.
   const [picked, setPicked] = useState<string>(TABS[0].value);
@@ -595,20 +586,12 @@ function StarterDetails({
                 </RowGroup>
               </Tabs.Panel>
             ) : null}
-            {starter?.screenshots ? (
+            {starter?.screenshots || starter?.recording ? (
               <Tabs.Panel
-                value="screenshots"
+                value="media"
                 className="flex min-h-0 flex-1 flex-col outline-none"
               >
-                <StarterScreenshots key={view.id} starter={starter} />
-              </Tabs.Panel>
-            ) : null}
-            {starter?.recording ? (
-              <Tabs.Panel
-                value="recording"
-                className="flex min-h-0 flex-1 flex-col outline-none"
-              >
-                <StarterRecording key={view.id} starter={starter} />
+                <StarterMedia key={view.id} starter={starter} />
               </Tabs.Panel>
             ) : null}
           </Tabs.Root>

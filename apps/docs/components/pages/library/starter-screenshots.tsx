@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { PlayIcon } from "lucide-react";
 import type { Starter } from "@/lib/library/starters-data";
 import { cn } from "@/lib/utils";
 import { ScreenshotViewer, type ViewerShot } from "./screenshot-viewer";
@@ -199,79 +200,8 @@ function Stage({
   );
 }
 
-/**
- * A starter's screenshots in the current color mode: a large stage with a row
- * of thumbnails to pick what it shows. A click on the stage opens the shot in
- * the full-size viewer.
- */
-export function StarterScreenshots({ starter }: { starter: Starter }) {
-  const [selected, setSelected] = useState(0);
-  const [index, setIndex] = useState(0);
-  const [viewing, setViewing] = useState(false);
-  const shots = collectShots(starter);
-  if (!shots) return null;
-
-  const items = collectItems(shots);
-  const item = items[selected] ?? items[0]!;
-  const open = (next: number) => {
-    setIndex(next);
-    setViewing(true);
-  };
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <Stage shots={shots} item={item} label={starter.label} onOpen={open} />
-      <div
-        role="group"
-        aria-label="Screenshots"
-        className="flex shrink-0 gap-2 overflow-x-auto p-0.5"
-      >
-        {items.map((entry, i) => {
-          const phone =
-            entry.kind === "shot" && shots.light[entry.index]!.phone;
-          return (
-            <button
-              key={entry.kind === "shot" ? entry.index : "together"}
-              type="button"
-              aria-label={
-                entry.kind === "together"
-                  ? "Show desktop and phone together"
-                  : `Show ${phone ? "phone " : ""}screenshot ${entry.index + 1} of ${shots.light.length}`
-              }
-              aria-pressed={i === selected}
-              onClick={() => setSelected(i)}
-              className={cn(
-                "focus-visible:ring-ring relative h-14 shrink-0 cursor-pointer overflow-hidden rounded-md outline-none focus-visible:ring-2",
-                phone ? "aspect-[390/844]" : "aspect-[16/10]",
-                entry.kind === "together" && "bg-foreground/[0.03]",
-                i === selected
-                  ? "ring-foreground ring-2"
-                  : "ring-foreground/10 opacity-70 ring-1 transition-opacity hover:opacity-100",
-              )}
-            >
-              {entry.kind === "together" ? (
-                <Together shots={shots} phone={entry.phone} />
-              ) : (
-                <ShotImage shots={shots} index={entry.index} sizes="96px" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <ScreenshotViewer
-        screenshots={shots}
-        label={starter.label}
-        index={index}
-        onIndexChange={setIndex}
-        open={viewing}
-        onOpenChange={setViewing}
-      />
-    </div>
-  );
-}
-
-/** A starter's recording in the current color mode, on the same stage as a desktop screenshot, with the browser's own playback controls. */
-export function StarterRecording({ starter }: { starter: Starter }) {
+/** The recording, filling the stage at desktop shape, with the browser's own playback controls. */
+function RecordingStage({ starter }: { starter: Starter }) {
   const mode = useTheme().resolvedTheme === "dark" ? "dark" : "light";
   if (!starter.recording) return null;
   const { video, poster } = starter.recording[mode];
@@ -300,6 +230,114 @@ export function StarterRecording({ starter }: { starter: Starter }) {
           )}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * A starter's recording and screenshots in the current color mode: a large
+ * stage with a row of thumbnails to pick what it shows. A click on a
+ * screenshot's stage opens it in the full-size viewer.
+ */
+export function StarterMedia({ starter }: { starter: Starter }) {
+  const [selected, setSelected] = useState(0);
+  const [index, setIndex] = useState(0);
+  const [viewing, setViewing] = useState(false);
+  const shots = collectShots(starter);
+  const recording = starter.recording;
+
+  const items: (Item | { kind: "recording" })[] = [
+    ...(recording ? [{ kind: "recording" } as const] : []),
+    ...(shots ? collectItems(shots) : []),
+  ];
+  const item = items[selected] ?? items[0];
+  if (!item) return null;
+  const open = (next: number) => {
+    setIndex(next);
+    setViewing(true);
+  };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      {item.kind === "recording" ? (
+        <RecordingStage starter={starter} />
+      ) : (
+        <Stage shots={shots!} item={item} label={starter.label} onOpen={open} />
+      )}
+      {items.length > 1 ? (
+        <div
+          role="group"
+          aria-label="Media"
+          className="flex shrink-0 gap-2 overflow-x-auto p-0.5"
+        >
+          {items.map((entry, i) => {
+            const phone =
+              entry.kind === "shot" && shots!.light[entry.index]!.phone;
+            return (
+              <button
+                key={entry.kind === "shot" ? entry.index : entry.kind}
+                type="button"
+                aria-label={
+                  entry.kind === "recording"
+                    ? "Show the recording"
+                    : entry.kind === "together"
+                      ? "Show desktop and phone together"
+                      : `Show ${phone ? "phone " : ""}screenshot ${entry.index + 1} of ${shots!.light.length}`
+                }
+                aria-pressed={i === selected}
+                onClick={() => setSelected(i)}
+                className={cn(
+                  "focus-visible:ring-ring relative h-14 shrink-0 cursor-pointer overflow-hidden rounded-md outline-none focus-visible:ring-2",
+                  phone ? "aspect-[390/844]" : "aspect-[16/10]",
+                  entry.kind === "together" && "bg-foreground/[0.03]",
+                  i === selected
+                    ? "ring-foreground ring-2"
+                    : "ring-foreground/10 opacity-70 ring-1 transition-opacity hover:opacity-100",
+                )}
+              >
+                {entry.kind === "recording" ? (
+                  <>
+                    <Image
+                      src={recording!.light.poster}
+                      alt=""
+                      fill
+                      sizes="96px"
+                      className="object-cover object-top dark:hidden"
+                    />
+                    <Image
+                      src={recording!.dark.poster}
+                      alt=""
+                      fill
+                      sizes="96px"
+                      className="hidden object-cover object-top dark:block"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <PlayIcon
+                        aria-hidden
+                        className="size-4 fill-white text-white drop-shadow"
+                      />
+                    </span>
+                  </>
+                ) : entry.kind === "together" ? (
+                  <Together shots={shots!} phone={entry.phone} />
+                ) : (
+                  <ShotImage shots={shots!} index={entry.index} sizes="96px" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      {shots ? (
+        <ScreenshotViewer
+          screenshots={shots}
+          label={starter.label}
+          index={index}
+          onIndexChange={setIndex}
+          open={viewing}
+          onOpenChange={setViewing}
+        />
+      ) : null}
     </div>
   );
 }

@@ -941,10 +941,35 @@ export function LibraryBrowser() {
                     />
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-8">
-                    {groups.map((group) => (
-                      <div key={group.label} className="flex flex-col gap-2">
-                        {current || groups.length > 1 ? (
+                  <div
+                    className={cn(
+                      "flex flex-col",
+                      groups.length > 1 ? "gap-12" : "gap-8",
+                    )}
+                  >
+                    {groups.map((group, index) => (
+                      <div
+                        key={group.label}
+                        className={cn(
+                          "flex flex-col",
+                          groups.length > 1
+                            ? "border-foreground/10 gap-6 border-t pt-6"
+                            : "gap-2",
+                        )}
+                      >
+                        {groups.length > 1 ? (
+                          <div className="flex items-baseline gap-3">
+                            <span className="text-muted-foreground text-xs tabular-nums">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <GroupLabel className="text-sm font-medium">
+                              {group.label}
+                            </GroupLabel>
+                            <span className="text-muted-foreground ms-auto text-sm tabular-nums">
+                              {group.entries.length}
+                            </span>
+                          </div>
+                        ) : current ? (
                           <GroupLabel className="text-muted-foreground text-sm tabular-nums">
                             {group.label} · {group.entries.length}
                           </GroupLabel>

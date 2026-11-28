@@ -149,6 +149,14 @@ const pages = (
     ),
   }));
 
+/** A tab shown as one run of items, with no group dividers. */
+const single = (
+  label: string,
+  groups: readonly LibraryGroup[],
+): LibraryGroup[] => [
+  { label, entries: groups.flatMap((group) => group.entries) },
+];
+
 const SHADCN_ADD = "npx shadcn@latest add";
 
 /** The vocabulary ships whole inside one package, so every component in it installs the same way. */
@@ -335,7 +343,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     href: "/docs/runtimes/pick-a-runtime",
     guide: "Pick a runtime",
     skills: ["runtime", "streaming"],
-    groups: pages("runtimes", LIBRARY_RUNTIMES),
+    groups: single("Runtimes", pages("runtimes", LIBRARY_RUNTIMES)),
   },
   {
     id: "integrations",
@@ -346,7 +354,7 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     href: "/docs/integrations",
     guide: "Read the integrations guide",
     skills: ["cloud", "observability"],
-    groups: pages("integrations", LIBRARY_INTEGRATIONS),
+    groups: single("Integrations", pages("integrations", LIBRARY_INTEGRATIONS)),
   },
   {
     id: "utilities",
@@ -368,12 +376,16 @@ const SECTIONS: readonly Omit<LibrarySection, "commands">[] = [
     href: SKILLS_GUIDE,
     guide: "Read the skills guide",
     skills: ["assistant-ui"],
-    groups: SKILL_GROUPS.map((group) => ({
-      label: group.title,
-      entries: LIBRARY_SKILLS.filter((skill) => skill.group === group.id).map(
-        (skill): LibraryEntry => ({ kind: "skill", skill }),
-      ),
-    })).filter((group) => group.entries.length > 0),
+    groups: [
+      {
+        label: "Skills",
+        entries: SKILL_GROUPS.flatMap((group) =>
+          LIBRARY_SKILLS.filter((skill) => skill.group === group.id).map(
+            (skill): LibraryEntry => ({ kind: "skill", skill }),
+          ),
+        ),
+      },
+    ],
   },
   {
     id: "agents",
